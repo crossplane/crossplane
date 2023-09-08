@@ -1,0 +1,1655 @@
+=== RUN   TestLoad
+=== RUN   TestLoad/LoadCertError
+=== RUN   TestLoad/LoadCAError
+=== RUN   TestLoad/InvalidCAError
+=== RUN   TestLoad/NoError
+=== RUN   TestLoad/NoErrorWithClientValidation
+--- PASS: TestLoad (0.02s)
+    --- PASS: TestLoad/LoadCertError (0.00s)
+    --- PASS: TestLoad/LoadCAError (0.00s)
+    --- PASS: TestLoad/InvalidCAError (0.02s)
+    --- PASS: TestLoad/NoError (0.00s)
+    --- PASS: TestLoad/NoErrorWithClientValidation (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/certificates	coverage: 100.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/certificates	0.160s	coverage: 100.0% of statements
+?   	github.com/crossplane/crossplane-runtime/pkg/connection/fake	[no test files]
+?   	github.com/crossplane/crossplane-runtime/pkg/connection/store	[no test files]
+=== RUN   TestManagerConnectStore
+=== RUN   TestManagerConnectStore/ConfigNotFound
+=== RUN   TestManagerConnectStore/BuildStoreError
+=== RUN   TestManagerConnectStore/SuccessfulConnect
+--- PASS: TestManagerConnectStore (0.00s)
+    --- PASS: TestManagerConnectStore/ConfigNotFound (0.00s)
+    --- PASS: TestManagerConnectStore/BuildStoreError (0.00s)
+    --- PASS: TestManagerConnectStore/SuccessfulConnect (0.00s)
+=== RUN   TestManagerPublishConnection
+=== RUN   TestManagerPublishConnection/NoConnectionDetails
+=== RUN   TestManagerPublishConnection/CannotConnect
+=== RUN   TestManagerPublishConnection/CannotPublishTo
+=== RUN   TestManagerPublishConnection/SuccessfulPublishWithOwnerUID
+--- PASS: TestManagerPublishConnection (0.00s)
+    --- PASS: TestManagerPublishConnection/NoConnectionDetails (0.00s)
+    --- PASS: TestManagerPublishConnection/CannotConnect (0.00s)
+    --- PASS: TestManagerPublishConnection/CannotPublishTo (0.00s)
+    --- PASS: TestManagerPublishConnection/SuccessfulPublishWithOwnerUID (0.00s)
+=== RUN   TestManagerUnpublishConnection
+=== RUN   TestManagerUnpublishConnection/NoConnectionDetails
+=== RUN   TestManagerUnpublishConnection/CannotConnect
+=== RUN   TestManagerUnpublishConnection/CannotUnpublish
+=== RUN   TestManagerUnpublishConnection/CannotUnpublishUnowned
+=== RUN   TestManagerUnpublishConnection/SuccessfulUnpublish
+--- PASS: TestManagerUnpublishConnection (0.00s)
+    --- PASS: TestManagerUnpublishConnection/NoConnectionDetails (0.00s)
+    --- PASS: TestManagerUnpublishConnection/CannotConnect (0.00s)
+    --- PASS: TestManagerUnpublishConnection/CannotUnpublish (0.00s)
+    --- PASS: TestManagerUnpublishConnection/CannotUnpublishUnowned (0.00s)
+    --- PASS: TestManagerUnpublishConnection/SuccessfulUnpublish (0.00s)
+=== RUN   TestManagerFetchConnection
+=== RUN   TestManagerFetchConnection/CannotFetch
+=== RUN   TestManagerFetchConnection/SuccessfulFetch
+=== RUN   TestManagerFetchConnection/NoConnectionDetails
+=== RUN   TestManagerFetchConnection/CannotConnect
+--- PASS: TestManagerFetchConnection (0.00s)
+    --- PASS: TestManagerFetchConnection/CannotFetch (0.00s)
+    --- PASS: TestManagerFetchConnection/SuccessfulFetch (0.00s)
+    --- PASS: TestManagerFetchConnection/NoConnectionDetails (0.00s)
+    --- PASS: TestManagerFetchConnection/CannotConnect (0.00s)
+=== RUN   TestManagerPropagateConnection
+=== RUN   TestManagerPropagateConnection/SuccessfulPropagateUpdated
+=== RUN   TestManagerPropagateConnection/NoConnectionDetailsSource
+=== RUN   TestManagerPropagateConnection/NoConnectionDetailsDestination
+=== RUN   TestManagerPropagateConnection/CannotConnectSource
+=== RUN   TestManagerPropagateConnection/CannotEstablishControlOfUnowned
+=== RUN   TestManagerPropagateConnection/CannotPublish
+=== RUN   TestManagerPropagateConnection/DestinationSecretCannotBeOwned
+=== RUN   TestManagerPropagateConnection/CannotFetch
+=== RUN   TestManagerPropagateConnection/CannotEstablishControlOfAnotherOwner
+=== RUN   TestManagerPropagateConnection/CannotConnectDestination
+=== RUN   TestManagerPropagateConnection/SuccessfulPropagateCreated
+=== RUN   TestManagerPropagateConnection/CannotPropagateToUnowned
+--- PASS: TestManagerPropagateConnection (0.00s)
+    --- PASS: TestManagerPropagateConnection/SuccessfulPropagateUpdated (0.00s)
+    --- PASS: TestManagerPropagateConnection/NoConnectionDetailsSource (0.00s)
+    --- PASS: TestManagerPropagateConnection/NoConnectionDetailsDestination (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotConnectSource (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotEstablishControlOfUnowned (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotPublish (0.00s)
+    --- PASS: TestManagerPropagateConnection/DestinationSecretCannotBeOwned (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotFetch (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotEstablishControlOfAnotherOwner (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotConnectDestination (0.00s)
+    --- PASS: TestManagerPropagateConnection/SuccessfulPropagateCreated (0.00s)
+    --- PASS: TestManagerPropagateConnection/CannotPropagateToUnowned (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/connection	coverage: 90.6% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/connection	0.178s	coverage: 90.6% of statements
+=== RUN   TestSecretStoreReadKeyValues
+=== RUN   TestSecretStoreReadKeyValues/CannotGetSecret
+=== RUN   TestSecretStoreReadKeyValues/SuccessfulRead
+=== RUN   TestSecretStoreReadKeyValues/SecretNotFound
+--- PASS: TestSecretStoreReadKeyValues (0.00s)
+    --- PASS: TestSecretStoreReadKeyValues/CannotGetSecret (0.00s)
+    --- PASS: TestSecretStoreReadKeyValues/SuccessfulRead (0.00s)
+    --- PASS: TestSecretStoreReadKeyValues/SecretNotFound (0.00s)
+=== RUN   TestSecretStoreWriteKeyValues
+=== RUN   TestSecretStoreWriteKeyValues/SuccessfulWriteOption
+=== RUN   TestSecretStoreWriteKeyValues/SecretUpdatedWithNewKey
+=== RUN   TestSecretStoreWriteKeyValues/SecretCreatedWithData
+=== RUN   TestSecretStoreWriteKeyValues/SecretHasExpectedOwner
+=== RUN   TestSecretStoreWriteKeyValues/SecretCreatedWithDataAndMetadata
+=== RUN   TestSecretStoreWriteKeyValues/ApplyFailed
+=== RUN   TestSecretStoreWriteKeyValues/FailedWriteOption
+=== RUN   TestSecretStoreWriteKeyValues/SecretAlreadyUpToDate
+=== RUN   TestSecretStoreWriteKeyValues/SecretUpdatedWithNewValue
+--- PASS: TestSecretStoreWriteKeyValues (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SuccessfulWriteOption (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SecretUpdatedWithNewKey (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SecretCreatedWithData (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SecretHasExpectedOwner (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SecretCreatedWithDataAndMetadata (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/ApplyFailed (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/FailedWriteOption (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SecretAlreadyUpToDate (0.00s)
+    --- PASS: TestSecretStoreWriteKeyValues/SecretUpdatedWithNewValue (0.00s)
+=== RUN   TestSecretStoreDeleteKeyValues
+=== RUN   TestSecretStoreDeleteKeyValues/SecretUpdatedWithRemainingKeys
+=== RUN   TestSecretStoreDeleteKeyValues/CannotDeleteSecret
+=== RUN   TestSecretStoreDeleteKeyValues/SecretAlreadyDeleted
+=== RUN   TestSecretStoreDeleteKeyValues/FailedDeleteOption
+=== RUN   TestSecretStoreDeleteKeyValues/SecretDeletedNoKVSupplied
+=== RUN   TestSecretStoreDeleteKeyValues/CannotGetSecret
+--- PASS: TestSecretStoreDeleteKeyValues (0.00s)
+    --- PASS: TestSecretStoreDeleteKeyValues/SecretUpdatedWithRemainingKeys (0.00s)
+    --- PASS: TestSecretStoreDeleteKeyValues/CannotDeleteSecret (0.00s)
+    --- PASS: TestSecretStoreDeleteKeyValues/SecretAlreadyDeleted (0.00s)
+    --- PASS: TestSecretStoreDeleteKeyValues/FailedDeleteOption (0.00s)
+    --- PASS: TestSecretStoreDeleteKeyValues/SecretDeletedNoKVSupplied (0.00s)
+    --- PASS: TestSecretStoreDeleteKeyValues/CannotGetSecret (0.00s)
+=== RUN   TestNewSecretStore
+=== RUN   TestNewSecretStore/SuccessfulLocal
+=== RUN   TestNewSecretStore/NoSecretWithRemoteKubeconfig
+=== RUN   TestNewSecretStore/InvalidRestConfigForRemote
+=== RUN   TestNewSecretStore/InvalidKubeconfigForRemote
+--- PASS: TestNewSecretStore (0.00s)
+    --- PASS: TestNewSecretStore/SuccessfulLocal (0.00s)
+    --- PASS: TestNewSecretStore/NoSecretWithRemoteKubeconfig (0.00s)
+    --- PASS: TestNewSecretStore/InvalidRestConfigForRemote (0.00s)
+    --- PASS: TestNewSecretStore/InvalidKubeconfigForRemote (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/connection/store/kubernetes	coverage: 100.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/connection/store/kubernetes	0.143s	coverage: 100.0% of statements
+?   	github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin/fake	[no test files]
+=== RUN   TestReadKeyValues
+=== RUN   TestReadKeyValues/ErrorWhileGetting
+=== RUN   TestReadKeyValues/SuccessfulGet
+--- PASS: TestReadKeyValues (0.00s)
+    --- PASS: TestReadKeyValues/ErrorWhileGetting (0.00s)
+    --- PASS: TestReadKeyValues/SuccessfulGet (0.00s)
+=== RUN   TestWriteKeyValues
+=== RUN   TestWriteKeyValues/ErrorWhileWriting
+=== RUN   TestWriteKeyValues/SuccessfulWrite
+--- PASS: TestWriteKeyValues (0.00s)
+    --- PASS: TestWriteKeyValues/ErrorWhileWriting (0.00s)
+    --- PASS: TestWriteKeyValues/SuccessfulWrite (0.00s)
+=== RUN   TestDeleteKeyValues
+=== RUN   TestDeleteKeyValues/ErrorWhileDeleting
+=== RUN   TestDeleteKeyValues/SuccessfulDelete
+--- PASS: TestDeleteKeyValues (0.00s)
+    --- PASS: TestDeleteKeyValues/ErrorWhileDeleting (0.00s)
+    --- PASS: TestDeleteKeyValues/SuccessfulDelete (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin	coverage: 75.7% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin	0.151s	coverage: 75.7% of statements
+=== RUN   TestEngine
+=== RUN   TestEngine/NewCacheError
+=== RUN   TestEngine/NewControllerError
+=== RUN   TestEngine/WatchError
+=== RUN   TestEngine/CacheCrashError
+=== RUN   TestEngine/ControllerCrashError
+--- PASS: TestEngine (0.50s)
+    --- PASS: TestEngine/NewCacheError (0.10s)
+    --- PASS: TestEngine/NewControllerError (0.10s)
+    --- PASS: TestEngine/WatchError (0.10s)
+    --- PASS: TestEngine/CacheCrashError (0.10s)
+    --- PASS: TestEngine/ControllerCrashError (0.10s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/controller	coverage: 92.3% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/controller	0.668s	coverage: 92.3% of statements
+=== RUN   TestWrap
+=== RUN   TestWrap/NilError
+=== RUN   TestWrap/NonNilError
+--- PASS: TestWrap (0.00s)
+    --- PASS: TestWrap/NilError (0.00s)
+    --- PASS: TestWrap/NonNilError (0.00s)
+=== RUN   TestWrapf
+=== RUN   TestWrapf/NilError
+=== RUN   TestWrapf/NonNilError
+--- PASS: TestWrapf (0.00s)
+    --- PASS: TestWrapf/NilError (0.00s)
+    --- PASS: TestWrapf/NonNilError (0.00s)
+=== RUN   TestCause
+=== RUN   TestCause/BareError
+=== RUN   TestCause/WrappedError
+=== RUN   TestCause/NilError
+--- PASS: TestCause (0.00s)
+    --- PASS: TestCause/BareError (0.00s)
+    --- PASS: TestCause/WrappedError (0.00s)
+    --- PASS: TestCause/NilError (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/errors	coverage: 65.4% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/errors	0.156s	coverage: 65.4% of statements
+=== RUN   TestSliceMap
+=== RUN   TestSliceMap/TwoPairs
+=== RUN   TestSliceMap/NoValue
+=== RUN   TestSliceMap/ExtraneousKey
+=== RUN   TestSliceMap/OnePair
+--- PASS: TestSliceMap (0.00s)
+    --- PASS: TestSliceMap/TwoPairs (0.00s)
+    --- PASS: TestSliceMap/NoValue (0.00s)
+    --- PASS: TestSliceMap/ExtraneousKey (0.00s)
+    --- PASS: TestSliceMap/OnePair (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/event	coverage: 16.7% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/event	0.079s	coverage: 16.7% of statements
+=== RUN   TestEnable
+=== RUN   TestEnable/EnableMutatesZeroValue
+=== RUN   TestEnable/EnabledOnEmptyFlagsReturnsFalse
+=== RUN   TestEnable/EnabledOnNilReturnsFalse
+--- PASS: TestEnable (0.00s)
+    --- PASS: TestEnable/EnableMutatesZeroValue (0.00s)
+    --- PASS: TestEnable/EnabledOnEmptyFlagsReturnsFalse (0.00s)
+    --- PASS: TestEnable/EnabledOnNilReturnsFalse (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/feature	coverage: 100.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/feature	0.093s	coverage: 100.0% of statements
+?   	github.com/crossplane/crossplane-runtime/pkg/logging	[no test files]
+=== RUN   TestSegments
+=== RUN   TestSegments/Wildcard
+=== RUN   TestSegments/SingleField
+=== RUN   TestSegments/SingleIndex
+=== RUN   TestSegments/FieldsAndIndex
+=== RUN   TestSegments/PeriodsInField
+--- PASS: TestSegments (0.00s)
+    --- PASS: TestSegments/Wildcard (0.00s)
+    --- PASS: TestSegments/SingleField (0.00s)
+    --- PASS: TestSegments/SingleIndex (0.00s)
+    --- PASS: TestSegments/FieldsAndIndex (0.00s)
+    --- PASS: TestSegments/PeriodsInField (0.00s)
+=== RUN   TestFieldOrIndex
+=== RUN   TestFieldOrIndex/Negative
+=== RUN   TestFieldOrIndex/Float
+=== RUN   TestFieldOrIndex/Overflow
+=== RUN   TestFieldOrIndex/Field
+=== RUN   TestFieldOrIndex/QuotedField
+=== RUN   TestFieldOrIndex/QuotedFieldWithPeriods
+=== RUN   TestFieldOrIndex/Index
+--- PASS: TestFieldOrIndex (0.00s)
+    --- PASS: TestFieldOrIndex/Negative (0.00s)
+    --- PASS: TestFieldOrIndex/Float (0.00s)
+    --- PASS: TestFieldOrIndex/Overflow (0.00s)
+    --- PASS: TestFieldOrIndex/Field (0.00s)
+    --- PASS: TestFieldOrIndex/QuotedField (0.00s)
+    --- PASS: TestFieldOrIndex/QuotedFieldWithPeriods (0.00s)
+    --- PASS: TestFieldOrIndex/Index (0.00s)
+=== RUN   TestParse
+=== RUN   TestParse/TwoFields
+=== RUN   TestParse/NestedArray
+=== RUN   TestParse/DoublePeriod
+=== RUN   TestParse/DanglingLeftBracket
+=== RUN   TestParse/SingleIndex
+=== RUN   TestParse/APIConventionsExample
+=== RUN   TestParse/FieldsAndIndex
+=== RUN   TestParse/BracketStyleField
+=== RUN   TestParse/LeadingPeriod
+=== RUN   TestParse/BracketsFollowingPeriod
+=== RUN   TestParse/DoubleOpenBracket
+=== RUN   TestParse/SingleField
+=== RUN   TestParse/QuotedFieldWithPeriodInBracket
+=== RUN   TestParse/DanglingRightBracket
+=== RUN   TestParse/SimpleIndex
+=== RUN   TestParse/BracketFieldWithPeriod
+=== RUN   TestParse/TrailingPeriod
+=== RUN   TestParse/EmptyBracket
+--- PASS: TestParse (0.00s)
+    --- PASS: TestParse/TwoFields (0.00s)
+    --- PASS: TestParse/NestedArray (0.00s)
+    --- PASS: TestParse/DoublePeriod (0.00s)
+    --- PASS: TestParse/DanglingLeftBracket (0.00s)
+    --- PASS: TestParse/SingleIndex (0.00s)
+    --- PASS: TestParse/APIConventionsExample (0.00s)
+    --- PASS: TestParse/FieldsAndIndex (0.00s)
+    --- PASS: TestParse/BracketStyleField (0.00s)
+    --- PASS: TestParse/LeadingPeriod (0.00s)
+    --- PASS: TestParse/BracketsFollowingPeriod (0.00s)
+    --- PASS: TestParse/DoubleOpenBracket (0.00s)
+    --- PASS: TestParse/SingleField (0.00s)
+    --- PASS: TestParse/QuotedFieldWithPeriodInBracket (0.00s)
+    --- PASS: TestParse/DanglingRightBracket (0.00s)
+    --- PASS: TestParse/SimpleIndex (0.00s)
+    --- PASS: TestParse/BracketFieldWithPeriod (0.00s)
+    --- PASS: TestParse/TrailingPeriod (0.00s)
+    --- PASS: TestParse/EmptyBracket (0.00s)
+=== RUN   TestMergeValue
+=== RUN   TestMergeValue/MergeArrayNoAppend
+=== RUN   TestMergeValue/MergeArrayAppend
+=== RUN   TestMergeValue/MergeArrayAppendDuplicate
+=== RUN   TestMergeValue/MergeMapNoMergeOptions
+=== RUN   TestMergeValue/MergeMapNoKeep
+=== RUN   TestMergeValue/MergeMapKeep
+=== RUN   TestMergeValue/MergeArrayNoMergeOptions
+--- PASS: TestMergeValue (0.00s)
+    --- PASS: TestMergeValue/MergeArrayNoAppend (0.00s)
+    --- PASS: TestMergeValue/MergeArrayAppend (0.00s)
+    --- PASS: TestMergeValue/MergeArrayAppendDuplicate (0.00s)
+    --- PASS: TestMergeValue/MergeMapNoMergeOptions (0.00s)
+    --- PASS: TestMergeValue/MergeMapNoKeep (0.00s)
+    --- PASS: TestMergeValue/MergeMapKeep (0.00s)
+    --- PASS: TestMergeValue/MergeArrayNoMergeOptions (0.00s)
+=== RUN   TestIsNotFound
+=== RUN   TestIsNotFound/WrapsNotFound
+=== RUN   TestIsNotFound/SomethingElse
+=== RUN   TestIsNotFound/NotFound
+--- PASS: TestIsNotFound (0.00s)
+    --- PASS: TestIsNotFound/WrapsNotFound (0.00s)
+    --- PASS: TestIsNotFound/SomethingElse (0.00s)
+    --- PASS: TestIsNotFound/NotFound (0.00s)
+=== RUN   TestGetValue
+=== RUN   TestGetValue/MetadataName
+=== RUN   TestGetValue/ContainerName
+=== RUN   TestGetValue/NestedArray
+=== RUN   TestGetValue/MetadataVersion
+=== RUN   TestGetValue/NotAnArray
+=== RUN   TestGetValue/NotAnObject
+=== RUN   TestGetValue/OwnerRefController
+=== RUN   TestGetValue/SomeFloat
+=== RUN   TestGetValue/MetadataNope
+=== RUN   TestGetValue/InsufficientContainers
+=== RUN   TestGetValue/MalformedPath
+--- PASS: TestGetValue (0.00s)
+    --- PASS: TestGetValue/MetadataName (0.00s)
+    --- PASS: TestGetValue/ContainerName (0.00s)
+    --- PASS: TestGetValue/NestedArray (0.00s)
+    --- PASS: TestGetValue/MetadataVersion (0.00s)
+    --- PASS: TestGetValue/NotAnArray (0.00s)
+    --- PASS: TestGetValue/NotAnObject (0.00s)
+    --- PASS: TestGetValue/OwnerRefController (0.00s)
+    --- PASS: TestGetValue/SomeFloat (0.00s)
+    --- PASS: TestGetValue/MetadataNope (0.00s)
+    --- PASS: TestGetValue/InsufficientContainers (0.00s)
+    --- PASS: TestGetValue/MalformedPath (0.00s)
+=== RUN   TestGetValueInto
+=== RUN   TestGetValueInto/Struct
+=== RUN   TestGetValueInto/Slice
+=== RUN   TestGetValueInto/MissingPath
+--- PASS: TestGetValueInto (0.00s)
+    --- PASS: TestGetValueInto/Struct (0.00s)
+    --- PASS: TestGetValueInto/Slice (0.00s)
+    --- PASS: TestGetValueInto/MissingPath (0.00s)
+=== RUN   TestGetString
+=== RUN   TestGetString/MetadataName
+=== RUN   TestGetString/MalformedPath
+=== RUN   TestGetString/NotAString
+--- PASS: TestGetString (0.00s)
+    --- PASS: TestGetString/MetadataName (0.00s)
+    --- PASS: TestGetString/MalformedPath (0.00s)
+    --- PASS: TestGetString/NotAString (0.00s)
+=== RUN   TestGetStringArray
+=== RUN   TestGetStringArray/NotAnArray
+=== RUN   TestGetStringArray/NotAStringArray
+=== RUN   TestGetStringArray/MetadataLabels
+=== RUN   TestGetStringArray/MalformedPath
+--- PASS: TestGetStringArray (0.00s)
+    --- PASS: TestGetStringArray/NotAnArray (0.00s)
+    --- PASS: TestGetStringArray/NotAStringArray (0.00s)
+    --- PASS: TestGetStringArray/MetadataLabels (0.00s)
+    --- PASS: TestGetStringArray/MalformedPath (0.00s)
+=== RUN   TestGetStringObject
+=== RUN   TestGetStringObject/MetadataLabels
+=== RUN   TestGetStringObject/MalformedPath
+=== RUN   TestGetStringObject/NotAnObject
+=== RUN   TestGetStringObject/NotAStringObject
+--- PASS: TestGetStringObject (0.00s)
+    --- PASS: TestGetStringObject/MetadataLabels (0.00s)
+    --- PASS: TestGetStringObject/MalformedPath (0.00s)
+    --- PASS: TestGetStringObject/NotAnObject (0.00s)
+    --- PASS: TestGetStringObject/NotAStringObject (0.00s)
+=== RUN   TestGetBool
+=== RUN   TestGetBool/OwnerRefController
+=== RUN   TestGetBool/MalformedPath
+=== RUN   TestGetBool/NotABool
+--- PASS: TestGetBool (0.00s)
+    --- PASS: TestGetBool/OwnerRefController (0.00s)
+    --- PASS: TestGetBool/MalformedPath (0.00s)
+    --- PASS: TestGetBool/NotABool (0.00s)
+=== RUN   TestGetInteger
+=== RUN   TestGetInteger/MetadataVersion
+=== RUN   TestGetInteger/MalformedPath
+=== RUN   TestGetInteger/NotANumber
+--- PASS: TestGetInteger (0.00s)
+    --- PASS: TestGetInteger/MetadataVersion (0.00s)
+    --- PASS: TestGetInteger/MalformedPath (0.00s)
+    --- PASS: TestGetInteger/NotANumber (0.00s)
+=== RUN   TestSetValue
+=== RUN   TestSetValue/NewContainer
+=== RUN   TestSetValue/NestedArray
+=== RUN   TestSetValue/GrowNestedArray
+=== RUN   TestSetValue/NonExistentMetadataName
+=== RUN   TestSetValue/RejectsHighIndexes
+=== RUN   TestSetValue/NotRejectsHighIndexesIfNoDefaultOptions
+=== RUN   TestSetValue/MapStringString
+=== RUN   TestSetValue/OwnerReference
+=== RUN   TestSetValue/NotAnObject
+=== RUN   TestSetValue/ContainerName
+=== RUN   TestSetValue/NonExistentContainerName
+=== RUN   TestSetValue/GrowArrayField
+=== RUN   TestSetValue/NotAnArray
+=== RUN   TestSetValue/MalformedPath
+=== RUN   TestSetValue/MetadataName
+--- PASS: TestSetValue (0.00s)
+    --- PASS: TestSetValue/NewContainer (0.00s)
+    --- PASS: TestSetValue/NestedArray (0.00s)
+    --- PASS: TestSetValue/GrowNestedArray (0.00s)
+    --- PASS: TestSetValue/NonExistentMetadataName (0.00s)
+    --- PASS: TestSetValue/RejectsHighIndexes (0.00s)
+    --- PASS: TestSetValue/NotRejectsHighIndexesIfNoDefaultOptions (0.00s)
+    --- PASS: TestSetValue/MapStringString (0.00s)
+    --- PASS: TestSetValue/OwnerReference (0.00s)
+    --- PASS: TestSetValue/NotAnObject (0.00s)
+    --- PASS: TestSetValue/ContainerName (0.00s)
+    --- PASS: TestSetValue/NonExistentContainerName (0.00s)
+    --- PASS: TestSetValue/GrowArrayField (0.00s)
+    --- PASS: TestSetValue/NotAnArray (0.00s)
+    --- PASS: TestSetValue/MalformedPath (0.00s)
+    --- PASS: TestSetValue/MetadataName (0.00s)
+=== RUN   TestExpandWildcards
+=== RUN   TestExpandWildcards/NestedNoWildcardNonExisting
+=== RUN   TestExpandWildcards/KeysOfMap
+=== RUN   TestExpandWildcards/WildcardAtTheEnd
+=== RUN   TestExpandWildcards/UnexpectedWildcard
+=== RUN   TestExpandWildcards/NotAnArray
+=== RUN   TestExpandWildcards/NoWildcardNonExisting
+=== RUN   TestExpandWildcards/NestedArray
+=== RUN   TestExpandWildcards/ArrayOfObjects
+=== RUN   TestExpandWildcards/WildcardInTheBeginning
+=== RUN   TestExpandWildcards/NestedNoWildcardExisting
+=== RUN   TestExpandWildcards/MultiLayer
+=== RUN   TestExpandWildcards/NoData
+=== RUN   TestExpandWildcards/InsufficientContainers
+=== RUN   TestExpandWildcards/NoWildcardExisting
+=== RUN   TestExpandWildcards/NotAnObject
+=== RUN   TestExpandWildcards/MalformedPath
+--- PASS: TestExpandWildcards (0.00s)
+    --- PASS: TestExpandWildcards/NestedNoWildcardNonExisting (0.00s)
+    --- PASS: TestExpandWildcards/KeysOfMap (0.00s)
+    --- PASS: TestExpandWildcards/WildcardAtTheEnd (0.00s)
+    --- PASS: TestExpandWildcards/UnexpectedWildcard (0.00s)
+    --- PASS: TestExpandWildcards/NotAnArray (0.00s)
+    --- PASS: TestExpandWildcards/NoWildcardNonExisting (0.00s)
+    --- PASS: TestExpandWildcards/NestedArray (0.00s)
+    --- PASS: TestExpandWildcards/ArrayOfObjects (0.00s)
+    --- PASS: TestExpandWildcards/WildcardInTheBeginning (0.00s)
+    --- PASS: TestExpandWildcards/NestedNoWildcardExisting (0.00s)
+    --- PASS: TestExpandWildcards/MultiLayer (0.00s)
+    --- PASS: TestExpandWildcards/NoData (0.00s)
+    --- PASS: TestExpandWildcards/InsufficientContainers (0.00s)
+    --- PASS: TestExpandWildcards/NoWildcardExisting (0.00s)
+    --- PASS: TestExpandWildcards/NotAnObject (0.00s)
+    --- PASS: TestExpandWildcards/MalformedPath (0.00s)
+=== RUN   TestDeleteField
+=== RUN   TestDeleteField/ArrayFirstElement
+=== RUN   TestDeleteField/ArrayMidElement
+=== RUN   TestDeleteField/NonExistentPathInMap
+=== RUN   TestDeleteField/IndexGivenForNonArrayInMiddle
+=== RUN   TestDeleteField/ObjectSingleField
+=== RUN   TestDeleteField/NonExistentPathInArray
+=== RUN   TestDeleteField/KeyGivenForNonMapInMiddle
+=== RUN   TestDeleteField/ObjectField
+=== RUN   TestDeleteField/ArrayOnlyElements
+=== RUN   TestDeleteField/ArrayMultipleIndex
+=== RUN   TestDeleteField/KeyGivenForNonMap
+=== RUN   TestDeleteField/ObjectLeafField
+=== RUN   TestDeleteField/ObjectMidField
+=== RUN   TestDeleteField/ObjectInArray
+=== RUN   TestDeleteField/ArrayLastElement
+=== RUN   TestDeleteField/ArrayNoElement
+=== RUN   TestDeleteField/MalformedPath
+=== RUN   TestDeleteField/IndexGivenForNonArray
+=== RUN   TestDeleteField/NonExistentElementInArray
+--- PASS: TestDeleteField (0.00s)
+    --- PASS: TestDeleteField/ArrayFirstElement (0.00s)
+    --- PASS: TestDeleteField/ArrayMidElement (0.00s)
+    --- PASS: TestDeleteField/NonExistentPathInMap (0.00s)
+    --- PASS: TestDeleteField/IndexGivenForNonArrayInMiddle (0.00s)
+    --- PASS: TestDeleteField/ObjectSingleField (0.00s)
+    --- PASS: TestDeleteField/NonExistentPathInArray (0.00s)
+    --- PASS: TestDeleteField/KeyGivenForNonMapInMiddle (0.00s)
+    --- PASS: TestDeleteField/ObjectField (0.00s)
+    --- PASS: TestDeleteField/ArrayOnlyElements (0.00s)
+    --- PASS: TestDeleteField/ArrayMultipleIndex (0.00s)
+    --- PASS: TestDeleteField/KeyGivenForNonMap (0.00s)
+    --- PASS: TestDeleteField/ObjectLeafField (0.00s)
+    --- PASS: TestDeleteField/ObjectMidField (0.00s)
+    --- PASS: TestDeleteField/ObjectInArray (0.00s)
+    --- PASS: TestDeleteField/ArrayLastElement (0.00s)
+    --- PASS: TestDeleteField/ArrayNoElement (0.00s)
+    --- PASS: TestDeleteField/MalformedPath (0.00s)
+    --- PASS: TestDeleteField/IndexGivenForNonArray (0.00s)
+    --- PASS: TestDeleteField/NonExistentElementInArray (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/fieldpath	coverage: 91.7% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/fieldpath	0.155s	coverage: 91.7% of statements
+=== RUN   TestReferenceTo
+=== RUN   TestReferenceTo/WithTypeMeta
+--- PASS: TestReferenceTo (0.00s)
+    --- PASS: TestReferenceTo/WithTypeMeta (0.00s)
+=== RUN   TestTypedReferenceTo
+=== RUN   TestTypedReferenceTo/WithTypeMeta
+--- PASS: TestTypedReferenceTo (0.00s)
+    --- PASS: TestTypedReferenceTo/WithTypeMeta (0.00s)
+=== RUN   TestAsOwner
+=== RUN   TestAsOwner/Successful
+--- PASS: TestAsOwner (0.00s)
+    --- PASS: TestAsOwner/Successful (0.00s)
+=== RUN   TestAsController
+=== RUN   TestAsController/Successful
+--- PASS: TestAsController (0.00s)
+    --- PASS: TestAsController/Successful (0.00s)
+=== RUN   TestHaveSameController
+=== RUN   TestHaveSameController/SameController
+=== RUN   TestHaveSameController/AHasNoController
+=== RUN   TestHaveSameController/BHasNoController
+=== RUN   TestHaveSameController/ControllersDiffer
+--- PASS: TestHaveSameController (0.00s)
+    --- PASS: TestHaveSameController/SameController (0.00s)
+    --- PASS: TestHaveSameController/AHasNoController (0.00s)
+    --- PASS: TestHaveSameController/BHasNoController (0.00s)
+    --- PASS: TestHaveSameController/ControllersDiffer (0.00s)
+=== RUN   TestNamespacedNameOf
+=== RUN   TestNamespacedNameOf/Success
+--- PASS: TestNamespacedNameOf (0.00s)
+    --- PASS: TestNamespacedNameOf/Success (0.00s)
+=== RUN   TestAddOwnerReference
+=== RUN   TestAddOwnerReference/NoExistingOwners
+=== RUN   TestAddOwnerReference/UpdateExistingOwner
+=== RUN   TestAddOwnerReference/OwnedByAnotherObject
+--- PASS: TestAddOwnerReference (0.00s)
+    --- PASS: TestAddOwnerReference/NoExistingOwners (0.00s)
+    --- PASS: TestAddOwnerReference/UpdateExistingOwner (0.00s)
+    --- PASS: TestAddOwnerReference/OwnedByAnotherObject (0.00s)
+=== RUN   TestAddControllerReference
+=== RUN   TestAddControllerReference/OwnedByAnotherObject
+=== RUN   TestAddControllerReference/ControlledByAnotherObject
+=== RUN   TestAddControllerReference/NoExistingOwners
+=== RUN   TestAddControllerReference/UpdateExistingOwner
+--- PASS: TestAddControllerReference (0.00s)
+    --- PASS: TestAddControllerReference/OwnedByAnotherObject (0.00s)
+    --- PASS: TestAddControllerReference/ControlledByAnotherObject (0.00s)
+    --- PASS: TestAddControllerReference/NoExistingOwners (0.00s)
+    --- PASS: TestAddControllerReference/UpdateExistingOwner (0.00s)
+=== RUN   TestAddFinalizer
+=== RUN   TestAddFinalizer/NoExistingFinalizers
+=== RUN   TestAddFinalizer/FinalizerAlreadyExists
+=== RUN   TestAddFinalizer/AnotherFinalizerExists
+--- PASS: TestAddFinalizer (0.00s)
+    --- PASS: TestAddFinalizer/NoExistingFinalizers (0.00s)
+    --- PASS: TestAddFinalizer/FinalizerAlreadyExists (0.00s)
+    --- PASS: TestAddFinalizer/AnotherFinalizerExists (0.00s)
+=== RUN   TestRemoveFinalizer
+=== RUN   TestRemoveFinalizer/NoExistingFinalizers
+=== RUN   TestRemoveFinalizer/FinalizerExists
+=== RUN   TestRemoveFinalizer/AnotherFinalizerExists
+--- PASS: TestRemoveFinalizer (0.00s)
+    --- PASS: TestRemoveFinalizer/NoExistingFinalizers (0.00s)
+    --- PASS: TestRemoveFinalizer/FinalizerExists (0.00s)
+    --- PASS: TestRemoveFinalizer/AnotherFinalizerExists (0.00s)
+=== RUN   TestFinalizerExists
+=== RUN   TestFinalizerExists/NoExistingFinalizers
+=== RUN   TestFinalizerExists/FinalizerExists
+=== RUN   TestFinalizerExists/AnotherFinalizerExists
+--- PASS: TestFinalizerExists (0.00s)
+    --- PASS: TestFinalizerExists/NoExistingFinalizers (0.00s)
+    --- PASS: TestFinalizerExists/FinalizerExists (0.00s)
+    --- PASS: TestFinalizerExists/AnotherFinalizerExists (0.00s)
+=== RUN   TestAddLabels
+=== RUN   TestAddLabels/NoExistingLabels
+=== RUN   TestAddLabels/ExistingLabels
+--- PASS: TestAddLabels (0.00s)
+    --- PASS: TestAddLabels/NoExistingLabels (0.00s)
+    --- PASS: TestAddLabels/ExistingLabels (0.00s)
+=== RUN   TestRemoveLabels
+=== RUN   TestRemoveLabels/ExistingLabels
+=== RUN   TestRemoveLabels/NoExistingLabels
+--- PASS: TestRemoveLabels (0.00s)
+    --- PASS: TestRemoveLabels/ExistingLabels (0.00s)
+    --- PASS: TestRemoveLabels/NoExistingLabels (0.00s)
+=== RUN   TestAddAnnotations
+=== RUN   TestAddAnnotations/NoExistingAnnotations
+=== RUN   TestAddAnnotations/ExistingAnnotations
+--- PASS: TestAddAnnotations (0.00s)
+    --- PASS: TestAddAnnotations/NoExistingAnnotations (0.00s)
+    --- PASS: TestAddAnnotations/ExistingAnnotations (0.00s)
+=== RUN   TestRemoveAnnotations
+=== RUN   TestRemoveAnnotations/ExistingAnnotations
+=== RUN   TestRemoveAnnotations/NoExistingAnnotations
+--- PASS: TestRemoveAnnotations (0.00s)
+    --- PASS: TestRemoveAnnotations/ExistingAnnotations (0.00s)
+    --- PASS: TestRemoveAnnotations/NoExistingAnnotations (0.00s)
+=== RUN   TestWasDeleted
+=== RUN   TestWasDeleted/ObjectWasDeleted
+=== RUN   TestWasDeleted/ObjectWasNotDeleted
+--- PASS: TestWasDeleted (0.00s)
+    --- PASS: TestWasDeleted/ObjectWasDeleted (0.00s)
+    --- PASS: TestWasDeleted/ObjectWasNotDeleted (0.00s)
+=== RUN   TestWasCreated
+=== RUN   TestWasCreated/ObjectWasCreated
+=== RUN   TestWasCreated/ObjectWasNotCreated
+--- PASS: TestWasCreated (0.00s)
+    --- PASS: TestWasCreated/ObjectWasCreated (0.00s)
+    --- PASS: TestWasCreated/ObjectWasNotCreated (0.00s)
+=== RUN   TestGetExternalName
+=== RUN   TestGetExternalName/ExternalNameExists
+=== RUN   TestGetExternalName/NoExternalName
+--- PASS: TestGetExternalName (0.00s)
+    --- PASS: TestGetExternalName/ExternalNameExists (0.00s)
+    --- PASS: TestGetExternalName/NoExternalName (0.00s)
+=== RUN   TestSetExternalName
+=== RUN   TestSetExternalName/SetsTheCorrectKey
+--- PASS: TestSetExternalName (0.00s)
+    --- PASS: TestSetExternalName/SetsTheCorrectKey (0.00s)
+=== RUN   TestGetExternalCreatePending
+=== RUN   TestGetExternalCreatePending/ExternalCreatePendingExists
+=== RUN   TestGetExternalCreatePending/NoExternalCreatePending
+--- PASS: TestGetExternalCreatePending (0.00s)
+    --- PASS: TestGetExternalCreatePending/ExternalCreatePendingExists (0.00s)
+    --- PASS: TestGetExternalCreatePending/NoExternalCreatePending (0.00s)
+=== RUN   TestSetExternalCreatePending
+=== RUN   TestSetExternalCreatePending/SetsTheCorrectKey
+--- PASS: TestSetExternalCreatePending (0.00s)
+    --- PASS: TestSetExternalCreatePending/SetsTheCorrectKey (0.00s)
+=== RUN   TestGetExternalCreateSucceeded
+=== RUN   TestGetExternalCreateSucceeded/ExternalCreateTimeExists
+=== RUN   TestGetExternalCreateSucceeded/NoExternalCreateTime
+--- PASS: TestGetExternalCreateSucceeded (0.00s)
+    --- PASS: TestGetExternalCreateSucceeded/ExternalCreateTimeExists (0.00s)
+    --- PASS: TestGetExternalCreateSucceeded/NoExternalCreateTime (0.00s)
+=== RUN   TestSetExternalCreateSucceeded
+=== RUN   TestSetExternalCreateSucceeded/SetsTheCorrectKey
+--- PASS: TestSetExternalCreateSucceeded (0.00s)
+    --- PASS: TestSetExternalCreateSucceeded/SetsTheCorrectKey (0.00s)
+=== RUN   TestGetExternalCreateFailed
+=== RUN   TestGetExternalCreateFailed/NoExternalCreateFailed
+=== RUN   TestGetExternalCreateFailed/ExternalCreateFailedExists
+--- PASS: TestGetExternalCreateFailed (0.00s)
+    --- PASS: TestGetExternalCreateFailed/NoExternalCreateFailed (0.00s)
+    --- PASS: TestGetExternalCreateFailed/ExternalCreateFailedExists (0.00s)
+=== RUN   TestSetExternalCreateFailed
+=== RUN   TestSetExternalCreateFailed/SetsTheCorrectKey
+--- PASS: TestSetExternalCreateFailed (0.00s)
+    --- PASS: TestSetExternalCreateFailed/SetsTheCorrectKey (0.00s)
+=== RUN   TestExternalCreateSucceededDuring
+=== RUN   TestExternalCreateSucceededDuring/NotYetSuccessfullyCreated
+=== RUN   TestExternalCreateSucceededDuring/SuccessfullyCreatedTooLongAgo
+=== RUN   TestExternalCreateSucceededDuring/SuccessfullyCreatedWithinDuration
+--- PASS: TestExternalCreateSucceededDuring (0.00s)
+    --- PASS: TestExternalCreateSucceededDuring/NotYetSuccessfullyCreated (0.00s)
+    --- PASS: TestExternalCreateSucceededDuring/SuccessfullyCreatedTooLongAgo (0.00s)
+    --- PASS: TestExternalCreateSucceededDuring/SuccessfullyCreatedWithinDuration (0.00s)
+=== RUN   TestExternalCreateIncomplete
+=== RUN   TestExternalCreateIncomplete/CreateNeverCompleted
+=== RUN   TestExternalCreateIncomplete/RecreateNeverCompleted
+=== RUN   TestExternalCreateIncomplete/RetryNeverCompleted
+=== RUN   TestExternalCreateIncomplete/CreateNeverPending
+=== RUN   TestExternalCreateIncomplete/CreateSucceeded
+=== RUN   TestExternalCreateIncomplete/CreateFailed
+--- PASS: TestExternalCreateIncomplete (0.00s)
+    --- PASS: TestExternalCreateIncomplete/CreateNeverCompleted (0.00s)
+    --- PASS: TestExternalCreateIncomplete/RecreateNeverCompleted (0.00s)
+    --- PASS: TestExternalCreateIncomplete/RetryNeverCompleted (0.00s)
+    --- PASS: TestExternalCreateIncomplete/CreateNeverPending (0.00s)
+    --- PASS: TestExternalCreateIncomplete/CreateSucceeded (0.00s)
+    --- PASS: TestExternalCreateIncomplete/CreateFailed (0.00s)
+=== RUN   TestIsPaused
+=== RUN   TestIsPaused/HasEmptyPauseAnnotation
+=== RUN   TestIsPaused/HasPauseAnnotationSetTrue
+=== RUN   TestIsPaused/NoPauseAnnotation
+--- PASS: TestIsPaused (0.00s)
+    --- PASS: TestIsPaused/HasEmptyPauseAnnotation (0.00s)
+    --- PASS: TestIsPaused/HasPauseAnnotationSetTrue (0.00s)
+    --- PASS: TestIsPaused/NoPauseAnnotation (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/meta	coverage: 100.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/meta	0.144s	coverage: 100.0% of statements
+=== RUN   TestLinter
+=== RUN   TestLinter/ErrorPackageLint
+=== RUN   TestLinter/ErrorMetaLint
+=== RUN   TestLinter/ErrorObjectLint
+=== RUN   TestLinter/SuccessfulNoOp
+=== RUN   TestLinter/SuccessfulNoObjects
+=== RUN   TestLinter/SuccessfulWithChecks
+--- PASS: TestLinter (0.00s)
+    --- PASS: TestLinter/ErrorPackageLint (0.00s)
+    --- PASS: TestLinter/ErrorMetaLint (0.00s)
+    --- PASS: TestLinter/ErrorObjectLint (0.00s)
+    --- PASS: TestLinter/SuccessfulNoOp (0.00s)
+    --- PASS: TestLinter/SuccessfulNoObjects (0.00s)
+    --- PASS: TestLinter/SuccessfulWithChecks (0.00s)
+=== RUN   TestOr
+=== RUN   TestOr/SuccessfulBothPass
+=== RUN   TestOr/SuccessfulOnePass
+=== RUN   TestOr/ErrNeitherPass
+=== RUN   TestOr/ErrNilLinter
+--- PASS: TestOr (0.00s)
+    --- PASS: TestOr/SuccessfulBothPass (0.00s)
+    --- PASS: TestOr/SuccessfulOnePass (0.00s)
+    --- PASS: TestOr/ErrNeitherPass (0.00s)
+    --- PASS: TestOr/ErrNilLinter (0.00s)
+=== RUN   TestParser
+=== RUN   TestParser/FsBackendError
+=== RUN   TestParser/EchoBackendEmpty
+=== RUN   TestParser/EchoBackendError
+=== RUN   TestParser/EchoBackend
+=== RUN   TestParser/FsBackendAll
+=== RUN   TestParser/FsBackendSkip
+=== RUN   TestParser/NopBackend
+=== RUN   TestParser/FsBackend
+=== RUN   TestParser/FsBackendCommentedOut
+=== RUN   TestParser/FsBackendWithComments
+--- PASS: TestParser (0.01s)
+    --- PASS: TestParser/FsBackendError (0.00s)
+    --- PASS: TestParser/EchoBackendEmpty (0.00s)
+    --- PASS: TestParser/EchoBackendError (0.00s)
+    --- PASS: TestParser/EchoBackend (0.00s)
+    --- PASS: TestParser/FsBackendAll (0.00s)
+    --- PASS: TestParser/FsBackendSkip (0.00s)
+    --- PASS: TestParser/NopBackend (0.00s)
+    --- PASS: TestParser/FsBackend (0.00s)
+    --- PASS: TestParser/FsBackendCommentedOut (0.00s)
+    --- PASS: TestParser/FsBackendWithComments (0.00s)
+=== RUN   FuzzParse
+--- PASS: FuzzParse (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/parser	coverage: 77.2% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/parser	0.174s	coverage: 77.2% of statements
+=== RUN   TestGenerate
+--- PASS: TestGenerate (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/password	coverage: 75.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/password	0.138s	coverage: 75.0% of statements
+?   	github.com/crossplane/crossplane-runtime/pkg/reconciler	[no test files]
+=== RUN   TestReconcile
+=== RUN   TestReconcile/NotRateLimited
+=== RUN   TestReconcile/RateLimited
+=== RUN   TestReconcile/Returning
+--- PASS: TestReconcile (0.00s)
+    --- PASS: TestReconcile/NotRateLimited (0.00s)
+    --- PASS: TestReconcile/RateLimited (0.00s)
+    --- PASS: TestReconcile/Returning (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/ratelimiter	coverage: 77.8% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/ratelimiter	0.133s	coverage: 77.8% of statements
+=== RUN   TestNameAsExternalName
+=== RUN   TestNameAsExternalName/UpdateManagedError
+=== RUN   TestNameAsExternalName/UpdateSuccessful
+=== RUN   TestNameAsExternalName/UpdateNotNeeded
+--- PASS: TestNameAsExternalName (0.00s)
+    --- PASS: TestNameAsExternalName/UpdateManagedError (0.00s)
+    --- PASS: TestNameAsExternalName/UpdateSuccessful (0.00s)
+    --- PASS: TestNameAsExternalName/UpdateNotNeeded (0.00s)
+=== RUN   TestAPISecretPublisher
+=== RUN   TestAPISecretPublisher/ResourceDoesNotPublishSecret
+=== RUN   TestAPISecretPublisher/ApplyError
+=== RUN   TestAPISecretPublisher/AlreadyPublished
+=== RUN   TestAPISecretPublisher/Success
+--- PASS: TestAPISecretPublisher (0.00s)
+    --- PASS: TestAPISecretPublisher/ResourceDoesNotPublishSecret (0.00s)
+    --- PASS: TestAPISecretPublisher/ApplyError (0.00s)
+    --- PASS: TestAPISecretPublisher/AlreadyPublished (0.00s)
+    --- PASS: TestAPISecretPublisher/Success (0.00s)
+=== RUN   TestResolveReferences
+=== RUN   TestResolveReferences/SuccessfulUpdate
+=== RUN   TestResolveReferences/UpdateError
+=== RUN   TestResolveReferences/NoReferencersFound
+=== RUN   TestResolveReferences/ResolveReferencesError
+=== RUN   TestResolveReferences/SuccessfulNoop
+--- PASS: TestResolveReferences (0.00s)
+    --- PASS: TestResolveReferences/SuccessfulUpdate (0.00s)
+    --- PASS: TestResolveReferences/UpdateError (0.00s)
+    --- PASS: TestResolveReferences/NoReferencersFound (0.00s)
+    --- PASS: TestResolveReferences/ResolveReferencesError (0.00s)
+    --- PASS: TestResolveReferences/SuccessfulNoop (0.00s)
+=== RUN   TestRetryingCriticalAnnotationUpdater
+=== RUN   TestRetryingCriticalAnnotationUpdater/GetError
+=== RUN   TestRetryingCriticalAnnotationUpdater/UpdateError
+=== RUN   TestRetryingCriticalAnnotationUpdater/Success
+--- PASS: TestRetryingCriticalAnnotationUpdater (0.00s)
+    --- PASS: TestRetryingCriticalAnnotationUpdater/GetError (0.00s)
+    --- PASS: TestRetryingCriticalAnnotationUpdater/UpdateError (0.00s)
+    --- PASS: TestRetryingCriticalAnnotationUpdater/Success (0.00s)
+=== RUN   TestPublisherChain
+=== RUN   TestPublisherChain/SuccessfulPublisher
+=== RUN   TestPublisherChain/PublisherReturnsError
+=== RUN   TestPublisherChain/EmptyChain
+--- PASS: TestPublisherChain (0.00s)
+    --- PASS: TestPublisherChain/SuccessfulPublisher (0.00s)
+    --- PASS: TestPublisherChain/PublisherReturnsError (0.00s)
+    --- PASS: TestPublisherChain/EmptyChain (0.00s)
+=== RUN   TestDisabledSecretStorePublish
+=== RUN   TestDisabledSecretStorePublish/APIUsedProperError
+=== RUN   TestDisabledSecretStorePublish/APINotUsedNoError
+--- PASS: TestDisabledSecretStorePublish (0.00s)
+    --- PASS: TestDisabledSecretStorePublish/APIUsedProperError (0.00s)
+    --- PASS: TestDisabledSecretStorePublish/APINotUsedNoError (0.00s)
+=== RUN   TestDisabledSecretStoreUnpublish
+=== RUN   TestDisabledSecretStoreUnpublish/APINotUsedNoError
+=== RUN   TestDisabledSecretStoreUnpublish/APIUsedProperError
+--- PASS: TestDisabledSecretStoreUnpublish (0.00s)
+    --- PASS: TestDisabledSecretStoreUnpublish/APINotUsedNoError (0.00s)
+    --- PASS: TestDisabledSecretStoreUnpublish/APIUsedProperError (0.00s)
+=== RUN   TestReconciler
+=== RUN   TestReconciler/ManagementPolicySkipLateInitialize
+=== RUN   TestReconciler/ReconciliationPausedSuccessful
+=== RUN   TestReconciler/ReconciliationResumes
+=== RUN   TestReconciler/ExternalObserveError
+=== RUN   TestReconciler/PublishObservationConnectionDetailsError
+=== RUN   TestReconciler/ManagementPoliciyNotSupported
+=== RUN   TestReconciler/DeleteSuccessfulDeletionPolicyOrphan
+=== RUN   TestReconciler/ExternalDisconnectError
+=== RUN   TestReconciler/DeleteSuccessfulDeletionPolicyDelete
+=== RUN   TestReconciler/ManagementPolicyReconciliationPausedSuccessful
+=== RUN   TestReconciler/ManagementPoliciesUsedButNotEnabled
+=== RUN   TestReconciler/ManagedNotFound
+=== RUN   TestReconciler/CreationGracePeriod
+=== RUN   TestReconciler/ReconciliationPausedError
+=== RUN   TestReconciler/ObserveOnlyPublishConnectionDetailsError
+=== RUN   TestReconciler/ManagementPolicyAllUpdateSuccessful
+=== RUN   TestReconciler/UpdateCriticalAnnotationsError
+=== RUN   TestReconciler/PublishUpdateConnectionDetailsError
+=== RUN   TestReconciler/ObserveOnlyResourceDoesNotExist
+=== RUN   TestReconciler/ManagementPolicyAllCreateSuccessful
+=== RUN   TestReconciler/ManagementPolicyCreateCreateSuccessful
+=== RUN   TestReconciler/ExternalDeleteError
+=== RUN   TestReconciler/ExternalResourceUpToDate
+=== RUN   TestReconciler/ExternalConnectError
+=== RUN   TestReconciler/CreateExternalError
+=== RUN   TestReconciler/PublishCreationConnectionDetailsError
+=== RUN   TestReconciler/LateInitializeUpdateError
+=== RUN   TestReconciler/CustomManagementPoliciyNotSupported
+=== RUN   TestReconciler/ManagementPolicyUpdateUpdateSuccessful
+=== RUN   TestReconciler/InitializeError
+=== RUN   TestReconciler/ExternalCreatePending
+=== RUN   TestReconciler/AddFinalizerError
+=== RUN   TestReconciler/CreateSuccessful
+=== RUN   TestReconciler/UpdateExternalError
+=== RUN   TestReconciler/RemoveFinalizerErrorDeletionPolicyOrphan
+=== RUN   TestReconciler/UnpublishConnectionDetailsDeletionPolicyDeleteError
+=== RUN   TestReconciler/ResolveReferencesError
+=== RUN   TestReconciler/ExternalDeleteSuccessful
+=== RUN   TestReconciler/RemoveFinalizerErrorDeletionPolicyDelete
+=== RUN   TestReconciler/UpdateCreatePendingError
+=== RUN   TestReconciler/UpdateSuccessful
+=== RUN   TestReconciler/ObserveOnlySuccessfulObserve
+=== RUN   TestReconciler/GetManagedError
+=== RUN   TestReconciler/UnpublishConnectionDetailsDeletionPolicyDeleteOrpahn
+=== RUN   TestReconciler/ManagementPolicyImmutable
+--- PASS: TestReconciler (0.02s)
+    --- PASS: TestReconciler/ManagementPolicySkipLateInitialize (0.00s)
+    --- PASS: TestReconciler/ReconciliationPausedSuccessful (0.00s)
+    --- PASS: TestReconciler/ReconciliationResumes (0.00s)
+    --- PASS: TestReconciler/ExternalObserveError (0.00s)
+    --- PASS: TestReconciler/PublishObservationConnectionDetailsError (0.00s)
+    --- PASS: TestReconciler/ManagementPoliciyNotSupported (0.00s)
+    --- PASS: TestReconciler/DeleteSuccessfulDeletionPolicyOrphan (0.00s)
+    --- PASS: TestReconciler/ExternalDisconnectError (0.00s)
+    --- PASS: TestReconciler/DeleteSuccessfulDeletionPolicyDelete (0.00s)
+    --- PASS: TestReconciler/ManagementPolicyReconciliationPausedSuccessful (0.00s)
+    --- PASS: TestReconciler/ManagementPoliciesUsedButNotEnabled (0.00s)
+    --- PASS: TestReconciler/ManagedNotFound (0.00s)
+    --- PASS: TestReconciler/CreationGracePeriod (0.00s)
+    --- PASS: TestReconciler/ReconciliationPausedError (0.00s)
+    --- PASS: TestReconciler/ObserveOnlyPublishConnectionDetailsError (0.00s)
+    --- PASS: TestReconciler/ManagementPolicyAllUpdateSuccessful (0.00s)
+    --- PASS: TestReconciler/UpdateCriticalAnnotationsError (0.00s)
+    --- PASS: TestReconciler/PublishUpdateConnectionDetailsError (0.00s)
+    --- PASS: TestReconciler/ObserveOnlyResourceDoesNotExist (0.00s)
+    --- PASS: TestReconciler/ManagementPolicyAllCreateSuccessful (0.00s)
+    --- PASS: TestReconciler/ManagementPolicyCreateCreateSuccessful (0.00s)
+    --- PASS: TestReconciler/ExternalDeleteError (0.00s)
+    --- PASS: TestReconciler/ExternalResourceUpToDate (0.00s)
+    --- PASS: TestReconciler/ExternalConnectError (0.00s)
+    --- PASS: TestReconciler/CreateExternalError (0.00s)
+    --- PASS: TestReconciler/PublishCreationConnectionDetailsError (0.00s)
+    --- PASS: TestReconciler/LateInitializeUpdateError (0.00s)
+    --- PASS: TestReconciler/CustomManagementPoliciyNotSupported (0.00s)
+    --- PASS: TestReconciler/ManagementPolicyUpdateUpdateSuccessful (0.00s)
+    --- PASS: TestReconciler/InitializeError (0.00s)
+    --- PASS: TestReconciler/ExternalCreatePending (0.00s)
+    --- PASS: TestReconciler/AddFinalizerError (0.00s)
+    --- PASS: TestReconciler/CreateSuccessful (0.00s)
+    --- PASS: TestReconciler/UpdateExternalError (0.00s)
+    --- PASS: TestReconciler/RemoveFinalizerErrorDeletionPolicyOrphan (0.00s)
+    --- PASS: TestReconciler/UnpublishConnectionDetailsDeletionPolicyDeleteError (0.00s)
+    --- PASS: TestReconciler/ResolveReferencesError (0.00s)
+    --- PASS: TestReconciler/ExternalDeleteSuccessful (0.00s)
+    --- PASS: TestReconciler/RemoveFinalizerErrorDeletionPolicyDelete (0.00s)
+    --- PASS: TestReconciler/UpdateCreatePendingError (0.00s)
+    --- PASS: TestReconciler/UpdateSuccessful (0.00s)
+    --- PASS: TestReconciler/ObserveOnlySuccessfulObserve (0.00s)
+    --- PASS: TestReconciler/GetManagedError (0.00s)
+    --- PASS: TestReconciler/UnpublishConnectionDetailsDeletionPolicyDeleteOrpahn (0.00s)
+    --- PASS: TestReconciler/ManagementPolicyImmutable (0.00s)
+=== RUN   TestTestManagementPoliciesResolverIsPaused
+=== RUN   TestTestManagementPoliciesResolverIsPaused/EnabledEmptyPolicies
+=== RUN   TestTestManagementPoliciesResolverIsPaused/EnabledNonEmptyPolicies
+=== RUN   TestTestManagementPoliciesResolverIsPaused/Disabled
+--- PASS: TestTestManagementPoliciesResolverIsPaused (0.00s)
+    --- PASS: TestTestManagementPoliciesResolverIsPaused/EnabledEmptyPolicies (0.00s)
+    --- PASS: TestTestManagementPoliciesResolverIsPaused/EnabledNonEmptyPolicies (0.00s)
+    --- PASS: TestTestManagementPoliciesResolverIsPaused/Disabled (0.00s)
+=== RUN   TestManagementPoliciesResolverValidate
+=== RUN   TestManagementPoliciesResolverValidate/EnabledNotSupported
+=== RUN   TestManagementPoliciesResolverValidate/Enabled
+=== RUN   TestManagementPoliciesResolverValidate/DisabledNonDefault
+=== RUN   TestManagementPoliciesResolverValidate/DisabledDefault
+=== RUN   TestManagementPoliciesResolverValidate/EnabledSupported
+--- PASS: TestManagementPoliciesResolverValidate (0.00s)
+    --- PASS: TestManagementPoliciesResolverValidate/EnabledNotSupported (0.00s)
+    --- PASS: TestManagementPoliciesResolverValidate/Enabled (0.00s)
+    --- PASS: TestManagementPoliciesResolverValidate/DisabledNonDefault (0.00s)
+    --- PASS: TestManagementPoliciesResolverValidate/DisabledDefault (0.00s)
+    --- PASS: TestManagementPoliciesResolverValidate/EnabledSupported (0.00s)
+=== RUN   TestManagementPoliciesResolverShouldCreate
+=== RUN   TestManagementPoliciesResolverShouldCreate/ManagementPoliciesDisabled
+=== RUN   TestManagementPoliciesResolverShouldCreate/ManagementPoliciesEnabledHasCreate
+=== RUN   TestManagementPoliciesResolverShouldCreate/ManagementPoliciesEnabledHasCreateAll
+=== RUN   TestManagementPoliciesResolverShouldCreate/ManagementPoliciesEnabledActionNotAllowed
+--- PASS: TestManagementPoliciesResolverShouldCreate (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldCreate/ManagementPoliciesDisabled (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldCreate/ManagementPoliciesEnabledHasCreate (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldCreate/ManagementPoliciesEnabledHasCreateAll (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldCreate/ManagementPoliciesEnabledActionNotAllowed (0.00s)
+=== RUN   TestManagementPoliciesResolverShouldUpdate
+=== RUN   TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesDisabled
+=== RUN   TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesEnabledHasUpdate
+=== RUN   TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesEnabledHasUpdateAll
+=== RUN   TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesEnabledActionNotAllowed
+--- PASS: TestManagementPoliciesResolverShouldUpdate (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesDisabled (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesEnabledHasUpdate (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesEnabledHasUpdateAll (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldUpdate/ManagementPoliciesEnabledActionNotAllowed (0.00s)
+=== RUN   TestManagementPoliciesResolverShouldLateInitialize
+=== RUN   TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesEnabledHasLateInitialize
+=== RUN   TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesEnabledHasLateInitializeAll
+=== RUN   TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesEnabledActionNotAllowed
+=== RUN   TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesDisabled
+--- PASS: TestManagementPoliciesResolverShouldLateInitialize (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesEnabledHasLateInitialize (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesEnabledHasLateInitializeAll (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesEnabledActionNotAllowed (0.00s)
+    --- PASS: TestManagementPoliciesResolverShouldLateInitialize/ManagementPoliciesDisabled (0.00s)
+=== RUN   TestManagementPoliciesResolverOnlyObserve
+=== RUN   TestManagementPoliciesResolverOnlyObserve/ManagementPoliciesDisabled
+=== RUN   TestManagementPoliciesResolverOnlyObserve/ManagementPoliciesEnabledHasOnlyObserve
+=== RUN   TestManagementPoliciesResolverOnlyObserve/ManagementPoliciesEnabledHasMultipleActions
+--- PASS: TestManagementPoliciesResolverOnlyObserve (0.00s)
+    --- PASS: TestManagementPoliciesResolverOnlyObserve/ManagementPoliciesDisabled (0.00s)
+    --- PASS: TestManagementPoliciesResolverOnlyObserve/ManagementPoliciesEnabledHasOnlyObserve (0.00s)
+    --- PASS: TestManagementPoliciesResolverOnlyObserve/ManagementPoliciesEnabledHasMultipleActions (0.00s)
+=== RUN   TestShouldDelete
+=== RUN   TestShouldDelete/DeletionOrphanManagementActionAll
+=== RUN   TestShouldDelete/DeletionDeleteManagementActionDelete
+=== RUN   TestShouldDelete/DeletionOrphanManagementActionDelete
+=== RUN   TestShouldDelete/DeletionDeleteManagementActionNoDelete
+=== RUN   TestShouldDelete/DeletionOrphan
+=== RUN   TestShouldDelete/DeletionDelete
+=== RUN   TestShouldDelete/DeletionDeleteManagementActionAll
+--- PASS: TestShouldDelete (0.00s)
+    --- PASS: TestShouldDelete/DeletionOrphanManagementActionAll (0.00s)
+    --- PASS: TestShouldDelete/DeletionDeleteManagementActionDelete (0.00s)
+    --- PASS: TestShouldDelete/DeletionOrphanManagementActionDelete (0.00s)
+    --- PASS: TestShouldDelete/DeletionDeleteManagementActionNoDelete (0.00s)
+    --- PASS: TestShouldDelete/DeletionOrphan (0.00s)
+    --- PASS: TestShouldDelete/DeletionDelete (0.00s)
+    --- PASS: TestShouldDelete/DeletionDeleteManagementActionAll (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/reconciler/managed	coverage: 94.9% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/reconciler/managed	0.177s	coverage: 94.9% of statements
+=== RUN   TestReconciler
+=== RUN   TestReconciler/ListProviderConfigUsageError
+=== RUN   TestReconciler/BlockDeleteWhileInUse
+=== RUN   TestReconciler/RemoveFinalizerError
+=== RUN   TestReconciler/AddFinalizerError
+=== RUN   TestReconciler/UpdateStatusError
+=== RUN   TestReconciler/GetProviderConfigError
+=== RUN   TestReconciler/ProviderConfigNotFound
+=== RUN   TestReconciler/DeleteProviderConfigUsageError
+=== RUN   TestReconciler/SuccessfulDelete
+=== RUN   TestReconciler/SuccessfulSetUsers
+--- PASS: TestReconciler (0.00s)
+    --- PASS: TestReconciler/ListProviderConfigUsageError (0.00s)
+    --- PASS: TestReconciler/BlockDeleteWhileInUse (0.00s)
+    --- PASS: TestReconciler/RemoveFinalizerError (0.00s)
+    --- PASS: TestReconciler/AddFinalizerError (0.00s)
+    --- PASS: TestReconciler/UpdateStatusError (0.00s)
+    --- PASS: TestReconciler/GetProviderConfigError (0.00s)
+    --- PASS: TestReconciler/ProviderConfigNotFound (0.00s)
+    --- PASS: TestReconciler/DeleteProviderConfigUsageError (0.00s)
+    --- PASS: TestReconciler/SuccessfulDelete (0.00s)
+    --- PASS: TestReconciler/SuccessfulSetUsers (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/reconciler/providerconfig	coverage: 87.7% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/reconciler/providerconfig	0.283s	coverage: 87.7% of statements
+?   	github.com/crossplane/crossplane-runtime/pkg/resource/fake	[no test files]
+=== RUN   TestToAndFromPtr
+=== RUN   TestToAndFromPtr/Zero
+=== RUN   TestToAndFromPtr/NonZero
+--- PASS: TestToAndFromPtr (0.00s)
+    --- PASS: TestToAndFromPtr/Zero (0.00s)
+    --- PASS: TestToAndFromPtr/NonZero (0.00s)
+=== RUN   TestToAndFromFloatPtr
+=== RUN   TestToAndFromFloatPtr/Zero
+=== RUN   TestToAndFromFloatPtr/NonZero
+--- PASS: TestToAndFromFloatPtr (0.00s)
+    --- PASS: TestToAndFromFloatPtr/Zero (0.00s)
+    --- PASS: TestToAndFromFloatPtr/NonZero (0.00s)
+=== RUN   TestToAndFromPtrValues
+=== RUN   TestToAndFromPtrValues/Nil
+=== RUN   TestToAndFromPtrValues/Zero
+=== RUN   TestToAndFromPtrValues/NonZero
+=== RUN   TestToAndFromPtrValues/Multiple
+--- PASS: TestToAndFromPtrValues (0.00s)
+    --- PASS: TestToAndFromPtrValues/Nil (0.00s)
+    --- PASS: TestToAndFromPtrValues/Zero (0.00s)
+    --- PASS: TestToAndFromPtrValues/NonZero (0.00s)
+    --- PASS: TestToAndFromPtrValues/Multiple (0.00s)
+=== RUN   TestToAndFromFloatPtrValues
+=== RUN   TestToAndFromFloatPtrValues/Nil
+=== RUN   TestToAndFromFloatPtrValues/Zero
+=== RUN   TestToAndFromFloatPtrValues/NonZero
+=== RUN   TestToAndFromFloatPtrValues/Multiple
+--- PASS: TestToAndFromFloatPtrValues (0.00s)
+    --- PASS: TestToAndFromFloatPtrValues/Nil (0.00s)
+    --- PASS: TestToAndFromFloatPtrValues/Zero (0.00s)
+    --- PASS: TestToAndFromFloatPtrValues/NonZero (0.00s)
+    --- PASS: TestToAndFromFloatPtrValues/Multiple (0.00s)
+=== RUN   TestResolve
+=== RUN   TestResolve/AlwaysResolveReference
+=== RUN   TestResolve/Unresolvable
+=== RUN   TestResolve/GetError
+=== RUN   TestResolve/ResolvedNoValue
+=== RUN   TestResolve/OptionalSelector
+=== RUN   TestResolve/ListError
+=== RUN   TestResolve/SuccessfulSelect
+=== RUN   TestResolve/AlwaysResolveSelector
+=== RUN   TestResolve/FromDeleted
+=== RUN   TestResolve/AlreadyResolved
+=== RUN   TestResolve/SuccessfulResolve
+=== RUN   TestResolve/BothReferenceSelector
+=== RUN   TestResolve/OptionalReference
+=== RUN   TestResolve/NoMatches
+--- PASS: TestResolve (0.00s)
+    --- PASS: TestResolve/AlwaysResolveReference (0.00s)
+    --- PASS: TestResolve/Unresolvable (0.00s)
+    --- PASS: TestResolve/GetError (0.00s)
+    --- PASS: TestResolve/ResolvedNoValue (0.00s)
+    --- PASS: TestResolve/OptionalSelector (0.00s)
+    --- PASS: TestResolve/ListError (0.00s)
+    --- PASS: TestResolve/SuccessfulSelect (0.00s)
+    --- PASS: TestResolve/AlwaysResolveSelector (0.00s)
+    --- PASS: TestResolve/FromDeleted (0.00s)
+    --- PASS: TestResolve/AlreadyResolved (0.00s)
+    --- PASS: TestResolve/SuccessfulResolve (0.00s)
+    --- PASS: TestResolve/BothReferenceSelector (0.00s)
+    --- PASS: TestResolve/OptionalReference (0.00s)
+    --- PASS: TestResolve/NoMatches (0.00s)
+=== RUN   TestResolveMultiple
+=== RUN   TestResolveMultiple/SuccessfulResolve
+=== RUN   TestResolveMultiple/OptionalReference
+=== RUN   TestResolveMultiple/NoMatches
+=== RUN   TestResolveMultiple/AlwaysResolveSelector
+=== RUN   TestResolveMultiple/FromDeleted
+=== RUN   TestResolveMultiple/GetError
+=== RUN   TestResolveMultiple/ListError
+=== RUN   TestResolveMultiple/Unresolvable
+=== RUN   TestResolveMultiple/ResolvedNoValue
+=== RUN   TestResolveMultiple/SuccessfulSelect
+=== RUN   TestResolveMultiple/AlreadyResolved
+=== RUN   TestResolveMultiple/OptionalSelector
+=== RUN   TestResolveMultiple/BothReferenceSelector
+=== RUN   TestResolveMultiple/AlwaysResolveReference
+--- PASS: TestResolveMultiple (0.00s)
+    --- PASS: TestResolveMultiple/SuccessfulResolve (0.00s)
+    --- PASS: TestResolveMultiple/OptionalReference (0.00s)
+    --- PASS: TestResolveMultiple/NoMatches (0.00s)
+    --- PASS: TestResolveMultiple/AlwaysResolveSelector (0.00s)
+    --- PASS: TestResolveMultiple/FromDeleted (0.00s)
+    --- PASS: TestResolveMultiple/GetError (0.00s)
+    --- PASS: TestResolveMultiple/ListError (0.00s)
+    --- PASS: TestResolveMultiple/Unresolvable (0.00s)
+    --- PASS: TestResolveMultiple/ResolvedNoValue (0.00s)
+    --- PASS: TestResolveMultiple/SuccessfulSelect (0.00s)
+    --- PASS: TestResolveMultiple/AlreadyResolved (0.00s)
+    --- PASS: TestResolveMultiple/OptionalSelector (0.00s)
+    --- PASS: TestResolveMultiple/BothReferenceSelector (0.00s)
+    --- PASS: TestResolveMultiple/AlwaysResolveReference (0.00s)
+=== RUN   TestControllersMustMatch
+=== RUN   TestControllersMustMatch/NilSelector
+=== RUN   TestControllersMustMatch/NilMatchControllerRef
+=== RUN   TestControllersMustMatch/False
+=== RUN   TestControllersMustMatch/True
+--- PASS: TestControllersMustMatch (0.00s)
+    --- PASS: TestControllersMustMatch/NilSelector (0.00s)
+    --- PASS: TestControllersMustMatch/NilMatchControllerRef (0.00s)
+    --- PASS: TestControllersMustMatch/False (0.00s)
+    --- PASS: TestControllersMustMatch/True (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/reference	coverage: 97.3% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/reference	0.237s	coverage: 97.3% of statements
+=== RUN   TestAPIPatchingApplicator
+=== RUN   TestAPIPatchingApplicator/ApplyOptionError
+=== RUN   TestAPIPatchingApplicator/PatchError
+=== RUN   TestAPIPatchingApplicator/Created
+=== RUN   TestAPIPatchingApplicator/Patched
+=== RUN   TestAPIPatchingApplicator/GetError
+=== RUN   TestAPIPatchingApplicator/CreateError
+--- PASS: TestAPIPatchingApplicator (0.00s)
+    --- PASS: TestAPIPatchingApplicator/ApplyOptionError (0.00s)
+    --- PASS: TestAPIPatchingApplicator/PatchError (0.00s)
+    --- PASS: TestAPIPatchingApplicator/Created (0.00s)
+    --- PASS: TestAPIPatchingApplicator/Patched (0.00s)
+    --- PASS: TestAPIPatchingApplicator/GetError (0.00s)
+    --- PASS: TestAPIPatchingApplicator/CreateError (0.00s)
+=== RUN   TestAPIUpdatingApplicator
+=== RUN   TestAPIUpdatingApplicator/UpdateError
+=== RUN   TestAPIUpdatingApplicator/Created
+=== RUN   TestAPIUpdatingApplicator/Updated
+=== RUN   TestAPIUpdatingApplicator/GetError
+=== RUN   TestAPIUpdatingApplicator/CreateError
+=== RUN   TestAPIUpdatingApplicator/ApplyOptionError
+--- PASS: TestAPIUpdatingApplicator (0.00s)
+    --- PASS: TestAPIUpdatingApplicator/UpdateError (0.00s)
+    --- PASS: TestAPIUpdatingApplicator/Created (0.00s)
+    --- PASS: TestAPIUpdatingApplicator/Updated (0.00s)
+    --- PASS: TestAPIUpdatingApplicator/GetError (0.00s)
+    --- PASS: TestAPIUpdatingApplicator/CreateError (0.00s)
+    --- PASS: TestAPIUpdatingApplicator/ApplyOptionError (0.00s)
+=== RUN   TestManagedRemoveFinalizer
+=== RUN   TestManagedRemoveFinalizer/UpdateError
+=== RUN   TestManagedRemoveFinalizer/Successful
+--- PASS: TestManagedRemoveFinalizer (0.00s)
+    --- PASS: TestManagedRemoveFinalizer/UpdateError (0.00s)
+    --- PASS: TestManagedRemoveFinalizer/Successful (0.00s)
+=== RUN   TestAPIFinalizerAdder
+=== RUN   TestAPIFinalizerAdder/UpdateError
+=== RUN   TestAPIFinalizerAdder/Successful
+--- PASS: TestAPIFinalizerAdder (0.00s)
+    --- PASS: TestAPIFinalizerAdder/UpdateError (0.00s)
+    --- PASS: TestAPIFinalizerAdder/Successful (0.00s)
+=== RUN   TestAddProviderConfig
+--- PASS: TestAddProviderConfig (0.00s)
+=== RUN   TestLateInitializeStringPtr
+=== RUN   TestLateInitializeStringPtr/LateInitialized
+=== RUN   TestLateInitializeStringPtr/Neither
+=== RUN   TestLateInitializeStringPtr/Original
+--- PASS: TestLateInitializeStringPtr (0.00s)
+    --- PASS: TestLateInitializeStringPtr/LateInitialized (0.00s)
+    --- PASS: TestLateInitializeStringPtr/Neither (0.00s)
+    --- PASS: TestLateInitializeStringPtr/Original (0.00s)
+=== RUN   TestLateInitializeInt64Ptr
+=== RUN   TestLateInitializeInt64Ptr/Neither
+=== RUN   TestLateInitializeInt64Ptr/Original
+=== RUN   TestLateInitializeInt64Ptr/LateInitialized
+--- PASS: TestLateInitializeInt64Ptr (0.00s)
+    --- PASS: TestLateInitializeInt64Ptr/Neither (0.00s)
+    --- PASS: TestLateInitializeInt64Ptr/Original (0.00s)
+    --- PASS: TestLateInitializeInt64Ptr/LateInitialized (0.00s)
+=== RUN   TestLateInitializeBoolPtr
+=== RUN   TestLateInitializeBoolPtr/Neither
+=== RUN   TestLateInitializeBoolPtr/Original
+=== RUN   TestLateInitializeBoolPtr/LateInitialized
+--- PASS: TestLateInitializeBoolPtr (0.00s)
+    --- PASS: TestLateInitializeBoolPtr/Neither (0.00s)
+    --- PASS: TestLateInitializeBoolPtr/Original (0.00s)
+    --- PASS: TestLateInitializeBoolPtr/LateInitialized (0.00s)
+=== RUN   TestLateInitializeTimePtr
+=== RUN   TestLateInitializeTimePtr/Neither
+=== RUN   TestLateInitializeTimePtr/Original
+=== RUN   TestLateInitializeTimePtr/LateInitialized
+--- PASS: TestLateInitializeTimePtr (0.00s)
+    --- PASS: TestLateInitializeTimePtr/Neither (0.00s)
+    --- PASS: TestLateInitializeTimePtr/Original (0.00s)
+    --- PASS: TestLateInitializeTimePtr/LateInitialized (0.00s)
+=== RUN   TestDesiredStateChanged
+=== RUN   TestDesiredStateChanged/StatusChanged
+=== RUN   TestDesiredStateChanged/IgnoredAnnotationsChanged
+=== RUN   TestDesiredStateChanged/AnnotationsChanged
+=== RUN   TestDesiredStateChanged/LabelsChanged
+=== RUN   TestDesiredStateChanged/GenerationChanged
+=== RUN   TestDesiredStateChanged/NothingChanged
+--- PASS: TestDesiredStateChanged (0.00s)
+    --- PASS: TestDesiredStateChanged/StatusChanged (0.00s)
+    --- PASS: TestDesiredStateChanged/IgnoredAnnotationsChanged (0.00s)
+    --- PASS: TestDesiredStateChanged/AnnotationsChanged (0.00s)
+    --- PASS: TestDesiredStateChanged/LabelsChanged (0.00s)
+    --- PASS: TestDesiredStateChanged/GenerationChanged (0.00s)
+    --- PASS: TestDesiredStateChanged/NothingChanged (0.00s)
+=== RUN   TestExtractEnv
+=== RUN   TestExtractEnv/EnvVarSuccess
+=== RUN   TestExtractEnv/EnvVarFail
+--- PASS: TestExtractEnv (0.00s)
+    --- PASS: TestExtractEnv/EnvVarSuccess (0.00s)
+    --- PASS: TestExtractEnv/EnvVarFail (0.00s)
+=== RUN   TestExtractFs
+=== RUN   TestExtractFs/FsSuccess
+=== RUN   TestExtractFs/FsFailure
+--- PASS: TestExtractFs (0.00s)
+    --- PASS: TestExtractFs/FsSuccess (0.00s)
+    --- PASS: TestExtractFs/FsFailure (0.00s)
+=== RUN   TestExtractSecret
+=== RUN   TestExtractSecret/SecretSuccess
+=== RUN   TestExtractSecret/SecretFailureNotDefined
+=== RUN   TestExtractSecret/SecretFailureGet
+--- PASS: TestExtractSecret (0.00s)
+    --- PASS: TestExtractSecret/SecretSuccess (0.00s)
+    --- PASS: TestExtractSecret/SecretFailureNotDefined (0.00s)
+    --- PASS: TestExtractSecret/SecretFailureGet (0.00s)
+=== RUN   TestTrack
+=== RUN   TestTrack/ApplyError
+=== RUN   TestTrack/MissingRef
+=== RUN   TestTrack/NopUpdate
+--- PASS: TestTrack (0.00s)
+    --- PASS: TestTrack/ApplyError (0.00s)
+    --- PASS: TestTrack/MissingRef (0.00s)
+    --- PASS: TestTrack/NopUpdate (0.00s)
+=== RUN   TestReferenceStatusType_String
+=== RUN   TestReferenceStatusType_String/ReferenceNotFound
+=== RUN   TestReferenceStatusType_String/ReferenceNotReady
+=== RUN   TestReferenceStatusType_String/ReferenceReady
+=== RUN   TestReferenceStatusType_String/ReferenceStatusUnknown
+--- PASS: TestReferenceStatusType_String (0.00s)
+    --- PASS: TestReferenceStatusType_String/ReferenceNotFound (0.00s)
+    --- PASS: TestReferenceStatusType_String/ReferenceNotReady (0.00s)
+    --- PASS: TestReferenceStatusType_String/ReferenceReady (0.00s)
+    --- PASS: TestReferenceStatusType_String/ReferenceStatusUnknown (0.00s)
+=== RUN   TestReferenceStatus_String
+=== RUN   TestReferenceStatus_String/test-name-ready
+--- PASS: TestReferenceStatus_String (0.00s)
+    --- PASS: TestReferenceStatus_String/test-name-ready (0.00s)
+=== RUN   TestLocalConnectionSecretFor
+=== RUN   TestLocalConnectionSecretFor/Success
+--- PASS: TestLocalConnectionSecretFor (0.00s)
+    --- PASS: TestLocalConnectionSecretFor/Success (0.00s)
+=== RUN   TestConnectionSecretFor
+=== RUN   TestConnectionSecretFor/Success
+--- PASS: TestConnectionSecretFor (0.00s)
+    --- PASS: TestConnectionSecretFor/Success (0.00s)
+=== RUN   TestGetKind
+=== RUN   TestGetKind/TooManyKinds
+=== RUN   TestGetKind/KindFound
+=== RUN   TestGetKind/KindError
+=== RUN   TestGetKind/KindIsUnversioned
+=== RUN   TestGetKind/NotEnoughKinds
+--- PASS: TestGetKind (0.00s)
+    --- PASS: TestGetKind/TooManyKinds (0.00s)
+    --- PASS: TestGetKind/KindFound (0.00s)
+    --- PASS: TestGetKind/KindError (0.00s)
+    --- PASS: TestGetKind/KindIsUnversioned (0.00s)
+    --- PASS: TestGetKind/NotEnoughKinds (0.00s)
+=== RUN   TestMustCreateObject
+=== RUN   TestMustCreateObject/KindRegistered
+--- PASS: TestMustCreateObject (0.00s)
+    --- PASS: TestMustCreateObject/KindRegistered (0.00s)
+=== RUN   TestIgnore
+=== RUN   TestIgnore/IgnoreError
+=== RUN   TestIgnore/PropagateError
+--- PASS: TestIgnore (0.00s)
+    --- PASS: TestIgnore/IgnoreError (0.00s)
+    --- PASS: TestIgnore/PropagateError (0.00s)
+=== RUN   TestIgnoreAny
+=== RUN   TestIgnoreAny/IgnoreError
+=== RUN   TestIgnoreAny/IgnoreErrorArr
+=== RUN   TestIgnoreAny/PropagateError
+--- PASS: TestIgnoreAny (0.00s)
+    --- PASS: TestIgnoreAny/IgnoreError (0.00s)
+    --- PASS: TestIgnoreAny/IgnoreErrorArr (0.00s)
+    --- PASS: TestIgnoreAny/PropagateError (0.00s)
+=== RUN   TestIsConditionTrue
+=== RUN   TestIsConditionTrue/IsTrue
+=== RUN   TestIsConditionTrue/IsFalse
+=== RUN   TestIsConditionTrue/IsUnknown
+=== RUN   TestIsConditionTrue/IsUnset
+--- PASS: TestIsConditionTrue (0.00s)
+    --- PASS: TestIsConditionTrue/IsTrue (0.00s)
+    --- PASS: TestIsConditionTrue/IsFalse (0.00s)
+    --- PASS: TestIsConditionTrue/IsUnknown (0.00s)
+    --- PASS: TestIsConditionTrue/IsUnset (0.00s)
+=== RUN   TestIsNotControllable
+=== RUN   TestIsNotControllable/NilError
+=== RUN   TestIsNotControllable/UnknownError
+=== RUN   TestIsNotControllable/NotControllableError
+--- PASS: TestIsNotControllable (0.00s)
+    --- PASS: TestIsNotControllable/NilError (0.00s)
+    --- PASS: TestIsNotControllable/UnknownError (0.00s)
+    --- PASS: TestIsNotControllable/NotControllableError (0.00s)
+=== RUN   TestMustBeControllableBy
+=== RUN   TestMustBeControllableBy/Adoptable
+=== RUN   TestMustBeControllableBy/ControlledBySuppliedUID
+=== RUN   TestMustBeControllableBy/ControlledBySomeoneElse
+--- PASS: TestMustBeControllableBy (0.00s)
+    --- PASS: TestMustBeControllableBy/Adoptable (0.00s)
+    --- PASS: TestMustBeControllableBy/ControlledBySuppliedUID (0.00s)
+    --- PASS: TestMustBeControllableBy/ControlledBySomeoneElse (0.00s)
+=== RUN   TestConnectionSecretMustBeControllableBy
+=== RUN   TestConnectionSecretMustBeControllableBy/Adoptable
+=== RUN   TestConnectionSecretMustBeControllableBy/ControlledBySuppliedUID
+=== RUN   TestConnectionSecretMustBeControllableBy/ControlledBySomeoneElse
+=== RUN   TestConnectionSecretMustBeControllableBy/UncontrolledOpaqueSecret
+--- PASS: TestConnectionSecretMustBeControllableBy (0.00s)
+    --- PASS: TestConnectionSecretMustBeControllableBy/Adoptable (0.00s)
+    --- PASS: TestConnectionSecretMustBeControllableBy/ControlledBySuppliedUID (0.00s)
+    --- PASS: TestConnectionSecretMustBeControllableBy/ControlledBySomeoneElse (0.00s)
+    --- PASS: TestConnectionSecretMustBeControllableBy/UncontrolledOpaqueSecret (0.00s)
+=== RUN   TestAllowUpdateIf
+=== RUN   TestAllowUpdateIf/Allowed
+=== RUN   TestAllowUpdateIf/NotAllowed
+--- PASS: TestAllowUpdateIf (0.00s)
+    --- PASS: TestAllowUpdateIf/Allowed (0.00s)
+    --- PASS: TestAllowUpdateIf/NotAllowed (0.00s)
+=== RUN   TestGetExternalTags
+=== RUN   TestGetExternalTags/Successful
+=== RUN   TestGetExternalTags/SuccessfulWithProviderConfig
+--- PASS: TestGetExternalTags (0.00s)
+    --- PASS: TestGetExternalTags/Successful (0.00s)
+    --- PASS: TestGetExternalTags/SuccessfulWithProviderConfig (0.00s)
+=== RUN   Test_errNotControllable_NotControllable
+--- PASS: Test_errNotControllable_NotControllable (0.00s)
+=== RUN   Test_errNotAllowed_NotAllowed
+--- PASS: Test_errNotAllowed_NotAllowed (0.00s)
+=== RUN   TestIsAPIErrorWrapped
+=== RUN   TestIsAPIErrorWrapped/NoError
+=== RUN   TestIsAPIErrorWrapped/NotAPIError
+=== RUN   TestIsAPIErrorWrapped/APIError
+=== RUN   TestIsAPIErrorWrapped/WrappedAPIError
+--- PASS: TestIsAPIErrorWrapped (0.00s)
+    --- PASS: TestIsAPIErrorWrapped/NoError (0.00s)
+    --- PASS: TestIsAPIErrorWrapped/NotAPIError (0.00s)
+    --- PASS: TestIsAPIErrorWrapped/APIError (0.00s)
+    --- PASS: TestIsAPIErrorWrapped/WrappedAPIError (0.00s)
+=== RUN   TestNewApplicatorWithRetry
+=== RUN   TestNewApplicatorWithRetry/DefaultBackoff
+=== RUN   TestNewApplicatorWithRetry/CustomBackoff
+--- PASS: TestNewApplicatorWithRetry (0.00s)
+    --- PASS: TestNewApplicatorWithRetry/DefaultBackoff (0.00s)
+    --- PASS: TestNewApplicatorWithRetry/CustomBackoff (0.00s)
+=== RUN   TestApplicatorWithRetry_Apply
+=== RUN   TestApplicatorWithRetry_Apply/NoRetry
+=== RUN   TestApplicatorWithRetry_Apply/ShouldRetry
+=== RUN   TestApplicatorWithRetry_Apply/NoError
+--- PASS: TestApplicatorWithRetry_Apply (0.00s)
+    --- PASS: TestApplicatorWithRetry_Apply/NoRetry (0.00s)
+    --- PASS: TestApplicatorWithRetry_Apply/ShouldRetry (0.00s)
+    --- PASS: TestApplicatorWithRetry_Apply/NoError (0.00s)
+=== RUN   TestUpdate
+=== RUN   TestUpdate/Update
+--- PASS: TestUpdate (0.00s)
+    --- PASS: TestUpdate/Update (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/resource	coverage: 78.5% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/resource	0.226s	coverage: 78.5% of statements
+=== RUN   TestGet
+=== RUN   TestGet/Unwrapped
+=== RUN   TestGet/Wrapped
+--- PASS: TestGet (0.00s)
+    --- PASS: TestGet/Unwrapped (0.00s)
+    --- PASS: TestGet/Wrapped (0.00s)
+=== RUN   TestList
+=== RUN   TestList/Unwrapped
+=== RUN   TestList/Wrapped
+--- PASS: TestList (0.00s)
+    --- PASS: TestList/Unwrapped (0.00s)
+    --- PASS: TestList/Wrapped (0.00s)
+=== RUN   TestCreate
+=== RUN   TestCreate/Wrapped
+=== RUN   TestCreate/Unwrapped
+--- PASS: TestCreate (0.00s)
+    --- PASS: TestCreate/Wrapped (0.00s)
+    --- PASS: TestCreate/Unwrapped (0.00s)
+=== RUN   TestDelete
+=== RUN   TestDelete/Unwrapped
+=== RUN   TestDelete/Wrapped
+--- PASS: TestDelete (0.00s)
+    --- PASS: TestDelete/Unwrapped (0.00s)
+    --- PASS: TestDelete/Wrapped (0.00s)
+=== RUN   TestUpdate
+=== RUN   TestUpdate/Unwrapped
+=== RUN   TestUpdate/Wrapped
+--- PASS: TestUpdate (0.00s)
+    --- PASS: TestUpdate/Unwrapped (0.00s)
+    --- PASS: TestUpdate/Wrapped (0.00s)
+=== RUN   TestPatch
+=== RUN   TestPatch/Unwrapped
+=== RUN   TestPatch/Wrapped
+--- PASS: TestPatch (0.00s)
+    --- PASS: TestPatch/Unwrapped (0.00s)
+    --- PASS: TestPatch/Wrapped (0.00s)
+=== RUN   TestDeleteAllOf
+=== RUN   TestDeleteAllOf/Unwrapped
+=== RUN   TestDeleteAllOf/Wrapped
+--- PASS: TestDeleteAllOf (0.00s)
+    --- PASS: TestDeleteAllOf/Unwrapped (0.00s)
+    --- PASS: TestDeleteAllOf/Wrapped (0.00s)
+=== RUN   TestStatusCreate
+=== RUN   TestStatusCreate/Unwrapped
+=== RUN   TestStatusCreate/Wrapped
+--- PASS: TestStatusCreate (0.00s)
+    --- PASS: TestStatusCreate/Unwrapped (0.00s)
+    --- PASS: TestStatusCreate/Wrapped (0.00s)
+=== RUN   TestStatusUpdate
+=== RUN   TestStatusUpdate/Unwrapped
+=== RUN   TestStatusUpdate/Wrapped
+--- PASS: TestStatusUpdate (0.00s)
+    --- PASS: TestStatusUpdate/Unwrapped (0.00s)
+    --- PASS: TestStatusUpdate/Wrapped (0.00s)
+=== RUN   TestStatusPatch
+=== RUN   TestStatusPatch/Unwrapped
+=== RUN   TestStatusPatch/Wrapped
+--- PASS: TestStatusPatch (0.00s)
+    --- PASS: TestStatusPatch/Unwrapped (0.00s)
+    --- PASS: TestStatusPatch/Wrapped (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured	coverage: 78.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured	0.203s	coverage: 78.0% of statements
+=== RUN   TestWithGroupVersionKind
+=== RUN   TestWithGroupVersionKind/New
+--- PASS: TestWithGroupVersionKind (0.00s)
+    --- PASS: TestWithGroupVersionKind/New (0.00s)
+=== RUN   TestConditions
+=== RUN   TestConditions/WeirdStatus
+=== RUN   TestConditions/WeirdStatusConditions
+=== RUN   TestConditions/NewCondition
+=== RUN   TestConditions/ExistingCondition
+--- PASS: TestConditions (0.00s)
+    --- PASS: TestConditions/WeirdStatus (0.00s)
+    --- PASS: TestConditions/WeirdStatusConditions (0.00s)
+    --- PASS: TestConditions/NewCondition (0.00s)
+    --- PASS: TestConditions/ExistingCondition (0.00s)
+=== RUN   TestCompositionSelector
+=== RUN   TestCompositionSelector/NewSel
+--- PASS: TestCompositionSelector (0.00s)
+    --- PASS: TestCompositionSelector/NewSel (0.00s)
+=== RUN   TestCompositionReference
+=== RUN   TestCompositionReference/NewRef
+--- PASS: TestCompositionReference (0.00s)
+    --- PASS: TestCompositionReference/NewRef (0.00s)
+=== RUN   TestCompositionRevisionReference
+=== RUN   TestCompositionRevisionReference/NewRef
+--- PASS: TestCompositionRevisionReference (0.00s)
+    --- PASS: TestCompositionRevisionReference/NewRef (0.00s)
+=== RUN   TestCompositionRevisionSelector
+=== RUN   TestCompositionRevisionSelector/NewRef
+--- PASS: TestCompositionRevisionSelector (0.00s)
+    --- PASS: TestCompositionRevisionSelector/NewRef (0.00s)
+=== RUN   TestCompositionUpdatePolicy
+=== RUN   TestCompositionUpdatePolicy/NewRef
+--- PASS: TestCompositionUpdatePolicy (0.00s)
+    --- PASS: TestCompositionUpdatePolicy/NewRef (0.00s)
+=== RUN   TestCompositeDeletePolicy
+=== RUN   TestCompositeDeletePolicy/NewRef
+--- PASS: TestCompositeDeletePolicy (0.00s)
+    --- PASS: TestCompositeDeletePolicy/NewRef (0.00s)
+=== RUN   TestResourceReference
+=== RUN   TestResourceReference/NewRef
+--- PASS: TestResourceReference (0.00s)
+    --- PASS: TestResourceReference/NewRef (0.00s)
+=== RUN   TestWriteConnectionSecretToReference
+=== RUN   TestWriteConnectionSecretToReference/NewRef
+--- PASS: TestWriteConnectionSecretToReference (0.00s)
+    --- PASS: TestWriteConnectionSecretToReference/NewRef (0.00s)
+=== RUN   TestConnectionDetailsLastPublishedTime
+=== RUN   TestConnectionDetailsLastPublishedTime/NewTime
+--- PASS: TestConnectionDetailsLastPublishedTime (0.00s)
+    --- PASS: TestConnectionDetailsLastPublishedTime/NewTime (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim	coverage: 78.3% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim	0.146s	coverage: 78.3% of statements
+?   	github.com/crossplane/crossplane-runtime/pkg/test	[no test files]
+=== RUN   TestFromReference
+=== RUN   TestFromReference/New
+--- PASS: TestFromReference (0.00s)
+    --- PASS: TestFromReference/New (0.00s)
+=== RUN   TestConditions
+=== RUN   TestConditions/NewCondition
+=== RUN   TestConditions/ExistingCondition
+=== RUN   TestConditions/WeirdStatus
+=== RUN   TestConditions/WeirdStatusConditions
+--- PASS: TestConditions (0.00s)
+    --- PASS: TestConditions/NewCondition (0.00s)
+    --- PASS: TestConditions/ExistingCondition (0.00s)
+    --- PASS: TestConditions/WeirdStatus (0.00s)
+    --- PASS: TestConditions/WeirdStatusConditions (0.00s)
+=== RUN   TestWriteConnectionSecretToReference
+=== RUN   TestWriteConnectionSecretToReference/NewRef
+--- PASS: TestWriteConnectionSecretToReference (0.00s)
+    --- PASS: TestWriteConnectionSecretToReference/NewRef (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed	coverage: 48.9% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed	0.079s	coverage: 48.9% of statements
+=== RUN   TestWithGroupVersionKind
+=== RUN   TestWithGroupVersionKind/New
+--- PASS: TestWithGroupVersionKind (0.00s)
+    --- PASS: TestWithGroupVersionKind/New (0.00s)
+=== RUN   TestConditions
+=== RUN   TestConditions/WeirdStatus
+=== RUN   TestConditions/WeirdStatusConditions
+=== RUN   TestConditions/NewCondition
+=== RUN   TestConditions/ExistingCondition
+--- PASS: TestConditions (0.00s)
+    --- PASS: TestConditions/WeirdStatus (0.00s)
+    --- PASS: TestConditions/WeirdStatusConditions (0.00s)
+    --- PASS: TestConditions/NewCondition (0.00s)
+    --- PASS: TestConditions/ExistingCondition (0.00s)
+=== RUN   TestCompositionSelector
+=== RUN   TestCompositionSelector/NewSel
+--- PASS: TestCompositionSelector (0.00s)
+    --- PASS: TestCompositionSelector/NewSel (0.00s)
+=== RUN   TestCompositionReference
+=== RUN   TestCompositionReference/NewRef
+--- PASS: TestCompositionReference (0.00s)
+    --- PASS: TestCompositionReference/NewRef (0.00s)
+=== RUN   TestCompositionRevisionReference
+=== RUN   TestCompositionRevisionReference/NewRef
+--- PASS: TestCompositionRevisionReference (0.00s)
+    --- PASS: TestCompositionRevisionReference/NewRef (0.00s)
+=== RUN   TestCompositionRevisionSelector
+=== RUN   TestCompositionRevisionSelector/NewRef
+--- PASS: TestCompositionRevisionSelector (0.00s)
+    --- PASS: TestCompositionRevisionSelector/NewRef (0.00s)
+=== RUN   TestCompositionUpdatePolicy
+=== RUN   TestCompositionUpdatePolicy/NewRef
+--- PASS: TestCompositionUpdatePolicy (0.00s)
+    --- PASS: TestCompositionUpdatePolicy/NewRef (0.00s)
+=== RUN   TestClaimReference
+=== RUN   TestClaimReference/NewRef
+--- PASS: TestClaimReference (0.00s)
+    --- PASS: TestClaimReference/NewRef (0.00s)
+=== RUN   TestResourceReferences
+=== RUN   TestResourceReferences/NewRef
+--- PASS: TestResourceReferences (0.00s)
+    --- PASS: TestResourceReferences/NewRef (0.00s)
+=== RUN   TestWriteConnectionSecretToReference
+=== RUN   TestWriteConnectionSecretToReference/NewRef
+--- PASS: TestWriteConnectionSecretToReference (0.00s)
+    --- PASS: TestWriteConnectionSecretToReference/NewRef (0.00s)
+=== RUN   TestConnectionDetailsLastPublishedTime
+=== RUN   TestConnectionDetailsLastPublishedTime/NewTime
+--- PASS: TestConnectionDetailsLastPublishedTime (0.00s)
+    --- PASS: TestConnectionDetailsLastPublishedTime/NewTime (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite	coverage: 69.9% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite	0.075s	coverage: 69.9% of statements
+?   	github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1	[no test files]
+=== RUN   TestDefault
+=== RUN   TestDefault/Success
+=== RUN   TestDefault/Failure
+--- PASS: TestDefault (0.00s)
+    --- PASS: TestDefault/Success (0.00s)
+    --- PASS: TestDefault/Failure (0.00s)
+=== RUN   TestValidateCreate
+=== RUN   TestValidateCreate/Success
+=== RUN   TestValidateCreate/SuccessWithWarnings
+=== RUN   TestValidateCreate/Failure
+=== RUN   TestValidateCreate/FailureWithWarnings
+--- PASS: TestValidateCreate (0.00s)
+    --- PASS: TestValidateCreate/Success (0.00s)
+    --- PASS: TestValidateCreate/SuccessWithWarnings (0.00s)
+    --- PASS: TestValidateCreate/Failure (0.00s)
+    --- PASS: TestValidateCreate/FailureWithWarnings (0.00s)
+=== RUN   TestValidateUpdate
+=== RUN   TestValidateUpdate/Success
+=== RUN   TestValidateUpdate/SuccessWithWarnings
+=== RUN   TestValidateUpdate/Failure
+=== RUN   TestValidateUpdate/FailureWithWarnings
+--- PASS: TestValidateUpdate (0.00s)
+    --- PASS: TestValidateUpdate/Success (0.00s)
+    --- PASS: TestValidateUpdate/SuccessWithWarnings (0.00s)
+    --- PASS: TestValidateUpdate/Failure (0.00s)
+    --- PASS: TestValidateUpdate/FailureWithWarnings (0.00s)
+=== RUN   TestValidateDelete
+=== RUN   TestValidateDelete/Success
+=== RUN   TestValidateDelete/SuccessWithWarnings
+=== RUN   TestValidateDelete/Failure
+=== RUN   TestValidateDelete/FailureWithWarnings
+--- PASS: TestValidateDelete (0.00s)
+    --- PASS: TestValidateDelete/Success (0.00s)
+    --- PASS: TestValidateDelete/SuccessWithWarnings (0.00s)
+    --- PASS: TestValidateDelete/Failure (0.00s)
+    --- PASS: TestValidateDelete/FailureWithWarnings (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/pkg/webhook	coverage: 100.0% of statements
+ok  	github.com/crossplane/crossplane-runtime/pkg/webhook	0.146s	coverage: 100.0% of statements
+=== RUN   TestConditionEqual
+=== RUN   TestConditionEqual/IdenticalIgnoringTimestamp
+=== RUN   TestConditionEqual/CheckReconcilePaused
+=== RUN   TestConditionEqual/DifferentType
+=== RUN   TestConditionEqual/DifferentStatus
+=== RUN   TestConditionEqual/DifferentReason
+=== RUN   TestConditionEqual/DifferentMessage
+--- PASS: TestConditionEqual (0.00s)
+    --- PASS: TestConditionEqual/IdenticalIgnoringTimestamp (0.00s)
+    --- PASS: TestConditionEqual/CheckReconcilePaused (0.00s)
+    --- PASS: TestConditionEqual/DifferentType (0.00s)
+    --- PASS: TestConditionEqual/DifferentStatus (0.00s)
+    --- PASS: TestConditionEqual/DifferentReason (0.00s)
+    --- PASS: TestConditionEqual/DifferentMessage (0.00s)
+=== RUN   TestConditionedStatusEqual
+=== RUN   TestConditionedStatusEqual/IdenticalExceptOrder
+=== RUN   TestConditionedStatusEqual/DifferentLength
+=== RUN   TestConditionedStatusEqual/DifferentCondition
+=== RUN   TestConditionedStatusEqual/AIsNil
+=== RUN   TestConditionedStatusEqual/BIsNil
+=== RUN   TestConditionedStatusEqual/Identical
+--- PASS: TestConditionedStatusEqual (0.00s)
+    --- PASS: TestConditionedStatusEqual/IdenticalExceptOrder (0.00s)
+    --- PASS: TestConditionedStatusEqual/DifferentLength (0.00s)
+    --- PASS: TestConditionedStatusEqual/DifferentCondition (0.00s)
+    --- PASS: TestConditionedStatusEqual/AIsNil (0.00s)
+    --- PASS: TestConditionedStatusEqual/BIsNil (0.00s)
+    --- PASS: TestConditionedStatusEqual/Identical (0.00s)
+=== RUN   TestSetConditions
+=== RUN   TestSetConditions/TypeIsIdentical
+=== RUN   TestSetConditions/TypeIsDifferent
+=== RUN   TestSetConditions/TypeDoesNotExist
+--- PASS: TestSetConditions (0.00s)
+    --- PASS: TestSetConditions/TypeIsIdentical (0.00s)
+    --- PASS: TestSetConditions/TypeIsDifferent (0.00s)
+    --- PASS: TestSetConditions/TypeDoesNotExist (0.00s)
+=== RUN   TestGetCondition
+=== RUN   TestGetCondition/ConditionExists
+=== RUN   TestGetCondition/ConditionDoesNotExist
+--- PASS: TestGetCondition (0.00s)
+    --- PASS: TestGetCondition/ConditionExists (0.00s)
+    --- PASS: TestGetCondition/ConditionDoesNotExist (0.00s)
+=== RUN   TestConditionWithMessage
+=== RUN   TestConditionWithMessage/MessageAdded
+=== RUN   TestConditionWithMessage/MessageChanged
+=== RUN   TestConditionWithMessage/MessageCleared
+--- PASS: TestConditionWithMessage (0.00s)
+    --- PASS: TestConditionWithMessage/MessageAdded (0.00s)
+    --- PASS: TestConditionWithMessage/MessageChanged (0.00s)
+    --- PASS: TestConditionWithMessage/MessageCleared (0.00s)
+=== RUN   TestMergoConfiguration
+=== RUN   TestMergoConfiguration/DefaultOptionsNil
+=== RUN   TestMergoConfiguration/DefaultOptionsEmptyStruct
+=== RUN   TestMergoConfiguration/MapKeepOnly
+=== RUN   TestMergoConfiguration/AppendSliceOnly
+=== RUN   TestMergoConfiguration/MapKeepAppendSlice
+--- PASS: TestMergoConfiguration (0.00s)
+    --- PASS: TestMergoConfiguration/DefaultOptionsNil (0.00s)
+    --- PASS: TestMergoConfiguration/DefaultOptionsEmptyStruct (0.00s)
+    --- PASS: TestMergoConfiguration/MapKeepOnly (0.00s)
+    --- PASS: TestMergoConfiguration/AppendSliceOnly (0.00s)
+    --- PASS: TestMergoConfiguration/MapKeepAppendSlice (0.00s)
+PASS
+	github.com/crossplane/crossplane-runtime/apis/common/v1	coverage: 14.9% of statements
+ok  	github.com/crossplane/crossplane-runtime/apis/common/v1	0.180s	coverage: 14.9% of statements

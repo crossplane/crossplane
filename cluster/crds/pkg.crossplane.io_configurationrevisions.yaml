@@ -209,9 +209,9 @@ spec:
               objectRefs:
                 description: References to objects owned by PackageRevision.
                 items:
-                  description: A TypedReference refers to an object by Name, Kind,
-                    and APIVersion. It is commonly used to reference cluster-scoped
-                    objects or objects where the namespace is already known.
+                  description: A TypedReference refers to an object by Name, Namespace,
+                    Kind, and APIVersion. It is commonly used to reference cluster-scoped
+                    objects and can also be used for namespace-scoped objects.
                   properties:
                     apiVersion:
                       description: APIVersion of the referenced object.
@@ -221,6 +221,9 @@ spec:
                       type: string
                     name:
                       description: Name of the referenced object.
+                      type: string
+                    namespace:
+                      description: Namespace of the referenced object.
                       type: string
                     uid:
                       description: UID of the referenced object.

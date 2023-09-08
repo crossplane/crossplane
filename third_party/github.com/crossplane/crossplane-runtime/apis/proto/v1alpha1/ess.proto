@@ -1,0 +1,70 @@
+/*
+Copyright 2023 The Crossplane Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+syntax = "proto3";
+
+package ess.proto.v1alpha1;
+
+option go_package = "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1";
+
+// ExternalSecretStorePluginService defines the APIs for an External Secret Store plugin.
+service ExternalSecretStorePluginService {
+  rpc GetSecret(GetSecretRequest) returns (GetSecretResponse) {}
+  rpc ApplySecret(ApplySecretRequest) returns (ApplySecretResponse) {}
+  rpc DeleteKeys(DeleteKeysRequest) returns (DeleteKeysResponse) {}
+}
+
+// ConfigReference is used to refer a StoreConfig object.
+message ConfigReference {
+  string api_version = 1;
+  string kind = 2;
+  string name = 3;
+}
+
+// Secret defines the structure of a secret.
+message Secret {
+  string scoped_name = 1;
+  map<string, string> metadata = 2;
+  map<string, bytes> data = 3;
+}
+
+// GetSecretRequest requests secret from the secret store.
+message GetSecretRequest {
+  ConfigReference config = 1;
+  Secret secret = 2;
+}
+
+// GetSecretResponse returns the secret from the secret store.
+message GetSecretResponse {
+  Secret secret = 1;
+}
+
+// ApplySecretRequest applies the secret data update to the secret store.
+message ApplySecretRequest {
+  ConfigReference config = 1;
+  Secret secret = 2;
+}
+
+// ApplySecretResponse returns if the secret is changed or not.
+message ApplySecretResponse {
+  bool changed = 1;
+}
+
+// DeleteKeysRequest deletes the secret from the secret store.
+message DeleteKeysRequest {
+  ConfigReference config = 1;
+  Secret secret = 2;
+}
+
+// DeleteKeysResponse is returned if the secret is deleted.
+message DeleteKeysResponse {}

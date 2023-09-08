@@ -521,7 +521,9 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	// haven't yet named this composed resource.
 	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
-	cd.SetNamespace(namespace)
+	if namespace != "" {
+		cd.SetNamespace(namespace)
+	}
 
 	for i := range t.Patches {
 		if err := Apply(t.Patches[i], cp, cd, patchTypesFromXR()...); err != nil {

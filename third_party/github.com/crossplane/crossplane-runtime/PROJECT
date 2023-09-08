@@ -1,0 +1,3 @@
+version: "1"
+domain: crossplane.io
+repo: github.com/crossplane/crossplane-runtime

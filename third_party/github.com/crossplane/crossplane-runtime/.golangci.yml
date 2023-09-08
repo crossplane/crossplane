@@ -1,0 +1,211 @@
+run:
+  timeout: 10m
+
+  skip-files:
+  - "zz_generated\\..+\\.go$"
+
+output:
+  # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
+  format: colored-line-number
+
+linters-settings:
+  errcheck:
+    # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
+    # default is false: such cases aren't reported by default.
+    check-type-assertions: false
+
+    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
+    # default is false: such cases aren't reported by default.
+    check-blank: false
+
+    # [deprecated] comma-separated list of pairs of the form pkg:regex
+    # the regex is used to ignore names within pkg. (default "fmt:.*").
+    # see https://github.com/kisielk/errcheck#the-deprecated-method for details
+    ignore: fmt:.*,io/ioutil:^Read.*
+
+  govet:
+    # report about shadowed variables
+    check-shadowing: false
+
+  gofmt:
+    # simplify code: gofmt with `-s` option, true by default
+    simplify: true
+
+  gci:
+    custom-order: true
+    sections:
+      - standard
+      - default
+      - prefix(github.com/crossplane/crossplane-runtime)
+      - blank
+      - dot
+
+  gocyclo:
+    # minimal code complexity to report, 30 by default (but we recommend 10-20)
+    min-complexity: 10
+
+  maligned:
+    # print struct with more effective memory layout or not, false by default
+    suggest-new: true
+
+  dupl:
+    # tokens count to trigger issue, 150 by default
+    threshold: 100
+
+  goconst:
+    # minimal length of string constant, 3 by default
+    min-len: 3
+    # minimal occurrences count to trigger, 3 by default
+    min-occurrences: 5
+
+  lll:
+    # tab width in spaces. Default to 1.
+    tab-width: 1
+
+  unused:
+    # treat code as a program (not a library) and report unused exported identifiers; default is false.
+    # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
+    # if it's called for subdir of a project it can't find funcs usages. All text editor integrations
+    # with golangci-lint call it on a directory with the changed file.
+    check-exported: false
+
+  unparam:
+    # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
+    # XXX: if you enable this setting, unparam will report a lot of false-positives in text editors:
+    # if it's called for subdir of a project it can't find external interfaces. All text editor integrations
+    # with golangci-lint call it on a directory with the changed file.
+    check-exported: false
+
+  nakedret:
+    # make an issue if func has more lines of code than this setting and it has naked returns; default is 30
+    max-func-lines: 30
+
+  prealloc:
+    # XXX: we don't recommend using this linter before doing performance profiling.
+    # For most programs usage of prealloc will be a premature optimization.
+
+    # Report preallocation suggestions only on simple loops that have no returns/breaks/continues/gotos in them.
+    # True by default.
+    simple: true
+    range-loops: true # Report preallocation suggestions on range loops, true by default
+    for-loops: false # Report preallocation suggestions on for loops, false by default
+
+  gocritic:
+    # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint` run to see all tags and checks.
+    # Empty list by default. See https://github.com/go-critic/go-critic#usage -> section "Tags".
+    enabled-tags:
+      - performance
+
+    settings: # settings passed to gocritic
+      captLocal: # must be valid enabled check name
+        paramsOnly: true
+      rangeValCopy:
+        sizeThreshold: 32
+
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+
+
+linters:
+  enable:
+    - megacheck
+    - govet
+    - gocyclo
+    - gocritic
+    - goconst
+    - gci
+    - gofmt  # We enable this as well as goimports for its simplify mode.
+    - prealloc
+    - revive
+    - unconvert
+    - misspell
+    - nakedret
+    - nolintlint
+  
+  disable:
+    # These linters are all deprecated as of golangci-lint v1.49.0. We disable
+    # them explicitly to avoid the linter logging deprecation warnings.
+    - deadcode
+    - varcheck
+    - scopelint
+    - structcheck
+    - interfacer
+
+  presets:
+    - bugs
+    - unused
+  fast: false
+
+
+issues:
+  # Excluding configuration per-path and per-linter
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test(ing)?\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - scopelint
+        - unparam
+        - contextcheck
+        - errchkjson
+
+    # Ease some gocritic warnings on test files.
+    - path: _test\.go
+      text: "(unnamedResult|exitAfterDefer)"
+      linters:
+        - gocritic
+
+    # These are performance optimisations rather than style issues per se.
+    # They warn when function arguments or range values copy a lot of memory
+    # rather than using a pointer.
+    - text: "(hugeParam|rangeValCopy):"
+      linters:
+      - gocritic
+
+    # This "TestMain should call os.Exit to set exit code" warning is not clever
+    # enough to notice that we call a helper method that calls os.Exit.
+    - text: "SA3000:"
+      linters:
+      - staticcheck
+
+    - text: "k8s.io/api/core/v1"
+      linters:
+      - goimports
+
+    # This is a "potential hardcoded credentials" warning. It's triggered by
+    # any variable with 'secret' in the same, and thus hits a lot of false
+    # positives in Kubernetes land where a Secret is an object type.
+    - text: "G101:"
+      linters:
+      - gosec
+      - gas
+
+    # This is an 'errors unhandled' warning that duplicates errcheck.
+    - text: "G104:"
+      linters:
+      - gosec
+      - gas
+
+  # Independently from option `exclude` we use default exclude patterns,
+  # it can be disabled by this option. To list all
+  # excluded by default patterns execute `golangci-lint run --help`.
+  # Default value for this option is true.
+  exclude-use-default: false
+
+  # Show only new issues: if there are unstaged changes or untracked files,
+  # only those changes are analyzed, else only changes in HEAD~ are analyzed.
+  # It's a super-useful option for integration of golangci-lint into existing
+  # large codebase. It's not practical to fix all existing issues at the moment
+  # of integration: much better don't allow issues in new code.
+  # Default is false.
+  new: false
+
+  # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
+  max-per-linter: 0
+
+  # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
+  max-same-issues: 0

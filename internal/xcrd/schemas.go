@@ -148,6 +148,7 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 					Properties: map[string]extv1.JSONSchemaProps{
 						"apiVersion": {Type: "string"},
 						"name":       {Type: "string"},
+						"namespace":  {Type: "string"},
 						"kind":       {Type: "string"},
 					},
 					Required: []string{"apiVersion", "kind"},
