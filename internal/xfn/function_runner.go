@@ -63,7 +63,7 @@ const (
 // package's runtime. It creates a gRPC client connection for each Function. The
 // Function's endpoint is determined by reading the status.endpoint of the
 // active FunctionRevision. You must call GarbageCollectClientConnections in
-// order to ensure
+// order to ensure connections are properly closed.
 type PackagedFunctionRunner struct {
 	client client.Reader
 	creds  credentials.TransportCredentials
@@ -216,6 +216,7 @@ func (r *PackagedFunctionRunner) GarbageCollectConnections(ctx context.Context, 
 		select {
 		case <-ctx.Done():
 			r.log.Debug("Stopping gRPC client connection garbage collector", "error", ctx.Err())
+			return
 		case <-t.C:
 			if _, err := r.GarbageCollectConnectionsNow(ctx); err != nil {
 				r.log.Info("Cannot garbage collect gRPC client connections", "error", err)
