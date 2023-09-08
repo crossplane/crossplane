@@ -295,9 +295,8 @@ message RunFunctionRequest {
   State observed = 2;
 
   // Desired state according to a Function pipeline. The state passed to a
-  // particular Function may have been accumulated by processing a Composition's
-  // patch-and-transform resources array. It may also have been accumulated by
-  // previous Functions in the pipeline.
+  // particular Function may have been accumulated by previous Functions in the
+  // pipeline.
   State desired = 3;
 
   // Optional input specific to this Function invocation. A JSON representation
@@ -439,9 +438,9 @@ Some key differences between the alpha `FunctionIO` and the proposed beta
 
 The package manager is responsible for creating a headless Kubernetes Service
 where each Function's Deployment can be reached. The address of the Service will
-be exposed as the `status.endpoint` of the Function resource. The Service must
-be headless in order for Crossplane's gRPC client to load-balance connections
-when there are multiple Function replicas.
+be exposed as the `status.endpoint` of the active FunctionRevision resource. The
+Service must be headless in order for Crossplane's gRPC client to load-balance
+connections when there are multiple Function replicas.
 
 Note that the fact this endpoint is powered by a Service is an implementation
 detail; it may be possible for Functions to be reached (and indeed deployed) by

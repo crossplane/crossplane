@@ -40,9 +40,8 @@ message RunFunctionRequest {
   State observed = 2;
 
   // Desired state according to a Function pipeline. The state passed to a
-  // particular Function may have been accumulated by processing a Composition's
-  // patch-and-transform resources array. It may also have been accumulated by
-  // previous Functions in the pipeline.
+  // particular Function may have been accumulated by previous Functions in the
+  // pipeline.
   State desired = 3;
 
   // Optional input specific to this Function invocation. A JSON representation

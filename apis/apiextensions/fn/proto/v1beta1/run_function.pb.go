@@ -163,9 +163,8 @@ type RunFunctionRequest struct {
 	// of the time each Function was invoked.
 	Observed *State `protobuf:"bytes,2,opt,name=observed,proto3" json:"observed,omitempty"`
 	// Desired state according to a Function pipeline. The state passed to a
-	// particular Function may have been accumulated by processing a Composition's
-	// patch-and-transform resources array. It may also have been accumulated by
-	// previous Functions in the pipeline.
+	// particular Function may have been accumulated by previous Functions in the
+	// pipeline.
 	Desired *State `protobuf:"bytes,3,opt,name=desired,proto3" json:"desired,omitempty"`
 	// Optional input specific to this Function invocation. A JSON representation
 	// of the 'input' block of the relevant entry in a Composition's pipeline.
