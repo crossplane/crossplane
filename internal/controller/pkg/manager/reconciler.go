@@ -332,7 +332,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if revisionName == "" {
-		p.SetConditions(v1.Unpacking())
+		p.SetConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
@@ -407,12 +407,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		p.SetConditions(v1.Healthy())
 		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 	}
-	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionFalse {
-		p.SetConditions(v1.Unhealthy())
+	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionFalse {
+		p.SetConditions(v1.Unhealthy().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
 	}
-	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
-		p.SetConditions(v1.UnknownHealth())
+	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
+		p.SetConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
@@ -463,7 +463,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// If current revision is still not active, the package is inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		p.SetConditions(v1.Inactive())
+		p.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a
