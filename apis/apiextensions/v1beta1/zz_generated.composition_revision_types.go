@@ -86,7 +86,7 @@ type CompositionRevisionSpec struct {
 	Resources []ComposedTemplate `json:"resources,omitempty"`
 
 	// Pipeline is a list of composition function steps that will be used when a
-	// composite resource referring to this composition is created. One of of
+	// composite resource referring to this composition is created. One of
 	// resources and pipeline must be specified - you cannot specify both.
 	//
 	// The Pipeline is only used by the "Pipeline" mode of Composition. It is

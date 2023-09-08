@@ -892,8 +892,8 @@ spec:
               pipeline:
                 description: "Pipeline is a list of composition function steps that
                   will be used when a composite resource referring to this composition
-                  is created. One of of resources and pipeline must be specified -
-                  you cannot specify both. \n The Pipeline is only used by the \"Pipeline\"
+                  is created. One of resources and pipeline must be specified - you
+                  cannot specify both. \n The Pipeline is only used by the \"Pipeline\"
                   mode of Composition. It is ignored by other modes. \n THIS IS A
                   BETA FIELD. It is not honored if the relevant Crossplane feature
                   flag is disabled."
@@ -2343,8 +2343,8 @@ spec:
               pipeline:
                 description: "Pipeline is a list of composition function steps that
                   will be used when a composite resource referring to this composition
-                  is created. One of of resources and pipeline must be specified -
-                  you cannot specify both. \n The Pipeline is only used by the \"Pipeline\"
+                  is created. One of resources and pipeline must be specified - you
+                  cannot specify both. \n The Pipeline is only used by the \"Pipeline\"
                   mode of Composition. It is ignored by other modes. \n THIS IS A
                   BETA FIELD. It is not honored if the relevant Crossplane feature
                   flag is disabled."
