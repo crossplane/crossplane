@@ -223,7 +223,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 			rendered = false
 		}
 
-		if err = RenderFromEnvironmentPatches(r, req.Environment, ta.Template.Patches); err != nil {
+		if err = RenderToAndFromEnvironmentPatches(r, req.Environment, ta.Template.Patches); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromEnvironmentPatches, name)))
 			rendered = false
 		}

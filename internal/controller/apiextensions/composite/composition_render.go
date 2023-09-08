@@ -18,7 +18,6 @@ package composite
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -71,8 +70,7 @@ func RenderFromJSON(o resource.Object, data []byte) error {
 	// someone changed the kind in the template or we're trying to use the wrong
 	// template (e.g. because the order of an array of anonymous templates
 	// changed).
-	empty := schema.GroupVersionKind{}
-	if gvk != empty && o.GetObjectKind().GroupVersionKind() != gvk {
+	if !gvk.Empty() && o.GetObjectKind().GroupVersionKind() != gvk {
 		return errors.Errorf(errFmtKindChanged, gvk, o.GetObjectKind().GroupVersionKind())
 	}
 
@@ -90,9 +88,9 @@ func RenderFromCompositePatches(cd resource.Composed, xr resource.Composite, p [
 	return nil
 }
 
-// RenderFromEnvironmentPatches renders the supplied composed resource by
-// applying all patches that are from the supplied environment.
-func RenderFromEnvironmentPatches(cd resource.Composed, e *Environment, p []v1.Patch) error {
+// RenderToAndFromEnvironmentPatches renders the supplied composed resource by
+// applying all patches that are from or to the supplied environment.
+func RenderToAndFromEnvironmentPatches(cd resource.Composed, e *Environment, p []v1.Patch) error {
 	if e == nil {
 		return nil
 	}
