@@ -20,9 +20,7 @@ package composite
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -659,8 +657,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		// sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.
-		sort.Strings(names)
-		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", firstNAndSomeMore(names))))
+		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -669,11 +666,4 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-}
-
-func firstNAndSomeMore(names []string) string {
-	if len(names) > 3 {
-		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
-	}
-	return strings.Join(names, ", ")
 }
