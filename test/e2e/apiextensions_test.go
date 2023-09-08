@@ -122,19 +122,19 @@ func TestCompositionFunctions(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
 			)).
-			// Assess("CreateClaim", funcs.AllOf(
-			// 	funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
-			// 	funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-			// )).
-			// Assess("ClaimIsReady",
-			// 	funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
-			// Assess("ClaimHasPatchedField",
-			// 	funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
-			// ).
-			// WithTeardown("DeleteClaim", funcs.AllOf(
-			// 	funcs.DeleteResources(manifests, "claim.yaml"),
-			// 	funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
-			// )).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimIsReady",
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ClaimHasPatchedField",
+				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "spec.coolestField", "I'M COOLEST!"),
+			).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),

@@ -25,5 +25,12 @@ spec:
           properties:
             coolField:
               type: string
+            coolestField:
+              type: string
           required:
           - coolField
+        status:
+          type: object
+          properties:
+            coolerField:
+              type: string

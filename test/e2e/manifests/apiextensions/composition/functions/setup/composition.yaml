@@ -6,18 +6,24 @@ spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1
     kind: XNopResource
-  # TODO(negz): Use a Composition Function instead. :)
-  resources:
-  - name: nop-resource-1
-    base:
-     apiVersion: nop.crossplane.io/v1alpha1
-     kind: NopResource
-     spec:
-      forProvider:
-        conditionAfter:
-        - conditionType: Ready
-          conditionStatus: "False"
-          time: 0s
-        - conditionType: Ready
-          conditionStatus: "True"
-          time: 10s
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          # Crossplane passes the observed state of the XR in as its desired
+          # state, so we can just overlay onto that.
+          composite:
+            resource:
+              spec:
+                coolestField: "I'M COOLEST!"
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing a compose!"

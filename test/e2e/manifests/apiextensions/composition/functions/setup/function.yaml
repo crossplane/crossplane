@@ -3,4 +3,6 @@ kind: Function
 metadata:
   name: function-dummy
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.1.0
+  # NOTE(negz): This is currently manually pushed. See README.md at
+  # https://github.com/crossplane-contrib/function-dummy.
+  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.0
