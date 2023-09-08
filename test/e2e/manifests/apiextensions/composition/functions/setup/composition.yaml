@@ -24,6 +24,21 @@ spec:
             resource:
               spec:
                 coolestField: "I'M COOLEST!"
+          resources:
+            nop-resource-1:
+              resource:
+                apiVersion: nop.crossplane.io/v1alpha1
+                kind: NopResource
+                spec:
+                  forProvider:
+                    conditionAfter:
+                    - conditionType: Ready
+                      conditionStatus: "False"
+                      time: 0s
+                    - conditionType: Ready
+                      conditionStatus: "True"
+                      time: 10s
+              ready: READY_TRUE
         results:
          - severity: SEVERITY_NORMAL
            message: "I am doing a compose!"

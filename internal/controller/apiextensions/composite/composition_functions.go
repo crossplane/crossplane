@@ -289,8 +289,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.Message)))
 			}
 		}
-
 	}
+
+	// TODO(negz): Both here and in the PTComposer we're relying on the fact
+	// that the calling Reconciler will update xr's status in order to persist
+	// any changes we make to it. It would be more obvious if we owned making
+	// our own changes.
+
+	// TODO(negz): Because we create, modify, and apply a new XR here we'll
+	// never apply any changes to status. I think this is what is causing
+	// https://github.com/crossplane/crossplane/issues/3812.
 
 	// Load our new desired state from the Function pipeline.
 	xr = composite.New()
@@ -309,6 +317,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		cd := composed.New()
 		if err := FromStruct(cd, dr.GetResource()); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name)
+		}
+
+		// If this desired resource state pertains to an existing composed
+		// resource we want to maintain its name and namespace. We generate the
+		// name,
+		or, ok := observed[ResourceName(name)]
+		if ok {
+			cd.SetNamespace(or.Resource.GetNamespace())
+			cd.SetName(or.Resource.GetName())
 		}
 
 		// TODO(negz): Should we try to automatically derive readiness if the
@@ -361,10 +378,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// reconcile the XR.
 	UpdateResourceRefs(xr, desired)
 
-	// Note that at this point state.Composite should be a new object - not the
-	// xr that was passed to this Compose method. If this call to Apply changes
-	// the XR in the API server (i.e. if it's not a no-op) the xr object that
-	// was passed to this method will have a stale meta.resourceVersion. This
+	// Note that at this point xr should be a new object - not the one xr that
+	// was passed to this Compose method. If this call to Apply changes the XR
+	// in the API server (i.e. if it's not a no-op) the xr object that was
+	// passed to this method will have a stale meta.resourceVersion. This
 	// Subsequent attempts to update that object will therefore fail. This
 	// should be okay; the caller should keep trying until this is a no-op.
 	if err := c.client.Apply(ctx, xr); err != nil {
@@ -379,8 +396,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// resource won't block the application of another.
 	for name, cd := range desired {
 		// TODO(negz): There's currently no way to control array/object merge
-		// behavior forresources from the Function pipeline. Hopefully this goes
-		// away entirely, and is replaced with server-side-apply.
+		// behavior for resources from the Function pipeline. Hopefully this
+		// goes away entirely, and is replaced with server-side-apply.
 		// https://github.com/crossplane/crossplane/issues/4047
 		if err := c.client.Apply(ctx, cd.Resource, resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
@@ -500,7 +517,9 @@ func AsStruct(o runtime.Object) (*structpb.Struct, error) {
 }
 
 // FromStruct populates the supplied object with content loaded from the Struct.
-// It does this by round-tripping the object through JSON.
+// It does this by round-tripping the object through JSON. Note that if the
+// supplied object is backed by an *unstructured.Unstructured it will always be
+// entirely overwritten (not merged) due to that type's UnmarshalJSON method.
 // https://github.com/golang/protobuf/issues/1302#issuecomment-827092288.
 func FromStruct(o runtime.Object, s *structpb.Struct) error {
 	b, err := protojson.Marshal(s)
