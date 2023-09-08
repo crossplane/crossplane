@@ -19,6 +19,7 @@ package claim
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -546,13 +547,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
 
-	if !resource.IsConditionTrue(cp.GetCondition(xpv1.TypeReady)) {
-		log.Debug("Composite resource is not yet ready")
-		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
+	ready := cp.GetCondition(xpv1.TypeReady)
+	synced := cp.GetCondition(xpv1.TypeSynced)
+	if ready.Status != corev1.ConditionTrue {
+		log.Debug("Composite resource is not yet ready", "reason", ready.Reason, "message", ready.Message)
+		switch {
+		case synced.Status != corev1.ConditionTrue && synced.Reason != "":
+			msg := ready.Message
+			if msg == "" {
+				msg = string(ready.Reason)
+			}
+			record.Event(cm, event.Normal(reasonBind, fmt.Sprintf("%s: %s", Waiting().Message, msg)))
+			cm.SetConditions(Waiting().WithMessage(fmt.Sprintf("%s: %s", Waiting().Message, msg)))
+		case ready.Reason != "":
+			msg := ready.Message
+			if msg == "" {
+				msg = string(ready.Reason)
+			}
+			record.Event(cm, event.Normal(reasonBind, fmt.Sprintf("%s: %s", Waiting().Message, msg)))
+			cm.SetConditions(Waiting().WithMessage(fmt.Sprintf("%s: %s", Waiting().Message, msg)))
+		default:
+			record.Event(cm, event.Normal(reasonBind, Waiting().Message))
+			cm.SetConditions(Waiting().WithMessage(Waiting().Message))
+		}
 
 		// We should be watching the composite resource and will have a
 		// request queued if it changes, so no need to requeue.
-		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
