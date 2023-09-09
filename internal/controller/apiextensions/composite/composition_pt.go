@@ -18,7 +18,7 @@ package composite
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -203,7 +203,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		ta := tas[i]
 
 		// If this resource is anonymous its "name" is just its index.
-		name := pointer.StringDeref(ta.Template.Name, strconv.Itoa(i))
+		name := pointer.StringDeref(ta.Template.Name, fmt.Sprintf("resource %d", i+1))
 		r := composed.New(composed.FromReference(ta.Reference))
 
 		rerr := c.composed.Render(ctx, xr, r, ta.Template, req.Environment)
