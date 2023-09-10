@@ -85,7 +85,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				},
 			},
 			want: want{
-				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "an array of resources is required in Resources mode (the default if no mode is specified)")},
+				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "this test ignores this field")},
 			},
 		},
 		"InvalidImplicitResources": {
@@ -94,7 +94,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				spec: CompositionSpec{},
 			},
 			want: want{
-				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "an array of resources is required in Resources mode (the default if no mode is specified)")},
+				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "this test ignores this field")},
 			},
 		},
 		"ValidPipeline": {
@@ -121,7 +121,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				},
 			},
 			want: want{
-				output: field.ErrorList{field.Required(field.NewPath("spec", "pipeline"), "an array of pipeline steps is required in Pipeline mode")},
+				output: field.ErrorList{field.Required(field.NewPath("spec", "pipeline"), "this test ignores this field")},
 			},
 		},
 	}
