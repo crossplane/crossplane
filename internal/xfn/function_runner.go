@@ -159,6 +159,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 	for i := range l.Items {
 		if l.Items[i].GetDesiredState() == pkgv1.PackageRevisionActive {
 			active = &l.Items[i]
+			break
 		}
 	}
 	if active == nil {
