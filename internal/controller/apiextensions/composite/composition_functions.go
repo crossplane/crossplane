@@ -441,7 +441,10 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 		// associate entries a Composition's spec.resources array with entries
 		// in an XR's spec.resourceRefs array by their index. These references
 		// won't have a name - we won't be able to get them because they don't
-		// reference a resource that actually exists.
+		// reference a resource that actually exists. We make this check to
+		// cover the (hopefully tiny) edge case where an XR has switched from
+		// P&T Composition to Functions, but has one or more composed resources
+		// that have been failing to render.
 		if ref.Name == "" {
 			continue
 		}
