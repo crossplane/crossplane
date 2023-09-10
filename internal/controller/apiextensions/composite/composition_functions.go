@@ -318,8 +318,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		}
 
 		// If this desired resource state pertains to an existing composed
-		// resource we want to maintain its name and namespace. We generate the
-		// name,
+		// resource we want to maintain its name and namespace.
 		or, ok := observed[ResourceName(name)]
 		if ok {
 			cd.SetNamespace(or.Resource.GetNamespace())
@@ -402,7 +401,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		}
 	}
 
-	// Produce our array of resources resources to return to the Reconciler. The
+	// Produce our array of resources to return to the Reconciler. The
 	// Reconciler uses this array to determine whether the XR is ready.
 	resources := make([]ComposedResource, 0, len(desired))
 	for name, r := range desired {
