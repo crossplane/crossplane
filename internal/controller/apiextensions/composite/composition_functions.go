@@ -55,13 +55,11 @@ const (
 	errUnmarshalDesiredXR       = "cannot unmarshal desired composite resource from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
 
-	errFmtResourceName               = "composed resource %q"
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
 	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
-	errFmtReadiness                  = "cannot determine whether composed resource %q (a %s named %s) is ready"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
