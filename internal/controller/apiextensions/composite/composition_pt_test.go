@@ -36,10 +36,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestPTCompose(t *testing.T) {
@@ -53,7 +53,7 @@ func TestPTCompose(t *testing.T) {
 	}
 	type args struct {
 		ctx context.Context
-		xr  resource.Composite
+		xr  *composite.Unstructured
 		req CompositionRequest
 	}
 	type want struct {
@@ -135,11 +135,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -168,11 +164,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -204,11 +196,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -243,11 +231,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -285,11 +269,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -330,11 +310,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -362,11 +338,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -409,11 +381,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -477,11 +445,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
-					},
-				},
+				xr: WithParentLabel(),
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
