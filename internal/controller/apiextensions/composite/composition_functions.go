@@ -48,14 +48,12 @@ const (
 	errFetchXRConnectionDetails = "cannot fetch composite resource connection details"
 	errGetExistingCDs           = "cannot get existing composed resources"
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
-	errBuildDesired             = "cannot build desired state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
 	errApplyXRRefs              = "cannot update composite resource spec.resourceRefs"
 	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
-	errMetadataType             = "cannot parse metadata: not an object"
 	errStructFromUnstructured   = "cannot create Struct"
 
 	errFmtDryRunCreateCD             = "cannot name (i.e. dry-run create) composed resource %q"
@@ -350,13 +348,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// care about. FromStruct will replace uxr's backing map[string]any with the
 	// content of GetResource (i.e. the desired status). We then need to set its
 	// GVK and name so that our client knows what resource to patch.
-	before := uxr.DeepCopy()
+	v := uxr.GetAPIVersion()
+	k := uxr.GetKind()
+	n := uxr.GetName()
 	if err := FromStruct(uxr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
-	uxr.SetAPIVersion(before.GetAPIVersion())
-	uxr.SetKind(before.GetKind())
-	uxr.SetName(before.GetName())
+	uxr.SetAPIVersion(v)
+	uxr.SetKind(k)
+	uxr.SetName(n)
 
 	// TODO(negz): Add x-kubernetes-list-type: map to the ConditionedStatus type
 	// from crossplane-runtime and merge on condition type. This would allow a
