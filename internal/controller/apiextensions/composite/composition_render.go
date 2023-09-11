@@ -143,7 +143,8 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	return errors.Wrap(meta.AddControllerReference(cd, or), errSetControllerRef)
 }
 
-// TODO(negz): Is this really a 'renderer'?
+// TODO(negz): Is this really a 'renderer'? It's simple enough that we should
+// just inline it into the PTComposer, which is now the only consumer.
 
 // A DryRunRenderer performs a dry-run create to validate and name the supplied
 // managed resource.

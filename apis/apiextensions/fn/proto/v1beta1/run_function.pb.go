@@ -470,13 +470,27 @@ func (x *State) GetResources() map[string]*Resource {
 	return nil
 }
 
-// A Resource represents the state of a resource.
+// A Resource represents the state of a composite or composed resource.
 type Resource struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	// The JSON representation of the resource.
+	//
+	//   - Crossplane will set this field in a RunFunctionRequest to the entire
+	//     observed state of a resource - including its metadata, spec, and status.
+	//
+	//   - A Function should set this field in a RunFunctionRequest to communicate
+	//     the desired state of a composite or composed resource.
+	//
+	//   - A Function may only specify the desired status of a composite resource -
+	//     not its metadata or spec. A Function should not return desired metadata
+	//     or spec for a composite resource. This will be ignored.
+	//
+	//   - A Function may not specify the desired status of a composed resource -
+	//     only its metadata and spec. A Function should not return desired status
+	//     for a composed resource. This will be ignored.
 	Resource *structpb.Struct `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
 	// The resource's connection details.
 	//

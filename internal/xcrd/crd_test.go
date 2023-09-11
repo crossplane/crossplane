@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -343,6 +344,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
+													XListType: pointer.String("atomic"),
 												},
 												"publishConnectionDetailsTo": {
 													Type:     "object",
@@ -605,6 +607,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
+													XListType: pointer.String("atomic"),
 												},
 												"publishConnectionDetailsTo": {
 													Type:     "object",

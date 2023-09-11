@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -40,7 +41,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 )
 
 // Error strings.
@@ -50,11 +50,15 @@ const (
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errBuildDesired             = "cannot build desired state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
-	errApplyXR                  = "cannot apply composite resource"
+	errApplyXRRefs              = "cannot update composite resource spec.resourceRefs"
+	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
-	errUnmarshalDesiredXR       = "cannot unmarshal desired composite resource from RunFunctionResponse"
+	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
+	errMetadataType             = "cannot parse metadata: not an object"
+	errStructFromUnstructured   = "cannot create Struct"
 
+	errFmtDryRunCreateCD             = "cannot name (i.e. dry-run create) composed resource %q"
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
@@ -65,12 +69,14 @@ const (
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 )
 
+// FunctionFieldOwner is set for fields owned by the FunctionComposer.
+const FunctionFieldOwner = "fn.apiextensions.crossplane.io"
+
 // A FunctionComposer supports composing resources using a pipeline of
 // Composition Functions. It ignores the P&T resources array.
 type FunctionComposer struct {
-	client    resource.ClientApplicator
+	client    client.Client
 	composite xr
-	composed  cd
 	pipeline  FunctionRunner
 }
 
@@ -78,12 +84,6 @@ type xr struct {
 	managed.ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
-}
-
-type cd struct {
-	DryRunRenderer
-	ReadinessChecker
-	ConnectionDetailsExtractor
 }
 
 // A FunctionRunner runs a single Composition Function.
@@ -156,31 +156,6 @@ func WithComposedResourceGarbageCollector(d ComposedResourceGarbageCollector) Fu
 	}
 }
 
-// WithDryRunRenderer configures how the FunctionComposer should dry-run render
-// composed resources - i.e. by submitting them to the API server to generate a
-// name for them.
-func WithDryRunRenderer(r DryRunRenderer) FunctionComposerOption {
-	return func(p *FunctionComposer) {
-		p.composed.DryRunRenderer = r
-	}
-}
-
-// WithReadinessChecker configures how the FunctionComposer checks composed resource
-// readiness.
-func WithReadinessChecker(c ReadinessChecker) FunctionComposerOption {
-	return func(p *FunctionComposer) {
-		p.composed.ReadinessChecker = c
-	}
-}
-
-// WithConnectionDetailsExtractor configures how a FunctionComposer extracts XR
-// connection details from a composed resource.
-func WithConnectionDetailsExtractor(c ConnectionDetailsExtractor) FunctionComposerOption {
-	return func(p *FunctionComposer) {
-		p.composed.ConnectionDetailsExtractor = c
-	}
-}
-
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
 func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
@@ -191,16 +166,12 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 	f := NewSecretConnectionDetailsFetcher(kube)
 
 	c := &FunctionComposer{
-		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+		client: kube,
 
 		composite: xr{
 			ConnectionDetailsFetcher:         f,
 			ComposedResourceObserver:         NewExistingComposedResourceObserver(kube, f),
 			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(kube),
-		},
-
-		composed: cd{
-			DryRunRenderer: NewAPIDryRunRenderer(kube),
 		},
 
 		pipeline: r,
@@ -215,13 +186,22 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 
 // Compose resources using the Functions pipeline.
 func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
+	// TODO(negz): Change the signature of Compose to take
+	// *composite.Unstructured rather than an interface.
+	uxr, ok := xr.(*composite.Unstructured)
+	if !ok {
+		// This composer uses server-side apply, so we need to make sure we're
+		// working with unstructured data.
+		return CompositionResult{}, errors.Errorf("composite resource must be of type %T", &composite.Unstructured{})
+	}
+
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
 	// composed resources exist because we read them from our XR's
 	// spec.resourceRefs, so it's crucial that we never create a composed
 	// resource without first persisting a reference to it.
-	observed, err := c.composite.ObserveComposedResources(ctx, xr)
+	observed, err := c.composite.ObserveComposedResources(ctx, uxr)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errGetExistingCDs)
 	}
@@ -232,18 +212,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// resource and their current connection details. The desired state includes
 	// only the XR and its connection details, which will initially be identical
 	// to the observed state.
-	xrConnDetails, err := c.composite.FetchConnection(ctx, xr)
+	xrConns, err := c.composite.FetchConnection(ctx, uxr)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errFetchXRConnectionDetails)
 	}
-	o, err := AsState(xr, xrConnDetails, observed)
+	o, err := AsState(uxr, xrConns, observed)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
 	}
-	d, err := AsState(xr, xrConnDetails, ComposedResourceStates{})
-	if err != nil {
-		return CompositionResult{}, errors.Wrap(err, errBuildDesired)
-	}
+
+	// The Function pipeline starts with empty desired state.
+	d := &v1beta1.State{}
 
 	events := []event.Event{}
 
@@ -289,26 +268,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		}
 	}
 
-	// TODO(negz): Both here and in the PTComposer we're relying on the fact
-	// that the calling Reconciler will update xr's status in order to persist
-	// any changes we make to it. It would be more obvious if we owned making
-	// our own changes.
-
-	// TODO(negz): Because we create, modify, and apply a new XR here we'll
-	// never apply any changes to status. I think this is what is causing
-	// https://github.com/crossplane/crossplane/issues/3812.
-
-	// Load our new desired state from the Function pipeline.
-	xr = composite.New()
-	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
-		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXR)
-	}
-
-	xrConnDetails = managed.ConnectionDetails{}
-	for k, v := range d.GetComposite().GetConnectionDetails() {
-		xrConnDetails[k] = v
-	}
-
 	// Load our desired composed resources from the Function pipeline.
 	desired := ComposedResourceStates{}
 	for name, dr := range d.GetResources() {
@@ -325,6 +284,24 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 			cd.SetName(or.Resource.GetName())
 		}
 
+		// Set standard composed resource metadata that is derived from the XR.
+		if err := RenderComposedResourceMetadata(cd, uxr, ResourceName(name)); err != nil {
+			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
+		}
+
+		// We (ab)use dry-run create to generate a unique, available name for
+		// our composed resource using metadata.generateName semantics. We want
+		// to allocate this name before we actually create the resource so that
+		// we can persist a resourceRef to it. This ensures we don't leak
+		// composed resources - see UpdateResourceRefs below.
+		if cd.GetName() == "" {
+			named := cd.DeepCopy()
+			if err := c.client.Create(ctx, named, client.FieldOwner(FunctionFieldOwner), client.DryRunAll); err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtDryRunCreateCD, name)
+			}
+			cd.SetName(named.GetName())
+		}
+
 		// TODO(negz): Should we try to automatically derive readiness if the
 		// Function returns READY_UNSPECIFIED? Is it safe to assume that if the
 		// Function doesn't have an opinion about readiness then we should look
@@ -336,34 +313,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		}
 	}
 
-	// Finalize the 'rendering' of all composed resources by setting standard
-	// object metadata derived from the XR, and dry-run creating them in the API
-	// server. The latter validates that they're well-formed, and also generates
-	// a unique, available metadata.name if metadata.generateName is set.
-
-	// There's a behavior change here relative to the PTComposer. These two
-	// render steps are non-fatal for the PTComposer, but fatal for us. If we
-	// want them to be non-fatal we'd need to remove the partially rendered
-	// composed resources from our desired resource map before they get applied
-	// below. It seems simpler to just fail.
-	for name, cd := range desired {
-		if err := RenderComposedResourceMetadata(cd.Resource, xr, name); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
-		}
-
-		// TODO(negz): the DryRunRender is a no-op for any resource that has a
-		// metadata.name, or doesn't have a metadata.generateName. Ideally we'd
-		// dry run our potential updates too.
-		if err := c.composed.DryRunRender(ctx, cd.Resource); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtDryRunApply, name)
-		}
-	}
-
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
 	// fails.
-	if err := c.composite.GarbageCollectComposedResources(ctx, xr, observed, desired); err != nil {
+	if err := c.composite.GarbageCollectComposedResources(ctx, uxr, observed, desired); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errGarbageCollectCDs)
 	}
 
@@ -373,42 +327,68 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	UpdateResourceRefs(xr, desired)
+	refs := composite.New()
+	refs.SetAPIVersion(uxr.GetAPIVersion())
+	refs.SetKind(uxr.GetKind())
+	refs.SetName(uxr.GetName())
+	UpdateResourceRefs(refs, desired)
 
-	// Note that at this point xr should be a new object - not the one xr that
-	// was passed to this Compose method. If this call to Apply changes the XR
-	// in the API server (i.e. if it's not a no-op) the xr object that was
-	// passed to this method will have a stale meta.resourceVersion. This
-	// Subsequent attempts to update that object will therefore fail. This
-	// should be okay; the caller should keep trying until this is a no-op.
-	if err := c.client.Apply(ctx, xr); err != nil {
+	// Persist our updated composed resource references. We want this to be an
+	// atomic replace of the entire array. Note that we're relying on the status
+	// patch that immediately follows to load the latest version of uxr from the
+	// API server.
+	if err := c.client.Patch(ctx, refs, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
 		// It's important we don't proceed if this fails, because we need to be
 		// sure we've persisted our resource references before we create any new
 		// composed resources below.
-		return CompositionResult{}, errors.Wrap(err, errApplyXR)
+		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
 	}
 
-	// We apply all of our desired resources before we observe them in the loop
-	// below. This ensures that issues observing and processing one composed
-	// resource won't block the application of another.
-	for name, cd := range desired {
-		// TODO(negz): There's currently no way to control array/object merge
-		// behavior for resources from the Function pipeline. Hopefully this
-		// goes away entirely, and is replaced with server-side-apply.
-		// https://github.com/crossplane/crossplane/issues/4047
-		if err := c.client.Apply(ctx, cd.Resource, resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
-		}
+	// Our goal here is to patch our XR's status using server-side apply. We
+	// want the resulting, patched object loaded into uxr. We need to pass in
+	// only our "fully specified intent" - i.e. only the fields that we actually
+	// care about. FromStruct will replace uxr's backing map[string]any with the
+	// content of GetResource (i.e. the desired status). We then need to set its
+	// GVK and name so that our client knows what resource to patch.
+	before := uxr.DeepCopy()
+	if err := FromStruct(uxr, d.GetComposite().GetResource()); err != nil {
+		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
+	}
+	uxr.SetAPIVersion(before.GetAPIVersion())
+	uxr.SetKind(before.GetKind())
+	uxr.SetName(before.GetName())
+
+	// TODO(negz): Add x-kubernetes-list-type: map to the ConditionedStatus type
+	// from crossplane-runtime and merge on condition type. This would allow a
+	// Function to return a single XR status condition without atomically
+	// replacing the entire list of conditions. We'll still need to figure out a
+	// way to handle lastTransitionTime to avoid it constantly changing.
+
+	if err := c.client.Status().Patch(ctx, uxr, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
+		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
 	// Produce our array of resources to return to the Reconciler. The
 	// Reconciler uses this array to determine whether the XR is ready.
 	resources := make([]ComposedResource, 0, len(desired))
-	for name, r := range desired {
-		resources = append(resources, ComposedResource{ResourceName: name, Ready: r.Ready})
+
+	// We apply all of our desired resources before we observe them in the loop
+	// below. This ensures that issues observing and processing one composed
+	// resource won't block the application of another.
+	for name, cd := range desired {
+		// We don't need any crossplane-runtime resource.Applicator style apply
+		// options here because server-side apply takes care of everything.
+		// Specifically it will merge rather than replace owner references (e.g.
+		// for Usages), and will fail if we try to add a controller reference to
+		// a resource that already has a different one.
+		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
+			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
+		}
+
+		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready})
 	}
 
-	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
+	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events}, nil
 }
 
 // An ExistingComposedResourceObserver uses an XR's resource references to load
@@ -504,9 +484,21 @@ func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedRes
 }
 
 // AsStruct converts the supplied object to a protocol buffer Struct well-known
-// type. It does this by round-tripping the object through JSON.
-// https://github.com/golang/protobuf/issues/1302#issuecomment-827092288.
+// type.
 func AsStruct(o runtime.Object) (*structpb.Struct, error) {
+	// If the supplied object is *Unstructured we don't need to round-trip.
+	if u, ok := o.(*kunstructured.Unstructured); ok {
+		s, err := structpb.NewStruct(u.Object)
+		return s, errors.Wrap(err, errStructFromUnstructured)
+	}
+
+	// If the supplied object wraps *Unstructured we don't need to round-trip.
+	if w, ok := o.(unstructured.Wrapper); ok {
+		s, err := structpb.NewStruct(w.GetUnstructured().Object)
+		return s, errors.Wrap(err, errStructFromUnstructured)
+	}
+
+	// Fall back to a JSON round-trip.
 	b, err := json.Marshal(o)
 	if err != nil {
 		return nil, errors.Wrap(err, errMarshalJSON)
@@ -517,11 +509,20 @@ func AsStruct(o runtime.Object) (*structpb.Struct, error) {
 }
 
 // FromStruct populates the supplied object with content loaded from the Struct.
-// It does this by round-tripping the object through JSON. Note that if the
-// supplied object is backed by an *unstructured.Unstructured it will always be
-// entirely overwritten (not merged) due to that type's UnmarshalJSON method.
-// https://github.com/golang/protobuf/issues/1302#issuecomment-827092288.
-func FromStruct(o runtime.Object, s *structpb.Struct) error {
+func FromStruct(o client.Object, s *structpb.Struct) error {
+	// If the supplied object is *Unstructured we don't need to round-trip.
+	if u, ok := o.(*kunstructured.Unstructured); ok {
+		u.Object = s.AsMap()
+		return nil
+	}
+
+	// If the supplied object wraps *Unstructured we don't need to round-trip.
+	if w, ok := o.(unstructured.Wrapper); ok {
+		w.GetUnstructured().Object = s.AsMap()
+		return nil
+	}
+
+	// Fall back to a JSON round-trip.
 	b, err := protojson.Marshal(s)
 	if err != nil {
 		return errors.Wrap(err, errMarshalProtoStruct)
