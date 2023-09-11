@@ -46,7 +46,6 @@ const (
 	errApplyComposed = "cannot apply composed resource"
 	errFetchDetails  = "cannot fetch connection details"
 	errInline        = "cannot inline Composition patch sets"
-	errRenderXR      = "cannot render composite resource"
 
 	errFmtPatchEnvironment             = "cannot apply environment patch at index %d"
 	errFmtParseBase                    = "cannot parse base template of composed resource %q"
