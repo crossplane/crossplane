@@ -40,4 +40,9 @@ const (
 	// details.
 	// https://github.com/crossplane/crossplane/blob/f32496bed53a393c8239376fd8266ddf2ef84d61/design/design-doc-composition-validating-webhook.md
 	EnableAlphaCompositionWebhookSchemaValidation feature.Flag = "EnableAlphaCompositionWebhookSchemaValidation"
+
+	// EnableAlphaUsages enables alpha support for deletion ordering and
+	// protection with Usage resource. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/19ea23e7c1fc16b20581755540f9f45afdf89338/design/one-pager-generic-usage-type.md
+	EnableAlphaUsages feature.Flag = "EnableAlphaUsages"
 )

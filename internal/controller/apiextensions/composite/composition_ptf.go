@@ -46,6 +46,7 @@ import (
 	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -366,7 +367,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 			continue
 		}
 
-		ao := []resource.ApplyOption{resource.MustBeControllableBy(state.Composite.GetUID())}
+		ao := []resource.ApplyOption{resource.MustBeControllableBy(state.Composite.GetUID()), usage.RespectOwnerRefs()}
 		if cd.Template != nil {
 			ao = append(ao, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
 		}

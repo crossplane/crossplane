@@ -1,0 +1,66 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  resources:
+  - name: used-resource
+    base:
+      apiVersion: nop.crossplane.io/v1alpha1
+      kind: NopResource
+      metadata:
+        labels:
+            usage: used
+      spec:
+        forProvider:
+          conditionAfter:
+          - conditionType: "Synced"
+            conditionStatus: "True"
+            time: "5s"
+          - conditionType: "Ready"
+            conditionStatus: "True"
+            time: "10s"
+  - name: using-resource
+    base:
+      apiVersion: nop.crossplane.io/v1alpha1
+      kind: NopResource
+      metadata:
+        # We are delaying deletion of using resource with this finalizer. This is to ensure that the used resource is
+        # not deleted before the using resource. Imagine a scenario where a Release resource using a Cluster resource
+        # where we expect the Cluster resource not to be deleted until the Release resource is deleted. We are mimicking
+        # this behavior with the help of a finalizer on a NopResource.
+        finalizers:
+          - delay-deletion-of-using-resource
+        labels:
+          usage: using
+      spec:
+        forProvider:
+          conditionAfter:
+          - conditionType: "Synced"
+            conditionStatus: "True"
+            time: "5s"
+          - conditionType: "Ready"
+            conditionStatus: "True"
+            time: "10s"
+  - name: usage-resource
+    base:
+      apiVersion: apiextensions.crossplane.io/v1alpha1
+      kind: Usage
+      spec:
+        of:
+          apiVersion: nop.crossplane.io/v1alpha1
+          kind: NopResource
+          resourceSelector:
+            matchControllerRef: true
+            matchLabels:
+              usage: used
+        by:
+          apiVersion: nop.crossplane.io/v1alpha1
+          kind: NopResource
+          resourceSelector:
+            matchControllerRef: true
+            matchLabels:
+              usage: using

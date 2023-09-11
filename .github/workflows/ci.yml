@@ -245,6 +245,7 @@ jobs:
           - base
           - composition-webhook-schema-validation
           - environment-configs
+          - usage
 
     steps:
       - name: Setup QEMU

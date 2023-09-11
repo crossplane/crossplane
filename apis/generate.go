@@ -22,7 +22,7 @@ limitations under the License.
 
 // Remove existing manifests
 //go:generate rm -rf ../cluster/crds
-//go:generate rm -rf ../cluster/webhookconfigurations
+//go:generate rm -rf ../cluster/webhookconfigurations/manifests.yaml
 
 // Replicate identical API versions
 

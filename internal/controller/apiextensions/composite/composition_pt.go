@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -238,7 +239,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		if cd.TemplateRenderErr != nil {
 			continue
 		}
-		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID())}
+		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
 		o = append(o, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
 		if err := c.client.Apply(ctx, cd.Resource, o...); err != nil {
 			return CompositionResult{}, errors.Wrap(err, errApply)

@@ -1,0 +1,12 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Usage
+metadata:
+  name: protect-a-resource
+spec:
+  of:
+    apiVersion: nop.crossplane.io/v1alpha1
+    kind: NopResource
+    resourceSelector:
+        matchLabels:
+          tier: critical
+  reason: "This resource is protected!"
