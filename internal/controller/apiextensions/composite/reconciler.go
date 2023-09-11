@@ -531,8 +531,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition: %s", compRef.Name)))
 	}
 
-	// Note that this 'Composition' will be derived from a
-	// CompositionRevision if the relevant feature flag is enabled.
+	// Select (if there is a new one) and fetch the composition revision.
 	origRev := xr.GetCompositionRevisionReference()
 	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
