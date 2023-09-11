@@ -260,7 +260,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	// We apply all of our composed resources before we observe them and in the
+	// We apply all of our composed resources before we observe them in the
 	// loop below. This ensures that issues observing and processing one
 	// composed resource won't block the application of another.
 	for i := range tas {
@@ -285,7 +285,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 	}
 
-	// Produce our array of resources resources to return to the Reconciler. The
+	// Produce our array of resources to return to the Reconciler. The
 	// Reconciler uses this array to determine whether the XR is ready. This
 	// means it's important that we return a resources resource for every entry
 	// in tas - i.e. a resources resource for every resource template.
