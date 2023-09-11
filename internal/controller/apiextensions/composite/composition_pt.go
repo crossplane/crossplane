@@ -298,7 +298,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 
 		// If this resource is anonymous its "name" is just its index within the
 		// array of composed resource templates.
-		name := ResourceName(pointer.StringDeref(t.Name, strconv.Itoa(i)))
+		name := ResourceName(pointer.StringDeref(t.Name, fmt.Sprintf("resource %d", i+1)))
 
 		// If we were unable to render the composed resource we should not try
 		// to observe it. We still want to return it to the Reconciler so that

@@ -644,7 +644,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// become ready, since we can't watch them.
 		names := make([]string, len(unready))
 		for i, cd := range unready {
-			names[i] = cd.ResourceName
+			names[i] = string(cd.ResourceName)
 		}
 		// sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.
