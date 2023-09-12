@@ -192,9 +192,9 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 
 // ResourcesHaveConditionWithin fails a test if the supplied resources do not
 // have (i.e. become) the supplied conditions within the supplied duration.
+// Comparison of conditions is modulo messages.
 func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -204,6 +204,9 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		reasons := make([]string, len(cds))
 		for i := range cds {
 			reasons[i] = string(cds[i].Reason)
+			if cds[i].Message != "" {
+				t.Errorf("message must not be set in ResourcesHaveConditionWithin: %s", cds[i].Message)
+			}
 		}
 		desired := strings.Join(reasons, ", ")
 
@@ -220,7 +223,11 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 			_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
 
 			for _, want := range cds {
-				if !s.GetCondition(want.Type).Equal(want) {
+				got := s.GetCondition(want.Type)
+				// do compare modulo message as the message in e2e tests
+				// might differ between runs and is not meant for machines.
+				got.Message = ""
+				if !got.Equal(want) {
 					return false
 				}
 			}
@@ -245,10 +252,9 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 // convenience.
 func CRDInitialNamesAccepted() xpv1.Condition {
 	return xpv1.Condition{
-		Type:    "Established",
-		Status:  corev1.ConditionTrue,
-		Reason:  "InitialNamesAccepted",
-		Message: "the initial names have been accepted",
+		Type:   "Established",
+		Status: corev1.ConditionTrue,
+		Reason: "InitialNamesAccepted",
 	}
 }
 
