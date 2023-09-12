@@ -531,8 +531,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition: %s", compRef.Name)))
 	}
 
-	// Note that this 'Composition' will be derived from a
-	// CompositionRevision if the relevant feature flag is enabled.
+	// Select (if there is a new one) and fetch the composition revision.
+	origRev := xr.GetCompositionRevisionReference()
 	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
 		log.Debug(errFetchComp, "error", err)
@@ -540,6 +540,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	}
+	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
+		r.record.Event(xr, event.Normal(reasonResolve, "Selected composition revision: %s", rev.Name))
 	}
 
 	// TODO(negz): Update this to validate the revision? In practice that's what
@@ -623,7 +626,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonCompose, "Successfully composed resources"))
 	}
 
-	ready := 0
+	var unready []ComposedResource
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
@@ -634,21 +637,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		if !cd.Ready {
 			log.Debug("Composed resource is not yet ready", "id", id)
+			unready = append(unready, cd)
 			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet ready", id)))
 			continue
 		}
-
-		ready++
 	}
 
 	xr.SetConditions(xpv1.ReconcileSuccess())
 
 	// TODO(muvaf): If a resource becomes Unavailable at some point, should we
 	// still report it as Creating?
-	if ready != len(res.Composed) {
+	if len(unready) > 0 {
 		// We want to requeue to wait for our composed resources to
 		// become ready, since we can't watch them.
-		xr.SetConditions(xpv1.Creating())
+		names := make([]string, len(unready))
+		for i, cd := range unready {
+			names[i] = cd.ResourceName
+		}
+		// sort for stable condition messages. With functions, we don't have a
+		// stable order otherwise.
+		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 

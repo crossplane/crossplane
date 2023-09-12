@@ -516,7 +516,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 							cr.SetCompositionReference(&corev1.ObjectReference{})
-							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating())
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating().WithMessage("Unready resources: cat, cow, elephant, and 1 more"))
 						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -537,7 +537,23 @@ func TestReconcile(t *testing.T) {
 					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
 							Composed: []ComposedResource{{
-								Ready: false,
+								ResourceName: "elephant",
+								Ready:        false,
+							}, {
+								ResourceName: "cow",
+								Ready:        false,
+							}, {
+								ResourceName: "pig",
+								Ready:        true,
+							}, {
+								ResourceName: "cat",
+								Ready:        false,
+							}, {
+								ResourceName: "dog",
+								Ready:        true,
+							}, {
+								ResourceName: "snake",
+								Ready:        false,
 							}},
 						}, nil
 					})),
