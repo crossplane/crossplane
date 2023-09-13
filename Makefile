@@ -85,6 +85,7 @@ manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
 CRD_DIR = cluster/crds
+CHART_DIR = cluster/charts/crossplane/templates
 
 crds.clean:
 	@$(INFO) cleaning generated CRDs
@@ -92,7 +93,7 @@ crds.clean:
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate.run: gen-kustomize-crds gen-chart-license
+generate.run: gen-kustomize-crds gen-helm-crds gen-chart-license
 
 gen-chart-license:
 	@cp -f LICENSE cluster/charts/crossplane/LICENSE
@@ -110,6 +111,17 @@ gen-kustomize-crds:
 		do echo "- $${filename#*/}" >> cluster/kustomization.yaml \
 		; done
 	@$(OK) All CRDs added to Kustomize file for local development
+
+gen-helm-crds:
+	@$(INFO) cleaning generated CRDs
+	@find $(CHART_DIR) -name 'crd-*.yaml' -delete || $(FAIL)
+	@$(OK) cleaned generated CRDs
+	@$(INFO) Adding all CRDs to Helm-Chart
+	@$(foreach filename, $(wildcard $(CRD_DIR)/*.yaml), \
+		cp $(filename) $(CHART_DIR)/crd-$(notdir $(filename)); \
+		echo '{{- if .Values.installCRDs }}' | cat - $(CHART_DIR)/crd-$(notdir $(filename)) > temp && mv temp $(CHART_DIR)/crd-$(notdir $(filename)); \
+		echo '{{- end }}' >> $(CHART_DIR)/crd-$(notdir $(filename));)
+	@$(OK) All CRDs added to Helm-Chart
 
 # Generate a coverage report for cobertura applying exclusions on
 # - generated file
@@ -173,7 +185,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug
 
-.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile e2e.test.images
+.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds gen-helm-crds e2e-tests-compile e2e.test.images
 
 # ====================================================================================
 # Special Targets
