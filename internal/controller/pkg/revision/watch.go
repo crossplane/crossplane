@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 type adder interface {
@@ -124,7 +125,7 @@ func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context,
 		return
 	}
 
-	l := &v1alpha1.FunctionRevisionList{}
+	l := &v1beta1.FunctionRevisionList{}
 	if err := e.client.List(ctx, l); err != nil {
 		// TODO(hasheddan): Handle this error?
 		return

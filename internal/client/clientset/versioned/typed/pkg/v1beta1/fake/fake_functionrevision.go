@@ -21,7 +21,7 @@ package fake
 import (
 	"context"
 
-	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	v1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	types "k8s.io/apimachinery/pkg/types"
@@ -31,27 +31,27 @@ import (
 
 // FakeFunctionRevisions implements FunctionRevisionInterface
 type FakeFunctionRevisions struct {
-	Fake *FakePkgV1alpha1
+	Fake *FakePkgV1beta1
 }
 
-var functionrevisionsResource = v1alpha1.SchemeGroupVersion.WithResource("functionrevisions")
+var functionrevisionsResource = v1beta1.SchemeGroupVersion.WithResource("functionrevisions")
 
-var functionrevisionsKind = v1alpha1.SchemeGroupVersion.WithKind("FunctionRevision")
+var functionrevisionsKind = v1beta1.SchemeGroupVersion.WithKind("FunctionRevision")
 
 // Get takes name of the functionRevision, and returns the corresponding functionRevision object, and an error if there is any.
-func (c *FakeFunctionRevisions) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.FunctionRevision, err error) {
+func (c *FakeFunctionRevisions) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta1.FunctionRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(functionrevisionsResource, name), &v1alpha1.FunctionRevision{})
+		Invokes(testing.NewRootGetAction(functionrevisionsResource, name), &v1beta1.FunctionRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.FunctionRevision), err
+	return obj.(*v1beta1.FunctionRevision), err
 }
 
 // List takes label and field selectors, and returns the list of FunctionRevisions that match those selectors.
-func (c *FakeFunctionRevisions) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.FunctionRevisionList, err error) {
+func (c *FakeFunctionRevisions) List(ctx context.Context, opts v1.ListOptions) (result *v1beta1.FunctionRevisionList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(functionrevisionsResource, functionrevisionsKind, opts), &v1alpha1.FunctionRevisionList{})
+		Invokes(testing.NewRootListAction(functionrevisionsResource, functionrevisionsKind, opts), &v1beta1.FunctionRevisionList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -60,8 +60,8 @@ func (c *FakeFunctionRevisions) List(ctx context.Context, opts v1.ListOptions) (
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.FunctionRevisionList{ListMeta: obj.(*v1alpha1.FunctionRevisionList).ListMeta}
-	for _, item := range obj.(*v1alpha1.FunctionRevisionList).Items {
+	list := &v1beta1.FunctionRevisionList{ListMeta: obj.(*v1beta1.FunctionRevisionList).ListMeta}
+	for _, item := range obj.(*v1beta1.FunctionRevisionList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -76,40 +76,40 @@ func (c *FakeFunctionRevisions) Watch(ctx context.Context, opts v1.ListOptions) 
 }
 
 // Create takes the representation of a functionRevision and creates it.  Returns the server's representation of the functionRevision, and an error, if there is any.
-func (c *FakeFunctionRevisions) Create(ctx context.Context, functionRevision *v1alpha1.FunctionRevision, opts v1.CreateOptions) (result *v1alpha1.FunctionRevision, err error) {
+func (c *FakeFunctionRevisions) Create(ctx context.Context, functionRevision *v1beta1.FunctionRevision, opts v1.CreateOptions) (result *v1beta1.FunctionRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(functionrevisionsResource, functionRevision), &v1alpha1.FunctionRevision{})
+		Invokes(testing.NewRootCreateAction(functionrevisionsResource, functionRevision), &v1beta1.FunctionRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.FunctionRevision), err
+	return obj.(*v1beta1.FunctionRevision), err
 }
 
 // Update takes the representation of a functionRevision and updates it. Returns the server's representation of the functionRevision, and an error, if there is any.
-func (c *FakeFunctionRevisions) Update(ctx context.Context, functionRevision *v1alpha1.FunctionRevision, opts v1.UpdateOptions) (result *v1alpha1.FunctionRevision, err error) {
+func (c *FakeFunctionRevisions) Update(ctx context.Context, functionRevision *v1beta1.FunctionRevision, opts v1.UpdateOptions) (result *v1beta1.FunctionRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(functionrevisionsResource, functionRevision), &v1alpha1.FunctionRevision{})
+		Invokes(testing.NewRootUpdateAction(functionrevisionsResource, functionRevision), &v1beta1.FunctionRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.FunctionRevision), err
+	return obj.(*v1beta1.FunctionRevision), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeFunctionRevisions) UpdateStatus(ctx context.Context, functionRevision *v1alpha1.FunctionRevision, opts v1.UpdateOptions) (*v1alpha1.FunctionRevision, error) {
+func (c *FakeFunctionRevisions) UpdateStatus(ctx context.Context, functionRevision *v1beta1.FunctionRevision, opts v1.UpdateOptions) (*v1beta1.FunctionRevision, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(functionrevisionsResource, "status", functionRevision), &v1alpha1.FunctionRevision{})
+		Invokes(testing.NewRootUpdateSubresourceAction(functionrevisionsResource, "status", functionRevision), &v1beta1.FunctionRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.FunctionRevision), err
+	return obj.(*v1beta1.FunctionRevision), err
 }
 
 // Delete takes name of the functionRevision and deletes it. Returns an error if one occurs.
 func (c *FakeFunctionRevisions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(functionrevisionsResource, name, opts), &v1alpha1.FunctionRevision{})
+		Invokes(testing.NewRootDeleteActionWithOptions(functionrevisionsResource, name, opts), &v1beta1.FunctionRevision{})
 	return err
 }
 
@@ -117,16 +117,16 @@ func (c *FakeFunctionRevisions) Delete(ctx context.Context, name string, opts v1
 func (c *FakeFunctionRevisions) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(functionrevisionsResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.FunctionRevisionList{})
+	_, err := c.Fake.Invokes(action, &v1beta1.FunctionRevisionList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched functionRevision.
-func (c *FakeFunctionRevisions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.FunctionRevision, err error) {
+func (c *FakeFunctionRevisions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta1.FunctionRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(functionrevisionsResource, name, pt, data, subresources...), &v1alpha1.FunctionRevision{})
+		Invokes(testing.NewRootPatchSubresourceAction(functionrevisionsResource, name, pt, data, subresources...), &v1beta1.FunctionRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.FunctionRevision), err
+	return obj.(*v1beta1.FunctionRevision), err
 }

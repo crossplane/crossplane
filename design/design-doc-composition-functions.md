@@ -185,13 +185,19 @@ The proposal put forward by this document should:
 
 ## Proposal
 
-This document proposes that a new `pipeline` array of Function calls be added to
-the existing `Composition` type. This array of Functions would be called either
-instead of or in addition to the existing `resources` array in order to
-determine how an XR should be composed. The array of Functions acts as a
+This document proposes that a new `mode` field be added to the existing
+`Composition` type. A Composition in `mode: Pipeline` must specify a `pipeline`
+- an array of Function calls. This array of Functions would be called in order
+to determine how an XR should be composed. The array of Functions acts as a
 pipeline; the output of each Function is passed as the input to the next. The
 output of the final Function call tells Crossplane what must be done to
 reconcile the XR.
+
+When in `mode: Pipeline` the `resources` and `patchSets` fields of a
+Composition's spec are ignored. Put otherwise, a Composition must specify
+P&T-style `resources`, or a `pipeline`. It cannot specify both. The new `mode`
+field must be optional. The default value is `mode: Resources`, which honors
+(only) the P&T `resources` as do GA Compositions today.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2alpha1
@@ -203,6 +209,7 @@ spec:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
   # This Composition uses a pipeline of Functions instead of (P&T) resources.
+  mode: Pipeline
   pipeline:
     # Each step in the pipeline calls one Composition Function.
   - step: compose-xr-using-go-templates
@@ -233,8 +240,8 @@ Notably the Functions would not need to be responsible for interacting with the
 API server to create, update, or delete composed resources. Instead, they
 instruct Crossplane which resources should be created, updated, or deleted.
 Under the proposed design Functions could also be used for purposes besides
-rendering composed resources, for example validating the results of the
-`resources` array or earlier Functions in the `pipeline`.
+rendering composed resources, for example validating the results of earlier
+Functions in the `pipeline`.
 
 Before you can use a Function, you must install it. Installing a Function works
 just like installing a Provider:
@@ -288,9 +295,8 @@ message RunFunctionRequest {
   State observed = 2;
 
   // Desired state according to a Function pipeline. The state passed to a
-  // particular Function may have been accumulated by processing a Composition's
-  // patch-and-transform resources array. It may also have been accumulated by
-  // previous Functions in the pipeline.
+  // particular Function may have been accumulated by previous Functions in the
+  // pipeline.
   State desired = 3;
 
   // Optional input specific to this Function invocation. A JSON representation
@@ -347,7 +353,39 @@ message Resource {
   google.protobuf.Struct resource = 1;
 
   // The resource's connection details.
+  // 
+  // * Crossplane will set this field in a RunFunctionRequest to communicate the
+  //   the observed connection details of a composite or composed resource.
+  //
+  // * A Function should set this field in a RunFunctionResponse to indicate the
+  //   desired connection details of the composite resource.
+  //
+  // * A Function should not set this field in a RunFunctionResponse to indicate
+  //   the desired connection details of a composed resource. This will be
+  //   ignored.
   map<string, bytes> connection_details = 2;
+
+  // Ready indicates whether the resource should be considered ready.
+  // 
+  // * Crossplane will never set this field in a RunFunctionRequest.
+  //
+  // * A Function should set this field to READY_TRUE in a RunFunctionResponse
+  //   to indicate that a desired composed resource is ready.
+  //
+  // * A Function should not set this field in a RunFunctionResponse to indicate
+  //   that the desired composite resource is ready. This will be ignored.
+  Ready ready = 3;
+}
+
+// Ready indicates whether a composed resource should be considered ready.
+enum Ready {
+  READY_UNSPECIFIED = 0;
+
+  // True means the composed resource has been observed to be ready.
+  READY_TRUE = 1;
+
+  // False means the composed resource has not been observed to be ready.
+  READY_FALSE = 2;
 }
 
 // A Result of running a Function.
@@ -400,9 +438,9 @@ Some key differences between the alpha `FunctionIO` and the proposed beta
 
 The package manager is responsible for creating a headless Kubernetes Service
 where each Function's Deployment can be reached. The address of the Service will
-be exposed as the `status.endpoint` of the Function resource. The Service must
-be headless in order for Crossplane's gRPC client to load-balance connections
-when there are multiple Function replicas.
+be exposed as the `status.endpoint` of the active FunctionRevision resource. The
+Service must be headless in order for Crossplane's gRPC client to load-balance
+connections when there are multiple Function replicas.
 
 Note that the fact this endpoint is powered by a Service is an implementation
 detail; it may be possible for Functions to be reached (and indeed deployed) by
@@ -813,6 +851,7 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
+  mode: Pipeline
   pipeline:
   - step: compose-xr-using-go-templates
     functionRef:
@@ -857,6 +896,7 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
+  mode: Pipeline
   pipeline:
   - step: compose-xr-using-go-templates
     functionRef:
@@ -1097,6 +1137,7 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: AcmeCoDatabase
+  mode: Pipeline
   pipeline:
   - step: patch-and-transform
     functionRef:

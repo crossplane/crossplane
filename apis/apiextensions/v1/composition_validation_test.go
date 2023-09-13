@@ -33,6 +33,112 @@ func sortFieldErrors() cmp.Option {
 	})
 }
 
+func TestCompositionValidateMode(t *testing.T) {
+	type args struct {
+		spec CompositionSpec
+	}
+	type want struct {
+		output field.ErrorList
+	}
+
+	resources := CompositionModeResources
+	pipeline := CompositionModePipeline
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidResources": {
+			reason: "A Resources mode Composition with an array of resources is valid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &resources,
+					Resources: []ComposedTemplate{
+						{Name: pointer.String("cool-template")},
+					},
+				},
+			},
+			want: want{
+				output: nil,
+			},
+		},
+		"ValidImplicitResources": {
+			reason: "A Composition with no explicit mode is assumed to be a Resources mode Composition, which with an array of resources is valid",
+			args: args{
+				spec: CompositionSpec{
+					// This Composition uses Resources mode implicitly.
+					Resources: []ComposedTemplate{
+						{Name: pointer.String("cool-template")},
+					},
+				},
+			},
+			want: want{
+				output: nil,
+			},
+		},
+		"InvalidResources": {
+			reason: "A Resources mode Composition without an array of resources is invalid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &resources,
+				},
+			},
+			want: want{
+				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "this test ignores this field")},
+			},
+		},
+		"InvalidImplicitResources": {
+			reason: "A Composition with no explicit mode is assumed to be a Resources mode Composition, which is invalid without an array of resources",
+			args: args{
+				spec: CompositionSpec{},
+			},
+			want: want{
+				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "this test ignores this field")},
+			},
+		},
+		"ValidPipeline": {
+			reason: "A Pipeline mode Composition with an array of pipeline steps is valid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &pipeline,
+					Pipeline: []PipelineStep{
+						{
+							Step: "razor",
+						},
+					},
+				},
+			},
+			want: want{
+				output: nil,
+			},
+		},
+		"InvalidPipeline": {
+			reason: "A Pipeline mode Composition without an array of pipeline steps is invalid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &pipeline,
+				},
+			},
+			want: want{
+				output: field.ErrorList{field.Required(field.NewPath("spec", "pipeline"), "this test ignores this field")},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &Composition{
+				Spec: tc.args.spec,
+			}
+			gotErrs := c.validateMode()
+			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+				t.Errorf("%s\nvalidateResourceNames(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestCompositionValidateResourceName(t *testing.T) {
 	type args struct {
 		spec CompositionSpec
@@ -119,9 +225,9 @@ func TestCompositionValidateResourceName(t *testing.T) {
 						{Name: pointer.String("foo")},
 						{Name: pointer.String("bar")},
 					},
-					Functions: []Function{
+					Pipeline: []PipelineStep{
 						{
-							Name: "baz",
+							Step: "baz",
 						},
 					},
 				},
@@ -134,9 +240,9 @@ func TestCompositionValidateResourceName(t *testing.T) {
 					Resources: []ComposedTemplate{
 						{},
 					},
-					Functions: []Function{
+					Pipeline: []PipelineStep{
 						{
-							Name: "foo",
+							Step: "foo",
 						},
 					},
 				},
@@ -341,7 +447,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 	}
 }
 
-func TestCompositionValidateFunctions(t *testing.T) {
+func TestCompositionValidatePipeline(t *testing.T) {
 	type args struct {
 		comp *Composition
 	}
@@ -354,7 +460,7 @@ func TestCompositionValidateFunctions(t *testing.T) {
 		want   want
 	}{
 		"ValidNoFunctions": {
-			reason: "no functions should be valid",
+			reason: "no steps should be valid",
 			args: args{
 				comp: &Composition{
 					Spec: CompositionSpec{},
@@ -362,49 +468,33 @@ func TestCompositionValidateFunctions(t *testing.T) {
 			},
 		},
 		"ValidFunctions": {
-			reason: "functions with valid configuration should be valid",
+			reason: "steps with valid configuration should be valid",
 			args: args{
 				comp: &Composition{
 					Spec: CompositionSpec{
-						Functions: []Function{
+						Pipeline: []PipelineStep{
 							{
-								Name: "foo",
-								Type: FunctionTypeContainer,
-								Container: &ContainerFunction{
-									Image: "foo",
-								},
+								Step: "foo",
 							},
 							{
-								Name: "bar",
-								Type: FunctionTypeContainer,
-								Container: &ContainerFunction{
-									Image: "bar",
-								},
+								Step: "bar",
 							},
 						},
 					},
 				},
 			},
 		},
-		"InvalidDuplicateFuctionNames": {
-			reason: "Invalid functions with duplicate names",
+		"InvalidDuplicateStepNames": {
+			reason: "Invalid steps with duplicate names",
 			args: args{
 				comp: &Composition{
 					Spec: CompositionSpec{
-						Functions: []Function{
+						Pipeline: []PipelineStep{
 							{
-								Name: "foo",
-								Type: FunctionTypeContainer,
-								Container: &ContainerFunction{
-									Image: "foo",
-								},
+								Step: "foo",
 							},
 							{
-								Name: "foo",
-								Type: FunctionTypeContainer,
-								Container: &ContainerFunction{
-									Image: "bar",
-								},
+								Step: "foo",
 							},
 						},
 					},
@@ -414,44 +504,8 @@ func TestCompositionValidateFunctions(t *testing.T) {
 				output: field.ErrorList{
 					{
 						Type:     field.ErrorTypeDuplicate,
-						Field:    "spec.functions[1].name",
+						Field:    "spec.pipeline[1].step",
 						BadValue: "foo",
-					},
-				},
-			},
-		},
-		"InvalidDuplicateFuctionNamesAndMissingContainer": {
-			reason: "functions with duplicate names and missing container should return both validation errors",
-			args: args{
-				comp: &Composition{
-					Spec: CompositionSpec{
-						Functions: []Function{
-							{
-								Name: "foo",
-								Type: FunctionTypeContainer,
-								Container: &ContainerFunction{
-									Image: "foo",
-								},
-							},
-							{
-								Name: "foo",
-								Type: FunctionTypeContainer,
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				output: field.ErrorList{
-					{
-						Type:     field.ErrorTypeDuplicate,
-						Field:    "spec.functions[1].name",
-						BadValue: "foo",
-					},
-					{
-						Type:     field.ErrorTypeRequired,
-						Field:    "spec.functions[1].container",
-						BadValue: "",
 					},
 				},
 			},
@@ -459,9 +513,9 @@ func TestCompositionValidateFunctions(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			gotErrs := tc.args.comp.validateFunctions()
+			gotErrs := tc.args.comp.validatePipeline()
 			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
-				t.Errorf("%s\nvalidateFunctions(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nvalidatePipeline(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

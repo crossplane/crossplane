@@ -31,12 +31,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // Error strings.
 const (
+	errGetSecret      = "cannot get connection secret of composed resource"
 	errConnDetailName = "connection detail is missing name"
 
 	errFmtConnDetailKey  = "connection detail of type %q key is not set"
@@ -271,9 +271,9 @@ type ConnectionDetailExtractConfig struct {
 	Value *string
 }
 
-// ExtractConfigsFromTemplate builds extract configs for the supplied P&T style
-// composed resource template.
-func ExtractConfigsFromTemplate(t *v1.ComposedTemplate) []ConnectionDetailExtractConfig {
+// ExtractConfigsFromComposedTemplate builds extract configs for the supplied
+// P&T style composed resource template.
+func ExtractConfigsFromComposedTemplate(t *v1.ComposedTemplate) []ConnectionDetailExtractConfig {
 	if t == nil {
 		return nil
 	}
@@ -288,33 +288,6 @@ func ExtractConfigsFromTemplate(t *v1.ComposedTemplate) []ConnectionDetailExtrac
 
 		if t.ConnectionDetails[i].Name != nil {
 			out[i].Name = *t.ConnectionDetails[i].Name
-			continue
-		}
-
-		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionSecretKey != nil {
-			out[i].Name = *out[i].FromConnectionSecretKey
-		}
-	}
-	return out
-}
-
-// ExtractConfigsFromDesired builds extract configs for the supplied Composition
-// Function desired state.
-func ExtractConfigsFromDesired(dr *iov1alpha1.DesiredResource) []ConnectionDetailExtractConfig {
-	if dr == nil {
-		return nil
-	}
-	out := make([]ConnectionDetailExtractConfig, len(dr.ConnectionDetails))
-	for i := range dr.ConnectionDetails {
-		out[i] = ConnectionDetailExtractConfig{
-			Type:                    ConnectionDetailType(dr.ConnectionDetails[i].Type),
-			Value:                   dr.ConnectionDetails[i].Value,
-			FromConnectionSecretKey: dr.ConnectionDetails[i].FromConnectionSecretKey,
-			FromFieldPath:           dr.ConnectionDetails[i].FromFieldPath,
-		}
-
-		if dr.ConnectionDetails[i].Name != nil {
-			out[i].Name = *dr.ConnectionDetails[i].Name
 			continue
 		}
 

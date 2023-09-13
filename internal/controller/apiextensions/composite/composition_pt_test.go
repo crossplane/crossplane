@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -46,6 +45,7 @@ import (
 func TestPTCompose(t *testing.T) {
 	errBoom := errors.New("boom")
 	details := managed.ConnectionDetails{"a": []byte("b")}
+	base := runtime.RawExtension{Raw: []byte(`{"apiVersion":"test.crossplane.io/v1","kind":"ComposedResource"}`)}
 
 	type params struct {
 		kube client.Client
@@ -107,53 +107,45 @@ func TestPTCompose(t *testing.T) {
 				err: errors.Wrap(errBoom, errAssociate),
 			},
 		},
-		// TODO(negz): Test handling of ApplyEnvironmentPatch errors.
-		"RenderComposedError": {
-			reason: "We should include any error encountered while rendering a composed resource as a warning, not as the returned error.",
+		"ParseComposedResourceBaseError": {
+			reason: "We should return any error encountered while parsing a composed resource base template",
 			params: params{
-				kube: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
-
-					// Apply uses Get and Patch.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
-						tas := []TemplateAssociation{{
-							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+						tas := []TemplateAssociation{
+							{
+								Template: v1.ComposedTemplate{
+									Name: pointer.String("uncool-resource"),
+									Base: runtime.RawExtension{Raw: []byte("{}")}, // An invalid, empty base resource template.
+								},
 							},
-						}}
+						}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return errBoom
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
 					})),
 					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
-						return nil, nil
+						return details, nil
+					})),
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+						return true, nil
 					})),
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
-				res: CompositionResult{
-					Composed: []ComposedResource{{
-						ResourceName: "cool-resource",
-					}},
-					ConnectionDetails: managed.ConnectionDetails{},
-					Events: []event.Event{
-						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtResourceName, "cool-resource")),
-					},
-				},
+				err: errors.Wrapf(errors.Wrap(errors.New("Object 'Kind' is missing in '{}'"), errUnmarshalJSON), errFmtParseBase, "uncool-resource"),
 			},
 		},
 		"UpdateCompositeError": {
@@ -167,17 +159,20 @@ func TestPTCompose(t *testing.T) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
+								Base: base,
 							},
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -192,68 +187,34 @@ func TestPTCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
 
-					// Apply calls Get.
-					MockGet: test.NewMockGetFn(errBoom),
+					// Apply calls Create because GenerateName is set.
+					MockCreate: test.NewMockCreateFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
+								Base: base,
 							},
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApply),
-			},
-		},
-		"CompositeRenderError": {
-			reason: "We should return any error encountered while rendering the Composite.",
-			params: params{
-				kube: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
-
-					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-				},
-				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
-						tas := []TemplateAssociation{{
-							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
-							},
-						}}
-						return tas, nil
-					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return errBoom
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errRenderCR),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot create object"), errApplyComposed),
 			},
 		},
 		"FetchConnectionDetailsError": {
@@ -262,32 +223,31 @@ func TestPTCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
 
-					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					// Apply calls Create because GenerateName is set.
+					MockCreate: test.NewMockCreateFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
+								Base: base,
 							},
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -302,25 +262,20 @@ func TestPTCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
 
-					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					// Apply calls Create because GenerateName is set.
+					MockCreate: test.NewMockCreateFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
+								Base: base,
 							},
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -330,13 +285,17 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errExtractDetails),
+				err: errors.Wrapf(errBoom, errFmtExtractDetails, "cool-resource"),
 			},
 		},
 		"CheckReadinessError": {
@@ -345,25 +304,20 @@ func TestPTCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
 
-					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					// Apply calls Create because GenerateName is set.
+					MockCreate: test.NewMockCreateFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
+								Base: base,
 							},
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -376,13 +330,17 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errReadiness),
+				err: errors.Wrapf(errBoom, errFmtCheckReadiness, "cool-resource"),
 			},
 		},
 		"CompositeApplyError": {
@@ -401,13 +359,14 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						return nil, nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -422,25 +381,22 @@ func TestPTCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
 
-					// Apply uses Get and Patch.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					// Apply uses Get, Create, and Patch.
+					MockGet:    test.NewMockGetFn(nil),
+					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch:  test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
+								Base: base,
 							},
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-						return nil
-					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -453,7 +409,11 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{},
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{},
 				},
@@ -468,6 +428,83 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 		},
+		"PartialSuccess": {
+			reason: "We should return the resources we composed, and our derived connection details. We should return events for any resources we couldn't compose",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply uses Get, Create, and Patch.
+					MockGet:    test.NewMockGetFn(nil),
+					MockCreate: test.NewMockCreateFn(nil),
+					MockPatch:  test.NewMockPatchFn(nil),
+				},
+				o: []PTComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{
+							{
+								Template: v1.ComposedTemplate{
+									Name: pointer.String("cool-resource"),
+									Base: base,
+								},
+							},
+							{
+								// This resource won't apply successfully due to
+								// the clause below in the dry-run renderer.
+								Template: v1.ComposedTemplate{
+									Name: pointer.String("uncool-resource"),
+									Base: runtime.RawExtension{Raw: []byte(`{"apiVersion":"test.crossplane.io/v1","kind":"BrokenResource"}`)},
+								},
+							},
+						}
+						return tas, nil
+					})),
+					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error {
+						if cd.GetObjectKind().GroupVersionKind().Kind == "BrokenResource" {
+							return errBoom
+						}
+						return nil
+					})),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+						return details, nil
+					})),
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+						return true, nil
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cool-xr"},
+					},
+				},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{
+						{
+							ResourceName: "cool-resource",
+							Ready:        true,
+						},
+						{
+							ResourceName: "uncool-resource",
+							Ready:        false,
+						},
+					},
+					ConnectionDetails: details,
+					Events: []event.Event{
+						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtDryRunApply, "uncool-resource")),
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -476,151 +513,14 @@ func TestPTCompose(t *testing.T) {
 			c := NewPTComposer(tc.params.kube, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
 			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
-		})
-	}
-}
 
-func TestRender(t *testing.T) {
-	ctrl := true
-	tmpl, _ := json.Marshal(&fake.Managed{})
-	errBoom := errors.New("boom")
-
-	type args struct {
-		ctx context.Context
-		cp  resource.Composite
-		cd  resource.Composed
-		t   v1.ComposedTemplate
-	}
-	type want struct {
-		cd  resource.Composed
-		err error
-	}
-	cases := map[string]struct {
-		reason string
-		client client.Client
-		args
-		want
-	}{
-		"InvalidTemplate": {
-			reason: "Invalid template should not be accepted",
-			args: args{
-				cd: &fake.Composed{},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("olala")}},
-			},
-			want: want{
-				cd:  &fake.Composed{},
-				err: errors.Wrap(errors.New("invalid character 'o' looking for beginning of value"), errUnmarshal),
-			},
-		},
-		"NoLabel": {
-			reason: "The name prefix label has to be set",
-			args: args{
-				cp: &fake.Composite{},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd:  &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				err: errors.New(errNamePrefix),
-			},
-		},
-		"DryRunError": {
-			reason: "Errors dry-run creating the rendered resource to name it should be returned",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					xcrd.LabelKeyNamePrefixForComposed: "ola",
-					xcrd.LabelKeyClaimName:             "rola",
-					xcrd.LabelKeyClaimNamespace:        "rolans",
-				}}},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "ola-",
-					Labels: map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "ola",
-						xcrd.LabelKeyClaimName:             "rola",
-						xcrd.LabelKeyClaimNamespace:        "rolans",
-					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl}},
-				}},
-				err: errors.Wrap(errBoom, errName),
-			},
-		},
-		"ControllerError": {
-			reason: "External controller owner references should cause an exception",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					xcrd.LabelKeyNamePrefixForComposed: "ola",
-					xcrd.LabelKeyClaimName:             "rola",
-					xcrd.LabelKeyClaimNamespace:        "rolans",
-				}}},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd",
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl,
-						UID: "random_uid"}}}},
-				t: v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					Name:         "cd",
-					GenerateName: "ola-",
-					Labels: map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "ola",
-						xcrd.LabelKeyClaimName:             "rola",
-						xcrd.LabelKeyClaimNamespace:        "rolans",
-					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl,
-						UID: "random_uid"}},
-				}},
-				err: errors.Wrap(errors.Errorf("cd is already controlled by   (UID random_uid)"), errSetControllerRef),
-			},
-		},
-		"Success": {
-			reason: "Configuration should result in the right object with correct generateName",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					xcrd.LabelKeyNamePrefixForComposed: "ola",
-					xcrd.LabelKeyClaimName:             "rola",
-					xcrd.LabelKeyClaimNamespace:        "rolans",
-				}}},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					Name:         "cd",
-					GenerateName: "ola-",
-					Labels: map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "ola",
-						xcrd.LabelKeyClaimName:             "rola",
-						xcrd.LabelKeyClaimNamespace:        "rolans",
-					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl}},
-				}},
-			},
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			r := NewAPIDryRunRenderer(tc.client)
-			err := r.Render(tc.args.ctx, tc.args.cp, tc.args.cd, tc.args.t, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nCompose(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
-				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
-			}
+
 		})
 	}
 }
@@ -765,7 +665,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			reason: "We should associate referenced resources by their template name annotation.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-					SetCompositionResourceName(obj.(metav1.Object), n0)
+					SetCompositionResourceName(obj.(metav1.Object), ResourceName(n0))
 					return nil
 				}),
 			},
@@ -779,8 +679,8 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				tas: []TemplateAssociation{{Template: t0, Reference: r0}},
 			},
 		},
-		"UncontrolledResource": {
-			reason: "We should not garbage collect a resource that we don't control.",
+		"ResourceControlledBySomeoneElse": {
+			reason: "We should not garbage collect a resource that is controlled by another resource.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
@@ -807,18 +707,49 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				tas: []TemplateAssociation{{Template: t0}},
 			},
 		},
+		"ResourceNotControlled": {
+			reason: "We should not garbage collect a resource that has no controller reference.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					// The template used to create this resource is no longer known to us.
+					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is not controlled by anyone.
+					return nil
+				}),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: types.UID("very-unique")},
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				ct: []v1.ComposedTemplate{t0},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0}},
+			},
+		},
 		"GarbageCollectionError": {
 			reason: "We should return errors encountered while garbage collecting a composed resource.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
 					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is controlled by us.
+					ctrl := true
+					obj.SetOwnerReferences([]metav1.OwnerReference{{
+						Controller:         &ctrl,
+						BlockOwnerDeletion: &ctrl,
+						UID:                types.UID("it-me"),
+					}})
 					return nil
 				}),
 				MockDelete: test.NewMockDeleteFn(errBoom),
 			},
 			args: args{
 				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: "it-me"},
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
 				ct: []v1.ComposedTemplate{t0},
@@ -833,12 +764,22 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
 					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is controlled by us.
+					ctrl := true
+					obj.SetOwnerReferences([]metav1.OwnerReference{{
+						Controller:         &ctrl,
+						BlockOwnerDeletion: &ctrl,
+						UID:                types.UID("it-me"),
+					}})
+
 					return nil
 				}),
 				MockDelete: test.NewMockDeleteFn(nil),
 			},
 			args: args{
 				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: "it-me"},
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
 				ct: []v1.ComposedTemplate{t0},

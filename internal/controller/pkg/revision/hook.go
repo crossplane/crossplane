@@ -31,9 +31,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -249,8 +250,8 @@ func NewFunctionHooks(client resource.ClientApplicator, namespace, serviceAccoun
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
 func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1alpha1.Function{})
-	pkgFunction, ok := fo.(*pkgmetav1alpha1.Function)
+	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
+	pkgFunction, ok := fo.(*pkgmetav1beta1.Function)
 	if !ok {
 		return errors.New(errNotFunction)
 	}
@@ -280,8 +281,8 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 // Post creates a packaged function deployment, service account, service and secrets if the revision is active.
 func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // See below
 	// TODO(ezgidemirel): Can this be refactored for less complexity?
-	po, _ := xpkg.TryConvert(pkg, &pkgmetav1alpha1.Function{})
-	pkgFunction, ok := po.(*pkgmetav1alpha1.Function)
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
+	pkgFunction, ok := po.(*pkgmetav1beta1.Function)
 	if !ok {
 		return errors.New(errNotFunction)
 	}
@@ -316,7 +317,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return errors.Wrap(err, errApplyFunctionService)
 	}
 
-	fRev := pr.(*v1alpha1.FunctionRevision)
+	fRev := pr.(*v1beta1.FunctionRevision)
 	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
 
 	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})

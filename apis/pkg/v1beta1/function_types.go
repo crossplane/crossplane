@@ -14,13 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
+	// TODO(negz): Ideally our v1beta1 package wouldn't import types from v1, as
+	// this strongly couples the types. This would make life difficult if we
+	// wanted to evolve this package in a different direction from the current
+	// v1 implementation. Unfortunately the package manager implementation
+	// requires any type that is reconciled as a package (or revision) to
+	// satisfy interfaces that involve returning v1 types.
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -53,10 +59,6 @@ type FunctionSpec struct {
 type FunctionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 	v1.PackageStatus       `json:",inline"`
-
-	// Endpoint is the gRPC endpoint where Crossplane will send
-	// RunFunctionRequests.
-	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -31,14 +31,14 @@ const (
 
 // SetCompositionResourceName sets the name of the composition template used to
 // reconcile a composed resource as an annotation.
-func SetCompositionResourceName(o metav1.Object, name string) {
-	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: name})
+func SetCompositionResourceName(o metav1.Object, n ResourceName) {
+	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: string(n)})
 }
 
 // GetCompositionResourceName gets the name of the composition template used to
 // reconcile a composed resource from its annotations.
-func GetCompositionResourceName(o metav1.Object) string {
-	return o.GetAnnotations()[AnnotationKeyCompositionResourceName]
+func GetCompositionResourceName(o metav1.Object) ResourceName {
+	return ResourceName(o.GetAnnotations()[AnnotationKeyCompositionResourceName])
 }
 
 // Returns types of patches that are from a composed resource _to_ a composite resource.

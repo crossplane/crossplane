@@ -43,7 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
@@ -321,8 +321,8 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 
 // SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
 func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
-	name := "packages/" + strings.ToLower(v1alpha1.FunctionRevisionGroupKind)
-	nr := func() v1.PackageRevision { return &v1alpha1.FunctionRevision{} }
+	name := "packages/" + strings.ToLower(v1beta1.FunctionRevisionGroupKind)
+	nr := func() v1.PackageRevision { return &v1beta1.FunctionRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -360,7 +360,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.FunctionRevision{}).
+		For(&v1beta1.FunctionRevision{}).
 		Owns(&appsv1.Deployment{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
@@ -586,7 +586,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1alpha1.Function{})
+	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1beta1.Function{})
 
 	pmo := pkgMeta.(metav1.Object)
 	meta.AddLabels(pr, pmo.GetLabels())

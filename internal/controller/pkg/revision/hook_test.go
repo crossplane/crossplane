@@ -33,9 +33,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
@@ -359,27 +360,27 @@ func TestHookPre(t *testing.T) {
 			reason: "Should only update status if function revision is active.",
 			args: args{
 				hook: &FunctionHooks{},
-				pkg: &pkgmetav1alpha1.Function{
-					Spec: pkgmetav1alpha1.FunctionSpec{
-						MetaSpec: pkgmetav1alpha1.MetaSpec{
-							Crossplane: &pkgmetav1alpha1.CrossplaneConstraints{
+				pkg: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						MetaSpec: pkgmetav1beta1.MetaSpec{
+							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmetav1alpha1.Dependency{{
+							DependsOn: []pkgmetav1beta1.Dependency{{
 								Function: &functionDep,
 								Version:  versionDep,
 							}},
 						},
 					},
 				},
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
 					},
@@ -404,20 +405,20 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{
-					Spec: pkgmetav1alpha1.FunctionSpec{
-						MetaSpec: pkgmetav1alpha1.MetaSpec{
-							Crossplane: &pkgmetav1alpha1.CrossplaneConstraints{
+				pkg: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						MetaSpec: pkgmetav1beta1.MetaSpec{
+							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmetav1alpha1.Dependency{{
+							DependsOn: []pkgmetav1beta1.Dependency{{
 								Function: &functionDep,
 								Version:  versionDep,
 							}},
 						},
 					},
 				},
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionInactive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -425,7 +426,7 @@ func TestHookPre(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionInactive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -452,20 +453,20 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{
-					Spec: pkgmetav1alpha1.FunctionSpec{
-						MetaSpec: pkgmetav1alpha1.MetaSpec{
-							Crossplane: &pkgmetav1alpha1.CrossplaneConstraints{
+				pkg: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						MetaSpec: pkgmetav1beta1.MetaSpec{
+							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmetav1alpha1.Dependency{{
+							DependsOn: []pkgmetav1beta1.Dependency{{
 								Function: &functionDep,
 								Version:  versionDep,
 							}},
 						},
 					},
 				},
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionInactive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -473,7 +474,7 @@ func TestHookPre(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionInactive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -494,20 +495,20 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{
-					Spec: pkgmetav1alpha1.FunctionSpec{
-						MetaSpec: pkgmetav1alpha1.MetaSpec{
-							Crossplane: &pkgmetav1alpha1.CrossplaneConstraints{
+				pkg: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						MetaSpec: pkgmetav1beta1.MetaSpec{
+							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmetav1alpha1.Dependency{{
+							DependsOn: []pkgmetav1beta1.Dependency{{
 								Provider: &functionDep,
 								Version:  versionDep,
 							}},
 						},
 					},
 				},
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionInactive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -515,7 +516,7 @@ func TestHookPre(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionInactive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -966,15 +967,15 @@ func TestHookPost(t *testing.T) {
 			reason: "Should do nothing if function revision is inactive.",
 			args: args{
 				hook: &FunctionHooks{},
-				pkg:  &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg:  &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionInactive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionInactive,
 					},
@@ -1015,15 +1016,15 @@ func TestHookPost(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
 					},
@@ -1070,8 +1071,8 @@ func TestHookPost(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -1079,7 +1080,7 @@ func TestHookPost(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -1113,8 +1114,8 @@ func TestHookPost(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						ControllerConfigReference: &v1.ControllerConfigReference{
 							Name: "custom-config",
@@ -1124,7 +1125,7 @@ func TestHookPost(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
 						ControllerConfigReference: &v1.ControllerConfigReference{
@@ -1187,8 +1188,8 @@ func TestHookPost(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -1196,7 +1197,7 @@ func TestHookPost(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -1259,8 +1260,8 @@ func TestHookPost(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1.LabelParentPackage: "my-function",
@@ -1273,7 +1274,7 @@ func TestHookPost(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1.LabelParentPackage: "my-function",
@@ -1283,7 +1284,7 @@ func TestHookPost(t *testing.T) {
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
 					},
-					Status: v1alpha1.FunctionRevisionStatus{
+					Status: v1beta1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{},
 						Endpoint:              fmt.Sprintf(serviceEndpointFmt, "my-function", namespace, servicePort),
 					},
@@ -1336,8 +1337,8 @@ func TestHookPost(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmetav1alpha1.Function{},
-				rev: &v1alpha1.FunctionRevision{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1.LabelParentPackage: "my-function",
@@ -1350,7 +1351,7 @@ func TestHookPost(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1alpha1.FunctionRevision{
+				rev: &v1beta1.FunctionRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							v1.LabelParentPackage: "my-function",
@@ -1360,7 +1361,7 @@ func TestHookPost(t *testing.T) {
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
 					},
-					Status: v1alpha1.FunctionRevisionStatus{
+					Status: v1beta1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{},
 						Endpoint:              fmt.Sprintf(serviceEndpointFmt, "my-function", namespace, servicePort),
 					},

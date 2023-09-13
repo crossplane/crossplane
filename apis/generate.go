@@ -35,6 +35,7 @@ limitations under the License.
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/configuration_types.go pkg/meta/v1alpha1
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/provider_types.go pkg/meta/v1alpha1
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/meta.go pkg/meta/v1alpha1
+//go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/meta.go pkg/meta/v1beta1
 
 // NOTE(negz): We generate deepcopy methods and CRDs for each API group
 // separately because there seems to be an undiagnosed bug in controller-runtime
@@ -46,12 +47,9 @@ limitations under the License.
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./secrets/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 
-// We generate the meta.pkg.crossplane.io and fn.apiextensions.crossplane.io
-// types separately as the generated CRDs are never installed, only used for API
-// documentation.
-// TODO(negz): fn.apiextensions.crossplane.io CRD generation doesn't appear to
-// work. Possibly because they wouldn't be valid - they lack object metadata.
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/...;./apiextensions/fn/io/... crd:crdVersions=v1 output:artifacts:config=../cluster/meta
+// We generate the meta.pkg.crossplane.io types separately as the generated CRDs
+// are never installed, only used for API documentation.
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/... crd:crdVersions=v1 output:artifacts:config=../cluster/meta
 
 // Generate webhook manifests
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 output:artifacts:config=../cluster/webhookconfigurations

@@ -28,9 +28,10 @@ import (
 func (c *Composition) Validate() (warns []string, errs field.ErrorList) {
 	type validationFunc func() field.ErrorList
 	validations := []validationFunc{
+		c.validateMode,
 		c.validatePatchSets,
 		c.validateResources,
-		c.validateFunctions,
+		c.validatePipeline,
 		c.validateEnvironment,
 	}
 	for _, f := range validations {
@@ -39,16 +40,35 @@ func (c *Composition) Validate() (warns []string, errs field.ErrorList) {
 	return nil, errs
 }
 
-func (c *Composition) validateFunctions() (errs field.ErrorList) {
+func (c *Composition) validateMode() (errs field.ErrorList) {
+	// "Resources" mode was the original mode. It predates the mode field, so
+	// it's the default if mode isn't specified.
+	m := CompositionModeResources
+	if c.Spec.Mode != nil {
+		m = *c.Spec.Mode
+	}
+
+	switch m {
+	case CompositionModeResources:
+		if len(c.Spec.Resources) == 0 {
+			errs = append(errs, field.Required(field.NewPath("spec", "resources"), "an array of resources is required in Resources mode (the default if no mode is specified)"))
+		}
+	case CompositionModePipeline:
+		if len(c.Spec.Pipeline) == 0 {
+			errs = append(errs, field.Required(field.NewPath("spec", "pipeline"), "an array of pipeline steps is required in Pipeline mode"))
+		}
+	}
+
+	return errs
+}
+
+func (c *Composition) validatePipeline() (errs field.ErrorList) {
 	seen := map[string]bool{}
-	for i, f := range c.Spec.Functions {
-		if seen[f.Name] {
-			errs = append(errs, field.Duplicate(field.NewPath("spec", "functions").Index(i).Child("name"), f.Name))
+	for i, f := range c.Spec.Pipeline {
+		if seen[f.Step] {
+			errs = append(errs, field.Duplicate(field.NewPath("spec", "pipeline").Index(i).Child("step"), f.Step))
 		}
-		seen[f.Name] = true
-		if err := f.Validate(); err != nil {
-			errs = append(errs, verrors.WrapFieldError(err, field.NewPath("spec", "functions").Index(i)))
-		}
+		seen[f.Step] = true
 	}
 	return errs
 }
@@ -118,8 +138,8 @@ func (c *Composition) validateResources() (errs field.ErrorList) {
 //     template N.
 //  2. All resources have unique names: because other parts of the code require so.
 //  3. If the composition has any functions, it must have only named resources: This is necessary for the
-//     FunctionComposer to be able to associate entries in the spec.resources array with entries in a FunctionIO's observed
-//     and desired arrays
+//     FunctionComposer to be able to associate entries in the spec.resources array with entries in a RunFunctionRequest's observed
+//     and desired objects.
 func (c *Composition) validateResourceNames() (errs field.ErrorList) {
 	seen := map[string]bool{}
 	for resourceIndex, res := range c.Spec.Resources {
@@ -128,7 +148,7 @@ func (c *Composition) validateResourceNames() (errs field.ErrorList) {
 		name := res.GetName()
 		if name == "" {
 			// If the composition has any functions, it must have only named resources.
-			if len(c.Spec.Functions) != 0 {
+			if len(c.Spec.Pipeline) != 0 {
 				errs = append(errs, field.Required(field.NewPath("spec", "resources").Index(resourceIndex).Child("name"), "cannot have anonymous resources when composition has functions"))
 				continue
 			}

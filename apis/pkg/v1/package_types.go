@@ -18,6 +18,10 @@ package v1
 
 import corev1 "k8s.io/api/core/v1"
 
+// RevisionActivationPolicy indicates how a package should activate its
+// revisions.
+type RevisionActivationPolicy string
+
 // PackageSpec specifies the desired state of a Package.
 type PackageSpec struct {
 	// Package is the name of the package that is being requested.

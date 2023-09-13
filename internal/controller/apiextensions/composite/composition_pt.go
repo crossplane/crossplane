@@ -24,7 +24,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -38,28 +37,25 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
-	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 // Error strings
 const (
-	errGetComposed      = "cannot get composed resource"
-	errGCComposed       = "cannot garbage collect composed resource"
-	errApply            = "cannot apply composed resource"
-	errFetchDetails     = "cannot fetch connection details"
-	errExtractDetails   = "cannot extract composite resource connection details from composed resource"
-	errReadiness        = "cannot check whether composed resource is ready"
-	errUnmarshal        = "cannot unmarshal base template"
-	errGetSecret        = "cannot get connection secret of composed resource"
-	errNamePrefix       = "name prefix is not found in labels"
-	errKindChanged      = "cannot change the kind of an existing composed resource"
-	errName             = "cannot use dry-run create to name composed resource"
-	errInline           = "cannot inline Composition patch sets"
-	errRenderCR         = "cannot render composite resource"
-	errSetControllerRef = "cannot set controller reference"
+	errGetComposed   = "cannot get composed resource"
+	errGCComposed    = "cannot garbage collect composed resource"
+	errApplyComposed = "cannot apply composed resource"
+	errFetchDetails  = "cannot fetch connection details"
+	errInline        = "cannot inline Composition patch sets"
 
-	errFmtResourceName = "composed resource %q"
-	errFmtPatch        = "cannot apply the patch at index %d"
+	errFmtPatchEnvironment             = "cannot apply environment patch at index %d"
+	errFmtParseBase                    = "cannot parse base template of composed resource %q"
+	errFmtRenderFromCompositePatches   = "cannot render FromComposite patches for composed resource %q"
+	errFmtRenderToCompositePatches     = "cannot render ToComposite patches for composed resource %q"
+	errFmtRenderFromEnvironmentPatches = "cannot render FromEnvironment patches for composed resource %q"
+	errFmtRenderMetadata               = "cannot render metadata for composed resource %q"
+	errFmtDryRunApply                  = "cannot dry-run apply composed resource %q"
+	errFmtExtractDetails               = "cannot extract composite resource connection details from composed resource %q"
+	errFmtCheckReadiness               = "cannot check whether composed resource %q is ready"
 )
 
 // TODO(negz): Move P&T Composition logic into its own package?
@@ -75,19 +71,12 @@ func WithTemplateAssociator(a CompositionTemplateAssociator) PTComposerOption {
 	}
 }
 
-// WithCompositeRenderer configures how a PatchAndTransformComposer renders the
-// composite resource.
-func WithCompositeRenderer(r Renderer) PTComposerOption {
+// WithComposedDryRunRenderer configures how the PTComposer should dry-run
+// render composed resources - i.e. by submitting them to the API server to
+// generate a name for them.
+func WithComposedDryRunRenderer(r DryRunRenderer) PTComposerOption {
 	return func(c *PTComposer) {
-		c.composite = r
-	}
-}
-
-// WithComposedRenderer configures how a PatchAndTransformComposer renders
-// composed resources.
-func WithComposedRenderer(r Renderer) PTComposerOption {
-	return func(c *PTComposer) {
-		c.composed.Renderer = r
+		c.composed.DryRunRenderer = r
 	}
 }
 
@@ -117,7 +106,7 @@ func WithComposedConnectionDetailsExtractor(e ConnectionDetailsExtractor) PTComp
 }
 
 type composedResource struct {
-	Renderer
+	DryRunRenderer
 	managed.ConnectionDetailsFetcher
 	ConnectionDetailsExtractor
 	ReadinessChecker
@@ -130,7 +119,6 @@ type composedResource struct {
 type PTComposer struct {
 	client resource.ClientApplicator
 
-	composite   Renderer
 	composition CompositionTemplateAssociator
 	composed    composedResource
 }
@@ -145,15 +133,9 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	c := &PTComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
-		// TODO(negz): Once Composition Functions are GA this Composer will only
-		// need to handle legacy Compositions that use anonymous templates. This
-		// means we will be able to delete the GarbageCollectingAssociator and
-		// just use AssociateByOrder. Compositions with named templates will be
-		// handled by the PTFComposer.
-		composite:   RendererFn(RenderComposite),
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
-			Renderer:                   NewAPIDryRunRenderer(kube),
+			DryRunRenderer:             NewAPIDryRunRenderer(kube),
 			ReadinessChecker:           ReadinessCheckerFn(IsReady),
 			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
 			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
@@ -168,7 +150,15 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 }
 
 // Compose resources using the bases, patches, and transforms specified by the
-// supplied Composition.
+// supplied Composition. This reconciler supports only Patch & Transform
+// Composition (not the Function pipeline). It does this in roughly four steps:
+//
+//  1. Figure out which templates are associated with which existing composed
+//     resources, if any.
+//  2. Render from those templates into new or existing composed resources.
+//  3. Apply all composed resources that rendered successfully.
+//  4. Observe the readiness and connection details of all composed resources
+//     that rendered successfully.
 func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets before composing resources.
 	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
@@ -176,6 +166,13 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errInline)
 	}
 
+	// Figure out which templates are associated with which existing composed
+	// resources. This results in an array of templates associated with an array
+	// of entries in the XR's spec.resourceRefs array. If we're using a
+	// Composition with anonymous resource templates they'll be associated
+	// strictly by order. If we're using a Composition with named resource
+	// templates we'll be able to instead read the template name annotation from
+	// the composed resources to make the annotation.
 	tas, err := c.composition.AssociateTemplates(ctx, xr, ct)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errAssociate)
@@ -199,7 +196,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	// input. Errors are recorded, but not considered fatal to the composition
 	// process.
 	refs := make([]corev1.ObjectReference, len(tas))
-	cds := make([]ComposedResourceState, len(tas))
+	cds := make([]resource.Composed, len(tas))
 	for i := range tas {
 		ta := tas[i]
 
@@ -207,18 +204,51 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		name := pointer.StringDeref(ta.Template.Name, fmt.Sprintf("resource %d", i+1))
 		r := composed.New(composed.FromReference(ta.Reference))
 
-		rerr := c.composed.Render(ctx, xr, r, ta.Template, req.Environment)
-		if rerr != nil {
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(rerr, errFmtResourceName, name)))
+		if err := RenderFromJSON(r, ta.Template.Base.Raw); err != nil {
+			// We consider this a terminal error, since it indicates a broken
+			// CompositionRevision that will never be valid.
+			return CompositionResult{}, errors.Wrapf(err, errFmtParseBase, name)
 		}
 
-		cds[i] = ComposedResourceState{
-			ComposedResource:  ComposedResource{ResourceName: name},
-			TemplateRenderErr: rerr,
-			Template:          &ta.Template,
-			Resource:          r,
+		// Failures to patch aren't terminal - we just emit a warning event and
+		// move on. This is because patches often fail because other patches
+		// need to happen first in order for them to succeed. If we returned an
+		// error when a patch failed we might never reach the patch that would
+		// unblock it.
+
+		rendered := true
+		if err := RenderFromCompositePatches(r, xr, ta.Template.Patches); err != nil {
+			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)))
+			rendered = false
 		}
+
+		if err = RenderToAndFromEnvironmentPatches(r, req.Environment, ta.Template.Patches); err != nil {
+			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromEnvironmentPatches, name)))
+			rendered = false
+		}
+
+		if err := RenderComposedResourceMetadata(r, xr, ResourceName(pointer.StringDeref(ta.Template.Name, ""))); err != nil {
+			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderMetadata, name)))
+			rendered = false
+		}
+
+		if err := c.composed.DryRunRender(ctx, r); err != nil {
+			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtDryRunApply, name)))
+			rendered = false
+		}
+
+		// We record a reference even if we didn't render the resource because
+		// if it already exists we don't want to drop our reference to it (and
+		// thus not know about it next reconcile). If we're using anonymous
+		// resource templates we also need to record a reference even if it's
+		// empty, so that our XR's spec.resourceRefs remains the same length and
+		// order as our CompositionRevisions's array of templates.
 		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
+
+		// We only need the composed resource if it rendered correctly.
+		if rendered {
+			cds[i] = r
+		}
 	}
 
 	// We persist references to our composed resources before we create
@@ -230,52 +260,80 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	// We apply all of our composed resources before we observe them and update
-	// in the loop below. This ensures that issues observing and processing one
+	// We apply all of our composed resources before we observe them in the
+	// loop below. This ensures that issues observing and processing one
 	// composed resource won't block the application of another.
-	for _, cd := range cds {
+	for i := range tas {
+		t := tas[i].Template
+		cd := cds[i]
+
 		// If we were unable to render the composed resource we should not try
-		// and apply it.
-		if cd.TemplateRenderErr != nil {
+		// and apply it. The risk of doing so is that we successfully apply a
+		// partially-rendered composed resource that we can't later fix (e.g.
+		// due to an immutable field).
+		if cd == nil {
 			continue
 		}
+
 		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
-		o = append(o, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
-		if err := c.client.Apply(ctx, cd.Resource, o...); err != nil {
-			return CompositionResult{}, errors.Wrap(err, errApply)
+		o = append(o, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))...)
+		if err := c.client.Apply(ctx, cd, o...); err != nil {
+			// TODO(negz): Include the template name (if any) in this error.
+			// Including the rendered resource's kind may help too (e.g. if the
+			// template is anonymous).
+			return CompositionResult{}, errors.Wrap(err, errApplyComposed)
 		}
 	}
 
-	conn := managed.ConnectionDetails{}
-	for i := range cds {
+	// Produce our array of resources to return to the Reconciler. The
+	// Reconciler uses this array to determine whether the XR is ready. This
+	// means it's important that we return a resources resource for every entry
+	// in tas - i.e. a resources resource for every resource template.
+	resources := make([]ComposedResource, len(tas))
+	xrConnDetails := managed.ConnectionDetails{}
+	for i := range tas {
+		t := tas[i].Template
+		cd := cds[i]
+
+		// If this resource is anonymous its "name" is just its index within the
+		// array of composed resource templates.
+		name := ResourceName(pointer.StringDeref(t.Name, fmt.Sprintf("resource %d", i+1)))
+
 		// If we were unable to render the composed resource we should not try
-		// to observe it.
-		if cds[i].TemplateRenderErr != nil {
+		// to observe it. We still want to return it to the Reconciler so that
+		// it knows that this desired composed resource is not ready.
+		if cd == nil {
+			resources[i] = ComposedResource{ResourceName: name, Ready: false}
 			continue
 		}
 
-		if err := c.composite.Render(ctx, xr, cds[i].Resource, *cds[i].Template, req.Environment); err != nil {
-			return CompositionResult{}, errors.Wrap(err, errRenderCR)
+		if err := RenderToCompositePatches(xr, cd, t.Patches); err != nil {
+			// Failures to render ToComposite patches are terminal because this
+			// indicates a Required ToCompositeFieldPath patch failed; i.e. the
+			// composite was _required_ to be patched, but wasn't.
+			return CompositionResult{}, errors.Wrapf(err, errFmtRenderToCompositePatches, name)
 		}
 
-		cds[i].ConnectionDetails, err = c.composed.FetchConnection(ctx, cds[i].Resource)
+		cdConnDetails, err := c.composed.FetchConnection(ctx, cd)
 		if err != nil {
 			return CompositionResult{}, errors.Wrap(err, errFetchDetails)
 		}
 
-		e, err := c.composed.ExtractConnection(cds[i].Resource, cds[i].ConnectionDetails, ExtractConfigsFromTemplate(cds[i].Template)...)
+		extracted, err := c.composed.ExtractConnection(cd, cdConnDetails, ExtractConfigsFromComposedTemplate(&t)...)
 		if err != nil {
-			return CompositionResult{}, errors.Wrap(err, errExtractDetails)
+			return CompositionResult{}, errors.Wrapf(err, errFmtExtractDetails, name)
 		}
 
-		for key, val := range e {
-			conn[key] = val
+		for key, val := range extracted {
+			xrConnDetails[key] = val
 		}
 
-		cds[i].Ready, err = c.composed.IsReady(ctx, cds[i].Resource, ReadinessChecksFromComposedTemplate(cds[i].Template)...)
+		ready, err := c.composed.IsReady(ctx, cd, ReadinessChecksFromComposedTemplate(&t)...)
 		if err != nil {
-			return CompositionResult{}, errors.Wrap(err, errReadiness)
+			return CompositionResult{}, errors.Wrapf(err, errFmtCheckReadiness, name)
 		}
+
+		resources[i] = ComposedResource{ResourceName: name, Ready: ready}
 	}
 
 	// Call Apply so that we do not just replace fields on existing XR but
@@ -296,12 +354,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	out := make([]ComposedResource, len(cds))
-	for i := range cds {
-		out[i] = cds[i].ComposedResource
-	}
-
-	return CompositionResult{ConnectionDetails: conn, Composed: out, Events: events}, nil
+	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,
@@ -392,7 +445,7 @@ func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociato
 
 // AssociateTemplates with composed resources.
 func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) { //nolint:gocyclo // Only slightly over (13).
-	templates := map[string]int{}
+	templates := map[ResourceName]int{}
 	for i, t := range ct {
 		if t.Name == nil {
 			// If our templates aren't named we fall back to assuming that the
@@ -400,7 +453,7 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			// order of our resource template array.
 			return AssociateByOrder(ct, cr.GetResourceReferences()), nil
 		}
-		templates[*t.Name] = i
+		templates[ResourceName(*t.Name)] = i
 	}
 
 	tas := make([]TemplateAssociation, len(ct))
@@ -446,11 +499,8 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			continue
 		}
 
-		// TODO(negz): Below should be || not &&. If the controller ref is nil
-		// we don't control the resource and shouldn't delete it.
-
 		// We want to garbage collect this resource, but we don't control it.
-		if c := metav1.GetControllerOf(cd); c != nil && c.UID != cr.GetUID() {
+		if c := metav1.GetControllerOf(cd); c == nil || c.UID != cr.GetUID() {
 			continue
 		}
 
@@ -469,115 +519,4 @@ type Observation struct {
 	Ref               corev1.ObjectReference
 	ConnectionDetails managed.ConnectionDetails
 	Ready             bool
-}
-
-// A RenderFn renders the supplied composed resource.
-type RenderFn func(cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
-
-// Render calls RenderFn.
-func (c RenderFn) Render(cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-	return c(cp, cd, t)
-}
-
-// An APIDryRunRenderer renders composed resources. It may perform a dry-run
-// create against an API server in order to name and validate the rendered
-// resource.
-type APIDryRunRenderer struct {
-	client client.Client
-}
-
-// NewAPIDryRunRenderer returns a Renderer of composed resources that may
-// perform a dry-run create against an API server in order to name and validate
-// it.
-func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
-	return &APIDryRunRenderer{client: c}
-}
-
-// Render the supplied composed resource using the supplied composite resource
-// and template. The rendered resource may be submitted to an API server via a
-// dry run create in order to name and validate it.
-func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error { //nolint:gocyclo // Only slightly over (11).
-	kind := cd.GetObjectKind().GroupVersionKind().Kind
-	name := cd.GetName()
-	namespace := cd.GetNamespace()
-
-	if err := json.Unmarshal(t.Base.Raw, cd); err != nil {
-		return errors.Wrap(err, errUnmarshal)
-	}
-
-	// We think this composed resource exists, but when we rendered its template
-	// its kind changed. This shouldn't happen. Either someone changed the kind
-	// in the template or we're trying to use the wrong template (e.g. because
-	// the order of an array of anonymous templates changed).
-	if kind != "" && cd.GetObjectKind().GroupVersionKind().Kind != kind {
-		return errors.New(errKindChanged)
-	}
-
-	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] == "" {
-		return errors.New(errNamePrefix)
-	}
-
-	// Unmarshalling the template will overwrite any existing fields, so we must
-	// restore the existing name, if any. We also set generate name in case we
-	// haven't yet named this composed resource.
-	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
-	cd.SetName(name)
-	cd.SetNamespace(namespace)
-
-	for i := range t.Patches {
-		if err := Apply(t.Patches[i], cp, cd, patchTypesFromXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, i)
-		}
-		if env != nil {
-			if err := ApplyToObjects(t.Patches[i], env, cd, patchTypesFromToEnvironment()...); err != nil {
-				return errors.Wrapf(err, errFmtPatch, i)
-			}
-		}
-	}
-
-	// Composed labels and annotations should be rendered after patches are applied
-	meta.AddLabels(cd, map[string]string{
-		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
-		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
-		xcrd.LabelKeyClaimNamespace:        cp.GetLabels()[xcrd.LabelKeyClaimNamespace],
-	})
-
-	if t.Name != nil {
-		SetCompositionResourceName(cd, *t.Name)
-	}
-
-	// We do this last to ensure that a Composition cannot influence controller references.
-	or := meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind()))
-	if err := meta.AddControllerReference(cd, or); err != nil {
-		return errors.Wrap(err, errSetControllerRef)
-	}
-
-	// We don't want to dry-run create a resource that can't be named by the API
-	// server due to a missing generate name. We also don't want to create one
-	// that is already named, because doing so will result in an error. The API
-	// server seems to respond with a 500 ServerTimeout error for all dry-run
-	// failures, so we can't just perform a dry-run and ignore 409 Conflicts for
-	// resources that are already named.
-	if cd.GetName() != "" || cd.GetGenerateName() == "" {
-		return nil
-	}
-
-	// The API server returns an available name derived from generateName when
-	// we perform a dry-run create. This name is likely (but not guaranteed) to
-	// be available when we create the composed resource. If the API server
-	// generates a name that is unavailable it will return a 500 ServerTimeout
-	// error.
-	return errors.Wrap(r.client.Create(ctx, cd, client.DryRunAll), errName)
-}
-
-// RenderComposite renders the supplied composite resource using the supplied composed
-// resource and template.
-func RenderComposite(_ context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *Environment) error {
-	for i, p := range t.Patches {
-		if err := Apply(p, cp, cd, patchTypesToXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, i)
-		}
-	}
-
-	return nil
 }

@@ -44,6 +44,8 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
+var _ Composer = ComposerSelectorFn(func(cm *v1.CompositionMode) Composer { return nil })
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	cd := managed.ConnectionDetails{"a": []byte("b")}

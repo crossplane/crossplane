@@ -27,9 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 type deploymentModifier func(*appsv1.Deployment)
@@ -101,7 +102,7 @@ func service(provider *pkgmetav1.Provider, rev v1.PackageRevision) *corev1.Servi
 	}
 }
 
-func serviceFunction(function *pkgmetav1alpha1.Function, rev v1.PackageRevision) *corev1.Service {
+func serviceFunction(function *pkgmetav1beta1.Function, rev v1.PackageRevision) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      function.GetName(),
@@ -121,6 +122,7 @@ func serviceFunction(function *pkgmetav1alpha1.Function, rev v1.PackageRevision)
 					TargetPort: intstr.FromInt(9443),
 				},
 			},
+			ClusterIP: corev1.ClusterIPNone,
 		},
 	}
 }
@@ -273,7 +275,7 @@ func deploymentProvider(provider *pkgmetav1.Provider, revision string, img strin
 	return d
 }
 
-func deploymentFunction(function *pkgmetav1alpha1.Function, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
+func deploymentFunction(function *pkgmetav1beta1.Function, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
 	var (
 		replicas = int32(1)
 	)
@@ -625,8 +627,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 
 func TestBuildFunctionDeployment(t *testing.T) {
 	type args struct {
-		function *pkgmetav1alpha1.Function
-		revision *v1alpha1.FunctionRevision
+		function *pkgmetav1beta1.Function
+		revision *v1beta1.FunctionRevision
 		cc       *v1alpha1.ControllerConfig
 	}
 	type want struct {
@@ -642,25 +644,25 @@ func TestBuildFunctionDeployment(t *testing.T) {
 	tlsServerSecretName := "server-secret-name"
 	tlsClientSecretName := "client-secret-name"
 
-	functionWithoutImage := &pkgmetav1alpha1.Function{
+	functionWithoutImage := &pkgmetav1beta1.Function{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pkg",
 		},
-		Spec: pkgmetav1alpha1.FunctionSpec{
+		Spec: pkgmetav1beta1.FunctionSpec{
 			Image: nil,
 		},
 	}
 
-	functionWithImage := &pkgmetav1alpha1.Function{
+	functionWithImage := &pkgmetav1beta1.Function{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pkg",
 		},
-		Spec: pkgmetav1alpha1.FunctionSpec{
+		Spec: pkgmetav1beta1.FunctionSpec{
 			Image: &img,
 		},
 	}
 
-	revisionWithoutCC := &v1alpha1.FunctionRevision{
+	revisionWithoutCC := &v1beta1.FunctionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
 			Labels: map[string]string{
@@ -676,7 +678,7 @@ func TestBuildFunctionDeployment(t *testing.T) {
 		},
 	}
 
-	revisionWithCC := &v1alpha1.FunctionRevision{
+	revisionWithCC := &v1beta1.FunctionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
 			Labels: map[string]string{

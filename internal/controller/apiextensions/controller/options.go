@@ -19,9 +19,11 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
-// Options specific to pkg controllers.
+// Options specific to apiextensions controllers.
 type Options struct {
 	controller.Options
 
@@ -36,4 +38,7 @@ type Options struct {
 	// Registry is the default registry to use when pulling containers for
 	// Composition Functions
 	Registry string
+
+	// FunctionRunner used to run Composition Functions.
+	FunctionRunner *xfn.PackagedFunctionRunner
 }

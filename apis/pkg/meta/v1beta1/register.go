@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Crossplane Authors.
+Copyright 2020 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	"reflect"
@@ -23,12 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/scheme"
 )
 
-// TODO(negz): Will we ever actually want to register this with a scheme?
-
-// Function type metadata.
+// Package type metadata.
 const (
-	Group   = "fn.apiextensions.crossplane.io"
-	Version = "v1alpha1"
+	Group   = "meta.pkg.crossplane.io"
+	Version = "v1beta1"
 )
 
 var (
@@ -42,14 +40,14 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// ResourceList type metadata.
+// Function type metadata.
 var (
-	FunctionIOKind             = reflect.TypeOf(FunctionIO{}).Name()
-	FunctionIOGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionIOKind}.String()
-	FunctionIOKindAPIVersion   = FunctionIOKind + "." + SchemeGroupVersion.String()
-	FunctionIOGroupVersionKind = SchemeGroupVersion.WithKind(FunctionIOKind)
+	FunctionKind             = reflect.TypeOf(Function{}).Name()
+	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
+	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
+	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&FunctionIO{})
+	SchemeBuilder.Register(&Function{})
 }

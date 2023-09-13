@@ -67,8 +67,6 @@ const (
 	errSelectEnvironment      = "cannot select environment"
 	errCompose                = "cannot compose resources"
 	errRenderCD               = "cannot render composed resource"
-
-	errFmtPatchEnvironment = "cannot apply environment patch at index %d"
 )
 
 // Event reasons.
@@ -182,20 +180,6 @@ func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, r
 	return fn(ctx, cr, rev)
 }
 
-// A Renderer is used to render a composed resource.
-type Renderer interface {
-	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error
-}
-
-// A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error
-
-// Render the supplied composed resource using the supplied composite resource
-// and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-	return fn(ctx, cp, cd, t, env)
-}
-
 // A CompositionRequest is a request to compose resources.
 // It should be treated as immutable.
 type CompositionRequest struct {
@@ -222,6 +206,14 @@ type ComposerFn func(ctx context.Context, xr resource.Composite, req Composition
 // Compose resources.
 func (fn ComposerFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
 	return fn(ctx, xr, req)
+}
+
+// A ComposerSelectorFn selects the appropriate Composer for a mode.
+type ComposerSelectorFn func(*v1.CompositionMode) Composer
+
+// Compose calls the Composer returned by calling fn.
+func (fn ComposerSelectorFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -630,7 +622,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
-		id := cd.ResourceName
+		id := string(cd.ResourceName)
 		if id == "" {
 			id = strconv.Itoa(i)
 		}
@@ -652,7 +644,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// become ready, since we can't watch them.
 		names := make([]string, len(unready))
 		for i, cd := range unready {
-			names[i] = cd.ResourceName
+			names[i] = string(cd.ResourceName)
 		}
 		// sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.

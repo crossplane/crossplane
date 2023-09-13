@@ -486,32 +486,36 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 			composite.WithComposer(composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))))
 	}
 
-	// If Composition Functions are enabled we want to try to use the
-	// PTFComposer. This Composer supports using P&T Composition alone,
-	// Functions alone, or mixing both. It does not support anonymous resource
-	// templates - resource templates with a nil name - because it needs the
-	// name to match entries in the resource templates array to entries in the
-	// FunctionIO used by the templates array. We therefore 'fall back' to the
-	// PTComposer if we encounter a Composition with anonymous templates.
-	// Composition validation ensures that a Composition that uses functions
-	// must have named resources templates.
-	if co.Features.Enabled(features.EnableAlphaCompositionFunctions) {
-		fb := composite.NewFallBackComposer(
-			composite.NewPTFComposer(c,
-				composite.WithComposedResourceGetter(composite.NewExistingComposedResourceGetter(c, fetcher)),
-				composite.WithCompositeConnectionDetailsFetcher(fetcher),
-				composite.WithFunctionPipelineRunner(composite.NewFunctionPipeline(
-					composite.ContainerFunctionRunnerFn(composite.RunFunction),
-					composite.WithKubernetesAuthentication(c, co.Namespace, co.ServiceAccount, co.Registry),
-				)),
-			),
-			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),
-			composite.FallBackForAnonymousTemplates(c),
+	// If Composition Functions are enabled we use two different Composer
+	// implementations. One supports P&T (aka 'Resources mode') and the other
+	// Functions (aka 'Pipeline mode').
+	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
+		ptc := composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))
+
+		fc := composite.NewFunctionComposer(c, co.FunctionRunner,
+			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
+			composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		)
 
-		// Note that if external secret stores are enabled this will supercede
+		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.
-		o = append(o, composite.WithComposer(fb))
+		o = append(o, composite.WithComposer(composite.ComposerSelectorFn(func(cm *v1.CompositionMode) composite.Composer {
+			// Resources mode is the implicit default.
+			m := v1.CompositionModeResources
+			if cm != nil {
+				m = *cm
+			}
+			switch m {
+			case v1.CompositionModeResources:
+				return ptc
+			case v1.CompositionModePipeline:
+				return fc
+			default:
+				// This shouldn't be possible, but just in case return the
+				// default Composer.
+				return ptc
+			}
+		})))
 	}
 
 	return o

@@ -38,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
@@ -272,7 +271,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	case v1beta1.ProviderPackageType:
 		pack = &v1.Provider{}
 	case v1beta1.FunctionPackageType:
-		pack = &v1alpha1.Function{}
+		pack = &v1beta1.Function{}
 	default:
 		log.Debug(errInvalidPackageType)
 		return reconcile.Result{Requeue: false}, nil
