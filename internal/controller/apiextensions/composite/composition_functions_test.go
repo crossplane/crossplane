@@ -62,7 +62,7 @@ func TestFunctionCompose(t *testing.T) {
 	}
 	type args struct {
 		ctx context.Context
-		xr  resource.Composite
+		xr  *composite.Unstructured
 		req CompositionRequest
 	}
 	type want struct {
@@ -584,7 +584,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: func() resource.Composite {
+				xr: func() *composite.Unstructured {
 					// Our XR needs a GVK to survive round-tripping through a
 					// protobuf struct (which involves using the Kubernetes-aware
 					// JSON unmarshaller that requires a GVK).

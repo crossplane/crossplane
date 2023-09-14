@@ -197,14 +197,14 @@ type CompositionResult struct {
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
 // supplied composite resource and composition request.
 type Composer interface {
-	Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error)
+	Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error)
 }
 
 // A ComposerFn composes resources.
-type ComposerFn func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error)
+type ComposerFn func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error)
 
 // Compose resources.
-func (fn ComposerFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
 	return fn(ctx, xr, req)
 }
 
@@ -212,7 +212,7 @@ func (fn ComposerFn) Compose(ctx context.Context, xr resource.Composite, req Com
 type ComposerSelectorFn func(*v1.CompositionMode) Composer
 
 // Compose calls the Composer returned by calling fn.
-func (fn ComposerSelectorFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+func (fn ComposerSelectorFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
 	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
 }
 
@@ -367,14 +367,12 @@ type compositeResource struct {
 
 // NewReconciler returns a new Reconciler of composite resources.
 func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
-	nc := func() resource.Composite {
-		return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(of)))
-	}
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
-		client:       kube,
-		newComposite: nc,
+		client: kube,
+
+		gvk: schema.GroupVersionKind(of),
 
 		revision: revision{
 			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)}),
@@ -423,8 +421,9 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
-	client       client.Client
-	newComposite func() resource.Composite
+	client client.Client
+
+	gvk schema.GroupVersionKind
 
 	environment environment
 
@@ -447,7 +446,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := r.newComposite()
+	xr := composite.New(composite.WithGroupVersionKind(r.gvk))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)

@@ -183,23 +183,14 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 }
 
 // Compose resources using the Functions pipeline.
-func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
-	// TODO(negz): Change the signature of Compose to take
-	// *composite.Unstructured rather than an interface.
-	uxr, ok := xr.(*composite.Unstructured)
-	if !ok {
-		// This composer uses server-side apply, so we need to make sure we're
-		// working with unstructured data.
-		return CompositionResult{}, errors.Errorf("composite resource must be of type %T", &composite.Unstructured{})
-	}
-
+func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
 	// composed resources exist because we read them from our XR's
 	// spec.resourceRefs, so it's crucial that we never create a composed
 	// resource without first persisting a reference to it.
-	observed, err := c.composite.ObserveComposedResources(ctx, uxr)
+	observed, err := c.composite.ObserveComposedResources(ctx, xr)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errGetExistingCDs)
 	}
@@ -210,11 +201,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// resource and their current connection details. The desired state includes
 	// only the XR and its connection details, which will initially be identical
 	// to the observed state.
-	xrConns, err := c.composite.FetchConnection(ctx, uxr)
+	xrConns, err := c.composite.FetchConnection(ctx, xr)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errFetchXRConnectionDetails)
 	}
-	o, err := AsState(uxr, xrConns, observed)
+	o, err := AsState(xr, xrConns, observed)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
 	}
@@ -283,7 +274,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.
-		if err := RenderComposedResourceMetadata(cd, uxr, ResourceName(name)); err != nil {
+		if err := RenderComposedResourceMetadata(cd, xr, ResourceName(name)); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
 		}
 
@@ -315,7 +306,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
 	// fails.
-	if err := c.composite.GarbageCollectComposedResources(ctx, uxr, observed, desired); err != nil {
+	if err := c.composite.GarbageCollectComposedResources(ctx, xr, observed, desired); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errGarbageCollectCDs)
 	}
 
@@ -326,9 +317,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
 	refs := composite.New()
-	refs.SetAPIVersion(uxr.GetAPIVersion())
-	refs.SetKind(uxr.GetKind())
-	refs.SetName(uxr.GetName())
+	refs.SetAPIVersion(xr.GetAPIVersion())
+	refs.SetKind(xr.GetKind())
+	refs.SetName(xr.GetName())
 	UpdateResourceRefs(refs, desired)
 
 	// Persist our updated composed resource references. We want this to be an
@@ -348,15 +339,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// care about. FromStruct will replace uxr's backing map[string]any with the
 	// content of GetResource (i.e. the desired status). We then need to set its
 	// GVK and name so that our client knows what resource to patch.
-	v := uxr.GetAPIVersion()
-	k := uxr.GetKind()
-	n := uxr.GetName()
-	if err := FromStruct(uxr, d.GetComposite().GetResource()); err != nil {
+	v := xr.GetAPIVersion()
+	k := xr.GetKind()
+	n := xr.GetName()
+	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
-	uxr.SetAPIVersion(v)
-	uxr.SetKind(k)
-	uxr.SetName(n)
+	xr.SetAPIVersion(v)
+	xr.SetKind(k)
+	xr.SetName(n)
 
 	// TODO(negz): Add x-kubernetes-list-type: map to the ConditionedStatus type
 	// from crossplane-runtime and merge on condition type. This would allow a
@@ -364,7 +355,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// replacing the entire list of conditions. We'll still need to figure out a
 	// way to handle lastTransitionTime to avoid it constantly changing.
 
-	if err := c.client.Status().Patch(ctx, uxr, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
+	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
