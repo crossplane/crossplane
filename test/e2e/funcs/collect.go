@@ -21,17 +21,18 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
 // coordinate represents a coordinate in the cluster, i.e. everything necessary
@@ -45,9 +46,12 @@ type coordinate struct {
 	Name string
 }
 
-// buildOwnershipGraph builds a graph of Kubernetes objects and their owners,
+// buildRelatedObjectGraph builds a graph of Kubernetes objects and their owners,
 // with the owners as the keys and the objects they own as the values.
-func buildOwnershipGraph(ctx context.Context, discoveryClient discovery.DiscoveryInterface, client metadata.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
+//
+// Note: this is a pretty expensive operation only suited for e2e tests with
+// small clusters.
+func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
 	// Discover all resource types
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
@@ -73,24 +77,38 @@ func buildOwnershipGraph(ctx context.Context, discoveryClient discovery.Discover
 			}
 
 			for _, obj := range objs.Items {
-				ownerRefs := obj.GetOwnerReferences()
 				this := coordinate{
 					GroupVersionResource: gvr,
 					Namespace:            obj.GetNamespace(),
 					Name:                 obj.GetName(),
 				}
 
-				for _, ownerRef := range ownerRefs {
-					group, version := parseAPIVersion(ownerRef.APIVersion)
-					rm, err := mapper.RESTMapping(schema.GroupKind{Group: group, Kind: ownerRef.Kind}, version)
+				// collect owner refenerces
+				var refs []corev1.ObjectReference
+				for _, ownerRef := range obj.GetOwnerReferences() {
+					refs = append(refs, corev1.ObjectReference{
+						APIVersion: ownerRef.APIVersion,
+						Kind:       ownerRef.Kind,
+						Namespace:  obj.GetNamespace(),
+						Name:       ownerRef.Name,
+					})
+				}
+
+				// maybe this is an XR with resource reference to the claim? Fake owner refs.
+				comp := composite.Unstructured{Unstructured: obj}
+				refs = append(refs, comp.GetResourceReferences()...)
+
+				for _, ref := range refs {
+					group, version := parseAPIVersion(ref.APIVersion)
+					rm, err := mapper.RESTMapping(schema.GroupKind{Group: group, Kind: ref.Kind}, version)
 					if err != nil {
-						fmt.Printf("cannot find REST mapping for %v: %v\n", ownerRef, err)
+						fmt.Printf("cannot find REST mapping for %v: %v\n", ref, err)
 						continue
 					}
 					owner := coordinate{
 						GroupVersionResource: rm.Resource,
-						Namespace:            obj.GetNamespace(),
-						Name:                 ownerRef.Name,
+						Namespace:            ref.Namespace,
+						Name:                 ref.Name,
 					}
 					g[owner] = append(g[owner], this)
 				}
@@ -112,14 +130,11 @@ func parseAPIVersion(apiVersion string) (group, version string) {
 	return parts[0], parts[1]
 }
 
-// OwnedObjects returns all objects related to the supplied object through
-// ownership, i.e. the returned objects are transitively owned by obj.
-func OwnedObjects(ctx context.Context, config *rest.Config, objs ...client.Object) ([]client.Object, error) {
+// RelatedObjects returns all objects related to the supplied object through
+// ownership, i.e. the returned objects are transitively owned by obj, or
+// resource reference.
+func RelatedObjects(ctx context.Context, config *rest.Config, objs ...client.Object) ([]client.Object, error) {
 	dynClient, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-	metadataClient, err := metadata.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +151,7 @@ func OwnedObjects(ctx context.Context, config *rest.Config, objs ...client.Objec
 		return nil, err
 	}
 
-	ownershipGraph, err := buildOwnershipGraph(ctx, discoveryClient, metadataClient, mapper)
+	ownershipGraph, err := buildRelatedObjectGraph(ctx, discoveryClient, dynClient, mapper)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot build ownership graph")
 	}

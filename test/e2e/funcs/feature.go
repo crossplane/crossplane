@@ -236,7 +236,7 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 				o := o
 				roots[i] = &o
 			}
-			related, _ := OwnedObjects(ctx, c.Client().RESTConfig(), roots...)
+			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), roots...)
 			var relatedYAML []string
 			for _, o := range related {
 				oy, _ := yaml.Marshal(o)
