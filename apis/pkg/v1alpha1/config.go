@@ -180,7 +180,7 @@ type PodObjectMeta struct {
 // https://github.com/crossplane/crossplane/issues/3601 for more information.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:deprecatedversion:warning="ControllerConfig.pkg.crossplane.io/v1alpha1 has been deprecated and will be removed in a future release, but only after a comparable alternative is available."
+// +kubebuilder:deprecatedversion:warning="ControllerConfig.pkg.crossplane.io/v1alpha1 is deprecated. It is safe to use, but no new features will be added. Future replacement design: https://github.com/crossplane/crossplane/blob/master/design/one-pager-package-runtime-config.md"
 type ControllerConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
