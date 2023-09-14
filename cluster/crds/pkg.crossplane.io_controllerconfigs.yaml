@@ -18,9 +18,9 @@ spec:
       name: AGE
       type: date
     deprecated: true
-    deprecationWarning: ControllerConfig.pkg.crossplane.io/v1alpha1 has been deprecated
-      and will be removed in a future release, but only after a comparable alternative
-      is available.
+    deprecationWarning: 'ControllerConfig.pkg.crossplane.io/v1alpha1 is deprecated.
+      It is safe to use, but no new features will be added. Future replacement design:
+      https://github.com/crossplane/crossplane/blob/master/design/one-pager-package-runtime-config.md'
     name: v1alpha1
     schema:
       openAPIV3Schema:
