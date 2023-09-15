@@ -54,6 +54,7 @@ const (
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
+	errEnvAsStruct              = "cannot encode environment to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
 
 	errFmtDryRunCreateCD             = "cannot name (i.e. dry-run create) composed resource %q"
@@ -229,11 +230,21 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	events := []event.Event{}
 
+	var env *v1beta1.Environment
+	if req.Environment != nil {
+		d, err := AsStruct(req.Environment)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errEnvAsStruct)
+		}
+		env = &v1beta1.Environment{
+			Data: d,
+		}
+	}
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
 	for _, fn := range req.Revision.Spec.Pipeline {
-		req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d}
+		req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d, Environment: env}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -251,6 +262,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 
 		d = rsp.GetDesired()
+		env = rsp.GetEnvironment()
 
 		// Results of fatal severity stop the Composition process. Other results
 		// are accumulated to be emitted as events by the Reconciler.
