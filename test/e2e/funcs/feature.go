@@ -40,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
@@ -237,25 +238,8 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
-
-			// render related objects
-			roots := make([]client.Object, len(list.Items))
-			for i, o := range list.Items {
-				o := o
-				roots[i] = &o
-			}
-			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), roots...)
-			var relatedYAML []string
-			for _, o := range related {
-				oy, _ := yaml.Marshal(o)
-				relatedYAML = append(relatedYAML, string(oy))
-			}
-
-			if len(related) > 0 {
-				t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\nrelated objects:\n\n%s\n\n", desired, err, y, strings.Join(relatedYAML, "\n---\n"))
-			} else {
-				t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", desired, err, y)
-			}
+			related, _ := relatedObjectString(ctx, c.Client().RESTConfig(), itemsToObjects(list.Items)...)
+			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\nrelated objects:\n\n%s\n", desired, err, y, related)
 			return ctx
 		}
 
@@ -688,4 +672,30 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 		}
 		return o.GetObjectKind().GroupVersionKind().Group == gk.Group && o.GetObjectKind().GroupVersionKind().Kind == gk.Kind
 	}
+}
+
+// relatedObjectString returns all objects related to the supplied root
+// objects, marshalled as a multi-document YAML string.
+func relatedObjectString(ctx context.Context, cfg *rest.Config, roots ...client.Object) (string, error) {
+	related, err := RelatedObjects(ctx, cfg, roots...)
+	if err != nil {
+		return "", err
+	}
+
+	relatedYAML := make([]string, 0, len(related))
+	for _, o := range related {
+		oy, _ := yaml.Marshal(o)
+		relatedYAML = append(relatedYAML, string(oy))
+	}
+
+	return strings.Join(relatedYAML, "\n---\n"), nil
+}
+
+func itemsToObjects(items []unstructured.Unstructured) []client.Object {
+	objects := make([]client.Object, len(items))
+	for i, item := range items {
+		item := item // unalias loop variable
+		objects[i] = &item
+	}
+	return objects
 }
