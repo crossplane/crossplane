@@ -194,7 +194,6 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 // have (i.e. become) the supplied conditions within the supplied duration.
 func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -230,7 +229,25 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
-			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", desired, err, y)
+
+			// render related objects
+			roots := make([]client.Object, len(list.Items))
+			for i, o := range list.Items {
+				o := o
+				roots[i] = &o
+			}
+			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), roots...)
+			var relatedYAML []string
+			for _, o := range related {
+				oy, _ := yaml.Marshal(o)
+				relatedYAML = append(relatedYAML, string(oy))
+			}
+
+			if len(related) > 0 {
+				t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\nrelated objects:\n\n%s\n\n", desired, err, y, strings.Join(relatedYAML, "\n---\n"))
+			} else {
+				t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", desired, err, y)
+			}
 			return ctx
 		}
 
