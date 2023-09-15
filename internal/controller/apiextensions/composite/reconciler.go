@@ -560,7 +560,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errSelectEnvironment, "error", err)
 		err = errors.Wrap(err, errSelectEnvironment)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	env, err := r.environment.Fetch(ctx, EnvironmentFetcherRequest{
@@ -572,7 +573,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errFetchEnvironment, "error", err)
 		err = errors.Wrap(err, errFetchEnvironment)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	// TODO(negz): Pass this method a copy of xr, to make very clear that
