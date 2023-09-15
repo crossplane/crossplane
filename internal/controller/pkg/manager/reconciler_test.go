@@ -290,7 +290,7 @@ func TestReconcile(t *testing.T) {
 								want.SetActivationPolicy(&v1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
 								want.SetConditions(v1.UnknownHealth())
-								want.SetConditions(v1.Inactive())
+								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -539,7 +539,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Unhealthy())
+								cr.SetConditions(v1.Unhealthy().WithMessage("some message"))
 								cr.SetDesiredState(v1.PackageRevisionActive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
@@ -552,7 +552,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.Unhealthy())
+								want.SetConditions(v1.Unhealthy().WithMessage("some message"))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
