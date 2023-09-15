@@ -35,6 +35,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
@@ -170,6 +171,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 				},
 			},
 		}),
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor:   []client.Object{&corev1.Secret{}},
+				Unstructured: false, // this is the default to not cache unstructured objects
+			},
+		},
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
