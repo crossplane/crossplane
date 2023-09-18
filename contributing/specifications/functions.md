@@ -20,7 +20,7 @@ https://github.com/crossplane/crossplane/tree/master/apis/apiextensions/fn/proto
 A Function MUST copy the tag field from a RunFunctionRequest's RequestMeta
 message to the ResponseMeta tag field of the corresponding RunFunctionResponse.
 A Function MUST NOT modify the tag field. A Function MUST NOT inspect or
-otherwise depend on the tag's value
+otherwise depend on the tag's value.
 
 A Function SHOULD specify the ttl field of each RunFunctionResponse. The value
 of the ttl field MUST reflect how long Crossplane may use a cached version of
@@ -38,8 +38,8 @@ desired state. For example a Function may:
 * etc...
 
 A Function MUST do so _intentionally_. Put otherwise, remember that Functions
-are run in a pipeline. A Function MUST NOT accidentally forget to propagate the
-desired state passed to it by previous Functions.
+are run in a pipeline. A Function MUST propagate the desired state passed to it
+by previous Functions.
 
 A Function MUST NOT specify desired composite resource spec or metadata fields.
 A Function MAY only specify desired composite resource status fields.
@@ -100,8 +100,9 @@ repository.
 A Function MUST NOT assume it is deployed in any particular way, for example
 that it is running as a Kubernetes Pod in the same cluster as Crossplane.
 
-A Function SHOULD fail gracefully if it does not have network access, for
-example by returning a Fatal result.
+A Function MUST NOT assume it has network access. A Function SHOULD fail
+gracefully if it needs but does not have network access, for example by
+returning a Fatal result.
 
 A Function SHOULD use the latest version of the SDK for its language, for
 example https://github.com/crossplane/function-sdk-go.
