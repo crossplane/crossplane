@@ -1,15 +1,20 @@
 # xpkg Specification
 
-Crossplane supports two types of [packages]: Providers and Configurations. These
-packages are distributed as generic [OCI images], which contain [YAML] content
-informing the Crossplane package manager how to alter the state of a cluster by
-installing objects that configure new resource types, and starting controllers
-to reconcile them. An OCI image that contains valid Crossplane package content
-is commonly referred to as an `xpkg` ("ex-package"). This document provides the
-specification for a valid `xpkg`, which can be considered a superset of the
-requirements detailed in the [OCI image specification]. It is divided into two
-broad sections: requirements related to OCI image format and requirements
-related to Crossplane `package.yaml` contents.
+Crossplane supports the following types of [packages]:
+
+- Providers
+- Configurations
+- Functions
+
+These packages are distributed as generic [OCI images], which contain [YAML]
+content informing the Crossplane package manager how to alter the state of a
+cluster by installing objects that configure new resource types, and starting
+controllers to reconcile them. An OCI image that contains valid Crossplane
+package content is commonly referred to as an `xpkg` ("ex-package"). This
+document provides the specification for a valid `xpkg`, which can be considered
+a superset of the requirements detailed in the [OCI image specification]. It is
+divided into two broad sections: requirements related to OCI image format and
+requirements related to Crossplane `package.yaml` contents.
 
 - [OCI Image Format](#oci-image-format)
   - [Indexes](#indexes)
@@ -165,6 +170,21 @@ requirements:
 - Zero (0) or more `MutatingWebhookConfiguration.admissionregistration.k8s.io`
   objects MAY be defined in the YAML stream.
 - Zero (0) other object types may be defined in the YAML stream.
+
+### Function Package Requirements
+
+The `package.yaml` for Function packages must adhere to the following
+requirements:
+
+- One (1) and only one `Function.meta.pkg.crossplane.io` object MUST be defined
+  in the YAML stream.
+- Zero (0) or more `CustomResourceDefinition.apiextensions.k8s.io` objects MAY
+  be defined in the YAML stream.
+- Zero (0) other object types may be defined in the YAML stream.
+
+Note that Function packages use CustomResourceDefinitions (CRD) only to deliver
+schema for their input type(s). The package manager will not actually create the
+supplied CRDs in the API server.
 
 ### Object Annotations
 
