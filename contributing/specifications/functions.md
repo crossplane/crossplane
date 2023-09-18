@@ -82,7 +82,7 @@ both `--tls-certs-dir` and `--insecure` are specified.
 A Function MUST listen for gRPC requests on TCP port 9443, regardless of whether
 they are using mTLS transport security or have transport security disabled.
 
-A Function MUST not disable gRPC transport security unless the `--insecure` flag
+A Function MUST enable gRPC transport security unless the `--insecure` flag
 is explicitly specified.
 
 ## Packaging
