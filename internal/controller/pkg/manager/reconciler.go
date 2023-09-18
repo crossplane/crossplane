@@ -89,22 +89,6 @@ const (
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
-// WithWebhookTLSSecretName configures the name of the webhook TLS Secret that
-// Reconciler will add to PackageRevisions it creates.
-func WithWebhookTLSSecretName(n string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.webhookTLSSecretName = &n
-	}
-}
-
-// WithESSTLSSecretName configures the name of the ESS TLS certificate secret that
-// Reconciler will add to PackageRevisions it creates.
-func WithESSTLSSecretName(s *string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.essTLSSecretName = s
-	}
-}
-
 // WithNewPackageFn determines the type of package being reconciled.
 func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -150,12 +134,10 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client               resource.ClientApplicator
-	pkg                  Revisioner
-	log                  logging.Logger
-	record               event.Recorder
-	webhookTLSSecretName *string
-	essTLSSecretName     *string
+	client resource.ClientApplicator
+	pkg    Revisioner
+	log    logging.Logger
+	record event.Recorder
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -185,12 +167,6 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-	}
-	if o.WebhookTLSSecretName != "" {
-		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
-	}
-	if o.ESSOptions != nil && o.ESSOptions.TLSSecretName != nil {
-		opts = append(opts, WithESSTLSSecretName(o.ESSOptions.TLSSecretName))
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -425,8 +401,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
-	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
-	pr.SetESSTLSSecretName(r.essTLSSecretName)
 	pr.SetTLSServerSecretName(p.GetTLSServerSecretName())
 	pr.SetTLSClientSecretName(p.GetTLSClientSecretName())
 	pr.SetCommonLabels(p.GetCommonLabels())

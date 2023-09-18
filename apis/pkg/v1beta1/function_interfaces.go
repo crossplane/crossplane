@@ -274,26 +274,6 @@ func (r *FunctionRevision) SetSkipDependencyResolution(b *bool) {
 	r.Spec.SkipDependencyResolution = b
 }
 
-// GetWebhookTLSSecretName of this FunctionRevision.
-func (r *FunctionRevision) GetWebhookTLSSecretName() *string {
-	return r.Spec.WebhookTLSSecretName
-}
-
-// SetWebhookTLSSecretName of this FunctionRevision.
-func (r *FunctionRevision) SetWebhookTLSSecretName(b *string) {
-	r.Spec.WebhookTLSSecretName = b
-}
-
-// GetESSTLSSecretName of this FunctionRevision.
-func (r *FunctionRevision) GetESSTLSSecretName() *string {
-	return r.Spec.ESSTLSSecretName
-}
-
-// SetESSTLSSecretName of this FunctionRevision.
-func (r *FunctionRevision) SetESSTLSSecretName(s *string) {
-	r.Spec.ESSTLSSecretName = s
-}
-
 // GetTLSServerSecretName of this FunctionRevision.
 func (r *FunctionRevision) GetTLSServerSecretName() *string {
 	return r.Spec.TLSServerSecretName

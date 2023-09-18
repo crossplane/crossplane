@@ -166,10 +166,13 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1.ProviderRevision{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{},
+				},
 			},
 			want: want{
 				rev: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{},
 					Status: v1.PackageRevisionStatus{
 						PermissionRequests: []rbacv1.PolicyRule{
 							{
@@ -191,13 +194,13 @@ func TestHookPre(t *testing.T) {
 				err: nil,
 			},
 		},
-		"FunctionNoAction": {
-			reason: "Function pre hook currently does not do anything, should not return error.",
+		"ErrNotFunction": {
+			reason: "Should return error if not function.",
 			args: args{
 				hook: &FunctionHooks{},
 			},
 			want: want{
-				err: nil,
+				err: errors.New(errNotFunction),
 			},
 		},
 	}
@@ -1301,118 +1304,6 @@ func TestHookDeactivate(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteProviderSA),
-			},
-		},
-		"ErrProviderDeleteService": {
-			reason: "Should return error if we fail to delete service.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return nil
-								case *corev1.ServiceAccount:
-									return nil
-								case *corev1.Service:
-									return errBoom
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: providerRevision,
-					},
-					Spec: v1.PackageRevisionSpec{
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errDeleteProviderService),
-			},
-		},
-		"ErrProviderDeleteSecretTLSServer": {
-			reason: "Should return error if we fail to delete TLS server secret.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return nil
-								case *corev1.ServiceAccount:
-									return nil
-								case *corev1.Service:
-									return nil
-								case *corev1.Secret:
-									if o.GetName() == tlsServerSecret {
-										return errBoom
-									}
-									return nil
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: providerRevision,
-					},
-					Spec: v1.PackageRevisionSpec{
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errDeleteProviderSecret),
-			},
-		},
-		"ErrProviderDeleteSecretTLSClient": {
-			reason: "Should return error if we fail to delete TLS client secret.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return nil
-								case *corev1.ServiceAccount:
-									return nil
-								case *corev1.Service:
-									return nil
-								case *corev1.Secret:
-									if o.GetName() == tlsClientSecret {
-										return errBoom
-									}
-									return nil
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: providerRevision,
-					},
-					Spec: v1.PackageRevisionSpec{
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errDeleteProviderSecret),
 			},
 		},
 		"SuccessfulProviderDelete": {

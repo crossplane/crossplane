@@ -96,14 +96,12 @@ type startCommand struct {
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
-	ESSTLSSecretName     string `help:"The name of the TLS Secret that will be used by Crossplane and providers as clients of External Secret Store plugins." env:"ESS_TLS_SECRET_NAME"`
-	ESSTLSCertsDir       string `help:"The path of the folder which will store TLS certificates to be used by Crossplane and providers for communicating with External Secret Store plugins." env:"ESS_TLS_CERTS_DIR"`
-	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
-	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
-	TLSServerSecretName  string `help:"The name of the TLS Secret that will store Crossplane's server certificate." env:"TLS_SERVER_SECRET_NAME"`
-	TLSServerCertsDir    string `help:"The path of the folder which will store TLS server certificate of Crossplane." env:"TLS_SERVER_CERTS_DIR"`
-	TLSClientSecretName  string `help:"The name of the TLS Secret that will be store Crossplane's client certificate." env:"TLS_CLIENT_SECRET_NAME"`
-	TLSClientCertsDir    string `help:"The path of the folder which will store TLS client certificate of Crossplane." env:"TLS_CLIENT_CERTS_DIR"`
+	WebhookDisabled bool `help:"Disable webhook configuration." env:"WEBHOOK_DISABLED"`
+
+	TLSServerSecretName string `help:"The name of the TLS Secret that will store Crossplane's server certificate." env:"TLS_SERVER_SECRET_NAME"`
+	TLSServerCertsDir   string `help:"The path of the folder which will store TLS server certificate of Crossplane." env:"TLS_SERVER_CERTS_DIR"`
+	TLSClientSecretName string `help:"The name of the TLS Secret that will be store Crossplane's client certificate." env:"TLS_CLIENT_SECRET_NAME"`
+	TLSClientCertsDir   string `help:"The path of the folder which will store TLS client certificate of Crossplane." env:"TLS_CLIENT_CERTS_DIR"`
 
 	EnableEnvironmentConfigs                 bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
 	EnableExternalSecretStores               bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
@@ -164,7 +162,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			SyncPeriod: &c.SyncInterval,
 		},
 		WebhookServer: webhook.NewServer(webhook.Options{
-			CertDir: c.WebhookTLSCertDir,
+			CertDir: c.TLSServerCertsDir,
 			TLSOpts: []func(*tls.Config){
 				func(t *tls.Config) {
 					t.MinVersion = tls.VersionTLS13
@@ -255,17 +253,16 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 
 		tcfg, err := certificates.LoadMTLSConfig(
-			filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.ESSTLSCertsDir, corev1.TLSCertKey),
-			filepath.Join(c.ESSTLSCertsDir, corev1.TLSPrivateKeyKey),
+			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
+			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
+			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
 			false)
 		if err != nil {
 			return errors.Wrap(err, "Cannot load TLS certificates for external secret stores")
 		}
 
 		o.ESSOptions = &controller.ESSOptions{
-			TLSConfig:     tcfg,
-			TLSSecretName: &c.ESSTLSSecretName,
+			TLSConfig: tcfg,
 		}
 	}
 
@@ -280,9 +277,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		ServiceAccount:  c.ServiceAccount,
 		DefaultRegistry: c.Registry,
 		FetcherOptions:  []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-
-		// TODO(negz): I think this should be ServerTLSSecretName now.
-		WebhookTLSSecretName: c.WebhookTLSSecretName,
 	}
 
 	if c.CABundlePath != "" {
@@ -299,7 +293,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.WebhookTLSCertDir != "" {
+	if !c.WebhookDisabled {
 		// TODO(muvaf): Once the implementation of other webhook handlers are
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.

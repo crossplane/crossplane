@@ -53,18 +53,6 @@ func withAdditionalVolumeMount(vm corev1.VolumeMount) deploymentModifier {
 	}
 }
 
-func withAdditionalEnvVar(env corev1.EnvVar) deploymentModifier {
-	return func(d *appsv1.Deployment) {
-		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, env)
-	}
-}
-
-func withAdditionalPort(port corev1.ContainerPort) deploymentModifier {
-	return func(d *appsv1.Deployment) {
-		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, port)
-	}
-}
-
 const (
 	namespace = "ns"
 )
@@ -81,7 +69,7 @@ func serviceaccount(rev v1.PackageRevision) *corev1.ServiceAccount {
 func service(provider *pkgmetav1.Provider, rev v1.PackageRevision) *corev1.Service {
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      rev.GetName(),
+			Name:      rev.GetLabels()[v1.LabelParentPackage],
 			Namespace: namespace,
 		},
 		Spec: corev1.ServiceSpec{
@@ -184,6 +172,10 @@ func deploymentProvider(provider *pkgmetav1.Provider, revision string, img strin
 									Name:          promPortName,
 									ContainerPort: promPortNumber,
 								},
+								{
+									Name:          webhookPortName,
+									ContainerPort: servicePort,
+								},
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -199,8 +191,16 @@ func deploymentProvider(provider *pkgmetav1.Provider, revision string, img strin
 									Value: "/tls/server",
 								},
 								{
+									Name:  "WEBHOOK_TLS_CERT_DIR",
+									Value: "$(TLS_SERVER_CERTS_DIR)",
+								},
+								{
 									Name:  "TLS_CLIENT_CERTS_DIR",
 									Value: "/tls/client",
+								},
+								{
+									Name:  "ESS_TLS_CERTS_DIR",
+									Value: "$(TLS_CLIENT_CERTS_DIR)",
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
@@ -370,7 +370,7 @@ func deploymentFunction(function *pkgmetav1beta1.Function, revision string, img 
 	return d
 }
 
-func TestBuildProviderDeployment(t *testing.T) {
+func TestBuildProviderResourcesBuilders(t *testing.T) {
 	type args struct {
 		provider *pkgmetav1.Provider
 		revision *v1.ProviderRevision
@@ -414,6 +414,9 @@ func TestBuildProviderDeployment(t *testing.T) {
 	revisionWithoutCC := &v1.ProviderRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
+			Labels: map[string]string{
+				v1.LabelParentPackage: "pkg",
+			},
 		},
 		Spec: v1.PackageRevisionSpec{
 			ControllerConfigReference: nil,
@@ -427,6 +430,9 @@ func TestBuildProviderDeployment(t *testing.T) {
 	revisionWithoutCCWithWebhook := &v1.ProviderRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
+			Labels: map[string]string{
+				v1.LabelParentPackage: "pkg",
+			},
 		},
 		Spec: v1.PackageRevisionSpec{
 			ControllerConfigReference: nil,
@@ -441,6 +447,9 @@ func TestBuildProviderDeployment(t *testing.T) {
 	revisionWithCC := &v1.ProviderRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
+			Labels: map[string]string{
+				v1.LabelParentPackage: "pkg",
+			},
 		},
 		Spec: v1.PackageRevisionSpec{
 			ControllerConfigReference: &v1.ControllerConfigReference{Name: "cc"},
@@ -515,28 +524,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 				cc:       nil,
 			},
 			want: want{
-				sa: serviceaccount(revisionWithoutCCWithWebhook),
-				d: deploymentProvider(providerWithImage, revisionWithoutCCWithWebhook.GetName(), img,
-					withAdditionalVolume(corev1.Volume{
-						Name: webhookVolumeName,
-						VolumeSource: corev1.VolumeSource{
-							Secret: &corev1.SecretVolumeSource{
-								SecretName: webhookTLSSecretName,
-								Items: []corev1.KeyToPath{
-									{Key: "tls.crt", Path: "tls.crt"},
-									{Key: "tls.key", Path: "tls.key"},
-								},
-							},
-						},
-					}),
-					withAdditionalVolumeMount(corev1.VolumeMount{
-						Name:      webhookVolumeName,
-						ReadOnly:  true,
-						MountPath: webhookTLSCertDir,
-					}),
-					withAdditionalEnvVar(corev1.EnvVar{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir}),
-					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: servicePort}),
-				),
+				sa:  serviceaccount(revisionWithoutCCWithWebhook),
+				d:   deploymentProvider(providerWithImage, revisionWithoutCCWithWebhook.GetName(), img),
 				svc: service(providerWithImage, revisionWithoutCCWithWebhook),
 				ss:  secretServer(revisionWithoutCC),
 				cs:  secretClient(revisionWithoutCC),
@@ -603,7 +592,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			sa, d, svc, ss, cs := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace, nil)
+			sa, d := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace, nil)
 
 			if diff := cmp.Diff(tc.want.sa, sa, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
@@ -611,21 +600,26 @@ func TestBuildProviderDeployment(t *testing.T) {
 			if diff := cmp.Diff(tc.want.d, d, cmpopts.IgnoreTypes(&corev1.SecurityContext{}, &corev1.PodSecurityContext{}, []metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
+
+			svc := buildProviderService(tc.fields.provider, tc.fields.revision, namespace)
+
 			if diff := cmp.Diff(tc.want.svc, svc, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
+
+			ss, cs := buildProviderSecrets(tc.fields.revision, namespace)
 			if diff := cmp.Diff(tc.want.ss, ss, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
 			if diff := cmp.Diff(tc.want.cs, cs, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
+
 		})
 	}
-
 }
 
-func TestBuildFunctionDeployment(t *testing.T) {
+func TestBuildFunctionResourcesBuilders(t *testing.T) {
 	type args struct {
 		function *pkgmetav1beta1.Function
 		revision *v1beta1.FunctionRevision
@@ -807,7 +801,7 @@ func TestBuildFunctionDeployment(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			sa, d, svc, sec := buildFunctionDeployment(tc.fields.function, tc.fields.revision, tc.fields.cc, namespace, nil)
+			sa, d := buildFunctionDeployment(tc.fields.function, tc.fields.revision, tc.fields.cc, namespace, nil)
 
 			if diff := cmp.Diff(tc.want.sa, sa, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
@@ -815,9 +809,13 @@ func TestBuildFunctionDeployment(t *testing.T) {
 			if diff := cmp.Diff(tc.want.d, d, cmpopts.IgnoreTypes(&corev1.SecurityContext{}, &corev1.PodSecurityContext{}, []metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
+
+			svc := buildFunctionService(tc.fields.function, tc.fields.revision, namespace)
 			if diff := cmp.Diff(tc.want.svc, svc, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
+
+			sec := buildFunctionSecret(tc.fields.revision, namespace)
 			if diff := cmp.Diff(tc.want.sec, sec, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}

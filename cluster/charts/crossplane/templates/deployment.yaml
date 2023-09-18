@@ -89,8 +89,6 @@ spec:
               fieldRef:
                 fieldPath: spec.serviceAccountName
           {{- if .Values.webhooks.enabled }}
-          - name: "WEBHOOK_TLS_SECRET_NAME"
-            value: webhook-tls-secret
           - name: "WEBHOOK_SERVICE_NAME"
             value: {{ template "crossplane.name" . }}-webhooks
           - name: "WEBHOOK_SERVICE_NAMESPACE"
@@ -99,10 +97,11 @@ spec:
                 fieldPath: metadata.namespace
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
+          {{- else }}
+          - name: "WEBHOOK_DISABLED"
+            value: "true"
           {{- end }}
           {{- if $externalSecretStoresEnabled }}
-          - name: "ESS_TLS_CLIENT_SECRET_NAME"
-            value: ess-client-certs
           - name: "ESS_TLS_SERVER_SECRET_NAME"
             value: ess-server-certs
           {{- end }}
@@ -164,17 +163,9 @@ spec:
           - name: CA_BUNDLE_PATH
             value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
           {{- end}}
-          {{- if .Values.webhooks.enabled }}
-          - name: "WEBHOOK_TLS_SECRET_NAME"
-            value: webhook-tls-secret
-          - name: "WEBHOOK_TLS_CERT_DIR"
-            value: /webhook/tls
-          {{- end }}
-          {{- if $externalSecretStoresEnabled }}
-          - name: "ESS_TLS_SECRET_NAME"
-            value: ess-client-certs
-          - name: "ESS_TLS_CERTS_DIR"
-            value: /ess/tls
+          {{- if not .Values.webhooks.enabled }}
+          - name: "WEBHOOK_DISABLED"
+            value: "true"
           {{- end }}
           - name: "TLS_SERVER_SECRET_NAME"
             value: crossplane-tls-server
@@ -194,14 +185,6 @@ spec:
           {{- if .Values.registryCaBundleConfig.name }}
           - mountPath: /certs
             name: ca-certs
-          {{- end }}
-          {{- if .Values.webhooks.enabled }}
-          - mountPath: /webhook/tls
-            name: webhook-tls-secret
-          {{- end }}
-          {{- if $externalSecretStoresEnabled }}
-          - mountPath: /ess/tls
-            name: ess-client-certs
           {{- end }}
           {{- if .Values.extraVolumeMountsCrossplane }}
           {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
@@ -230,23 +213,6 @@ spec:
           items:
             - key: {{ .Values.registryCaBundleConfig.key }}
               path: {{ .Values.registryCaBundleConfig.key }}
-      {{- end }}
-      {{- if .Values.webhooks.enabled }}
-      - name: webhook-tls-secret
-        secret:
-          # NOTE(muvaf): The tls.crt is used both by the server (requires it to
-          # be a single cert) and the caBundle fields of webhook configs and CRDs
-          # which can accept a whole bundle of certificates. In order to meet
-          # the requirements of both, we require a single certificate instead of
-          # a bundle.
-          # It's assumed that initializer generates this anyway, so it should be
-          # fine.
-          secretName: webhook-tls-secret
-      {{- end }}
-      {{- if $externalSecretStoresEnabled }}
-      - name: ess-client-certs
-        secret:
-          secretName: ess-client-certs
       {{- end }}
       - name: tls-server-certs
         secret:

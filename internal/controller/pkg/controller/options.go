@@ -42,9 +42,4 @@ type Options struct {
 	// FetcherOptions can be used to add optional parameters to
 	// NewK8sFetcher.
 	FetcherOptions []xpkg.FetcherOpt
-
-	// WebhookTLSSecretName is the Secret that will be mounted to provider Pods
-	// so that they can use it to serve webhooks and also the CA bundle will be
-	// injected to CRDs so that API server can make calls to the providers.
-	WebhookTLSSecretName string
 }
