@@ -38,8 +38,8 @@ desired state. For example a Function may:
 * etc...
 
 A Function MUST do so _intentionally_. Put otherwise, remember that Functions
-are run in a pipeline. A Function MUST propagate the desired state passed to it
-by previous Functions.
+are run in a pipeline. A Function MUST propagate the
+desired state passed to it by previous Functions.
 
 A Function MUST NOT specify desired composite resource spec or metadata fields.
 A Function MAY only specify desired composite resource status fields.
@@ -70,6 +70,7 @@ when entering a warning or normal state.
 
 A Function MUST support the following command-line flags:
 
+* `--debug` (Default: `false`) - Enable debug logging.
 * `--insecure` (Default: `false`) - Disable gRPC transport security.
 * `--tls-certs-dir` - A directory containing mTLS server certs (tls.key and
   tls.crt), and a CA used to verify clients (ca.crt).
