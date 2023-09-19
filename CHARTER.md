@@ -54,8 +54,12 @@ to control anything - not just containers. The Crossplane project consists of:
   * The ability to orchestrate any kind of compute plane resource.
   * New ways to compose control plane APIs.
   * New integration with supporting services such as secret stores.
+* A set of providers and other integrations to cloud and infrastructure
+  offerings that enable resources to be provisioned and managed.
 * Tooling to create and test new Crossplane extensions.
 * A conformance program for Crossplane extensions.
+* Tooling, interfaces, and experiences that facilitate building, managing, and
+  consuming a control plane.
 
 As a framework, Crossplane:
 
@@ -75,18 +79,17 @@ As a framework, Crossplane:
 
 ## What Crossplane Is Not
 
-Crossplane is not intended to be a “batteries included” control plane for any
-particular use case. Instead it is a framework that you can deploy, configure,
-and extend to power control planes for your own highly bespoke use cases, often
-without writing any code.
+Crossplane is not intended to be purpose built for any particular use case.
+Instead it is a general, but complete, framework that facilitates building,
+deploying, configuring, and managing a control plane for your own highly bespoke
+use case, often without writing any code.
 
 The project is a neutral place for vendors and individuals to come together in
-enabling control planes. To that extent, it does not police Crossplane
-extensions. Any extension that passes the appropriate Crossplane conformance
-suite may consider itself to be “a Crossplane extension” - regardless of how it
-is built, how it is licensed, who maintains it, how it is governed, or where it
-is hosted. Conformance suites are typically concerned with behavior and (where
-applicable) API shape, not internal implementation details.
+enabling control planes. While any extension that passes the appropriate
+Crossplane conformance suite may consider itself to be “a Crossplane extension”
+- regardless of how it is built, licensed, or governed, who maintains it, or
+where it is hosted - the project maintainers can endorse a curated set of
+extensions to drive a high quality experience around them.
 
 Concrete examples of things that are not in scope for the project include (but
 are not limited to):
@@ -99,14 +102,13 @@ are not limited to):
   languages, and extension points that may be powered by arbitrary languages.
 * Enabling the use of Crossplane extensions without using Crossplane and vice
   versa; this is not supported and may result in undefined behavior.
-* Providing or mandating opinions around control plane hosting and tenancy
-  models.
+* Providing or mandating opinions around control plane hosting, security and
+  tenancy models, or multiple control plane management.
 * Offering ‘in-tree’ support for particular compute planes - e.g. AWS. All
   features specific to any specific compute plane provider are built as
   extensions.
 * Offering a package specification or manager for anything other than Crossplane
   extensions.
-* Offering API clients such as command-line interfaces (CLIs) or web consoles.
 
 ## Updating this Document
 
