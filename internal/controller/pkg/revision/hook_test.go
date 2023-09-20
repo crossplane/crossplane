@@ -887,17 +887,91 @@ func TestHookPost(t *testing.T) {
 						TLSClientSecretName: &tlsClientSecret,
 					},
 				},
-				err: errors.Errorf("%s: %s", errUnavailableProviderDeployment, errBoom.Error()),
+				err: errors.Errorf(errFmtUnavailableProviderDeployment, errBoom.Error()),
 			},
 		},
-		"SuccessfulProviderApply": {
-			reason: "Should not return error if successfully applied service account and deployment for active provider revision.",
+		"ErrProviderDeploymentNoAvailableConditionYet": {
+			reason: "Should return error if deployment for active provider revision has no available condition yet.",
 			args: args{
 				hook: &ProviderHooks{
 					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+						Client: &test.MockClient{
+							MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+								switch o := obj.(type) {
+								case *corev1.ServiceAccount:
+									if key.Name != saName {
+										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
+									}
+									if key.Namespace != namespace {
+										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
+									}
+									*o = corev1.ServiceAccount{
+										ImagePullSecrets: []corev1.LocalObjectReference{{}},
+									}
+									return nil
+								case *corev1.Secret:
+									if key.Name != caSecret && key.Name != tlsServerSecret && key.Name != tlsClientSecret {
+										t.Errorf("unexpected Secret name: %s", key.Name)
+									}
+									if key.Namespace != tlsSecretNamespace {
+										t.Errorf("unexpected Secret Namespace: %s", key.Namespace)
+									}
+									*o = corev1.Secret{
+										Data: map[string][]byte{
+											corev1.TLSCertKey:       []byte(caCert),
+											corev1.TLSPrivateKeyKey: []byte(caKey),
+										},
+									}
+									return nil
+								default:
+									return errBoom
+								}
+							},
+						},
+					},
+				},
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
+						DesiredState:        v1.PackageRevisionActive,
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errNoAvailableConditionProviderDeployment),
+				rev: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
+						DesiredState:        v1.PackageRevisionActive,
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+		},
+		"SuccessfulProvider": {
+			reason: "Should not return error if successfully applied service account and deployment for active provider revision and the deployment is ready.",
+			args: args{
+				hook: &ProviderHooks{
+					namespace:      namespace,
+					serviceAccount: saName,
+					client: resource.ClientApplicator{
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+							d, ok := o.(*appsv1.Deployment)
+							if ok {
+								d.Status = appsv1.DeploymentStatus{
+									Conditions: []appsv1.DeploymentCondition{{
+										Type:   appsv1.DeploymentAvailable,
+										Status: corev1.ConditionTrue,
+									}},
+								}
+							}
 							return nil
 						}),
 						Client: &test.MockClient{
@@ -1289,17 +1363,103 @@ func TestHookPost(t *testing.T) {
 						Endpoint:              fmt.Sprintf(serviceEndpointFmt, "my-function", namespace, servicePort),
 					},
 				},
-				err: errors.Errorf("%s: %s", errUnavailableFunctionDeployment, errBoom.Error()),
+				err: errors.Errorf(errFmtUnavailableFunctionDeployment, errBoom.Error()),
 			},
 		},
-		"SuccessfulFunctionApply": {
-			reason: "Should not return error if successfully applied service account and deployment for active function revision.",
+		"ErrFunctionDeploymentNoAvailableConditionYet": {
+			reason: "Should return error if deployment for active function revision has no available condition yet.",
 			args: args{
 				hook: &FunctionHooks{
 					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+						Client: &test.MockClient{
+							MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+								switch o := obj.(type) {
+								case *corev1.ServiceAccount:
+									if key.Name != saName {
+										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
+									}
+									if key.Namespace != namespace {
+										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
+									}
+									*o = corev1.ServiceAccount{
+										ImagePullSecrets: []corev1.LocalObjectReference{{}},
+									}
+									return nil
+								case *corev1.Secret:
+									if key.Name != caSecret && key.Name != tlsServerSecret && key.Name != tlsClientSecret {
+										t.Errorf("unexpected Secret name: %s", key.Name)
+									}
+									if key.Namespace != tlsSecretNamespace {
+										t.Errorf("unexpected Secret Namespace: %s", key.Namespace)
+									}
+									*o = corev1.Secret{
+										Data: map[string][]byte{
+											corev1.TLSCertKey:       []byte(caCert),
+											corev1.TLSPrivateKeyKey: []byte(caKey),
+										},
+									}
+									return nil
+								default:
+									return errBoom
+								}
+							},
+						},
+					},
+				},
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							v1.LabelParentPackage: "my-function",
+						},
+					},
+					Spec: v1.PackageRevisionSpec{
+						DesiredState:        v1.PackageRevisionActive,
+						TLSServerSecretName: &tlsServerSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errNoAvailableConditionFunctionDeployment),
+				rev: &v1beta1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							v1.LabelParentPackage: "my-function",
+						},
+					},
+					Spec: v1.PackageRevisionSpec{
+						DesiredState:        v1.PackageRevisionActive,
+						TLSServerSecretName: &tlsServerSecret,
+					},
+					Status: v1beta1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{},
+						Endpoint:              fmt.Sprintf(serviceEndpointFmt, "my-function", namespace, servicePort),
+					},
+				},
+			},
+		},
+		"SuccessfulFunction": {
+			reason: "Should not return error if successfully applied service account and deployment for active function revision and the deployment is ready.",
+			args: args{
+				hook: &FunctionHooks{
+					namespace:      namespace,
+					serviceAccount: saName,
+					client: resource.ClientApplicator{
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+							d, ok := o.(*appsv1.Deployment)
+							if ok {
+								d.Status = appsv1.DeploymentStatus{
+									Conditions: []appsv1.DeploymentCondition{{
+										Type:   appsv1.DeploymentAvailable,
+										Status: corev1.ConditionTrue,
+									}},
+								}
+							}
 							return nil
 						}),
 						Client: &test.MockClient{
