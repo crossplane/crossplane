@@ -73,16 +73,20 @@ const (
 	errAddFinalizer    = "cannot add package revision finalizer"
 	errRemoveFinalizer = "cannot remove package revision finalizer"
 
+	errDeactivateRevision = "cannot deactivate revision"
+
 	errInitParserBackend = "cannot initialize parser backend"
 	errParsePackage      = "cannot parse package contents"
 	errLintPackage       = "linting package contents failed"
 	errNotOneMeta        = "cannot install package with multiple meta types"
 	errIncompatible      = "incompatible Crossplane version"
 
-	errPreHook  = "cannot run pre establish hook for package"
-	errPostHook = "cannot run post establish hook for package"
+	errPreHook          = "cannot run pre establish hook for package"
+	errPostHook         = "cannot run post establish hook for package"
+	errDeactivationHook = "cannot run deactivation hook"
 
-	errEstablishControl = "cannot establish control of object"
+	errEstablishControl  = "cannot establish control of object"
+	errRelinquishObjects = "cannot relinquish objects"
 
 	errUpdateMeta = "cannot update package revision object metadata"
 
@@ -461,8 +465,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.deactivateRevision(ctx, pr); err != nil {
-			log.Debug("cannot deactivate revision", "error", err)
-			err = errors.Wrap(err, "cannot deactivate revision")
+			log.Debug(errDeactivateRevision, "error", err)
+			err = errors.Wrap(err, errDeactivateRevision)
 			r.record.Event(pr, event.Warning(reasonDeactivate, err))
 			return reconcile.Result{}, err
 		}
@@ -760,12 +764,12 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 
 	// Relinquish control of objects.
 	if err := r.objects.Relinquish(ctx, pr); err != nil {
-		return errors.Wrap(err, "cannot relinquish objects")
+		return errors.Wrap(err, errRelinquishObjects)
 	}
 
 	// Call deactivation hook.
 	if err := r.hook.Deactivate(ctx, pr); err != nil {
-		return errors.Wrap(err, "deactivation hook failed")
+		return errors.Wrap(err, errDeactivationHook)
 	}
 
 	return nil

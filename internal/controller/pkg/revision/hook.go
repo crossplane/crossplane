@@ -95,36 +95,6 @@ func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccoun
 	}
 }
 
-// Deactivate performs operations meant to happen for deactivating a provider revision.
-func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
-	// Delete the deployment if it exists.
-	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderDeployment)
-	}
-	// Delete the service account if it exists.
-	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderSA)
-	}
-	// Delete the service if it exists.
-	if err := h.client.Delete(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderService)
-	}
-	// Delete the TLS Server Secret if it exists.
-	if pr.GetTLSServerSecretName() != nil {
-		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSServerSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-			return errors.Wrap(err, errDeleteProviderSecret)
-		}
-	}
-	// Delete the TLS Client Secret if it exists.
-	if pr.GetTLSClientSecretName() != nil {
-		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSClientSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-			return errors.Wrap(err, errDeleteProviderSecret)
-		}
-	}
-
-	return nil
-}
-
 // Pre fills permission requests from the provider package to the revision.
 func (h *ProviderHooks) Pre(_ context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
@@ -202,6 +172,36 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
+// Deactivate performs operations meant to happen for deactivating a provider revision.
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
+	// Delete the deployment if it exists.
+	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderDeployment)
+	}
+	// Delete the service account if it exists.
+	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderSA)
+	}
+	// Delete the service if it exists.
+	if err := h.client.Delete(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderService)
+	}
+	// Delete the TLS Server Secret if it exists.
+	if pr.GetTLSServerSecretName() != nil {
+		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSServerSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+			return errors.Wrap(err, errDeleteProviderSecret)
+		}
+	}
+	// Delete the TLS Client Secret if it exists.
+	if pr.GetTLSClientSecretName() != nil {
+		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSClientSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+			return errors.Wrap(err, errDeleteProviderSecret)
+		}
+	}
+
+	return nil
+}
+
 func (h *ProviderHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
 	sa := &corev1.ServiceAccount{}
 	if err := h.client.Get(ctx, types.NamespacedName{
@@ -261,22 +261,6 @@ func NewFunctionHooks(client resource.ClientApplicator, namespace, serviceAccoun
 		namespace:      namespace,
 		serviceAccount: serviceAccount,
 	}
-}
-
-// Deactivate performs operations meant to happen for deactivating a function revision.
-func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
-	// Delete the deployment if it exists.
-	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteFunctionDeployment)
-	}
-	// Delete the service account if it exists.
-	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteFunctionSA)
-	}
-
-	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
-	// we're not deleting them here.
-	return nil
 }
 
 // Pre cleans up a packaged controller and service account if the revision is
@@ -339,6 +323,22 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		}
 	}
 	return errors.New(errNoAvailableConditionFunctionDeployment)
+}
+
+// Deactivate performs operations meant to happen for deactivating a function revision.
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
+	// Delete the deployment if it exists.
+	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionDeployment)
+	}
+	// Delete the service account if it exists.
+	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionSA)
+	}
+
+	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
+	// we're not deleting them here.
+	return nil
 }
 
 func (h *FunctionHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {

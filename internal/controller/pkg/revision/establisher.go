@@ -53,6 +53,8 @@ const (
 	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
 	errGetWebhookTLSSecret          = "cannot get webhook tls secret"
 	errWebhookSecretWithoutCABundle = "the value for the key tls.crt cannot be empty"
+	errFmtGetOwnedObject            = "cannot get owned object: %s/%s"
+	errFmtUpdateOwnedObject         = "cannot update owned object: %s/%s"
 )
 
 // An Establisher establishes control or ownership of a set of resources in the
@@ -124,8 +126,8 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	return resourceRefs, nil
 }
 
-// Relinquish removes control or ownership of resources in the API server for a
-// package revision.
+// Relinquish removes control of owned resources in the API server for a package
+// revision.
 func (e *APIEstablisher) Relinquish(ctx context.Context, parent v1.PackageRevision) error {
 	// Note(turkenh): We rely on status.objectRefs to get the list of objects
 	// that are controlled by the package revision. Relying on the status is
@@ -148,7 +150,7 @@ func (e *APIEstablisher) Relinquish(ctx context.Context, parent v1.PackageRevisi
 				// This is not expected, but still not an error for relinquishing.
 				continue
 			}
-			return errors.Wrap(err, "cannot get controlled object")
+			return errors.Wrapf(err, errFmtGetOwnedObject, u.GetKind(), u.GetName())
 		}
 		ors := u.GetOwnerReferences()
 		for i := range ors {
@@ -156,10 +158,16 @@ func (e *APIEstablisher) Relinquish(ctx context.Context, parent v1.PackageRevisi
 				ors[i].Controller = pointer.Bool(false)
 				break
 			}
+			// Note(turkenh): What if we cannot find our UID in the owner
+			// references? This is not expected unless another party stripped
+			// out ownerRefs. I believe this is a fairly unlikely scenario,
+			// and we can ignore it for now especially considering that if that
+			// happens active revision or the package itself will still take
+			// over the ownership of such resources.
 		}
 		u.SetOwnerReferences(ors)
 		if err := e.client.Update(ctx, &u); err != nil {
-			return errors.Wrap(err, "cannot update controlled object")
+			return errors.Wrapf(err, errFmtUpdateOwnedObject, u.GetKind(), u.GetName())
 		}
 	}
 	return nil

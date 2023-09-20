@@ -61,8 +61,8 @@ func TestResolve(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrorResolveInactive": {
-			reason: "Should return error if we resolve is called for an inactive revision.",
+		"SuccessfulInactiveNothingToDo": {
+			reason: "Should return no error if resolve is called for an inactive revision.",
 			args: args{
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -72,9 +72,7 @@ func TestResolve(t *testing.T) {
 					},
 				},
 			},
-			want: want{
-				err: errors.New(errNoResolveForInactiveRevisions),
-			},
+			want: want{},
 		},
 		"ErrNotMeta": {
 			reason: "Should return error if not a valid package meta type.",
