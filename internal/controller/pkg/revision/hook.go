@@ -40,28 +40,30 @@ import (
 )
 
 const (
-	errNotProvider                   = "not a provider package"
-	errNotProviderRevision           = "not a provider revision"
-	errGetControllerConfig           = "cannot get referenced controller config"
-	errGetServiceAccount             = "cannot get Crossplane service account"
-	errDeleteProviderDeployment      = "cannot delete provider package deployment"
-	errDeleteProviderSA              = "cannot delete provider package service account"
-	errDeleteProviderService         = "cannot delete provider package service"
-	errDeleteProviderSecret          = "cannot delete provider package TLS secret"
-	errApplyProviderDeployment       = "cannot apply provider package deployment"
-	errApplyProviderSecret           = "cannot apply provider package secret"
-	errApplyProviderSA               = "cannot apply provider package service account"
-	errApplyProviderService          = "cannot apply provider package service"
-	errUnavailableProviderDeployment = "provider package deployment is unavailable"
+	errNotProvider                            = "not a provider package"
+	errNotProviderRevision                    = "not a provider revision"
+	errGetControllerConfig                    = "cannot get referenced controller config"
+	errGetServiceAccount                      = "cannot get Crossplane service account"
+	errDeleteProviderDeployment               = "cannot delete provider package deployment"
+	errDeleteProviderSA                       = "cannot delete provider package service account"
+	errDeleteProviderService                  = "cannot delete provider package service"
+	errDeleteProviderSecret                   = "cannot delete provider package TLS secret"
+	errApplyProviderDeployment                = "cannot apply provider package deployment"
+	errApplyProviderSecret                    = "cannot apply provider package secret"
+	errApplyProviderSA                        = "cannot apply provider package service account"
+	errApplyProviderService                   = "cannot apply provider package service"
+	errFmtUnavailableProviderDeployment       = "provider package deployment is unavailable with message: %s"
+	errNoAvailableConditionProviderDeployment = "provider package deployment has no condition of type \"Available\" yet"
 
-	errNotFunction                   = "not a function package"
-	errDeleteFunctionDeployment      = "cannot delete function package deployment"
-	errDeleteFunctionSA              = "cannot delete function package service account"
-	errApplyFunctionDeployment       = "cannot apply function package deployment"
-	errApplyFunctionSecret           = "cannot apply function package secret"
-	errApplyFunctionSA               = "cannot apply function package service account"
-	errApplyFunctionService          = "cannot apply function package service"
-	errUnavailableFunctionDeployment = "function package deployment is unavailable"
+	errNotFunction                            = "not a function package"
+	errDeleteFunctionDeployment               = "cannot delete function package deployment"
+	errDeleteFunctionSA                       = "cannot delete function package service account"
+	errApplyFunctionDeployment                = "cannot apply function package deployment"
+	errApplyFunctionSecret                    = "cannot apply function package secret"
+	errApplyFunctionSA                        = "cannot apply function package service account"
+	errApplyFunctionService                   = "cannot apply function package service"
+	errFmtUnavailableFunctionDeployment       = "function package deployment is unavailable with message: %s"
+	errNoAvailableConditionFunctionDeployment = "function package deployment has no condition of type \"Available\" yet"
 )
 
 // A Hooks performs operations before and after a revision establishes objects.
@@ -185,10 +187,10 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 			if c.Status == corev1.ConditionTrue {
 				return nil
 			}
-			return errors.Errorf("%s: %s", errUnavailableProviderDeployment, c.Message)
+			return errors.Errorf(errFmtUnavailableProviderDeployment, c.Message)
 		}
 	}
-	return nil
+	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
 func (h *ProviderHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
@@ -327,10 +329,10 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 			if c.Status == corev1.ConditionTrue {
 				return nil
 			}
-			return errors.Errorf("%s: %s", errUnavailableFunctionDeployment, c.Message)
+			return errors.Errorf(errFmtUnavailableFunctionDeployment, c.Message)
 		}
 	}
-	return nil
+	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
 func (h *FunctionHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
