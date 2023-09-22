@@ -1,0 +1,597 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: iamroles.identity.aws.crossplane.io
+spec:
+  group: identity.aws.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - aws
+    kind: IAMRole
+    listKind: IAMRoleList
+    plural: iamroles
+    singular: iamrole
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: An IAMRole is a managed resource that represents an AWS IAM Role.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: An IAMRoleSpec defines the desired state of an IAMRole.
+            properties:
+              deletionPolicy:
+                default: Delete
+                description: DeletionPolicy specifies what will happen to the underlying
+                  external when this managed resource is deleted - either "Delete"
+                  or "Orphan" the external resource.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              forProvider:
+                description: IAMRoleParameters define the desired state of an AWS
+                  IAM Role.
+                properties:
+                  assumeRolePolicyDocument:
+                    description: AssumeRolePolicyDocument is the the trust relationship
+                      policy document that grants an entity permission to assume the
+                      role.
+                    type: string
+                  description:
+                    description: Description is a description of the role.
+                    type: string
+                  maxSessionDuration:
+                    description: 'MaxSessionDuration is the duration (in seconds)
+                      that you want to set for the specified role. The default maximum
+                      of one hour is applied. This setting can have a value from 1
+                      hour to 12 hours. Default: 3600'
+                    format: int32
+                    type: integer
+                  path:
+                    description: 'Path is the path to the role. Default: /'
+                    type: string
+                  permissionsBoundary:
+                    description: PermissionsBoundary is the ARN of the policy that
+                      is used to set the permissions boundary for the role.
+                    type: string
+                  tags:
+                    description: Tags. For more information about tagging, see Tagging
+                      IAM Identities (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_tags.html)
+                      in the IAM User Guide.
+                    items:
+                      description: Tag represents user-provided metadata that can
+                        be associated with a IAM role. For more information about
+                        tagging, see Tagging IAM Identities (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_tags.html)
+                        in the IAM User Guide.
+                      properties:
+                        key:
+                          description: The key name that can be used to look up or
+                            retrieve the associated value. For example, Department
+                            or Cost Center are common choices.
+                          type: string
+                        value:
+                          description: "The value associated with this tag. For example,
+                            tags with a key name of Department could have values such
+                            as Human Resources, Accounting, and Support. Tags with
+                            a key name of Cost Center might have values that consist
+                            of the number associated with the different cost centers
+                            in your company. Typically, many resources have tags with
+                            the same key name but with different values. \n AWS always
+                            interprets the tag Value as a single string. If you need
+                            to store an array, you can store comma-separated values
+                            in the string. However, you must interpret the value in
+                            your code."
+                          type: string
+                      required:
+                      - key
+                      type: object
+                    type: array
+                required:
+                - assumeRolePolicyDocument
+                type: object
+              providerConfigRef:
+                default:
+                  name: default
+                description: ProviderConfigReference specifies how the provider that
+                  will be used to create, observe, update, and delete this managed
+                  resource should be configured.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
+              providerRef:
+                description: 'ProviderReference specifies the provider that will be
+                  used to create, observe, update, and delete this managed resource.
+                  Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`'
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
+              writeConnectionSecretToRef:
+                description: WriteConnectionSecretToReference specifies the namespace
+                  and name of a Secret to which any connection details for this managed
+                  resource should be written. Connection details frequently include
+                  the endpoint, username, and password required to connect to the
+                  managed resource.
+                properties:
+                  name:
+                    description: Name of the secret.
+                    type: string
+                  namespace:
+                    description: Namespace of the secret.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - forProvider
+            type: object
+          status:
+            description: An IAMRoleStatus represents the observed state of an IAMRole.
+            properties:
+              atProvider:
+                description: IAMRoleExternalStatus keeps the state for the external
+                  resource
+                properties:
+                  arn:
+                    description: ARN is the Amazon Resource Name (ARN) specifying
+                      the role. For more information about ARNs and how to use them
+                      in policies, see IAM Identifiers (http://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html)
+                      in the IAM User Guide guide.
+                    type: string
+                  roleID:
+                    description: RoleID is the stable and unique string identifying
+                      the role. For more information about IDs, see IAM Identifiers
+                      (http://docs.aws.amazon.com/IAM/latest/UserGuide/Using_Identifiers.html)
+                      in the Using IAM guide.
+                    type: string
+                required:
+                - arn
+                - roleID
+                type: object
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
+                      type: string
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: resolverendpoints.route53resolver.aws.crossplane.io
+spec:
+  group: route53resolver.aws.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - aws
+    kind: ResolverEndpoint
+    listKind: ResolverEndpointList
+    plural: resolverendpoints
+    singular: resolverendpoint
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .metadata.annotations.crossplane\.io/external-name
+      name: EXTERNAL-NAME
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ResolverEndpoint is the Schema for the ResolverEndpoints API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ResolverEndpointSpec defines the desired state of ResolverEndpoint
+            properties:
+              deletionPolicy:
+                default: Delete
+                description: DeletionPolicy specifies what will happen to the underlying
+                  external when this managed resource is deleted - either "Delete"
+                  or "Orphan" the external resource.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              forProvider:
+                description: ResolverEndpointParameters defines the desired state
+                  of ResolverEndpoint
+                properties:
+                  direction:
+                    description: "Specify the applicable value: \n    * INBOUND: Resolver
+                      forwards DNS queries to the DNS service for a VPC    from your
+                      network \n    * OUTBOUND: Resolver forwards DNS queries from
+                      the DNS service for a VPC    to your network"
+                    type: string
+                  ipAddresses:
+                    description: IPAddresses are the subnets and IP addresses in your
+                      VPC that DNS queries originate from (for outbound endpoints)
+                      or that you forward DNS queries to (for inbound endpoints).
+                      The subnet ID uniquely identifies a VPC.
+                    items:
+                      description: IPAddressRequest is used by ResolverEndpoint
+                      properties:
+                        ip:
+                          description: IP address that you want to use for DNS queries.
+                          type: string
+                        subnetId:
+                          description: SubnetId is the ID of the subnet that contains
+                            the IP address.
+                          type: string
+                        subnetIdRef:
+                          description: SubnetIDRefs is a list of references to Subnets
+                            used to set the SubnetIDs.
+                          properties:
+                            name:
+                              description: Name of the referenced object.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        subnetIdSelector:
+                          description: SubnetIDSelector selects references to Subnets
+                            used to set the SubnetIDs.
+                          properties:
+                            matchControllerRef:
+                              description: MatchControllerRef ensures an object with
+                                the same controller reference as the selecting object
+                                is selected.
+                              type: boolean
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: MatchLabels ensures an object with matching
+                                labels is selected.
+                              type: object
+                          type: object
+                      type: object
+                    type: array
+                  name:
+                    description: A friendly name that lets you easily find a configuration
+                      in the Resolver dashboard in the Route 53 console.
+                    type: string
+                  region:
+                    description: Region is which region the ResolverEndpoint will
+                      be created.
+                    type: string
+                  securityGroupIdRefs:
+                    description: SecurityGroupIDRefs is a list of references to SecurityGroups
+                      used to set the SecurityGroupIDs.
+                    items:
+                      description: A Reference to a named object.
+                      properties:
+                        name:
+                          description: Name of the referenced object.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  securityGroupIdSelector:
+                    description: SecurityGroupIDsSelector selects references to SecurityGroupID
+                      used to set the SecurityGroupIDs.
+                    properties:
+                      matchControllerRef:
+                        description: MatchControllerRef ensures an object with the
+                          same controller reference as the selecting object is selected.
+                        type: boolean
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: MatchLabels ensures an object with matching labels
+                          is selected.
+                        type: object
+                    type: object
+                  securityGroupIds:
+                    description: The ID of one or more security groups that you want
+                      to use to control access to this VPC. The security group that
+                      you specify must include one or more inbound rules (for inbound
+                      Resolver endpoints) or outbound rules (for outbound Resolver
+                      endpoints). Inbound and outbound rules must allow TCP and UDP
+                      access. For inbound access, open port 53. For outbound access,
+                      open the port that you're using for DNS queries on your network.
+                    items:
+                      type: string
+                    type: array
+                  tags:
+                    description: A list of the tag keys and values that you want to
+                      associate with the endpoint.
+                    items:
+                      properties:
+                        key:
+                          type: string
+                        value:
+                          type: string
+                      type: object
+                    type: array
+                required:
+                - direction
+                - ipAddresses
+                - region
+                type: object
+              providerConfigRef:
+                default:
+                  name: default
+                description: ProviderConfigReference specifies how the provider that
+                  will be used to create, observe, update, and delete this managed
+                  resource should be configured.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
+              providerRef:
+                description: 'ProviderReference specifies the provider that will be
+                  used to create, observe, update, and delete this managed resource.
+                  Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`'
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
+              writeConnectionSecretToRef:
+                description: WriteConnectionSecretToReference specifies the namespace
+                  and name of a Secret to which any connection details for this managed
+                  resource should be written. Connection details frequently include
+                  the endpoint, username, and password required to connect to the
+                  managed resource.
+                properties:
+                  name:
+                    description: Name of the secret.
+                    type: string
+                  namespace:
+                    description: Namespace of the secret.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - forProvider
+            type: object
+          status:
+            description: ResolverEndpointStatus defines the observed state of ResolverEndpoint.
+            properties:
+              atProvider:
+                description: ResolverEndpointObservation defines the observed state
+                  of ResolverEndpoint
+                properties:
+                  arn:
+                    description: The ARN (Amazon Resource Name) for the Resolver endpoint.
+                    type: string
+                  creationTime:
+                    description: The date and time that the endpoint was created,
+                      in Unix time format and Coordinated Universal Time (UTC).
+                    type: string
+                  creatorRequestID:
+                    description: A unique string that identifies the request that
+                      created the Resolver endpoint. The CreatorRequestId allows failed
+                      requests to be retried without the risk of executing the operation
+                      twice.
+                    type: string
+                  hostVPCID:
+                    description: The ID of the VPC that you want to create the Resolver
+                      endpoint in.
+                    type: string
+                  id:
+                    description: The ID of the Resolver endpoint.
+                    type: string
+                  ipAddressCount:
+                    description: The number of IP addresses that the Resolver endpoint
+                      can use for DNS queries.
+                    format: int64
+                    type: integer
+                  modificationTime:
+                    description: The date and time that the endpoint was last modified,
+                      in Unix time format and Coordinated Universal Time (UTC).
+                    type: string
+                  securityGroupIDs:
+                    description: The ID of one or more security groups that control
+                      access to this VPC. The security group must include one or more
+                      inbound rules (for inbound endpoints) or outbound rules (for
+                      outbound endpoints). Inbound and outbound rules must allow TCP
+                      and UDP access. For inbound access, open port 53. For outbound
+                      access, open the port that you're using for DNS queries on your
+                      network.
+                    items:
+                      type: string
+                    type: array
+                  status:
+                    description: "A code that specifies the current status of the
+                      Resolver endpoint. Valid values include the following: \n    *
+                      CREATING: Resolver is creating and configuring one or more Amazon
+                      VPC    network interfaces for this endpoint. \n    * OPERATIONAL:
+                      The Amazon VPC network interfaces for this endpoint are    correctly
+                      configured and able to pass inbound or outbound DNS queries
+                      \   between your network and Resolver. \n    * UPDATING: Resolver
+                      is associating or disassociating one or more network    interfaces
+                      with this endpoint. \n    * AUTO_RECOVERING: Resolver is trying
+                      to recover one or more of the network    interfaces that are
+                      associated with this endpoint. During the recovery    process,
+                      the endpoint functions with limited capacity because of the
+                      limit    on the number of DNS queries per IP address (per network
+                      interface). For    the current limit, see Limits on Route 53
+                      Resolver (https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/DNSLimitations.html#limits-api-entities-resolver).
+                      \n    * ACTION_NEEDED: This endpoint is unhealthy, and Resolver
+                      can't automatically    recover it. To resolve the problem, we
+                      recommend that you check each IP    address that you associated
+                      with the endpoint. For each IP address that    isn't available,
+                      add another IP address and then delete the IP address    that
+                      isn't available. (An endpoint must always include at least two
+                      IP    addresses.) A status of ACTION_NEEDED can have a variety
+                      of causes. Here    are two common causes: One or more of the
+                      network interfaces that are    associated with the endpoint
+                      were deleted using Amazon VPC. The network    interface couldn't
+                      be created for some reason that's outside the control    of
+                      Resolver. \n    * DELETING: Resolver is deleting this endpoint
+                      and the associated network    interfaces."
+                    type: string
+                  statusMessage:
+                    description: A detailed description of the status of the Resolver
+                      endpoint.
+                    type: string
+                type: object
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
+                      type: string
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            required:
+            - atProvider
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+
+---
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-aws
+spec:
+  controller:
+    image: crossplane/provider-aws-controller:v0.20.0
+  dependsOn:
+  - provider: crossplane/provider-gcp
+    version: "v0.18.0"
+---

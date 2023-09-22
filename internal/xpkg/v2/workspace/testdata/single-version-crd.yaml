@@ -1,0 +1,321 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  name: certificates.acm.aws.crossplane.io
+spec:
+  group: acm.aws.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - aws
+    kind: Certificate
+    listKind: CertificateList
+    plural: certificates
+    singular: certificate
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.forProvider.domainName
+      name: DOMAINNAME
+      type: string
+    - jsonPath: .status.atProvider.status
+      name: STATUS
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Certificate is a managed resource that represents an AWS Certificate
+          Manager.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CertificateSpec defines the desired state of Certificate
+            properties:
+              deletionPolicy:
+                default: Delete
+                description: DeletionPolicy specifies what will happen to the underlying
+                  external when this managed resource is deleted - either "Delete"
+                  or "Orphan" the external resource.
+                enum:
+                - Orphan
+                - Delete
+                type: string
+              forProvider:
+                description: CertificateParameters defines the desired state of an
+                  AWS Certificate.
+                properties:
+                  certificateAuthorityARN:
+                    description: The Amazon Resource Name (ARN) of the private certificate
+                      authority (CA)that will be used to issue the certificate.
+                    type: string
+                  certificateAuthorityARNRef:
+                    description: CertificateAuthorityARNRef references an AWS ACMPCA
+                      CertificateAuthority to retrieve its Arn
+                    properties:
+                      name:
+                        description: Name of the referenced object.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  certificateAuthorityARNSelector:
+                    description: CertificateAuthorityARNSelector selects a reference
+                      to an AWS ACMPCA CertificateAuthority to retrieve its Arn
+                    properties:
+                      matchControllerRef:
+                        description: MatchControllerRef ensures an object with the
+                          same controller reference as the selecting object is selected.
+                        type: boolean
+                      matchLabels:
+                        additionalProperties:
+                          type: string
+                        description: MatchLabels ensures an object with matching labels
+                          is selected.
+                        type: object
+                    type: object
+                  certificateTransparencyLoggingPreference:
+                    description: Parameter add the certificate to a certificate transparency
+                      log.
+                    enum:
+                    - ENABLED
+                    - DISABLED
+                    type: string
+                  domainName:
+                    description: Fully qualified domain name (FQDN),that to secure
+                      with an ACM certificate.
+                    type: string
+                  domainValidationOptions:
+                    description: The domain name that you want ACM to use to send
+                      you emails so that you can validate domain ownership.
+                    items:
+                      description: DomainValidationOption validate domain ownership.
+                      properties:
+                        domainName:
+                          description: Additinal Fully qualified domain name (FQDN),that
+                            to secure with an ACM certificate.
+                          type: string
+                        validationDomain:
+                          description: Method to validate certificate
+                          type: string
+                      required:
+                      - domainName
+                      - validationDomain
+                      type: object
+                    type: array
+                  region:
+                    description: Region is the region you'd like your Certificate
+                      to be created in.
+                    type: string
+                  renewCertificate:
+                    description: Flag to renew the certificate
+                    type: boolean
+                  subjectAlternativeNames:
+                    description: Subject Alternative Name extension of the ACM certificate.
+                    items:
+                      type: string
+                    type: array
+                  tags:
+                    description: One or more resource tags to associate with the certificate.
+                    items:
+                      description: Tag represents user-provided metadata that can
+                        be associated
+                      properties:
+                        key:
+                          description: The key name that can be used to look up or
+                            retrieve the associated value.
+                          type: string
+                        value:
+                          description: The value associated with this tag.
+                          type: string
+                      required:
+                      - key
+                      - value
+                      type: object
+                    type: array
+                  validationMethod:
+                    description: Method to validate certificate.
+                    enum:
+                    - DNS
+                    - EMAIL
+                    type: string
+                required:
+                - domainName
+                - region
+                - tags
+                type: object
+              providerConfigRef:
+                default:
+                  name: default
+                description: ProviderConfigReference specifies how the provider that
+                  will be used to create, observe, update, and delete this managed
+                  resource should be configured.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
+              providerRef:
+                description: 'ProviderReference specifies the provider that will be
+                  used to create, observe, update, and delete this managed resource.
+                  Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`'
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
+              writeConnectionSecretToRef:
+                description: WriteConnectionSecretToReference specifies the namespace
+                  and name of a Secret to which any connection details for this managed
+                  resource should be written. Connection details frequently include
+                  the endpoint, username, and password required to connect to the
+                  managed resource.
+                properties:
+                  name:
+                    description: Name of the secret.
+                    type: string
+                  namespace:
+                    description: Namespace of the secret.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+            required:
+            - forProvider
+            type: object
+          status:
+            description: An CertificateStatus represents the observed state of an
+              Certificate manager.
+            properties:
+              atProvider:
+                description: CertificateExternalStatus keeps the state of external
+                  resource
+                properties:
+                  certificateARN:
+                    description: String that contains the ARN of the issued certificate.
+                      This must be of the
+                    type: string
+                  renewalEligibility:
+                    description: Flag to check eligibility for renewal status
+                    enum:
+                    - ELIGIBLE
+                    - INELIGIBLE
+                    type: string
+                  resourceRecord:
+                    description: 'Contains the CNAME record that you add to your DNS
+                      database for domain validation. For more information, see Use
+                      DNS to Validate Domain Ownership (https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-validate-dns.html).
+                      Note: The CNAME information that you need does not include the
+                      name of your domain. If you include your domain name in the
+                      DNS database CNAME record, validation fails. For example, if
+                      the name is "_a79865eb4cd1a6ab990a45779b4e0b96.yourdomain.com",
+                      only "_a79865eb4cd1a6ab990a45779b4e0b96" must be used.'
+                    properties:
+                      name:
+                        description: The name of the DNS record to create in your
+                          domain. This is supplied by ACM.
+                        type: string
+                      type:
+                        description: The type of DNS record. Currently this can be
+                          CNAME.
+                        enum:
+                        - CNAME
+                        type: string
+                      value:
+                        description: The value of the CNAME record to add to your
+                          DNS database.
+                        type: string
+                    type: object
+                  status:
+                    description: Status of the certificate
+                    enum:
+                    - PENDING_VALIDATION
+                    - ISSUED
+                    - INACTIVE
+                    - EXPIRED
+                    - VALIDATION_TIMED_OUT
+                    - REVOKED
+                    - FAILED
+                    type: string
+                  type:
+                    description: Type of the certificate
+                    enum:
+                    - IMPORTED
+                    - AMAZON_ISSUED
+                    - PRIVATE
+                    type: string
+                type: object
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
+                      type: string
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions:
+  - v1alpha1

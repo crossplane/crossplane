@@ -9,13 +9,17 @@ require (
 	github.com/alecthomas/kong v0.8.0
 	github.com/bufbuild/buf v1.26.1
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230921093949-2d96b39e1e5f
+	github.com/goccy/go-yaml v1.11.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.16.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230905180039-a748190e18d4
 	github.com/jmattheis/goverter v0.18.0
 	github.com/pkg/errors v0.9.1
+	github.com/pterm/pterm v0.12.62
+	github.com/radovskyb/watcher v1.0.7
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.10.0
+	go.lsp.dev/uri v0.3.0
 	golang.org/x/sync v0.3.0
 	google.golang.org/grpc v1.58.2
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
@@ -34,8 +38,18 @@ require (
 )
 
 require (
+	atomicgo.dev/cursor v0.2.0 // indirect
+	atomicgo.dev/keyboard v0.2.9 // indirect
+	atomicgo.dev/schedule v0.1.0 // indirect
+	github.com/containerd/console v1.0.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/gookit/color v1.5.4 // indirect
+	github.com/lithammer/fuzzysearch v1.1.8 // indirect
+	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 )
 
 require (
@@ -153,7 +167,7 @@ require (
 	golang.org/x/net v0.14.0 // indirect; indirect // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/term v0.11.0 // indirect
+	golang.org/x/term v0.11.0
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.12.0 // indirect
@@ -161,7 +175,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/component-base v0.28.2 // indirect
 	k8s.io/gengo v0.0.0-20220902162205-c0856e24416d // indirect
