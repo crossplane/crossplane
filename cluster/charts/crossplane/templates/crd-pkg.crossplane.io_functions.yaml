@@ -30,7 +30,7 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    name: v1alpha1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: Function is the CRD type for a request to deploy a long-running
@@ -156,10 +156,6 @@ spec:
                 description: CurrentRevision is the name of the current package revision.
                   It will reflect the most up to date revision, whether it has been
                   activated or not.
-                type: string
-              endpoint:
-                description: Endpoint is the gRPC endpoint where Crossplane will send
-                  RunFunctionRequests.
                 type: string
             type: object
         type: object
