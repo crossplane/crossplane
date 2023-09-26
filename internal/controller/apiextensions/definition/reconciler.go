@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -404,14 +405,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
-	cr := composite.NewReconciler(r.mgr, resource.CompositeKind(d.GetCompositeGroupVersionKind()), ro...)
+	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
+	cr := composite.NewReconciler(r.mgr, ck, ro...)
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), cr, r.options.GlobalRateLimiter)
 
 	u := &kunstructured.Unstructured{}
 	u.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
-	if err := r.composite.Start(composite.ControllerName(d.GetName()), ko, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
+	if err := r.composite.Start(composite.ControllerName(d.GetName()), ko,
+		controller.For(u, &handler.EnqueueRequestForObject{}),
+		controller.TriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
+			// enqueue composites whenever a matching CompositionRevision is created
+			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
+		}),
+	); err != nil {
 		log.Debug(errStartController, "error", err)
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))

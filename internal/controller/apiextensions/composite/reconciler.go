@@ -24,8 +24,12 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	runtimeevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -416,6 +420,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	for _, f := range opts {
 		f(r)
 	}
+
 	return r
 }
 
@@ -658,4 +663,52 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+}
+
+// EnqueueForCompositionRevisionFunc returns a function that enqueues (the
+// related) XRs when a new CompositionRevision is created. This speeds up
+// reconciliation of XRs on changes to the Composition by not having to wait for
+// the 60s sync period, but be instant.
+func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error, log logging.Logger) func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
+	return func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
+		rev, ok := createEvent.Object.(*v1.CompositionRevision)
+		if !ok {
+			// should not happen
+			return
+		}
+
+		// get all XRs
+		xrs := kunstructured.UnstructuredList{}
+		xrs.SetGroupVersionKind(schema.GroupVersionKind(of))
+		xrs.SetKind(schema.GroupVersionKind(of).Kind + "List")
+		if err := list(ctx, &xrs); err != nil {
+			// logging is most we can do here. This is a programming error if it happens.
+			log.Info("cannot list in CompositionRevision handler", "type", schema.GroupVersionKind(of).String(), "error", err)
+			return
+		}
+
+		// enqueue all those that reference the Composition of this revision
+		compName := rev.Labels[v1.LabelCompositionName]
+		if compName == "" {
+			return
+		}
+		for _, u := range xrs.Items {
+			xr := composite.Unstructured{Unstructured: u}
+
+			// only automatic
+			if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
+				continue
+			}
+
+			// only those that reference the right Composition
+			if ref := xr.GetCompositionReference(); ref == nil || ref.Name != compName {
+				continue
+			}
+
+			q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+				Name:      xr.GetName(),
+				Namespace: xr.GetNamespace(),
+			}})
+		}
+	}
 }

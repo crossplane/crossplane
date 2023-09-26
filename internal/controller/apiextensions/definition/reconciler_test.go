@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -522,7 +523,16 @@ func TestReconcile(t *testing.T) {
 		"StartControllerError": {
 			reason: "We should return any error we encounter while starting our controller.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+				},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -558,7 +568,16 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulStart": {
 			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+				},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -602,7 +621,16 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulUpdateControllerVersion": {
 			reason: "We should return without requeueing if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+				},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -672,4 +700,29 @@ func TestReconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockManager struct {
+	manager.Manager
+
+	GetCacheFn  func() cache.Cache
+	GetClientFn func() client.Client
+}
+
+func (m *mockManager) GetCache() cache.Cache {
+	return m.GetCacheFn()
+}
+
+func (m *mockManager) GetClient() client.Client {
+	return m.GetClientFn()
+}
+
+type mockCache struct {
+	cache.Cache
+
+	ListFn func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+}
+
+func (m *mockCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return m.ListFn(ctx, list, opts...)
 }
