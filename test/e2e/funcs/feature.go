@@ -107,7 +107,6 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 // to exist within the supplied duration.
 func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -151,7 +150,6 @@ func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 // within the supplied duration.
 func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -265,7 +263,6 @@ func CRDInitialNamesAccepted() xpv1.Condition {
 // duration. The supplied 'want' value must cmp.Equal the actual value.
 func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)

@@ -436,7 +436,6 @@ func GetConversionFunc(t *v1.ConvertTransform, from v1.TransformIOType) (func(an
 // may return an error.
 var conversions = map[conversionPair]func(any) (any, error){
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-
 		return strconv.ParseInt(i.(string), 10, 64)
 	},
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {

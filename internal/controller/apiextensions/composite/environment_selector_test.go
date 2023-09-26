@@ -642,13 +642,11 @@ func TestSelect(t *testing.T) {
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
 						{
-
 							Name:       "test-2",
 							Kind:       v1alpha1.EnvironmentConfigKind,
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
 						{
-
 							Name:       "test-3",
 							Kind:       v1alpha1.EnvironmentConfigKind,
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
@@ -933,13 +931,11 @@ func TestSelect(t *testing.T) {
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
 						{
-
 							Name:       "test-2",
 							Kind:       v1alpha1.EnvironmentConfigKind,
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
 						{
-
 							Name:       "test-3",
 							Kind:       v1alpha1.EnvironmentConfigKind,
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),

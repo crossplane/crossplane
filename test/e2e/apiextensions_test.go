@@ -72,7 +72,6 @@ func TestCompositionMinimal(t *testing.T) {
 // available when its composed resources do, and have a field derived from
 // the patch.
 func TestCompositionPatchAndTransform(t *testing.T) {
-
 	manifests := "test/e2e/manifests/apiextensions/composition/patch-and-transform"
 	environment.Test(t,
 		features.New(t.Name()).
@@ -110,7 +109,6 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 // disabled?
 
 func TestCompositionFunctions(t *testing.T) {
-
 	manifests := "test/e2e/manifests/apiextensions/composition/functions"
 	environment.Test(t,
 		features.New(t.Name()).

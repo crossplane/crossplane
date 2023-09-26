@@ -88,7 +88,6 @@ func (e *EnqueueRequestForNamespaces) add(ctx context.Context, obj runtime.Objec
 	for _, ns := range l.Items {
 		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ns.GetName()}})
 	}
-
 }
 
 func aggregates(obj metav1.Object) bool {

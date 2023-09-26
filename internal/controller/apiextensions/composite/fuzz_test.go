@@ -32,9 +32,7 @@ import (
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 )
 
-var (
-	fuzzScheme = runtime.NewScheme()
-)
+var fuzzScheme = runtime.NewScheme()
 
 func init() {
 	if err := pkgmetav1alpha1.SchemeBuilder.AddToScheme(fuzzScheme); err != nil {

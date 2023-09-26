@@ -95,7 +95,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		// controller-runtime's metrics HTTP server when it starts.
 		log.Debug("Profiling server is starting to listen", "addr", c.Profile)
 		go func() {
-
 			// Registering these explicitly ensures they're only served by the
 			// HTTP server we start specifically for profiling.
 			mux := http.NewServeMux()

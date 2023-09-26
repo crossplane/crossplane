@@ -55,8 +55,10 @@ func userAgentValidator(userAgent string) requestValidationFn {
 	}
 }
 
-var _ http.RoundTripper = &UserAgent{}
-var _ http.RoundTripper = &validatingRoundTripper{}
+var (
+	_ http.RoundTripper = &UserAgent{}
+	_ http.RoundTripper = &validatingRoundTripper{}
+)
 
 func TestUserAgent(t *testing.T) {
 	cases := map[string]struct {

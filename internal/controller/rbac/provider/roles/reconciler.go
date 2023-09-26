@@ -114,7 +114,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	wrh := &EnqueueRequestForAllRevisionsWithRequests{
 		client:          mgr.GetClient(),
-		clusterRoleName: o.AllowClusterRole}
+		clusterRoleName: o.AllowClusterRole,
+	}
 
 	sfh := &EnqueueRequestForAllRevisionsInFamily{
 		client: mgr.GetClient(),

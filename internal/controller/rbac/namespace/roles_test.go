@@ -115,7 +115,6 @@ func TestCRSelector(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestRenderClusterRoles(t *testing.T) {

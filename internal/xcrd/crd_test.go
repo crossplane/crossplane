@@ -661,7 +661,6 @@ func TestForCompositeResource(t *testing.T) {
 											Type:        "object",
 											Description: "",
 											Properties: map[string]extv1.JSONSchemaProps{
-
 												// From CompositeResourceStatusProps()
 												"conditions": {
 													Description: "Conditions of the resource.",
@@ -1002,8 +1001,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 										},
 										"compositeDeletePolicy": {
 											Type: "string",
-											Enum: []extv1.JSON{{Raw: []byte(`"Background"`)},
-												{Raw: []byte(`"Foreground"`)}},
+											Enum: []extv1.JSON{
+												{Raw: []byte(`"Background"`)},
+												{Raw: []byte(`"Foreground"`)},
+											},
 										},
 										// From CompositeResourceClaimSpecProps()
 										"compositionRef": {
@@ -1294,8 +1295,10 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 									Properties: map[string]extv1.JSONSchemaProps{
 										"compositeDeletePolicy": {
 											Type: "string",
-											Enum: []extv1.JSON{{Raw: []byte(`"Background"`)},
-												{Raw: []byte(`"Foreground"`)}},
+											Enum: []extv1.JSON{
+												{Raw: []byte(`"Background"`)},
+												{Raw: []byte(`"Foreground"`)},
+											},
 										},
 										// From CompositeResourceClaimSpecProps()
 										"compositionRef": {

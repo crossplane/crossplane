@@ -151,7 +151,6 @@ func TestEnvironmentShouldResolve(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-
 		t.Run(name, func(t *testing.T) {
 			got := tc.args.ec.ShouldResolve(tc.args.refs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {

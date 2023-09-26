@@ -602,7 +602,6 @@ func TestCompositeConfigure(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestClaimConfigure(t *testing.T) {
@@ -1127,5 +1126,4 @@ func TestClaimConfigure(t *testing.T) {
 			}
 		})
 	}
-
 }

@@ -460,7 +460,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -502,7 +503,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -545,7 +547,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -635,7 +638,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -682,7 +686,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: errors.Errorf(errFmtRequiredField, "Combine", v1.PatchTypeCombineFromComposite),
 			},
@@ -729,7 +734,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: errors.Errorf(errFmtRequiredField, "Combine", v1.PatchTypeCombineFromEnvironment),
 			},
@@ -783,7 +789,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: errors.Errorf(errFmtCombineConfigMissing, v1.CombineStrategyString),
 			},
@@ -835,7 +842,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: errors.New(errCombineRequiresVariables),
 			},
@@ -894,7 +902,8 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 						Labels: map[string]string{
 							"Test": "blah",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -950,7 +959,8 @@ func TestPatchApply(t *testing.T) {
 						Labels: map[string]string{
 							"Test":        "blah",
 							"destination": "foo-bar",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -1006,7 +1016,8 @@ func TestPatchApply(t *testing.T) {
 						Labels: map[string]string{
 							"source1": "foo",
 							"source2": "bar",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},
@@ -1062,7 +1073,8 @@ func TestPatchApply(t *testing.T) {
 						Labels: map[string]string{
 							"source1": "foo",
 							"source2": "bar",
-						}},
+						},
+					},
 				},
 				err: nil,
 			},

@@ -488,7 +488,6 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 		"SuccessfulGeneratedServerCert": {
 			reason: "It should be successful if the server certificate is generated and put into the Secret.",
 			args: args{
-
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
@@ -650,7 +649,6 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 		"SuccessfulGeneratedClientCert": {
 			reason: "It should be successful if the client certificate is generated and put into the Secret.",
 			args: args{
-
 				kube: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {

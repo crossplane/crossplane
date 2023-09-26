@@ -415,7 +415,8 @@ func TestFunctionCompose(t *testing.T) {
 								"status": map[string]any{
 									"widgets": 42,
 								},
-							})},
+							}),
+						},
 					}
 					return &v1beta1.RunFunctionResponse{Desired: d}, nil
 				}),
@@ -645,7 +646,6 @@ func TestFunctionCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			c := NewFunctionComposer(tc.params.kube, tc.params.r, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
@@ -866,17 +866,18 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			want: want{
-				ors: ComposedResourceStates{"cool-resource": ComposedResourceState{
-					ConnectionDetails: details,
-					Resource: func() resource.Composed {
-						cd := composed.New()
-						cd.SetAPIVersion("example.org/v1")
-						cd.SetKind("Composed")
-						cd.SetName("cool-resource-42")
-						SetCompositionResourceName(cd, "cool-resource")
-						return cd
-					}(),
-				},
+				ors: ComposedResourceStates{
+					"cool-resource": ComposedResourceState{
+						ConnectionDetails: details,
+						Resource: func() resource.Composed {
+							cd := composed.New()
+							cd.SetAPIVersion("example.org/v1")
+							cd.SetKind("Composed")
+							cd.SetName("cool-resource-42")
+							SetCompositionResourceName(cd, "cool-resource")
+							return cd
+						}(),
+					},
 				},
 			},
 		},
@@ -884,7 +885,6 @@ func TestGetComposedResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			g := NewExistingComposedResourceObserver(tc.params.c, tc.params.f)
 			ors, err := g.ObserveComposedResources(tc.args.ctx, tc.args.xr)
 
@@ -1122,7 +1122,6 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			d := NewDeletingComposedResourceGarbageCollector(tc.params.client)
 			err := d.GarbageCollectComposedResources(tc.args.ctx, tc.args.owner, tc.args.observed, tc.args.desired)
 
@@ -1192,13 +1191,11 @@ func TestUpdateResourceRefs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			UpdateResourceRefs(tc.args.xr, tc.args.drs)
 
 			if diff := cmp.Diff(tc.want.xr, tc.args.xr); diff != "" {
 				t.Errorf("\n%s\nUpdateResourceRefs(...): -want, +got:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }

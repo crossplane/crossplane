@@ -198,14 +198,12 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			ReadOnly:  true,
 			MountPath: webhookTLSCertDir,
 		}
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 
 		envs := []corev1.EnvVar{
 			{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir},
 		}
-		d.Spec.Template.Spec.Containers[0].Env =
-			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 
 		port := corev1.ContainerPort{
 			Name:          webhookPortName,
@@ -423,8 +421,7 @@ func setControllerConfigConfigurations(s *corev1.ServiceAccount, cc *v1alpha1.Co
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
 	}
 	if len(cc.Spec.VolumeMounts) > 0 {
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
+		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
 	}
 }
 
@@ -450,14 +447,12 @@ func mountTLSSecret(secret, volName, mountPath, envName string, d *appsv1.Deploy
 		ReadOnly:  true,
 		MountPath: mountPath,
 	}
-	d.Spec.Template.Spec.Containers[0].VolumeMounts =
-		append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+	d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 
 	envs := []corev1.EnvVar{
 		{Name: envName, Value: mountPath},
 	}
-	d.Spec.Template.Spec.Containers[0].Env =
-		append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+	d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 }
 
 func getService(name, namespace string, owners []metav1.OwnerReference, matchLabels map[string]string) *corev1.Service {

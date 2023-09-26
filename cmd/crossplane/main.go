@@ -41,8 +41,10 @@ import (
 	"github.com/crossplane/crossplane/internal/version"
 )
 
-type debugFlag bool
-type versionFlag bool
+type (
+	debugFlag   bool
+	versionFlag bool
+)
 
 var cli struct {
 	Debug debugFlag `short:"d" help:"Print verbose logging statements."`

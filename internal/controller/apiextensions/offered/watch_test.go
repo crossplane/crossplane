@@ -32,9 +32,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
-var (
-	_ handler.EventHandler = &EnqueueRequestForClaim{}
-)
+var _ handler.EventHandler = &EnqueueRequestForClaim{}
 
 func TestOffersClaim(t *testing.T) {
 	cases := map[string]struct {

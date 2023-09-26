@@ -31,8 +31,10 @@ import (
 
 var _ = kong.Must(&cli)
 
-type versionFlag string
-type verboseFlag bool
+type (
+	versionFlag string
+	verboseFlag bool
+)
 
 // Decode overrides the default string decoder to be a no-op.
 func (v versionFlag) Decode(_ *kong.DecodeContext) error { return nil }

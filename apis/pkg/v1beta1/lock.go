@@ -22,8 +22,10 @@ import (
 	"github.com/crossplane/crossplane/internal/dag"
 )
 
-var _ dag.Node = &Dependency{}
-var _ dag.Node = &LockPackage{}
+var (
+	_ dag.Node = &Dependency{}
+	_ dag.Node = &LockPackage{}
+)
 
 // A PackageType is a type of package.
 type PackageType string

@@ -646,7 +646,6 @@ func TestMathResolve(t *testing.T) {
 }
 
 func TestStringResolve(t *testing.T) {
-
 	type args struct {
 		stype   v1.StringTransformType
 		fmts    *string
@@ -1020,8 +1019,8 @@ func TestStringResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
-			tr := v1.StringTransform{Type: tc.stype,
+			tr := v1.StringTransform{
+				Type:    tc.stype,
 				Format:  tc.fmts,
 				Convert: tc.convert,
 				Trim:    tc.trim,

@@ -713,7 +713,9 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 				comp: &Composition{
 					Spec: CompositionSpec{
 						Environment: &EnvironmentConfiguration{},
-					}}},
+					},
+				},
+			},
 		},
 		"ValidNilEnvironment": {
 			reason: "Should accept a nil environment",
@@ -721,7 +723,9 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 				comp: &Composition{
 					Spec: CompositionSpec{
 						Environment: nil,
-					}}},
+					},
+				},
+			},
 		},
 		"ValidEnvironment": {
 			reason: "Should accept a valid environment",
@@ -751,7 +755,15 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
 												ValueFromFieldPath: pointer.String("spec.foo"),
-											}}}}}}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"InvalidPatchEnvironment": {
 			reason: "Should reject an environment declaring an invalid patch",
@@ -770,7 +782,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 							Patches: []EnvironmentPatch{
 								{
 									Type: PatchTypeFromCompositeFieldPath,
-									//FromFieldPath: pointer.String("spec.foo"), // missing
+									// FromFieldPath: pointer.String("spec.foo"), // missing
 									ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
 								},
 							},
@@ -789,7 +801,15 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
 												ValueFromFieldPath: pointer.String("spec.foo"),
-											}}}}}}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"InvalidEnvironmentSourceReferenceNoName": {
 			reason: "Should reject a invalid environment, due to a missing name",
@@ -809,7 +829,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 								{
 									Type: EnvironmentSourceTypeReference,
 									Ref:  &EnvironmentSourceReference{
-										//Name: "foo", // missing
+										// Name: "foo", // missing
 									},
 								},
 								{
@@ -820,7 +840,15 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
 												ValueFromFieldPath: pointer.String("spec.foo"),
-											}}}}}}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"InvalidEnvironmentSourceSelectorNoKey": {
 			reason: "Should reject a invalid environment due to a missing key in a selector",
@@ -849,9 +877,17 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type: EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
-												//Key:                "foo", // missing
+												// Key:                "foo", // missing
 												ValueFromFieldPath: pointer.String("spec.foo"),
-											}}}}}}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"InvalidMultipleErrors": {
 			reason: "Should reject a invalid environment due to multiple errors, reporting all of them",
@@ -862,7 +898,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 							Patches: []EnvironmentPatch{
 								{
 									Type: PatchTypeFromCompositeFieldPath,
-									//FromFieldPath: pointer.String("spec.foo"), // missing
+									// FromFieldPath: pointer.String("spec.foo"), // missing
 									ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
 								},
 							},
@@ -870,7 +906,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 								{
 									Type: EnvironmentSourceTypeReference,
 									Ref:  &EnvironmentSourceReference{
-										//Name: "foo", // missing
+										// Name: "foo", // missing
 									},
 								},
 								{
@@ -879,9 +915,17 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type: EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
-												//Key:                "foo", // missing
+												// Key:                "foo", // missing
 												ValueFromFieldPath: pointer.String("spec.foo"),
-											}}}}}}}}},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			want: want{
 				output: field.ErrorList{
 					{

@@ -100,7 +100,6 @@ func (wt *WebhookCertificateGenerator) Run(ctx context.Context, kube client.Clie
 		KeyUsage:              x509.KeyUsageCRLSign | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
 	}, nil)
-
 	if err != nil {
 		return errors.Wrap(err, errGenerateCertificate)
 	}

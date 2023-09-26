@@ -90,7 +90,6 @@ func (v *Validator) validateEnvironmentPatchesWithSchemas(ctx context.Context, c
 			compositeResGVK: compositeResGVK,
 		}), field.NewPath("spec").Child("environment", "patches").Index(i)); err != nil {
 			errs = append(errs, err)
-
 		}
 	}
 	return errs

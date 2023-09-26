@@ -57,9 +57,7 @@ const (
 	helmReleaseName = "crossplane"
 )
 
-var (
-	environment = config.NewEnvironmentFromFlags()
-)
+var environment = config.NewEnvironmentFromFlags()
 
 func TestMain(m *testing.M) {
 	// TODO(negz): Global loggers are dumb and klog is dumb. Remove this when

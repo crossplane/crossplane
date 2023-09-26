@@ -683,7 +683,8 @@ func TestHookPost(t *testing.T) {
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret},
+						TLSClientSecretName: &tlsClientSecret,
+					},
 				},
 			},
 			want: want{

@@ -76,7 +76,6 @@ func AsFeaturesFunc(fn env.Func) features.Func {
 		}
 		return ctx
 	}
-
 }
 
 // HelmUninstall uninstalls a Helm chart.

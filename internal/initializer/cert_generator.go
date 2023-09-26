@@ -43,15 +43,13 @@ type CertificateGenerator interface {
 	Generate(*x509.Certificate, *CertificateSigner) (key []byte, crt []byte, err error)
 }
 
-var (
-	pkixName = pkix.Name{
-		CommonName:   "Crossplane",
-		Organization: []string{"Crossplane"},
-		Country:      []string{"Earth"},
-		Province:     []string{"Earth"},
-		Locality:     []string{"Earth"},
-	}
-)
+var pkixName = pkix.Name{
+	CommonName:   "Crossplane",
+	Organization: []string{"Crossplane"},
+	Country:      []string{"Earth"},
+	Province:     []string{"Earth"},
+	Locality:     []string{"Earth"},
+}
 
 // NewCertGenerator returns a new CertGenerator.
 func NewCertGenerator() *CertGenerator {

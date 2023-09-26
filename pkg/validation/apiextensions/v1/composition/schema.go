@@ -26,6 +26,7 @@ func defaultMetadataSchema(in *apiextensions.JSONSchemaProps) *apiextensions.JSO
 
 	return out
 }
+
 func defaultMetadataOnly(metadata *apiextensions.JSONSchemaProps) *apiextensions.JSONSchemaProps {
 	setDefaultType(metadata)
 	setDefaultProperty(metadata, "name", string(schema.KnownJSONTypeString))

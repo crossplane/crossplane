@@ -149,7 +149,6 @@ func TestBind(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestPropagateConnection(t *testing.T) {
@@ -404,7 +403,8 @@ func TestAPIDefaultsSelector(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						*obj.(*v1.CompositeResourceDefinition) = v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositeDeletePolicy: &f}}
 						return nil
-					}},
+					},
+				},
 				cm: &fake.CompositeClaim{},
 			},
 			want: want{

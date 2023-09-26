@@ -146,9 +146,7 @@ func secretClient(rev v1.PackageRevision) *corev1.Secret {
 }
 
 func deploymentProvider(provider *pkgmetav1.Provider, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
-	var (
-		replicas = int32(1)
-	)
+	replicas := int32(1)
 
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -276,9 +274,7 @@ func deploymentProvider(provider *pkgmetav1.Provider, revision string, img strin
 }
 
 func deploymentFunction(function *pkgmetav1beta1.Function, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
-	var (
-		replicas = int32(1)
-	)
+	replicas := int32(1)
 
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -588,7 +584,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 				d: deploymentProvider(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
 					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
 					"pkg.crossplane.io/provider": providerWithImage.GetName(),
-					"k":                          "v"}),
+					"k":                          "v",
+				}),
 					withAdditionalVolume(corev1.Volume{Name: "vol-a"}),
 					withAdditionalVolume(corev1.Volume{Name: "vol-b"}),
 					withAdditionalVolumeMount(corev1.VolumeMount{Name: "vm-a"}),
@@ -622,7 +619,6 @@ func TestBuildProviderDeployment(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestBuildFunctionDeployment(t *testing.T) {
@@ -793,7 +789,8 @@ func TestBuildFunctionDeployment(t *testing.T) {
 				d: deploymentFunction(functionWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
 					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
 					"pkg.crossplane.io/function": functionWithImage.GetName(),
-					"k":                          "v"}),
+					"k":                          "v",
+				}),
 					withAdditionalVolume(corev1.Volume{Name: "vol-a"}),
 					withAdditionalVolume(corev1.Volume{Name: "vol-b"}),
 					withAdditionalVolumeMount(corev1.VolumeMount{Name: "vm-a"}),
@@ -823,5 +820,4 @@ func TestBuildFunctionDeployment(t *testing.T) {
 			}
 		})
 	}
-
 }

@@ -16,8 +16,10 @@ limitations under the License.
 
 package v1
 
-var _ Pkg = &Configuration{}
-var _ Pkg = &Provider{}
+var (
+	_ Pkg = &Configuration{}
+	_ Pkg = &Provider{}
+)
 
 // Pkg is a description of a Crossplane package.
 // +k8s:deepcopy-gen=false
