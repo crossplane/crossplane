@@ -158,7 +158,7 @@ func (e *entry) writeMeta(o runtime.Object) (*flushstats, error) {
 	if err != nil {
 		return stats, errors.Wrap(err, errFailedToCreateMeta)
 	}
-	defer cf.Close() //nolint:errcheck
+	defer cf.Close() //nolint:errcheck //error is checked in the happy path
 
 	b, err := yaml.Marshal(o)
 	if err != nil {
@@ -184,7 +184,7 @@ func (e *entry) writeMeta(o runtime.Object) (*flushstats, error) {
 		return stats, err
 	}
 
-	return stats, err
+	return stats, cf.Close()
 }
 
 func (e *entry) createPackageJSON(data []byte) error {
@@ -215,7 +215,7 @@ func writeToFile(data []byte, f afero.File) error {
 }
 
 // writeObjects writes out the CRDs and XRDs that came from the package.yaml
-func (e *entry) writeObjects(objs []runtime.Object) (*flushstats, error) { // nolint:gocyclo
+func (e *entry) writeObjects(objs []runtime.Object) (*flushstats, error) {
 	stats := &flushstats{}
 
 	for _, o := range objs {

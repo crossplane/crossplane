@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package workspace contains utilities for working with Crossplane project
+// workspaces. Mostly used for storing and validating packages.
 package workspace
 
 import (
@@ -282,7 +284,7 @@ type parseContext struct {
 
 // parseDoc recursively parses a YAML document into PackageNodes. Embedded nodes
 // are added to the parent's list of dependants.
-func (v *View) parseDoc(ctx context.Context, pCtx parseContext) (NodeIdentifier, error) { //nolint:gocyclo
+func (v *View) parseDoc(ctx context.Context, pCtx parseContext) (NodeIdentifier, error) { //nolint:gocyclo // TODO(lsviben) this is complex but most of it is a switch statement
 	b, err := pCtx.node.MarshalYAML()
 	if err != nil {
 		return NodeIdentifier{}, err
@@ -304,7 +306,7 @@ func (v *View) parseDoc(ctx context.Context, pCtx parseContext) (NodeIdentifier,
 	// to do so.
 	if err := k8syaml.Unmarshal(b, &obj); err != nil {
 		v.printer.Printfln("WARNING: ignoring document %d in file %s: missing 'kind' field, not a Kubernetes object", pCtx.doc+1, v.relativePath(pCtx.path))
-		return NodeIdentifier{}, nil //nolint:nilerr
+		return NodeIdentifier{}, nil //nolint:nilerr //explained above
 	}
 	pCtx.obj = obj
 	// NOTE(hasheddan): if we are at document root (i.e. this is a
@@ -356,7 +358,7 @@ func (v *View) parseComposition(ctx context.Context, pCtx parseContext) error {
 	var cp xpextv1.Composition
 	if err := k8syaml.Unmarshal(pCtx.docBytes, &cp); err != nil {
 		// we have a composition but failed to unmarshal it, skip for now.
-		return nil //nolint:nilerr
+		return nil //nolint:nilerr //explained above
 	}
 
 	resNode, err := compResources.FilterNode(pCtx.node)

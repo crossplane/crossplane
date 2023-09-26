@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package xpkg contains utilities for marshalling packages.
 package xpkg
 
 import (
@@ -197,7 +198,7 @@ func applyImageMeta(m xpkg.ImageMeta, pkg *ParsedPackage) *ParsedPackage {
 	return pkg
 }
 
-func finalizePkg(pkg *ParsedPackage) (*ParsedPackage, error) { // nolint:gocyclo
+func finalizePkg(pkg *ParsedPackage) (*ParsedPackage, error) {
 	deps, err := determineDeps(pkg.MetaObj)
 	if err != nil {
 		return nil, err

@@ -21,13 +21,14 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/pterm/pterm"
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	"github.com/crossplane/crossplane/internal/xpkg/v2"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
@@ -137,7 +138,7 @@ Even more details can be found in the xpkg reference document.`
 }
 
 // Run executes the build command.
-func (c *buildCmd) Run(p pterm.TextPrinter) error { //nolint:gocyclo
+func (c *buildCmd) Run(p pterm.TextPrinter) error { //nolint:gocyclo //this is just a bit over the complexity limit at 11
 	var buildOpts []xpkg.BuildOpt
 	if c.Controller != "" {
 		ref, err := name.ParseReference(c.Controller)

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package manager contains utilities for managing Crossplane dependencies.
 package manager
 
 import (

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package cache contains utilities for caching packages.
 package cache
 
 import (
@@ -167,11 +168,7 @@ func (c *Local) Store(k v1beta1.Dependency, v *xpkg.ParsedPackage) error {
 		return err
 	}
 
-	if err := c.add(e, path); err != nil {
-		return err
-	}
-
-	return nil
+	return c.add(e, path)
 }
 
 // Versions returns a slice of versions that exist in the cache for the given
@@ -338,7 +335,7 @@ func (c *Local) watchCache() {
 		c.log.Debug(errFailedToWatchCache, "error", err)
 	}
 
-	// Print a list of all of the files and folders currently
+	// Print a list of all the files and folders currently
 	// being watched and their paths.
 	for path, f := range watch.WatchedFiles() {
 		c.log.Debug(fmt.Sprintf("%s: %s\n", path, f.Name()))

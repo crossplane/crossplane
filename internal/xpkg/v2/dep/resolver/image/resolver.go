@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package image contains utilities for fetching and resolving images.
 package image
 
 import (
@@ -101,8 +102,9 @@ func (r *Resolver) ResolveImage(ctx context.Context, dep v1beta1.Dependency) (st
 }
 
 // ResolveTag resolves the tag corresponding to the given v1beta1.Dependency.
-// TODO(@tnthornton) add a test that flexes resolving constraint versions to the expected target version
-func (r *Resolver) ResolveTag(ctx context.Context, dep v1beta1.Dependency) (string, error) { //nolint:gocyclo
+// TODO(@tnthornton) add a test that flexes resolving constraint versions to
+// the expected target version.
+func (r *Resolver) ResolveTag(ctx context.Context, dep v1beta1.Dependency) (string, error) { //nolint:gocyclo // TODO(lsviben) consider refactoring
 	// if the passed in version was blank use the default to pass
 	// constraint checks and grab latest semver
 	if dep.Constraints == "" {

@@ -97,7 +97,7 @@ func newParser(meta, obj parser.ObjectCreaterTyper) *PackageParser {
 // decode objects recognized by the object scheme, then attempts to decode objects
 // recognized by the meta scheme. Objects not recognized by either scheme
 // return an error rather than being skipped.
-func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo
+func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo // TODO(lsviben) consider refactoring
 	pkg := NewPackage()
 	if reader == nil {
 		return pkg, nil

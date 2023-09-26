@@ -54,10 +54,10 @@ const (
 	errMutateConfig      = "failed to mutate config for image"
 	errBuildObjectScheme = "failed to build scheme for package encoder"
 	errParseAuth         = "an auth extension was supplied but could not be parsed"
-	errAuthNotAnnotated  = "an auth extension was supplied but but the " + ProviderConfigKind + " object could not be found"
+	errAuthNotAnnotated  = "an auth extension was supplied but but the " + providerConfigKind + " object could not be found"
 	authMetaAnno         = "auth.upbound.io/group"
 	authObjectAnno       = "auth.upbound.io/config"
-	ProviderConfigKind   = "ProviderConfig"
+	providerConfigKind   = "ProviderConfig"
 )
 
 // annotatedTeeReadCloser is a copy of io.TeeReader that implements
@@ -135,7 +135,7 @@ func WithController(img v1.Image) BuildOpt {
 	}
 }
 
-type AuthExtension struct {
+type authExtension struct {
 	Version      string `yaml:"version"`
 	Discriminant string `yaml:"discriminant"`
 	Sources      []struct {
@@ -150,7 +150,7 @@ type AuthExtension struct {
 }
 
 // Build compiles a Crossplane package from an on-disk package.
-func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtime.Object, error) { //nolint:gocyclo
+func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtime.Object, error) { //nolint:gocyclo // TODO(lsviben) consider refactoring
 	bOpts := &buildOpts{
 		base: empty.Image,
 	}
@@ -209,14 +209,14 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 					}
 
 					// validate the auth.yaml file
-					var auth AuthExtension
+					var auth authExtension
 					if err := yaml.NewDecoder(ar).Decode(&auth); err != nil {
 						return nil, nil, errors.Wrap(err, errParseAuth)
 					}
 					annotated := false
 					for x, o := range pkg.GetObjects() {
 						if c, ok := o.(*crd.CustomResourceDefinition); ok {
-							if c.Spec.Group == group && c.Spec.Names.Kind == ProviderConfigKind {
+							if c.Spec.Group == group && c.Spec.Names.Kind == providerConfigKind {
 								ab := new(bytes.Buffer)
 								if err := yaml.NewEncoder(ab).Encode(auth); err != nil {
 									return nil, nil, errors.Wrap(err, errParseAuth)

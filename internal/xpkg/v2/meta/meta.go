@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package meta contains utilities for generating Crossplane package metadata.
 package meta
 
 import (
@@ -32,6 +33,8 @@ const (
 	errXPkgNameNotProvided  = "package name not provided"
 	errCtrlImageNotProvided = "controller images not provided"
 )
+
+// TODO(lsviben) add function generation.
 
 // NewConfigXPkg returns a slice of bytes containing a fully rendered
 // Configuration template given the provided ConfigContext.

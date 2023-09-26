@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package xpkg contains the Crossplane packaging commands.
 package xpkg
 
 import (
@@ -38,6 +39,7 @@ type Cmd struct {
 	// Batch     batchCmd     `cmd:"" maturity:"alpha" help:"Batch build and push a family of service-scoped provider packages."`
 }
 
+// Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
 A Crossplane package is an opinionated OCI image that contains an additional layer 

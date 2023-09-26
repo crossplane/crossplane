@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package meta provides utilities for working with Crossplane meta files.
 package meta
 
 import (
@@ -111,7 +112,7 @@ func (m *Meta) Bytes() ([]byte, error) {
 // upsertDeps takes a v1beta1.Dependency and a runtime.Object of type that can
 // be converted to a v1.Pkg and returns an updated runtime.Object with a slice
 // of dependencies that includes the provided dependency d.
-func upsertDeps(d v1beta1.Dependency, o runtime.Object) error { //nolint:gocyclo
+func upsertDeps(d v1beta1.Dependency, o runtime.Object) error { //nolint:gocyclo // TODO(lsviben) consider refactoring
 	p, ok := scheme.TryConvertToPkg(o, &v1.Provider{}, &v1.Configuration{})
 	if !ok {
 		return errors.New(errUnsupportedPackageVersion)
