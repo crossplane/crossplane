@@ -209,7 +209,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
 		false)
 	if err != nil {
-		return errors.Wrap(err, "cannot load client TLS certificates ")
+		return errors.Wrap(err, "cannot load client TLS certificates")
 	}
 
 	if !c.EnableCompositionRevisions {

@@ -165,6 +165,13 @@ type RunFunctionRequest struct {
 	// Desired state according to a Function pipeline. The state passed to a
 	// particular Function may have been accumulated by previous Functions in the
 	// pipeline.
+	//
+	// Note that the desired state must be a partial object with only the fields
+	// that this function (and its predecessors in the pipeline) wants to have
+	// set in the object. Copying a non-partial observed state to desired is most
+	// likely not what you want to do. Leaving out fields that had been returned
+	// as desired before will result in them being deleted from the objects in the
+	// cluster.
 	Desired *State `protobuf:"bytes,3,opt,name=desired,proto3" json:"desired,omitempty"`
 	// Optional input specific to this Function invocation. A JSON representation
 	// of the 'input' block of the relevant entry in a Composition's pipeline.
@@ -243,6 +250,13 @@ type RunFunctionResponse struct {
 	// state, and may mutate or delete any part of the desired state they are
 	// concerned with. A Function must pass through any part of the desired state
 	// that it is not concerned with.
+	//
+	// Note that the desired state must be a partial object with only the fields
+	// that this function (and its predecessors in the pipeline) wants to have
+	// set in the object. Copying a non-partial observed state to desired is most
+	// likely not what you want to do. Leaving out fields that had been returned
+	// as desired before will result in them being deleted from the objects in the
+	// cluster.
 	Desired *State `protobuf:"bytes,2,opt,name=desired,proto3" json:"desired,omitempty"`
 	// Results of the Function run. Results are used for observability purposes.
 	Results []*Result `protobuf:"bytes,3,rep,name=results,proto3" json:"results,omitempty"`
