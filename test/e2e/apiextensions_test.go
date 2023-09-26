@@ -39,7 +39,6 @@ const LabelAreaAPIExtensions = "apiextensions"
 // resources do.
 func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
-
 	environment.Test(t,
 		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
@@ -72,7 +71,6 @@ func TestCompositionMinimal(t *testing.T) {
 // available when its composed resources do, and have a field derived from
 // the patch.
 func TestCompositionPatchAndTransform(t *testing.T) {
-
 	manifests := "test/e2e/manifests/apiextensions/composition/patch-and-transform"
 	environment.Test(t,
 		features.New(t.Name()).
@@ -105,12 +103,43 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 	)
 }
 
+// TestCompositionRealtimeRevisionSelection tests Crossplane's Composition
+// functionality to react in realtime to changes in a Composition by selecting
+// the new CompositionRevision and reconcile the XRs.
+func TestCompositionRealtimeRevisionSelection(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimIsReady",
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			).
+			Assess("UpdateComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-update.yaml"),
+			)).
+			Assess("ClaimHasPatchedField",
+				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+			).
+			Feature(),
+	)
+}
+
 // TODO(negz): How do we want to handle beta features? They're on by default.
 // Maybe in this case add a test suite that tests P&T when Functions are
 // disabled?
 
 func TestCompositionFunctions(t *testing.T) {
-
 	manifests := "test/e2e/manifests/apiextensions/composition/functions"
 	environment.Test(t,
 		features.New(t.Name()).
