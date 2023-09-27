@@ -29,14 +29,11 @@ func (c *Cmd) BeforeReset(p *kong.Path, maturity features.Maturity) error {
 }
 
 // Cmd contains commands for interacting with xpkgs.
-// TODO(lsviben) add the rest of the commands from up.
+// TODO(lsviben) add the rest of the commands from up (push, batch, xpextract).
 type Cmd struct {
 	Build buildCmd `cmd:"" help:"Build a package, by default from the current directory."`
-	// XPExtract xpExtractCmd `cmd:"" maturity:"alpha" help:"Extract package contents into a Crossplane cache compatible format. Fetches from a remote registry by default."`
-	Init initCmd `cmd:"" help:"Initialize a package, by default in the current directory."`
-	Dep  depCmd  `cmd:"" help:"Manage package dependencies in the filesystem and populate the cache, e.g. used by the Crossplane Language Server."`
-	// Push      pushCmd      `cmd:"" help:"Push a package."`
-	// Batch     batchCmd     `cmd:"" maturity:"alpha" help:"Batch build and push a family of service-scoped provider packages."`
+	Init  initCmd  `cmd:"" help:"Initialize a package, by default in the current directory."`
+	Dep   depCmd   `cmd:"" help:"Manage package dependencies in the filesystem and populate the cache, e.g. used by the Crossplane Language Server."`
 }
 
 // Help prints out the help for the xpkg command.

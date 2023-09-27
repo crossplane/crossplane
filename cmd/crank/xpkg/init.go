@@ -77,6 +77,10 @@ func (c *initCmd) AfterApply() error {
 		if err := c.initProviderPkg(); err != nil {
 			return err
 		}
+	case string(xpkg.Function):
+		if err := c.initFunctionPkg(); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -90,7 +94,7 @@ type initCmd struct {
 	root     string
 
 	PackageRoot string `optional:"" short:"p" help:"Path to directory to write new package." default:"."`
-	Type        string `optional:"" short:"t" help:"Type of package to be initialized." default:"configuration" enum:"configuration,provider"`
+	Type        string `optional:"" short:"t" help:"Type of package to be initialized." default:"configuration" enum:"configuration,provider,function"`
 }
 
 // Run executes the init command.
@@ -109,7 +113,11 @@ func (c *initCmd) Run(p pterm.TextPrinter) error {
 		if err != nil {
 			return err
 		}
-		// TODO(lsviben) add Function
+	case string(xpkg.Function):
+		fileBody, err = meta.NewFunctionXPkg(c.ctx)
+		if err != nil {
+			return err
+		}
 	}
 
 	writer := xpkg.NewFileWriter(
@@ -138,10 +146,12 @@ func (c *initCmd) initCommon() error {
 	if err != nil {
 		return err
 	}
-	// validate semver constraint
-	_, err = semver.NewConstraint(xpv)
-	if err != nil {
-		return err
+	// validate semver constraint if set
+	if xpv != "" {
+		_, err = semver.NewConstraint(xpv)
+		if err != nil {
+			return err
+		}
 	}
 	c.ctx.XPVersion = xpv
 
@@ -195,7 +205,17 @@ func (c *initCmd) initProviderPkg() error {
 	if err != nil {
 		return err
 	}
-	c.ctx.CtrlImage = image
+	c.ctx.Image = image
+
+	return nil
+}
+
+func (c *initCmd) initFunctionPkg() error {
+	image, err := c.prompter.Prompt("Function image", false)
+	if err != nil {
+		return err
+	}
+	c.ctx.Image = image
 
 	return nil
 }

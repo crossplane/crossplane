@@ -190,7 +190,7 @@ func TestProviderTemplate(t *testing.T) {
 		"ControllerImageNoName": {
 			reason: "We should return an error as name is required.",
 			ctx: xpkg.InitContext{
-				CtrlImage: "docker.io/provider-aws-controller:v1.0.0",
+				Image: "docker.io/provider-aws-controller:v1.0.0",
 			},
 			want: nil,
 			err:  errors.New(errXPkgNameNotProvided),
@@ -198,8 +198,8 @@ func TestProviderTemplate(t *testing.T) {
 		"NameAndControllerImage": {
 			reason: "We should return a Provider with name and controller image filled in.",
 			ctx: xpkg.InitContext{
-				Name:      "test",
-				CtrlImage: "docker.io/provider-aws-controller:v1.0.0",
+				Name:  "test",
+				Image: "docker.io/provider-aws-controller:v1.0.0",
 			},
 			want: []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
@@ -215,7 +215,7 @@ spec:
 			ctx: xpkg.InitContext{
 				Name:      "test",
 				XPVersion: ">=1.0.1-0",
-				CtrlImage: "docker.io/provider-aws-controller:v1.0.0",
+				Image:     "docker.io/provider-aws-controller:v1.0.0",
 			},
 			want: []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider

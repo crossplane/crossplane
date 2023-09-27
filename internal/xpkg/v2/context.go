@@ -22,8 +22,8 @@ import metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 type InitContext struct {
 	// Name of the package
 	Name string
-	// Controller Image (only applicable to Provider packages)
-	CtrlImage string
+	// Image (only applicable to Provider and Function packages)
+	Image string
 	// Crossplane version this package is compatible with
 	XPVersion string
 	// Dependencies for this package

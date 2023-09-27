@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	metav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg/v2"
 )
 
@@ -79,7 +80,7 @@ func NewProviderXPkg(c xpkg.InitContext) ([]byte, error) {
 	}
 
 	// image is required
-	if c.CtrlImage == "" {
+	if c.Image == "" {
 		return nil, errors.New(errCtrlImageNotProvided)
 	}
 
@@ -93,7 +94,7 @@ func NewProviderXPkg(c xpkg.InitContext) ([]byte, error) {
 		},
 		Spec: metav1.ProviderSpec{
 			Controller: metav1.ControllerSpec{
-				Image: pointer.String(c.CtrlImage),
+				Image: pointer.String(c.Image),
 			},
 		},
 	}
@@ -103,6 +104,44 @@ func NewProviderXPkg(c xpkg.InitContext) ([]byte, error) {
 	}
 
 	b, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+
+	return cleanNullTs(b)
+}
+
+// NewFunctionXPkg returns a slice of bytes containing a fully rendered
+// Function template given the provided Context.
+func NewFunctionXPkg(c xpkg.InitContext) ([]byte, error) {
+	// name is required
+	if c.Name == "" {
+		return nil, errors.New(errXPkgNameNotProvided)
+	}
+
+	// image is required
+	if c.Image == "" {
+		return nil, errors.New(errCtrlImageNotProvided)
+	}
+
+	f := metav1beta1.Function{
+		TypeMeta: v1.TypeMeta{
+			APIVersion: metav1beta1.SchemeGroupVersion.String(),
+			Kind:       metav1beta1.FunctionKind,
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name: c.Name,
+		},
+		Spec: metav1beta1.FunctionSpec{
+			Image: pointer.String(c.Image),
+		},
+	}
+
+	if c.XPVersion != "" {
+		f.Spec.Crossplane = &metav1beta1.CrossplaneConstraints{Version: c.XPVersion}
+	}
+
+	b, err := json.Marshal(f)
 	if err != nil {
 		return nil, err
 	}
