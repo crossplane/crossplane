@@ -40,7 +40,7 @@ const (
 	errMetaFileNotFound = "crossplane.yaml file not found in current directory"
 )
 
-// AfterApply constructs and binds Upbound-specific context to any subcommands
+// AfterApply constructs and binds context to any subcommands
 // that have Run() methods that receive it.
 func (c *depCmd) AfterApply(kongCtx *kong.Context, p pterm.TextPrinter) error {
 	kongCtx.Bind(pterm.DefaultBulletList.WithWriter(kongCtx.Stdout))
@@ -100,7 +100,7 @@ type depCmd struct {
 	// TODO(@tnthornton) remove cacheDir flag. Having a user supplied flag
 	// can result in broken behavior between xpls and dep. CacheDir should
 	// only be supplied by the Config.
-	CacheDir   string `short:"d" help:"Directory used for caching package images." default:"~/.up/cache/" env:"CACHE_DIR" type:"path"`
+	CacheDir   string `short:"d" help:"Directory used for caching package images." default:"~/.crossplane/cache/" env:"CACHE_DIR" type:"path"`
 	CleanCache bool   `short:"c" help:"Clean dep cache."`
 
 	Package string `arg:"" optional:"" help:"Package to be added."`
@@ -110,7 +110,7 @@ func (c *depCmd) Help() string {
 	return `
 The dep command manages crossplane package dependencies of the package 
 in the current directory. It caches package information in a local file system
-cache (by default in ~/.up/cache), to be used e.g. for the Crossplane language
+cache (by default in ~/.crossplane/cache), to be used e.g. for the Crossplane language
 server.
 
 If a package (e.g. provider-foo@v0.42.0 or provider-foo for latest) is specified,

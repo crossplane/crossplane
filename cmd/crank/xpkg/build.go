@@ -42,7 +42,7 @@ const (
 	errCreatePackage   = "failed to create package file"
 )
 
-// AfterApply constructs and binds Upbound-specific context to any subcommands
+// AfterApply constructs and binds context to any subcommands
 // that have Run() methods that receive it.
 func (c *buildCmd) AfterApply() error {
 	c.fs = afero.NewOsFs()
@@ -125,7 +125,7 @@ from the local file system. It packages the found YAML files containing Kubernet
 object manifests into the meta data layer of the OCI image. The package manager
 will use this information to install the package into a Crossplane instance.
 
-Only configuration and provider packages are supported at this time. 
+Only configuration, provider and function packages are supported at this time. 
 
 Example claims can be specified in the examples directory.
 
