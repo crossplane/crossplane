@@ -45,7 +45,7 @@ func (c *initCmd) BeforeApply() error {
 
 // AfterApply constructs and binds Upbound-specific context to any subcommands
 // that have Run() methods that receive it.
-func (c *initCmd) AfterApply() error {
+func (c *initCmd) AfterApply() error { //nolint:gocyclo //the complexity is just over 10, and in part due to the switch statement
 	c.fs = afero.NewOsFs()
 	root, err := filepath.Abs(c.PackageRoot) // root
 	if err != nil {

@@ -192,7 +192,7 @@ func (e *entry) createPackageJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	defer pf.Close() //nolint:errcheck
+	defer pf.Close() //nolint:errcheck // not much we could do here
 
 	return writeToFile(data, pf)
 }
@@ -202,7 +202,7 @@ func (e *entry) appendToPackageJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	defer pf.Close() //nolint:errcheck
+	defer pf.Close() //nolint:errcheck // not much we could do here
 
 	return writeToFile(data, pf)
 }

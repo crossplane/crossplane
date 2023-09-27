@@ -68,7 +68,7 @@ func (c *cli) BeforeReset(ctx *kong.Context, p *kong.Path) error {
 }
 
 // AfterApply configures global settings before executing commands.
-func (c *cli) AfterApply(ctx *kong.Context) error { //nolint:unparam
+func (c *cli) AfterApply(ctx *kong.Context) error { //nolint:unparam //We just set the binding here
 	// TODO(lsviben) set up a pretty logger
 	ctx.BindTo(pterm.DefaultBasicText.WithWriter(ctx.Stdout), (*pterm.TextPrinter)(nil))
 
