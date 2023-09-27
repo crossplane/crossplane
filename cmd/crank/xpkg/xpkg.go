@@ -57,6 +57,8 @@ currently supported:
   kind "Provider" manifest, and optionally CRD manifest.
 - **Configuration**: A Crossplane package that contains a Crossplane configuration,
   with a "meta.pkg.crossplane.io/v1" kind "Configuration" manifest in crossplane.yaml.
+- **Function**: A crossplane package that contains a Crossplane function, with a
+  "meta.pkg.crossplane.io/v1beta1" kind "Function" manifest in crossplane.yaml.
 - in newer versions of Crossplane, more kinds will be supported.
 
 For more detailed information on Crossplane packages, see
