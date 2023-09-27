@@ -15,7 +15,7 @@ require (
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230905180039-a748190e18d4
 	github.com/jmattheis/goverter v0.18.0
 	github.com/pkg/errors v0.9.1
-	github.com/pterm/pterm v0.12.62
+	github.com/pterm/pterm v0.12.66
 	github.com/radovskyb/watcher v1.0.7
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.10.0
