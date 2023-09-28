@@ -146,8 +146,13 @@ github.com/cpuguy83/go-md2man/v2 v2.0.2 h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHH
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
+<<<<<<< HEAD
 github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230921093949-2d96b39e1e5f h1:ttgQgGKF5yx+hWzamQ2agso9uqPyyQVG6p9vglGoKT8=
 github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230921093949-2d96b39e1e5f/go.mod h1:nW1vitsYxhLnCGsbKGzDX7CTsiYyEmC4FFHziJCg8Gc=
+=======
+github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230928082135-54f79f799e0c h1:dSAliwdbjPjpmhesNGqKsiVVcBwvCUWX745V+g1w8iw=
+github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230928082135-54f79f799e0c/go.mod h1:0tYr8ZBJUgarYSMLJFC7yJhMilmK6RjPxq3Q5BAyZqM=
+>>>>>>> eafc96be (bump crossplane-runtime)
 github.com/danieljoos/wincred v1.1.2/go.mod h1:GijpziifJoIBfYh+S7BbkdUTU4LfM+QnGqR5Vl2tAx0=
 github.com/dave/astrid v0.0.0-20170323122508-8c2895878b14/go.mod h1:Sth2QfxfATb/nW4EsrSi2KyJmbcniZ8TgTaji17D6ms=
 github.com/dave/brenda v1.1.0/go.mod h1:4wCUr6gSlu5/1Tk7akE5X7UorwiQ8Rij0SKH3/BGMOM=
