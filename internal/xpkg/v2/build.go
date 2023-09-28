@@ -38,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/scheme"
 )
 
 const (
@@ -255,7 +254,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 		return nil, nil, errors.Wrap(err, errConfigFile)
 	}
 
-	pkgLayer, err := Layer(pkgBytes, StreamFile, PackageAnnotation, int64(pkgBytes.Len()), StreamFileMode, &cfg)
+	pkgLayer, err := Layer(pkgBytes, xpkgv1.StreamFile, xpkgv1.PackageAnnotation, int64(pkgBytes.Len()), xpkgv1.StreamFileMode, &cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -268,7 +267,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 			return nil, nil, errors.Wrap(err, errParserExample)
 		}
 
-		exLayer, err := Layer(exBuf, XpkgExamplesFile, ExamplesAnnotation, int64(exBuf.Len()), StreamFileMode, &cfg)
+		exLayer, err := Layer(exBuf, xpkgv1.XpkgExamplesFile, xpkgv1.ExamplesAnnotation, int64(exBuf.Len()), xpkgv1.StreamFileMode, &cfg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -294,7 +293,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 // or quantity i.e. it should be linted first to ensure that it is valid.
 func encode(pkg parser.Lintable) (*bytes.Buffer, error) {
 	pkgBuf := new(bytes.Buffer)
-	objScheme, err := scheme.BuildObjectScheme()
+	objScheme, err := xpkgv1.BuildObjectScheme()
 	if err != nil {
 		return nil, errors.New(errBuildObjectScheme)
 	}

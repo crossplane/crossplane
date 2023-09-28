@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/yaml"
 )
@@ -179,7 +180,7 @@ func TestBuildExamples(t *testing.T) {
 			want: want{
 				pkgExists: true,
 				labels: []string{
-					PackageAnnotation,
+					xpkgv1.PackageAnnotation,
 				},
 			},
 		},
@@ -203,8 +204,8 @@ func TestBuildExamples(t *testing.T) {
 				pkgExists: true,
 				exExists:  true,
 				labels: []string{
-					PackageAnnotation,
-					ExamplesAnnotation,
+					xpkgv1.PackageAnnotation,
+					xpkgv1.ExamplesAnnotation,
 				},
 			},
 		},
@@ -229,8 +230,8 @@ func TestBuildExamples(t *testing.T) {
 				pkgExists: true,
 				exExists:  true,
 				labels: []string{
-					PackageAnnotation,
-					ExamplesAnnotation,
+					xpkgv1.PackageAnnotation,
+					xpkgv1.ExamplesAnnotation,
 				},
 			},
 		},
@@ -298,7 +299,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 
 	reader := mutate.Extract(i)
 	fs := tarfs.New(tar.NewReader(reader))
-	pkgYaml, err := fs.Open(StreamFile)
+	pkgYaml, err := fs.Open(xpkgv1.StreamFile)
 	if err != nil {
 		return contents, err
 	}
@@ -309,7 +310,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 	}
 	contents.pkgBytes = pkgBytes
 
-	exYaml, err := fs.Open(XpkgExamplesFile)
+	exYaml, err := fs.Open(xpkgv1.XpkgExamplesFile)
 	if err != nil && !os.IsNotExist(err) {
 		return contents, err
 	}

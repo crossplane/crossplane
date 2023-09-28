@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
+	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/v2"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/yaml"
@@ -169,9 +170,9 @@ func (c *buildCmd) Run(logger logging.Logger) error { //nolint:gocyclo //this is
 			if !ok {
 				return errors.New(errGetNameFromMeta)
 			}
-			pkgName = xpkg.FriendlyID(pkgMeta.GetName(), hash.Hex)
+			pkgName = xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
 		}
-		output = xpkg.BuildPath(c.root, pkgName)
+		output = xpkgv1.BuildPath(c.root, pkgName, xpkgv1.XpkgExtension)
 	}
 
 	f, err := c.fs.Create(output)
