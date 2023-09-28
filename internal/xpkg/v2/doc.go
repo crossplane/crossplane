@@ -16,7 +16,7 @@ limitations under the License.
 
 // Note(lsviben): This package is an upstream copy of the https://github.com/upbound/up/tree/main/internal/xpkg
 // package, which is in turn a modified version of internal/xpkg. Due to the fact it diverged over time, we
-// decided to copy it over as v2. Ideally, the as the old commands get deprecated in v1, we can merge the two.
+// decided to copy it over as v2. Ideally, as the old commands get deprecated in v1, we can merge the two.
 
 // Package xpkg contains utilities for building and linting Crossplane packages.
 package xpkg
