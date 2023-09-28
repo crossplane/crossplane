@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// NOTE(hasheddan): this package contains copies or slightly modified functions
-// from internal Crossplane packages. If / when Crossplane makes these packages
-// public, this package will be removed in favor of upstream unless it has
-// diverged significantly by that time.
+// Note(lsviben): This package is an upstream copy of the https://github.com/upbound/up/tree/main/internal/xpkg
+// package, which is in turn a modified version of internal/xpkg. Due to the fact it diverged over time, we
+// decided to copy it over as v2. Ideally, the as the old commands get deprecated in v1, we can merge the two.
 
-// Package xpkg contains utilities for building and linting UXP packages.
+// Package xpkg contains utilities for building and linting Crossplane packages.
 package xpkg
