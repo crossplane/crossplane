@@ -36,8 +36,8 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
+	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/linter"
 	"github.com/crossplane/crossplane/internal/xpkg/v2/scheme"
 )
 
@@ -55,6 +55,7 @@ const (
 	errBuildObjectScheme = "failed to build scheme for package encoder"
 	errParseAuth         = "an auth extension was supplied but could not be parsed"
 	errAuthNotAnnotated  = "an auth extension was supplied but but the " + providerConfigKind + " object could not be found"
+	errNotExactlyOneMeta = "package must contain exactly one meta object"
 	authMetaAnno         = "auth.upbound.io/group"
 	authObjectAnno       = "auth.upbound.io/config"
 	providerConfigKind   = "ProviderConfig"
@@ -190,12 +191,12 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 
 	// TODO(hasheddan): make linter selection logic configurable.
 	meta := metas[0]
-	var linter linter.Linter
+	var linter parser.Linter
 	switch meta.GetObjectKind().GroupVersionKind().Kind {
 	case pkgmetav1.ConfigurationKind:
-		linter = NewConfigurationLinter()
+		linter = xpkgv1.NewConfigurationLinter()
 	case v1beta1.FunctionKind:
-		linter = NewFunctionLinter()
+		linter = xpkgv1.NewFunctionLinter()
 	case pkgmetav1.ProviderKind:
 		if b.ab != nil { // if we have an auth.yaml file
 			if p, ok := meta.(*pkgmetav1.Provider); ok {
@@ -234,7 +235,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 				}
 			}
 		}
-		linter = NewProviderLinter()
+		linter = xpkgv1.NewProviderLinter()
 	}
 	if err := linter.Lint(pkg); err != nil {
 		return nil, nil, errors.Wrap(err, errLintPackage)
@@ -291,7 +292,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 
 // encode encodes a package as a YAML stream.  Does not check meta existence
 // or quantity i.e. it should be linted first to ensure that it is valid.
-func encode(pkg linter.Package) (*bytes.Buffer, error) {
+func encode(pkg parser.Lintable) (*bytes.Buffer, error) {
 	pkgBuf := new(bytes.Buffer)
 	objScheme, err := scheme.BuildObjectScheme()
 	if err != nil {

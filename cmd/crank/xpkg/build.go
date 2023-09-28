@@ -21,13 +21,13 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	"github.com/crossplane/crossplane/internal/xpkg/v2"
