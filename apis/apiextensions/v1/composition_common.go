@@ -298,6 +298,33 @@ type PipelineStep struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
 	Input *runtime.RawExtension `json:"input,omitempty"`
+
+	// Credentials are optional credentials that will be passed to the Function.
+	// +optional
+	Credentials *PipelineStepCredentials `json:"credentials,omitempty"`
+}
+
+// A CredentialsSource is a source from which Crossplane can load credentials
+// for a Pipeline step.
+type CredentialsSource string
+
+// Supported pipeline credentials sources.
+const (
+	// CredentialsSourceSecret loads credentials from a Kubernetes Secret.
+	CredentialsSourceSecret = "Secret"
+)
+
+// PipelineStepCredentials are optional credentials that will be passed to a
+// Function called by a pipeline step.
+type PipelineStepCredentials struct {
+	// Source of the credentials
+	// +kubebuilder:validation:Enum=Secret
+	Source CredentialsSource `json:"source"`
+
+	// SecretRef references a Kubernetes Secret from which to load credentials.
+	// It is only used with Source: Secret.
+	// +optional
+	SecretRef *corev1.SecretReference `json:"secretRef,omitempty"`
 }
 
 // A FunctionReference references a Composition Function that may be used in a

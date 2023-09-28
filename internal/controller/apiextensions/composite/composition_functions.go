@@ -56,15 +56,16 @@ const (
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
 
-	errFmtDryRunCreateCD             = "cannot name (i.e. dry-run create) composed resource %q"
-	errFmtApplyCD                    = "cannot apply composed resource %q"
-	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
-	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
-	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
-	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
-	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
-	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
-	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
+	errFmtDryRunCreateCD               = "cannot name (i.e. dry-run create) composed resource %q"
+	errFmtApplyCD                      = "cannot apply composed resource %q"
+	errFmtFetchCDConnectionDetails     = "cannot fetch connection details for composed resource %q (a %s named %s)"
+	errFmtGetPipelineCredentialsSecret = "cannot get credentials for pipeline step %s from Secret %s/%s"
+	errFmtUnmarshalPipelineStepInput   = "cannot unmarshal input for Composition pipeline step %q"
+	errFmtRunPipelineStep              = "cannot run Composition pipeline step %q"
+	errFmtDeleteCD                     = "cannot delete composed resource %q (a %s named %s)"
+	errFmtUnmarshalDesiredCD           = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
+	errFmtCDAsStruct                   = "cannot encode composed resource %q to protocol buffer Struct well-known type"
+	errFmtFatalResult                  = "pipeline step %q returned a fatal result: %s"
 )
 
 // FunctionFieldOwner is set for fields owned by the FunctionComposer.
@@ -227,6 +228,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalPipelineStepInput, fn.Step)
 			}
 			req.Input = in
+		}
+
+		// As of right now the only supported credential source is Secret.
+		if cr := fn.Credentials; cr != nil && cr.SecretRef != nil {
+			s := &corev1.Secret{}
+			if err := c.client.Get(ctx, client.ObjectKey{Namespace: cr.SecretRef.Namespace, Name: cr.SecretRef.Name}, s); err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtGetPipelineCredentialsSecret, fn.Step, cr.SecretRef.Namespace, cr.SecretRef.Name)
+			}
+			req.Credentials = s.Data
 		}
 
 		// TODO(negz): Generate a content-addressable tag for this request.

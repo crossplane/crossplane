@@ -895,6 +895,33 @@ spec:
                 items:
                   description: A PipelineStep in a Composition Function pipeline.
                   properties:
+                    credentials:
+                      description: Credentials are optional credentials that will
+                        be passed to the Function.
+                      properties:
+                        secretRef:
+                          description: 'SecretRef references a Kubernetes Secret from
+                            which to load credentials. It is only used with Source:
+                            Secret.'
+                          properties:
+                            name:
+                              description: name is unique within a namespace to reference
+                                a secret resource.
+                              type: string
+                            namespace:
+                              description: namespace defines the space within which
+                                the secret name must be unique.
+                              type: string
+                          type: object
+                          x-kubernetes-map-type: atomic
+                        source:
+                          description: Source of the credentials
+                          enum:
+                          - Secret
+                          type: string
+                      required:
+                      - source
+                      type: object
                     functionRef:
                       description: FunctionRef is a reference to the Composition Function
                         this step should execute.

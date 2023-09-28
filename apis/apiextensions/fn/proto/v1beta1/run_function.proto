@@ -54,6 +54,10 @@ message RunFunctionRequest {
   // Optional input specific to this Function invocation. A JSON representation
   // of the 'input' block of the relevant entry in a Composition's pipeline.
   optional google.protobuf.Struct input = 4;
+
+  // Optional credentials specific to this Function invocation. Corresponds to
+  // the 'credentials' block of the relevant entry in a Composition's pipeline.
+  map<string, bytes> credentials = 5;
 }
 
 // A RunFunctionResponse contains the result of a Composition Function run.

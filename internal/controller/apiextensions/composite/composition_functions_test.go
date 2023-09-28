@@ -148,6 +148,47 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function"),
 			},
 		},
+		"GetCredentialsSecretError": {
+			reason: "We should return any error encountered while getting credentials from a Secret",
+			params: params{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: &v1.PipelineStepCredentials{
+										Source: v1.CredentialsSourceSecret,
+										SecretRef: &corev1.SecretReference{
+											Namespace: "secretive-namespace",
+											Name:      "very-secret",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtGetPipelineCredentialsSecret, "run-cool-function", "secretive-namespace", "very-secret"),
+			},
+		},
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{
