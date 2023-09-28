@@ -31,7 +31,7 @@ import (
 	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
 )
 
-// Layer creates a v1.Layer that represetns the layer contents for the xpkg and
+// Layer creates a v1.Layer that represents the layer contents for the xpkg and
 // adds a corresponding label to the image Config for the layer.
 func Layer(r io.Reader, fileName, annotation string, fileSize int64, mode os.FileMode, cfg *v1.Config) (v1.Layer, error) {
 	tarBuf := new(bytes.Buffer)
