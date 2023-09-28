@@ -110,7 +110,7 @@ type buildCmd struct {
 	root    string
 	fetch   fetchFn
 
-	Output       string   `optional:"" short:"o" xor:"xpkg-build-out" help:"Path for package output."`
+	Output       string   `optional:"" short:"o" help:"Path for package output."`
 	Controller   string   `help:"Controller image used as base for package."`
 	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
 	ExamplesRoot string   `short:"e" help:"Path to package examples directory." default:"./examples"`
@@ -138,7 +138,7 @@ Even more details can be found in the xpkg reference document.`
 }
 
 // Run executes the build command.
-func (c *buildCmd) Run(logger logging.Logger) error { 
+func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
 	if c.Controller != "" {
 		ref, err := name.ParseReference(c.Controller)
