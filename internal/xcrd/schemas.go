@@ -332,6 +332,10 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 		"conditions": {
 			Description: "Conditions of the resource.",
 			Type:        "array",
+			XListMapKeys: []string{
+				"type",
+			},
+			XListType: pointer.String("map"),
 			Items: &extv1.JSONSchemaPropsOrArray{
 				Schema: &extv1.JSONSchemaProps{
 					Type:     "object",
