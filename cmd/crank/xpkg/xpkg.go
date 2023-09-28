@@ -32,8 +32,6 @@ func (c *Cmd) BeforeReset(p *kong.Path, maturity features.Maturity) error {
 // TODO(lsviben) add the rest of the commands from up (push, batch, xpextract).
 type Cmd struct {
 	Build buildCmd `cmd:"" help:"Build a package, by default from the current directory."`
-	Init  initCmd  `cmd:"" help:"Initialize a package, by default in the current directory."`
-	Dep   depCmd   `cmd:"" help:"Manage package dependencies in the filesystem and populate the cache, e.g. used by the Crossplane Language Server."`
 }
 
 // Help prints out the help for the xpkg command.
