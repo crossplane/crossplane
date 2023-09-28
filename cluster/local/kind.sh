@@ -67,7 +67,7 @@ case "${1:-}" in
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package into \"$ns\" namespace"
-    ${HELM3} install ${PROJECT_NAME} --namespace ${ns} --create-namespace ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets='',image.tag="${helm_tag}" ${HELM3_FLAGS}
+    ${HELM3} install ${PROJECT_NAME} --namespace ${ns} --create-namespace ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets='',image.tag="${helm_tag}" --set args='{"--debug"}' ${HELM3_FLAGS}
     ;;
   helm-upgrade)
     echo "copying image for helm"
@@ -76,7 +76,7 @@ case "${1:-}" in
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "upgrading helm package in \"$ns\" namespace"
-    ${HELM3} upgrade --install --namespace ${ns} --create-namespace ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME} ${HELM3_FLAGS} --set image.pullPolicy=Never,imagePullSecrets='',image.tag=${helm_tag}
+    ${HELM3} upgrade --install --namespace ${ns} --create-namespace ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME} ${HELM3_FLAGS} --set image.pullPolicy=Never,imagePullSecrets='',image.tag=${helm_tag} --set args='{"--debug"}'
     ;;
   helm-delete)
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
