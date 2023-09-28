@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/alecthomas/kong"
-	"github.com/pterm/pterm"
 	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -64,14 +63,6 @@ func (c *cli) BeforeReset(ctx *kong.Context, p *kong.Path) error {
 	if ctx.Selected() == nil {
 		return features.HideMaturity(p, features.Stable)
 	}
-	return nil
-}
-
-// AfterApply configures global settings before executing commands.
-func (c *cli) AfterApply(ctx *kong.Context) error { //nolint:unparam //We just set the binding here
-	// TODO(lsviben) set up a pretty logger
-	ctx.BindTo(pterm.DefaultBasicText.WithWriter(ctx.Stdout), (*pterm.TextPrinter)(nil))
-
 	return nil
 }
 

@@ -15,7 +15,6 @@ require (
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230905180039-a748190e18d4
 	github.com/jmattheis/goverter v0.18.0
 	github.com/pkg/errors v0.9.1
-	github.com/pterm/pterm v0.12.66
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.10.0
 	golang.org/x/sync v0.3.0
@@ -36,16 +35,7 @@ require (
 )
 
 require (
-	atomicgo.dev/cursor v0.2.0 // indirect
-	atomicgo.dev/keyboard v0.2.9 // indirect
-	atomicgo.dev/schedule v0.1.0 // indirect
-	github.com/containerd/console v1.0.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/gookit/color v1.5.4 // indirect
-	github.com/lithammer/fuzzysearch v1.1.8 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/rivo/uniseg v0.4.4 // indirect
-	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
 )
 

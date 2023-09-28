@@ -21,9 +21,9 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/pterm/pterm"
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -138,7 +138,7 @@ Even more details can be found in the xpkg reference document.`
 }
 
 // Run executes the build command.
-func (c *buildCmd) Run(p pterm.TextPrinter) error { //nolint:gocyclo //this is just a bit over the complexity limit at 11
+func (c *buildCmd) Run(logger logging.Logger) error { //nolint:gocyclo //this is just a bit over the complexity limit at 11
 	var buildOpts []xpkg.BuildOpt
 	if c.Controller != "" {
 		ref, err := name.ParseReference(c.Controller)
@@ -183,7 +183,7 @@ func (c *buildCmd) Run(p pterm.TextPrinter) error { //nolint:gocyclo //this is j
 	if err := tarball.Write(nil, img, f); err != nil {
 		return err
 	}
-	p.Printfln("xpkg saved to %s", output)
+	logger.Info("xpkg saved", "output", output)
 	return nil
 }
 
