@@ -408,8 +408,10 @@ func TestForCompositeResource(t *testing.T) {
 
 												// From CompositeResourceStatusProps()
 												"conditions": {
-													Description: "Conditions of the resource.",
-													Type:        "array",
+													Description:  "Conditions of the resource.",
+													Type:         "array",
+													XListType:    pointer.String("map"),
+													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type:     "object",
@@ -664,8 +666,10 @@ func TestForCompositeResource(t *testing.T) {
 
 												// From CompositeResourceStatusProps()
 												"conditions": {
-													Description: "Conditions of the resource.",
-													Type:        "array",
+													Description:  "Conditions of the resource.",
+													Type:         "array",
+													XListType:    pointer.String("map"),
+													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
 															Type:     "object",
@@ -1123,8 +1127,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 
 										// From CompositeResourceStatusProps()
 										"conditions": {
-											Description: "Conditions of the resource.",
-											Type:        "array",
+											Description:  "Conditions of the resource.",
+											Type:         "array",
+											XListType:    pointer.String("map"),
+											XListMapKeys: []string{"type"},
 											Items: &extv1.JSONSchemaPropsOrArray{
 												Schema: &extv1.JSONSchemaProps{
 													Type:     "object",
@@ -1407,8 +1413,10 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 									Properties: map[string]extv1.JSONSchemaProps{
 										// From CompositeResourceStatusProps()
 										"conditions": {
-											Description: "Conditions of the resource.",
-											Type:        "array",
+											Description:  "Conditions of the resource.",
+											Type:         "array",
+											XListType:    pointer.String("map"),
+											XListMapKeys: []string{"type"},
 											Items: &extv1.JSONSchemaPropsOrArray{
 												Schema: &extv1.JSONSchemaProps{
 													Type:     "object",
