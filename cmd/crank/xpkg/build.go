@@ -110,7 +110,6 @@ type buildCmd struct {
 	root    string
 	fetch   fetchFn
 
-	Name         string   `optional:"" xor:"xpkg-build-out" help:"[DEPRECATED: use --output] Name of the package to be built. Uses name in crossplane.yaml if not specified. Does not correspond to package tag."`
 	Output       string   `optional:"" short:"o" xor:"xpkg-build-out" help:"Path for package output."`
 	Controller   string   `help:"Controller image used as base for package."`
 	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
@@ -139,7 +138,7 @@ Even more details can be found in the xpkg reference document.`
 }
 
 // Run executes the build command.
-func (c *buildCmd) Run(logger logging.Logger) error { //nolint:gocyclo //this is just a bit over the complexity limit at 11
+func (c *buildCmd) Run(logger logging.Logger) error { 
 	var buildOpts []xpkg.BuildOpt
 	if c.Controller != "" {
 		ref, err := name.ParseReference(c.Controller)
@@ -164,14 +163,12 @@ func (c *buildCmd) Run(logger logging.Logger) error { //nolint:gocyclo //this is
 
 	output := filepath.Clean(c.Output)
 	if c.Output == "" {
-		pkgName := c.Name
-		if pkgName == "" {
-			pkgMeta, ok := meta.(metav1.Object)
-			if !ok {
-				return errors.New(errGetNameFromMeta)
-			}
-			pkgName = xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
+		pkgMeta, ok := meta.(metav1.Object)
+		if !ok {
+			return errors.New(errGetNameFromMeta)
 		}
+		pkgName := xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
+
 		output = xpkgv1.BuildPath(c.root, pkgName, xpkgv1.XpkgExtension)
 	}
 
