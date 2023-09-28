@@ -17,17 +17,6 @@ limitations under the License.
 // Package xpkg contains the Crossplane packaging commands.
 package xpkg
 
-import (
-	"github.com/alecthomas/kong"
-
-	"github.com/crossplane/crossplane/internal/features"
-)
-
-// BeforeReset is the first hook to run.
-func (c *Cmd) BeforeReset(p *kong.Path, maturity features.Maturity) error {
-	return features.HideMaturity(p, maturity)
-}
-
 // Cmd contains commands for interacting with xpkgs.
 // TODO(lsviben) add the rest of the commands from up (push, batch, xpextract).
 type Cmd struct {

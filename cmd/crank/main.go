@@ -27,11 +27,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
-	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
-var _ = kong.Must(&cli{})
+var _ = kong.Must(&cli)
 
 type versionFlag string
 type verboseFlag bool
@@ -56,17 +55,7 @@ func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // 
 	return nil
 }
 
-// BeforeReset runs before all other hooks. Default maturity level is stable.
-func (c *cli) BeforeReset(ctx *kong.Context, p *kong.Path) error {
-	ctx.Bind(features.Stable)
-	// If no command is selected, we are emitting help and filter maturity.
-	if ctx.Selected() == nil {
-		return features.HideMaturity(p, features.Stable)
-	}
-	return nil
-}
-
-type cli struct {
+var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
@@ -86,7 +75,7 @@ func main() {
 		fs: afero.NewOsFs(),
 	}
 	logger := logging.NewNopLogger()
-	ctx := kong.Parse(&cli{},
+	ctx := kong.Parse(&cli,
 		kong.Name("kubectl crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands
