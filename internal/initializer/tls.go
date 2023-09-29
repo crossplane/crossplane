@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -186,7 +185,7 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
-		DNSNames:              []string{fmt.Sprintf("%s.%s", e.subject, e.namespace)},
+		DNSNames:              []string{e.subject},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  false,
@@ -238,7 +237,7 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
-		DNSNames:              []string{fmt.Sprintf("%s.%s", e.subject, e.namespace)},
+		DNSNames:              []string{e.subject},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  false,

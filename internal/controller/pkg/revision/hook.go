@@ -166,7 +166,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err := h.client.Apply(ctx, secCli); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
-	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, pkgProvider.Name,
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, svc.Name+"."+h.namespace,
 		initializer.TLSCertificateGeneratorWithServerSecretName(pr.GetTLSServerSecretName()),
 		initializer.TLSCertificateGeneratorWithClientSecretName(pr.GetTLSClientSecretName()),
 		initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
@@ -307,7 +307,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err := h.client.Apply(ctx, secSer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
-	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, pkgFunction.Name,
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, svc.Name+"."+h.namespace,
 		initializer.TLSCertificateGeneratorWithServerSecretName(pr.GetTLSServerSecretName()),
 		initializer.TLSCertificateGeneratorWithOwner(owner)).GenerateServerCertificate(ctx, h.client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
