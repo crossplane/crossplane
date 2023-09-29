@@ -85,12 +85,16 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	sources := make([]v1beta1.Dependency, len(pack.GetDependencies()))
 	for i, dep := range pack.GetDependencies() {
 		pdep := v1beta1.Dependency{}
-		if dep.Configuration != nil {
+		switch {
+		case dep.Configuration != nil:
 			pdep.Package = *dep.Configuration
 			pdep.Type = v1beta1.ConfigurationPackageType
-		} else if dep.Provider != nil {
+		case dep.Provider != nil:
 			pdep.Package = *dep.Provider
 			pdep.Type = v1beta1.ProviderPackageType
+		case dep.Function != nil:
+			pdep.Package = *dep.Function
+			pdep.Type = v1beta1.FunctionPackageType
 		}
 		pdep.Constraints = dep.Version
 		sources[i] = pdep
