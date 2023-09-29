@@ -563,6 +563,10 @@ func TestResolve(t *testing.T) {
 											Package: "not-here-2",
 											Type:    v1beta1.ConfigurationPackageType,
 										},
+										{
+											Package: "function-not-here-1",
+											Type:    v1beta1.FunctionPackageType,
+										},
 									},
 								},
 								{
@@ -589,9 +593,10 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									"not-here-1":          &v1beta1.Dependency{},
+									"not-here-2":          &v1beta1.Dependency{},
+									"not-here-3":          &v1beta1.Dependency{},
+									"function-not-here-1": &v1beta1.Dependency{},
 								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
@@ -607,6 +612,13 @@ func TestResolve(t *testing.T) {
 										Version: "v0.100.1",
 									}, nil
 								}
+								if s == "function-not-here-1" {
+									return &v1beta1.LockPackage{
+										Source:  "function-not-here-1",
+										Version: "v0.1.0",
+									}, nil
+								}
+
 								return nil, nil
 							},
 						}
@@ -624,6 +636,10 @@ func TestResolve(t *testing.T) {
 									Provider: pointer.String("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
+								{
+									Function: pointer.String("function-not-here-1"),
+									Version:  ">=v0.1.0",
+								},
 							},
 						},
 					},
@@ -639,8 +655,8 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				total:     3,
-				installed: 3,
+				total:     4,
+				installed: 4,
 				invalid:   0,
 			},
 		},
