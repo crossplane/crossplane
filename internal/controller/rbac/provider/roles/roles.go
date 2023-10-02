@@ -38,6 +38,7 @@ const (
 	keyAggregateToAdmin      = "rbac.crossplane.io/aggregate-to-admin"
 	keyAggregateToEdit       = "rbac.crossplane.io/aggregate-to-edit"
 	keyAggregateToView       = "rbac.crossplane.io/aggregate-to-view"
+	keyProviderName          = "rbac.crossplane.io/system"
 
 	valTrue = "true"
 
@@ -161,8 +162,13 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 	// The 'system' RBAC role does not aggregate; it is intended to be bound
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		Rules:      append(append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...), pr.Status.PermissionRequests...),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: SystemClusterRoleName(pr.GetName()),
+			Labels: map[string]string{
+				keyProviderName: pr.GetName(),
+			},
+		},
+		Rules: append(append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...), pr.Status.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
