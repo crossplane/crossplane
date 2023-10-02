@@ -565,7 +565,7 @@ func TestAPIEstablisherRelinquish(t *testing.T) {
 			},
 		},
 		"SuccessfulRelinquish": {
-			reason: "Relinquish should be successful if we can relinquish control of existing objects",
+			reason: "ReleaseObjects should be successful if we can relinquish control of existing objects",
 			args: args{
 				est: &APIEstablisher{
 					client: &test.MockClient{
@@ -626,7 +626,7 @@ func TestAPIEstablisherRelinquish(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.args.est.Relinquish(context.TODO(), tc.args.parent)
+			err := tc.args.est.ReleaseObjects(context.TODO(), tc.args.parent)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)

@@ -74,7 +74,7 @@ type Hooks interface {
 	// Post performs operations meant to happen after establishing objects.
 	Post(context.Context, runtime.Object, v1.PackageRevision) error
 
-	// Deactivate performs operations meant to happen for deactivating a revision.
+	// Deactivate performs operations meant to happen before deactivating a revision.
 	Deactivate(context.Context, v1.PackageRevision) error
 }
 
@@ -172,7 +172,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
-// Deactivate performs operations meant to happen for deactivating a provider revision.
+// Deactivate performs operations meant to happen before deactivating a provider revision.
 func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {

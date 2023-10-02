@@ -83,7 +83,7 @@ func (e *MockEstablisher) Establish(context.Context, []runtime.Object, v1.Packag
 	return e.MockEstablish()
 }
 
-func (e *MockEstablisher) Relinquish(context.Context, v1.PackageRevision) error {
+func (e *MockEstablisher) ReleaseObjects(context.Context, v1.PackageRevision) error {
 	return e.MockRelinquish()
 }
 
@@ -1347,7 +1347,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errRelinquishObjects), errDeactivateRevision),
+				err: errors.Wrap(errors.Wrap(errBoom, errReleaseObjects), errDeactivateRevision),
 			},
 		},
 		"SuccessfulInactiveRevisionWithoutObjectRefs": {

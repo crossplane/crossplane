@@ -62,7 +62,7 @@ const (
 // resources and then establishing it.
 type Establisher interface {
 	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
-	Relinquish(ctx context.Context, parent v1.PackageRevision) error
+	ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error
 }
 
 // NewNopEstablisher returns a new NopEstablisher.
@@ -78,8 +78,8 @@ func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.Pac
 	return nil, nil
 }
 
-// Relinquish does nothing.
-func (*NopEstablisher) Relinquish(_ context.Context, _ v1.PackageRevision) error {
+// ReleaseObjects does nothing.
+func (*NopEstablisher) ReleaseObjects(_ context.Context, _ v1.PackageRevision) error {
 	return nil
 }
 
@@ -126,9 +126,9 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	return resourceRefs, nil
 }
 
-// Relinquish removes control of owned resources in the API server for a package
-// revision.
-func (e *APIEstablisher) Relinquish(ctx context.Context, parent v1.PackageRevision) error {
+// ReleaseObjects removes control of owned resources in the API server for a
+// package revision.
+func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error {
 	// Note(turkenh): We rely on status.objectRefs to get the list of objects
 	// that are controlled by the package revision. Relying on the status is
 	// not ideal as it might get lost (e.g. if the status subresource is

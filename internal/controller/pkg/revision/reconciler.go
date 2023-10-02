@@ -73,7 +73,7 @@ const (
 	errAddFinalizer    = "cannot add package revision finalizer"
 	errRemoveFinalizer = "cannot remove package revision finalizer"
 
-	errDeactivateRevision = "cannot deactivate revision"
+	errDeactivateRevision = "cannot deactivate package revision"
 
 	errInitParserBackend = "cannot initialize parser backend"
 	errParsePackage      = "cannot parse package contents"
@@ -83,10 +83,10 @@ const (
 
 	errPreHook          = "cannot run pre establish hook for package"
 	errPostHook         = "cannot run post establish hook for package"
-	errDeactivationHook = "cannot run deactivation hook"
+	errDeactivationHook = "cannot run deactivation hook for package"
 
-	errEstablishControl  = "cannot establish control of object"
-	errRelinquishObjects = "cannot relinquish objects"
+	errEstablishControl = "cannot establish control of object"
+	errReleaseObjects   = "cannot release objects"
 
 	errUpdateMeta = "cannot update package revision object metadata"
 
@@ -762,9 +762,9 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 		return errors.Wrap(err, errRemoveLock)
 	}
 
-	// Relinquish control of objects.
-	if err := r.objects.Relinquish(ctx, pr); err != nil {
-		return errors.Wrap(err, errRelinquishObjects)
+	// ReleaseObjects control of objects.
+	if err := r.objects.ReleaseObjects(ctx, pr); err != nil {
+		return errors.Wrap(err, errReleaseObjects)
 	}
 
 	// Call deactivation hook.
