@@ -26,8 +26,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"gopkg.in/yaml.v2"
-	crd "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
@@ -52,12 +50,7 @@ const (
 	errConfigFile        = "failed to get config file from image"
 	errMutateConfig      = "failed to mutate config for image"
 	errBuildObjectScheme = "failed to build scheme for package encoder"
-	errParseAuth         = "an auth extension was supplied but could not be parsed"
-	errAuthNotAnnotated  = "an auth extension was supplied but but the " + providerConfigKind + " object could not be found"
 	errNotExactlyOneMeta = "package must contain exactly one meta object"
-	authMetaAnno         = "auth.upbound.io/group"
-	authObjectAnno       = "auth.upbound.io/config"
-	providerConfigKind   = "ProviderConfig"
 )
 
 // annotatedTeeReadCloser is a copy of io.TeeReader that implements
@@ -103,17 +96,15 @@ func (t *teeReader) Annotate() any {
 type Builder struct {
 	pb parser.Backend
 	eb parser.Backend
-	ab parser.Backend
 
 	pp parser.Parser
 	ep *examples.Parser
 }
 
 // New returns a new Builder.
-func New(pkg, ab, ex parser.Backend, pp parser.Parser, ep *examples.Parser) *Builder {
+func New(pkg, ex parser.Backend, pp parser.Parser, ep *examples.Parser) *Builder {
 	return &Builder{
 		pb: pkg,
-		ab: ab,
 		eb: ex,
 		pp: pp,
 		ep: ep,
@@ -133,20 +124,6 @@ func WithController(img v1.Image) BuildOpt {
 	return func(o *buildOpts) {
 		o.base = img
 	}
-}
-
-type authExtension struct {
-	Version      string `yaml:"version"`
-	Discriminant string `yaml:"discriminant"`
-	Sources      []struct {
-		Name                string `yaml:"name"`
-		Docs                string `yaml:"docs"`
-		AdditionalResources []struct {
-			Type string `yaml:"type"`
-			Ref  string `yaml:"ref"`
-		} `yaml:"additionalResources"`
-		ShowFields []string `yaml:"showFields"`
-	} `yaml:"sources"`
 }
 
 // Build compiles a Crossplane package from an on-disk package.
@@ -197,43 +174,6 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	case v1beta1.FunctionKind:
 		linter = xpkgv1.NewFunctionLinter()
 	case pkgmetav1.ProviderKind:
-		if b.ab != nil { // if we have an auth.yaml file
-			if p, ok := meta.(*pkgmetav1.Provider); ok {
-				// if has annotation auth.upbound.io/group then look for the object
-				// specified there like aws.upbound.io and annotate that with auth.upbound.io/config
-				// and embed the contents of the auth.yaml file
-				if group, ok := p.ObjectMeta.Annotations[authMetaAnno]; ok {
-					ar, err := b.ab.Init(ctx)
-					if err != nil {
-						return nil, nil, errors.Wrap(err, errParseAuth)
-					}
-
-					// validate the auth.yaml file
-					var auth authExtension
-					if err := yaml.NewDecoder(ar).Decode(&auth); err != nil {
-						return nil, nil, errors.Wrap(err, errParseAuth)
-					}
-					annotated := false
-					for x, o := range pkg.GetObjects() {
-						if c, ok := o.(*crd.CustomResourceDefinition); ok {
-							if c.Spec.Group == group && c.Spec.Names.Kind == providerConfigKind {
-								ab := new(bytes.Buffer)
-								if err := yaml.NewEncoder(ab).Encode(auth); err != nil {
-									return nil, nil, errors.Wrap(err, errParseAuth)
-								}
-								c.Annotations[authObjectAnno] = ab.String()
-								pkg.GetObjects()[x] = c
-								annotated = true
-								break
-							}
-						}
-					}
-					if !annotated {
-						return nil, nil, errors.New(errAuthNotAnnotated)
-					}
-				}
-			}
-		}
 		linter = xpkgv1.NewProviderLinter()
 	}
 	if err := linter.Lint(pkg); err != nil {

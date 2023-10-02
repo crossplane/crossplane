@@ -125,7 +125,7 @@ func TestBuild(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			builder := New(tc.args.be, nil, tc.args.ex, tc.args.p, tc.args.e)
+			builder := New(tc.args.be, tc.args.ex, tc.args.p, tc.args.e)
 
 			_, _, err := builder.Build(context.TODO())
 
@@ -255,7 +255,7 @@ func TestBuildExamples(t *testing.T) {
 				parser.FsFilters(defaultFilters...),
 			)
 
-			builder := New(pkgBe, nil, pkgEx, pkgp, examples.New())
+			builder := New(pkgBe, pkgEx, pkgp, examples.New())
 
 			img, _, err := builder.Build(context.TODO())
 
