@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: ec2.aws.jet.crossplane.io/v1alpha2
+apiVersion: ec2.aws.crossplane.io/v1alpha2
 kind: InternetGateway
 metadata:
   name: example

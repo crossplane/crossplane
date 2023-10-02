@@ -18,4 +18,4 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-jet-aws:main
+  package: crossplane/provider-aws:main
