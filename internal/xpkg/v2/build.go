@@ -94,20 +94,20 @@ func (t *teeReader) Annotate() any {
 
 // Builder defines an xpkg Builder.
 type Builder struct {
-	pb parser.Backend
-	eb parser.Backend
+	packageSource parser.Backend
+	exampleSource parser.Backend
 
-	pp parser.Parser
-	ep *examples.Parser
+	packageParser  parser.Parser
+	examplesParser *examples.Parser
 }
 
 // New returns a new Builder.
-func New(pkg, ex parser.Backend, pp parser.Parser, ep *examples.Parser) *Builder {
+func New(packageSource, exampleSource parser.Backend, packageParser parser.Parser, examplesParser *examples.Parser) *Builder {
 	return &Builder{
-		pb: pkg,
-		eb: ex,
-		pp: pp,
-		ep: ep,
+		packageSource:  packageSource,
+		exampleSource:  exampleSource,
+		packageParser:  packageParser,
+		examplesParser: examplesParser,
 	}
 }
 
@@ -138,14 +138,14 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	// assume examples exist
 	examplesExist := true
 	// Get package YAML stream.
-	pkgReader, err := b.pb.Init(ctx)
+	pkgReader, err := b.packageSource.Init(ctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, errInitBackend)
 	}
 	defer func() { _ = pkgReader.Close() }()
 
 	// Get examples YAML stream.
-	exReader, err := b.eb.Init(ctx)
+	exReader, err := b.exampleSource.Init(ctx)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, errors.Wrap(err, errInitBackend)
 	}
@@ -155,7 +155,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 		examplesExist = false
 	}
 
-	pkg, err := b.pp.Parse(ctx, pkgReader)
+	pkg, err := b.packageParser.Parse(ctx, pkgReader)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, errParserPackage)
 	}
@@ -203,7 +203,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	// examples exist, create the layer
 	if examplesExist {
 		exBuf := new(bytes.Buffer)
-		if _, err = b.ep.Parse(ctx, annotatedTeeReadCloser(exReader, exBuf)); err != nil {
+		if _, err = b.examplesParser.Parse(ctx, annotatedTeeReadCloser(exReader, exBuf)); err != nil {
 			return nil, nil, errors.Wrap(err, errParserExample)
 		}
 
