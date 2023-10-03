@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package main implements Crossplane's crank CLI - aka kubectl crossplane.
+// Package main implements Crossplane's crank CLI - aka crossplane CLI.
 package main
 
 import (
@@ -73,7 +73,7 @@ func main() {
 	}
 	logger := logging.NewNopLogger()
 	ctx := kong.Parse(&cli,
-		kong.Name("kubectl crossplane"),
+		kong.Name("crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands
 		// at runtime.
