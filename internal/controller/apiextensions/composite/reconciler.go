@@ -538,7 +538,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
-		r.record.Event(xr, event.Normal(reasonResolve, "Selected composition revision: %s", rev.Name))
+		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
 	}
 
 	// TODO(negz): Update this to validate the revision? In practice that's what
