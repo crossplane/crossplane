@@ -96,7 +96,8 @@
       ],
       "enabled": false,
     },{
-      "description": "Only get dependency digest updates every month to reduce noise",
+      "description": "Only get dependency digest updates every month to reduce noise, except crossplane-runtime",
+      "excludePackageNames": ["github.com/crossplane/crossplane-runtime"],
       "matchDatasources": [
         "go"
       ],
