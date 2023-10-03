@@ -71,7 +71,7 @@ func NewFunctionLinter() parser.Linter {
 }
 
 // OneMeta checks that there is only one meta object in the package.
-func OneMeta(pkg *parser.Package) error {
+func OneMeta(pkg parser.Lintable) error {
 	if len(pkg.GetMeta()) != 1 {
 		return errors.New(errNotExactlyOneMeta)
 	}

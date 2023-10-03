@@ -66,7 +66,7 @@ func NewMockLintFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (m *MockLinter) Lint(*parser.Package) error {
+func (m *MockLinter) Lint(parser.Lintable) error {
 	return m.MockLint()
 }
 

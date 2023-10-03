@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
@@ -62,6 +63,8 @@ var cli struct {
 	Install installCmd `cmd:"" help:"Install Crossplane packages."`
 	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
 	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
+
+	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 }
 
 func main() {
