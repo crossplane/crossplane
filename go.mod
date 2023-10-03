@@ -11,7 +11,7 @@ require (
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20230928082135-54f79f799e0c
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.16.1
-	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230905180039-a748190e18d4
+	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2
 	github.com/jmattheis/goverter v0.18.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
