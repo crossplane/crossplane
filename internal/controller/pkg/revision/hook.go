@@ -73,6 +73,9 @@ type Hooks interface {
 
 	// Post performs operations meant to happen after establishing objects.
 	Post(context.Context, runtime.Object, v1.PackageRevision) error
+
+	// Deactivate performs operations meant to happen before deactivating a revision.
+	Deactivate(context.Context, v1.PackageRevision) error
 }
 
 // ProviderHooks performs operations for a provider package that requires a
@@ -92,9 +95,8 @@ func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccoun
 	}
 }
 
-// Pre cleans up a packaged controller and service account if the revision is
-// inactive.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+// Pre fills permission requests from the provider package to the revision.
+func (h *ProviderHooks) Pre(_ context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -110,29 +112,6 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 
-	// Do not clean up SA and controller if revision is not inactive.
-	if pr.GetDesiredState() != v1.PackageRevisionInactive {
-		return nil
-	}
-
-	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
-	// they aren't needed to delete Deployment, ServiceAccount, and Service.
-	s, d, svc, secSer, secCli := buildProviderDeployment(pkgProvider, pr, nil, h.namespace, []corev1.LocalObjectReference{})
-	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderDeployment)
-	}
-	if err := h.client.Delete(ctx, s); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderSA)
-	}
-	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderService)
-	}
-	if err := h.client.Delete(ctx, secSer); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderSecret)
-	}
-	if err := h.client.Delete(ctx, secCli); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderSecret)
-	}
 	return nil
 }
 
@@ -193,6 +172,36 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
+// Deactivate performs operations meant to happen before deactivating a provider revision.
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
+	// Delete the deployment if it exists.
+	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderDeployment)
+	}
+	// Delete the service account if it exists.
+	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderSA)
+	}
+	// Delete the service if it exists.
+	if err := h.client.Delete(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderService)
+	}
+	// Delete the TLS Server Secret if it exists.
+	if pr.GetTLSServerSecretName() != nil {
+		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSServerSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+			return errors.Wrap(err, errDeleteProviderSecret)
+		}
+	}
+	// Delete the TLS Client Secret if it exists.
+	if pr.GetTLSClientSecretName() != nil {
+		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSClientSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+			return errors.Wrap(err, errDeleteProviderSecret)
+		}
+	}
+
+	return nil
+}
+
 func (h *ProviderHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
 	sa := &corev1.ServiceAccount{}
 	if err := h.client.Get(ctx, types.NamespacedName{
@@ -232,6 +241,11 @@ func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1.PackageRev
 	return nil
 }
 
+// Deactivate is a no op for configuration packages.
+func (h *ConfigurationHooks) Deactivate(_ context.Context, _ v1.PackageRevision) error {
+	return nil
+}
+
 // FunctionHooks performs operations for a function package that requires a
 // controller before and after the revision establishes objects.
 type FunctionHooks struct {
@@ -251,32 +265,8 @@ func NewFunctionHooks(client resource.ClientApplicator, namespace, serviceAccoun
 
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
-func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
-	pkgFunction, ok := fo.(*pkgmetav1beta1.Function)
-	if !ok {
-		return errors.New(errNotFunction)
-	}
-
+func (h *FunctionHooks) Pre(_ context.Context, _ runtime.Object, _ v1.PackageRevision) error {
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
-
-	// Do not clean up SA and controller if revision is not inactive.
-	if pr.GetDesiredState() != v1.PackageRevisionInactive {
-		return nil
-	}
-
-	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
-	// they aren't needed to delete Deployment and service account.
-	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
-	// we're not deleting them here.
-	s, d, _, _ := buildFunctionDeployment(pkgFunction, pr, nil, h.namespace, []corev1.LocalObjectReference{})
-	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteFunctionDeployment)
-	}
-	if err := h.client.Delete(ctx, s); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteFunctionSA)
-	}
-
 	return nil
 }
 
@@ -335,6 +325,22 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
+// Deactivate performs operations meant to happen for deactivating a function revision.
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
+	// Delete the deployment if it exists.
+	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionDeployment)
+	}
+	// Delete the service account if it exists.
+	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionSA)
+	}
+
+	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
+	// we're not deleting them here.
+	return nil
+}
+
 func (h *FunctionHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
 	sa := &corev1.ServiceAccount{}
 	if err := h.client.Get(ctx, types.NamespacedName{
@@ -370,5 +376,10 @@ func (h *NopHooks) Pre(context.Context, runtime.Object, v1.PackageRevision) erro
 
 // Post does nothing and returns nil.
 func (h *NopHooks) Post(context.Context, runtime.Object, v1.PackageRevision) error {
+	return nil
+}
+
+// Deactivate does nothing and returns nil.
+func (h *NopHooks) Deactivate(context.Context, v1.PackageRevision) error {
 	return nil
 }

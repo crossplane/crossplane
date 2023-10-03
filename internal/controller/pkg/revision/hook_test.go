@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +44,6 @@ import (
 var (
 	crossplane  = "v0.11.1"
 	providerDep = "crossplane/provider-aws"
-	functionDep = "crossplane/function-exec"
 	versionDep  = "v0.1.1"
 
 	caSecret           = "crossplane-root-ca"
@@ -105,8 +105,6 @@ aAJ/I/MBEGIitV7G1MRwVz56Yvv8cP/mQ712faD7iwBHC9bqO6umCA==
 )
 
 func TestHookPre(t *testing.T) {
-	errBoom := errors.New("boom")
-
 	type args struct {
 		hook Hooks
 		pkg  runtime.Object
@@ -142,12 +140,21 @@ func TestHookPre(t *testing.T) {
 				err: errors.New(errNotProviderRevision),
 			},
 		},
-		"ProviderActive": {
-			reason: "Should only update status if provider revision is active.",
+		"ProviderPermissionRequestsPropagated": {
+			reason: "Should propagate permission requests from provider to revision",
 			args: args{
 				hook: &ProviderHooks{},
 				pkg: &pkgmetav1.Provider{
 					Spec: pkgmetav1.ProviderSpec{
+						Controller: pkgmetav1.ControllerSpec{
+							PermissionRequests: []rbacv1.PolicyRule{
+								{
+									APIGroups: []string{"somegroup"},
+									Resources: []string{"somekinds"},
+									Verbs:     []string{"someverbs"},
+								},
+							},
+						},
 						MetaSpec: pkgmetav1.MetaSpec{
 							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplane,
@@ -159,369 +166,38 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
+				rev: &v1.ProviderRevision{},
 			},
 			want: want{
 				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
+					Status: v1.PackageRevisionStatus{
+						PermissionRequests: []rbacv1.PolicyRule{
+							{
+								APIGroups: []string{"somegroup"},
+								Resources: []string{"somekinds"},
+								Verbs:     []string{"someverbs"},
+							},
+						},
 					},
 				},
 			},
 		},
-		"Configuration": {
-			reason: "Should always update status for configuration revisions.",
+		"ConfigurationNoAction": {
+			reason: "Configuration pre hook currently does not do anything, should not return error.",
 			args: args{
 				hook: &ConfigurationHooks{},
-				pkg: &pkgmetav1.Configuration{
-					Spec: pkgmetav1.ConfigurationSpec{
-						MetaSpec: pkgmetav1.MetaSpec{
-							Crossplane: &pkgmetav1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1.Dependency{{
-								Provider: &providerDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
 			},
 			want: want{
-				rev: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
+				err: nil,
 			},
 		},
-		"ErrProviderDeleteDeployment": {
-			reason: "Should return error if we fail to delete deployment for inactive provider revision.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return errBoom
-								case *corev1.ServiceAccount:
-									return nil
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				pkg: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						MetaSpec: pkgmetav1.MetaSpec{
-							Crossplane: &pkgmetav1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1.Dependency{{
-								Provider: &providerDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-			want: want{
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
-			},
-		},
-		"ErrProviderDeleteSA": {
-			reason: "Should return error if we fail to delete service account for inactive provider revision.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return nil
-								case *corev1.ServiceAccount:
-									return errBoom
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				pkg: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						MetaSpec: pkgmetav1.MetaSpec{
-							Crossplane: &pkgmetav1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1.Dependency{{
-								Provider: &providerDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-			want: want{
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-				err: errors.Wrap(errBoom, errDeleteProviderSA),
-			},
-		},
-		"SuccessfulProviderDelete": {
-			reason: "Should update status and not return error when deployment and service account deleted successfully.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								return nil
-							}),
-						},
-					},
-				},
-				pkg: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						MetaSpec: pkgmetav1.MetaSpec{
-							Crossplane: &pkgmetav1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1.Dependency{{
-								Provider: &providerDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-			want: want{
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-						TLSClientSecretName: &tlsClientSecret,
-					},
-				},
-			},
-		},
-		"ErrNotFunction": {
-			reason: "Should return error if not function.",
+		"FunctionNoAction": {
+			reason: "Function pre hook currently does not do anything, should not return error.",
 			args: args{
 				hook: &FunctionHooks{},
 			},
 			want: want{
-				err: errors.New(errNotFunction),
-			},
-		},
-		"FunctionActive": {
-			reason: "Should only update status if function revision is active.",
-			args: args{
-				hook: &FunctionHooks{},
-				pkg: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
-						MetaSpec: pkgmetav1beta1.MetaSpec{
-							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1beta1.Dependency{{
-								Function: &functionDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-		},
-		"ErrFunctionDeleteDeployment": {
-			reason: "Should return error if we fail to delete deployment for inactive function revision.",
-			args: args{
-				hook: &FunctionHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return errBoom
-								case *corev1.ServiceAccount:
-									return nil
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				pkg: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
-						MetaSpec: pkgmetav1beta1.MetaSpec{
-							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1beta1.Dependency{{
-								Function: &functionDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-					},
-				},
-			},
-			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-					},
-				},
-				err: errors.Wrap(errBoom, errDeleteFunctionDeployment),
-			},
-		},
-		"ErrFunctionDeleteSA": {
-			reason: "Should return error if we fail to delete service account for inactive function revision.",
-			args: args{
-				hook: &FunctionHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								switch o.(type) {
-								case *appsv1.Deployment:
-									return nil
-								case *corev1.ServiceAccount:
-									return errBoom
-								}
-								return nil
-							}),
-						},
-					},
-				},
-				pkg: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
-						MetaSpec: pkgmetav1beta1.MetaSpec{
-							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1beta1.Dependency{{
-								Function: &functionDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-					},
-				},
-			},
-			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-					},
-				},
-				err: errors.Wrap(errBoom, errDeleteFunctionSA),
-			},
-		},
-		"SuccessfulFunctionDelete": {
-			reason: "Should update status and not return error when deployment and service account deleted successfully.",
-			args: args{
-				hook: &FunctionHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
-								return nil
-							}),
-						},
-					},
-				},
-				pkg: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
-						MetaSpec: pkgmetav1beta1.MetaSpec{
-							Crossplane: &pkgmetav1beta1.CrossplaneConstraints{
-								Version: crossplane,
-							},
-							DependsOn: []pkgmetav1beta1.Dependency{{
-								Provider: &functionDep,
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-					},
-				},
-			},
-			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState:        v1.PackageRevisionInactive,
-						TLSServerSecretName: &tlsServerSecret,
-					},
-				},
+				err: nil,
 			},
 		},
 	}
@@ -1539,6 +1215,361 @@ func TestHookPost(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Post(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestHookDeactivate(t *testing.T) {
+	errBoom := errors.New("boom")
+	providerRevision := "my-provider-revision-1234"
+	functionRevision := "my-function-revision-1234"
+
+	type args struct {
+		hook Hooks
+		rev  v1.PackageRevision
+	}
+
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ErrProviderDeleteDeployment": {
+			reason: "Should return error if we fail to delete deployment.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return errBoom
+								case *corev1.ServiceAccount:
+									return nil
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerRevision,
+					},
+					Spec: v1.PackageRevisionSpec{
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
+			},
+		},
+		"ErrProviderDeleteSA": {
+			reason: "Should return error if we fail to delete service account.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return nil
+								case *corev1.ServiceAccount:
+									return errBoom
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerRevision,
+					},
+					Spec: v1.PackageRevisionSpec{
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderSA),
+			},
+		},
+		"ErrProviderDeleteService": {
+			reason: "Should return error if we fail to delete service.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return nil
+								case *corev1.ServiceAccount:
+									return nil
+								case *corev1.Service:
+									return errBoom
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerRevision,
+					},
+					Spec: v1.PackageRevisionSpec{
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderService),
+			},
+		},
+		"ErrProviderDeleteSecretTLSServer": {
+			reason: "Should return error if we fail to delete TLS server secret.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return nil
+								case *corev1.ServiceAccount:
+									return nil
+								case *corev1.Service:
+									return nil
+								case *corev1.Secret:
+									if o.GetName() == tlsServerSecret {
+										return errBoom
+									}
+									return nil
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerRevision,
+					},
+					Spec: v1.PackageRevisionSpec{
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderSecret),
+			},
+		},
+		"ErrProviderDeleteSecretTLSClient": {
+			reason: "Should return error if we fail to delete TLS client secret.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return nil
+								case *corev1.ServiceAccount:
+									return nil
+								case *corev1.Service:
+									return nil
+								case *corev1.Secret:
+									if o.GetName() == tlsClientSecret {
+										return errBoom
+									}
+									return nil
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerRevision,
+					},
+					Spec: v1.PackageRevisionSpec{
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderSecret),
+			},
+		},
+		"SuccessfulProviderDelete": {
+			reason: "Should update status and not return error when deployment and service account deleted successfully.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									if o.GetName() != providerRevision {
+										t.Errorf("unexpected Deployment name %s, expected %s", o.GetName(), providerRevision)
+									}
+									return nil
+								case *corev1.ServiceAccount:
+									if o.GetName() != providerRevision {
+										t.Errorf("unexpected ServiceAccount name %s, expected %s", o.GetName(), providerRevision)
+									}
+									return nil
+								case *corev1.Service:
+									if o.GetName() != providerRevision {
+										t.Errorf("unexpected Service name %s, expected %s", o.GetName(), providerRevision)
+									}
+									return nil
+								case *corev1.Secret:
+									if o.GetName() != tlsClientSecret && o.GetName() != tlsServerSecret {
+										t.Errorf("unexpected Secret name %s, expected either %s or %s", o.GetName(), tlsClientSecret, tlsServerSecret)
+									}
+									return nil
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: providerRevision,
+					},
+					Spec: v1.PackageRevisionSpec{
+						TLSServerSecretName: &tlsServerSecret,
+						TLSClientSecretName: &tlsClientSecret,
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"ErrFunctionDeleteDeployment": {
+			reason: "Should return error if we fail to delete deployment for inactive function revision.",
+			args: args{
+				hook: &FunctionHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return errBoom
+								case *corev1.ServiceAccount:
+									return nil
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: functionRevision,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteFunctionDeployment),
+			},
+		},
+		"ErrFunctionDeleteSA": {
+			reason: "Should return error if we fail to delete service account for inactive function revision.",
+			args: args{
+				hook: &FunctionHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									return nil
+								case *corev1.ServiceAccount:
+									return errBoom
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: functionRevision,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteFunctionSA),
+			},
+		},
+		"SuccessfulFunctionDelete": {
+			reason: "Should update status and not return error when deployment and service account deleted successfully.",
+			args: args{
+				hook: &FunctionHooks{
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+								switch o.(type) {
+								case *appsv1.Deployment:
+									if o.GetName() != functionRevision {
+										t.Errorf("unexpected Deployment name %s, expected %s", o.GetName(), functionRevision)
+									}
+									return nil
+								case *corev1.ServiceAccount:
+									if o.GetName() != functionRevision {
+										t.Errorf("unexpected ServiceAccount name %s, expected %s", o.GetName(), functionRevision)
+									}
+									return nil
+								}
+								return nil
+							}),
+						},
+					},
+				},
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: functionRevision,
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"ConfigurationNoAction": {
+			reason: "Configuration deactivate hook currently does not do anything, should not return error.",
+			args: args{
+				hook: &ConfigurationHooks{},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := tc.args.hook.Deactivate(context.TODO(), tc.args.rev)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
