@@ -67,8 +67,22 @@ const (
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 )
 
-// FunctionFieldOwner is set for fields owned by the FunctionComposer.
-const FunctionFieldOwner = "fn.apiextensions.crossplane.io"
+// Server-side-apply field owners. We need two of these because it's possible
+// an invocation of this controller will operate on the same resource in two
+// different contexts. For example if an XR composes another XR we'll spin up
+// two XR controllers. The 'parent' XR controller will treat the child XR as a
+// composed resource, while the child XR controller will treat it as an XR. The
+// controller owns different parts of the resource (i.e. has different fully
+// specified intent) depending on the context.
+const (
+	// FieldOwnerXR owns the fields this controller mutates on composite
+	// resources (XR).
+	FieldOwnerXR = "apiextensions.crossplane.io/composite"
+
+	// FieldOwnerComposed owns the fields this controller mutates on composed
+	// resources.
+	FieldOwnerComposed = "apiextensions.crossplane.io/composed"
+)
 
 // A FunctionComposer supports composing resources using a pipeline of
 // Composition Functions. It ignores the P&T resources array.
@@ -285,7 +299,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// composed resources - see UpdateResourceRefs below.
 		if cd.GetName() == "" {
 			named := cd.DeepCopy()
-			if err := c.client.Create(ctx, named, client.FieldOwner(FunctionFieldOwner), client.DryRunAll); err != nil {
+			if err := c.client.Create(ctx, named, client.FieldOwner(FieldOwnerComposed), client.DryRunAll); err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtDryRunCreateCD, name)
 			}
 			cd.SetName(named.GetName())
@@ -326,7 +340,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// atomic replace of the entire array. Note that we're relying on the status
 	// patch that immediately follows to load the latest version of uxr from the
 	// API server.
-	if err := c.client.Patch(ctx, refs, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
+	if err := c.client.Patch(ctx, refs, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		// It's important we don't proceed if this fails, because we need to be
 		// sure we've persisted our resource references before we create any new
 		// composed resources below.
@@ -349,13 +363,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	xr.SetKind(k)
 	xr.SetName(n)
 
-	// TODO(negz): Add x-kubernetes-list-type: map to the ConditionedStatus type
-	// from crossplane-runtime and merge on condition type. This would allow a
-	// Function to return a single XR status condition without atomically
-	// replacing the entire list of conditions. We'll still need to figure out a
-	// way to handle lastTransitionTime to avoid it constantly changing.
-
-	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
+	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
@@ -372,7 +380,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Specifically it will merge rather than replace owner references (e.g.
 		// for Usages), and will fail if we try to add a controller reference to
 		// a resource that already has a different one.
-		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(FunctionFieldOwner)); err != nil {
+		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerComposed)); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
 		}
 

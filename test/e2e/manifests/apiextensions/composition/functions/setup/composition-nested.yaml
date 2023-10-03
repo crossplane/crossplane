@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: parent
+  name: child
 spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1
@@ -23,16 +23,19 @@ spec:
               status:
                 coolerField: "I'M COOLER!"
           resources:
-            # We compose a nested XR, which in turn composes an MR. This tests
-            # regression of https://github.com/crossplane/crossplane/issues/4715.
-            nested-xr:
+            nop-resource-1:
               resource:
-                apiVersion: nop.example.org/v1alpha1
-                kind: XNopResource
+                apiVersion: nop.crossplane.io/v1alpha1
+                kind: NopResource
                 spec:
-                  compositionRef:
-                    name: child
-                  coolField: "I'm cool!"
+                  forProvider:
+                    conditionAfter:
+                    - conditionType: Ready
+                      conditionStatus: "False"
+                      time: 0s
+                    - conditionType: Ready
+                      conditionStatus: "True"
+                      time: 10s
         results:
          - severity: SEVERITY_NORMAL
            message: "I am doing a compose!"
