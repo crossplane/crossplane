@@ -82,7 +82,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.CompositeResourceDefinition{}).
 		Owns(&rbacv1.ClusterRole{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

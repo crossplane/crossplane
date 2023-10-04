@@ -74,7 +74,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.Composition{}).
 		Owns(&v1.CompositionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
