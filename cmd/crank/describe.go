@@ -52,6 +52,27 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 		logger.Debug("Used Kubeconfig file stored in homeDir", "kubeconfig-path", c.Kubeconfig)
 	}
 
-	fmt.Printf("Kind: %s, Name: %s, Namespace: %s", c.Kind, c.Name, c.Namespace)
+	// Get Resource object. Contains k8s resource and all its children, also as Resource.
+	root, err := resource.GetResource(c.Kind, c.Name, c.Namespace, c.Kubeconfig)
+	if err != nil {
+		logger.Debug("Couldn't get requested resource.", "error", err)
+		return err
+	}
+
+	// Print out resource
+	switch c.Output {
+	case "cli":
+		if err := resource.PrintResourceTable(*root, c.Fields); err != nil {
+			logger.Debug("Error printing CLI table.", "error", err)
+			return err
+		}
+	case "graph":
+		printer := resource.NewGraphPrinter()
+		if err := printer.Print(*root, c.Fields, c.OutputPath); err != nil {
+			logger.Debug("Error printing CLI table.", "error", err)
+			return err
+		}
+	}
+
 	return nil
 }
