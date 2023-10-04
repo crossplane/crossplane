@@ -230,17 +230,15 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				if len(webhookTLSCert) == 0 {
 					return nil
 				}
-				svcName := parent.GetName()
 				if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 					conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
-					svcName = pkgRef.Name
 				}
 				for i := range conf.Webhooks {
 					conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
 					if conf.Webhooks[i].ClientConfig.Service == nil {
 						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
 					}
-					conf.Webhooks[i].ClientConfig.Service.Name = svcName
+					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
 					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}
@@ -248,17 +246,15 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				if len(webhookTLSCert) == 0 {
 					return nil
 				}
-				svcName := parent.GetName()
 				if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 					conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
-					svcName = pkgRef.Name
 				}
 				for i := range conf.Webhooks {
 					conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
 					if conf.Webhooks[i].ClientConfig.Service == nil {
 						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
 					}
-					conf.Webhooks[i].ClientConfig.Service.Name = svcName
+					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
 					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}
