@@ -5,12 +5,19 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"golang.org/x/exp/slices"
 	"k8s.io/client-go/util/homedir"
 )
 
-// pushCmd pushes a package.
+const (
+	getResource  = "Couldn't get requested resource."
+	errCliOutput = "Error printing CLI table."
+	errPngOutput = "Error generating graph PNG."
+)
+
+// describeCmd describes a Kubernetes Crossplane resource.
 type describeCmd struct {
 	Kind       string   `arg:"" required:"" help:"Kind of resource to describe."`
 	Name       string   `arg:"" required:"" help:"Name of specified resource to describe."`
@@ -55,22 +62,22 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
 	root, err := resource.GetResource(c.Kind, c.Name, c.Namespace, c.Kubeconfig)
 	if err != nil {
-		logger.Debug("Couldn't get requested resource.", "error", err)
-		return err
+		logger.Debug(getResource, "error", err)
+		return errors.Wrap(err, getResource)
 	}
 
 	// Print out resource
 	switch c.Output {
 	case "cli":
 		if err := resource.PrintResourceTable(*root, c.Fields); err != nil {
-			logger.Debug("Error printing CLI table.", "error", err)
-			return err
+			logger.Debug(errCliOutput, "error", err)
+			return errors.Wrap(err, errCliOutput)
 		}
 	case "graph":
 		printer := resource.NewGraphPrinter()
 		if err := printer.Print(*root, c.Fields, c.OutputPath); err != nil {
-			logger.Debug("Error printing CLI table.", "error", err)
-			return err
+			logger.Debug(errPngOutput, "error", err)
+			return errors.Wrap(err, errPngOutput)
 		}
 	}
 
