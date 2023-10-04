@@ -20,6 +20,7 @@ limitations under the License.
 package beta
 
 import (
+	"github.com/crossplane/crossplane/cmd/crank/beta/describe"
 	"github.com/crossplane/crossplane/cmd/crank/beta/render"
 	"github.com/crossplane/crossplane/cmd/crank/beta/xpkg"
 )
@@ -28,6 +29,7 @@ import (
 type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
+	Describe describe.Cmd `cmd:"" help:"Describe a Crossplane resource."`
 	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
 	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
 }
