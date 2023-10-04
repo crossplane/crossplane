@@ -92,10 +92,19 @@ func buildProviderSecrets(revision v1.PackageRevision, namespace string) (server
 }
 
 func buildProviderService(provider *pkgmetav1.Provider, revision v1.PackageRevision, namespace string) *corev1.Service {
-	return getService(revision.GetLabels()[v1.LabelParentPackage], namespace, []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))}, map[string]string{
+	return getService(
+		revision.GetLabels()[v1.LabelParentPackage],
+		namespace,
+		[]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
+		buildProviderServiceLabelSelector(provider, revision),
+	)
+}
+
+func buildProviderServiceLabelSelector(provider *pkgmetav1.Provider, revision v1.PackageRevision) map[string]string {
+	return map[string]string{
 		"pkg.crossplane.io/revision": revision.GetName(),
 		"pkg.crossplane.io/provider": provider.GetName(),
-	})
+	}
 }
 
 // Returns the service account, deployment, service, server and client TLS secrets of the provider.
@@ -118,7 +127,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		image = *provider.Spec.Controller.Image
 	}
 
-	svc := buildProviderService(provider, revision, namespace)
+	svcSelector := buildProviderServiceLabelSelector(provider, revision)
 
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -129,7 +138,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: svc.Spec.Selector,
+				MatchLabels: svcSelector,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -243,7 +252,7 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 		image = *function.Spec.Image
 	}
 
-	svc := buildFunctionService(function, revision, namespace)
+	svcSelector := buildFunctionServiceLabelSelector(function, revision)
 
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -254,7 +263,7 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: svc.Spec.Selector,
+				MatchLabels: svcSelector,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -327,18 +336,25 @@ func buildFunctionSecret(revision v1.PackageRevision, namespace string) (serverS
 }
 
 func buildFunctionService(function *pkgmetav1beta1.Function, revision v1.PackageRevision, namespace string) *corev1.Service {
-	svc := getService(revision.GetLabels()[v1.LabelParentPackage], namespace,
+	svc := getService(
+		revision.GetLabels()[v1.LabelParentPackage],
+		namespace,
 		[]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
-		map[string]string{
-			"pkg.crossplane.io/revision": revision.GetName(),
-			"pkg.crossplane.io/function": function.GetName(),
-		})
+		buildFunctionServiceLabelSelector(function, revision),
+	)
 	// We want a headless service so that our gRPC client (i.e. the Crossplane
 	// FunctionComposer) can load balance across the endpoints.
 	// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
 	svc.Spec.ClusterIP = corev1.ClusterIPNone
 
 	return svc
+}
+
+func buildFunctionServiceLabelSelector(function *pkgmetav1beta1.Function, revision v1.PackageRevision) map[string]string {
+	return map[string]string{
+		"pkg.crossplane.io/revision": revision.GetName(),
+		"pkg.crossplane.io/function": function.GetName(),
+	}
 }
 
 //nolint:gocyclo // Note: ControlerConfig is deprecated and following code will be removed in the future.
