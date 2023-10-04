@@ -144,6 +144,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               currentIdentifier:
                 description: CurrentIdentifier is the most recent package source that
                   was used to produce a revision. The package manager uses this field
