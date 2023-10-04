@@ -338,19 +338,6 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 
 	svc := buildFunctionService(pkgFunction, pr, h.namespace)
-	if err := h.client.Apply(ctx, svc); err != nil {
-		return errors.Wrap(err, errApplyFunctionService)
-	}
-
-	secSer := buildFunctionSecret(pr, h.namespace)
-	if err := h.client.Apply(ctx, secSer); err != nil {
-		return errors.Wrap(err, errApplyFunctionSecret)
-	}
-	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName,
-		initializer.TLSCertificateGeneratorWithServerSecretName(secSer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
-		initializer.TLSCertificateGeneratorWithOwner([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))})).Run(ctx, h.client); err != nil {
-		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
-	}
 
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
