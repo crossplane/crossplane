@@ -84,7 +84,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&rbacv1.Role{}).
 		Watches(&rbacv1.ClusterRole{}, &EnqueueRequestForNamespaces{client: mgr.GetClient()}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

@@ -281,7 +281,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
@@ -324,7 +324,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
@@ -377,7 +377,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package revision reconciler.

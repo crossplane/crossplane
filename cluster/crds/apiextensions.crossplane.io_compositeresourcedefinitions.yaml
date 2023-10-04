@@ -465,6 +465,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               controllers:
                 description: Controllers represents the status of the controllers
                   that power this composite resource definition.

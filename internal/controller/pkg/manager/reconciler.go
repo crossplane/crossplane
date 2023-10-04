@@ -174,7 +174,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.Provider{}).
 		Owns(&v1.ProviderRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, NewReconciler(mgr, opts...), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
@@ -207,7 +207,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.Configuration{}).
 		Owns(&v1.ConfigurationRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // SetupFunction adds a controller that reconciles Functions.
@@ -240,7 +240,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.Function{}).
 		Owns(&v1beta1.FunctionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, NewReconciler(mgr, opts...), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package reconciler.
