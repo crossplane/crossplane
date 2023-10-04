@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"golang.org/x/exp/slices"
+	"k8s.io/client-go/util/homedir"
 )
 
 // pushCmd pushes a package.
@@ -36,6 +39,17 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	if !slices.Contains(allowedOutput, c.Output) {
 		logger.Debug("Invalid output set", "invalidOutput", c.Output)
 		return fmt.Errorf("Invalid ouput set: %s\nOutput has to be one of: %s", c.Output, allowedOutput)
+	}
+
+	// Get and set kubeconfig
+	// 1.Checks flag Kubeconfig 2. Check env var `KUBECONFIG` 3. Check ~/.kube/config dir
+	if c.Kubeconfig == "" {
+		c.Kubeconfig = os.Getenv("KUBECONFIG")
+		logger.Debug("Set Kubeconfig via environment variable `KUBECONFIG`", "kubeconfig-path", c.Kubeconfig)
+	}
+	if c.Kubeconfig == "" {
+		c.Kubeconfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
+		logger.Debug("Used Kubeconfig file stored in homeDir", "kubeconfig-path", c.Kubeconfig)
 	}
 
 	fmt.Printf("Kind: %s, Name: %s, Namespace: %s", c.Kind, c.Name, c.Namespace)
