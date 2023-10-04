@@ -201,40 +201,32 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Features:                &feature.Flags{},
 	}
 
-	ao := apiextensionscontroller.Options{
-		Options:        o,
-		Namespace:      c.Namespace,
-		ServiceAccount: c.ServiceAccount,
-		Registry:       c.Registry,
-	}
-
-	clienttls, err := certificates.LoadMTLSConfig(
-		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-		filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
-		false)
-	if err != nil {
-		return errors.Wrap(err, "cannot load client TLS certificates")
-	}
-
 	if !c.EnableCompositionRevisions {
 		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
 	}
+
+	var functionRunner *xfn.PackagedFunctionRunner
 	if c.EnableCompositionFunctions {
 		o.Features.Enable(features.EnableBetaCompositionFunctions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
+		clienttls, err := certificates.LoadMTLSConfig(
+			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
+			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
+			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
+			false)
 
+		if err != nil {
+			return errors.Wrap(err, "cannot load client TLS certificates")
+		}
 		// We want all XR controllers to share the same gRPC clients.
-		runner := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(),
 			xfn.WithLogger(log),
 			xfn.WithTLSConfig(clienttls))
 
 		// Periodically remove clients for Functions that no longer exist.
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go runner.GarbageCollectConnections(ctx, 10*time.Minute)
-
-		ao.FunctionRunner = runner
+		go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
 	}
 	if c.EnableEnvironmentConfigs {
 		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
@@ -264,6 +256,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.ESSOptions = &controller.ESSOptions{
 			TLSConfig: tcfg,
 		}
+	}
+
+	ao := apiextensionscontroller.Options{
+		Options:        o,
+		Namespace:      c.Namespace,
+		ServiceAccount: c.ServiceAccount,
+		Registry:       c.Registry,
+		FunctionRunner: functionRunner,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
