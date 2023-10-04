@@ -23,3 +23,7 @@ gitlab/
 
 # Crossplane packages
 *.xpkg
+
+go.mod
+go.sum
+crank
