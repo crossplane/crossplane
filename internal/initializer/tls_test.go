@@ -30,26 +30,71 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
+const (
+	caCert = `-----BEGIN CERTIFICATE-----
+MIIDkTCCAnmgAwIBAgICB+YwDQYJKoZIhvcNAQELBQAwWjEOMAwGA1UEBhMFRWFy
+dGgxDjAMBgNVBAgTBUVhcnRoMQ4wDAYDVQQHEwVFYXJ0aDETMBEGA1UEChMKQ3Jv
+c3NwbGFuZTETMBEGA1UEAxMKQ3Jvc3NwbGFuZTAeFw0yMzAzMjIxNTMyNTNaFw0z
+MzAzMjIxNTMyNTNaMFoxDjAMBgNVBAYTBUVhcnRoMQ4wDAYDVQQIEwVFYXJ0aDEO
+MAwGA1UEBxMFRWFydGgxEzARBgNVBAoTCkNyb3NzcGxhbmUxEzARBgNVBAMTCkNy
+b3NzcGxhbmUwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDNmbFbNF32
+pLxELihBec72qf9fIUl12saK8s6FqvH0uv1vGUbrGMkhvzbdIHo8AJ5N5KKADRe4
+ZfDQBESIryFZscbTUkPIlSLWanmBuV3OojZM+G7j38cmN1Kag/fPQ5x5FNg5FhPC
+3JCgl3Z/qDLcDDqx/GBgkyfEM11GkLzsJOt/8+8EjcE+mdgwQs3yV4hqUUh3RrM0
+wqVDzENfP3PKtnygSQAgp3VxqbHwR2cueemSLClq0JQwNsnpQC+T+Cq8tWkZjdw8
+LMJtdbtnOLvM6ofKQA0Sdi4XqaZML1nh0Cv/mGLR9dSDI5Uxl4kGySRE5d0xXC2C
+ZUwP6fBuTpaxAgMBAAGjYTBfMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTAD
+AQH/MB0GA1UdDgQWBBQ2WbFrZwIu4lWA5tA+l/zWWCV5CDAdBgNVHREEFjAUghJj
+cm9zc3BsYW5lLXJvb3QtY2EwDQYJKoZIhvcNAQELBQADggEBAGE4rcSZdWO3E4QY
+BfjxBuJfM8VZUP1kllV+IrFO+PhCAFcUSOCdfJcMbdAXbA/m7f2jTHq8isDOYLfn
+50/40+myheH/ZAQibC7go1VpjrZHQfanaGEFZPri0ftpQjZ2guCxrxgNA9qZa2Kz
+4H1dW4eQCWZnkUOUmBwdp2RN5E0oWVrvqixdcUjmMqGyajkueScuKih6EUYnfUWO
+A0N4+bBummJYPRnLNoUsKnEUsUXyQKp2jnYgGH90O71VO6r86tsvhOivwSKVq6E6
+r2bka16dVPncliiFI4NBng/SFGyOSE0O1Er/BY38KEALYe7J4mLzr4NxEtib2soM
+hs0Mt0k=
+-----END CERTIFICATE-----`
+	caKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAzZmxWzRd9qS8RC4oQXnO9qn/XyFJddrGivLOharx9Lr9bxlG
+6xjJIb823SB6PACeTeSigA0XuGXw0AREiK8hWbHG01JDyJUi1mp5gbldzqI2TPhu
+49/HJjdSmoP3z0OceRTYORYTwtyQoJd2f6gy3Aw6sfxgYJMnxDNdRpC87CTrf/Pv
+BI3BPpnYMELN8leIalFId0azNMKlQ8xDXz9zyrZ8oEkAIKd1camx8EdnLnnpkiwp
+atCUMDbJ6UAvk/gqvLVpGY3cPCzCbXW7Zzi7zOqHykANEnYuF6mmTC9Z4dAr/5hi
+0fXUgyOVMZeJBskkROXdMVwtgmVMD+nwbk6WsQIDAQABAoIBAQDExbrDomvnuaRh
+0JdAixb0ZqD9Z/tJq3fn1hioP4JQioIxyUxhhxhAjyQwIHw8Xw8jV5Xa3iz8k7wV
+KnB5LLvLf2TeLVaoa2urML5X1JQeRouXwRFIUIzmW35YWcNbf8cK71M9145UKgrV
+WADWjqEWjzHB1NxcsZoWol48Qhw+GCRP88QN1CyVIXQqFWm+b8YraeUDpBt9FY3R
+mrEk4WjcIsQH7fGGIwgQBxzGuZ9iVzHfJUBVUUU92wHr9i3mNPQhfmZqWEkvHhGd
+JVgRxIPlyVbTtQ3Zto+nYf53f92YLYORHcUuCOazELjAErhPLjv9LDZZVVYbYbse
+vXxNldnBAoGBAO13F3BcxKdFXb7e11zizHaQAoq1QlFdJYq4Shqgj5qp+BZrysEJ
+Ai+KpOF3SyvAR4lCHeRDRePKX6abNIdF/ZHIlWP+MNuu35cNEqQE69214kyHlFj2
+syOqz2O/CAXNoUeGwFv5prN54MpN4jaXxiXztguT7vtfV1PBUz9Rx9/JAoGBAN2l
+5PBweyxC4UxG1ICsPmwE5J436sdgGMaVxnaJ76eB9PrIaadcSwkmZQfsdbMJgV8f
+pj6dGdwJOS/rs/CTvlZ3FYCg6L2BKYb/9IMXuMta3VuJR7KpFYRUbkHw9KYacp7y
+Pq2B1dmn8xY+83PBQSg4NzqDig3MBc0KtTE3GIOpAoGAcZIzs5mqtBWI8HDDr7kI
+8OuPS6fFQAS8n8vkJTgFdoM0FAUZw5j7YqF8mhjj6tjbXdoxUaqbEocHmDdCuC/R
+RpgYWuqHk4nfhe7Kq4dvB2qmANQXLzVOGBDpf1suCxh9uifIeDS+dbgkupzlRBby
+vdQBjSgDdFX0/inIFtCWN4ECgYEA3RjE3Mt3MtmsIAhvpcMrqVjgLKueuS80x7NT
++57wvuk11IviSJ4aA5CXK2ZGqkeLE7ZggQj5aLKSpyi5n/vg3COCAYOBZrfXEuFz
+qOka309OjCbOrHtaCVynd4PCp4auW7tNpopjJfEQ3VoCQ6+9LT+WZ/oa1lR0XOqX
+f/Zzr7ECgYBo/oyGxVlOZ51k27m0SB0WQohmxaTDpLl0841vVX62jQpEPr0jropj
+CoRJv9VaKVXp8dgkULxiy0C35iGbCLVK5o/qROcRMJlw1rfCM6Gxv7LppqwvmYHI
+aAJ/I/MBEGIitV7G1MRwVz56Yvv8cP/mQ712faD7iwBHC9bqO6umCA==
+-----END RSA PRIVATE KEY-----`
+)
+
 var (
 	caCertSecretName    = "crossplane-root-ca"
 	tlsServerSecretName = "tls-server-certs"
 	tlsClientSecretName = "tls-client-certs"
 	secretNS            = "crossplane-system"
 	subject             = "crossplane"
-	owner               = []metav1.OwnerReference{
-		{
-			APIVersion: "v1",
-			Kind:       "provider",
-			Name:       "my-provider",
-			UID:        "my-uid",
-		},
-	}
 )
 
-func TestTLSCertificateGenerator_Run(t *testing.T) {
+func TestTLSCertificateGeneratorRun(t *testing.T) {
 	type args struct {
 		kube        client.Client
 		certificate CertificateGenerator
+		opts        []TLSCertificateGeneratorOption
 	}
 	type want struct {
 		err error
@@ -70,6 +115,10 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 
 						return errBoom
 					},
+				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
 				},
 			},
 			want: want{
@@ -99,6 +148,10 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				certificate: NewCertGenerator(),
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrapf(errBoom, errFmtCannotCreateOrUpdate, caCertSecretName), errLoadOrGenerateSigner),
@@ -128,6 +181,10 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return []byte("test-key"), []byte("test-cert"), nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 		},
 		"CannotParseCertificateSigner": {
@@ -148,9 +205,23 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.New(errDecodeCert), errLoadOrGenerateSigner),
+			},
+		},
+		"DoNothingIfNothingToDo": {
+			reason: "It should no error if there is nothing to do.",
+			args: args{
+				kube: &test.MockClient{},
+				opts: nil,
+			},
+			want: want{
+				err: nil,
 			},
 		},
 		"CannotGetServerSecret": {
@@ -176,9 +247,13 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsServerSecretName), "could not generate server certificate"),
+				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsServerSecretName), errGenerateServerCert),
 			},
 		},
 		"CannotGetClientSecret": {
@@ -213,9 +288,13 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsClientSecretName), "could not generate client certificate"),
+				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsClientSecretName), errGenerateClientCert),
 			},
 		},
 		"SuccessfulGeneratedCA": {
@@ -291,6 +370,10 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return []byte(caKey), []byte(caCert), nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 		},
 		"SuccessfulCertificatesComplete": {
@@ -331,6 +414,10 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return errors.New("unexpected secret name or namespace")
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{err: nil},
 		},
@@ -344,6 +431,10 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
 						return nil, nil, errBoom
 					},
+				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
 				},
 			},
 			want: want{
@@ -373,41 +464,18 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						return nil, nil, errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, errGenerateCertificate), "could not generate server certificate"),
 			},
 		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, subject,
-				TLSCertificateGeneratorWithServerSecretName(&tlsServerSecretName),
-				TLSCertificateGeneratorWithClientSecretName(&tlsClientSecretName))
-			e.certificate = tc.args.certificate
 
-			err := e.Run(context.Background(), tc.args.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
-	type args struct {
-		kube        client.Client
-		certificate CertificateGenerator
-	}
-	type want struct {
-		err error
-	}
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"CannotGetCASecret": {
+		// OnlyServerCertificate test cases
+		"OnlyServerCertificateCannotGetCASecret": {
 			reason: "It should return error if the CA secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
@@ -419,12 +487,15 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						return errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, caCertSecretName), errLoadOrGenerateSigner),
 			},
 		},
-		"CannotGetServerSecret": {
+		"OnlyServerCertificateCannotGetServerSecret": {
 			reason: "It should return error if the server secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
@@ -447,12 +518,15 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						return errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsServerSecretName),
+				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsServerSecretName), errGenerateServerCert),
 			},
 		},
-		"SuccessfulServerSecretComplete": {
+		"OnlyServerCertificateSuccessfulServerSecretComplete": {
 			reason: "It should be successful if the server certificates are already in the Secret.",
 			args: args{
 				kube: &test.MockClient{
@@ -482,10 +556,13 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						return nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+				},
 			},
 			want: want{err: nil},
 		},
-		"SuccessfulGeneratedServerCert": {
+		"OnlyServerCertificateSuccessfulGeneratedServerCert": {
 			reason: "It should be successful if the server certificate is generated and put into the Secret.",
 			args: args{
 
@@ -536,40 +613,13 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						return []byte(caKey), []byte(caCert), nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithServerSecretName(tlsServerSecretName, []string{subject}),
+				},
 			},
 		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, subject,
-				TLSCertificateGeneratorWithOwner(owner),
-				TLSCertificateGeneratorWithServerSecretName(&tlsServerSecretName),
-				TLSCertificateGeneratorWithClientSecretName(&tlsClientSecretName))
-			e.certificate = tc.args.certificate
-
-			err := e.GenerateServerCertificate(context.Background(), tc.args.kube)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
-	type args struct {
-		kube        client.Client
-		certificate CertificateGenerator
-	}
-	type want struct {
-		err error
-	}
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"CannotGetCASecret": {
+		// OnlyClientCertificate test cases
+		"OnlyClientCertificateCannotGetCASecret": {
 			reason: "It should return error if the CA secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
@@ -581,12 +631,15 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						return errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, caCertSecretName), errLoadOrGenerateSigner),
 			},
 		},
-		"CannotGetClientSecret": {
+		"OnlyClientCertificateCannotGetClientSecret": {
 			reason: "It should return error if the client secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
@@ -609,12 +662,15 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						return errBoom
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsClientSecretName),
+				err: errors.Wrap(errors.Wrapf(errBoom, errFmtGetTLSSecret, tlsClientSecretName), errGenerateClientCert),
 			},
 		},
-		"SuccessfulClientSecretComplete": {
+		"OnlyClientCertificateSuccessfulClientSecretComplete": {
 			reason: "It should be successful if the client certificates are already in the Secret.",
 			args: args{
 				kube: &test.MockClient{
@@ -644,10 +700,13 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						return nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 			want: want{err: nil},
 		},
-		"SuccessfulGeneratedClientCert": {
+		"OnlyClientCertificateSuccessfulGeneratedClientCert": {
 			reason: "It should be successful if the client certificate is generated and put into the Secret.",
 			args: args{
 
@@ -698,19 +757,19 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						return []byte(caKey), []byte(caCert), nil
 					},
 				},
+				opts: []TLSCertificateGeneratorOption{
+					TLSCertificateGeneratorWithClientSecretName(tlsClientSecretName, []string{subject}),
+				},
 			},
 		},
 	}
-
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, subject,
-				TLSCertificateGeneratorWithOwner(owner),
-				TLSCertificateGeneratorWithServerSecretName(&tlsServerSecretName),
-				TLSCertificateGeneratorWithClientSecretName(&tlsClientSecretName))
+			e := NewTLSCertificateGenerator(secretNS, caCertSecretName,
+				tc.args.opts...)
 			e.certificate = tc.args.certificate
 
-			err := e.GenerateClientCertificate(context.Background(), tc.args.kube)
+			err := e.Run(context.Background(), tc.args.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

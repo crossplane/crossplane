@@ -20,7 +20,6 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -44,6 +43,9 @@ const (
 	errDecodeCert              = "cannot decode cert"
 	errFmtGetTLSSecret         = "cannot get TLS secret: %s"
 	errFmtCannotCreateOrUpdate = "cannot create or update secret: %s"
+
+	errGenerateServerCert = "could not generate server certificate"
+	errGenerateClientCert = "could not generate client certificate"
 )
 
 const (
@@ -62,8 +64,9 @@ type TLSCertificateGenerator struct {
 	namespace           string
 	caSecretName        string
 	tlsServerSecretName *string
+	tlsServerDNSNames   []string
 	tlsClientSecretName *string
-	subject             string
+	tlsClientDNSNames   []string
 	owner               []metav1.OwnerReference
 	certificate         CertificateGenerator
 	log                 logging.Logger
@@ -87,25 +90,26 @@ func TLSCertificateGeneratorWithOwner(owner []metav1.OwnerReference) TLSCertific
 }
 
 // TLSCertificateGeneratorWithServerSecretName returns an TLSCertificateGeneratorOption that sets server secret name.
-func TLSCertificateGeneratorWithServerSecretName(s *string) TLSCertificateGeneratorOption {
+func TLSCertificateGeneratorWithServerSecretName(s string, dnsNames []string) TLSCertificateGeneratorOption {
 	return func(g *TLSCertificateGenerator) {
-		g.tlsServerSecretName = s
+		g.tlsServerSecretName = &s
+		g.tlsServerDNSNames = dnsNames
 	}
 }
 
 // TLSCertificateGeneratorWithClientSecretName returns an TLSCertificateGeneratorOption that sets client secret name.
-func TLSCertificateGeneratorWithClientSecretName(s *string) TLSCertificateGeneratorOption {
+func TLSCertificateGeneratorWithClientSecretName(s string, subjects []string) TLSCertificateGeneratorOption {
 	return func(g *TLSCertificateGenerator) {
-		g.tlsClientSecretName = s
+		g.tlsClientSecretName = &s
+		g.tlsClientDNSNames = subjects
 	}
 }
 
 // NewTLSCertificateGenerator returns a new TLSCertificateGenerator.
-func NewTLSCertificateGenerator(ns, caSecret, subject string, opts ...TLSCertificateGeneratorOption) *TLSCertificateGenerator {
+func NewTLSCertificateGenerator(ns, caSecret string, opts ...TLSCertificateGeneratorOption) *TLSCertificateGenerator {
 	e := &TLSCertificateGenerator{
 		namespace:    ns,
 		caSecretName: caSecret,
-		subject:      subject,
 		certificate:  NewCertGenerator(),
 		log:          logging.NewNopLogger(),
 	}
@@ -181,12 +185,15 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 			return nil
 		}
 	}
-	e.log.Info("Client certificates are empty nor not complete, generating a new pair...", "secret", nn.Name)
-
+	dnsNames := e.tlsClientDNSNames
+	if len(dnsNames) == 0 {
+		return errors.New("client DNS names are empty, you must provide at least one DNS name")
+	}
+	e.log.Info("Client certificates are empty or not complete, generating a new pair...", "secret", nn.Name)
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
-		DNSNames:              []string{fmt.Sprintf("%s.%s", e.subject, e.namespace)},
+		DNSNames:              dnsNames,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  false,
@@ -233,12 +240,16 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 			return nil
 		}
 	}
-	e.log.Info("Server certificates are empty nor not complete, generating a new pair...", "secret", nn.Name)
+	e.log.Info("Server certificates are empty or not complete, generating a new pair...", "secret", nn.Name)
+	dnsNames := e.tlsServerDNSNames
+	if len(dnsNames) == 0 {
+		return errors.New("server DNS names are empty, you must provide at least one DNS name")
+	}
 
 	cert := &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
-		DNSNames:              []string{fmt.Sprintf("%s.%s", e.subject, e.namespace)},
+		DNSNames:              dnsNames,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  false,
@@ -271,8 +282,12 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 	return errors.Wrapf(err, errFmtCannotCreateOrUpdate, nn.Name)
 }
 
-// Run generates the TLS certificate bundle and stores it in k8s secrets
+// Run generates the TLS certificate bundle and stores it in k8s secrets,
+// only creates configured secrets, returns immediately if there is nothing to do.
 func (e *TLSCertificateGenerator) Run(ctx context.Context, kube client.Client) error {
+	if e.tlsServerSecretName == nil && e.tlsClientSecretName == nil {
+		return nil
+	}
 	signer, err := e.loadOrGenerateCA(ctx, kube, types.NamespacedName{
 		Name:      e.caSecretName,
 		Namespace: e.namespace,
@@ -281,49 +296,25 @@ func (e *TLSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 		return errors.Wrap(err, errLoadOrGenerateSigner)
 	}
 
-	if err := e.ensureServerCertificate(ctx, kube, types.NamespacedName{
-		Name:      *e.tlsServerSecretName,
-		Namespace: e.namespace,
-	}, signer); err != nil {
-		return errors.Wrap(err, "could not generate server certificate")
+	if e.tlsServerSecretName != nil {
+		if err := e.ensureServerCertificate(ctx, kube, types.NamespacedName{
+			Name:      *e.tlsServerSecretName,
+			Namespace: e.namespace,
+		}, signer); err != nil {
+			return errors.Wrap(err, errGenerateServerCert)
+		}
 	}
 
-	return errors.Wrap(e.ensureClientCertificate(ctx, kube, types.NamespacedName{
-		Name:      *e.tlsClientSecretName,
-		Namespace: e.namespace,
-	}, signer), "could not generate client certificate")
-}
-
-// GenerateServerCertificate generates a server certificate and stores it in k8s secrets
-func (e *TLSCertificateGenerator) GenerateServerCertificate(ctx context.Context, kube client.Client) error {
-	signer, err := e.loadOrGenerateCA(ctx, kube, types.NamespacedName{
-		Name:      e.caSecretName,
-		Namespace: e.namespace,
-	})
-	if err != nil {
-		return errors.Wrap(err, errLoadOrGenerateSigner)
+	if e.tlsClientSecretName != nil {
+		if err := e.ensureClientCertificate(ctx, kube, types.NamespacedName{
+			Name:      *e.tlsClientSecretName,
+			Namespace: e.namespace,
+		}, signer); err != nil {
+			return errors.Wrap(err, errGenerateClientCert)
+		}
 	}
 
-	return e.ensureServerCertificate(ctx, kube, types.NamespacedName{
-		Name:      *e.tlsServerSecretName,
-		Namespace: e.namespace,
-	}, signer)
-}
-
-// GenerateClientCertificate generates a client certificate and stores it in k8s secrets
-func (e *TLSCertificateGenerator) GenerateClientCertificate(ctx context.Context, kube client.Client) error {
-	signer, err := e.loadOrGenerateCA(ctx, kube, types.NamespacedName{
-		Name:      e.caSecretName,
-		Namespace: e.namespace,
-	})
-	if err != nil {
-		return errors.Wrap(err, errLoadOrGenerateSigner)
-	}
-
-	return e.ensureClientCertificate(ctx, kube, types.NamespacedName{
-		Name:      *e.tlsClientSecretName,
-		Namespace: e.namespace,
-	}, signer)
+	return nil
 }
 
 func parseCertificateSigner(key, cert []byte) (*CertificateSigner, error) {
@@ -352,4 +343,13 @@ func parseCertificateSigner(key, cert []byte) (*CertificateSigner, error) {
 		certificate:    sCert,
 		certificatePEM: cert,
 	}, nil
+}
+
+// DNSNamesForService returns a list of DNS names for a given service name and namespace.
+func DNSNamesForService(service, namespace string) []string {
+	return []string{
+		service,
+		service + "." + namespace,
+		service + "." + namespace + ".svc",
+	}
 }

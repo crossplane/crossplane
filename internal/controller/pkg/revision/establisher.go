@@ -195,9 +195,9 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 
 func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
-	if parent.GetWebhookTLSSecretName() != nil {
+	if tlsServerSecretName := parent.GetTLSServerSecretName(); tlsServerSecretName != nil {
 		s := &corev1.Secret{}
-		nn := types.NamespacedName{Name: *parent.GetWebhookTLSSecretName(), Namespace: e.namespace}
+		nn := types.NamespacedName{Name: *tlsServerSecretName, Namespace: e.namespace}
 		if err := e.client.Get(ctx, nn, s); err != nil {
 			return nil, errors.Wrap(err, errGetWebhookTLSSecret)
 		}
@@ -238,7 +238,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 					if conf.Webhooks[i].ClientConfig.Service == nil {
 						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
 					}
-					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
+					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
 					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}
@@ -254,7 +254,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 					if conf.Webhooks[i].ClientConfig.Service == nil {
 						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
 					}
-					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
+					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
 					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}

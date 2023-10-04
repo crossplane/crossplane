@@ -17,6 +17,8 @@ limitations under the License.
 package revision
 
 import (
+	"fmt"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +30,6 @@ import (
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
@@ -48,9 +49,7 @@ const (
 	promPortName   = "metrics"
 	promPortNumber = 8080
 
-	webhookVolumeName       = "webhook-tls-secret"
 	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
-	webhookTLSCertDir       = "/webhook/tls"
 	webhookPortName         = "webhook"
 
 	// See https://github.com/grpc/grpc/blob/v1.58.0/doc/naming.md
@@ -59,8 +58,6 @@ const (
 	serviceEndpointFmt = "dns:///%s.%s:%d"
 
 	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
-	essCertsVolumeName  = "ess-client-certs"
-	essCertsDir         = "/ess/tls"
 
 	tlsServerCertDirEnvVar   = "TLS_SERVER_CERTS_DIR"
 	tlsServerCertsVolumeName = "tls-server-certs"
@@ -71,31 +68,56 @@ const (
 	tlsClientCertsDir        = "/tls/client"
 )
 
+func buildProviderSecrets(revision v1.PackageRevision, namespace string) (serverSec *corev1.Secret, clientSec *corev1.Secret) {
+	if tlsServerSecretName := revision.GetTLSServerSecretName(); tlsServerSecretName != nil {
+		serverSec = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            *tlsServerSecretName,
+				Namespace:       namespace,
+				OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
+			},
+		}
+	}
+
+	if tlsClientSecretName := revision.GetTLSClientSecretName(); tlsClientSecretName != nil {
+		clientSec = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            *tlsClientSecretName,
+				Namespace:       namespace,
+				OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
+			},
+		}
+	}
+	return serverSec, clientSec
+}
+
+func buildProviderService(provider *pkgmetav1.Provider, revision v1.PackageRevision, namespace string) *corev1.Service {
+	return getService(
+		revision.GetLabels()[v1.LabelParentPackage],
+		namespace,
+		[]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
+		buildProviderServiceLabelSelector(provider, revision),
+	)
+}
+
+func buildProviderServiceLabelSelector(provider *pkgmetav1.Provider, revision v1.PackageRevision) map[string]string {
+	return map[string]string{
+		"pkg.crossplane.io/revision": revision.GetName(),
+		"pkg.crossplane.io/provider": provider.GetName(),
+	}
+}
+
 // Returns the service account, deployment, service, server and client TLS secrets of the provider.
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret, *corev1.Secret) {
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
 		},
 		ImagePullSecrets: pullSecrets,
 	}
-	secSer := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            *revision.GetTLSServerSecretName(),
-			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
-		},
-	}
 
-	secCli := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            *revision.GetTLSClientSecretName(),
-			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
-		},
-	}
 	pullPolicy := corev1.PullIfNotPresent
 	if revision.GetPackagePullPolicy() != nil {
 		pullPolicy = *revision.GetPackagePullPolicy()
@@ -104,19 +126,19 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	if provider.Spec.Controller.Image != nil {
 		image = *provider.Spec.Controller.Image
 	}
+
+	svcSelector := buildProviderServiceLabelSelector(provider, revision)
+
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"pkg.crossplane.io/revision": revision.GetName(),
-					"pkg.crossplane.io/provider": provider.GetName(),
-				},
+				MatchLabels: svcSelector,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -171,52 +193,31 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	}
 	if revision.GetTLSServerSecretName() != nil {
 		mountTLSSecret(*revision.GetTLSServerSecretName(), tlsServerCertsVolumeName, tlsServerCertsDir, tlsServerCertDirEnvVar, d)
+		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports,
+			corev1.ContainerPort{
+				Name:          webhookPortName,
+				ContainerPort: servicePort,
+			})
+		// for backward compatibility with existing providers, we set the
+		// environment variable WEBHOOK_TLS_CERT_DIR to the same value as
+		// TLS_SERVER_CERTS_DIR to ease the transition to the new certificates.
+		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  webhookTLSCertDirEnvVar,
+				Value: fmt.Sprintf("$(%s)", tlsServerCertDirEnvVar),
+			})
 	}
 
 	if revision.GetTLSClientSecretName() != nil {
 		mountTLSSecret(*revision.GetTLSClientSecretName(), tlsClientCertsVolumeName, tlsClientCertsDir, tlsClientCertDirEnvVar, d)
-	}
-
-	if revision.GetWebhookTLSSecretName() != nil {
-		v := corev1.Volume{
-			Name: webhookVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: *revision.GetWebhookTLSSecretName(),
-					Items: []corev1.KeyToPath{
-						// These are known and validated keys in TLS secrets.
-						{Key: "tls.crt", Path: "tls.crt"},
-						{Key: "tls.key", Path: "tls.key"},
-					},
-				},
-			},
-		}
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-
-		vm := corev1.VolumeMount{
-			Name:      webhookVolumeName,
-			ReadOnly:  true,
-			MountPath: webhookTLSCertDir,
-		}
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
-
-		envs := []corev1.EnvVar{
-			{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir},
-		}
-		d.Spec.Template.Spec.Containers[0].Env =
-			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
-
-		port := corev1.ContainerPort{
-			Name:          webhookPortName,
-			ContainerPort: servicePort,
-		}
-		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports,
-			port)
-	}
-
-	if revision.GetESSTLSSecretName() != nil {
-		mountTLSSecret(*revision.GetESSTLSSecretName(), essCertsVolumeName, essCertsDir, essTLSCertDirEnvVar, d)
+		// for backward compatibility with existing providers, we set the
+		// environment variable ESS_TLS_CERTS_DIR to the same value as
+		// TLS_CLIENT_CERTS_DIR to ease the transition to the new certificates.
+		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name:  essTLSCertDirEnvVar,
+				Value: fmt.Sprintf("$(%s)", tlsClientCertDirEnvVar),
+			})
 	}
 
 	templateLabels := make(map[string]string)
@@ -228,26 +229,17 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	}
 	d.Spec.Template.Labels = templateLabels
 
-	svc := getService(revision.GetName(), namespace, []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))}, d.Spec.Selector.MatchLabels)
-
-	return s, d, svc, secSer, secCli
+	return s, d
 }
 
-func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret) {
+func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1beta1.FunctionRevisionGroupVersionKind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
 		},
 		ImagePullSecrets: pullSecrets,
-	}
-	sec := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            *revision.GetTLSServerSecretName(),
-			Namespace:       namespace,
-			OwnerReferences: revision.GetOwnerReferences(),
-		},
 	}
 
 	pullPolicy := corev1.PullIfNotPresent
@@ -260,21 +252,18 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 		image = *function.Spec.Image
 	}
 
+	svcSelector := buildFunctionServiceLabelSelector(function, revision)
+
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      revision.GetName(),
-			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.TypedReferenceTo(revision, v1beta1.FunctionRevisionGroupVersionKind)),
-			},
+			Name:            revision.GetName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"pkg.crossplane.io/revision": revision.GetName(),
-					"pkg.crossplane.io/function": function.GetName(),
-				},
+				MatchLabels: svcSelector,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -333,14 +322,39 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 	}
 	d.Spec.Template.Labels = templateLabels
 
+	return s, d
+}
+
+func buildFunctionSecret(revision v1.PackageRevision, namespace string) (serverSec *corev1.Secret) {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *revision.GetTLSServerSecretName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
+		},
+	}
+}
+
+func buildFunctionService(function *pkgmetav1beta1.Function, revision v1.PackageRevision, namespace string) *corev1.Service {
+	svc := getService(
+		revision.GetLabels()[v1.LabelParentPackage],
+		namespace,
+		[]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, revision.GetObjectKind().GroupVersionKind()))},
+		buildFunctionServiceLabelSelector(function, revision),
+	)
 	// We want a headless service so that our gRPC client (i.e. the Crossplane
 	// FunctionComposer) can load balance across the endpoints.
 	// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
-	pkgName := revision.GetLabels()[v1.LabelParentPackage]
-	svc := getService(pkgName, namespace, revision.GetOwnerReferences(), d.Spec.Selector.MatchLabels)
 	svc.Spec.ClusterIP = corev1.ClusterIPNone
 
-	return s, d, svc, sec
+	return svc
+}
+
+func buildFunctionServiceLabelSelector(function *pkgmetav1beta1.Function, revision v1.PackageRevision) map[string]string {
+	return map[string]string{
+		"pkg.crossplane.io/revision": revision.GetName(),
+		"pkg.crossplane.io/function": function.GetName(),
+	}
 }
 
 //nolint:gocyclo // Note: ControlerConfig is deprecated and following code will be removed in the future.

@@ -47,7 +47,6 @@ const (
 	errDeleteProviderDeployment               = "cannot delete provider package deployment"
 	errDeleteProviderSA                       = "cannot delete provider package service account"
 	errDeleteProviderService                  = "cannot delete provider package service"
-	errDeleteProviderSecret                   = "cannot delete provider package TLS secret"
 	errApplyProviderDeployment                = "cannot apply provider package deployment"
 	errApplyProviderSecret                    = "cannot apply provider package secret"
 	errApplyProviderSA                        = "cannot apply provider package service account"
@@ -96,7 +95,7 @@ func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccoun
 }
 
 // Pre fills permission requests from the provider package to the revision.
-func (h *ProviderHooks) Pre(_ context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -112,12 +111,50 @@ func (h *ProviderHooks) Pre(_ context.Context, pkg runtime.Object, pr v1.Package
 
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	return h.ensurePrerequisites(ctx, pkgProvider, pr)
+}
+
+// ensurePrerequisites ensures that the required prerequisites are created as
+// part of the Pre hook for active provider revisions. Creates:
+//   - service: needed to expose the provider's webhook, if any.
+//   - tls server secret: needed to expose the provider's webhook over TLS, need
+//     to exist before the APIEstablisher looks for it to inject it into any
+//     CRDs/Webhooks.
+func (h *ProviderHooks) ensurePrerequisites(ctx context.Context, pkgProvider *pkgmetav1.Provider, pr v1.PackageRevision) error {
+	svc := buildProviderService(pkgProvider, pr, h.namespace)
+	if err := h.client.Apply(ctx, svc); err != nil {
+		return errors.Wrap(err, errApplyProviderService)
+	}
+
+	secSer, secCli := buildProviderSecrets(pr, h.namespace)
+
+	if secSer == nil || secCli == nil {
+		// we should wait for the provider revision reconciler to set the secret names before proceeding creating the TLS secrets
+		return nil
+	}
+	if err := h.client.Apply(ctx, secSer); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+	if err := h.client.Apply(ctx, secCli); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName,
+		initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
+		initializer.TLSCertificateGeneratorWithServerSecretName(secSer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+		initializer.TLSCertificateGeneratorWithClientSecretName(secCli.GetName(), []string{pr.GetName()})).Run(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pr.GetName())
+	}
 	return nil
 }
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // Only slightly over (12).
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -134,31 +171,15 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err != nil {
 		return err
 	}
-	s, d, svc, secSer, secCli := buildProviderDeployment(pkgProvider, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
+
+	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
-	}
-	owner := []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pkgProvider, pkgProvider.GetObjectKind().GroupVersionKind()))}
-	if err := h.client.Apply(ctx, secSer); err != nil {
-		return errors.Wrap(err, errApplyProviderSecret)
-	}
-	if err := h.client.Apply(ctx, secCli); err != nil {
-		return errors.Wrap(err, errApplyProviderSecret)
-	}
-	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, pkgProvider.Name,
-		initializer.TLSCertificateGeneratorWithServerSecretName(pr.GetTLSServerSecretName()),
-		initializer.TLSCertificateGeneratorWithClientSecretName(pr.GetTLSClientSecretName()),
-		initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
-		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgProvider.Name)
 	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
-	if pr.GetWebhookTLSSecretName() != nil {
-		if err := h.client.Apply(ctx, svc); err != nil {
-			return errors.Wrap(err, errApplyProviderService)
-		}
-	}
+	// TODO(phisco): check who is actually using this
 	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
 
 	for _, c := range d.Status.Conditions {
@@ -172,7 +193,12 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
-// Deactivate performs operations meant to happen before deactivating a provider revision.
+// Deactivate performs operations meant to happen before deactivating a provider
+// revision.
+// Deletes all resources named after the revision, deployment, service account,
+// old service if any (see comment), leaving the ones named after the package,
+// service and TLS secrets, intact, to be updated by the next active revision,
+// if needed.
 func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
@@ -182,23 +208,15 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) e
 	if err := h.client.Delete(ctx, &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderSA)
 	}
-	// Delete the service if it exists.
+
+	// TODO(phisco): only added to cleanup the service we were previously
+	// 	deploying for each provider revision, remove in a future release.
 	if err := h.client.Delete(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderService)
 	}
-	// Delete the TLS Server Secret if it exists.
-	if pr.GetTLSServerSecretName() != nil {
-		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSServerSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-			return errors.Wrap(err, errDeleteProviderSecret)
-		}
-	}
-	// Delete the TLS Client Secret if it exists.
-	if pr.GetTLSClientSecretName() != nil {
-		if err := h.client.Delete(ctx, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: *pr.GetTLSClientSecretName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
-			return errors.Wrap(err, errDeleteProviderSecret)
-		}
-	}
 
+	// NOTE(phisco): Service and TLS secrets are created per package. Therefore,
+	// we're not deleting them here.
 	return nil
 }
 
@@ -265,13 +283,52 @@ func NewFunctionHooks(client resource.ClientApplicator, namespace, serviceAccoun
 
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
-func (h *FunctionHooks) Pre(_ context.Context, _ runtime.Object, _ v1.PackageRevision) error {
+func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
+	pkgFunction, ok := fo.(*pkgmetav1beta1.Function)
+	if !ok {
+		return errors.New(errNotFunction)
+	}
+
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
+
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	return h.ensurePrerequisites(ctx, pkgFunction, pr)
+}
+
+// ensurePrerequisites ensures that the required prerequisites are created as
+// part of the Pre hook for active function revisions. Creates:
+//   - service: needed to expose the function
+//   - tls server secret: needed to expose the function over TLS, need to exist
+//     before the APIEstablisher looks for it to inject it into potential
+//     CRDs/Webhooks.
+func (h *FunctionHooks) ensurePrerequisites(ctx context.Context, pkgFunction *pkgmetav1beta1.Function, pr v1.PackageRevision) error {
+	svc := buildFunctionService(pkgFunction, pr, h.namespace)
+	if err := h.client.Apply(ctx, svc); err != nil {
+		return errors.Wrap(err, errApplyFunctionService)
+	}
+
+	// N.B.: We expect the revision to be applied by the caller
+	fRev := pr.(*v1beta1.FunctionRevision)
+	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
+
+	secSer := buildFunctionSecret(pr, h.namespace)
+	if err := h.client.Apply(ctx, secSer); err != nil {
+		return errors.Wrap(err, errApplyFunctionSecret)
+	}
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName,
+		initializer.TLSCertificateGeneratorWithServerSecretName(secSer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+		initializer.TLSCertificateGeneratorWithOwner([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))})).Run(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
+	}
 	return nil
 }
 
 // Post creates a packaged function deployment, service account, service and secrets if the revision is active.
-func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // See below
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
 	// TODO(ezgidemirel): Can this be refactored for less complexity?
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
 	pkgFunction, ok := po.(*pkgmetav1beta1.Function)
@@ -289,29 +346,22 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err != nil {
 		return err
 	}
-	s, d, svc, secSer := buildFunctionDeployment(pkgFunction, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
+
+	s, d := buildFunctionDeployment(pkgFunction, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyFunctionSA)
 	}
-	owner := pr.GetOwnerReferences()
-	if err := h.client.Apply(ctx, secSer); err != nil {
-		return errors.Wrap(err, errApplyFunctionSecret)
-	}
-	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, pkgFunction.Name,
-		initializer.TLSCertificateGeneratorWithServerSecretName(pr.GetTLSServerSecretName()),
-		initializer.TLSCertificateGeneratorWithOwner(owner)).GenerateServerCertificate(ctx, h.client); err != nil {
-		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
-	}
+
+	svc := buildFunctionService(pkgFunction, pr, h.namespace)
+
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
-	}
-	if err := h.client.Apply(ctx, svc); err != nil {
-		return errors.Wrap(err, errApplyFunctionService)
 	}
 
 	fRev := pr.(*v1beta1.FunctionRevision)
 	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
 
+	// TODO(phisco): check who is actually using this
 	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
 
 	for _, c := range d.Status.Conditions {
@@ -325,7 +375,12 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
-// Deactivate performs operations meant to happen for deactivating a function revision.
+// Deactivate performs operations meant to happen for deactivating a function
+// revision.
+// Deletes all resources named after the revision, deployment, service account,
+// old service if any (see comment), leaving the ones named after the package,
+// service and TLS secret, intact, to be updated by the next active revision, if
+// needed.
 func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {

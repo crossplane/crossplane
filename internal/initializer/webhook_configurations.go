@@ -33,6 +33,7 @@ import (
 
 const (
 	errApplyWebhookConfiguration = "cannot apply webhook configuration"
+	errGetWebhookSecret          = "cannot get webhook secret"
 )
 
 // WithWebhookConfigurationsFs is used to configure the filesystem the CRDs will

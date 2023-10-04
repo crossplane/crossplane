@@ -402,16 +402,8 @@ type PackageRevision interface {
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
 
-	// These methods will be removed once we start to consume certificates generated per entities
-	GetWebhookTLSSecretName() *string
-	SetWebhookTLSSecretName(n *string)
-
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
-
-	// These methods will be removed once we start to consume certificates generated per entities
-	GetESSTLSSecretName() *string
-	SetESSTLSSecretName(s *string)
 
 	GetTLSServerSecretName() *string
 	SetTLSServerSecretName(n *string)
@@ -542,21 +534,6 @@ func (p *ProviderRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
 }
 
-// GetWebhookTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) GetWebhookTLSSecretName() *string {
-	return p.Spec.WebhookTLSSecretName
-}
-
-// SetWebhookTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) SetWebhookTLSSecretName(b *string) {
-	p.Spec.WebhookTLSSecretName = b
-}
-
-// GetESSTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) GetESSTLSSecretName() *string {
-	return p.Spec.ESSTLSSecretName
-}
-
 // GetTLSServerSecretName of this ProviderRevision.
 func (p *ProviderRevision) GetTLSServerSecretName() *string {
 	return p.Spec.TLSServerSecretName
@@ -575,11 +552,6 @@ func (p *ProviderRevision) GetTLSClientSecretName() *string {
 // SetTLSClientSecretName of this ProviderRevision.
 func (p *ProviderRevision) SetTLSClientSecretName(s *string) {
 	p.Spec.TLSClientSecretName = s
-}
-
-// SetESSTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) SetESSTLSSecretName(s *string) {
-	p.Spec.ESSTLSSecretName = s
 }
 
 // GetCommonLabels of this ProviderRevision.
@@ -712,26 +684,6 @@ func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
-}
-
-// GetWebhookTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetWebhookTLSSecretName() *string {
-	return p.Spec.WebhookTLSSecretName
-}
-
-// SetWebhookTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetWebhookTLSSecretName(b *string) {
-	p.Spec.WebhookTLSSecretName = b
-}
-
-// GetESSTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetESSTLSSecretName() *string {
-	return p.Spec.ESSTLSSecretName
-}
-
-// SetESSTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetESSTLSSecretName(s *string) {
-	p.Spec.ESSTLSSecretName = s
 }
 
 // GetTLSServerSecretName of this ConfigurationRevision.

@@ -45,7 +45,7 @@ var _ Establisher = &APIEstablisher{}
 
 func TestAPIEstablisherEstablish(t *testing.T) {
 	errBoom := errors.New("boom")
-	webhookTLSSecretName := "webhook-tls"
+	tlsServerSecretName := "tls-server-secret"
 	caBundle := []byte("CABUNDLE")
 
 	type args struct {
@@ -191,6 +191,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						Kind: "ProviderRevision",
 					},
 					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-name-1234",
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								Kind: "Provider",
@@ -203,7 +204,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 					Spec: v1.PackageRevisionSpec{
-						WebhookTLSSecretName: &webhookTLSSecretName,
+						TLSServerSecretName: &tlsServerSecretName,
 					},
 				},
 				control: true,
@@ -312,7 +313,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				},
 				parent: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
-						WebhookTLSSecretName: &webhookTLSSecretName,
+						TLSServerSecretName: &tlsServerSecretName,
 					},
 				},
 			},
@@ -334,7 +335,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				},
 				parent: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
-						WebhookTLSSecretName: &webhookTLSSecretName,
+						TLSServerSecretName: &tlsServerSecretName,
 					},
 				},
 			},
@@ -402,13 +403,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			refs, err := tc.args.est.Establish(context.TODO(), tc.args.objs, tc.args.parent, tc.args.control)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
 				return x.Name < y.Name
 			})
-			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), sort); diff != "" {
+			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), sort, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
