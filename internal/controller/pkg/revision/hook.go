@@ -328,7 +328,7 @@ func (h *FunctionHooks) ensurePrerequisites(ctx context.Context, pkgFunction *pk
 }
 
 // Post creates a packaged function deployment, service account, service and secrets if the revision is active.
-func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { 
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
 	// TODO(ezgidemirel): Can this be refactored for less complexity?
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
 	pkgFunction, ok := po.(*pkgmetav1beta1.Function)
