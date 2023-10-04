@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"golang.org/x/exp/slices"
 )
 
 // pushCmd pushes a package.
@@ -18,6 +19,24 @@ type describeCmd struct {
 }
 
 func (c *describeCmd) Run(logger logging.Logger) error {
+	logger = logger.WithValues("Kind", c.Kind, "Name", c.Name)
+
+	allowedFields := []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"}
+	allowedOutput := []string{"cli", "graph"}
+
+	// Check if fields are valid
+	for _, field := range c.Fields {
+		if !slices.Contains(allowedFields, field) {
+			logger.Debug("Invalid field set", "invalidField", field)
+			return fmt.Errorf("Invalid field set: %s\nField has to be one of: %s", field, allowedFields)
+		}
+	}
+
+	// Check if output format is valid
+	if !slices.Contains(allowedOutput, c.Output) {
+		logger.Debug("Invalid output set", "invalidOutput", c.Output)
+		return fmt.Errorf("Invalid ouput set: %s\nOutput has to be one of: %s", c.Output, allowedOutput)
+	}
 
 	fmt.Printf("Kind: %s, Name: %s, Namespace: %s", c.Kind, c.Name, c.Namespace)
 	return nil
