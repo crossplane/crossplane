@@ -76,7 +76,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&corev1.ServiceAccount{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1.ProviderRevision{})).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

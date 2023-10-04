@@ -125,7 +125,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 		For(&v1.CompositeResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -408,7 +408,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
 	cr := composite.NewReconciler(r.mgr, ck, ro...)
 	ko := r.options.ForControllerRuntime()
-	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), cr, r.options.GlobalRateLimiter)
+	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	u := &kunstructured.Unstructured{}
 	u.SetGroupVersionKind(d.GetCompositeGroupVersionKind())

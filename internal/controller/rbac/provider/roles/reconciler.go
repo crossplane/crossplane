@@ -109,7 +109,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
 			WithOptions(o.ForControllerRuntime()).
-			Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+			Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 	}
 
 	wrh := &EnqueueRequestForAllRevisionsWithRequests{
@@ -133,7 +133,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&rbacv1.ClusterRole{}, wrh).
 		Watches(&v1.ProviderRevision{}, sfh).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

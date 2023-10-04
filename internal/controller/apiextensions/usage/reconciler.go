@@ -104,7 +104,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 		Named(name).
 		For(&v1alpha1.Usage{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
