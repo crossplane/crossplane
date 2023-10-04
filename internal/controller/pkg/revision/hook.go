@@ -118,8 +118,12 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	return h.ensurePrerequisites(ctx, pkgProvider, pr)
 }
 
-// ensurePrerequisites ensures that the required secrets and services are
-// created for the provider package revision
+// ensurePrerequisites ensures that the required prerequisites are created as
+// part of the Pre hook for active provider revisions. Creates:
+//   - service: needed to expose the provider's webhook, if any.
+//   - tls server secret: needed to expose the provider's webhook over TLS, need
+//     to exist before the APIEstablisher looks for it to inject it into any
+//     CRDs/Webhooks.
 func (h *ProviderHooks) ensurePrerequisites(ctx context.Context, pkgProvider *pkgmetav1.Provider, pr v1.PackageRevision) error {
 	svc := buildProviderService(pkgProvider, pr, h.namespace)
 	if err := h.client.Apply(ctx, svc); err != nil {
@@ -189,7 +193,12 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
-// Deactivate performs operations meant to happen before deactivating a provider revision.
+// Deactivate performs operations meant to happen before deactivating a provider
+// revision.
+// Deletes all resources named after the revision, deployment, service account,
+// old service if any (see comment), leaving the ones named after the package,
+// service and TLS secrets, intact, to be updated by the next active revision,
+// if needed.
 func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
@@ -206,6 +215,8 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) e
 		return errors.Wrap(err, errDeleteProviderService)
 	}
 
+	// NOTE(phisco): Service and TLS secrets are created per package. Therefore,
+	// we're not deleting them here.
 	return nil
 }
 
@@ -288,8 +299,12 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	return h.ensurePrerequisites(ctx, pkgFunction, pr)
 }
 
-// ensurePrerequisites ensures that the required secrets and services are
-// created for the function package revision.
+// ensurePrerequisites ensures that the required prerequisites are created as
+// part of the Pre hook for active function revisions. Creates:
+//   - service: needed to expose the function
+//   - tls server secret: needed to expose the function over TLS, need to exist
+//     before the APIEstablisher looks for it to inject it into potential
+//     CRDs/Webhooks.
 func (h *FunctionHooks) ensurePrerequisites(ctx context.Context, pkgFunction *pkgmetav1beta1.Function, pr v1.PackageRevision) error {
 	svc := buildFunctionService(pkgFunction, pr, h.namespace)
 	if err := h.client.Apply(ctx, svc); err != nil {
@@ -360,7 +375,12 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
-// Deactivate performs operations meant to happen for deactivating a function revision.
+// Deactivate performs operations meant to happen for deactivating a function
+// revision.
+// Deletes all resources named after the revision, deployment, service account,
+// old service if any (see comment), leaving the ones named after the package,
+// service and TLS secret, intact, to be updated by the next active revision, if
+// needed.
 func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
