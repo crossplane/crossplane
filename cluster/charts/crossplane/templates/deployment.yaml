@@ -98,8 +98,8 @@ spec:
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
           {{- else }}
-          - name: "WEBHOOK_DISABLED"
-            value: "true"
+          - name: "WEBHOOK_ENABLED"
+            value: "false"
           {{- end }}
           {{- if $externalSecretStoresEnabled }}
           - name: "ESS_TLS_SERVER_SECRET_NAME"
@@ -164,8 +164,8 @@ spec:
             value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
           {{- end}}
           {{- if not .Values.webhooks.enabled }}
-          - name: "WEBHOOK_DISABLED"
-            value: "true"
+          - name: "WEBHOOK_ENABLED"
+            value: "false"
           {{- end }}
           - name: "TLS_SERVER_SECRET_NAME"
             value: crossplane-tls-server

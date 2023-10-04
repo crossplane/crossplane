@@ -96,7 +96,7 @@ type startCommand struct {
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
-	WebhookDisabled bool `help:"Disable webhook configuration." env:"WEBHOOK_DISABLED"`
+	WebhookEnabled bool `help:"Enable webhook configuration." default:"true" env:"WEBHOOK_ENABLED"`
 
 	TLSServerSecretName string `help:"The name of the TLS Secret that will store Crossplane's server certificate." env:"TLS_SERVER_SECRET_NAME"`
 	TLSServerCertsDir   string `help:"The path of the folder which will store TLS server certificate of Crossplane." env:"TLS_SERVER_CERTS_DIR"`
@@ -293,7 +293,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if !c.WebhookDisabled {
+	if c.WebhookEnabled {
 		// TODO(muvaf): Once the implementation of other webhook handlers are
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.

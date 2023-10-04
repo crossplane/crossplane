@@ -39,7 +39,7 @@ type initCommand struct {
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 	ServiceAccount string   `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
 
-	WebhookDisabled         bool   `help:"Disable webhook configuration." env:"WEBHOOK_DISABLED"`
+	WebhookEnabled          bool   `help:"Enable webhook configuration." default:"true" env:"WEBHOOK_ENABLED"`
 	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
 	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
 	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
@@ -65,7 +65,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.TLSCertificateGeneratorWithClientSecretName(c.TLSClientSecretName, []string{fmt.Sprintf("%s.%s", c.ServiceAccount, c.Namespace)}),
 		initializer.TLSCertificateGeneratorWithLogger(log.WithValues("Step", "TLSCertificateGenerator")),
 	}
-	if !c.WebhookDisabled {
+	if c.WebhookEnabled {
 		tlsGeneratorOpts = append(tlsGeneratorOpts,
 			initializer.TLSCertificateGeneratorWithServerSecretName(c.TLSServerSecretName, initializer.DNSNamesForService(c.WebhookServiceName, c.WebhookServiceNamespace)))
 	}
@@ -74,7 +74,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.NewCoreCRDsMigrator("compositionrevisions.apiextensions.crossplane.io", "v1alpha1"),
 		initializer.NewCoreCRDsMigrator("locks.pkg.crossplane.io", "v1alpha1"),
 	)
-	if !c.WebhookDisabled {
+	if c.WebhookEnabled {
 		nn := types.NamespacedName{
 			Name:      c.TLSServerSecretName,
 			Namespace: c.Namespace,
