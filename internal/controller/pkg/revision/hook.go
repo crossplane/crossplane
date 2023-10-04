@@ -111,11 +111,11 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 
-	if pr.GetDesiredState() == v1.PackageRevisionActive {
-		return h.ensurePrerequisites(ctx, pkgProvider, pr)
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
 	}
 
-	return nil
+	return h.ensurePrerequisites(ctx, pkgProvider, pr)
 }
 
 // ensurePrerequisites ensures that the required secrets and services are
@@ -281,11 +281,11 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
-	if pr.GetDesiredState() == v1.PackageRevisionActive {
-		return h.ensurePrerequisites(ctx, pkgFunction, pr)
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
 	}
 
-	return nil
+	return h.ensurePrerequisites(ctx, pkgFunction, pr)
 }
 
 // ensurePrerequisites ensures that the required secrets and services are
