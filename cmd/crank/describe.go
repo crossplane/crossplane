@@ -7,7 +7,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	k8s_resource "github.com/crossplane/crossplane/internal/k8s-resource"
+	"github.com/crossplane/crossplane/internal/k8s"
+	"github.com/crossplane/crossplane/internal/printer"
 	"golang.org/x/exp/slices"
 	"k8s.io/client-go/util/homedir"
 )
@@ -61,7 +62,7 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	}
 
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
-	root, err := k8s_resource.GetResource(c.Kind, c.Name, c.Namespace, c.Kubeconfig)
+	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, c.Kubeconfig)
 	if err != nil {
 		logger.Debug(getResource, "error", err)
 		return errors.Wrap(err, getResource)
@@ -70,13 +71,13 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	// Print out resource
 	switch c.Output {
 	case "cli":
-		if err := k8s_resource.PrintResourceTable(*root, c.Fields); err != nil {
+		if err := printer.CliTable(*root, c.Fields); err != nil {
 			logger.Debug(errCliOutput, "error", err)
 			return errors.Wrap(err, errCliOutput)
 		}
 	case "graph":
-		printer := k8s_resource.NewGraphPrinter()
-		if err := printer.Print(*root, c.Fields, c.OutputPath); err != nil {
+		gp := printer.NewGraphPrinter()
+		if err := gp.SaveGraph(*root, c.Fields, c.OutputPath); err != nil {
 			logger.Debug(errPngOutput, "error", err)
 			return errors.Wrap(err, errPngOutput)
 		}

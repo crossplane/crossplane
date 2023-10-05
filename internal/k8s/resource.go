@@ -1,39 +1,39 @@
-package k8s_resource
+package k8s
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type Resource struct {
-	manifest *unstructured.Unstructured
-	children []Resource
-	event    string
+	Manifest *unstructured.Unstructured
+	Children []Resource
+	Event    string
 }
 
 // Returns resource kind as string
 func (r Resource) GetKind() string {
-	return r.manifest.GetKind()
+	return r.Manifest.GetKind()
 }
 
 // Returns resource name as string
 func (r Resource) GetName() string {
-	return r.manifest.GetName()
+	return r.Manifest.GetName()
 }
 
 // Returns resource namespace as string
 func (r Resource) GetNamespace() string {
-	return r.manifest.GetNamespace()
+	return r.Manifest.GetNamespace()
 }
 
 // Returns resource apiversion as string
 func (r Resource) GetApiVersion() string {
-	return r.manifest.GetAPIVersion()
+	return r.Manifest.GetAPIVersion()
 }
 
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
 // Returns the Status of the map with the conditionType as string
 func (r Resource) GetConditionStatus(conditionKey string) string {
-	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
 		conditionMap, _ := condition.(map[string]interface{})
 		conditionType, _ := conditionMap["type"].(string)
@@ -48,7 +48,7 @@ func (r Resource) GetConditionStatus(conditionKey string) string {
 
 // Returns the message as string if one is set under `status.conditions` in the manifest.
 func (r Resource) GetConditionMessage() string {
-	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 
 	for _, item := range conditions {
 		if itemMap, ok := item.(map[string]interface{}); ok {
@@ -65,12 +65,12 @@ func (r Resource) GetConditionMessage() string {
 
 // Returns the latest event of the resource as string
 func (r Resource) GetEvent() string {
-	return r.event
+	return r.Event
 }
 
 // Returns true if the Resource has children set.
 func (r Resource) GotChildren() bool {
-	if len(r.children) > 0 {
+	if len(r.Children) > 0 {
 		return true
 	} else {
 		return false

@@ -1,21 +1,22 @@
-package k8s_resource
+package printer
 
 import (
 	"fmt"
 	"os"
 
+	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/olekukonko/tablewriter"
 )
 
 // Takes a filled Resource which should be printed as input. The fields input defines the fields which are printed out and are set as header.
 // The available fields for the fields variable are defined in the cmd/root.go file
-func PrintResourceTable(rootResource Resource, fields []string) error {
+func CliTable(rootResource k8s.Resource, fields []string) error {
 	// Create a new table and set header
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader(fields)
 
 	// add all children to the table
-	if err := printResourceAndChildren(table, fields, rootResource, ""); err != nil {
+	if err := cliTableAddResource(table, fields, rootResource, ""); err != nil {
 		return fmt.Errorf("Error getting resource field %w\n", err)
 	}
 	table.Render()
@@ -24,7 +25,7 @@ func PrintResourceTable(rootResource Resource, fields []string) error {
 }
 
 // This functions adds rows to the passed table in the order and as specified in the fields variable
-func printResourceAndChildren(table *tablewriter.Table, fields []string, r Resource, parentKind string) error {
+func cliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
 	var tableRow = make([]string, len(fields))
 
 	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument was passed
@@ -66,8 +67,8 @@ func printResourceAndChildren(table *tablewriter.Table, fields []string, r Resou
 	table.Append(tableRow)
 
 	// Recursively print children with the updated parent information.
-	for _, child := range r.children {
-		printResourceAndChildren(table, fields, child, r.GetKind())
+	for _, child := range r.Children {
+		cliTableAddResource(table, fields, child, r.GetKind())
 	}
 	return nil
 }

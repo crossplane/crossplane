@@ -1,4 +1,4 @@
-package k8s_resource
+package printer
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/emicklei/dot"
 	"github.com/goccy/go-graphviz"
 )
@@ -20,9 +21,9 @@ func NewGraphPrinter() *GraphPrinter {
 }
 
 // Set a new graph. Gets all the nodes and then prints the graph to a file.
-func (p *GraphPrinter) Print(resource Resource, fields []string, path string) error {
+func (p *GraphPrinter) SaveGraph(resource k8s.Resource, fields []string, path string) error {
 	g := dot.NewGraph(dot.Undirected)
-	p.printResourceGraph(g, resource, fields)
+	p.buildGraph(g, resource, fields)
 
 	// Save graph to file
 	g1 := graphviz.New()
@@ -39,19 +40,19 @@ func (p *GraphPrinter) Print(resource Resource, fields []string, path string) er
 }
 
 // Iteratre over resources and set ID and label(content) of each node
-func (p *GraphPrinter) printResourceGraph(g *dot.Graph, r Resource, fields []string) {
-	node := g.Node(getResourceID(r))
-	node.Label(getResourceLabel(r, fields))
+func (p *GraphPrinter) buildGraph(g *dot.Graph, r k8s.Resource, fields []string) {
+	node := g.Node(resourceId(r))
+	node.Label(resourceLabel(r, fields))
 	node.Attr("penwidth", "2")
 
-	for _, child := range r.children {
-		p.printResourceGraph(g, child, fields)
-		g.Edge(node, g.Node(getResourceID(child)))
+	for _, child := range r.Children {
+		p.buildGraph(g, child, fields)
+		g.Edge(node, g.Node(resourceId(child)))
 	}
 }
 
 // Set individual resourceID for node
-func getResourceID(r Resource) string {
+func resourceId(r k8s.Resource) string {
 	name := r.GetName()
 	if len(name) > 24 {
 		name = name[:12] + "..." + name[len(name)-12:]
@@ -62,7 +63,7 @@ func getResourceID(r Resource) string {
 
 // This functions sets the label (the actual content) of the nodes in a graph.
 // Fields are defined by the fields string.
-func getResourceLabel(r Resource, fields []string) string {
+func resourceLabel(r k8s.Resource, fields []string) string {
 
 	var label = make([]string, len(fields))
 	for i, field := range fields {
