@@ -15,8 +15,8 @@ import (
 	"k8s.io/client-go/discovery/cached/disk"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
 
@@ -29,21 +29,21 @@ type Client struct {
 
 // GetResource takes a the kind, name, namespace of a resource and a kubeconfig as input.
 // The function then returns a type Resource struct, containing itself and all its children as Resource.
-func GetResource(resourceKind string, resourceName string, namespace string, kubeconfig string) (*Resource, error) {
-	kubeClient, err := newClient(kubeconfig)
+func GetResource(resourceKind string, resourceName string, namespace string, kubeconfig *rest.Config) (*Resource, error) {
+	client, err := newClient(kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't init kubeclient -> %w", err)
 	}
 
 	// Set manifest for root resource
 	root := Resource{}
-	root.Manifest, err = kubeClient.getManifest(resourceKind, resourceName, "", namespace)
+	root.Manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't get root resource manifest -> %w", err)
 	}
 
 	// Get all children for root resource by checking resourceRef(s) in manifest
-	root, err = kubeClient.getChildren(root)
+	root, err = client.getChildren(root)
 	if err != nil {
 		return &root, fmt.Errorf("Couldn't get children of root resource -> %w", err)
 	}
@@ -146,7 +146,7 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	return r, nil
 }
 
-// The isResourceNamespaced function returns true is passed resource is namespaced, else false.
+// The isResourceNamespaced function returns true if the passed resource is namespaced, else false.
 // The functions works by getting all k8s API resources and then checking for the specific resourceKind and apiVersion passed.
 // Once a match is found it is checked if the resource is namespaced.
 // If an empty apiVersion string is passed the function also works. In that case issues may occur in case some kind exists more then once.
@@ -196,35 +196,28 @@ func (kc *Client) event(resourceName string, resourceKind string, apiVersion str
 	return latestEvent.Message, nil
 }
 
-// The newClient function returns a KubeClient struct which consists of 3 client types.
-// The dynamic client dclient, the "regular" k8s client clientset, and the discoveryClient dc
-// The rmapper can be used to set the GVR of a resource.
-func newClient(kubeconfig string) (*Client, error) {
-	// Initialize a Kubernetes client.
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
+// The newClient function initializes and returns a Client struct
+func newClient(kubeconfig *rest.Config) (*Client, error) {
 
 	// Use to get custom resources
-	dclient, err := dynamic.NewForConfig(config)
+	dclient, err := dynamic.NewForConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Use to discover API resources
-	dc, err := discovery.NewDiscoveryClientForConfig(config)
+	dc, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Use to get events
-	clientset, _ := kubernetes.NewForConfig(config)
+	clientset, _ := kubernetes.NewForConfig(kubeconfig)
 
 	discoveryCacheDir := filepath.Join(homedir.HomeDir(), ".kube", "cache", "discovery")
 	httpCacheDir := filepath.Join(homedir.HomeDir(), ".kube", "http-cache")
 	discoveryClient, err := disk.NewCachedDiscoveryClientForConfig(
-		config,
+		kubeconfig,
 		discoveryCacheDir,
 		httpCacheDir,
 		10*time.Minute)

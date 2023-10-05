@@ -2,15 +2,13 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/crossplane/crossplane/internal/printer"
 	"golang.org/x/exp/slices"
-	"k8s.io/client-go/util/homedir"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -24,7 +22,6 @@ type describeCmd struct {
 	Kind       string   `arg:"" required:"" help:"Kind of resource to describe."`
 	Name       string   `arg:"" required:"" help:"Name of specified resource to describe."`
 	Namespace  string   `short:"n" name:"namespace" help:"Namespace of resource to describe." default:"default"`
-	Kubeconfig string   `short:"k" name:"kubeconfig" help:"Absolute path to kubeconfig."`
 	Output     string   `short:"o" name:"output" help:"Output type of graph. Possible output types: cli, graph." enum:"cli,graph" default:"cli"`
 	Fields     []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"parent,kind,name,synced,ready"`
 	OutputPath string   `short:"p" name:"path" help:"Output path for graph PNG. Only valid when set with output=graph."`
@@ -50,19 +47,16 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 		return fmt.Errorf("Invalid ouput set: %s\nOutput has to be one of: %s", c.Output, allowedOutput)
 	}
 
-	// Get and set kubeconfig
-	// 1.Checks flag Kubeconfig 2. Check env var `KUBECONFIG` 3. Check ~/.kube/config dir
-	if c.Kubeconfig == "" {
-		c.Kubeconfig = os.Getenv("KUBECONFIG")
-		logger.Debug("Set Kubeconfig via environment variable `KUBECONFIG`", "kubeconfig-path", c.Kubeconfig)
+	// set kubeconfig
+	kubeconfig, err := ctrl.GetConfig()
+	if err != nil {
+		logger.Debug(errKubeConfig, "error", err)
+		return errors.Wrap(err, errKubeConfig)
 	}
-	if c.Kubeconfig == "" {
-		c.Kubeconfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
-		logger.Debug("Used Kubeconfig file stored in homeDir", "kubeconfig-path", c.Kubeconfig)
-	}
+	logger.Debug("Found kubeconfig")
 
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
-	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, c.Kubeconfig)
+	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, kubeconfig)
 	if err != nil {
 		logger.Debug(getResource, "error", err)
 		return errors.Wrap(err, getResource)

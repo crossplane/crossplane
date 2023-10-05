@@ -46,7 +46,7 @@ func (r Resource) GetConditionStatus(conditionKey string) string {
 	return ""
 }
 
-// Returns the message as string if one is set under `status.conditions` in the manifest.
+// Returns the message as string if set under `status.conditions` in the manifest. Else return empty string
 func (r Resource) GetConditionMessage() string {
 	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 
