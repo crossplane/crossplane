@@ -61,6 +61,22 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	return stringRefs
 }
 
+// PackageWithRuntime is the interface satisfied by packages with runtime types.
+// +k8s:deepcopy-gen=false
+type PackageWithRuntime interface {
+	Package
+
+	GetControllerConfigRef() *ControllerConfigReference
+	SetControllerConfigRef(r *ControllerConfigReference)
+
+	GetRuntimeConfigRef() *RuntimeConfigReference
+	SetRuntimeConfigRef(r *RuntimeConfigReference)
+
+	GetTLSServerSecretName() *string
+
+	GetTLSClientSecretName() *string
+}
+
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
 type Package interface {
@@ -85,9 +101,6 @@ type Package interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
-
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
 
@@ -99,10 +112,6 @@ type Package interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
-
-	GetTLSServerSecretName() *string
-
-	GetTLSClientSecretName() *string
 }
 
 // GetCondition of this Provider.
@@ -183,6 +192,16 @@ func (p *Provider) GetControllerConfigRef() *ControllerConfigReference {
 // SetControllerConfigRef of this Provider.
 func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
+}
+
+// GetRuntimeConfigRef of this Provider.
+func (p *Provider) GetRuntimeConfigRef() *RuntimeConfigReference {
+	return p.Spec.RuntimeConfigReference
+}
+
+// SetRuntimeConfigRef of this Provider.
+func (p *Provider) SetRuntimeConfigRef(r *RuntimeConfigReference) {
+	p.Spec.RuntimeConfigReference = r
 }
 
 // GetCurrentRevision of this Provider.
@@ -305,14 +324,6 @@ func (p *Configuration) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this Configuration.
-func (p *Configuration) GetControllerConfigRef() *ControllerConfigReference {
-	return nil
-}
-
-// SetControllerConfigRef of this Configuration.
-func (p *Configuration) SetControllerConfigRef(_ *ControllerConfigReference) {}
-
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
 	return p.Status.CurrentRevision
@@ -353,14 +364,23 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
-// GetTLSServerSecretName of this Configuration.
-func (p *Configuration) GetTLSServerSecretName() *string {
-	return nil
-}
+// PackageWithRuntimeRevision is the interface satisfied by revision of packages
+// with runtime types.
+// +k8s:deepcopy-gen=false
+type PackageWithRuntimeRevision interface {
+	PackageRevision
 
-// GetTLSClientSecretName of this Configuration.
-func (p *Configuration) GetTLSClientSecretName() *string {
-	return nil
+	GetControllerConfigRef() *ControllerConfigReference
+	SetControllerConfigRef(r *ControllerConfigReference)
+
+	GetRuntimeConfigRef() *RuntimeConfigReference
+	SetRuntimeConfigRef(r *RuntimeConfigReference)
+
+	GetTLSServerSecretName() *string
+	SetTLSServerSecretName(n *string)
+
+	GetTLSClientSecretName() *string
+	SetTLSClientSecretName(n *string)
 }
 
 // PackageRevision is the interface satisfied by package revision types.
@@ -390,9 +410,6 @@ type PackageRevision interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
-
 	GetRevision() int64
 	SetRevision(r int64)
 
@@ -404,12 +421,6 @@ type PackageRevision interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
-
-	GetTLSServerSecretName() *string
-	SetTLSServerSecretName(n *string)
-
-	GetTLSClientSecretName() *string
-	SetTLSClientSecretName(n *string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -522,6 +533,16 @@ func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
 // SetControllerConfigRef of this ProviderREvsion.
 func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
+}
+
+// GetRuntimeConfigRef of this ProviderRevision.
+func (p *ProviderRevision) GetRuntimeConfigRef() *RuntimeConfigReference {
+	return p.Spec.RuntimeConfigReference
+}
+
+// SetRuntimeConfigRef of this ProviderREvsion.
+func (p *ProviderRevision) SetRuntimeConfigRef(r *RuntimeConfigReference) {
+	p.Spec.RuntimeConfigReference = r
 }
 
 // GetSkipDependencyResolution of this ProviderRevision.
@@ -666,16 +687,6 @@ func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerConfigRef() *ControllerConfigReference {
-	return p.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerConfigRef(r *ControllerConfigReference) {
-	p.Spec.ControllerConfigReference = r
-}
-
 // GetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 	return p.Spec.SkipDependencyResolution
@@ -684,26 +695,6 @@ func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
-}
-
-// GetTLSServerSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetTLSServerSecretName() *string {
-	return p.Spec.TLSServerSecretName
-}
-
-// SetTLSServerSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetTLSServerSecretName(s *string) {
-	p.Spec.TLSServerSecretName = s
-}
-
-// GetTLSClientSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetTLSClientSecretName() *string {
-	return p.Spec.TLSClientSecretName
-}
-
-// SetTLSClientSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetTLSClientSecretName(s *string) {
-	p.Spec.TLSClientSecretName = s
 }
 
 // GetCommonLabels of this ConfigurationRevision.

@@ -68,13 +68,13 @@ const (
 // A Hooks performs operations before and after a revision establishes objects.
 type Hooks interface {
 	// Pre performs operations meant to happen before establishing objects.
-	Pre(context.Context, runtime.Object, v1.PackageRevision) error
+	Pre(context.Context, runtime.Object, v1.PackageWithRuntimeRevision) error
 
 	// Post performs operations meant to happen after establishing objects.
-	Post(context.Context, runtime.Object, v1.PackageRevision) error
+	Post(context.Context, runtime.Object, v1.PackageWithRuntimeRevision) error
 
 	// Deactivate performs operations meant to happen before deactivating a revision.
-	Deactivate(context.Context, v1.PackageRevision) error
+	Deactivate(context.Context, v1.PackageWithRuntimeRevision) error
 }
 
 // ProviderHooks performs operations for a provider package that requires a
@@ -95,7 +95,7 @@ func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccoun
 }
 
 // Pre fills permission requests from the provider package to the revision.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -124,7 +124,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 //   - tls server secret: needed to expose the provider's webhook over TLS, need
 //     to exist before the APIEstablisher looks for it to inject it into any
 //     CRDs/Webhooks.
-func (h *ProviderHooks) ensurePrerequisites(ctx context.Context, pkgProvider *pkgmetav1.Provider, pr v1.PackageRevision) error {
+func (h *ProviderHooks) ensurePrerequisites(ctx context.Context, pkgProvider *pkgmetav1.Provider, pr v1.PackageWithRuntimeRevision) error {
 	svc := buildProviderService(pkgProvider, pr, h.namespace)
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
@@ -154,7 +154,7 @@ func (h *ProviderHooks) ensurePrerequisites(ctx context.Context, pkgProvider *pk
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -199,7 +199,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 // old service if any (see comment), leaving the ones named after the package,
 // service and TLS secrets, intact, to be updated by the next active revision,
 // if needed.
-func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
@@ -231,37 +231,13 @@ func (h *ProviderHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObj
 	return sa.ImagePullSecrets, nil
 }
 
-func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1.PackageWithRuntimeRevision) (*v1alpha1.ControllerConfig, error) {
 	if pr.GetControllerConfigRef() == nil {
 		return nil, nil
 	}
 	cc := &v1alpha1.ControllerConfig{}
 	err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc)
 	return cc, errors.Wrap(err, errGetControllerConfig)
-}
-
-// ConfigurationHooks performs operations for a configuration package before and
-// after the revision establishes objects.
-type ConfigurationHooks struct{}
-
-// NewConfigurationHooks creates a new ConfigurationHook.
-func NewConfigurationHooks() *ConfigurationHooks {
-	return &ConfigurationHooks{}
-}
-
-// Pre sets status fields based on the configuration package.
-func (h *ConfigurationHooks) Pre(_ context.Context, _ runtime.Object, _ v1.PackageRevision) error {
-	return nil
-}
-
-// Post is a no op for configuration packages.
-func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1.PackageRevision) error {
-	return nil
-}
-
-// Deactivate is a no op for configuration packages.
-func (h *ConfigurationHooks) Deactivate(_ context.Context, _ v1.PackageRevision) error {
-	return nil
 }
 
 // FunctionHooks performs operations for a function package that requires a
@@ -283,7 +259,7 @@ func NewFunctionHooks(client resource.ClientApplicator, namespace, serviceAccoun
 
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
-func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision) error {
 	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
 	pkgFunction, ok := fo.(*pkgmetav1beta1.Function)
 	if !ok {
@@ -305,7 +281,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 //   - tls server secret: needed to expose the function over TLS, need to exist
 //     before the APIEstablisher looks for it to inject it into potential
 //     CRDs/Webhooks.
-func (h *FunctionHooks) ensurePrerequisites(ctx context.Context, pkgFunction *pkgmetav1beta1.Function, pr v1.PackageRevision) error {
+func (h *FunctionHooks) ensurePrerequisites(ctx context.Context, pkgFunction *pkgmetav1beta1.Function, pr v1.PackageWithRuntimeRevision) error {
 	svc := buildFunctionService(pkgFunction, pr, h.namespace)
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
@@ -328,7 +304,7 @@ func (h *FunctionHooks) ensurePrerequisites(ctx context.Context, pkgFunction *pk
 }
 
 // Post creates a packaged function deployment, service account, service and secrets if the revision is active.
-func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision) error {
 	// TODO(ezgidemirel): Can this be refactored for less complexity?
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
 	pkgFunction, ok := po.(*pkgmetav1beta1.Function)
@@ -381,7 +357,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 // old service if any (see comment), leaving the ones named after the package,
 // service and TLS secret, intact, to be updated by the next active revision, if
 // needed.
-func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevision) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision) error {
 	// Delete the deployment if it exists.
 	if err := h.client.Delete(ctx, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: pr.GetName(), Namespace: h.namespace}}); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteFunctionDeployment)
@@ -407,7 +383,7 @@ func (h *FunctionHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObj
 	return sa.ImagePullSecrets, nil
 }
 
-func (h *FunctionHooks) getControllerConfig(ctx context.Context, pr v1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+func (h *FunctionHooks) getControllerConfig(ctx context.Context, pr v1.PackageWithRuntimeRevision) (*v1alpha1.ControllerConfig, error) {
 	if pr.GetControllerConfigRef() == nil {
 		return nil, nil
 	}
@@ -425,16 +401,16 @@ func NewNopHooks() *NopHooks {
 }
 
 // Pre does nothing and returns nil.
-func (h *NopHooks) Pre(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *NopHooks) Pre(context.Context, runtime.Object, v1.PackageWithRuntimeRevision) error {
 	return nil
 }
 
 // Post does nothing and returns nil.
-func (h *NopHooks) Post(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *NopHooks) Post(context.Context, runtime.Object, v1.PackageWithRuntimeRevision) error {
 	return nil
 }
 
 // Deactivate does nothing and returns nil.
-func (h *NopHooks) Deactivate(context.Context, v1.PackageRevision) error {
+func (h *NopHooks) Deactivate(context.Context, v1.PackageWithRuntimeRevision) error {
 	return nil
 }

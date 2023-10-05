@@ -68,6 +68,8 @@ const (
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
 
+	errUnexpectedPackageRevision = "unexpected package revision, expected a revision with runtime"
+
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
 
@@ -394,10 +396,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
-	pr.SetControllerConfigRef(p.GetControllerConfigRef())
-	pr.SetTLSServerSecretName(p.GetTLSServerSecretName())
-	pr.SetTLSClientSecretName(p.GetTLSClientSecretName())
 	pr.SetCommonLabels(p.GetCommonLabels())
+
+	if pwr, ok := p.(v1.PackageWithRuntime); ok {
+		pwrr, ok := pr.(v1.PackageWithRuntimeRevision)
+		if !ok {
+			log.Debug(errUnexpectedPackageRevision)
+			err = errors.New(errUnexpectedPackageRevision)
+			r.record.Event(p, event.Warning(reasonInstall, err))
+			return reconcile.Result{}, err
+		}
+		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
+		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
+		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+	}
 
 	// If current revision is not active and we have an automatic or
 	// undefined activation policy, always activate.

@@ -68,7 +68,7 @@ const (
 	tlsClientCertsDir        = "/tls/client"
 )
 
-func buildProviderSecrets(revision v1.PackageRevision, namespace string) (serverSec *corev1.Secret, clientSec *corev1.Secret) {
+func buildProviderSecrets(revision v1.PackageWithRuntimeRevision, namespace string) (serverSec *corev1.Secret, clientSec *corev1.Secret) {
 	if tlsServerSecretName := revision.GetTLSServerSecretName(); tlsServerSecretName != nil {
 		serverSec = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -108,7 +108,7 @@ func buildProviderServiceLabelSelector(provider *pkgmetav1.Provider, revision v1
 }
 
 // Returns the service account, deployment, service, server and client TLS secrets of the provider.
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment) {
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageWithRuntimeRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -232,7 +232,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	return s, d
 }
 
-func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment) {
+func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.PackageWithRuntimeRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -325,7 +325,7 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 	return s, d
 }
 
-func buildFunctionSecret(revision v1.PackageRevision, namespace string) (serverSec *corev1.Secret) {
+func buildFunctionSecret(revision v1.PackageWithRuntimeRevision, namespace string) (serverSec *corev1.Secret) {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *revision.GetTLSServerSecretName(),

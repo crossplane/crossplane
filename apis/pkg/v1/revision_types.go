@@ -36,11 +36,6 @@ const (
 
 // PackageRevisionSpec specifies the desired state of a PackageRevision.
 type PackageRevisionSpec struct {
-	// ControllerConfigRef references a ControllerConfig resource that will be
-	// used to configure the packaged controller Deployment.
-	// +optional
-	ControllerConfigReference *ControllerConfigReference `json:"controllerConfigRef,omitempty"`
-
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
 
@@ -80,37 +75,12 @@ type PackageRevisionSpec struct {
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 
-	// WebhookTLSSecretName is the name of the TLS Secret that will be used
-	// by the provider to serve a TLS-enabled webhook server. The certificate
-	// will be injected to webhook configurations as well as CRD conversion
-	// webhook strategy if needed.
-	// If it's not given, provider will not have a certificate mounted to its
-	// filesystem, webhook configurations won't be deployed and if there is a
-	// CRD with webhook conversion strategy, the installation will fail.
-	// +optional
-	WebhookTLSSecretName *string `json:"webhookTLSSecretName,omitempty"`
-
 	// Map of string keys and values that can be used to organize and categorize
 	// (scope and select) objects. May match selectors of replication controllers
 	// and services.
 	// More info: http://kubernetes.io/docs/user-guide/labels
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
-
-	// ESSTLSSecretName is the secret name of the TLS certificates that will be used
-	// by the provider for External Secret Stores.
-	// +optional
-	ESSTLSSecretName *string `json:"essTLSSecretName,omitempty"`
-
-	// TLSServerSecretName is the name of the TLS Secret that stores server
-	// certificates of the Provider.
-	// +optional
-	TLSServerSecretName *string `json:"tlsServerSecretName,omitempty"`
-
-	// TLSClientSecretName is the name of the TLS Secret that stores client
-	// certificates of the Provider.
-	// +optional
-	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
@@ -143,12 +113,5 @@ type PackageRevisionStatus struct {
 // that is responsible for reconciling the types a package revision installs.
 type ControllerReference struct {
 	// Name of the controller.
-	Name string `json:"name"`
-}
-
-// A ControllerConfigReference to a ControllerConfig resource that will be used
-// to configure the packaged controller Deployment.
-type ControllerConfigReference struct {
-	// Name of the ControllerConfig.
 	Name string `json:"name"`
 }
