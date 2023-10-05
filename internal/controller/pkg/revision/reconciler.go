@@ -310,7 +310,6 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ConfigurationPackageType)),
-		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -702,16 +701,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
-		log.Debug(errPreHook, "error", err)
+	if pwr, ok := pr.(v1.PackageWithRuntimeRevision); ok {
+		if err := r.hook.Pre(ctx, pkgMeta, pwr); err != nil {
+			log.Debug(errPreHook, "error", err)
 
-		err = errors.Wrap(err, errPreHook)
-		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
-		_ = r.client.Status().Update(ctx, pr)
+			err = errors.Wrap(err, errPreHook)
+			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+			_ = r.client.Status().Update(ctx, pr)
 
-		r.record.Event(pr, event.Warning(reasonSync, err))
+			r.record.Event(pr, event.Warning(reasonSync, err))
 
-		return reconcile.Result{}, err
+			return reconcile.Result{}, err
+		}
 	}
 
 	// Establish control or ownership of objects.
@@ -745,16 +746,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	})
 	pr.SetObjects(refs)
 
-	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
-		log.Debug(errPostHook, "error", err)
+	if pwr, ok := pr.(v1.PackageWithRuntimeRevision); ok {
+		if err := r.hook.Post(ctx, pkgMeta, pwr); err != nil {
+			log.Debug(errPostHook, "error", err)
 
-		err = errors.Wrap(err, errPostHook)
-		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
-		_ = r.client.Status().Update(ctx, pr)
+			err = errors.Wrap(err, errPostHook)
+			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+			_ = r.client.Status().Update(ctx, pr)
 
-		r.record.Event(pr, event.Warning(reasonSync, err))
+			r.record.Event(pr, event.Warning(reasonSync, err))
 
-		return reconcile.Result{}, err
+			return reconcile.Result{}, err
+		}
 	}
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
@@ -774,8 +777,10 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 	}
 
 	// Call deactivation hook.
-	if err := r.hook.Deactivate(ctx, pr); err != nil {
-		return errors.Wrap(err, errDeactivationHook)
+	if pwr, ok := pr.(v1.PackageWithRuntimeRevision); ok {
+		if err := r.hook.Deactivate(ctx, pwr); err != nil {
+			return errors.Wrap(err, errDeactivationHook)
+		}
 	}
 
 	return nil

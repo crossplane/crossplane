@@ -57,6 +57,17 @@ spec:
                   and categorize (scope and select) objects. May match selectors of
                   replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels'
                 type: object
+              controllerConfigRef:
+                description: 'ControllerConfigRef references a ControllerConfig resource
+                  that will be used to configure the packaged controller Deployment.
+                  Deprecated: Use RuntimeConfigReference instead.'
+                properties:
+                  name:
+                    description: Name of the ControllerConfig.
+                    type: string
+                required:
+                - name
+                type: object
               ignoreCrossplaneConstraints:
                 default: false
                 description: IgnoreCrossplaneConstraints indicates to the package
@@ -98,6 +109,24 @@ spec:
                   disabled by explicitly setting to 0.
                 format: int64
                 type: integer
+              runtimeConfigRef:
+                description: RuntimeConfigRef references a RuntimeConfig resource
+                  that will be used to configure the package runtime.
+                properties:
+                  apiVersion:
+                    default: pkg.crossplane.io/v1beta1
+                    description: API version of the referent.
+                    type: string
+                  kind:
+                    default: DeploymentRuntimeConfig
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the RuntimeConfig.
+                    type: string
+                required:
+                - name
+                type: object
               skipDependencyResolution:
                 default: false
                 description: SkipDependencyResolution indicates to the package manager

@@ -56,7 +56,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: PackageRevisionSpec specifies the desired state of a PackageRevision.
+            description: FunctionRevisionSpec specifies configuration for a FunctionRevision.
             properties:
               commonLabels:
                 additionalProperties:
@@ -66,8 +66,9 @@ spec:
                   replication controllers and services. More info: http://kubernetes.io/docs/user-guide/labels'
                 type: object
               controllerConfigRef:
-                description: ControllerConfigRef references a ControllerConfig resource
+                description: 'ControllerConfigRef references a ControllerConfig resource
                   that will be used to configure the packaged controller Deployment.
+                  Deprecated: Use RuntimeConfigReference instead.'
                 properties:
                   name:
                     description: Name of the ControllerConfig.
@@ -78,10 +79,6 @@ spec:
               desiredState:
                 description: DesiredState of the PackageRevision. Can be either Active
                   or Inactive.
-                type: string
-              essTLSSecretName:
-                description: ESSTLSSecretName is the secret name of the TLS certificates
-                  that will be used by the provider for External Secret Stores.
                 type: string
               ignoreCrossplaneConstraints:
                 default: false
@@ -120,6 +117,24 @@ spec:
                   garbage collected based on the parent's RevisionHistoryLimit.
                 format: int64
                 type: integer
+              runtimeConfigRef:
+                description: RuntimeConfigRef references a RuntimeConfig resource
+                  that will be used to configure the package runtime.
+                properties:
+                  apiVersion:
+                    default: pkg.crossplane.io/v1beta1
+                    description: API version of the referent.
+                    type: string
+                  kind:
+                    default: DeploymentRuntimeConfig
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the RuntimeConfig.
+                    type: string
+                required:
+                - name
+                type: object
               skipDependencyResolution:
                 default: false
                 description: SkipDependencyResolution indicates to the package manager
@@ -133,15 +148,6 @@ spec:
               tlsServerSecretName:
                 description: TLSServerSecretName is the name of the TLS Secret that
                   stores server certificates of the Provider.
-                type: string
-              webhookTLSSecretName:
-                description: WebhookTLSSecretName is the name of the TLS Secret that
-                  will be used by the provider to serve a TLS-enabled webhook server.
-                  The certificate will be injected to webhook configurations as well
-                  as CRD conversion webhook strategy if needed. If it's not given,
-                  provider will not have a certificate mounted to its filesystem,
-                  webhook configurations won't be deployed and if there is a CRD with
-                  webhook conversion strategy, the installation will fail.
                 type: string
             required:
             - desiredState

@@ -53,6 +53,8 @@ type Function struct {
 // FunctionSpec specifies the configuration of a Function.
 type FunctionSpec struct {
 	v1.PackageSpec `json:",inline"`
+
+	v1.PackageRuntimeSpec `json:",inline"`
 }
 
 // FunctionStatus represents the observed state of a Function.
@@ -68,6 +70,12 @@ type FunctionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Function `json:"items"`
+}
+
+// FunctionRevisionSpec specifies configuration for a FunctionRevision.
+type FunctionRevisionSpec struct {
+	v1.PackageRevisionSpec        `json:",inline"`
+	v1.PackageRevisionRuntimeSpec `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -89,7 +97,7 @@ type FunctionRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   v1.PackageRevisionSpec `json:"spec,omitempty"`
+	Spec   FunctionRevisionSpec   `json:"spec,omitempty"`
 	Status FunctionRevisionStatus `json:"status,omitempty"`
 }
 
