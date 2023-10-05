@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	getResource  = "Couldn't get requested resource."
-	errCliOutput = "Error printing CLI table."
-	errPngOutput = "Error generating graph PNG."
+	errGetResource = "Couldn't get requested resource."
+	errCliOutput   = "Error printing CLI table."
+	errGraphOutput = "Error generating graph PNG."
 )
 
 // describeCmd describes a Kubernetes Crossplane resource.
@@ -58,8 +58,8 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
 	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, kubeconfig)
 	if err != nil {
-		logger.Debug(getResource, "error", err)
-		return errors.Wrap(err, getResource)
+		logger.Debug(errGetResource, "error", err)
+		return errors.Wrap(err, errGetResource)
 	}
 
 	// Print out resource
@@ -72,8 +72,8 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	case "graph":
 		gp := printer.NewGraphPrinter()
 		if err := gp.SaveGraph(*root, c.Fields, c.OutputPath); err != nil {
-			logger.Debug(errPngOutput, "error", err)
-			return errors.Wrap(err, errPngOutput)
+			logger.Debug(errGraphOutput, "error", err)
+			return errors.Wrap(err, errGraphOutput)
 		}
 	}
 
