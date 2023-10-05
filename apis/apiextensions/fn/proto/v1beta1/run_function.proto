@@ -59,7 +59,7 @@ message RunFunctionRequest {
   // Function. A Function may also return context in its RunFunctionResponse,
   // and that context will be passed to subsequent Functions. Crossplane
   // discards all context returned by the last Function in the pipeline.
-  map<string, google.protobuf.Value> context = 5;
+  optional google.protobuf.Struct context = 5;
 }
 
 // A RunFunctionResponse contains the result of a Composition Function run.
@@ -88,7 +88,7 @@ message RunFunctionResponse {
   // Function. A Function may also return context in its RunFunctionResponse,
   // and that context will be passed to subsequent Functions. Crossplane
   // discards all context returned by the last Function in the pipeline.
-  map<string, google.protobuf.Value> context = 5;
+  optional google.protobuf.Struct context = 5;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.

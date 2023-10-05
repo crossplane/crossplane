@@ -235,7 +235,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	d := &v1beta1.State{}
 
 	// The Function context starts with empty desired state...
-	fctx := make(map[string]*structpb.Value)
+	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
 
 	// ...but we bootstrap it with the Composition environment, if there is one.
 	if req.Environment != nil {
@@ -243,7 +243,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		if err != nil {
 			return CompositionResult{}, errors.Wrap(err, errEnvAsStruct)
 		}
-		fctx[FunctionContextKeyEnvironment] = structpb.NewStructValue(e)
+		fctx.Fields[FunctionContextKeyEnvironment] = structpb.NewStructValue(e)
 	}
 
 	events := []event.Event{}
