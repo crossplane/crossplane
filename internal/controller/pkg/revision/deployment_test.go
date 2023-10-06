@@ -169,8 +169,8 @@ func deploymentProvider(provider *pkgmetav1.Provider, revision string, img strin
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          promPortName,
-									ContainerPort: promPortNumber,
+									Name:          metricsPortName,
+									ContainerPort: metricsPortNumber,
 								},
 								{
 									Name:          webhookPortName,
@@ -311,8 +311,8 @@ func deploymentFunction(function *pkgmetav1beta1.Function, revision string, img 
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          promPortName,
-									ContainerPort: promPortNumber,
+									Name:          metricsPortName,
+									ContainerPort: metricsPortNumber,
 								},
 								{
 									Name:          grpcPortName,
