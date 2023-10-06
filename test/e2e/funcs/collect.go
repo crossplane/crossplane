@@ -97,6 +97,9 @@ func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.Disc
 				// maybe this is an XR with resource reference to the claim? Fake owner refs.
 				comp := composite.Unstructured{Unstructured: obj}
 				refs = append(refs, comp.GetResourceReferences()...)
+				if ref := comp.GetClaimReference(); ref != nil {
+					refs = append(refs, *ref)
+				}
 
 				for _, ref := range refs {
 					group, version := parseAPIVersion(ref.APIVersion)
