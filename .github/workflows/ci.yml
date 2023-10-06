@@ -302,7 +302,7 @@ jobs:
           BUILD_ARGS: "--load"
 
       - name: Run E2E Tests
-        run: make e2e E2E_TEST_FLAGS="-test.v --test-suite ${{ matrix.test-suite }}"
+        run: make e2e E2E_TEST_FLAGS="-test.v -test.failfast --test-suite ${{ matrix.test-suite }}"
 
   publish-artifacts:
     runs-on: ubuntu-22.04
