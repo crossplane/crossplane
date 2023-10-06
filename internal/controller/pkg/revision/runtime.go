@@ -166,14 +166,32 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.
 	return svc
 }
 
-func (b *RuntimeManifestBuilder) TLSServerSecret() *corev1.Secret {
-	//TODO implement me
-	panic("implement me")
+func (b *RuntimeManifestBuilder) TLSClientSecret() *corev1.Secret {
+	if b.revision.GetTLSClientSecretName() == nil {
+		return nil
+	}
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *b.revision.GetTLSClientSecretName(),
+			Namespace:       b.namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
+		},
+	}
 }
 
-func (b *RuntimeManifestBuilder) TLSClientSecret() *corev1.Secret {
-	//TODO implement me
-	panic("implement me")
+func (b *RuntimeManifestBuilder) TLSServerSecret() *corev1.Secret {
+	if b.revision.GetTLSServerSecretName() == nil {
+		return nil
+	}
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *b.revision.GetTLSServerSecretName(),
+			Namespace:       b.namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
+		},
+	}
 }
 
 func (b *RuntimeManifestBuilder) podSelectors() map[string]string {

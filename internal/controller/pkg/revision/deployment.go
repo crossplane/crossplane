@@ -30,7 +30,6 @@ import (
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/internal/initializer"
 )
 
 var (
@@ -440,38 +439,6 @@ func setControllerConfigConfigurations(s *corev1.ServiceAccount, cc *v1alpha1.Co
 		d.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
 	}
-}
-
-func mountTLSSecret(secret, volName, mountPath, envName string, d *appsv1.Deployment) {
-	v := corev1.Volume{
-		Name: volName,
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: secret,
-				Items: []corev1.KeyToPath{
-					// These are known and validated keys in TLS secrets.
-					{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
-					{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
-					{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
-				},
-			},
-		},
-	}
-	d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-
-	vm := corev1.VolumeMount{
-		Name:      volName,
-		ReadOnly:  true,
-		MountPath: mountPath,
-	}
-	d.Spec.Template.Spec.Containers[0].VolumeMounts =
-		append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
-
-	envs := []corev1.EnvVar{
-		{Name: envName, Value: mountPath},
-	}
-	d.Spec.Template.Spec.Containers[0].Env =
-		append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 }
 
 func getService(name, namespace string, owners []metav1.OwnerReference, matchLabels map[string]string) *corev1.Service {
