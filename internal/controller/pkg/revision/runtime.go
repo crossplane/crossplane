@@ -63,6 +63,7 @@ const (
 
 const (
 	errGetControllerConfig = "cannot get referenced controller config"
+	errGetRuntimeConfig    = "cannot get referenced deployment runtime config"
 	errGetServiceAccount   = "cannot get Crossplane service account"
 )
 
@@ -99,6 +100,7 @@ type RuntimeManifestBuilder struct {
 	namespace                 string
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	controllerConfig          *v1alpha1.ControllerConfig
+	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 }
 
 // NewRuntimeManifestBuilder returns a new RuntimeManifestBuilder.
@@ -114,6 +116,14 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 			return nil, errors.Wrap(err, errGetControllerConfig)
 		}
 		b.controllerConfig = cc
+	}
+
+	if rcRef := pwr.GetRuntimeConfigRef(); rcRef != nil {
+		rc := &v1beta1.DeploymentRuntimeConfig{}
+		if err := client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
+			return nil, errors.Wrap(err, errGetControllerConfig)
+		}
+		b.runtimeConfig = rc
 	}
 
 	sa := &corev1.ServiceAccount{}

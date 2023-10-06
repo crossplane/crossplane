@@ -95,6 +95,8 @@ type startCommand struct {
 	CABundlePath   string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
 	UserAgent      string `help:"The User-Agent header that will be set on all package requests." default:"${default_user_agent}" env:"USER_AGENT"`
 
+	PackageRuntime string `helm:"The package runtime to use for packages with runtime" default:"Deployment" env:"PACKAGE_RUNTIME"`
+
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
@@ -282,6 +284,17 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot setup API extension controllers")
 	}
 
+	var pr pkgcontroller.PackageRuntime
+	switch c.PackageRuntime {
+	case string(pkgcontroller.PackageRuntimeDeployment):
+		pr = pkgcontroller.PackageRuntimeDeployment
+	case string(pkgcontroller.PackageRuntimeExternal):
+		pr = pkgcontroller.PackageRuntimeExternal
+	default:
+		return errors.Errorf("unsupported package runtime %q, supported runtimes are %q and %q",
+			c.PackageRuntime, pkgcontroller.PackageRuntimeDeployment, pkgcontroller.PackageRuntimeExternal)
+	}
+
 	po := pkgcontroller.Options{
 		Options:         o,
 		Cache:           xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
@@ -289,6 +302,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		ServiceAccount:  c.ServiceAccount,
 		DefaultRegistry: c.Registry,
 		FetcherOptions:  []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		PackageRuntime:  pr,
 	}
 
 	if c.CABundlePath != "" {

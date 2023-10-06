@@ -273,10 +273,9 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
-	r := NewReconciler(mgr,
+	ro := []ReconcilerOption{
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ProviderPackageType)),
-		WithRuntimeHooks(NewProviderHooks(mgr.GetClient())),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -286,7 +285,11 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-	)
+	}
+
+	if o.PackageRuntime == controller.PackageRuntimeDeployment {
+		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -299,7 +302,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
@@ -369,10 +372,9 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
-	r := NewReconciler(mgr,
+	ro := []ReconcilerOption{
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.FunctionPackageType)),
-		WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -382,7 +384,11 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
-	)
+	}
+
+	if o.PackageRuntime == controller.PackageRuntimeDeployment {
+		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -395,7 +401,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package revision reconciler.
@@ -490,9 +496,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	var runtimeManifestBuilder ManifestBuilder
+	if r.runtimeHook != nil {
+		var err error
+		runtimeManifestBuilder, err = NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pr.(v1.PackageRevisionWithRuntime))
+		if err != nil {
+			log.Debug(errManifestBuilder, "error", err)
+
+			err = errors.Wrap(err, errManifestBuilder)
+			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+			_ = r.client.Status().Update(ctx, pr)
+
+			r.record.Event(pr, event.Warning(reasonSync, err))
+
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
-		if err := r.deactivateRevision(ctx, pr); err != nil {
+		if err := r.deactivateRevision(ctx, pr, runtimeManifestBuilder); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -715,22 +738,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	var manifests ManifestBuilder
 	if r.runtimeHook != nil {
 		pwr := pr.(v1.PackageRevisionWithRuntime)
-		manifests, err = NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pwr)
-		if err != nil {
-			err = errors.Wrap(err, errManifestBuilder)
-			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
-			_ = r.client.Status().Update(ctx, pr)
-
-			r.record.Event(pr, event.Warning(reasonSync, err))
-
-			return reconcile.Result{}, err
-		}
-
-		if err := r.runtimeHook.Pre(ctx, pkgMeta, pwr, manifests); err != nil {
-			log.Debug(errPreHook, "error", err)
+		if err := r.runtimeHook.Pre(ctx, pkgMeta, pwr, runtimeManifestBuilder); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -779,7 +789,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetObjects(refs)
 
 	if r.runtimeHook != nil {
-		if err := r.runtimeHook.Post(ctx, pkgMeta, pr.(v1.PackageRevisionWithRuntime), manifests); err != nil {
+		if err := r.runtimeHook.Post(ctx, pkgMeta, pr.(v1.PackageRevisionWithRuntime), runtimeManifestBuilder); err != nil {
 		    if kerrors.IsConflict(err) {
 			    return reconcile.Result{Requeue: true}, nil
 		    }
@@ -799,7 +809,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 
-func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision) error {
+func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision, runtimeManifestBuilder ManifestBuilder) error {
 	// Remove self from the lock if we are present.
 	if err := r.lock.RemoveSelf(ctx, pr); err != nil {
 		return errors.Wrap(err, errRemoveLock)
@@ -814,14 +824,8 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 		return nil
 	}
 
-	pwr := pr.(v1.PackageRevisionWithRuntime)
-	manifests, err := NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pwr)
-	if err != nil {
-		return errors.Wrap(err, errManifestBuilder)
-	}
-
 	// Call deactivation hook.
-	if err := r.runtimeHook.Deactivate(ctx, pr.(v1.PackageRevisionWithRuntime), manifests); err != nil {
+	if err := r.runtimeHook.Deactivate(ctx, pr.(v1.PackageRevisionWithRuntime), runtimeManifestBuilder); err != nil {
 		return errors.Wrap(err, errDeactivationHook)
 	}
 

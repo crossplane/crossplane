@@ -69,6 +69,9 @@ type PackageWithRuntime interface {
 	GetControllerConfigRef() *ControllerConfigReference
 	SetControllerConfigRef(r *ControllerConfigReference)
 
+	GetRuntimeConfigRef() *RuntimeConfigReference
+	SetRuntimeConfigRef(r *RuntimeConfigReference)
+
 	GetTLSServerSecretName() *string
 
 	GetTLSClientSecretName() *string
@@ -189,6 +192,16 @@ func (p *Provider) GetControllerConfigRef() *ControllerConfigReference {
 // SetControllerConfigRef of this Provider.
 func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
+}
+
+// GetRuntimeConfigRef of this Provider.
+func (p *Provider) GetRuntimeConfigRef() *RuntimeConfigReference {
+	return p.Spec.RuntimeConfigReference
+}
+
+// SetRuntimeConfigRef of this Provider.
+func (p *Provider) SetRuntimeConfigRef(r *RuntimeConfigReference) {
+	p.Spec.RuntimeConfigReference = r
 }
 
 // GetCurrentRevision of this Provider.
@@ -360,6 +373,9 @@ type PackageRevisionWithRuntime interface {
 	GetControllerConfigRef() *ControllerConfigReference
 	SetControllerConfigRef(r *ControllerConfigReference)
 
+	GetRuntimeConfigRef() *RuntimeConfigReference
+	SetRuntimeConfigRef(r *RuntimeConfigReference)
+
 	GetTLSServerSecretName() *string
 	SetTLSServerSecretName(n *string)
 
@@ -501,9 +517,19 @@ func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
 	return p.Spec.ControllerConfigReference
 }
 
-// SetControllerConfigRef of this ProviderREvsion.
+// SetControllerConfigRef of this ProviderRevision.
 func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
+}
+
+// GetRuntimeConfigRef of this ProviderRevision.
+func (p *ProviderRevision) GetRuntimeConfigRef() *RuntimeConfigReference {
+	return p.Spec.RuntimeConfigReference
+}
+
+// SetRuntimeConfigRef of this ProviderRevision.
+func (p *ProviderRevision) SetRuntimeConfigRef(r *RuntimeConfigReference) {
+	p.Spec.RuntimeConfigReference = r
 }
 
 // GetSkipDependencyResolution of this ProviderRevision.
