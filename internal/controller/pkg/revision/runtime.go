@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -130,9 +131,39 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 	return d
 }
 
-func (b *RuntimeManifestBuilder) Service() *corev1.Service {
-	//TODO implement me
-	panic("implement me")
+func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
+	svc := defaultService(b.packageName())
+
+	if b.controllerConfig != nil {
+		// Do something with the controller config
+	}
+
+	if b.runtimeConfig != nil {
+		// Do something with the runtime config
+	}
+
+	overrides = append(overrides,
+		// Currently it is not possible to override the namespace,
+		// ownerReferences, selectors or ports of the service, and we could
+		// define them as defaults. However, we will leave them as overrides
+		// to indicate that we are opinionated about them currently and follow
+		// a consistent pattern.
+		ServiceWithNamespace(b.namespace),
+		ServiceWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
+		ServiceWithSelectors(b.podSelectors()),
+		ServiceWithAdditionalPorts([]corev1.ServicePort{
+			{
+				Protocol:   corev1.ProtocolTCP,
+				Port:       servicePort,
+				TargetPort: intstr.FromInt32(servicePort),
+			},
+		}))
+
+	for _, o := range overrides {
+		o(svc)
+	}
+
+	return svc
 }
 
 func (b *RuntimeManifestBuilder) TLSServerSecret() *corev1.Secret {

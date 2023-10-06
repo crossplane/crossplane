@@ -16,7 +16,7 @@ import (
 type ManifestBuilder interface {
 	ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
 	Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
-	Service() *corev1.Service
+	Service(overrides ...ServiceOverrides) *corev1.Service
 	TLSServerSecret() *corev1.Secret
 	TLSClientSecret() *corev1.Secret
 }
@@ -31,14 +31,36 @@ func NewProviderHooksNew(client resource.ClientApplicator) *ProviderHooksNew {
 	}
 }
 
-func (h *ProviderHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision) error {
-	//TODO implement me
-	panic("implement me")
+func (h *ProviderHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	providerMeta, ok := po.(*pkgmetav1.Provider)
+	if !ok {
+		return errors.New(errNotProvider)
+	}
+
+	provRev, ok := pr.(*v1.ProviderRevision)
+	if !ok {
+		return errors.New(errNotProviderRevision)
+	}
+
+	provRev.Status.PermissionRequests = providerMeta.Spec.Controller.PermissionRequests
+
+	// TODO(hasheddan): update any status fields relevant to package revisions.
+
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	// Ensure Prerequisites
+	_ = manifests.Service()
+	// TODO(turkenh): Create/Apply Service
+
+	return nil
 }
 
 func (h *ProviderHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
-	pkgProvider, ok := po.(*pkgmetav1.Provider)
+	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New("not a provider package")
 	}
@@ -49,7 +71,7 @@ func (h *ProviderHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.P
 	sa := manifests.ServiceAccount()
 	// TODO(turkenh): Create/Apply SA
 
-	_ = manifests.Deployment(sa.Name, providerDeploymentOverrides(pkgProvider, pr)...)
+	_ = manifests.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
 	// TODO(turkenh): Create/Apply Deployment
 
 	return nil
@@ -70,14 +92,29 @@ func NewFunctionHooksNew(client resource.ClientApplicator) *FunctionHooksNew {
 	}
 }
 
-func (h *FunctionHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision) error {
-	//TODO implement me
-	panic("implement me")
+func (h *FunctionHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
+	_, ok := fo.(*pkgmetav1beta1.Function)
+	if !ok {
+		return errors.New(errNotFunction)
+	}
+
+	// TODO(ezgidemirel): update any status fields relevant to package revisions.
+
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	// Ensure Prerequisites
+	_ = manifests.Service(functionServiceOverrides()...)
+	// TODO(turkenh): Create/Apply Service
+
+	return nil
 }
 
 func (h *FunctionHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
-	pkgFunction, ok := po.(*pkgmetav1beta1.Function)
+	functionMeta, ok := po.(*pkgmetav1beta1.Function)
 	if !ok {
 		return errors.New(errNotFunction)
 	}
@@ -88,7 +125,7 @@ func (h *FunctionHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.P
 	sa := manifests.ServiceAccount()
 	// TODO(turkenh): Create/Apply SA
 
-	_ = manifests.Deployment(sa.Name, functionDeploymentOverrides(pkgFunction, pr)...)
+	_ = manifests.Deployment(sa.Name, functionDeploymentOverrides(functionMeta, pr)...)
 	// TODO(turkenh): Create/Apply Deployment
 
 	return nil
