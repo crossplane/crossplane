@@ -14,8 +14,8 @@ import (
 )
 
 type ManifestBuilder interface {
-	Deployment(overrides ...DeploymentOverrides) *appsv1.Deployment
-	ServiceAccount() *corev1.ServiceAccount
+	ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
+	Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
 	Service() *corev1.Service
 	TLSServerSecret() *corev1.Secret
 	TLSClientSecret() *corev1.Secret
@@ -46,7 +46,12 @@ func (h *ProviderHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.P
 		return nil
 	}
 
-	_ = manifests.Deployment(providerDeploymentOverrides(pkgProvider, pr)...)
+	sa := manifests.ServiceAccount()
+	// TODO(turkenh): Create/Apply SA
+
+	_ = manifests.Deployment(sa.Name, providerDeploymentOverrides(pkgProvider, pr)...)
+	// TODO(turkenh): Create/Apply Deployment
+
 	return nil
 }
 
@@ -80,7 +85,11 @@ func (h *FunctionHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.P
 		return nil
 	}
 
-	_ = manifests.Deployment(functionDeploymentOverrides(pkgFunction, pr)...)
+	sa := manifests.ServiceAccount()
+	// TODO(turkenh): Create/Apply SA
+
+	_ = manifests.Deployment(sa.Name, functionDeploymentOverrides(pkgFunction, pr)...)
+	// TODO(turkenh): Create/Apply Deployment
 
 	return nil
 }
