@@ -106,7 +106,7 @@ aAJ/I/MBEGIitV7G1MRwVz56Yvv8cP/mQ712faD7iwBHC9bqO6umCA==
 
 func TestHookPre(t *testing.T) {
 	type args struct {
-		hook Hooks
+		hook RuntimeHooks
 		pkg  runtime.Object
 		rev  v1.PackageRevision
 	}
@@ -186,7 +186,7 @@ func TestHookPre(t *testing.T) {
 			},
 		},
 		"ConfigurationNoAction": {
-			reason: "Configuration pre hook currently does not do anything, should not return error.",
+			reason: "Configuration pre runtimeHook currently does not do anything, should not return error.",
 			args: args{
 				hook: &ConfigurationHooks{},
 			},
@@ -225,7 +225,7 @@ func TestHookPost(t *testing.T) {
 	namespace := "crossplane-system"
 
 	type args struct {
-		hook Hooks
+		hook RuntimeHooks
 		pkg  runtime.Object
 		rev  v1.PackageRevision
 	}
@@ -1229,7 +1229,7 @@ func TestHookDeactivate(t *testing.T) {
 	functionRevision := "my-function-revision-1234"
 
 	type args struct {
-		hook Hooks
+		hook RuntimeHooks
 		rev  v1.PackageRevision
 	}
 
@@ -1445,7 +1445,7 @@ func TestHookDeactivate(t *testing.T) {
 			},
 		},
 		"ConfigurationNoAction": {
-			reason: "Configuration deactivate hook currently does not do anything, should not return error.",
+			reason: "Configuration deactivate runtimeHook currently does not do anything, should not return error.",
 			args: args{
 				hook: &ConfigurationHooks{},
 			},

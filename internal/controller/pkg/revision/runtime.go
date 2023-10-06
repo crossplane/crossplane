@@ -17,6 +17,29 @@ import (
 
 const (
 	runtimeContainerName = "package-runtime"
+	// Providers are expected to use port 8080 if they expose Prometheus
+	// metrics, which any provider built using controller-runtime will do by
+	// default.
+	metricsPortName   = "metrics"
+	metricsPortNumber = 8080
+
+	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
+	webhookPortName         = "webhook"
+
+	// See https://github.com/grpc/grpc/blob/v1.58.0/doc/naming.md
+	grpcPortName       = "grpc"
+	servicePort        = 9443
+	serviceEndpointFmt = "dns:///%s.%s:%d"
+
+	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
+
+	tlsServerCertDirEnvVar   = "TLS_SERVER_CERTS_DIR"
+	tlsServerCertsVolumeName = "tls-server-certs"
+	tlsServerCertsDir        = "/tls/server"
+
+	tlsClientCertDirEnvVar   = "TLS_CLIENT_CERTS_DIR"
+	tlsClientCertsVolumeName = "tls-client-certs"
+	tlsClientCertsDir        = "/tls/client"
 )
 
 type RuntimeManifestBuilder struct {
