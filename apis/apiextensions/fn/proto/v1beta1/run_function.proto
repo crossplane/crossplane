@@ -54,6 +54,12 @@ message RunFunctionRequest {
   // Optional input specific to this Function invocation. A JSON representation
   // of the 'input' block of the relevant entry in a Composition's pipeline.
   optional google.protobuf.Struct input = 4;
+
+  // Optional context. Crossplane may pass arbitary contextual information to a
+  // Function. A Function may also return context in its RunFunctionResponse,
+  // and that context will be passed to subsequent Functions. Crossplane
+  // discards all context returned by the last Function in the pipeline.
+  optional google.protobuf.Struct context = 5;
 }
 
 // A RunFunctionResponse contains the result of a Composition Function run.
@@ -77,6 +83,10 @@ message RunFunctionResponse {
 
   // Results of the Function run. Results are used for observability purposes.
   repeated Result results = 3;
+
+  // Optional context to be passed to the next Function in the pipeline as part
+  // of the RunFunctionRequest. Dropped on the last function in the pipeline.
+  optional google.protobuf.Struct context = 4;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
