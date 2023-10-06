@@ -66,6 +66,9 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 type PackageWithRuntime interface {
 	Package
 
+	GetRuntimeImage() string
+	SetRuntimeImage(s string)
+
 	GetControllerConfigRef() *ControllerConfigReference
 	SetControllerConfigRef(r *ControllerConfigReference)
 

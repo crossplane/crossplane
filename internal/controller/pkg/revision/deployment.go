@@ -46,8 +46,8 @@ const (
 	// Providers are expected to use port 8080 if they expose Prometheus
 	// metrics, which any provider built using controller-runtime will do by
 	// default.
-	promPortName   = "metrics"
-	promPortNumber = 8080
+	metricsPortName   = "metrics"
+	metricsPortNumber = 8080
 
 	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
 	webhookPortName         = "webhook"
@@ -167,8 +167,8 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageWi
 							},
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          promPortName,
-									ContainerPort: promPortNumber,
+									Name:          metricsPortName,
+									ContainerPort: metricsPortNumber,
 								},
 							},
 							Env: []corev1.EnvVar{
@@ -292,8 +292,8 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 							},
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          promPortName,
-									ContainerPort: promPortNumber,
+									Name:          metricsPortName,
+									ContainerPort: metricsPortNumber,
 								},
 								{
 									Name:          grpcPortName,
