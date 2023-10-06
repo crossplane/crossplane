@@ -58,3 +58,13 @@ func defaultDeployment(name string) *appsv1.Deployment {
 		},
 	}
 }
+
+func defaultService(name string) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			// It is possible to override the name of the service in the
+			// RuntimeConfig. So, we define it as a default here.
+			Name: name,
+		},
+	}
+}

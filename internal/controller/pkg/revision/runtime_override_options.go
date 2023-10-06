@@ -98,3 +98,35 @@ func DeploymentRuntimeWithAdditionalPorts(ports []corev1.ContainerPort) Deployme
 		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, ports...)
 	}
 }
+
+type ServiceOverrides func(service *corev1.Service)
+
+func ServiceWithNamespace(namespace string) ServiceOverrides {
+	return func(s *corev1.Service) {
+		s.Namespace = namespace
+	}
+}
+
+func ServiceWithOwnerReferences(owners []metav1.OwnerReference) ServiceOverrides {
+	return func(s *corev1.Service) {
+		s.OwnerReferences = owners
+	}
+}
+
+func ServiceWithSelectors(selectors map[string]string) ServiceOverrides {
+	return func(s *corev1.Service) {
+		s.Spec.Selector = selectors
+	}
+}
+
+func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverrides {
+	return func(s *corev1.Service) {
+		s.Spec.Ports = append(s.Spec.Ports, ports...)
+	}
+}
+
+func ServiceWithClusterIP(clusterIP string) ServiceOverrides {
+	return func(s *corev1.Service) {
+		s.Spec.ClusterIP = clusterIP
+	}
+}
