@@ -82,9 +82,11 @@ func (c *buildCmd) AfterApply() error {
 		examples.New(),
 	)
 
-	// NOTE(hasheddan): we currently only support fetching controller image from
-	// daemon, but may opt to support additional sources in the future.
-	c.fetch = daemonFetch
+	if c.ControllerTar != "" {
+		c.fetch = xpkgFetch(c.ControllerTar)
+	} else {
+		c.fetch = daemonFetch
+	}
 
 	return nil
 }
@@ -96,11 +98,12 @@ type buildCmd struct {
 	root    string
 	fetch   fetchFn
 
-	Output       string   `optional:"" short:"o" help:"Path for package output."`
-	Controller   string   `help:"Controller image used as base for package."`
-	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
-	ExamplesRoot string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore       []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Output        string   `optional:"" short:"o" help:"Path for package output."`
+	Controller    string   `help:"Controller image used as base for package."`
+	ControllerTar string   `help:"Path to tar file, an alternative to Controller." xor:"controller" type:"existingfile"`
+	PackageRoot   string   `short:"f" help:"Path to package directory." default:"."`
+	ExamplesRoot  string   `short:"e" help:"Path to package examples directory." default:"./examples"`
+	Ignore        []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
 }
 
 func (c *buildCmd) Help() string {
@@ -125,10 +128,19 @@ Even more details can be found in the xpkg reference document.`
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
-	if c.Controller != "" {
-		ref, err := name.ParseReference(c.Controller)
-		if err != nil {
-			return err
+	if c.Controller != "" || c.ControllerTar != "" {
+		var ref name.Reference
+		var err error
+		if c.Controller != "" {
+			ref, err = name.ParseReference(c.Controller)
+			if err != nil {
+				return err
+			}
+		} else {
+			ref, err = name.ParseReference(c.ControllerTar)
+			if err != nil {
+				return err
+			}
 		}
 		base, err := c.fetch(context.Background(), ref)
 		if err != nil {

@@ -18,10 +18,12 @@ package xpkg
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
 // fetchFn fetches a package from a source.
@@ -30,4 +32,10 @@ type fetchFn func(context.Context, name.Reference) (v1.Image, error)
 // daemonFetch fetches a package from the Docker daemon.
 func daemonFetch(ctx context.Context, r name.Reference) (v1.Image, error) {
 	return daemon.Image(r, daemon.WithContext(ctx))
+}
+
+func xpkgFetch(path string) fetchFn {
+	return func(ctx context.Context, r name.Reference) (v1.Image, error) {
+		return tarball.ImageFromPath(filepath.Clean(path), nil)
+	}
 }
