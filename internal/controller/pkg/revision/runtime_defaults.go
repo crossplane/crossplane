@@ -6,6 +6,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var (
+	replicas                 = int32(1)
+	runAsUser                = int64(2000)
+	runAsGroup               = int64(2000)
+	allowPrivilegeEscalation = false
+	privileged               = false
+	runAsNonRoot             = true
+)
+
 func defaultServiceAccount(name string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{

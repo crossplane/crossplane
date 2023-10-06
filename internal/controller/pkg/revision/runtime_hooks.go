@@ -18,6 +18,32 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	errNotProvider                            = "not a provider package"
+	errNotProviderRevision                    = "not a provider revision"
+	errGetControllerConfig                    = "cannot get referenced controller config"
+	errGetServiceAccount                      = "cannot get Crossplane service account"
+	errDeleteProviderDeployment               = "cannot delete provider package deployment"
+	errDeleteProviderSA                       = "cannot delete provider package service account"
+	errDeleteProviderService                  = "cannot delete provider package service"
+	errApplyProviderDeployment                = "cannot apply provider package deployment"
+	errApplyProviderSecret                    = "cannot apply provider package secret"
+	errApplyProviderSA                        = "cannot apply provider package service account"
+	errApplyProviderService                   = "cannot apply provider package service"
+	errFmtUnavailableProviderDeployment       = "provider package deployment is unavailable with message: %s"
+	errNoAvailableConditionProviderDeployment = "provider package deployment has no condition of type \"Available\" yet"
+
+	errNotFunction                            = "not a function package"
+	errDeleteFunctionDeployment               = "cannot delete function package deployment"
+	errDeleteFunctionSA                       = "cannot delete function package service account"
+	errApplyFunctionDeployment                = "cannot apply function package deployment"
+	errApplyFunctionSecret                    = "cannot apply function package secret"
+	errApplyFunctionSA                        = "cannot apply function package service account"
+	errApplyFunctionService                   = "cannot apply function package service"
+	errFmtUnavailableFunctionDeployment       = "function package deployment is unavailable with message: %s"
+	errNoAvailableConditionFunctionDeployment = "function package deployment has no condition of type \"Available\" yet"
+)
+
 type ManifestBuilder interface {
 	ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
 	Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
@@ -26,17 +52,30 @@ type ManifestBuilder interface {
 	TLSServerSecret() *corev1.Secret
 }
 
-type ProviderHooksNew struct {
+// A RuntimeHooks performs runtime operations before and after a revision
+// establishes objects.
+type RuntimeHooks interface {
+	// Pre performs operations meant to happen before establishing objects.
+	Pre(context.Context, runtime.Object, v1.PackageWithRuntimeRevision, ManifestBuilder) error
+
+	// Post performs operations meant to happen after establishing objects.
+	Post(context.Context, runtime.Object, v1.PackageWithRuntimeRevision, ManifestBuilder) error
+
+	// Deactivate performs operations meant to happen before deactivating a revision.
+	Deactivate(context.Context, v1.PackageWithRuntimeRevision, ManifestBuilder) error
+}
+
+type ProviderHooks struct {
 	client resource.ClientApplicator
 }
 
-func NewProviderHooksNew(client resource.ClientApplicator) *ProviderHooksNew {
-	return &ProviderHooksNew{
+func NewProviderHooks(client resource.ClientApplicator) *ProviderHooks {
+	return &ProviderHooks{
 		client: client,
 	}
 }
 
-func (h *ProviderHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -88,7 +127,7 @@ func (h *ProviderHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.Pa
 	return nil
 }
 
-func (h *ProviderHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -122,7 +161,7 @@ func (h *ProviderHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.P
 	return errors.New(errNoAvailableConditionProviderDeployment)
 }
 
-func (h *ProviderHooksNew) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	sa := manifests.ServiceAccount()
 	// Delete the service account if it exists.
 	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
@@ -130,7 +169,7 @@ func (h *ProviderHooksNew) Deactivate(ctx context.Context, pr v1.PackageWithRunt
 	}
 
 	// Delete the deployment if it exists.
-	// Different from the Post hook, we don't need to pass the
+	// Different from the Post runtimeHook, we don't need to pass the
 	// "providerDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
 	if err := h.client.Delete(ctx, manifests.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
@@ -149,17 +188,17 @@ func (h *ProviderHooksNew) Deactivate(ctx context.Context, pr v1.PackageWithRunt
 	return nil
 }
 
-type FunctionHooksNew struct {
+type FunctionHooks struct {
 	client resource.ClientApplicator
 }
 
-func NewFunctionHooksNew(client resource.ClientApplicator) *FunctionHooksNew {
-	return &FunctionHooksNew{
+func NewFunctionHooks(client resource.ClientApplicator) *FunctionHooks {
+	return &FunctionHooks{
 		client: client,
 	}
 }
 
-func (h *FunctionHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
@@ -190,7 +229,7 @@ func (h *FunctionHooksNew) Pre(ctx context.Context, pkg runtime.Object, pr v1.Pa
 	return nil
 }
 
-func (h *FunctionHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
 	functionMeta, ok := po.(*pkgmetav1beta1.Function)
 	if !ok {
@@ -224,7 +263,7 @@ func (h *FunctionHooksNew) Post(ctx context.Context, pkg runtime.Object, pr v1.P
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
-func (h *FunctionHooksNew) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	sa := manifests.ServiceAccount()
 	// Delete the service account if it exists.
 	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
@@ -232,7 +271,7 @@ func (h *FunctionHooksNew) Deactivate(ctx context.Context, pr v1.PackageWithRunt
 	}
 
 	// Delete the deployment if it exists.
-	// Different from the Post hook, we don't need to pass the
+	// Different from the Post runtimeHook, we don't need to pass the
 	// "functionDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
 	if err := h.client.Delete(ctx, manifests.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
