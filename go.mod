@@ -9,13 +9,18 @@ require (
 	github.com/alecthomas/kong v0.8.0
 	github.com/bufbuild/buf v1.26.1
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20231003095054-b53745680067
+	github.com/emicklei/dot v1.6.0
+	github.com/goccy/go-graphviz v0.1.1
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.16.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2
 	github.com/jmattheis/goverter v0.18.0
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.10.0
+	github.com/stretchr/testify v1.8.4
+	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
 	golang.org/x/sync v0.3.0
 	google.golang.org/grpc v1.58.2
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
@@ -34,17 +39,14 @@ require (
 )
 
 require (
-	github.com/emicklei/dot v1.6.0 // indirect
 	github.com/fogleman/gg v1.3.0 // indirect
-	github.com/goccy/go-graphviz v0.1.1 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/image v0.6.0 // indirect
 )
 

@@ -4,14 +4,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/internal/k8s"
+	"github.com/google/go-cmp/cmp"
 	"github.com/olekukonko/tablewriter"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestCliTable(t *testing.T) {
-	// Create a mockResource
-	mockResource := k8s.Resource{
+	resourceWithChildren := k8s.Resource{
 		Manifest: &unstructured.Unstructured{
 			Object: map[string]interface{}{
 				"apiVersion": "test.cloud/v1alpha1",
@@ -113,8 +114,30 @@ func TestCliTable(t *testing.T) {
 		},
 	}
 
-	// Define the expected output
-	expectedOutput := `
+	type args struct {
+		resource k8s.Resource
+		fields   []string
+	}
+
+	type want struct {
+		output string
+		err    error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		// Test valid resource
+		"ResourceWithChildren": {
+			reason: "CLI table should be able to print Resource struct containing children",
+			args: args{
+				resource: resourceWithChildren,
+				fields:   []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"},
+			},
+			want: want{
+				output: `
 +----------------+--------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
 |     PARENT     |           NAME           |      KIND      | NAMESPACE |     APIVERSION      | SYNCED | READY | MESSAGE |             EVENT              |
 +----------------+--------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
@@ -124,26 +147,35 @@ func TestCliTable(t *testing.T) {
 | XObjectStorage | test-resource-cl4tv-123  | Bucket         | default   | test.cloud/v1alpha1 | True   | True  |         |                                |
 | XObjectStorage | test-resource-user-cl4tv | User           | default   | test.cloud/v1alpha1 | True   | True  |         |                                |
 +----------------+--------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
-`
-
-	// Define output fields
-	fields := []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"}
-
-	// Create a strings.Builder to capture the output
-	tableString := &strings.Builder{}
-	table := tablewriter.NewWriter(tableString)
-	table.SetHeader(fields)
-	err := CliTableAddResource(table, fields, mockResource, "")
-	if err != nil {
-		t.Errorf("CliTableAddResource returned an error: %v", err)
+				`,
+				err: nil,
+			},
+		},
 	}
 
-	// Capture the output of the mockTable
-	table.Render()
-	mockTableOutputString := tableString.String()
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Create a strings.Builder to capture the output
+			tableString := &strings.Builder{}
 
-	// Compare the expected output with the actual output
-	if strings.TrimSpace(mockTableOutputString) != strings.TrimSpace(expectedOutput) {
-		t.Errorf("CliTable output does not match expected output.\nExpected:\n%s\nActual:\n%s", expectedOutput, mockTableOutputString)
+			// Build new table
+			table := tablewriter.NewWriter(tableString)
+			table.SetHeader(tc.args.fields)
+			err := CliTableAddResource(table, tc.args.fields, tc.args.resource, "")
+
+			// Capture the output of the table
+			table.Render()
+			got := tableString.String()
+
+			// Check error
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\nExample(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			// Check table
+			if diff := cmp.Diff(strings.TrimSpace(tc.want.output), strings.TrimSpace(got)); diff != "" {
+				t.Errorf("%s\nExample(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
+
 }
