@@ -16,7 +16,7 @@ func CliTable(rootResource k8s.Resource, fields []string) error {
 	table.SetHeader(fields)
 
 	// add all children to the table
-	if err := cliTableAddResource(table, fields, rootResource, ""); err != nil {
+	if err := CliTableAddResource(table, fields, rootResource, ""); err != nil {
 		return fmt.Errorf("Error getting resource field %w\n", err)
 	}
 	table.Render()
@@ -25,7 +25,7 @@ func CliTable(rootResource k8s.Resource, fields []string) error {
 }
 
 // This functions adds rows to the passed table in the order and as specified in the fields variable
-func cliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
+func CliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
 	var tableRow = make([]string, len(fields))
 
 	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument was passed
@@ -68,7 +68,7 @@ func cliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resour
 
 	// Recursively print children with the updated parent information.
 	for _, child := range r.Children {
-		cliTableAddResource(table, fields, child, r.GetKind())
+		CliTableAddResource(table, fields, child, r.GetKind())
 	}
 	return nil
 }
