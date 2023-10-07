@@ -8,112 +8,9 @@ import (
 	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/google/go-cmp/cmp"
 	"github.com/olekukonko/tablewriter"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestCliTable(t *testing.T) {
-	resourceWithChildren := k8s.Resource{
-		Manifest: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"apiVersion": "test.cloud/v1alpha1",
-				"kind":       "ObjectStorage",
-				"metadata": map[string]interface{}{
-					"name":      "test-resource",
-					"namespace": "default",
-				},
-				"status": map[string]interface{}{
-					"conditions": []interface{}{
-						map[string]interface{}{
-							"status": "True",
-							"type":   "Synced",
-						},
-						map[string]interface{}{
-							"status": "True",
-							"type":   "Ready",
-						},
-					},
-				},
-			},
-		},
-		Event: "Successfully selected composition",
-		Children: []k8s.Resource{
-			{
-				Manifest: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "test.cloud/v1alpha1",
-						"kind":       "XObjectStorage",
-						"metadata": map[string]interface{}{
-							"name":      "test-resource-cl4tv",
-							"namespace": "default",
-						},
-						"status": map[string]interface{}{
-							"conditions": []interface{}{
-								map[string]interface{}{
-									"status": "True",
-									"type":   "Synced",
-								},
-								map[string]interface{}{
-									"status": "True",
-									"type":   "Ready",
-								},
-							},
-						},
-					},
-				},
-				Children: []k8s.Resource{
-					{
-						Manifest: &unstructured.Unstructured{
-							Object: map[string]interface{}{
-								"apiVersion": "test.cloud/v1alpha1",
-								"kind":       "Bucket",
-								"metadata": map[string]interface{}{
-									"name":      "test-resource-cl4tv-123",
-									"namespace": "default",
-								},
-								"status": map[string]interface{}{
-									"conditions": []interface{}{
-										map[string]interface{}{
-											"status": "True",
-											"type":   "Synced",
-										},
-										map[string]interface{}{
-											"status": "True",
-											"type":   "Ready",
-										},
-									},
-								},
-							},
-						},
-					},
-					{
-						Manifest: &unstructured.Unstructured{
-							Object: map[string]interface{}{
-								"apiVersion": "test.cloud/v1alpha1",
-								"kind":       "User",
-								"metadata": map[string]interface{}{
-									"name":      "test-resource-user-cl4tv",
-									"namespace": "default",
-								},
-								"status": map[string]interface{}{
-									"conditions": []interface{}{
-										map[string]interface{}{
-											"status": "True",
-											"type":   "Synced",
-										},
-										map[string]interface{}{
-											"status": "True",
-											"type":   "Ready",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
 	type args struct {
 		resource k8s.Resource
 		fields   []string
@@ -133,20 +30,59 @@ func TestCliTable(t *testing.T) {
 		"ResourceWithChildren": {
 			reason: "CLI table should be able to print Resource struct containing children",
 			args: args{
-				resource: resourceWithChildren,
-				fields:   []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"},
+				resource: k8s.Resource{
+					Manifest: k8s.DummyManifest("ObjectStorage", "test-resource", "True", "True"),
+					Event:    "Successfully selected composition",
+					Children: []k8s.Resource{
+						{
+							Manifest: k8s.DummyManifest("XObjectStorage", "test-resource-hash", "True", "True"),
+							Children: []k8s.Resource{
+								{
+									Manifest: k8s.DummyManifest("Bucket", "test-resource-bucket-hash", "True", "True"),
+									Event:    "Synced bucket",
+								},
+								{
+									Manifest: k8s.DummyManifest("User", "test-resource-user-hash", "True", "True"),
+									Event:    "User ready",
+								},
+							},
+						},
+					},
+				},
+				fields: []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"},
 			},
 			want: want{
 				output: `
-+----------------+--------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
-|     PARENT     |           NAME           |      KIND      | NAMESPACE |     APIVERSION      | SYNCED | READY | MESSAGE |             EVENT              |
-+----------------+--------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
-|                | test-resource            | ObjectStorage  | default   | test.cloud/v1alpha1 | True   | True  |         | Successfully selected          |
-|                |                          |                |           |                     |        |       |         | composition                    |
-| ObjectStorage  | test-resource-cl4tv      | XObjectStorage | default   | test.cloud/v1alpha1 | True   | True  |         |                                |
-| XObjectStorage | test-resource-cl4tv-123  | Bucket         | default   | test.cloud/v1alpha1 | True   | True  |         |                                |
-| XObjectStorage | test-resource-user-cl4tv | User           | default   | test.cloud/v1alpha1 | True   | True  |         |                                |
-+----------------+--------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
++----------------+---------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
+|     PARENT     |           NAME            |      KIND      | NAMESPACE |     APIVERSION      | SYNCED | READY | MESSAGE |             EVENT              |
++----------------+---------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
+|                | test-resource             | ObjectStorage  | default   | test.cloud/v1alpha1 | True   | True  |         | Successfully selected          |
+|                |                           |                |           |                     |        |       |         | composition                    |
+| ObjectStorage  | test-resource-hash        | XObjectStorage | default   | test.cloud/v1alpha1 | True   | True  |         |                                |
+| XObjectStorage | test-resource-bucket-hash | Bucket         | default   | test.cloud/v1alpha1 | True   | True  |         | Synced bucket                  |
+| XObjectStorage | test-resource-user-hash   | User           | default   | test.cloud/v1alpha1 | True   | True  |         | User ready                     |
++----------------+---------------------------+----------------+-----------+---------------------+--------+-------+---------+--------------------------------+
+				`,
+				err: nil,
+			},
+		},
+		// Single resource
+		"SingleResource": {
+			reason: "A single resource with no children",
+			args: args{
+				resource: k8s.Resource{
+					Manifest: k8s.DummyManifest("ObjectStorage", "test-resource", "True", "True"),
+					Event:    "ObjectStorage is ready",
+				},
+				fields: []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"},
+			},
+			want: want{
+				output: `
++--------+---------------+---------------+-----------+---------------------+--------+-------+---------+------------------------+
+| PARENT |     NAME      |     KIND      | NAMESPACE |     APIVERSION      | SYNCED | READY | MESSAGE |         EVENT          |
++--------+---------------+---------------+-----------+---------------------+--------+-------+---------+------------------------+
+|        | test-resource | ObjectStorage | default   | test.cloud/v1alpha1 | True   | True  |         | ObjectStorage is ready |
++--------+---------------+---------------+-----------+---------------------+--------+-------+---------+------------------------+				
 				`,
 				err: nil,
 			},
