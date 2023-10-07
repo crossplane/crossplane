@@ -10,6 +10,7 @@ import (
 )
 
 // Define a test for SaveGraph
+// graph.png should show this structure: ObjectStorage -> XObjectStorage -> [Bucket, User]
 func TestSaveGraph(t *testing.T) {
 	// Remove file in case it already exists
 	os.Remove("graph.png")
@@ -57,6 +58,56 @@ func TestSaveGraph(t *testing.T) {
 								map[string]interface{}{
 									"status": "True",
 									"type":   "Ready",
+								},
+							},
+						},
+					},
+				},
+				Children: []k8s.Resource{
+					{
+						Manifest: &unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "test.cloud/v1alpha1",
+								"kind":       "Bucket",
+								"metadata": map[string]interface{}{
+									"name":      "test-resource-cl4tv-123",
+									"namespace": "default",
+								},
+								"status": map[string]interface{}{
+									"conditions": []interface{}{
+										map[string]interface{}{
+											"status": "True",
+											"type":   "Synced",
+										},
+										map[string]interface{}{
+											"status": "True",
+											"type":   "Ready",
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						Manifest: &unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "test.cloud/v1alpha1",
+								"kind":       "User",
+								"metadata": map[string]interface{}{
+									"name":      "test-resource-user-cl4tv",
+									"namespace": "default",
+								},
+								"status": map[string]interface{}{
+									"conditions": []interface{}{
+										map[string]interface{}{
+											"status": "True",
+											"type":   "Synced",
+										},
+										map[string]interface{}{
+											"status": "True",
+											"type":   "Ready",
+										},
+									},
 								},
 							},
 						},
