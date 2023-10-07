@@ -72,7 +72,7 @@ func TestSaveGraph(t *testing.T) {
 			err := graphPrinter.SaveGraph(tc.args.resource, tc.args.fields, tc.args.path)
 			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nExample(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\ngraphPrinter.SaveGraph(): -want, +got:\n%s", tc.reason, diff)
 			}
 
 			// Check if png exists
@@ -83,7 +83,7 @@ func TestSaveGraph(t *testing.T) {
 
 			// Check if file exists
 			if diff := cmp.Diff(tc.want.fileExists, exists); diff != "" {
-				t.Errorf("%s\nExample(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\ngraphPrinter.SaveGraph(): -want, +got:\n%s", tc.reason, diff)
 			}
 
 		})

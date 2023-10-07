@@ -105,11 +105,11 @@ func TestCliTable(t *testing.T) {
 
 			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nExample(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
 			}
 			// Check table
 			if diff := cmp.Diff(strings.TrimSpace(tc.want.output), strings.TrimSpace(got)); diff != "" {
-				t.Errorf("%s\nExample(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
