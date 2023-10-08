@@ -311,7 +311,7 @@ jobs:
           name: logs-${{ matrix.test-suite }}
           path: ./logs-kind
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
   publish-artifacts:
     runs-on: ubuntu-22.04
