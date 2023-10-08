@@ -98,7 +98,11 @@ func TestMain(m *testing.M) {
 	var finish []env.Func
 
 	if environment.IsKindCluster() {
-		setup = append(setup, envfuncs.CreateCluster(kind.NewProvider(), environment.GetKindClusterName()))
+		setup = append(setup, envfuncs.CreateClusterWithConfig(
+			kind.NewProvider(),
+			environment.GetKindClusterName(),
+			"./test/e2e/manifests/kind/kind-config.yaml",
+		))
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
 	}
