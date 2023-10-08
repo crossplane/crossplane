@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
@@ -39,14 +39,14 @@ import (
 )
 
 const (
-	errGetNameFromMeta                = "failed to get package name from crossplane.yaml"
-	errBuildPackage                   = "failed to build package"
-	errImageDigest                    = "failed to get package digest"
-	errCreatePackage                  = "failed to create package file"
-	errParseControllerImage           = "failed to parse controller image"
-	errPullControllerImage            = "failed to pull controller image"
-	errLoadControllerTar              = "failed to load controller tar"
-	errGettingControllerBaseImageOpts = "failed to get controller base image options"
+	errGetNameFromMeta            = "failed to get package name from crossplane.yaml"
+	errBuildPackage               = "failed to build package"
+	errImageDigest                = "failed to get package digest"
+	errCreatePackage              = "failed to create package file"
+	errParseControllerImage       = "failed to parse controller image"
+	errPullControllerImage        = "failed to pull controller image"
+	errLoadControllerTar          = "failed to load controller tar"
+	errGetControllerBaseImageOpts = "failed to get controller base image options"
 )
 
 // AfterApply constructs and binds context to any subcommands
@@ -168,7 +168,7 @@ func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
 	controllerBuildOpts, err := c.GetControllerBaseImageOpts()
 	if err != nil {
-		return errors.Wrap(err, errGettingControllerBaseImageOpts)
+		return errors.Wrap(err, errGetControllerBaseImageOpts)
 	}
 	buildOpts = append(buildOpts, controllerBuildOpts...)
 
