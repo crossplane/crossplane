@@ -110,7 +110,7 @@ func TestProviderUpgrade(t *testing.T) {
 			)).
 			Assess("UpgradeManagedResource", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr-upgrade.yaml", xpv1.Available()),
 			)).
 			WithTeardown("DeleteUpgradedManagedResource", funcs.AllOf(
 				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
