@@ -2,9 +2,11 @@ package revision
 
 import (
 	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
+
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.PackageWithRuntimeRevision) []DeploymentOverrides {

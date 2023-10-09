@@ -3,19 +3,22 @@ package revision
 import (
 	"context"
 	"fmt"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -198,7 +201,7 @@ func NewFunctionHooks(client resource.ClientApplicator) *FunctionHooks {
 	}
 }
 
-func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
@@ -263,7 +266,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return errors.New(errNoAvailableConditionFunctionDeployment)
 }
 
-func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageWithRuntimeRevision, manifests ManifestBuilder) error {
 	sa := manifests.ServiceAccount()
 	// Delete the service account if it exists.
 	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
