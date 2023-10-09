@@ -2,10 +2,13 @@
 apiVersion: example.org/v1alpha1
 kind: SQLInstance
 metadata:
-  name: example
   namespace: default
+  name: example
   labels:
     stage: prod
 spec:
   parameters:
     storageGB: 10
+  # This is necessary to ensure the claim's MRs are actually gone before we
+  # delete the Provider - https://github.com/crossplane/crossplane/issues/4251
+  compositeDeletePolicy: Foreground
