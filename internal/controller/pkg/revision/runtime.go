@@ -89,8 +89,8 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
 	sa := defaultServiceAccount(b.revision.GetName())
 
-	if b.controllerConfig != nil {
-		// Do something with the controller config
+	if cc := b.controllerConfig; cc != nil {
+		overrides = append(overrides, ServiceAccountWithControllerConfig(cc))
 	}
 
 	if b.runtimeConfig != nil {
@@ -119,7 +119,7 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 	d := defaultDeployment(b.revision.GetName())
 
 	if b.controllerConfig != nil {
-		// Do something with the controller config
+		overrides = append(overrides, DeploymentWithControllerConfig(b.controllerConfig))
 	}
 
 	if b.runtimeConfig != nil {
@@ -158,10 +158,6 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 
 func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
 	svc := defaultService(b.packageName())
-
-	if b.controllerConfig != nil {
-		// Do something with the controller config
-	}
 
 	if b.runtimeConfig != nil {
 		// Do something with the runtime config
