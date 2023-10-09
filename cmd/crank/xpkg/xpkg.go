@@ -18,9 +18,10 @@ limitations under the License.
 package xpkg
 
 // Cmd contains commands for interacting with xpkgs.
-// TODO(lsviben) add the rest of the commands from up (push, batch, xpextract).
+// TODO(lsviben) add the rest of the commands from up (batch, xpextract).
 type Cmd struct {
 	Build buildCmd `cmd:"" help:"Build a package, by default from the current directory."`
+	Push  pushCmd  `cmd:"" help:"Push Crossplane packages."`
 }
 
 // Help prints out the help for the xpkg command.
