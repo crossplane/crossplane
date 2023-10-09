@@ -36,6 +36,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
@@ -188,6 +189,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
+
+		HealthProbeBindAddress: ":5000",
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")
@@ -298,17 +301,46 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.
 		if err := xrd.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+			return errors.Wrap(err, "Cannot setup webhook for compositeresourcedefinitions")
 		}
 		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositions")
+			return errors.Wrap(err, "Cannot setup webhook for compositions")
 		}
 		if o.Features.Enabled(features.EnableAlphaUsages) {
 			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
-				return errors.Wrap(err, "cannot setup webhook for usages")
+				return errors.Wrap(err, "Cannot setup webhook for usages")
 			}
 		}
 	}
 
+	if err := c.SetupProbes(mgr); err != nil {
+		return errors.Wrap(err, "Cannot setup probes")
+	}
+
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+}
+
+// SetupProbes sets up the health and ready probes.
+func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
+	// Add default readiness probe
+	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
+		return errors.Wrap(err, "cannot create ping ready check")
+	}
+
+	// Add default health probe
+	if err := mgr.AddHealthzCheck("ping", healthz.Ping); err != nil {
+		return errors.Wrap(err, "cannot create ping health check")
+	}
+
+	// Add probes waiting for the webhook server if webhooks are enabled
+	if c.WebhookEnabled {
+		hookServer := mgr.GetWebhookServer()
+		if err := mgr.AddReadyzCheck("webhook", hookServer.StartedChecker()); err != nil {
+			return errors.Wrap(err, "cannot create webhook ready check")
+		}
+		if err := mgr.AddHealthzCheck("webhook", hookServer.StartedChecker()); err != nil {
+			return errors.Wrap(err, "cannot create webhook health check")
+		}
+	}
+	return nil
 }
