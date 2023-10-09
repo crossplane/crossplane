@@ -218,13 +218,19 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 			t.Logf("Waiting %s for %s to become %s...", d, identifier(u), desired)
 		}
 
+		old := make([]xpv1.Condition, len(cds))
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
 			s := xpv1.ConditionedStatus{}
 			_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
 
-			for _, want := range cds {
+			for i, want := range cds {
 				got := s.GetCondition(want.Type)
+				if !got.Equal(old[i]) {
+					old[i] = got
+					t.Logf("- %s: %s=%s Reason=%s: %s (%s)", identifier(u), got.Type, got.Status, got.Reason, or(got.Message, `""`), got.LastTransitionTime)
+				}
+
 				// do compare modulo message as the message in e2e tests
 				// might differ between runs and is not meant for machines.
 				got.Message = ""
@@ -246,6 +252,13 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		t.Logf("%d resources have desired conditions: %s", len(rs), desired)
 		return ctx
 	}
+}
+
+func or(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
 }
 
 // CRDInitialNamesAccepted is the status condition CRDs emit when they're

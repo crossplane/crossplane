@@ -54,6 +54,7 @@ const (
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
+	errEnvAsStruct              = "cannot encode environment to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
 
 	errFmtDryRunCreateCD             = "cannot name (i.e. dry-run create) composed resource %q"
@@ -82,6 +83,12 @@ const (
 	// FieldOwnerComposed owns the fields this controller mutates on composed
 	// resources.
 	FieldOwnerComposed = "apiextensions.crossplane.io/composed"
+)
+
+const (
+	// FunctionContextKeyEnvironment is used to store the Composition
+	// Environment in the Function context.
+	FunctionContextKeyEnvironment = "apiextensions.crossplane.io/environment"
 )
 
 // A FunctionComposer supports composing resources using a pipeline of
@@ -229,11 +236,23 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	events := []event.Event{}
 
+	// The Function context starts with empty desired state...
+	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
+
+	// ...but we bootstrap it with the Composition environment, if there is one.
+	if req.Environment != nil {
+		e, err := AsStruct(req.Environment)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errEnvAsStruct)
+		}
+		fctx.Fields[FunctionContextKeyEnvironment] = structpb.NewStructValue(e)
+	}
+
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
 	for _, fn := range req.Revision.Spec.Pipeline {
-		req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d}
+		req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -250,7 +269,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 		}
 
+		// Pass the desired state returned by this Function to the next one.
 		d = rsp.GetDesired()
+
+		// Pass the Function context returned by this Function to the next one.
+		fctx = rsp.GetContext()
 
 		// Results of fatal severity stop the Composition process. Other results
 		// are accumulated to be emitted as events by the Reconciler.

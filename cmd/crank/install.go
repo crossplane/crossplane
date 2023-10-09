@@ -272,5 +272,5 @@ func warnIfNotFound(err error) error {
 	if serr.ErrStatus.Code != http.StatusNotFound {
 		return err
 	}
-	return errors.WithMessagef(err, "kubectl-crossplane plugin %s might be out of date", version.New().GetVersionString())
+	return errors.WithMessagef(err, "CLI crossplane %s might be out of date", version.New().GetVersionString())
 }
