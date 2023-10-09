@@ -55,7 +55,7 @@ E2E_TEST_FLAGS="-create-kind-cluster=false -destroy-kind-cluster=false -kubeconf
 E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
   -destroy-kind-cluster=false \
   -kind-cluster-name=kind \
-  -install-crossplane=false \
+  -preinstall-crossplane=false \
   -feature=CrossplaneUpgrade" make e2e
 
 # Run all the tests not installing or upgrading Crossplane against the currently
@@ -64,7 +64,7 @@ E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
   -kubeconfig=$HOME/.kube/config \
   -skip-labels modify-crossplane-installation=true \
   -create-kind-cluster=false \
-  -install-crossplane=false" make go.build e2e-run-tests
+  -preinstall-crossplane=false" make go.build e2e-run-tests
 
 # Run the composition-webhook-schema-validation suite of tests, which will
 # result in all tests marked as "test-suite=base" or
