@@ -66,14 +66,8 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 type PackageWithRuntime interface {
 	Package
 
-	GetRuntimeImage() string
-	SetRuntimeImage(s string)
-
 	GetControllerConfigRef() *ControllerConfigReference
 	SetControllerConfigRef(r *ControllerConfigReference)
-
-	GetRuntimeConfigRef() *RuntimeConfigReference
-	SetRuntimeConfigRef(r *RuntimeConfigReference)
 
 	GetTLSServerSecretName() *string
 
@@ -195,16 +189,6 @@ func (p *Provider) GetControllerConfigRef() *ControllerConfigReference {
 // SetControllerConfigRef of this Provider.
 func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
-}
-
-// GetRuntimeConfigRef of this Provider.
-func (p *Provider) GetRuntimeConfigRef() *RuntimeConfigReference {
-	return p.Spec.RuntimeConfigReference
-}
-
-// SetRuntimeConfigRef of this Provider.
-func (p *Provider) SetRuntimeConfigRef(r *RuntimeConfigReference) {
-	p.Spec.RuntimeConfigReference = r
 }
 
 // GetCurrentRevision of this Provider.
@@ -367,17 +351,14 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
-// PackageWithRuntimeRevision is the interface satisfied by revision of packages
+// PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageWithRuntimeRevision interface {
+type PackageRevisionWithRuntime interface {
 	PackageRevision
 
 	GetControllerConfigRef() *ControllerConfigReference
 	SetControllerConfigRef(r *ControllerConfigReference)
-
-	GetRuntimeConfigRef() *RuntimeConfigReference
-	SetRuntimeConfigRef(r *RuntimeConfigReference)
 
 	GetTLSServerSecretName() *string
 	SetTLSServerSecretName(n *string)
@@ -536,16 +517,6 @@ func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
 // SetControllerConfigRef of this ProviderREvsion.
 func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
-}
-
-// GetRuntimeConfigRef of this ProviderRevision.
-func (p *ProviderRevision) GetRuntimeConfigRef() *RuntimeConfigReference {
-	return p.Spec.RuntimeConfigReference
-}
-
-// SetRuntimeConfigRef of this ProviderREvsion.
-func (p *ProviderRevision) SetRuntimeConfigRef(r *RuntimeConfigReference) {
-	p.Spec.RuntimeConfigReference = r
 }
 
 // GetSkipDependencyResolution of this ProviderRevision.

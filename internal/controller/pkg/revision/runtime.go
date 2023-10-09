@@ -5,6 +5,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,15 +45,48 @@ const (
 	tlsClientCertsDir        = "/tls/client"
 )
 
+const (
+	errGetControllerConfig = "cannot get referenced controller config"
+	errGetServiceAccount   = "cannot get Crossplane service account"
+)
+
+// ManifestBuilder builds the runtime manifests for a package revision.
+type ManifestBuilder interface {
+	// ServiceAccount builds and returns the service account manifest.
+	ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
+	// Deployment builds and returns the deployment manifest.
+	Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
+	// Service builds and returns the service manifest.
+	Service(overrides ...ServiceOverrides) *corev1.Service
+	// TLSClientSecret builds and returns the TLS client secret manifest.
+	TLSClientSecret() *corev1.Secret
+	// TLSServerSecret builds and returns the TLS server secret manifest.
+	TLSServerSecret() *corev1.Secret
+}
+
+// A RuntimeHooks performs runtime operations before and after a revision
+// establishes objects.
+type RuntimeHooks interface {
+	// Pre performs operations meant to happen before establishing objects.
+	Pre(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error
+
+	// Post performs operations meant to happen after establishing objects.
+	Post(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error
+
+	// Deactivate performs operations meant to happen before deactivating a revision.
+	Deactivate(context.Context, v1.PackageRevisionWithRuntime, ManifestBuilder) error
+}
+
+// RuntimeManifestBuilder builds the runtime manifests for a package revision.
 type RuntimeManifestBuilder struct {
-	revision                  v1.PackageWithRuntimeRevision
+	revision                  v1.PackageRevisionWithRuntime
 	namespace                 string
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	controllerConfig          *v1alpha1.ControllerConfig
-	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 }
 
-func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namespace string, serviceAccount string, pwr v1.PackageWithRuntimeRevision) (*RuntimeManifestBuilder, error) {
+// NewRuntimeManifestBuilder returns a new RuntimeManifestBuilder.
+func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namespace string, serviceAccount string, pwr v1.PackageRevisionWithRuntime) (*RuntimeManifestBuilder, error) {
 	b := &RuntimeManifestBuilder{
 		namespace: namespace,
 		revision:  pwr,
@@ -61,17 +95,9 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 	if ccRef := pwr.GetControllerConfigRef(); ccRef != nil {
 		cc := &v1alpha1.ControllerConfig{}
 		if err := client.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, errGetControllerConfig)
 		}
 		b.controllerConfig = cc
-	}
-
-	if rcRef := pwr.GetRuntimeConfigRef(); rcRef != nil {
-		rc := &v1beta1.DeploymentRuntimeConfig{}
-		if err := client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
-			return nil, err
-		}
-		b.runtimeConfig = rc
 	}
 
 	sa := &corev1.ServiceAccount{}
@@ -86,16 +112,9 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 	return b, nil
 }
 
+// ServiceAccount builds and returns the ServiceAccount manifest.
 func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
 	sa := defaultServiceAccount(b.revision.GetName())
-
-	if cc := b.controllerConfig; cc != nil {
-		overrides = append(overrides, ServiceAccountWithControllerConfig(cc))
-	}
-
-	if b.runtimeConfig != nil {
-		// Do something with the runtime config
-	}
 
 	overrides = append(overrides,
 		// Currently it is not possible to override the namespace,
@@ -108,6 +127,10 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 		ServiceAccountWithAdditionalPullSecrets(append(b.revision.GetPackagePullSecrets(), b.serviceAccountPullSecrets...)),
 	)
 
+	if cc := b.controllerConfig; cc != nil {
+		overrides = append(overrides, ServiceAccountWithControllerConfig(cc))
+	}
+
 	for _, o := range overrides {
 		o(sa)
 	}
@@ -115,16 +138,9 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 	return sa
 }
 
+// Deployment builds and returns the Deployment manifest.
 func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
 	d := defaultDeployment(b.revision.GetName())
-
-	if b.controllerConfig != nil {
-		overrides = append(overrides, DeploymentWithControllerConfig(b.controllerConfig))
-	}
-
-	if b.runtimeConfig != nil {
-		// Do something with the runtime config
-	}
 
 	overrides = append(overrides,
 		DeploymentWithNamespace(b.namespace),
@@ -149,6 +165,10 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 		overrides = append(overrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetTLSServerSecretName()))
 	}
 
+	if b.controllerConfig != nil {
+		overrides = append(overrides, DeploymentForControllerConfig(b.controllerConfig))
+	}
+
 	for _, o := range overrides {
 		o(d)
 	}
@@ -156,12 +176,9 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 	return d
 }
 
+// Service builds and returns the Service manifest.
 func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
 	svc := defaultService(b.packageName())
-
-	if b.runtimeConfig != nil {
-		// Do something with the runtime config
-	}
 
 	overrides = append(overrides,
 		// Currently it is not possible to override the namespace,
@@ -187,6 +204,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.
 	return svc
 }
 
+// TLSClientSecret builds and returns the Secret manifest for the TLS client certificate.
 func (b *RuntimeManifestBuilder) TLSClientSecret() *corev1.Secret {
 	if b.revision.GetTLSClientSecretName() == nil {
 		return nil
@@ -201,6 +219,7 @@ func (b *RuntimeManifestBuilder) TLSClientSecret() *corev1.Secret {
 	}
 }
 
+// TLSServerSecret builds and returns the Secret manifest for the TLS server certificate.
 func (b *RuntimeManifestBuilder) TLSServerSecret() *corev1.Secret {
 	if b.revision.GetTLSServerSecretName() == nil {
 		return nil
