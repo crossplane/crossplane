@@ -1,6 +1,9 @@
 # helm-docs renders these comments into markdown. Use markdown formatting where
 # appropiate.
 #
+# -- Install all crossplane CRDs with Helm Install
+installCRDs: false
+
 # -- The number of Crossplane pod `replicas` to deploy.
 replicas: 1
 
