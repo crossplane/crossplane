@@ -65,6 +65,14 @@ var cli struct {
 	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
+
+	Alpha struct {
+		// Add here alpha subcommands
+	} `cmd:"" help:"Alpha features. WARN: May be changed or removed in a future release"`
+
+	Beta struct {
+		// Add here beta subcommands
+	} `cmd:"" help:"Beta features. WARN: May be changed or removed in a future release"`
 }
 
 func main() {
@@ -82,6 +90,10 @@ func main() {
 		// at runtime.
 		kong.Bind(buildChild, pushChild),
 		kong.BindTo(logger, (*logging.Logger)(nil)),
+		kong.ConfigureHelp(kong.HelpOptions{
+			Tree:      true,
+			FlagsLast: true,
+		}),
 		kong.UsageOnError())
 	err := ctx.Run()
 	ctx.FatalIfErrorf(err)
