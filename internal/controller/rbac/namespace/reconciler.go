@@ -189,7 +189,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// https://github.com/kubernetes-sigs/controller-runtime/blob/d6829e9/pkg/cache/internal/cache_reader.go#L131
 	l := &rbacv1.ClusterRoleList{}
 	if err := r.client.List(ctx, l); err != nil {
-		log.Debug(errListRoles, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -209,7 +208,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			continue
 		}
 		if err != nil {
-			log.Debug(errApplyRole, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}

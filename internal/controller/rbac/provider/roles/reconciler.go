@@ -271,7 +271,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// TODO(negz): Get active revisions in family.
 		prs := &v1.ProviderRevisionList{}
 		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
-			log.Debug(errListPRs, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -306,14 +305,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
 	if err != nil {
-		log.Debug(errValidatePermissions, "error", err)
 		err = errors.Wrap(err, errValidatePermissions)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 		return reconcile.Result{}, err
 	}
 
 	for _, rule := range rejected {
-		log.Debug(errRejectedPermission, "rule", rule)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errRejectedPermission, rule)))
 	}
 
@@ -342,7 +339,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			continue
 		}
 		if err != nil {
-			log.Debug(errApplyRole, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}

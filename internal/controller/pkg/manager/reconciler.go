@@ -279,16 +279,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackage)
 	}
 
-	log = log.WithValues(
-		"uid", p.GetUID(),
-		"version", p.GetResourceVersion(),
-		"name", p.GetName(),
-	)
-
 	// Get existing package revisions.
 	prs := r.newPackageRevisionList()
 	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
-		log.Debug(errListRevisions, "error", err)
 		err = errors.Wrap(err, errListRevisions)
 		r.record.Event(p, event.Warning(reasonList, err))
 		return reconcile.Result{}, err
@@ -296,7 +289,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	revisionName, err := r.pkg.Revision(ctx, p)
 	if err != nil {
-		log.Debug(errUnpack, "error", err)
 		err = errors.Wrap(err, errUnpack)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
@@ -353,7 +345,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// the package's revision activation policy.
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
-				log.Debug(errUpdateInactivePackageRevision, "error", err)
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
@@ -376,7 +367,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		gcRev := revisions[oldestRevisionIndex]
 		// Find the oldest revision and delete it.
 		if err := r.client.Delete(ctx, gcRev); err != nil {
-			log.Debug(errGCPackageRevision, "error", err)
 			err = errors.Wrap(err, errGCPackageRevision)
 			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
 			return reconcile.Result{}, err
@@ -419,7 +409,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	controlRef.BlockOwnerDeletion = pointer.Bool(true)
 	meta.AddOwnerReference(pr, controlRef)
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
-		log.Debug(errApplyPackageRevision, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -433,7 +422,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !same {
 		pr.SetCommonLabels(p.GetCommonLabels())
 		if err := r.client.Update(ctx, pr); err != nil {
-			log.Debug(errApplyPackageRevision, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
