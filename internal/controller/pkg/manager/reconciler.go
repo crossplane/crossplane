@@ -405,7 +405,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetCommonLabels(p.GetCommonLabels())
 
 	if pwr, ok := p.(v1.PackageWithRuntime); ok {
-		pwrr, ok := pr.(v1.PackageWithRuntimeRevision)
+		pwrr, ok := pr.(v1.PackageRevisionWithRuntime)
 		if !ok {
 			log.Debug(errUnexpectedPackageRevision)
 			err = errors.New(errUnexpectedPackageRevision)
@@ -413,7 +413,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
-		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
 		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
 		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}

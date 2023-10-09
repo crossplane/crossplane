@@ -726,7 +726,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	var manifests ManifestBuilder
 	if r.runtimeHook != nil {
-		pwr := pr.(v1.PackageWithRuntimeRevision)
+		pwr := pr.(v1.PackageRevisionWithRuntime)
 		manifests, err = NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pwr)
 		if err != nil {
 			log.Debug(errManifestBuilder, "error", err)
@@ -785,7 +785,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetObjects(refs)
 
 	if r.runtimeHook != nil {
-		if err := r.runtimeHook.Post(ctx, pkgMeta, pr.(v1.PackageWithRuntimeRevision), manifests); err != nil {
+		if err := r.runtimeHook.Post(ctx, pkgMeta, pr.(v1.PackageRevisionWithRuntime), manifests); err != nil {
 			log.Debug(errPostHook, "error", err)
 
 			err = errors.Wrap(err, errPostHook)
@@ -818,14 +818,14 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 		return nil
 	}
 
-	pwr := pr.(v1.PackageWithRuntimeRevision)
+	pwr := pr.(v1.PackageRevisionWithRuntime)
 	manifests, err := NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pwr)
 	if err != nil {
 		return errors.Wrap(err, errManifestBuilder)
 	}
 
 	// Call deactivation hook.
-	if err := r.runtimeHook.Deactivate(ctx, pr.(v1.PackageWithRuntimeRevision), manifests); err != nil {
+	if err := r.runtimeHook.Deactivate(ctx, pr.(v1.PackageRevisionWithRuntime), manifests); err != nil {
 		return errors.Wrap(err, errDeactivationHook)
 	}
 

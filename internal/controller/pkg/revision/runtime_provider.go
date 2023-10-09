@@ -1,15 +1,165 @@
 package revision
 
 import (
+	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/initializer"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.PackageWithRuntimeRevision) []DeploymentOverrides {
+const (
+	errNotProvider                            = "not a provider package"
+	errNotProviderRevision                    = "not a provider revision"
+	errDeleteProviderDeployment               = "cannot delete provider package deployment"
+	errDeleteProviderSA                       = "cannot delete provider package service account"
+	errDeleteProviderService                  = "cannot delete provider package service"
+	errApplyProviderDeployment                = "cannot apply provider package deployment"
+	errApplyProviderSecret                    = "cannot apply provider package secret"
+	errApplyProviderSA                        = "cannot apply provider package service account"
+	errApplyProviderService                   = "cannot apply provider package service"
+	errFmtUnavailableProviderDeployment       = "provider package deployment is unavailable with message: %s"
+	errNoAvailableConditionProviderDeployment = "provider package deployment has no condition of type \"Available\" yet"
+)
+
+// ProviderHooks performs runtime operations for provider packages.
+type ProviderHooks struct {
+	client resource.ClientApplicator
+}
+
+// NewProviderHooks returns a new ProviderHooks.
+func NewProviderHooks(client resource.ClientApplicator) *ProviderHooks {
+	return &ProviderHooks{
+		client: client,
+	}
+}
+
+// Pre performs operations meant to happen before establishing objects.
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	providerMeta, ok := po.(*pkgmetav1.Provider)
+	if !ok {
+		return errors.New(errNotProvider)
+	}
+
+	provRev, ok := pr.(*v1.ProviderRevision)
+	if !ok {
+		return errors.New(errNotProviderRevision)
+	}
+
+	provRev.Status.PermissionRequests = providerMeta.Spec.Controller.PermissionRequests
+
+	// TODO(hasheddan): update any status fields relevant to package revisions.
+
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	// Ensure Prerequisites
+	svc := manifests.Service()
+	if err := h.client.Apply(ctx, svc); err != nil {
+		return errors.Wrap(err, errApplyProviderService)
+	}
+
+	secClient := manifests.TLSClientSecret()
+	secServer := manifests.TLSServerSecret()
+
+	if secClient == nil || secServer == nil {
+		// We should wait for the provider revision reconciler to set the secret
+		// names before proceeding creating the TLS secrets
+		return nil
+	}
+
+	if err := h.client.Apply(ctx, secClient); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+	if err := h.client.Apply(ctx, secServer); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+
+	if err := initializer.NewTLSCertificateGenerator(secClient.Namespace, initializer.RootCACertSecretName,
+		initializer.TLSCertificateGeneratorWithOwner(pr.GetOwnerReferences()),
+		initializer.TLSCertificateGeneratorWithServerSecretName(secServer.GetName(), initializer.DNSNamesForService(svc.Name, svc.Namespace)),
+		initializer.TLSCertificateGeneratorWithClientSecretName(secClient.GetName(), []string{pr.GetName()})).Run(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %q", pr.GetLabels()[v1.LabelParentPackage])
+	}
+
+	return nil
+}
+
+// Post performs operations meant to happen after establishing objects.
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	providerMeta, ok := po.(*pkgmetav1.Provider)
+	if !ok {
+		return errors.New("not a provider package")
+	}
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	sa := manifests.ServiceAccount()
+	if err := h.client.Apply(ctx, sa); err != nil {
+		return errors.Wrap(err, errApplyProviderSA)
+	}
+
+	d := manifests.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
+	if err := h.client.Apply(ctx, d); err != nil {
+		return errors.Wrap(err, errApplyProviderDeployment)
+	}
+
+	// TODO(phisco): check who is actually using this
+	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
+
+	for _, c := range d.Status.Conditions {
+		if c.Type == appsv1.DeploymentAvailable {
+			if c.Status == corev1.ConditionTrue {
+				return nil
+			}
+			return errors.Errorf(errFmtUnavailableProviderDeployment, c.Message)
+		}
+	}
+	return errors.New(errNoAvailableConditionProviderDeployment)
+}
+
+// Deactivate performs operations meant to happen before deactivating a revision.
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+	sa := manifests.ServiceAccount()
+	// Delete the service account if it exists.
+	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderSA)
+	}
+
+	// Delete the deployment if it exists.
+	// Different from the Post runtimeHook, we don't need to pass the
+	// "providerDeploymentOverrides()" here, because we're only interested
+	// in the name and namespace of the deployment to delete it.
+	if err := h.client.Delete(ctx, manifests.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderDeployment)
+	}
+
+	// TODO(phisco): only added to cleanup the service we were previously
+	// 	deploying for each provider revision, remove in a future release.
+	svc := manifests.Service(ServiceWithName(pr.GetName()))
+	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderService)
+	}
+
+	// NOTE(phisco): Service and TLS secrets are created per package. Therefore,
+	// we're not deleting them here.
+	return nil
+}
+
+func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) []DeploymentOverrides {
 	do := []DeploymentOverrides{
 		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			{
@@ -31,6 +181,18 @@ func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.Package
 		do = append(do, DeploymentRuntimeWithImage(*providerMeta.Spec.Controller.Image))
 	}
 
+	if pr.GetTLSClientSecretName() != nil {
+		do = append(do, DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
+			// for backward compatibility with existing providers, we set the
+			// environment variable ESS_TLS_CERTS_DIR to the same value as
+			// TLS_CLIENT_CERTS_DIR to ease the transition to the new certificates.
+			{
+				Name:  essTLSCertDirEnvVar,
+				Value: fmt.Sprintf("$(%s)", tlsClientCertDirEnvVar),
+			},
+		}))
+	}
+
 	if pr.GetTLSServerSecretName() != nil {
 		do = append(do, DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
@@ -44,18 +206,6 @@ func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.Package
 			{
 				Name:  webhookTLSCertDirEnvVar,
 				Value: fmt.Sprintf("$(%s)", tlsServerCertDirEnvVar),
-			},
-		}))
-	}
-
-	if pr.GetTLSClientSecretName() != nil {
-		do = append(do, DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
-			// for backward compatibility with existing providers, we set the
-			// environment variable ESS_TLS_CERTS_DIR to the same value as
-			// TLS_CLIENT_CERTS_DIR to ease the transition to the new certificates.
-			{
-				Name:  essTLSCertDirEnvVar,
-				Value: fmt.Sprintf("$(%s)", tlsClientCertDirEnvVar),
 			},
 		}))
 	}

@@ -9,11 +9,6 @@ type PackageRuntimeSpec struct {
 	// Deprecated: Use RuntimeConfigReference instead.
 	// +optional
 	ControllerConfigReference *ControllerConfigReference `json:"controllerConfigRef,omitempty"`
-
-	// RuntimeConfigRef references a RuntimeConfig resource that will be used
-	// to configure the package runtime.
-	// +optional
-	RuntimeConfigReference *RuntimeConfigReference `json:"runtimeConfigRef,omitempty"`
 }
 
 // PackageRevisionRuntimeSpec specifies configuration for the runtime of a
@@ -36,20 +31,5 @@ type PackageRevisionRuntimeSpec struct {
 // to configure the packaged controller Deployment.
 type ControllerConfigReference struct {
 	// Name of the ControllerConfig.
-	Name string `json:"name"`
-}
-
-// A RuntimeConfigReference to a runtime config resource that will be used
-// to configure the package runtime.
-type RuntimeConfigReference struct {
-	// API version of the referent.
-	// +optional
-	// +kubebuilder:default="pkg.crossplane.io/v1beta1"
-	APIVersion string `json:"apiVersion,omitempty"`
-	// Kind of the referent.
-	// +optional
-	// +kubebuilder:default="DeploymentRuntimeConfig"
-	Kind string `json:"kind,omitempty"`
-	// Name of the RuntimeConfig.
 	Name string `json:"name"`
 }

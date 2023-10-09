@@ -195,7 +195,7 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 
 func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
-	if parentWithRuntime, ok := parent.(v1.PackageWithRuntime); ok {
+	if parentWithRuntime, ok := parent.(v1.PackageRevisionWithRuntime); ok {
 		if tlsServerSecretName := parentWithRuntime.GetTLSServerSecretName(); tlsServerSecretName != nil {
 			s := &corev1.Secret{}
 			nn := types.NamespacedName{Name: *tlsServerSecretName, Namespace: e.namespace}

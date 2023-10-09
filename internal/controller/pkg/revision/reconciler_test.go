@@ -107,15 +107,15 @@ func NewMockDeactivateFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageWithRuntimeRevision, ManifestBuilder) error {
+func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockPre()
 }
 
-func (h *MockHook) Post(context.Context, runtime.Object, v1.PackageWithRuntimeRevision, ManifestBuilder) error {
+func (h *MockHook) Post(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockPost()
 }
 
-func (h *MockHook) Deactivate(context.Context, v1.PackageWithRuntimeRevision, ManifestBuilder) error {
+func (h *MockHook) Deactivate(context.Context, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockDeactivate()
 }
 

@@ -117,24 +117,6 @@ spec:
                   garbage collected based on the parent's RevisionHistoryLimit.
                 format: int64
                 type: integer
-              runtimeConfigRef:
-                description: RuntimeConfigRef references a RuntimeConfig resource
-                  that will be used to configure the package runtime.
-                properties:
-                  apiVersion:
-                    default: pkg.crossplane.io/v1beta1
-                    description: API version of the referent.
-                    type: string
-                  kind:
-                    default: DeploymentRuntimeConfig
-                    description: Kind of the referent.
-                    type: string
-                  name:
-                    description: Name of the RuntimeConfig.
-                    type: string
-                required:
-                - name
-                type: object
               skipDependencyResolution:
                 default: false
                 description: SkipDependencyResolution indicates to the package manager
