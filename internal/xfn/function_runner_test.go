@@ -83,8 +83,10 @@ func TestRunFunction(t *testing.T) {
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 						obj.(*pkgv1beta1.FunctionRevisionList).Items = []pkgv1beta1.FunctionRevision{
 							{
-								Spec: pkgv1.PackageRevisionSpec{
-									DesiredState: pkgv1.PackageRevisionInactive, // This revision is not active.
+								Spec: pkgv1beta1.FunctionRevisionSpec{
+									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										DesiredState: pkgv1.PackageRevisionInactive, // This revision is not active.
+									},
 								},
 							},
 						}
@@ -110,8 +112,10 @@ func TestRunFunction(t *testing.T) {
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "cool-fn-revision-a",
 								},
-								Spec: pkgv1.PackageRevisionSpec{
-									DesiredState: pkgv1.PackageRevisionActive,
+								Spec: pkgv1beta1.FunctionRevisionSpec{
+									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										DesiredState: pkgv1.PackageRevisionActive,
+									},
 								},
 								Status: pkgv1beta1.FunctionRevisionStatus{
 									Endpoint: "", // An empty endpoint.
@@ -152,8 +156,10 @@ func TestRunFunction(t *testing.T) {
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "cool-fn-revision-a",
 								},
-								Spec: pkgv1.PackageRevisionSpec{
-									DesiredState: pkgv1.PackageRevisionActive,
+								Spec: pkgv1beta1.FunctionRevisionSpec{
+									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										DesiredState: pkgv1.PackageRevisionActive,
+									},
 								},
 								Status: pkgv1beta1.FunctionRevisionStatus{
 									Endpoint: strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1),
@@ -351,8 +357,10 @@ func NewListFn(target string) test.MockListFn {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cool-fn-revision-a",
 				},
-				Spec: pkgv1.PackageRevisionSpec{
-					DesiredState: pkgv1.PackageRevisionActive,
+				Spec: pkgv1beta1.FunctionRevisionSpec{
+					PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+						DesiredState: pkgv1.PackageRevisionActive,
+					},
 				},
 				Status: pkgv1beta1.FunctionRevisionStatus{
 					Endpoint: target,

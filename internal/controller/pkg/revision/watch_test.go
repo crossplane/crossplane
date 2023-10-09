@@ -76,8 +76,12 @@ func TestAdd(t *testing.T) {
 					l.Items = []v1.ProviderRevision{
 						{
 							ObjectMeta: metav1.ObjectMeta{Name: prName},
-							Spec: v1.PackageRevisionSpec{
-								ControllerConfigReference: &v1.ControllerConfigReference{},
+							Spec: v1.ProviderRevisionSpec{
+								PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+									PackageRuntimeSpec: v1.PackageRuntimeSpec{
+										ControllerConfigReference: &v1.ControllerConfigReference{},
+									},
+								},
 							},
 						},
 						{
