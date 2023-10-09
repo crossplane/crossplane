@@ -64,6 +64,7 @@ var cli struct {
 	Update   updateCmd   `cmd:"" help:"Update Crossplane packages."`
 	Push     pushCmd     `cmd:"" help:"Push Crossplane packages."`
 	Describe describeCmd `cmd:"" help:"Describe a Kubernetes Crossplane resource."`
+	Diagnose diagnoseCmd `cmd:"" help:"Detect unhealthy Crossplane resources and print them in a table."`
 
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 }
