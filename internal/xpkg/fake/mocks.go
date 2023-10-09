@@ -22,7 +22,7 @@ import (
 	"io"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
