@@ -68,11 +68,11 @@ var cli struct {
 
 	Alpha struct {
 		// Add here alpha subcommands
-	} `cmd:"" help:"Alpha features. WARN: May be changed or removed in a future release"`
+	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
 
 	Beta struct {
 		// Add here beta subcommands
-	} `cmd:"" help:"Beta features. WARN: May be changed or removed in a future release"`
+	} `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
 }
 
 func main() {
