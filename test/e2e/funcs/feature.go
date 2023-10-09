@@ -166,7 +166,9 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 		}
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d)); err != nil {
-			t.Errorf("resources not deleted: %v", err)
+			y, _ := yaml.Marshal(list.Items)
+			related, _ := relatedObjectString(ctx, c.Client().RESTConfig(), itemsToObjects(list.Items)...)
+			t.Errorf("resources not deleted: %v:\n\n%s\n\nrelated objects:\n\n%s\n", err, y, related)
 			return ctx
 		}
 
