@@ -20,6 +20,7 @@ package core
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -157,6 +159,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Deduplicate: true,
 	})
 
+	eb := record.NewBroadcaster()
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme: s,
 		Cache: cache.Options{
@@ -176,6 +179,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 				Unstructured: false, // this is the default to not cache unstructured objects
 			},
 		},
+		EventBroadcaster: eb,
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
@@ -195,6 +199,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if err != nil {
 		return errors.Wrap(err, "cannot create manager")
 	}
+
+	eb.StartLogging(func(format string, args ...interface{}) {
+		log.Debug(fmt.Sprintf(format, args...))
+	})
+	defer eb.Shutdown()
 
 	o := controller.Options{
 		Logger:                  log,
