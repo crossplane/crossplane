@@ -9,6 +9,7 @@ import (
 	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/emicklei/dot"
 	"github.com/goccy/go-graphviz"
+	"github.com/pkg/errors"
 )
 
 type GraphPrinter struct {
@@ -30,11 +31,11 @@ func (p *GraphPrinter) SaveGraph(resource k8s.Resource, fields []string, path st
 	dotBytes := []byte(g.String())
 	graph, err := graphviz.ParseBytes(dotBytes)
 	if err != nil {
-		return fmt.Errorf("Couldn't create PNG -> %w", err)
+		return errors.Wrap(err, "Couldn't create PNG")
 	}
 
 	if err := g1.RenderFilename(graph, graphviz.PNG, path); err != nil {
-		return fmt.Errorf("Couldn't save PNG to path %s -> %w", path, err)
+		return errors.Wrap(err, "Couldn't save PNG to path")
 	}
 	return nil
 }

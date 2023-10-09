@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -100,25 +101,25 @@ func (r Resource) GotChildren() bool {
 	}
 }
 
-// GetResource takes a the kind, name, namespace of a resource and a kubeconfig as input.
-// The function then returns a type Resource struct, containing itself and all its children as Resource.
+// The main function of resource. Returns a Resource and all its child resources.
 func GetResource(resourceKind string, resourceName string, namespace string, kubeconfig *rest.Config) (*Resource, error) {
+	// Init new client
 	client, err := newClient(kubeconfig)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't init kubeclient -> %w", err)
+		return nil, errors.Wrap(err, "Couldn't init kubeclient")
 	}
 
-	// Set manifest for root resource
+	// Get manifest for root resource
 	root := Resource{}
 	root.Manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't get root resource manifest -> %w", err)
+		return nil, errors.Wrap(err, "Couldn't get root resource manifest")
 	}
 
 	// Get all children for root resource by checking resourceRef(s) in manifest
 	root, err = client.getChildren(root)
 	if err != nil {
-		return &root, fmt.Errorf("Couldn't get children of root resource -> %w", err)
+		return &root, errors.Wrap(err, "Couldn't get children of root resource")
 	}
 
 	return &root, nil
@@ -126,9 +127,9 @@ func GetResource(resourceKind string, resourceName string, namespace string, kub
 
 // getManifest returns the k8s manifest of a resource as unstructured.
 func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersion string, namespace string) (*unstructured.Unstructured, error) {
+	// Set GVK for resource in new manifest
 	gr := schema.ParseGroupResource(resourceKind)
 
-	// Set GVK for resource in new manifest
 	manifest := &unstructured.Unstructured{}
 	manifest.SetName(resourceName)
 	manifest.SetGroupVersionKind(schema.GroupVersionKind{
@@ -140,7 +141,7 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 	// Check if resource is namespaced as the namespace parameter has to bet set in the kc.client.Resource() call below
 	isNamespaced, err := kc.isResourceNamespaced(gr.Resource, apiVersion)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't detect if resource is namespaced -> %w", err)
+		return nil, errors.Wrap(err, "Couldn't detect if resource is namespaced")
 	}
 	if isNamespaced {
 		manifest.SetNamespace(namespace)
@@ -153,19 +154,18 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 		Resource: manifest.GetKind(),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't build GVR schema for resource -> %w", err)
+		return nil, errors.Wrap(err, "Couldn't build GVR schema for resource")
 	}
 
 	// Get manifest for resource
 	result, err := kc.dclient.Resource(gvr).Namespace(manifest.GetNamespace()).Get(context.TODO(), manifest.GetName(), metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't get resource manifest from KubeAPI -> %w", err)
+		return nil, errors.Wrap(err, "Couldn't get resource manifest from KubeAPI")
 	}
 
 	return result, nil
 }
 
-// The getChildren function returns the r Resource that is passed to it on function call.
 // The function checks the `spec.resourceRef` and `spec.resourceRefs` path for child resources.
 // If resources are discovered they are added as getChildren to the passed r Resource.
 func (kc *Client) getChildren(r Resource) (Resource, error) {
@@ -177,7 +177,7 @@ func (kc *Client) getChildren(r Resource) (Resource, error) {
 			r, err = kc.setChild(resourceRefMap, r)
 		}
 	} else if err != nil {
-		return r, fmt.Errorf("Couldn't get children of resource -> %w", err)
+		return r, errors.Wrap(err, "Couldn't get children of resource")
 	}
 
 	return r, nil
@@ -196,13 +196,13 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	// TODO: Not sure if namespace is set in namespaced resources in `spec.resourceRef(s)`
 	u, err := kc.getManifest(kind, name, apiVersion, r.GetNamespace())
 	if err != nil {
-		return r, fmt.Errorf("Couldn't get manifest of children -> %w", err)
+		return r, errors.Wrap(err, "Couldn't get manifest of children")
 	}
 
 	// Get event
 	event, err := kc.event(name, kind, apiVersion, r.GetNamespace())
 	if err != nil {
-		return r, fmt.Errorf("Couldn't get event for resource %s -> %w", name+kind, err)
+		return r, errors.Wrap(err, "Couldn't get event for resource")
 	}
 	// Set child
 	child := Resource{
@@ -212,7 +212,7 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	// Get children of children
 	child, err = kc.getChildren(child)
 	if err != nil {
-		return r, fmt.Errorf("Couldn't get children of children -> %w", err)
+		return r, errors.Wrap(err, "Couldn't get children of children")
 	}
 	r.Children = append(r.Children, child)
 
@@ -221,14 +221,13 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 
 // The isResourceNamespaced function returns true if the passed resource is namespaced, else false.
 // The functions works by getting all k8s API resources and then checking for the specific resourceKind and apiVersion passed.
-// Once a match is found it is checked if the resource is namespaced.
 // If an empty apiVersion string is passed the function also works. In that case issues may occur in case some kind exists more then once.
 // E.g both Azure and AWS provide a "group" resouce. So the function is not able to identify for which resource kind the namespace is checked and chooses the first match.
 func (kc *Client) isResourceNamespaced(resourceKind string, apiVersion string) (bool, error) {
 	// Retrieve the API resource list
 	apiResourceLists, err := kc.dc.ServerPreferredResources()
 	if err != nil {
-		return false, fmt.Errorf("Couldn't get API resources of k8s API server -> %w", err)
+		return false, errors.Wrap(err, "Couldn't get API resources of k8s API server")
 	}
 
 	// Trim version if set
@@ -246,7 +245,7 @@ func (kc *Client) isResourceNamespaced(resourceKind string, apiVersion string) (
 
 		}
 	}
-	return false, fmt.Errorf("resource not found in API server -> Kind:%s ApiVersion %s", resourceKind, apiVersion)
+	return false, errors.Wrap(err, "resource not found in API server")
 }
 
 // The event function returns the latest occuring event of a resource.
@@ -256,7 +255,7 @@ func (kc *Client) event(resourceName string, resourceKind string, apiVersion str
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=%s,involvedObject.apiVersion=%s", resourceName, resourceKind, apiVersion),
 	})
 	if err != nil {
-		return "", fmt.Errorf("Couldn't get event list for resource %s -> %w", resourceKind+resourceName, err)
+		return "", errors.Wrap(err, "Couldn't get event list for resource")
 	}
 
 	// Check if there are any events.
@@ -351,6 +350,7 @@ func getSliceOfMapsFromNestedField(obj unstructured.Unstructured, fields ...stri
 	return result, true, nil
 }
 
+// Returns an unstructured that has basic fields set to test the k8s package. Used to create manifests for resources in tests.
 func DummyManifest(kind, name, syncedStatus, readyStatus string) *unstructured.Unstructured {
 	m := &unstructured.Unstructured{
 		Object: map[string]interface{}{

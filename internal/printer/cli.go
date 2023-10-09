@@ -8,8 +8,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
-// Takes a filled Resource which should be printed as input. The fields input defines the fields which are printed out and are set as header.
-// The available fields for the fields variable are defined in the cmd/root.go file
+// Prints out a CLI table of the passed Resource. The fields variable determines the header and values of the table.
 func CliTable(rootResource k8s.Resource, fields []string) error {
 	// Create a new table and set header
 	table := tablewriter.NewWriter(os.Stdout)
@@ -17,7 +16,7 @@ func CliTable(rootResource k8s.Resource, fields []string) error {
 
 	// add all children to the table
 	if err := CliTableAddResource(table, fields, rootResource, ""); err != nil {
-		return fmt.Errorf("Error getting resource field %w\n", err)
+		return err
 	}
 	table.Render()
 
@@ -28,7 +27,7 @@ func CliTable(rootResource k8s.Resource, fields []string) error {
 func CliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
 	var tableRow = make([]string, len(fields))
 
-	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument was passed
+	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument defined
 	for i, field := range fields {
 		if field == "parent" {
 			var parentPrefix string
@@ -68,7 +67,10 @@ func CliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resour
 
 	// Recursively print children with the updated parent information.
 	for _, child := range r.Children {
-		CliTableAddResource(table, fields, child, r.GetKind())
+		err := CliTableAddResource(table, fields, child, r.GetKind())
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
