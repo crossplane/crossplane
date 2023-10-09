@@ -149,7 +149,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
-		return errors.Wrap(err, "Cannot get config")
+		return errors.Wrap(err, "cannot get config")
 	}
 
 	cfg.WarningHandler = rest.NewWarningWriter(os.Stderr, rest.WarningWriterOptions{
@@ -193,7 +193,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		HealthProbeBindAddress: ":5000",
 	})
 	if err != nil {
-		return errors.Wrap(err, "Cannot create manager")
+		return errors.Wrap(err, "cannot create manager")
 	}
 
 	o := controller.Options{
@@ -253,7 +253,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
 			false)
 		if err != nil {
-			return errors.Wrap(err, "Cannot load TLS certificates for external secret stores")
+			return errors.Wrap(err, "cannot load TLS certificates for external secret stores")
 		}
 
 		o.ESSOptions = &controller.ESSOptions{
@@ -270,7 +270,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
-		return errors.Wrap(err, "Cannot setup API extension controllers")
+		return errors.Wrap(err, "cannot setup API extension controllers")
 	}
 
 	po := pkgcontroller.Options{
@@ -285,13 +285,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.CABundlePath != "" {
 		rootCAs, err := ParseCertificatesFromPath(c.CABundlePath)
 		if err != nil {
-			return errors.Wrap(err, "Cannot parse CA bundle")
+			return errors.Wrap(err, "cannot parse CA bundle")
 		}
 		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
-		return errors.Wrap(err, "Cannot add packages controllers to manager")
+		return errors.Wrap(err, "cannot add packages controllers to manager")
 	}
 
 	// Registering webhooks with the manager is what actually starts the webhook
@@ -301,23 +301,23 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.
 		if err := xrd.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "Cannot setup webhook for compositeresourcedefinitions")
+			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
 		}
 		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "Cannot setup webhook for compositions")
+			return errors.Wrap(err, "cannot setup webhook for compositions")
 		}
 		if o.Features.Enabled(features.EnableAlphaUsages) {
 			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
-				return errors.Wrap(err, "Cannot setup webhook for usages")
+				return errors.Wrap(err, "cannot setup webhook for usages")
 			}
 		}
 	}
 
 	if err := c.SetupProbes(mgr); err != nil {
-		return errors.Wrap(err, "Cannot setup probes")
+		return errors.Wrap(err, "cannot setup probes")
 	}
 
-	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "cannot start controller manager")
 }
 
 // SetupProbes sets up the health and ready probes.
