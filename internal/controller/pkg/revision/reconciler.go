@@ -26,6 +26,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -442,6 +443,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// resolution, we will not be present in the lock.
 		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
 			log.Debug(errRemoveLock, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errRemoveLock)
 			r.record.Event(pr, event.Warning(reasonSync, err))
 			return reconcile.Result{}, err
@@ -454,6 +458,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Deployment or similar objects will be garbage collected as well.
 		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(pr, event.Warning(reasonSync, err))
 			return reconcile.Result{}, err
@@ -463,6 +470,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(pr, event.Warning(reasonSync, err))
 		return reconcile.Result{}, err
@@ -472,6 +482,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.deactivateRevision(ctx, pr); err != nil {
 			log.Debug(errDeactivateRevision, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errDeactivateRevision)
 			r.record.Event(pr, event.Warning(reasonDeactivate, err))
 			return reconcile.Result{}, err
@@ -656,6 +669,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	meta.AddAnnotations(pr, pmo.GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
 		log.Debug(errUpdateMeta, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 
 		err = errors.Wrap(err, errUpdateMeta)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
@@ -691,6 +707,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
 		if err != nil {
 			log.Debug(errResolveDeps, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 
 			err = errors.Wrap(err, errResolveDeps)
 			pr.SetConditions(v1.UnknownHealth().WithMessage(err.Error()))
@@ -704,6 +723,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPreHook, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 
 		err = errors.Wrap(err, errPreHook)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
@@ -718,6 +740,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 
 		err = errors.Wrap(err, errEstablishControl)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
@@ -747,6 +772,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPostHook, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 
 		err = errors.Wrap(err, errPostHook)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))

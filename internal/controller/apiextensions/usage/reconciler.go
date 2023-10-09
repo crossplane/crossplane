@@ -24,6 +24,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -295,6 +296,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				meta.RemoveLabels(used, inUseLabelKey)
 				if err = r.client.Update(ctx, used); err != nil {
 					log.Debug(errRemoveInUseLabel, "error", err)
+					if kerrors.IsConflict(err) {
+						return reconcile.Result{Requeue: true}, nil
+					}
 					err = errors.Wrap(err, errRemoveInUseLabel)
 					r.record.Event(u, event.Warning(reasonRemoveInUseLabel, err))
 					return reconcile.Result{}, err
@@ -305,6 +309,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Remove the finalizer from the usage
 		if err = r.usage.RemoveFinalizer(ctx, u); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(u, event.Warning(reasonRemoveFinalizer, err))
 			return reconcile.Result{}, err
@@ -316,6 +323,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Add finalizer for Usage resource.
 	if err := r.usage.AddFinalizer(ctx, u); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(u, event.Warning(reasonAddFinalizer, err))
 		return reconcile.Result{}, err
@@ -328,6 +338,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		})
 		if err := r.client.Update(ctx, u); err != nil {
 			log.Debug(errAddDetailsAnnotation, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errAddDetailsAnnotation)
 			r.record.Event(u, event.Warning(reasonDetailsToUsage, err))
 			return reconcile.Result{}, err
@@ -350,6 +363,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		meta.AddLabels(used, map[string]string{inUseLabelKey: "true"})
 		if err := r.client.Update(ctx, used); err != nil {
 			log.Debug(errAddInUseLabel, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errAddInUseLabel)
 			r.record.Event(u, event.Warning(reasonAddInUseLabel, err))
 			return reconcile.Result{}, err
@@ -379,6 +395,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			))
 			if err := r.client.Update(ctx, u); err != nil {
 				log.Debug(errAddOwnerToUsage, "error", err)
+				if kerrors.IsConflict(err) {
+					return reconcile.Result{Requeue: true}, nil
+				}
 				err = errors.Wrap(err, errAddOwnerToUsage)
 				r.record.Event(u, event.Warning(reasonOwnerRefToUsage, err))
 				return reconcile.Result{}, err

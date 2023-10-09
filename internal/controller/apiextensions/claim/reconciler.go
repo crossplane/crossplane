@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -479,6 +480,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.claim.AddFinalizer(ctx, cm); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
@@ -495,6 +499,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.composite.Configure(ctx, cm, cp); err != nil {
 		log.Debug(errConfigureComposite, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errConfigureComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
@@ -515,6 +522,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// persisted its resourceRef.
 	if err := r.claim.Bind(ctx, cm, cp); err != nil {
 		log.Debug(errBindComposite, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errBindComposite)
 		record.Event(cm, event.Warning(reasonBind, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
@@ -527,6 +537,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Skipped no-op composite resource apply")
 	case err != nil:
 		log.Debug(errApplyComposite, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errApplyComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
@@ -538,6 +551,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
 		log.Debug(errConfigureClaim, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errConfigureClaim)
 		record.Event(cm, event.Warning(reasonClaimConfigure, err))
 		cm.SetConditions(xpv1.ReconcileError(err))

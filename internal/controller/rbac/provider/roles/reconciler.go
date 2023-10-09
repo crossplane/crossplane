@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -271,6 +272,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		prs := &v1.ProviderRevisionList{}
 		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
 			log.Debug(errListPRs, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errListPRs)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 			return reconcile.Result{}, err
@@ -339,6 +343,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		if err != nil {
 			log.Debug(errApplyRole, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errApplyRole)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 			return reconcile.Result{}, err

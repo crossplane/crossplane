@@ -23,6 +23,7 @@ import (
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -271,6 +272,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		d.Status.SetConditions(v1.TerminatingClaim())
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errUpdateStatus)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
 			return reconcile.Result{}, err
@@ -302,6 +306,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
+				if kerrors.IsConflict(err) {
+					return reconcile.Result{Requeue: true}, nil
+				}
 				err = errors.Wrap(err, errRemoveFinalizer)
 				r.record.Event(d, event.Warning(reasonRedactXRC, err))
 				return reconcile.Result{}, err
@@ -373,6 +380,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.claim.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
 		return reconcile.Result{}, err
@@ -380,6 +390,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
 		log.Debug(errApplyCRD, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
 		return reconcile.Result{}, err

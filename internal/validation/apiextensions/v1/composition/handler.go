@@ -23,7 +23,7 @@ import (
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -88,7 +88,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 	// Validate the composition itself, we'll disable it on the Validator below.
 	warns, validationErrs := comp.Validate()
 	if len(validationErrs) != 0 {
-		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), validationErrs)
+		return warns, kerrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), validationErrs)
 	}
 
 	if !v.options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
@@ -129,12 +129,12 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 		composition.WithoutLogicalValidation(),
 	)
 	if err != nil {
-		return warns, apierrors.NewInternalError(err)
+		return warns, kerrors.NewInternalError(err)
 	}
 	schemaWarns, errList := cv.Validate(ctx, comp)
 	warns = append(warns, schemaWarns...)
 	if len(errList) != 0 {
-		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
+		return warns, kerrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
 	}
 	return warns, nil
 }
@@ -153,7 +153,7 @@ func (v *validator) ValidateDelete(_ context.Context, _ runtime.Object) (admissi
 // any error other than a not found error.
 func containsOtherThanNotFound(errs []error) bool {
 	for _, err := range errs {
-		if !apierrors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			return true
 		}
 	}
@@ -172,7 +172,7 @@ func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (ma
 
 	compositeCRD, err := v.getCRD(ctx, &compositeResGK)
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		if !kerrors.IsNotFound(err) {
 			return nil, []error{err}
 		}
 		resultErrs = append(resultErrs, err)
@@ -192,7 +192,7 @@ func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (ma
 		gk := gvk.GroupKind()
 		crd, err := v.getCRD(ctx, &gk)
 		switch {
-		case apierrors.IsNotFound(err):
+		case kerrors.IsNotFound(err):
 			resultErrs = append(resultErrs, err)
 		case err != nil:
 			return nil, []error{err}
@@ -213,13 +213,13 @@ func (v *validator) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiexten
 	}
 	switch {
 	case len(crds.Items) == 0:
-		return nil, apierrors.NewNotFound(schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "CustomResourceDefinition"}, fmt.Sprintf("%s.%s", gk.Kind, gk.Group))
+		return nil, kerrors.NewNotFound(schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "CustomResourceDefinition"}, fmt.Sprintf("%s.%s", gk.Kind, gk.Group))
 	case len(crds.Items) > 1:
 		names := []string{}
 		for _, crd := range crds.Items {
 			names = append(names, crd.Name)
 		}
-		return nil, apierrors.NewInternalError(errors.Errorf(errFmtTooManyCRDs, gk.Kind, gk.Group, names))
+		return nil, kerrors.NewInternalError(errors.Errorf(errFmtTooManyCRDs, gk.Kind, gk.Group, names))
 	}
 	crd := crds.Items[0]
 	internal := &apiextensions.CustomResourceDefinition{}
