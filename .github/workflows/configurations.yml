@@ -83,7 +83,7 @@ jobs:
       - name: Build
         run: |
           chmod +x crank
-          ./crank build configuration -f $(dirname ${{ matrix.configuration.path }}) --name=$(basename ${{ matrix.configuration.path }})
+          ./crank xpkg build -f $(dirname ${{ matrix.configuration.path }}) --output=$(basename ${{ matrix.configuration.path }})
 
       - name: Push
-        run: ./crank push configuration -f ${{ matrix.configuration.path }} registry.upbound.io/xp/${{ matrix.configuration.name }}:${{ steps.tagger.outputs.VERSION_TAG }}
+        run: ./crank xpkg push -f $(basename ${{ matrix.configuration.path }}) registry.upbound.io/xp/${{ matrix.configuration.name }}:${{ steps.tagger.outputs.VERSION_TAG }}
