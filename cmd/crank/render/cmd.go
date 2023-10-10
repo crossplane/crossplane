@@ -7,9 +7,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/alecthomas/kong"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -28,7 +30,7 @@ type Cmd struct {
 }
 
 // Run render.
-func (c *Cmd) Run() error { //nolint:gocyclo // Only a touch over.
+func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo // Only a touch over.
 	xr, err := LoadCompositeResource(c.CompositeResource)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
@@ -39,6 +41,14 @@ func (c *Cmd) Run() error { //nolint:gocyclo // Only a touch over.
 	comp, err := LoadComposition(c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
+	}
+
+	warns, errs := comp.Validate()
+	for _, warn := range warns {
+		fmt.Fprintf(k.Stderr, "WARN(composition): %s\n", warn)
+	}
+	if len(errs) > 0 {
+		return errors.Wrapf(errs.ToAggregate(), "invalid Composition %q", comp.GetName())
 	}
 
 	if m := comp.Spec.Mode; m == nil || *m != v1.CompositionModePipeline {
@@ -81,13 +91,13 @@ func (c *Cmd) Run() error { //nolint:gocyclo // Only a touch over.
 
 	s := json.NewSerializerWithOptions(json.DefaultMetaFactory, nil, nil, json.SerializerOptions{Yaml: true})
 
-	fmt.Println("---")
+	fmt.Fprintln(k.Stdout, "---")
 	if err := s.Encode(out.CompositeResource, os.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot marshal composite resource %q to YAML", xr.GetName())
 	}
 
 	for i := range out.ComposedResources {
-		fmt.Println("---")
+		fmt.Fprintln(k.Stdout, "---")
 		if err := s.Encode(&out.ComposedResources[i], os.Stdout); err != nil {
 			// TODO(negz): Use composed name annotation instead.
 			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetName())
@@ -96,7 +106,7 @@ func (c *Cmd) Run() error { //nolint:gocyclo // Only a touch over.
 
 	if c.IncludeResults {
 		for i := range out.Results {
-			fmt.Println("---")
+			fmt.Fprintln(k.Stdout, "---")
 			if err := s.Encode(&out.Results[i], os.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
