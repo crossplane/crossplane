@@ -18,7 +18,9 @@ package claim
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -42,6 +45,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestReconcile(t *testing.T) {
@@ -57,9 +62,10 @@ func TestReconcile(t *testing.T) {
 		claim *claim.Unstructured
 	}
 	type want struct {
-		r     reconcile.Result
-		claim *claim.Unstructured
-		err   error
+		r           reconcile.Result
+		claim       *claim.Unstructured
+		err         error
+		claimAssert func(args args, want want) error
 	}
 
 	type claimModifier func(o *claim.Unstructured)
@@ -450,6 +456,12 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+								obj.SetCreationTimestamp(metav1.NewTime(time.Now()))
+								return nil
+							},
+						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return errBoom
 						}),
@@ -480,10 +492,8 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockCreate:       test.NewMockCreateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -512,10 +522,8 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockCreate:       test.NewMockCreateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -549,11 +557,9 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockCreate:       test.NewMockCreateFn(nil),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -587,6 +593,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetConditions(xpv1.Available())
+									o.SetCreationTimestamp(metav1.NewTime(time.Now()))
 								}
 								return nil
 							}),
@@ -671,10 +678,8 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockCreate:       test.NewMockCreateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -711,6 +716,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetConditions(xpv1.Available())
+									o.SetCreationTimestamp(metav1.NewTime(time.Now()))
 								}
 								return nil
 							}),
@@ -745,6 +751,235 @@ func TestReconcile(t *testing.T) {
 				}),
 			},
 		},
+		"CompositeAlreadyExists": {
+			reason: "if a composite exists under the generated name, requeue without error",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:          test.NewMockGetFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockCreate:       test.NewMockCreateFn(kerrors.NewAlreadyExists(schema.GroupResource{Group: "foo.com", Resource: "composite"}, "xxx")),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithBinder(NewAPIBinder(&test.MockClient{
+						MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							ref := obj.(*claim.Unstructured).GetResourceReference()
+							if ref.Namespace != "" || !strings.HasPrefix(ref.Name, "c-") ||
+								ref.Kind != "Composite" || ref.APIVersion != "foo.com/v1" {
+								return fmt.Errorf("Claim has no valid composite ref %v", ref)
+							}
+							return nil
+						}),
+					})),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+				}),
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"CreateComposite": {
+			reason: "create composite with a generated name and refer it in the claim",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:          test.NewMockGetFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+								want := &composite.Unstructured{
+									Unstructured: unstructured.Unstructured{
+										Object: map[string]any{
+											"spec": map[string]any{
+												"foo": "bar",
+												"claimRef": map[string]any{
+													"name":       "c",
+													"namespace":  "ns",
+													"apiVersion": "foo.com/v1",
+													"kind":       "Claim",
+												},
+											},
+										},
+									},
+								}
+								want.SetName(obj.GetName())
+								want.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Composite"})
+								want.SetLabels(map[string]string{
+									xcrd.LabelKeyClaimName:      "c",
+									xcrd.LabelKeyClaimNamespace: "ns",
+								})
+								cp := obj.(*composite.Unstructured)
+								if diff := cmp.Diff(want, cp); diff != "" {
+									return errors.New(diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithBinder(NewAPIBinder(&test.MockClient{
+						MockUpdate: test.NewMockUpdateFn(nil),
+					})),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+				}),
+			},
+			want: want{
+				claimAssert: func(args args, want want) error {
+					ref := args.claim.GetResourceReference()
+					if ref.Namespace != "" || !strings.HasPrefix(ref.Name, "c-") ||
+						ref.Kind != "Composite" || ref.APIVersion != "foo.com/v1" {
+						return fmt.Errorf("Claim has no valid composite ref %v", ref)
+					}
+					return nil
+				},
+			},
+		},
+		"RecoverFromBindingToWrongComposite": {
+			reason: "previous loop generate existing composite name, claim got updated with the reference, but composite could not be created. We need to detect this, clean reference and requeue once again.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+								if key.Namespace != "" || key.Name != "wrong-composite" {
+									return fmt.Errorf("Unexpect get request for composite %v", key)
+								}
+								obj.(*composite.Unstructured).Unstructured.Object["spec"] = map[string]any{
+									"claimRef": map[string]any{
+										"name":       "wrong-c",
+										"namespace":  "ns2",
+										"apiVersion": "foo.com/v1",
+										"kind":       "Claim",
+									},
+								}
+								obj.SetCreationTimestamp(metav1.NewTime(time.Now()))
+								return nil
+							},
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockUpdate:       test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetResourceReference(&corev1.ObjectReference{
+						Name:       "wrong-composite",
+						APIVersion: "foo.com/v1",
+						Kind:       "Composite",
+					})
+				}),
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetResourceReference(nil)
+				}),
+			},
+		},
+		"CompositeCreatedButNotInCacheByNextReconcile": {
+			reason: "previous loop created composite, bound it to claim, but in the next loop still not present in the cache. We should try to create composite again under the same name, but we are going to fails and requeu",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:          test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Group: "foo.com", Resource: "composite"}, "composite")),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+							MockCreate: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+								if obj.GetName() != "composite" {
+									return errors.Errorf("Unexpected composite name: %s", obj.GetName())
+								}
+								return kerrors.NewAlreadyExists(schema.GroupResource{Group: "foo.com", Resource: "composite"}, "composite")
+							},
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithBinder(NewAPIBinder(&test.MockClient{
+						MockUpdate: test.NewMockUpdateFn(nil),
+					})),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetResourceReference(&corev1.ObjectReference{
+						Name:       "composite",
+						APIVersion: "foo.com/v1",
+						Kind:       "Composite",
+					})
+				}),
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetResourceReference(&corev1.ObjectReference{
+						Name:       "composite",
+						APIVersion: "foo.com/v1",
+						Kind:       "Composite",
+					})
+				}),
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -755,6 +990,7 @@ func TestReconcile(t *testing.T) {
 				tc.args.opts = append(tc.args.opts, func(r *Reconciler) {
 					var customGet test.MockGetFn
 					var customStatusUpdate test.MockSubResourceUpdateFn
+					var customUpdate test.MockUpdateFn
 					mockGet := func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
 							tc.args.claim.DeepCopyInto(&o.Unstructured)
@@ -776,15 +1012,28 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}
 
+					mockUpdate := func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+						if o, ok := obj.(*claim.Unstructured); ok {
+							o.DeepCopyInto(&tc.args.claim.Unstructured)
+						}
+						if customStatusUpdate != nil {
+							return customUpdate(ctx, obj, opts...)
+						}
+						return nil
+					}
+
 					if mockClient, ok := r.client.Client.(*test.MockClient); ok {
 						customGet = mockClient.MockGet
 						customStatusUpdate = mockClient.MockStatusUpdate
+						customUpdate = mockClient.MockUpdate
 						mockClient.MockGet = mockGet
 						mockClient.MockStatusUpdate = mockStatusUpdate
+						mockClient.MockUpdate = mockUpdate
 					} else {
 						r.client.Client = &test.MockClient{
 							MockGet:          mockGet,
 							MockStatusUpdate: mockStatusUpdate,
+							MockUpdate:       mockUpdate,
 						}
 					}
 				})
@@ -794,14 +1043,21 @@ func TestReconcile(t *testing.T) {
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-			if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
-				ts, err := time.Parse(time.RFC3339, s)
-				if err != nil {
-					return s
+			if tc.want.claim != nil {
+				if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
+					ts, err := time.Parse(time.RFC3339, s)
+					if err != nil {
+						return s
+					}
+					return ts
+				}), cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 				}
-				return ts
-			}), cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
-				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if tc.want.claimAssert != nil {
+				if err := tc.want.claimAssert(tc.args, tc.want); err != nil {
+					t.Error(err)
+				}
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

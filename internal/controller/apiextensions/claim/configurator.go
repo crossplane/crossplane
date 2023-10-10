@@ -23,6 +23,7 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
+	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -40,33 +41,21 @@ const (
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
 
-	errName                  = "cannot use dry-run create to name composite resource"
-	errBindCompositeConflict = "cannot bind composite resource that references a different claim"
-
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
 )
 
-// An APIDryRunCompositeConfigurator configures composite resources. It may
-// perform a dry-run create against an API server in order to name and validate
-// the configured resource.
-type APIDryRunCompositeConfigurator struct {
-	client client.Client
-}
+var (
+	// ErrBindCompositeConflict can occur if the composite refers a different claim
+	ErrBindCompositeConflict = errors.New("cannot bind composite resource that references a different claim")
+)
 
-// NewAPIDryRunCompositeConfigurator returns a Configurator of composite
-// resources that may perform a dry-run create against an API server in order to
-// name and validate the configured resource.
-func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfigurator {
-	return &APIDryRunCompositeConfigurator{client: c}
-}
-
-// Configure the supplied composite resource by propagating configuration from
-// the supplied claim. Both create and update scenarios are supported; i.e. the
-// composite may or may not have been created in the API server when passed to
-// this method. The configured composite may be submitted to an API server via a
-// dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
+// ConfigureComposite configures the supplied composite resource
+// by propagating configuration from the supplied claim.
+// Both create and update scenarios are supported; i.e. the
+// composite may or may not have been created in the API server
+// when passed to this method.
+func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -85,7 +74,7 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	existing := ucp.GetClaimReference()
 	proposed := ucm.GetReference()
 	if existing != nil && !cmp.Equal(existing, proposed) {
-		return errors.New(errBindCompositeConflict)
+		return ErrBindCompositeConflict
 	}
 
 	// It's possible we're being asked to configure a statically provisioned
@@ -144,13 +133,26 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	ucp.SetClaimReference(proposed)
 
 	if !meta.WasCreated(cp) {
-		// The API server returns an available name derived from
-		// generateName when we perform a dry-run create. This name is
-		// likely (but not guaranteed) to be available when we create
-		// the composite resource. If the API server generates a name
-		// that is unavailable it will return a 500 ServerTimeout error.
-		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-		return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+		// The composite was not found in the informer cache,
+		// or in the apiserver watch cache,
+		// or really does not exist.
+		// If the claim contains the composite reference,
+		// try to use it to set the composite name.
+		// This protects us against stale caches:
+		// 1. If the composite exists, but the cache was not up-to-date,
+		//    then its creation is going to fail, and after requeue,
+		//    the cache eventually gets up-to-date and everything is good.
+		// 2. If the composite really does not exist, it means that
+		//    the claim got bound in one of previous loop,
+		//    but something went wrong at composite creation and we requeued.
+		//    It is alright to try to use the very same name again.
+		if ref := cm.GetResourceReference(); ref != nil &&
+			ref.APIVersion == ucp.GetAPIVersion() && ref.Kind == ucp.GetKind() {
+			cp.SetName(ref.Name)
+			return nil
+		}
+		// Otherwise, generate name with a random suffix, hoping it is not already taken
+		cp.SetName(names.SimpleNameGenerator.GenerateName(fmt.Sprintf("%s-", cm.GetName())))
 	}
 
 	return nil
