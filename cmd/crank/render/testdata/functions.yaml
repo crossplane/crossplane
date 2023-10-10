@@ -1,0 +1,20 @@
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-auto-ready
+  annotations:
+    xrender.crossplane.io/runtime: Docker
+    xrender.crossplane.io/runtime-docker-cleanup: Orphan
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-dummy
+  annotations:
+    xrender.crossplane.io/runtime: Development
+    xrender.crossplane.io/runtime-development-target: localhost:9444
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
