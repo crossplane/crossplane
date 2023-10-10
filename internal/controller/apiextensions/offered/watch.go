@@ -21,11 +21,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
@@ -83,7 +83,7 @@ func addClaim(obj runtime.Object, queue adder) {
 		return
 	}
 	cp := &composite.Unstructured{Unstructured: *u}
-	if cp.GetClaimReference() != nil {
-		queue.Add(reconcile.Request{NamespacedName: meta.NamespacedNameOf(cp.GetClaimReference())})
+	if ref := cp.GetClaimReference(); ref != nil {
+		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}})
 	}
 }

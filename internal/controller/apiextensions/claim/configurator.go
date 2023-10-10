@@ -22,8 +22,6 @@ import (
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -84,8 +82,8 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 
 	existing := ucp.GetClaimReference()
-	proposed := meta.ReferenceTo(ucm, ucm.GetObjectKind().GroupVersionKind())
-	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+	proposed := ucm.GetReference()
+	if existing != nil && !cmp.Equal(existing, proposed) {
 		return errors.New(errBindCompositeConflict)
 	}
 

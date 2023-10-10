@@ -20,13 +20,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -93,7 +93,7 @@ func TestAddClaim(t *testing.T) {
 		"ObjectHasClaimReference": {
 			obj: func() runtime.Object {
 				cp := composite.New()
-				cp.SetClaimReference(&corev1.ObjectReference{Namespace: ns, Name: name})
+				cp.SetClaimReference(&claim.Reference{Namespace: ns, Name: name})
 				return &cp.Unstructured
 			}(),
 			queue: addFn(func(got any) {
