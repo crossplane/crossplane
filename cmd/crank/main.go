@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/render"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -71,6 +72,7 @@ var cli struct {
 	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
 
 	Beta struct {
+		Render render.Cmd `cmd:"" help:"Render an XR using Composition Functions."`
 		// Add here beta subcommands
 	} `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
 }

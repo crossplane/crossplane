@@ -1,5 +1,5 @@
-// Package main implements xrender, a CLI tool for rendering XRs.
-package main
+// Package render implements composition rendering using composition functions.
+package render
 
 import (
 	"context"
@@ -62,7 +62,7 @@ func (c *Cmd) Run() error { //nolint:gocyclo // Only a touch over.
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	out, err := Render(ctx, RenderInputs{
+	out, err := Render(ctx, Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,

@@ -1,4 +1,4 @@
-package main
+package render
 
 import (
 	"context"
@@ -37,8 +37,8 @@ const (
 	AnnotationKeyClaimName               = "crossplane.io/claim-name"
 )
 
-// RenderInputs contains all inputs to the render process.
-type RenderInputs struct {
+// Inputs contains all inputs to the render process.
+type Inputs struct {
 	CompositeResource *composite.Unstructured
 	Composition       *apiextensionsv1.Composition
 	Functions         []pkgv1beta1.Function
@@ -48,8 +48,8 @@ type RenderInputs struct {
 	// details. Maybe as Secrets? What if secret stores are in use?
 }
 
-// RenderOutputs contains all outputs from the render process.
-type RenderOutputs struct {
+// Outputs contains all outputs from the render process.
+type Outputs struct {
 	CompositeResource *composite.Unstructured
 	ComposedResources []composed.Unstructured
 	Results           []unstructured.Unstructured
@@ -64,18 +64,17 @@ type RenderOutputs struct {
 }
 
 // Render the desired XR and composed resources given the supplied inputs.
-func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
-
+func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
 	// Run our Functions.
 	conns := map[string]*grpc.ClientConn{}
 	for _, fn := range in.Functions {
 		runtime, err := GetRuntime(fn)
 		if err != nil {
-			return RenderOutputs{}, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
+			return Outputs{}, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
 		rctx, err := runtime.Start(ctx)
 		if err != nil {
-			return RenderOutputs{}, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
+			return Outputs{}, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
 		defer rctx.Stop(ctx) //nolint:errcheck // Not sure what to do with this error. Log it to stderr?
 
@@ -83,7 +82,7 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultServiceConfig(waitForReady))
 		if err != nil {
-			return RenderOutputs{}, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
+			return Outputs{}, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
 		}
 		defer conn.Close() //nolint:errcheck // This only returns an error if the connection is already closed or closing.
 		conns[fn.GetName()] = conn
@@ -99,7 +98,7 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 	// both the XR and composed resources.
 	o, err := AsState(in.CompositeResource, observed)
 	if err != nil {
-		return RenderOutputs{}, errors.Wrap(err, "cannot build observed composite and composed resources for RunFunctionRequest")
+		return Outputs{}, errors.Wrap(err, "cannot build observed composite and composed resources for RunFunctionRequest")
 	}
 
 	// The Function pipeline starts with empty desired state.
@@ -116,19 +115,19 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 		if fn.Input != nil {
 			in := &structpb.Struct{}
 			if err := in.UnmarshalJSON(fn.Input.Raw); err != nil {
-				return RenderOutputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
+				return Outputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
 			}
 			req.Input = in
 		}
 
 		conn, ok := conns[fn.FunctionRef.Name]
 		if !ok {
-			return RenderOutputs{}, errors.Errorf("unknown Function %q, referenced by pipeline step %q - does it exist in your Functions file?", fn.FunctionRef.Name, fn.Step)
+			return Outputs{}, errors.Errorf("unknown Function %q, referenced by pipeline step %q - does it exist in your Functions file?", fn.FunctionRef.Name, fn.Step)
 		}
 
 		rsp, err := fnv1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 		if err != nil {
-			return RenderOutputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
+			return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
 		}
 
 		d = rsp.GetDesired()
@@ -137,7 +136,7 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 		for _, rs := range rsp.Results {
 			switch rs.Severity { //nolint:exhaustive // We intentionally have a broad default case.
 			case fnv1beta1.Severity_SEVERITY_FATAL:
-				return RenderOutputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.Message)
+				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.Message)
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
 					"apiVersion": "xrender.crossplane.io/v1beta1",
@@ -154,7 +153,7 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
 		if err := FromStruct(cd, dr.GetResource()); err != nil {
-			return RenderOutputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
+			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
 		}
 
 		// If this desired resource state pertains to an existing composed
@@ -166,8 +165,8 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.
-		if err := RenderComposedResourceMetadata(cd, in.CompositeResource, name); err != nil {
-			return RenderOutputs{}, errors.Wrapf(err, "cannot render composed resource %q metadata", name)
+		if err := SetComposedResourceMetadata(cd, in.CompositeResource, name); err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot render composed resource %q metadata", name)
 		}
 
 		desired = append(desired, *cd)
@@ -175,7 +174,7 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 
 	xr := composite.New()
 	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
-		return RenderOutputs{}, errors.Wrap(err, "cannot render desired composite resource")
+		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
 	}
 
 	// The Function pipeline can only return the desired status of the XR, so we
@@ -184,17 +183,17 @@ func Render(ctx context.Context, in RenderInputs) (RenderOutputs, error) { //nol
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
 
-	return RenderOutputs{CompositeResource: xr, ComposedResources: desired, Results: results}, nil
+	return Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}, nil
 }
 
-// RenderComposedResourceMetadata sets standard, required composed resource
+// SetComposedResourceMetadata sets standard, required composed resource
 // metadata. It's a simplified version of the same function used by Crossplane.
 // Notably it doesn't handle 'nested' XRs - it assumes the supplied XR should be
 // treated as the top-level XR for setting the crossplane.io/composite,
 // crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
-func RenderComposedResourceMetadata(cd resource.Object, xr resource.Composite, name string) error {
+func SetComposedResourceMetadata(cd resource.Object, xr resource.Composite, name string) error {
 	cd.SetGenerateName(xr.GetName() + "-")
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})

@@ -1,4 +1,4 @@
-package main
+package render
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
-	v1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 )
 
 // TODO(negz): We have similar functions in c/c composition_functions.go and in

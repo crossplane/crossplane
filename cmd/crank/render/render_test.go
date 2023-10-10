@@ -1,4 +1,4 @@
-package main
+package render
 
 import (
 	"context"
@@ -31,10 +31,10 @@ func TestRender(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		in  RenderInputs
+		in  Inputs
 	}
 	type want struct {
-		out RenderOutputs
+		out Outputs
 		err error
 	}
 
@@ -46,7 +46,7 @@ func TestRender(t *testing.T) {
 	}{
 		"UnknownRuntime": {
 			args: args{
-				in: RenderInputs{
+				in: Inputs{
 					Functions: []pkgv1beta1.Function{{
 						ObjectMeta: metav1.ObjectMeta{
 							Annotations: map[string]string{
@@ -63,7 +63,7 @@ func TestRender(t *testing.T) {
 		"UnknownFunction": {
 			args: args{
 				ctx: context.Background(),
-				in: RenderInputs{
+				in: Inputs{
 					CompositeResource: composite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
@@ -85,7 +85,7 @@ func TestRender(t *testing.T) {
 		"FatalResult": {
 			args: args{
 				ctx: context.Background(),
-				in: RenderInputs{
+				in: Inputs{
 					CompositeResource: composite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
@@ -131,7 +131,7 @@ func TestRender(t *testing.T) {
 		"Success": {
 			args: args{
 				ctx: context.Background(),
-				in: RenderInputs{
+				in: Inputs{
 					CompositeResource: &composite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
@@ -195,7 +195,7 @@ func TestRender(t *testing.T) {
 				},
 			},
 			want: want{
-				out: RenderOutputs{
+				out: Outputs{
 					CompositeResource: &composite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
