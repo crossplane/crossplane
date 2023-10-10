@@ -176,17 +176,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              controllerRef:
-                description: ControllerRef references the controller (e.g. Deployment),
-                  if any, that is responsible for reconciling the objects this package
-                  revision installed.
-                properties:
-                  name:
-                    description: Name of the controller.
-                    type: string
-                required:
-                - name
-                type: object
               foundDependencies:
                 description: Dependency information.
                 format: int64
