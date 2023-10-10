@@ -24,7 +24,7 @@ const (
 	AnnotationKeyRuntimeDockerCleanup = "xrender.crossplane.io/runtime-docker-cleanup"
 
 	// AnnotationKeyRuntimeDockerImage overrides the Docker image that will be
-	// used to run the Function. By default xrender assumes the Function package
+	// used to run the Function. By default render assumes the Function package
 	// (i.e. spec.package) can be used to run the Function.
 	AnnotationKeyRuntimeDockerImage = "xrender.crossplane.io/runtime-docker-image"
 )

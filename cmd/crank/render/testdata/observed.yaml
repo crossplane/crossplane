@@ -2,7 +2,7 @@
 apiVersion: example.org/v1alpha1
 kind: ComposedResource
 metadata:
-  name: test-xrender-a
+  name: test-render-a
   annotations:
     crossplane.io/composition-resource-name: resource-a
 spec:
@@ -11,7 +11,7 @@ spec:
 apiVersion: example.org/v1alpha1
 kind: ComposedResource
 metadata:
-  name: test-xrender-b
+  name: test-render-b
   annotations:
     crossplane.io/composition-resource-name: resource-b
 spec:

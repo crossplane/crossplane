@@ -52,7 +52,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 	}
 
 	if m := comp.Spec.Mode; m == nil || *m != v1.CompositionModePipeline {
-		return errors.Errorf("xrender only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
+		return errors.Errorf("render only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
 	}
 
 	fns, err := LoadFunctions(c.Functions)

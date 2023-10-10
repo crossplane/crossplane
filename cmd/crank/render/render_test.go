@@ -138,7 +138,7 @@ func TestRender(t *testing.T) {
 								"apiVersion": "nop.example.org/v1alpha1",
 								"kind": "XNopResource",
 								"metadata": {
-									"name": "test-xrender"
+									"name": "test-render"
 								}
 							}`),
 						},
@@ -202,7 +202,7 @@ func TestRender(t *testing.T) {
 								"apiVersion": "nop.example.org/v1alpha1",
 								"kind": "XNopResource",
 								"metadata": {
-									"name": "test-xrender"
+									"name": "test-render"
 								},
 								"status": {
 									"widgets": 9001
@@ -216,9 +216,9 @@ func TestRender(t *testing.T) {
 								Object: MustLoadJSON(`{
 									"apiVersion": "test.crossplane.io/v1",
 									"metadata": {
-										"generateName": "test-xrender-",
+										"generateName": "test-render-",
 										"labels": {
-											"crossplane.io/composite": "test-xrender"
+											"crossplane.io/composite": "test-render"
 										},
 										"annotations": {
 											"crossplane.io/composition-resource-name": "cool-resource"
@@ -226,7 +226,7 @@ func TestRender(t *testing.T) {
 										"ownerReferences": [{
 											"apiVersion": "nop.example.org/v1alpha1",
 											"kind": "XNopResource",
-											"name": "test-xrender",
+											"name": "test-render",
 											"blockOwnerDeletion": true,
 											"controller": true,
 											"uid": ""

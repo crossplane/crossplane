@@ -36,7 +36,7 @@ func TestLoadCompositeResource(t *testing.T) {
 							"apiVersion": "nop.example.org/v1alpha1",
 							"kind": "XNopResource",
 							"metadata": {
-								"name": "test-xrender"
+								"name": "test-render"
 							},
 							"spec": {
 								"coolField": "I'm cool!"
@@ -221,7 +221,7 @@ func TestLoadObservedResources(t *testing.T) {
 							"apiVersion": "example.org/v1alpha1",
 							"kind": "ComposedResource",
 							"metadata": {
-								"name": "test-xrender-a",
+								"name": "test-render-a",
 								"annotations": {
 									"crossplane.io/composition-resource-name": "resource-a"
 								}
@@ -236,7 +236,7 @@ func TestLoadObservedResources(t *testing.T) {
 							"apiVersion": "example.org/v1alpha1",
 							"kind": "ComposedResource",
 							"metadata": {
-								"name": "test-xrender-b",
+								"name": "test-render-b",
 								"annotations": {
 									"crossplane.io/composition-resource-name": "resource-b"
 								}
