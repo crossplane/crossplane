@@ -76,7 +76,7 @@ var (
 	}
 )
 
-func TestRuntimeManifestBuilder_Deployment(t *testing.T) {
+func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 	type args struct {
 		builder            ManifestBuilder
 		overrides          []DeploymentOverrides
@@ -102,6 +102,26 @@ func TestRuntimeManifestBuilder_Deployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage),
+			},
+		},
+		"ProviderDeploymentWithImageOverride": {
+			reason: "Image should be overridden if specified in the function spec",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+				},
+				serviceAccountName: providerRevisionName,
+				overrides: providerDeploymentOverrides(&pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						Controller: pkgmetav1.ControllerSpec{
+							Image: pointer.String("crossplane/provider-foo-controller:v1.2.3"),
+						},
+					},
+				}, providerRevision),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, "crossplane/provider-foo-controller:v1.2.3"),
 			},
 		},
 		"ProviderDeploymentWithControllerConfig": {
@@ -155,6 +175,24 @@ func TestRuntimeManifestBuilder_Deployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage),
+			},
+		},
+		"FunctionDeploymentWithImageOverride": {
+			reason: "Image should be overridden if specified in the function spec",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  functionRevision,
+					namespace: namespace,
+				},
+				serviceAccountName: functionRevisionName,
+				overrides: functionDeploymentOverrides(&pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						Image: pointer.String("crossplane/function-foo-server:v1.2.3"),
+					},
+				}, functionRevision),
+			},
+			want: want{
+				want: deploymentFunction(functionName, functionRevisionName, "crossplane/function-foo-server:v1.2.3"),
 			},
 		},
 		"FunctionDeploymentWithControllerConfig": {
@@ -243,6 +281,14 @@ func deploymentProvider(provider string, revision string, image string, override
 							},
 							Env: []corev1.EnvVar{
 								{
+									Name:  "TLS_CLIENT_CERTS_DIR",
+									Value: "/tls/client",
+								},
+								{
+									Name:  "TLS_SERVER_CERTS_DIR",
+									Value: "/tls/server",
+								},
+								{
 									Name: "POD_NAMESPACE",
 									ValueFrom: &corev1.EnvVarSource{
 										FieldRef: &corev1.ObjectFieldSelector{
@@ -257,14 +303,6 @@ func deploymentProvider(provider string, revision string, image string, override
 								{
 									Name:  "WEBHOOK_TLS_CERT_DIR",
 									Value: "$(TLS_SERVER_CERTS_DIR)",
-								},
-								{
-									Name:  "TLS_CLIENT_CERTS_DIR",
-									Value: "/tls/client",
-								},
-								{
-									Name:  "TLS_SERVER_CERTS_DIR",
-									Value: "/tls/server",
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{

@@ -116,7 +116,8 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
 	sa := defaultServiceAccount(b.revision.GetName())
 
-	overrides = append(overrides,
+	var allOverrides []ServiceAccountOverrides
+	allOverrides = append(allOverrides,
 		// Currently it is not possible to override the namespace,
 		// ownerReferences or pullSecrets of the service account, and we could
 		// define them as defaults. However, we will leave them as overrides
@@ -128,10 +129,14 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 	)
 
 	if cc := b.controllerConfig; cc != nil {
-		overrides = append(overrides, ServiceAccountWithControllerConfig(cc))
+		allOverrides = append(allOverrides, ServiceAccountWithControllerConfig(cc))
 	}
 
-	for _, o := range overrides {
+	// We append the overrides passed to the function last so that they can
+	// override the above ones.
+	allOverrides = append(allOverrides, overrides...)
+
+	for _, o := range allOverrides {
 		o(sa)
 	}
 
@@ -142,7 +147,8 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
 	d := defaultDeployment(b.revision.GetName())
 
-	overrides = append(overrides,
+	var allOverrides []DeploymentOverrides
+	allOverrides = append(allOverrides,
 		DeploymentWithNamespace(b.namespace),
 		DeploymentWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		DeploymentWithSelectors(b.podSelectors()),
@@ -154,22 +160,26 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 	if b.revision.GetPackagePullPolicy() != nil {
 		// If the package pull policy is set, it will override the default
 		// or whatever is set in the runtime config.
-		overrides = append(overrides, DeploymentRuntimeWithImagePullPolicy(*b.revision.GetPackagePullPolicy()))
+		allOverrides = append(allOverrides, DeploymentRuntimeWithImagePullPolicy(*b.revision.GetPackagePullPolicy()))
 	}
 
 	if b.revision.GetTLSClientSecretName() != nil {
-		overrides = append(overrides, DeploymentRuntimeWithTLSClientSecret(*b.revision.GetTLSClientSecretName()))
+		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSClientSecret(*b.revision.GetTLSClientSecretName()))
 	}
 
 	if b.revision.GetTLSServerSecretName() != nil {
-		overrides = append(overrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetTLSServerSecretName()))
+		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetTLSServerSecretName()))
 	}
 
 	if b.controllerConfig != nil {
-		overrides = append(overrides, DeploymentForControllerConfig(b.controllerConfig))
+		allOverrides = append(allOverrides, DeploymentForControllerConfig(b.controllerConfig))
 	}
 
-	for _, o := range overrides {
+	// We append the overrides passed to the function last so that they can
+	// override the above ones.
+	allOverrides = append(allOverrides, overrides...)
+
+	for _, o := range allOverrides {
 		o(d)
 	}
 
@@ -180,7 +190,8 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
 	svc := defaultService(b.packageName())
 
-	overrides = append(overrides,
+	var allOverrides []ServiceOverrides
+	allOverrides = append(allOverrides,
 		// Currently it is not possible to override the namespace,
 		// ownerReferences, selectors or ports of the service, and we could
 		// define them as defaults. However, we will leave them as overrides
@@ -197,7 +208,11 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.
 			},
 		}))
 
-	for _, o := range overrides {
+	// We append the overrides passed to the function last so that they can
+	// override the above ones.
+	allOverrides = append(allOverrides, overrides...)
+
+	for _, o := range allOverrides {
 		o(svc)
 	}
 
