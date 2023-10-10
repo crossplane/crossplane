@@ -158,7 +158,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&corev1.ObjectReference{Name: "some-other-claim"})
+									o.SetClaimReference(&claim.Reference{Name: "some-other-claim"})
 								}
 								return nil
 							}),
@@ -192,7 +192,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+									o.SetClaimReference(&claim.Reference{Name: name})
 								}
 								return nil
 							}),
@@ -261,7 +261,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+									o.SetClaimReference(&claim.Reference{Name: name})
 								}
 								return nil
 							}),
@@ -302,7 +302,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+									o.SetClaimReference(&claim.Reference{Name: name})
 								}
 								return nil
 							}),
@@ -343,7 +343,7 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*composite.Unstructured); ok {
 									o.SetCreationTimestamp(now)
 									o.SetDeletionTimestamp(&now)
-									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+									o.SetClaimReference(&claim.Reference{Name: name})
 								}
 								return nil
 							}),
