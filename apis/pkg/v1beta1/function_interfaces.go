@@ -172,16 +172,6 @@ func (r *FunctionRevision) SetObjects(c []xpv1.TypedReference) {
 	r.Status.ObjectRefs = c
 }
 
-// GetControllerReference of this FunctionRevision.
-func (r *FunctionRevision) GetControllerReference() v1.ControllerReference {
-	return r.Status.ControllerRef
-}
-
-// SetControllerReference of this FunctionRevision.
-func (r *FunctionRevision) SetControllerReference(c v1.ControllerReference) {
-	r.Status.ControllerRef = c
-}
-
 // GetSource of this FunctionRevision.
 func (r *FunctionRevision) GetSource() string {
 	return r.Spec.Package

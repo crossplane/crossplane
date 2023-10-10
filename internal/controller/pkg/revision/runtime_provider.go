@@ -138,9 +138,6 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 
-	// TODO(phisco): check who is actually using this
-	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
-
 	for _, c := range d.Status.Conditions {
 		if c.Type == appsv1.DeploymentAvailable {
 			if c.Status == corev1.ConditionTrue {

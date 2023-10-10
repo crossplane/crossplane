@@ -280,7 +280,6 @@ func (in *PackageRevisionSpec) DeepCopy() *PackageRevisionSpec {
 func (in *PackageRevisionStatus) DeepCopyInto(out *PackageRevisionStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
-	out.ControllerRef = in.ControllerRef
 	if in.ObjectRefs != nil {
 		in, out := &in.ObjectRefs, &out.ObjectRefs
 		*out = make([]commonv1.TypedReference, len(*in))

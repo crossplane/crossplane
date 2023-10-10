@@ -376,9 +376,6 @@ type PackageRevision interface {
 	GetObjects() []xpv1.TypedReference
 	SetObjects(c []xpv1.TypedReference)
 
-	GetControllerReference() ControllerReference
-	SetControllerReference(c ControllerReference)
-
 	GetSource() string
 	SetSource(s string)
 
@@ -425,16 +422,6 @@ func (p *ProviderRevision) GetObjects() []xpv1.TypedReference {
 // SetObjects of this ProviderRevision.
 func (p *ProviderRevision) SetObjects(c []xpv1.TypedReference) {
 	p.Status.ObjectRefs = c
-}
-
-// GetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) GetControllerReference() ControllerReference {
-	return p.Status.ControllerRef
-}
-
-// SetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) SetControllerReference(c ControllerReference) {
-	p.Status.ControllerRef = c
 }
 
 // GetSource of this ProviderRevision.
@@ -577,16 +564,6 @@ func (p *ConfigurationRevision) GetObjects() []xpv1.TypedReference {
 // SetObjects of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetObjects(c []xpv1.TypedReference) {
 	p.Status.ObjectRefs = c
-}
-
-// GetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerReference() ControllerReference {
-	return p.Status.ControllerRef
-}
-
-// SetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerReference(c ControllerReference) {
-	p.Status.ControllerRef = c
 }
 
 // GetSource of this ConfigurationRevision.
