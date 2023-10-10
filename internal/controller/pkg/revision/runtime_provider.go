@@ -3,12 +3,13 @@ package revision
 import (
 	"context"
 	"fmt"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -39,9 +40,12 @@ type ProviderHooks struct {
 }
 
 // NewProviderHooks returns a new ProviderHooks.
-func NewProviderHooks(client resource.ClientApplicator) *ProviderHooks {
+func NewProviderHooks(client client.Client) *ProviderHooks {
 	return &ProviderHooks{
-		client: client,
+		client: resource.ClientApplicator{
+			Client:     client,
+			Applicator: resource.NewAPIPatchingApplicator(client),
+		},
 	}
 }
 
@@ -99,7 +103,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error { //nolint:gocyclo // this is just slightly over our limit, i.e. 11 > 10.
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {

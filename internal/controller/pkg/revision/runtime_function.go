@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -38,9 +39,12 @@ type FunctionHooks struct {
 }
 
 // NewFunctionHooks returns a new FunctionHooks.
-func NewFunctionHooks(client resource.ClientApplicator) *FunctionHooks {
+func NewFunctionHooks(client client.Client) *FunctionHooks {
 	return &FunctionHooks{
-		client: client,
+		client: resource.ClientApplicator{
+			Client:     client,
+			Applicator: resource.NewAPIPatchingApplicator(client),
+		},
 	}
 }
 
@@ -116,7 +120,7 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	sa := manifests.ServiceAccount()
 	// Delete the service account if it exists.
 	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderSA)
+		return errors.Wrap(err, errDeleteFunctionSA)
 	}
 
 	// Delete the deployment if it exists.
@@ -124,7 +128,7 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	// "functionDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
 	if err := h.client.Delete(ctx, manifests.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderDeployment)
+		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
 	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,

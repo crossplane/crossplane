@@ -455,3 +455,37 @@ func deploymentFunction(function string, revision string, image string, override
 
 	return d
 }
+
+// MockManifestBuilder is a mock implementation of ManifestBuilder.
+type MockManifestBuilder struct {
+	ServiceAccountFn  func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
+	DeploymentFn      func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
+	ServiceFn         func(overrides ...ServiceOverrides) *corev1.Service
+	TLSClientSecretFn func() *corev1.Secret
+	TLSServerSecretFn func() *corev1.Secret
+}
+
+// ServiceAccount returns the result of calling ServiceAccountFn.
+func (b *MockManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+	return b.ServiceAccountFn(overrides...)
+}
+
+// Deployment returns the result of calling DeploymentFn.
+func (b *MockManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+	return b.DeploymentFn(serviceAccount, overrides...)
+}
+
+// Service returns the result of calling ServiceFn.
+func (b *MockManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
+	return b.ServiceFn(overrides...)
+}
+
+// TLSClientSecret returns the result of calling TLSClientSecretFn.
+func (b *MockManifestBuilder) TLSClientSecret() *corev1.Secret {
+	return b.TLSClientSecretFn()
+}
+
+// TLSServerSecret returns the result of calling TLSServerSecretFn.
+func (b *MockManifestBuilder) TLSServerSecret() *corev1.Secret {
+	return b.TLSServerSecretFn()
+}
