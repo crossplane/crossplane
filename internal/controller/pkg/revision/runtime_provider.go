@@ -3,6 +3,8 @@ package revision
 import (
 	"context"
 	"fmt"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -114,6 +116,21 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 
 	d := manifests.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
 	if err := h.client.Apply(ctx, d); err != nil {
+		// Note(turkenh): Previously, we were using the provider "meta" name in
+		// the selector of the deployment. However, we changed the selector to
+		// use the package name, derived from "v1.LabelParentPackage" instead.
+		// "meta" name and "v1.LabelParentPackage" differs when the package is
+		// installed with a different name, e.g. "upbound-provider-aws-family"
+		// whereas meta name is "provider-aws-family".
+		// Below is a migration since deployment selectors are immutable and
+		// we cannot change it in-place.
+		// TODO(turkenh): Remove this migration in a future release, i.e. > v1.17 (v1.14  + 3 supported release ).
+		if kerrors.IsInvalid(err) && strings.Contains(strings.ToLower(err.Error()), "field is immutable") {
+			if err = h.client.Delete(ctx, d); err != nil {
+				return errors.Wrap(err, errDeleteProviderDeployment)
+			}
+			return errors.New("provider deployment was immutable, deleted and needs to be recreated")
+		}
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 
