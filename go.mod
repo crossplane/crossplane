@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/kong v0.8.0
 	github.com/bufbuild/buf v1.26.1
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20231003095054-b53745680067
-	github.com/google/go-cmp v0.5.9
+	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.16.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2
 	github.com/jmattheis/goverter v0.18.0
