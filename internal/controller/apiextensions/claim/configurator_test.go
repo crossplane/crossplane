@@ -43,7 +43,6 @@ func TestCompositeConfigure(t *testing.T) {
 	apiVersion := "v"
 	kind := "k"
 	now := metav1.Now()
-	errBoom := errors.New("boom")
 
 	type args struct {
 		ctx context.Context
@@ -58,7 +57,6 @@ func TestCompositeConfigure(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		c      client.Client
 		args   args
 		want   want
 	}{
@@ -164,70 +162,8 @@ func TestCompositeConfigure(t *testing.T) {
 				err: errors.New(errBindCompositeConflict),
 			},
 		},
-		"DryRunError": {
-			reason: "We should return any error we encounter while dry-run creating a dynamically provisioned composite",
-			c: &test.MockClient{
-				MockCreate: test.NewMockCreateFn(errBoom),
-			},
-			args: args{
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"apiVersion": apiVersion,
-							"kind":       kind,
-							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name,
-							},
-							"spec": map[string]any{
-								"coolness": 23,
-
-								// These should be preserved.
-								"compositionRef":      "ref",
-								"compositionSelector": "ref",
-
-								// These should be filtered out.
-								"resourceRef":                "ref",
-								"writeConnectionSecretToRef": "ref",
-							},
-						},
-					},
-				},
-				cp: &composite.Unstructured{},
-			},
-			want: want{
-				cp: &composite.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"metadata": map[string]any{
-								"generateName": name + "-",
-								"labels": map[string]any{
-									xcrd.LabelKeyClaimNamespace: ns,
-									xcrd.LabelKeyClaimName:      name,
-								},
-							},
-							"spec": map[string]any{
-								"coolness":            23,
-								"compositionRef":      "ref",
-								"compositionSelector": "ref",
-								"claimRef": map[string]any{
-									"apiVersion": apiVersion,
-									"kind":       kind,
-									"namespace":  ns,
-									"name":       name,
-								},
-							},
-						},
-					},
-				},
-				err: errors.Wrap(errBoom, errName),
-			},
-		},
 		"ConfiguredNewXR": {
 			reason: "A dynamically provisioned composite resource should be configured according to the claim",
-			c: &test.MockClient{
-				MockCreate: test.NewMockCreateFn(nil),
-			},
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
@@ -237,6 +173,7 @@ func TestCompositeConfigure(t *testing.T) {
 							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
+								"uid":       "62effa89-ac5c-4a0f-8638-f524a916ef10",
 							},
 							"spec": map[string]any{
 								"coolness": 23,
@@ -259,7 +196,7 @@ func TestCompositeConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"generateName": name + "-",
+								"name": name + "-8638f524a916ef10",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -592,8 +529,7 @@ func TestCompositeConfigure(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIDryRunCompositeConfigurator(tc.c)
-			got := c.Configure(tc.args.ctx, tc.args.cm, tc.args.cp)
+			got := ConfigureComposite(tc.args.ctx, tc.args.cm, tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("Configure(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
 			}

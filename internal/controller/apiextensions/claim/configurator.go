@@ -18,10 +18,12 @@ package claim
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -46,26 +48,12 @@ const (
 	errMergeClaimStatus = "unable to merge claim status"
 )
 
-// An APIDryRunCompositeConfigurator configures composite resources. It may
-// perform a dry-run create against an API server in order to name and validate
-// the configured resource.
-type APIDryRunCompositeConfigurator struct {
-	client client.Client
-}
-
-// NewAPIDryRunCompositeConfigurator returns a Configurator of composite
-// resources that may perform a dry-run create against an API server in order to
-// name and validate the configured resource.
-func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfigurator {
-	return &APIDryRunCompositeConfigurator{client: c}
-}
-
-// Configure the supplied composite resource by propagating configuration from
+// ConfigureComposite configures the supplied composite resource by propagating configuration from
 // the supplied claim. Both create and update scenarios are supported; i.e. the
 // composite may or may not have been created in the API server when passed to
 // this method. The configured composite may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
+func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -134,13 +122,18 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	ucp.SetClaimReference(proposed)
 
 	if !meta.WasCreated(cp) {
-		// The API server returns an available name derived from
-		// generateName when we perform a dry-run create. This name is
-		// likely (but not guaranteed) to be available when we create
-		// the composite resource. If the API server generates a name
-		// that is unavailable it will return a 500 ServerTimeout error.
-		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-		return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+		// UUID can have several textual representations
+		// https://en.wikipedia.org/wiki/Universally_unique_identifier#Textual_representation
+		// For robustness, try to parse it first
+		id, err := uuid.Parse(string(cm.GetUID()))
+		if err != nil {
+			return err
+		}
+		// Construct XR name following the convention <claim_name>-<claim_uid_last_64_bits>
+		// risk for collision is super low (2^-12 for 10k claims with the same name)
+		// https://en.wikipedia.org/wiki/Universally_unique_identifier#Collisions
+		// therefore we do not add any logic that would handle it.
+		cp.SetName(fmt.Sprintf("%s-%s", cm.GetName(), hex.EncodeToString(id[8:])))
 	}
 
 	return nil
