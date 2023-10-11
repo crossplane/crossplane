@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // SortFieldErrors sorts the given field.ErrorList by the error message.
@@ -55,7 +55,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				spec: CompositionSpec{
 					Mode: &resources,
 					Resources: []ComposedTemplate{
-						{Name: pointer.String("cool-template")},
+						{Name: ptr.To("cool-template")},
 					},
 				},
 			},
@@ -69,7 +69,7 @@ func TestCompositionValidateMode(t *testing.T) {
 				spec: CompositionSpec{
 					// This Composition uses Resources mode implicitly.
 					Resources: []ComposedTemplate{
-						{Name: pointer.String("cool-template")},
+						{Name: ptr.To("cool-template")},
 					},
 				},
 			},
@@ -157,10 +157,10 @@ func TestCompositionValidateResourceName(t *testing.T) {
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
 						{
-							Name: pointer.String("foo"),
+							Name: ptr.To("foo"),
 						},
 						{
-							Name: pointer.String("bar"),
+							Name: ptr.To("bar"),
 						},
 					},
 				},
@@ -183,7 +183,7 @@ func TestCompositionValidateResourceName(t *testing.T) {
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
 						{},
-						{Name: pointer.String("bar")},
+						{Name: ptr.To("bar")},
 					},
 				},
 			},
@@ -202,7 +202,7 @@ func TestCompositionValidateResourceName(t *testing.T) {
 			args: args{
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
-						{Name: pointer.String("bar")},
+						{Name: ptr.To("bar")},
 						{},
 					},
 				},
@@ -222,8 +222,8 @@ func TestCompositionValidateResourceName(t *testing.T) {
 			args: args{
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
-						{Name: pointer.String("foo")},
-						{Name: pointer.String("bar")},
+						{Name: ptr.To("foo")},
+						{Name: ptr.To("bar")},
 					},
 					Pipeline: []PipelineStep{
 						{
@@ -262,9 +262,9 @@ func TestCompositionValidateResourceName(t *testing.T) {
 			args: args{
 				spec: CompositionSpec{
 					Resources: []ComposedTemplate{
-						{Name: pointer.String("foo")},
-						{Name: pointer.String("bar")},
-						{Name: pointer.String("foo")},
+						{Name: ptr.To("foo")},
+						{Name: ptr.To("bar")},
+						{Name: ptr.To("foo")},
 					},
 				},
 			},
@@ -335,7 +335,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 								Name: "foo",
 								Patches: []Patch{
 									{
-										FromFieldPath: pointer.String("spec.foo"),
+										FromFieldPath: ptr.To("spec.foo"),
 									},
 								},
 							},
@@ -409,7 +409,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: pointer.String("spec.something"),
+										FromFieldPath: ptr.To("spec.something"),
 									},
 								},
 							},
@@ -419,7 +419,7 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 								Patches: []Patch{
 									{
 										Type:         PatchTypePatchSet,
-										PatchSetName: pointer.String("wrong"),
+										PatchSetName: ptr.To("wrong"),
 									},
 								},
 							},
@@ -549,14 +549,14 @@ func TestCompositionValidateResources(t *testing.T) {
 					Spec: CompositionSpec{
 						Resources: []ComposedTemplate{
 							{
-								Name: pointer.String("foo"),
+								Name: ptr.To("foo"),
 							},
 							{
-								Name: pointer.String("bar"),
+								Name: ptr.To("bar"),
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: pointer.String("spec.foo"),
+										FromFieldPath: ptr.To("spec.foo"),
 									},
 								},
 								ReadinessChecks: []ReadinessCheck{
@@ -577,14 +577,14 @@ func TestCompositionValidateResources(t *testing.T) {
 					Spec: CompositionSpec{
 						Resources: []ComposedTemplate{
 							{
-								Name: pointer.String("foo"),
+								Name: ptr.To("foo"),
 							},
 							{
-								Name: pointer.String("foo"),
+								Name: ptr.To("foo"),
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: pointer.String("spec.foo"),
+										FromFieldPath: ptr.To("spec.foo"),
 									},
 								},
 								ReadinessChecks: []ReadinessCheck{
@@ -614,13 +614,13 @@ func TestCompositionValidateResources(t *testing.T) {
 					Spec: CompositionSpec{
 						Resources: []ComposedTemplate{
 							{
-								Name: pointer.String("foo"),
+								Name: ptr.To("foo"),
 							},
 							{
 								Patches: []Patch{
 									{
 										Type:          PatchTypeFromCompositeFieldPath,
-										FromFieldPath: pointer.String("spec.foo"),
+										FromFieldPath: ptr.To("spec.foo"),
 									},
 								},
 							},
@@ -646,7 +646,7 @@ func TestCompositionValidateResources(t *testing.T) {
 						Resources: []ComposedTemplate{
 							{},
 							{
-								Name: pointer.String("foo"),
+								Name: ptr.To("foo"),
 								Patches: []Patch{
 									{
 										Type: PatchTypeFromCompositeFieldPath,
@@ -732,8 +732,8 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 							Patches: []EnvironmentPatch{
 								{
 									Type:          PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("spec.foo"),
-									ToFieldPath:   pointer.String("metadata.annotations[\"foo\"]"),
+									FromFieldPath: ptr.To("spec.foo"),
+									ToFieldPath:   ptr.To("metadata.annotations[\"foo\"]"),
 								},
 							},
 							EnvironmentConfigs: []EnvironmentSource{
@@ -750,7 +750,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 											{
 												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
-												ValueFromFieldPath: pointer.String("spec.foo"),
+												ValueFromFieldPath: ptr.To("spec.foo"),
 											}}}}}}}}},
 		},
 		"InvalidPatchEnvironment": {
@@ -770,8 +770,8 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 							Patches: []EnvironmentPatch{
 								{
 									Type: PatchTypeFromCompositeFieldPath,
-									//FromFieldPath: pointer.String("spec.foo"), // missing
-									ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
+									//FromFieldPath: ptr.To("spec.foo"), // missing
+									ToFieldPath: ptr.To("metadata.annotations[\"foo\"]"),
 								},
 							},
 							EnvironmentConfigs: []EnvironmentSource{
@@ -788,7 +788,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 											{
 												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
-												ValueFromFieldPath: pointer.String("spec.foo"),
+												ValueFromFieldPath: ptr.To("spec.foo"),
 											}}}}}}}}},
 		},
 		"InvalidEnvironmentSourceReferenceNoName": {
@@ -819,7 +819,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 											{
 												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
-												ValueFromFieldPath: pointer.String("spec.foo"),
+												ValueFromFieldPath: ptr.To("spec.foo"),
 											}}}}}}}}},
 		},
 		"InvalidEnvironmentSourceSelectorNoKey": {
@@ -850,7 +850,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 											{
 												Type: EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												//Key:                "foo", // missing
-												ValueFromFieldPath: pointer.String("spec.foo"),
+												ValueFromFieldPath: ptr.To("spec.foo"),
 											}}}}}}}}},
 		},
 		"InvalidMultipleErrors": {
@@ -862,8 +862,8 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 							Patches: []EnvironmentPatch{
 								{
 									Type: PatchTypeFromCompositeFieldPath,
-									//FromFieldPath: pointer.String("spec.foo"), // missing
-									ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
+									//FromFieldPath: ptr.To("spec.foo"), // missing
+									ToFieldPath: ptr.To("metadata.annotations[\"foo\"]"),
 								},
 							},
 							EnvironmentConfigs: []EnvironmentSource{
@@ -880,7 +880,7 @@ func TestCompositionValidateEnvironment(t *testing.T) {
 											{
 												Type: EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												//Key:                "foo", // missing
-												ValueFromFieldPath: pointer.String("spec.foo"),
+												ValueFromFieldPath: ptr.To("spec.foo"),
 											}}}}}}}}},
 			want: want{
 				output: field.ErrorList{

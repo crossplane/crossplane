@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -78,7 +78,7 @@ func TestPTCompose(t *testing.T) {
 									// This reference to a non-existent patchset
 									// triggers the error.
 									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("nonexistent-patchset"),
+									PatchSetName: ptr.To("nonexistent-patchset"),
 								}},
 							}},
 						},
@@ -115,7 +115,7 @@ func TestPTCompose(t *testing.T) {
 						tas := []TemplateAssociation{
 							{
 								Template: v1.ComposedTemplate{
-									Name: pointer.String("uncool-resource"),
+									Name: ptr.To("uncool-resource"),
 									Base: runtime.RawExtension{Raw: []byte("{}")}, // An invalid, empty base resource template.
 								},
 							},
@@ -154,7 +154,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 								Base: base,
 							},
 						}}
@@ -186,7 +186,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 								Base: base,
 							},
 						}}
@@ -218,7 +218,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 								Base: base,
 							},
 						}}
@@ -253,7 +253,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 								Base: base,
 							},
 						}}
@@ -291,7 +291,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 								Base: base,
 							},
 						}}
@@ -362,7 +362,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 								Base: base,
 							},
 						}}
@@ -412,7 +412,7 @@ func TestPTCompose(t *testing.T) {
 						tas := []TemplateAssociation{
 							{
 								Template: v1.ComposedTemplate{
-									Name: pointer.String("cool-resource"),
+									Name: ptr.To("cool-resource"),
 									Base: base,
 								},
 							},
@@ -420,7 +420,7 @@ func TestPTCompose(t *testing.T) {
 								// This resource won't apply successfully due to
 								// the clause below in the dry-run renderer.
 								Template: v1.ComposedTemplate{
-									Name: pointer.String("uncool-resource"),
+									Name: ptr.To("uncool-resource"),
 									Base: runtime.RawExtension{Raw: []byte(`{"apiVersion":"test.crossplane.io/v1","kind":"BrokenResource"}`)},
 								},
 							},

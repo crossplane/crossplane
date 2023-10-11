@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
@@ -30,8 +30,8 @@ func TestEnvironmentPatchValidate(t *testing.T) {
 			args: args{
 				envPatch: &EnvironmentPatch{
 					Type:          PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.foo"),
-					ToFieldPath:   pointer.String("metadata.annotations[\"foo\"]"),
+					FromFieldPath: ptr.To("spec.foo"),
+					ToFieldPath:   ptr.To("metadata.annotations[\"foo\"]"),
 				},
 			},
 			want: want{output: nil},
@@ -41,7 +41,7 @@ func TestEnvironmentPatchValidate(t *testing.T) {
 			args: args{
 				envPatch: &EnvironmentPatch{
 					Type:        PatchTypeFromCompositeFieldPath,
-					ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
+					ToFieldPath: ptr.To("metadata.annotations[\"foo\"]"),
 				},
 			},
 			want: want{
@@ -56,7 +56,7 @@ func TestEnvironmentPatchValidate(t *testing.T) {
 			args: args{
 				envPatch: &EnvironmentPatch{
 					Type:          PatchTypeCombineToComposite,
-					FromFieldPath: pointer.String("spec.foo"),
+					FromFieldPath: ptr.To("spec.foo"),
 					Combine:       nil, // required
 				},
 			},

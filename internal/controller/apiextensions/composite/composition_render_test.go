@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -142,7 +142,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	controlled := &fake.Composed{
 		ObjectMeta: metav1.ObjectMeta{
 			OwnerReferences: []metav1.OwnerReference{{
-				Controller: pointer.Bool(true),
+				Controller: ptr.To(true),
 				UID:        "very-random",
 			}},
 		},
@@ -179,7 +179,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 							UID:        "very-random",
 						}},
 					},
@@ -190,7 +190,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 							UID:        "very-random",
 						}},
 						Labels: map[string]string{
@@ -219,7 +219,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 							UID:        "somewhat-random",
 						}},
 					},
@@ -230,8 +230,8 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller:         pointer.Bool(true),
-							BlockOwnerDeletion: pointer.Bool(true),
+							Controller:         ptr.To(true),
+							BlockOwnerDeletion: ptr.To(true),
 							UID:                "somewhat-random",
 						}},
 						Labels: map[string]string{
@@ -264,8 +264,8 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
-							Controller:         pointer.Bool(true),
-							BlockOwnerDeletion: pointer.Bool(true),
+							Controller:         ptr.To(true),
+							BlockOwnerDeletion: ptr.To(true),
 							UID:                "somewhat-random",
 							Name:               "cool-xr",
 						}},

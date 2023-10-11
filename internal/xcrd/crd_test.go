@@ -32,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -352,7 +352,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: pointer.String("atomic"),
+													XListType: ptr.To("atomic"),
 												},
 												"publishConnectionDetailsTo": {
 													Type:     "object",
@@ -418,7 +418,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -623,7 +623,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: pointer.String("atomic"),
+													XListType: ptr.To("atomic"),
 												},
 												"publishConnectionDetailsTo": {
 													Type:     "object",
@@ -682,7 +682,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1721,7 +1721,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -2005,7 +2005,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -2303,7 +2303,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 										"conditions": {
 											Description:  "Conditions of the resource.",
 											Type:         "array",
-											XListType:    pointer.String("map"),
+											XListType:    ptr.To("map"),
 											XListMapKeys: []string{"type"},
 											Items: &extv1.JSONSchemaPropsOrArray{
 												Schema: &extv1.JSONSchemaProps{

@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -913,14 +913,14 @@ func TestReconcile(t *testing.T) {
 								pr := o.(*v1.ProviderRevision)
 								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetSkipDependencyResolution(pointer.Bool(false))
+								pr.SetSkipDependencyResolution(ptr.To(false))
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetSkipDependencyResolution(pointer.Bool(false))
+								want.SetSkipDependencyResolution(ptr.To(false))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.UnknownHealth().WithMessage("cannot resolve package dependencies: boom"))
 
@@ -934,7 +934,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetSkipDependencyResolution(pointer.Bool(false))
+								want.SetSkipDependencyResolution(ptr.To(false))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}

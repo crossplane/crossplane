@@ -18,7 +18,7 @@ package xcrd
 
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // Label keys.
@@ -157,7 +157,7 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 				},
 			},
 			// Controllers should replace the entire resourceRefs array.
-			XListType: pointer.String("atomic"),
+			XListType: ptr.To("atomic"),
 		},
 		"publishConnectionDetailsTo": {
 			Type:     "object",
@@ -335,7 +335,7 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 			XListMapKeys: []string{
 				"type",
 			},
-			XListType: pointer.String("map"),
+			XListType: ptr.To("map"),
 			Items: &extv1.JSONSchemaPropsOrArray{
 				Schema: &extv1.JSONSchemaProps{
 					Type:     "object",

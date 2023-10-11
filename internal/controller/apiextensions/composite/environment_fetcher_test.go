@@ -26,7 +26,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -270,7 +270,7 @@ func TestFetch(t *testing.T) {
 						corev1.ObjectReference{Name: "a"},
 					),
 				),
-				required: pointer.Bool(false),
+				required: ptr.To(false),
 			},
 			want: want{
 				env: makeEnvironment(map[string]interface{}{}),

@@ -22,7 +22,7 @@ import (
 	"os"
 	"sort"
 
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -340,7 +340,7 @@ func (e *Environment) EnrichLabels(labels features.Labels) features.Labels {
 func (e *Environment) isSelectingTests() bool {
 	if e.specificTestSelected == nil {
 		f := flag.Lookup("test.run")
-		e.specificTestSelected = pointer.Bool(f != nil && f.Value.String() != "")
+		e.specificTestSelected = ptr.To(f != nil && f.Value.String() != "")
 	}
 	return *e.specificTestSelected
 }
