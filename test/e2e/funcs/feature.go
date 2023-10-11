@@ -430,7 +430,7 @@ func DeleteResources(dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
 
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources())); err != nil {
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources(), resources.WithDeletePropagation(string(metav1.DeletePropagationForeground)))); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
