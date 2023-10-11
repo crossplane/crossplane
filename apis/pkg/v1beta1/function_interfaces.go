@@ -34,6 +34,11 @@ func (f *Function) SetConditions(c ...xpv1.Condition) {
 	f.Status.SetConditions(c...)
 }
 
+// CleanConditions removes all conditions
+func (f *Function) CleanConditions() {
+	f.Status.Conditions = []xpv1.Condition{}
+}
+
 // GetSource of this Function.
 func (f *Function) GetSource() string {
 	return f.Spec.Package
@@ -170,6 +175,11 @@ func (r *FunctionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 // SetConditions of this FunctionRevision.
 func (r *FunctionRevision) SetConditions(c ...xpv1.Condition) {
 	r.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions
+func (r *FunctionRevision) CleanConditions() {
+	r.Status.Conditions = []xpv1.Condition{}
 }
 
 // GetObjects of this FunctionRevision.

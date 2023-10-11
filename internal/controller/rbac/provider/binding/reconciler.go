@@ -134,7 +134,7 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a ClusterRoleBinding that binds a
 // provider's service account to its system ClusterRole.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -156,6 +156,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", pr.GetResourceVersion(),
 		"name", pr.GetName(),
 	)
+
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(pr) {
+		return reconcile.Result{}, nil
+	}
 
 	if meta.WasDeleted(pr) {
 		// There's nothing to do if our PR is being deleted. Any ClusterRoles

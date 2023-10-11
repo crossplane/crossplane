@@ -635,7 +635,7 @@ func TestReconcile(t *testing.T) {
 						})),
 						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-							cr.SetConditions(xpv1.ReconcilePaused())
+							cr.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 						})),
 					}),
 				},

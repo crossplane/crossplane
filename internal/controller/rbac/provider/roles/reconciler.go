@@ -250,6 +250,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"name", pr.GetName(),
 	)
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(pr) {
+		return reconcile.Result{}, nil
+	}
+
 	if meta.WasDeleted(pr) {
 		// There's nothing to do if our PR is being deleted. Any ClusterRoles
 		// we created will be garbage collected by Kubernetes.

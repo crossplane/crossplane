@@ -65,6 +65,8 @@ const (
 	errPropagateCDs       = "cannot propagate connection details from composite"
 
 	errUpdateClaimStatus = "cannot update composite resource claim status"
+
+	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
 
 // Event reasons.
@@ -371,8 +373,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(cm) {
-		r.record.Event(cm, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
-		cm.SetConditions(xpv1.ReconcilePaused())
+		r.record.Event(cm, event.Normal(reasonPaused, reconcilePausedMsg))
+		cm.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
