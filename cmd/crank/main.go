@@ -65,12 +65,11 @@ var cli struct {
 	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
 	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 
-	Init initCmd `cmd:"" help:"Initialize Crossplane packages."`
-
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
 	Alpha struct {
 		// Add here alpha subcommands
+		Init initCmd `cmd:"" help:"Initialize directories for Crossplane packages from templates."`
 	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
 
 	Beta struct {
