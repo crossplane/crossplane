@@ -17,7 +17,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.10.0
 	golang.org/x/sync v0.4.0
-	google.golang.org/grpc v1.58.2
+	google.golang.org/grpc v1.58.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.31.0
 	k8s.io/api v0.28.2
