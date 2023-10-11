@@ -196,7 +196,7 @@ func TestCompositeConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"name": name + "-8638f524a916ef10",
+								"name": name + "-21hbx576ql53k",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,

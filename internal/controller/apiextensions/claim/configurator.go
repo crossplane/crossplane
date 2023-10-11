@@ -18,8 +18,9 @@ package claim
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/binary"
 	"fmt"
+	"strconv"
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
@@ -129,11 +130,11 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 		if err != nil {
 			return err
 		}
-		// Construct XR name following the convention <claim_name>-<claim_uid_last_64_bits>
+		// Construct XR name following the convention <claim_name>-<base36encoded_claim_uid_last_64_bits>
 		// risk for collision is super low (2^-12 for 10k claims with the same name)
 		// https://en.wikipedia.org/wiki/Universally_unique_identifier#Collisions
 		// therefore we do not add any logic that would handle it.
-		cp.SetName(fmt.Sprintf("%s-%s", cm.GetName(), hex.EncodeToString(id[8:])))
+		cp.SetName(fmt.Sprintf("%s-%s", cm.GetName(), strconv.FormatUint(binary.BigEndian.Uint64(id[8:]), 36)))
 	}
 
 	return nil
