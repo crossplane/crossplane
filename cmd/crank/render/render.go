@@ -139,7 +139,7 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.Message)
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
-					"apiVersion": "xrender.crossplane.io/v1beta1",
+					"apiVersion": "render.crossplane.io/v1beta1",
 					"kind":       "Result",
 					"step":       fn.Step,
 					"severity":   rs.GetSeverity().String(),

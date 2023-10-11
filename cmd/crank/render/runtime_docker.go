@@ -21,12 +21,12 @@ import (
 const (
 	// AnnotationKeyRuntimeDockerCleanup configures how a Function's Docker
 	// container should be cleaned up once rendering is done.
-	AnnotationKeyRuntimeDockerCleanup = "xrender.crossplane.io/runtime-docker-cleanup"
+	AnnotationKeyRuntimeDockerCleanup = "render.crossplane.io/runtime-docker-cleanup"
 
 	// AnnotationKeyRuntimeDockerImage overrides the Docker image that will be
 	// used to run the Function. By default render assumes the Function package
 	// (i.e. spec.package) can be used to run the Function.
-	AnnotationKeyRuntimeDockerImage = "xrender.crossplane.io/runtime-docker-image"
+	AnnotationKeyRuntimeDockerImage = "render.crossplane.io/runtime-docker-image"
 )
 
 // DockerCleanup specifies what Docker should do with a Function container after
@@ -48,7 +48,7 @@ const (
 
 // AnnotationKeyRuntimeDockerPullPolicy can be added to a Function to control how its runtime
 // image is pulled.
-const AnnotationKeyRuntimeDockerPullPolicy = "xrender.crossplane.io/runtime-docker-pull-policy"
+const AnnotationKeyRuntimeDockerPullPolicy = "render.crossplane.io/runtime-docker-pull-policy"
 
 // DockerPullPolicy can be added to a Function to control how its runtime image
 // is pulled by Docker.

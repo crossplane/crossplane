@@ -10,7 +10,7 @@ import (
 const (
 	// AnnotationKeyRuntimeDevelopmentTarget can be used to configure the gRPC
 	// target where the Function is listening. The default is localhost:9443.
-	AnnotationKeyRuntimeDevelopmentTarget = "xrender.crossplane.io/runtime-development-target"
+	AnnotationKeyRuntimeDevelopmentTarget = "render.crossplane.io/runtime-development-target"
 )
 
 // RuntimeDevelopment is largely a no-op. It expects you to run the Function

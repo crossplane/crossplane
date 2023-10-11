@@ -10,7 +10,7 @@ import (
 
 // AnnotationKeyRuntime can be added to a Function to control what runtime is
 // used to run it locally.
-const AnnotationKeyRuntime = "xrender.crossplane.io/runtime"
+const AnnotationKeyRuntime = "render.crossplane.io/runtime"
 
 // RuntimeType is a type of Function runtime.
 type RuntimeType string
