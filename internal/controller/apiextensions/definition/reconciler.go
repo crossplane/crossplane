@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -84,6 +85,7 @@ const (
 	reasonRenderCRD   event.Reason = "RenderCRD"
 	reasonEstablishXR event.Reason = "EstablishComposite"
 	reasonTerminateXR event.Reason = "TerminateComposite"
+	reasonPaused      event.Reason = "ReconciliationPaused"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -371,6 +373,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// CustomResourceDefinition that we just deleted, but we requeue
 		// just in case the CRD isn't gone after the first requeue.
 		return reconcile.Result{Requeue: true}, nil
+	}
+
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(d) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(d, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		d.Status.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+	}
+	if c := d.Status.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		d.Status = v1.CompositeResourceDefinitionStatus{ConditionedStatus: *xpv1.NewConditionedStatus()}
 	}
 
 	if err := r.composite.AddFinalizer(ctx, d); err != nil {

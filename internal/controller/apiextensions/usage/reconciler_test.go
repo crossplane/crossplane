@@ -18,6 +18,7 @@ package usage
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
@@ -52,6 +54,8 @@ func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
 	reason := "protected"
+	const resourceName = "using"
+
 	type args struct {
 		mgr  manager.Manager
 		opts []ReconcilerOption
@@ -249,10 +253,10 @@ func TestReconcile(t *testing.T) {
 								case *v1alpha1.Usage:
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1alpha1.Resource{
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
 									}
 								case *composed.Unstructured:
-									if o.GetName() == "using" {
+									if o.GetName() == resourceName {
 										return errBoom
 									}
 								}
@@ -286,12 +290,12 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1alpha1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1alpha1.Resource{
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == resourceName {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
 										o.SetUID("some-uid")
@@ -335,12 +339,12 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1alpha1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1alpha1.Resource{
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
 									}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									if o.GetName() == "using" {
+									if o.GetName() == resourceName {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
 										o.SetUID("some-uid")
@@ -413,6 +417,121 @@ func TestReconcile(t *testing.T) {
 								o := obj.(*v1alpha1.Usage)
 								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
+								}
+								return nil
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								obj.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								if o, ok := obj.(*v1alpha1.Usage); ok {
+									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1alpha1.Resource{
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
+									}
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == resourceName {
+										o.SetAPIVersion("v1")
+										o.SetKind("AnotherKind")
+										o.SetUID("some-uid")
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+								rp := xpv1.ReconcilePaused()
+								c := obj.(*v1alpha1.Usage).Status.GetCondition(rp.Type)
+								if c.Status != rp.Status || c.Reason != rp.Reason {
+									return fmt.Errorf("Expected status: %v but got: %v", rp, c)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"ResumeReconcile": {
+			reason: "resume reconciliation by remove the pause annotation.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1alpha1.Usage); ok {
+									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1alpha1.Resource{
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
+									}
+									o.Status.SetConditions(xpv1.ReconcilePaused())
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == resourceName {
+										o.SetAPIVersion("v1")
+										o.SetKind("AnotherKind")
+										o.SetUID("some-uid")
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1alpha1.Usage); ok {
+									if o.GetOwnerReferences() != nil {
+										owner := o.GetOwnerReferences()[0]
+										if owner.APIVersion != "v1" || owner.Kind != "AnotherKind" || owner.UID != "some-uid" {
+											t.Errorf("expected owner reference to be set on usage properly")
+										}
+									}
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+								o := obj.(*v1alpha1.Usage)
+								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
+									t.Fatalf("expected ready condition to be true")
+								}
+								if o.Status.GetCondition(xpv1.TypeSynced).Status != corev1.ConditionUnknown {
+									t.Fatal("expected paused condition to be gone")
 								}
 								return nil
 							}),
@@ -514,7 +633,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1alpha1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
 									}
 									return nil
 								}
@@ -717,7 +836,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1alpha1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1alpha1.ResourceRef{Name: resourceName},
 									}
 									return nil
 								}

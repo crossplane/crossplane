@@ -18,6 +18,7 @@ package composition
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 
@@ -31,8 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -343,6 +346,80 @@ func TestReconcile(t *testing.T) {
 								t.Errorf("Create(): -want, +got:\n%s", diff)
 							}
 
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							obj.SetAnnotations(map[string]string{
+								meta.AnnotationKeyReconciliationPaused: "true",
+							})
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+							rp := commonv1.ReconcilePaused()
+							c := obj.(*v1.Composition).Status.GetCondition(rp.Type)
+							if c.Status != rp.Status || c.Reason != rp.Reason {
+								return fmt.Errorf("Expected status: %v but got: %v", rp, c)
+							}
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"SuccessfulCreationAfterResume": {
+			reason: "resume reconciliation by removing the pause annotation",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							c := obj.(*v1.Composition)
+							compDev.DeepCopyInto(c)
+							c.Status.SetConditions(commonv1.ReconcilePaused())
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
+									// Not controlled by the above composition.
+									*rev1,
+
+									// Controlled by the above composition, but with an older hash.
+									// This indicates we need to create a new composition.
+									*rev2,
+								},
+							}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
+							want := NewCompositionRevision(compDev, rev2.Spec.Revision+1)
+
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("Create(): -want, +got:\n%s", diff)
+							}
+
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+							if len(obj.(*v1.Composition).Status.Conditions) > 0 {
+								return errors.New("conditions should be empty")
+							}
 							return nil
 						}),
 					},

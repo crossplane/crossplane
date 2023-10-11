@@ -33,6 +33,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -187,6 +188,30 @@ func TestReconcile(t *testing.T) {
 						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return nil
 						}),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								d := o.(*v1.ProviderRevision)
+								d.SetOwnerReferences([]metav1.OwnerReference{{}})
+								d.Spec.DesiredState = v1.PackageRevisionActive
+								d.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								return nil
+							}),
+						},
 					}),
 				},
 			},

@@ -67,6 +67,8 @@ type Package interface {
 	resource.Object
 	resource.Conditioned
 
+	CleanConditions()
+
 	GetSource() string
 	SetSource(s string)
 
@@ -113,6 +115,11 @@ func (p *Provider) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 // SetConditions of this Provider.
 func (p *Provider) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions
+func (p *Provider) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
 }
 
 // GetSource of this Provider.
@@ -245,6 +252,11 @@ func (p *Configuration) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
+// CleanConditions removes all conditions
+func (p *Configuration) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
+}
+
 // GetSource of this Configuration.
 func (p *Configuration) GetSource() string {
 	return p.Spec.Package
@@ -369,6 +381,8 @@ type PackageRevision interface {
 	resource.Object
 	resource.Conditioned
 
+	CleanConditions()
+
 	GetObjects() []xpv1.TypedReference
 	SetObjects(c []xpv1.TypedReference)
 
@@ -420,6 +434,11 @@ func (p *ProviderRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 // SetConditions of this ProviderRevision.
 func (p *ProviderRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions
+func (p *ProviderRevision) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
 }
 
 // GetObjects of this ProviderRevision.
@@ -572,6 +591,11 @@ func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Conditi
 // SetConditions of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions
+func (p *ConfigurationRevision) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
 }
 
 // GetObjects of this ConfigurationRevision.

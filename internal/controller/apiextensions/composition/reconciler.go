@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -53,12 +54,14 @@ const (
 	errCreateRev       = "cannot create CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
 	errUpdateRevSpec   = "cannot update CompositionRevision spec"
+	errUpdateStatus    = "cannot update Composition status"
 )
 
 // Event reasons.
 const (
 	reasonCreateRev event.Reason = "CreateRevision"
 	reasonUpdateRev event.Reason = "UpdateRevision"
+	reasonPaused    event.Reason = "ReconciliationPaused"
 )
 
 // Setup adds a controller that reconciles Compositions by creating new
@@ -148,6 +151,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"spec-hash", currentHash,
 	)
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(comp) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(comp, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		comp.Status.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, comp), errUpdateStatus)
+	}
+	if c := comp.Status.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		comp.Status = v1.CompositionStatus{ConditionedStatus: *xpv1.NewConditionedStatus()}
+		if err := r.client.Status().Update(ctx, comp); err != nil {
+			return reconcile.Result{}, errors.Wrap(err, errUpdateStatus)
+		}
+	}
 	rl := &v1.CompositionRevisionList{}
 	if err := r.client.List(ctx, rl, client.MatchingLabels{v1.LabelCompositionName: comp.GetName()}); err != nil {
 		log.Debug(errListRevs, "error", err)

@@ -34,6 +34,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -169,6 +170,30 @@ func TestReconcile(t *testing.T) {
 						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return nil
 						}),
+					}),
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.CompositeResourceDefinition) []rbacv1.ClusterRole {
+						return []rbacv1.ClusterRole{{}}
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								obj.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								return nil
+							}),
+						},
 					}),
 					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.CompositeResourceDefinition) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}

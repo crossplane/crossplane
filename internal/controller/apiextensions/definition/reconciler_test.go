@@ -18,6 +18,7 @@ package definition
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"testing"
 
@@ -35,9 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -93,6 +96,35 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								obj.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
+								rp := commonv1.ReconcilePaused()
+								c := obj.(*v1.CompositeResourceDefinition).Status.GetCondition(rp.Type)
+								if c.Status != rp.Status || c.Reason != rp.Reason {
+									return fmt.Errorf("Expected status: %v but got: %v", rp, c)
+								}
+								return nil
+							}),
 						},
 					}),
 				},
@@ -582,6 +614,63 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.CompositeResourceDefinition{}
+								want.Status.SetConditions(v1.WatchingComposite())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					}),
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{
+							Status: extv1.CustomResourceDefinitionStatus{
+								Conditions: []extv1.CustomResourceDefinitionCondition{
+									{Type: extv1.Established, Status: extv1.ConditionTrue},
+								},
+							},
+						}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithControllerEngine(&MockEngine{
+						MockErr:   func(name string) error { return errBoom }, // This error should only be logged.
+						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil }},
+					),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulAfterResume": {
+			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+			args: args{
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+				},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								c := obj.(*v1.CompositeResourceDefinition)
+								c.Status.SetConditions(commonv1.ReconcilePaused())
+								return nil
+							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.CompositeResourceDefinition{}
 								want.Status.SetConditions(v1.WatchingComposite())

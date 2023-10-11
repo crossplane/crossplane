@@ -86,6 +86,7 @@ const (
 
 	reasonUsageConfigured event.Reason = "UsageConfigured"
 	reasonWaitUsing       event.Reason = "WaitingUsingDeleted"
+	reasonPaused          event.Reason = "ReconciliationPaused"
 )
 
 type selectorResolver interface {
@@ -320,6 +321,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(u) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(u, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		u.Status.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, u), errUpdateStatus)
+	}
+	if c := u.Status.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		u.Status = v1alpha1.UsageStatus{ConditionedStatus: *xpv1.NewConditionedStatus()}
+	}
 	// Add finalizer for Usage resource.
 	if err := r.usage.AddFinalizer(ctx, u); err != nil {
 		log.Debug(errAddFinalizer, "error", err)

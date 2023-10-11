@@ -378,6 +378,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, nil
 	}
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(d) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		return reconcile.Result{}, nil
+	}
+
 	if err := r.claim.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		if kerrors.IsConflict(err) {

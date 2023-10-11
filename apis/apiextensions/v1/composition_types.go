@@ -18,6 +18,8 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -104,6 +106,11 @@ type CompositionSpec struct {
 	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 }
 
+// CompositionStatus shows the observed state of the composition
+type CompositionStatus struct {
+	xpv1.ConditionedStatus `json:",inline"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient
@@ -114,11 +121,14 @@ type CompositionSpec struct {
 // +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=comp
+// +kubebuilder:subresource:status
 type Composition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec CompositionSpec `json:"spec,omitempty"`
+
+	Status CompositionStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

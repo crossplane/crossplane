@@ -109,6 +109,7 @@ const (
 	reasonDependencies event.Reason = "ResolveDependencies"
 	reasonSync         event.Reason = "SyncPackage"
 	reasonDeactivate   event.Reason = "DeactivateRevision"
+	reasonPaused       event.Reason = "ReconciliationPaused"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -466,6 +467,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{Requeue: false}, nil
+	}
+
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(pr) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(pr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		pr.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+	if c := pr.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		pr.CleanConditions()
 	}
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {

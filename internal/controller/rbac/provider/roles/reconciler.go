@@ -256,6 +256,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(pr) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		return reconcile.Result{}, nil
+	}
+
 	resources := DefinedResources(pr.Status.ObjectRefs)
 
 	// If this revision is part of a provider family we consider it to 'own' all
