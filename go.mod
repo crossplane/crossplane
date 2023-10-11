@@ -6,7 +6,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/Masterminds/semver v1.5.0
-	github.com/alecthomas/kong v0.8.0
+	github.com/alecthomas/kong v0.8.1
 	github.com/bufbuild/buf v1.26.1
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20231003095054-b53745680067
 	github.com/google/go-cmp v0.6.0
