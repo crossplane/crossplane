@@ -78,6 +78,6 @@ func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
 	// 	repository? Maybe we can just agree on some markdown text in the
 	// 	repos to print to let the user know what to do next?
 
-	_, err = fmt.Fprintf(k.Stdout, "Initialized Function %q in directory %q from %q up to commit: %q\n", c.Name, c.Directory, url, ref.Hash().String())
+	_, err = fmt.Fprintf(k.Stdout, "Initialized Function %q in directory %q from %s/tree/%s (%s)\n", c.Name, c.Directory, url, ref.Hash().String(), ref.Name().Short())
 	return err
 }
