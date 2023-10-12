@@ -1,4 +1,4 @@
-FROM mikefarah/yq:4.35.1
+FROM mikefarah/yq:4.35.2
 
 COPY --chmod=+x writer.sh /bin
 USER root
