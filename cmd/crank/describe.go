@@ -22,8 +22,8 @@ type describeCmd struct {
 	Kind       string   `arg:"" required:"" help:"Kind of resource to describe."`
 	Name       string   `arg:"" required:"" help:"Name of specified resource to describe."`
 	Namespace  string   `short:"n" name:"namespace" help:"Namespace of resource to describe." default:"default"`
-	Output     string   `short:"o" name:"output" help:"Output type of graph. Possible output types: cli, graph." enum:"cli,graph" default:"cli"`
-	Fields     []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"parent,kind,name,synced,ready"`
+	Output     string   `short:"o" name:"output" help:"Output type of graph. Possible output types: tree, table, graph." enum:"tree,table,graph" default:"tree"`
+	Fields     []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"kind,name"`
 	OutputPath string   `short:"p" name:"path" help:"Output path for graph PNG. Only valid when set with output=graph." default:"graph.png"`
 }
 
@@ -31,7 +31,7 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("Kind", c.Kind, "Name", c.Name)
 
 	allowedFields := []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"}
-	allowedOutput := []string{"cli", "graph"}
+	allowedOutput := []string{"tree", "cli", "graph"}
 
 	// Check if fields are valid
 	for _, field := range c.Fields {
@@ -64,7 +64,9 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 
 	// Print out resource
 	switch c.Output {
-	case "cli":
+	case "tree":
+		printer.PrintResourceTree(*root, c.Fields, "", true)
+	case "table":
 		if err := printer.CliTable(*root, c.Fields); err != nil {
 			logger.Debug(errCliOutput, "error", err)
 			return errors.Wrap(err, errCliOutput)
