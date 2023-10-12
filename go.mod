@@ -6,10 +6,10 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/Masterminds/semver v1.5.0
-	github.com/emicklei/dot v1.6.0
 	github.com/alecthomas/kong v0.8.1
 	github.com/bufbuild/buf v1.27.0
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20231010042232-a8f755740977
+	github.com/emicklei/dot v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.16.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2
@@ -18,7 +18,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.10.0
-	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/sync v0.4.0
 	google.golang.org/grpc v1.58.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
@@ -37,20 +37,15 @@ require (
 )
 
 require (
-	github.com/fogleman/gg v1.3.0 // indirect
-	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/google/btree v1.0.1 // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
-	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
-	github.com/mattn/go-runewidth v0.0.9 // indirect
-	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	golang.org/x/image v0.6.0 // indirect
 	connectrpc.com/connect v1.11.1 // indirect
 	connectrpc.com/otelconnect v0.5.0 // indirect
 	github.com/distribution/reference v0.5.0 // indirect
+	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
+	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/jdx/go-netrc v1.0.0 // indirect
-	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
+	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 )
 
 require (
