@@ -5,6 +5,3 @@ metadata:
   name: lifecycle-upgrade
 spec:
   coolField: "I'm cool!"
-  # This is necessary to ensure the claim's MRs are actually gone before we
-  # delete the Provider - https://github.com/crossplane/crossplane/issues/4251
-  compositeDeletePolicy: Foreground
