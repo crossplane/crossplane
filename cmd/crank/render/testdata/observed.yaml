@@ -1,0 +1,18 @@
+---
+apiVersion: example.org/v1alpha1
+kind: ComposedResource
+metadata:
+  name: test-render-a
+  annotations:
+    crossplane.io/composition-resource-name: resource-a
+spec:
+  coolField: "I'm cool!"
+---
+apiVersion: example.org/v1alpha1
+kind: ComposedResource
+metadata:
+  name: test-render-b
+  annotations:
+    crossplane.io/composition-resource-name: resource-b
+spec:
+  coolerField: "I'm cooler!"
