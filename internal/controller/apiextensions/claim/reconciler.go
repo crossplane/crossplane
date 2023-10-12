@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -418,8 +417,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				}
 			}
 			ref := cp.GetClaimReference()
-			want := meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
-			if !cmp.Equal(want, ref, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+			want := cm.(*claim.Unstructured).GetReference()
+			if !cmp.Equal(want, ref) {
 				// We don't requeue (or return an error, which
 				// would requeue) in this situation because the
 				// claim will need human intervention before we
