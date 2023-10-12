@@ -19,13 +19,19 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,6 +52,8 @@ import (
 )
 
 const (
+	finalizerSuffix = "pkg.crossplane.io"
+
 	reconcileTimeout = 1 * time.Minute
 
 	// pullWait is the time after which the package manager will check for
@@ -85,6 +93,7 @@ const (
 	reasonTransitionRevision event.Reason = "TransitionRevision"
 	reasonGarbageCollect     event.Reason = "GarbageCollect"
 	reasonInstall            event.Reason = "InstallPackageRevision"
+	reasonUninstall          event.Reason = "UninstallPackage"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -133,12 +142,20 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithFinalizer specifies how the Reconciler should handle finalizers.
+func WithFinalizer(f resource.Finalizer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.finalizer = f
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	pkg    Revisioner
-	log    logging.Logger
-	record event.Recorder
+	client    resource.ClientApplicator
+	pkg       Revisioner
+	finalizer resource.Finalizer
+	log       logging.Logger
+	record    event.Recorder
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -168,6 +185,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithFinalizer(resource.NewAPIFinalizer(mgr.GetClient(), "provider."+finalizerSuffix)),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -201,6 +219,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithFinalizer(resource.NewAPIFinalizer(mgr.GetClient(), "configuration."+finalizerSuffix)),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -234,6 +253,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithFinalizer(resource.NewAPIFinalizer(mgr.GetClient(), "function."+finalizerSuffix)),
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -292,6 +312,67 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errListRevisions)
 		r.record.Event(p, event.Warning(reasonList, err))
 		return reconcile.Result{}, err
+	}
+
+	if meta.WasDeleted(p) {
+		if len(prs.GetRevisions()) > 0 {
+			for _, pr := range prs.GetRevisions() {
+				if pr.GetDesiredState() == v1.PackageRevisionActive {
+					for _, ref := range pr.GetObjects() {
+						if ref.Kind == "CustomResourceDefinition" {
+							crd := apiextensionsv1.CustomResourceDefinition{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: ref.Name,
+								},
+							}
+
+							if err := r.client.Get(ctx, types.NamespacedName{Name: crd.GetName()}, &crd); err != nil {
+								if kerrors.IsNotFound(err) {
+									continue
+								}
+								return reconcile.Result{}, errors.Wrapf(err, "cannot get CRD %q", crd.GetName())
+							}
+
+							// Ensure no CRs of this CRD exist.
+							objs := unstructured.UnstructuredList{}
+
+							version := crd.Spec.Versions[0].Name
+							for _, v := range crd.Spec.Versions {
+								if v.Storage {
+									version = v.Name
+								}
+							}
+
+							objs.SetGroupVersionKind(schema.GroupVersionKind{
+								Group:   crd.Spec.Group,
+								Version: version,
+								Kind:    crd.Spec.Names.ListKind,
+							})
+
+							if err := r.client.List(ctx, &objs); err != nil {
+								return reconcile.Result{}, errors.Wrapf(err, "cannot list CRs of the CRD %q", crd.GetName())
+							}
+							if len(objs.Items) > 0 {
+								msg := fmt.Sprintf("Cannot delete package with active CRs, waiting for CRs of the CRD %q to be deleted", crd.GetName())
+								p.SetConditions(v1.Uninstalling().WithMessage(msg))
+								r.record.Event(p, event.Warning(reasonUninstall, errors.New(msg)))
+								return reconcile.Result{}, errors.New(msg)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if err := r.finalizer.RemoveFinalizer(ctx, p); err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "cannot remove finalizer")
+		}
+
+		return reconcile.Result{}, nil
+	}
+
+	if err := r.finalizer.AddFinalizer(ctx, p); err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "cannot add finalizer")
 	}
 
 	revisionName, err := r.pkg.Revision(ctx, p)

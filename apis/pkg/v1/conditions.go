@@ -40,6 +40,7 @@ const (
 	ReasonUnhealthy     xpv1.ConditionReason = "UnhealthyPackageRevision"
 	ReasonHealthy       xpv1.ConditionReason = "HealthyPackageRevision"
 	ReasonUnknownHealth xpv1.ConditionReason = "UnknownPackageRevisionHealth"
+	ReasonUnistalling   xpv1.ConditionReason = "UninstallingPackage"
 )
 
 // Unpacking indicates that the package manager is waiting for a package
@@ -50,6 +51,17 @@ func Unpacking() xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonUnpacking,
+	}
+}
+
+// Uninstalling indicates that the package manager is waiting for a package
+// to be uninstalled.
+func Uninstalling() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeInstalled,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnistalling,
 	}
 }
 
