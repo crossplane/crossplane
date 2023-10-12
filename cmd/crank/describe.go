@@ -31,7 +31,7 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("Kind", c.Kind, "Name", c.Name)
 
 	allowedFields := []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"}
-	allowedOutput := []string{"tree", "cli", "graph"}
+	allowedOutput := []string{"tree", "table", "graph"}
 
 	// Check if fields are valid
 	for _, field := range c.Fields {
