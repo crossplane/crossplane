@@ -25,6 +25,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -353,6 +354,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				log.Debug(errUpdateInactivePackageRevision, "error", err)
+				if kerrors.IsConflict(err) {
+					return reconcile.Result{Requeue: true}, nil
+				}
 				err = errors.Wrap(err, errUpdateInactivePackageRevision)
 				r.record.Event(p, event.Warning(reasonTransitionRevision, err))
 				return reconcile.Result{}, err
@@ -416,6 +420,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	meta.AddOwnerReference(pr, controlRef)
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		log.Debug(errApplyPackageRevision, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errApplyPackageRevision)
 		r.record.Event(p, event.Warning(reasonInstall, err))
 		return reconcile.Result{}, err
@@ -427,6 +434,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pr.SetCommonLabels(p.GetCommonLabels())
 		if err := r.client.Update(ctx, pr); err != nil {
 			log.Debug(errApplyPackageRevision, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errApplyPackageRevision)
 			r.record.Event(p, event.Warning(reasonInstall, err))
 			return reconcile.Result{}, err

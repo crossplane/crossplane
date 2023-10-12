@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -183,6 +184,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		rev.Spec.Revision = latestRev + 1
 		if err := r.client.Update(ctx, rev); err != nil {
 			log.Debug(errUpdateRevSpec, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			r.record.Event(comp, event.Warning(reasonUpdateRev, err))
 			return reconcile.Result{}, errors.Wrap(err, errUpdateRevSpec)
 		}

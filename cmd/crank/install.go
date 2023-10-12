@@ -26,7 +26,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
@@ -265,7 +265,7 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 }
 
 func warnIfNotFound(err error) error {
-	serr, ok := err.(*apierrors.StatusError) //nolint:errorlint // we need to be able to extract the underlying typed error
+	serr, ok := err.(*kerrors.StatusError) //nolint:errorlint // we need to be able to extract the underlying typed error
 	if !ok {
 		return err
 	}

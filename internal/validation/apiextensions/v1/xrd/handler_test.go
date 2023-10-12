@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -76,7 +76,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet:    test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 			},
@@ -116,7 +116,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet:    test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 			},
@@ -264,7 +264,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 						p, err := fieldpath.PaveObject(obj)
 						if err != nil {
@@ -372,7 +372,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 						p, err := fieldpath.PaveObject(obj)
 						if err != nil {
@@ -486,7 +486,7 @@ func TestValidateCreate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet:    test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 			},
@@ -510,7 +510,7 @@ func TestValidateCreate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet:    test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 			},
@@ -534,7 +534,7 @@ func TestValidateCreate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 						p, err := fieldpath.PaveObject(obj)
 						if err != nil {
@@ -572,7 +572,7 @@ func TestValidateCreate(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 						p, err := fieldpath.PaveObject(obj)
 						if err != nil {
