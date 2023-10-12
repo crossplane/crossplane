@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/go-git/go-billy/v5/osfs"
@@ -54,6 +55,11 @@ func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrapf(err, "failed to stat directory %s", c.Directory)
 	}
 
+	// check the directory only contains allowed files/directories, error out otherwise
+	if err := c.checkDirectoryContent(); err != nil {
+		return err
+	}
+
 	fs := osfs.New(c.Directory, osfs.WithBoundOS())
 
 	url, err := c.GetURLForLanguage()
@@ -80,4 +86,24 @@ func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	_, err = fmt.Fprintf(k.Stdout, "Initialized Function %q in directory %q from %s/tree/%s (%s)\n", c.Name, c.Directory, url, ref.Hash().String(), ref.Name().Short())
 	return err
+}
+
+func (c *initFunctionCmd) checkDirectoryContent() error {
+	entries, err := os.ReadDir(c.Directory)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read directory %s", c.Directory)
+	}
+	notAllowedEntries := make([]string, 0)
+	for _, entry := range entries {
+		// .git directory is allowed
+		if entry.Name() == ".git" && entry.IsDir() {
+			continue
+		}
+		// add all other entries to the list of unauthorized entries
+		notAllowedEntries = append(notAllowedEntries, entry.Name())
+	}
+	if len(notAllowedEntries) > 0 {
+		return errors.Errorf("directory %s is not empty, contains existing files/directories: %s", c.Directory, strings.Join(notAllowedEntries, ", "))
+	}
+	return nil
 }
