@@ -12,11 +12,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -39,7 +40,7 @@ const (
 
 // Inputs contains all inputs to the render process.
 type Inputs struct {
-	CompositeResource *composite.Unstructured
+	CompositeResource *ucomposite.Unstructured
 	Composition       *apiextensionsv1.Composition
 	Functions         []pkgv1beta1.Function
 	ObservedResources []composed.Unstructured
@@ -50,7 +51,7 @@ type Inputs struct {
 
 // Outputs contains all outputs from the render process.
 type Outputs struct {
-	CompositeResource *composite.Unstructured
+	CompositeResource *ucomposite.Unstructured
 	ComposedResources []composed.Unstructured
 	Results           []unstructured.Unstructured
 
@@ -88,15 +89,19 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 		conns[fn.GetName()] = conn
 	}
 
-	observed := map[string]composed.Unstructured{}
-	for _, cd := range in.ObservedResources {
+	observed := composite.ComposedResourceStates{}
+	for i, cd := range in.ObservedResources {
 		name := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
-		observed[name] = cd
+		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
+			Resource:          &in.ObservedResources[i],
+			ConnectionDetails: nil, // We don't support passing in observed connection details.
+			Ready:             false,
+		}
 	}
 
 	// TODO(negz): Support passing in optional observed connection details for
 	// both the XR and composed resources.
-	o, err := AsState(in.CompositeResource, observed)
+	o, err := composite.AsState(in.CompositeResource, nil, observed)
 	if err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot build observed composite and composed resources for RunFunctionRequest")
 	}
@@ -152,16 +157,16 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
-		if err := FromStruct(cd, dr.GetResource()); err != nil {
+		if err := composite.FromStruct(cd, dr.GetResource()); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
 		}
 
 		// If this desired resource state pertains to an existing composed
 		// resource we want to maintain its name and namespace.
-		or, ok := observed[name]
+		or, ok := observed[composite.ResourceName(name)]
 		if ok {
-			cd.SetNamespace(or.GetNamespace())
-			cd.SetName(or.GetName())
+			cd.SetNamespace(or.Resource.GetNamespace())
+			cd.SetName(or.Resource.GetName())
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.
@@ -172,8 +177,8 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 		desired = append(desired, *cd)
 	}
 
-	xr := composite.New()
-	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	xr := ucomposite.New()
+	if err := composite.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
 	}
 
