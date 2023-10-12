@@ -70,11 +70,13 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 			return errors.Wrap(err, errCliOutput)
 		}
 	case "graph":
+		var dot_string string
 		gp := printer.NewGraphPrinter()
-		if err := gp.SaveGraph(*root, c.Fields, c.OutputPath); err != nil {
+		if dot_string, err = gp.PrintDotGraph(*root, c.Fields); err != nil {
 			logger.Debug(errGraphOutput, "error", err)
 			return errors.Wrap(err, errGraphOutput)
 		}
+		fmt.Print(dot_string)
 	}
 
 	return nil

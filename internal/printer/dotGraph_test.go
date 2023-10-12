@@ -1,8 +1,6 @@
 package printer
 
 import (
-	"errors"
-	"os"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -10,16 +8,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// Define a test for SaveGraph
-func TestSaveGraph(t *testing.T) {
+// Define a test for PrintDotGraph
+func TestPrintDotGraph(t *testing.T) {
 	type args struct {
 		resource k8s.Resource
 		fields   []string
-		path     string
 	}
 
 	type want struct {
-		fileExists bool
+		dot_string string
 		err        error
 	}
 
@@ -52,10 +49,9 @@ func TestSaveGraph(t *testing.T) {
 					},
 				},
 				fields: []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "event"},
-				path:   "graph.png",
 			},
 			want: want{
-				fileExists: true,
+				dot_string: "graph  {\n\t\n\tn3[label=\"\\nname: test-resource-bucket-hash\\nkind: Bucket\\nnamespace: default\\napiversion: test.cloud/v1alpha1\\nsynced: True\\nready: True\\nevent: Synced bucket\",penwidth=\"2\"];\n\tn1[label=\"\\nname: test-resource\\nkind: ObjectStorage\\nnamespace: default\\napiversion: test.cloud/v1alpha1\\nsynced: True\\nready: True\\nevent: Successfully selected composition\",penwidth=\"2\"];\n\tn4[label=\"\\nname: test-resource-user-hash\\nkind: User\\nnamespace: default\\napiversion: test.cloud/v1alpha1\\nsynced: True\\nready: True\\nevent: User ready\",penwidth=\"2\"];\n\tn2[label=\"\\nname: test-resource-hash\\nkind: XObjectStorage\\nnamespace: default\\napiversion: test.cloud/v1alpha1\\nsynced: True\\nready: True\\nevent: \",penwidth=\"2\"];\n\tn1--n2;\n\tn2--n3;\n\tn2--n4;\n\t\n}\n",
 				err:        nil,
 			},
 		},
@@ -63,26 +59,17 @@ func TestSaveGraph(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
-			// Remove file in case it already exists
-			os.Remove("graph.png")
-
 			// Create a GraphPrinter with a buffer writer
 			graphPrinter := &GraphPrinter{}
-			err := graphPrinter.SaveGraph(tc.args.resource, tc.args.fields, tc.args.path)
+			dot_string, err := graphPrinter.PrintDotGraph(tc.args.resource, tc.args.fields)
+
 			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\ngraphPrinter.SaveGraph(): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// Check if png exists
-			exists := true
-			if _, err := os.Stat(tc.args.path); errors.Is(err, os.ErrNotExist) {
-				exists = false
-			}
-
-			// Check if file exists
-			if diff := cmp.Diff(tc.want.fileExists, exists); diff != "" {
+			// Check if dot_string is corrext
+			if diff := cmp.Diff(tc.want.dot_string, dot_string); diff != "" {
 				t.Errorf("%s\ngraphPrinter.SaveGraph(): -want, +got:\n%s", tc.reason, diff)
 			}
 

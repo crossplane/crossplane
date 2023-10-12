@@ -8,7 +8,6 @@ import (
 
 	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/emicklei/dot"
-	"github.com/goccy/go-graphviz"
 	"github.com/pkg/errors"
 )
 
@@ -21,23 +20,17 @@ func NewGraphPrinter() *GraphPrinter {
 	return &GraphPrinter{writer: os.Stdout}
 }
 
-// Set a new graph. Gets all the nodes and then prints the graph to a file.
-func (p *GraphPrinter) SaveGraph(resource k8s.Resource, fields []string, path string) error {
+// Set a new graph. Gets all the nodes and then return the graph as a dot format string.
+func (p *GraphPrinter) PrintDotGraph(resource k8s.Resource, fields []string) (string, error) {
 	g := dot.NewGraph(dot.Undirected)
 	p.buildGraph(g, resource, fields)
 
-	// Save graph to file
-	g1 := graphviz.New()
-	dotBytes := []byte(g.String())
-	graph, err := graphviz.ParseBytes(dotBytes)
-	if err != nil {
-		return errors.Wrap(err, "Couldn't create PNG")
+	dot_string := g.String()
+	if dot_string == "" {
+		return "", errors.New("Graph is empty.")
 	}
 
-	if err := g1.RenderFilename(graph, graphviz.PNG, path); err != nil {
-		return errors.Wrap(err, "Couldn't save PNG to path")
-	}
-	return nil
+	return dot_string, nil
 }
 
 // Iteratre over resources and set ID and label(content) of each node
