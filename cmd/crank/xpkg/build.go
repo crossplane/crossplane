@@ -21,9 +21,12 @@ import (
 	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -36,10 +39,14 @@ import (
 )
 
 const (
-	errGetNameFromMeta = "failed to get package name from crossplane.yaml"
-	errBuildPackage    = "failed to build package"
-	errImageDigest     = "failed to get package digest"
-	errCreatePackage   = "failed to create package file"
+	errGetNameFromMeta            = "failed to get package name from crossplane.yaml"
+	errBuildPackage               = "failed to build package"
+	errImageDigest                = "failed to get package digest"
+	errCreatePackage              = "failed to create package file"
+	errParseControllerImage       = "failed to parse controller image"
+	errPullControllerImage        = "failed to pull controller image"
+	errLoadControllerTar          = "failed to load controller tar"
+	errGetControllerBaseImageOpts = "failed to get controller base image options"
 )
 
 // AfterApply constructs and binds context to any subcommands
@@ -82,10 +89,6 @@ func (c *buildCmd) AfterApply() error {
 		examples.New(),
 	)
 
-	// NOTE(hasheddan): we currently only support fetching controller image from
-	// daemon, but may opt to support additional sources in the future.
-	c.fetch = daemonFetch
-
 	return nil
 }
 
@@ -94,13 +97,13 @@ type buildCmd struct {
 	fs      afero.Fs
 	builder *xpkg.Builder
 	root    string
-	fetch   fetchFn
 
-	Output       string   `optional:"" short:"o" help:"Path for package output."`
-	Controller   string   `help:"Controller image used as base for package."`
-	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
-	ExamplesRoot string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore       []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Output        string   `optional:"" short:"o" help:"Path for package output."`
+	Controller    string   `help:"Controller image used as base for package."`
+	ControllerTar string   `help:"Path to tar file, an alternative to Controller." xor:"controller" type:"existingfile"`
+	PackageRoot   string   `short:"f" help:"Path to package directory." default:"."`
+	ExamplesRoot  string   `short:"e" help:"Path to package examples directory." default:"./examples"`
+	Ignore        []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
 }
 
 func (c *buildCmd) Help() string {
@@ -122,20 +125,53 @@ Crossplane documentation for more information on building packages:
 Even more details can be found in the xpkg reference document.`
 }
 
+// GetControllerBaseImageOpts returns the controller base image options.
+func (c *buildCmd) GetControllerBaseImageOpts() ([]xpkg.BuildOpt, error) {
+	switch {
+	case c.ControllerTar != "":
+		img, err := tarball.ImageFromPath(filepath.Clean(c.ControllerTar), nil)
+		if err != nil {
+			return nil, errors.Wrap(err, errLoadControllerTar)
+		}
+		return []xpkg.BuildOpt{xpkg.WithController(img)}, nil
+	case c.Controller != "":
+		ref, err := name.ParseReference(c.Controller)
+		if err != nil {
+			return nil, errors.Wrap(err, errParseControllerImage)
+		}
+		img, err := daemon.Image(ref, daemon.WithContext(context.Background()))
+		if err != nil {
+			return nil, errors.Wrap(err, errPullControllerImage)
+		}
+		return []xpkg.BuildOpt{xpkg.WithController(img)}, nil
+	}
+	return nil, nil
+
+}
+
+// GetOutputFileName prepares output file name.
+func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string, error) {
+	output := filepath.Clean(c.Output)
+	if c.Output == "" {
+		pkgMeta, ok := meta.(metav1.Object)
+		if !ok {
+			return "", errors.New(errGetNameFromMeta)
+		}
+		pkgName := xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
+		output = xpkgv1.BuildPath(c.root, pkgName, xpkgv1.XpkgExtension)
+	}
+	return output, nil
+}
+
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
-	if c.Controller != "" {
-		ref, err := name.ParseReference(c.Controller)
-		if err != nil {
-			return err
-		}
-		base, err := c.fetch(context.Background(), ref)
-		if err != nil {
-			return err
-		}
-		buildOpts = append(buildOpts, xpkg.WithController(base))
+	controllerBuildOpts, err := c.GetControllerBaseImageOpts()
+	if err != nil {
+		return errors.Wrap(err, errGetControllerBaseImageOpts)
 	}
+	buildOpts = append(buildOpts, controllerBuildOpts...)
+
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)
 	if err != nil {
 		return errors.Wrap(err, errBuildPackage)
@@ -146,15 +182,9 @@ func (c *buildCmd) Run(logger logging.Logger) error {
 		return errors.Wrap(err, errImageDigest)
 	}
 
-	output := filepath.Clean(c.Output)
-	if c.Output == "" {
-		pkgMeta, ok := meta.(metav1.Object)
-		if !ok {
-			return errors.New(errGetNameFromMeta)
-		}
-		pkgName := xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
-
-		output = xpkgv1.BuildPath(c.root, pkgName, xpkgv1.XpkgExtension)
+	output, err := c.GetOutputFileName(meta, hash)
+	if err != nil {
+		return err
 	}
 
 	f, err := c.fs.Create(output)

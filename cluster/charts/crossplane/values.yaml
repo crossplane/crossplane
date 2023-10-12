@@ -164,3 +164,16 @@ extraVolumesCrossplane: {}
 
 # -- Add custom `volumeMounts` to the Crossplane pod.
 extraVolumeMountsCrossplane: {}
+
+# -- To add arbitrary Kubernetes Objects during a Helm Install
+extraObjects: []
+  # - apiVersion: pkg.crossplane.io/v1alpha1
+  #   kind: ControllerConfig
+  #   metadata:
+  #     name: aws-config
+  #     annotations:
+  #       eks.amazonaws.com/role-arn: arn:aws:iam::123456789101:role/example
+  #       helm.sh/hook: post-install
+  #   spec:
+  #     podSecurityContext:
+  #       fsGroup: 2000

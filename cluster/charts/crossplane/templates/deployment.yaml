@@ -123,9 +123,17 @@ spec:
         name: {{ .Chart.Name }}
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
-        {{- if or .Values.metrics.enabled (.Values.webhooks.enabled) }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
         ports:
-        {{- end }}
+        - name: healthz
+          containerPort: 5000
         {{- if .Values.metrics.enabled }}
         - name: metrics
           containerPort: 8080
