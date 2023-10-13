@@ -262,7 +262,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 	allOverrides = append(allOverrides,
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
-		ServiceWithOptionalName(b.revision.GetName()),
+		ServiceWithOptionalName(b.packageName()),
 
 		// Overrides that we are opinionated about.
 		ServiceWithNamespace(b.namespace),

@@ -406,6 +406,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(p, event.Warning(reasonInstall, err))
 			return reconcile.Result{}, err
 		}
+		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
 		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
 		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
 		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())

@@ -301,6 +301,9 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
 			client: mgr.GetClient(),
 		}).
+		Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
+			client: mgr.GetClient(),
+		}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
@@ -398,6 +401,9 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
+			client: mgr.GetClient(),
+		}).
+		Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
