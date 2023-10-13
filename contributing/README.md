@@ -55,7 +55,9 @@ to any PR that introduces one. See the Go [test review comments] for our
 rationale.
 
 E2E tests live under `test/e2e`. Refer to the [E2E readme] for information on
-adding and updating E2E tests.
+adding and updating E2E tests. They are considered to be expensive,
+therefore add them only for important use cases that cannot be verified by
+unit tests. If in a doubt, check with the maintainers for guidance.
 
 All Crossplane documentation is under revision control; see the [docs]
 repository. Any change that introduces new behaviour or changes existing

@@ -24,7 +24,8 @@ Fixes #
 I have:
 
 - [ ] Read and followed Crossplane's [contribution process].
-- [ ] Added or updated unit **and** E2E tests for my change.
+- [ ] Added or updated unit tests.
+- [ ] Added or updated e2e tests, if necessary. (check with reviewers/maintainers if you're unsure whether E2E tests are necessary for the change).
 - [ ] Run `make reviewable` to ensure this PR is ready for review.
 - [ ] Added `backport release-x.y` labels to auto-backport this PR, if necessary.
 - [ ] Opened a PR updating the [docs], if necessary.
