@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -62,23 +63,25 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 		return errors.Wrap(err, errGetResource)
 	}
 
-	// Print out resource
+	// Configure printer
+	var p printer.Printer
+
 	switch c.Output {
 	case "tree":
-		printer.PrintResourceTree(*root, c.Fields, "", true)
+		p = &printer.TreePrinter{
+			Indent: "",
+			IsLast: true,
+		}
 	case "table":
-		if err := printer.CliTable(*root, c.Fields); err != nil {
-			logger.Debug(errCliOutput, "error", err)
-			return errors.Wrap(err, errCliOutput)
-		}
+		p = &printer.CliPrinter{}
 	case "graph":
-		var dot_string string
-		gp := printer.NewGraphPrinter()
-		if dot_string, err = gp.PrintDotGraph(*root, c.Fields); err != nil {
-			logger.Debug(errGraphOutput, "error", err)
-			return errors.Wrap(err, errGraphOutput)
-		}
-		fmt.Print(dot_string)
+		p = &printer.GraphPrinter{}
+	}
+
+	// Print resources
+	err = p.Print(os.Stdout, *root, c.Fields)
+	if err != nil {
+		return errors.Wrap(err, errCliOutput)
 	}
 
 	return nil

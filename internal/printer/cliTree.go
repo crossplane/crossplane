@@ -2,20 +2,28 @@ package printer
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/crossplane/crossplane/internal/k8s"
 )
 
-func PrintResourceTree(r k8s.Resource, fields []string, indent string, isLast bool) {
-	fmt.Print(indent)
+type TreePrinter struct {
+	Indent string
+	IsLast bool
+}
 
-	if isLast {
-		fmt.Print("└─ ")
-		indent += "  "
+var _ Printer = &TreePrinter{}
+
+func (p *TreePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
+	io.WriteString(w, p.Indent)
+
+	if p.IsLast {
+		io.WriteString(w, "└─ ")
+		p.Indent += "  "
 	} else {
-		fmt.Print("├─ ")
-		indent += "│ "
+		io.WriteString(w, "├─ ")
+		p.Indent += "│ "
 	}
 
 	var output = make([]string, len(fields))
@@ -39,16 +47,20 @@ func PrintResourceTree(r k8s.Resource, fields []string, indent string, isLast bo
 			output[i] = fmt.Sprintf("Ready: %s", r.GetConditionStatus("Ready"))
 		}
 		if field == "message" {
-			output[i] = fmt.Sprintf("ApiVersion: %s", r.GetConditionMessage())
+			output[i] = fmt.Sprintf("Message: %s", r.GetConditionMessage())
 		}
 		if field == "event" {
-			output[i] = fmt.Sprintf("ApiVersion: %s", r.GetEvent())
+			output[i] = fmt.Sprintf("Event: %s", r.GetEvent())
 		}
 	}
-	fmt.Println(strings.Join(output, ", "))
+	io.WriteString(w, strings.Join(output, ", ")+"\n")
 
 	for i, child := range r.Children {
-		isLastChild := i == len(r.Children)-1
-		PrintResourceTree(child, fields, indent, isLastChild)
+		childPrinter := TreePrinter{
+			Indent: p.Indent,
+			IsLast: i == len(r.Children)-1,
+		}
+		childPrinter.Print(w, *child, fields)
 	}
+	return nil
 }

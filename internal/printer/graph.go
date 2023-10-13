@@ -3,7 +3,6 @@ package printer
 import (
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/crossplane/crossplane/internal/k8s"
@@ -12,25 +11,23 @@ import (
 )
 
 type GraphPrinter struct {
-	writer io.Writer
 }
 
-// Initialize a new graph printer
-func NewGraphPrinter() *GraphPrinter {
-	return &GraphPrinter{writer: os.Stdout}
-}
+var _ Printer = &GraphPrinter{}
 
 // Set a new graph. Gets all the nodes and then return the graph as a dot format string.
-func (p *GraphPrinter) PrintDotGraph(resource k8s.Resource, fields []string) (string, error) {
+func (p *GraphPrinter) Print(w io.Writer, resource k8s.Resource, fields []string) error {
+
 	g := dot.NewGraph(dot.Undirected)
 	p.buildGraph(g, resource, fields)
 
 	dot_string := g.String()
 	if dot_string == "" {
-		return "", errors.New("Graph is empty.")
+		return errors.New("Graph is empty.")
 	}
 
-	return dot_string, nil
+	w.Write([]byte(g.String()))
+	return nil
 }
 
 // Iteratre over resources and set ID and label(content) of each node
@@ -40,8 +37,8 @@ func (p *GraphPrinter) buildGraph(g *dot.Graph, r k8s.Resource, fields []string)
 	node.Attr("penwidth", "2")
 
 	for _, child := range r.Children {
-		p.buildGraph(g, child, fields)
-		g.Edge(node, g.Node(resourceId(child)))
+		p.buildGraph(g, *child, fields)
+		g.Edge(node, g.Node(resourceId(*child)))
 	}
 }
 

@@ -29,34 +29,34 @@ type Client struct {
 }
 
 type Resource struct {
-	Manifest *unstructured.Unstructured
-	Children []Resource
-	Event    string
+	Manifest           *unstructured.Unstructured
+	Children           []*Resource
+	LatestEventMessage string
 }
 
 // Returns resource kind as string
-func (r Resource) GetKind() string {
+func (r *Resource) GetKind() string {
 	return r.Manifest.GetKind()
 }
 
 // Returns resource name as string
-func (r Resource) GetName() string {
+func (r *Resource) GetName() string {
 	return r.Manifest.GetName()
 }
 
 // Returns resource namespace as string
-func (r Resource) GetNamespace() string {
+func (r *Resource) GetNamespace() string {
 	return r.Manifest.GetNamespace()
 }
 
 // Returns resource apiversion as string
-func (r Resource) GetApiVersion() string {
+func (r *Resource) GetApiVersion() string {
 	return r.Manifest.GetAPIVersion()
 }
 
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
 // Returns the Status of the map with the conditionType as string
-func (r Resource) GetConditionStatus(conditionKey string) string {
+func (r *Resource) GetConditionStatus(conditionKey string) string {
 	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
 		conditionMap, _ := condition.(map[string]interface{})
@@ -71,7 +71,7 @@ func (r Resource) GetConditionStatus(conditionKey string) string {
 }
 
 // Returns the message as string if set under `status.conditions` in the manifest. Else return empty string
-func (r Resource) GetConditionMessage() string {
+func (r *Resource) GetConditionMessage() string {
 	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 
 	for _, item := range conditions {
@@ -88,17 +88,13 @@ func (r Resource) GetConditionMessage() string {
 }
 
 // Returns the latest event of the resource as string
-func (r Resource) GetEvent() string {
-	return r.Event
+func (r *Resource) GetEvent() string {
+	return r.LatestEventMessage
 }
 
 // Returns true if the Resource has children set.
-func (r Resource) GotChildren() bool {
-	if len(r.Children) > 0 {
-		return true
-	} else {
-		return false
-	}
+func (r *Resource) HasChildren() bool {
+	return len(r.Children) > 0
 }
 
 // The main function of resource. Returns a Resource and all its child resources.
@@ -206,15 +202,15 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	}
 	// Set child
 	child := Resource{
-		Manifest: u,
-		Event:    event,
+		Manifest:           u,
+		LatestEventMessage: event,
 	}
 	// Get children of children
 	child, err = kc.getChildren(child)
 	if err != nil {
 		return r, errors.Wrap(err, "Couldn't get children of children")
 	}
-	r.Children = append(r.Children, child)
+	r.Children = append(r.Children, &child)
 
 	return r, nil
 }
@@ -348,32 +344,4 @@ func getSliceOfMapsFromNestedField(obj unstructured.Unstructured, fields ...stri
 	}
 
 	return result, true, nil
-}
-
-// Returns an unstructured that has basic fields set to test the k8s package. Used to create manifests for resources in tests.
-func DummyManifest(kind, name, syncedStatus, readyStatus string) *unstructured.Unstructured {
-	m := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "test.cloud/v1alpha1",
-			"kind":       kind,
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": "default",
-			},
-			"status": map[string]interface{}{
-				"conditions": []interface{}{
-					map[string]interface{}{
-						"status": syncedStatus,
-						"type":   "Synced",
-					},
-					map[string]interface{}{
-						"status": readyStatus,
-						"type":   "Ready",
-					},
-				},
-			},
-		},
-	}
-
-	return m
 }
