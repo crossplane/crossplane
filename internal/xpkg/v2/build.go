@@ -118,9 +118,9 @@ type buildOpts struct {
 // A BuildOpt modifies how a package is built.
 type BuildOpt func(*buildOpts)
 
-// WithController sets the controller image that should serve as the base for
+// WithBaseImage sets the controller image that should serve as the base for
 // the package.
-func WithController(img v1.Image) BuildOpt {
+func WithBaseImage(img v1.Image) BuildOpt {
 	return func(o *buildOpts) {
 		o.base = img
 	}

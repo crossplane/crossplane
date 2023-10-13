@@ -93,8 +93,9 @@ func main() {
 		kong.Bind(buildChild, pushChild),
 		kong.BindTo(logger, (*logging.Logger)(nil)),
 		kong.ConfigureHelp(kong.HelpOptions{
-			Tree:      true,
-			FlagsLast: true,
+			Tree:           true,
+			FlagsLast:      true,
+			WrapUpperBound: 120,
 		}),
 		kong.UsageOnError())
 	err := ctx.Run()

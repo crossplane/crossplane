@@ -39,14 +39,14 @@ import (
 )
 
 const (
-	errGetNameFromMeta            = "failed to get package name from crossplane.yaml"
-	errBuildPackage               = "failed to build package"
-	errImageDigest                = "failed to get package digest"
-	errCreatePackage              = "failed to create package file"
-	errParseControllerImage       = "failed to parse controller image"
-	errPullControllerImage        = "failed to pull controller image"
-	errLoadControllerTar          = "failed to load controller tar"
-	errGetControllerBaseImageOpts = "failed to get controller base image options"
+	errGetNameFromMeta         = "failed to get package name from crossplane.yaml"
+	errBuildPackage            = "failed to build package"
+	errImageDigest             = "failed to get package digest"
+	errCreatePackage           = "failed to create package file"
+	errParseRuntimeBaseImage   = "failed to parse runtime base image"
+	errPullRuntimeBaseImage    = "failed to pull runtime base image"
+	errLoadRuntimeBaseImageTar = "failed to load runtime base image tarball"
+	errGetRuntimeBaseImageOpts = "failed to get runtime base image options"
 )
 
 // AfterApply constructs and binds context to any subcommands
@@ -98,12 +98,12 @@ type buildCmd struct {
 	builder *xpkg.Builder
 	root    string
 
-	Output        string   `optional:"" short:"o" help:"Path for package output."`
-	Controller    string   `help:"Controller image used as base for package."`
-	ControllerTar string   `help:"Path to tar file, an alternative to Controller." xor:"controller" type:"existingfile"`
-	PackageRoot   string   `short:"f" help:"Path to package directory." default:"."`
-	ExamplesRoot  string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore        []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Output              string   `optional:"" short:"o" help:"Path for package output."`
+	RuntimeBaseImage    string   `help:"Name of the Docker image to be used as base for the package, e.g. 'xpkg.upbound.io/user/repo:v0.0.1'. Overwritten by '--runtime-base-image-tar'." `
+	RuntimeBaseImageTar string   `type:"existingfile" help:"Path to the local OCI image tarball to be used as base for the package. Overwrites '--runtime-base-image'." `
+	PackageRoot         string   `short:"f" help:"Path to package directory." default:"."`
+	ExamplesRoot        string   `short:"e" help:"Path to package examples directory." default:"./examples"`
+	Ignore              []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
 }
 
 func (c *buildCmd) Help() string {
@@ -125,25 +125,25 @@ Crossplane documentation for more information on building packages:
 Even more details can be found in the xpkg reference document.`
 }
 
-// GetControllerBaseImageOpts returns the controller base image options.
-func (c *buildCmd) GetControllerBaseImageOpts() ([]xpkg.BuildOpt, error) {
+// GetRuntimeBaseImageOpts returns the runtime base image options.
+func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 	switch {
-	case c.ControllerTar != "":
-		img, err := tarball.ImageFromPath(filepath.Clean(c.ControllerTar), nil)
+	case c.RuntimeBaseImageTar != "":
+		img, err := tarball.ImageFromPath(filepath.Clean(c.RuntimeBaseImageTar), nil)
 		if err != nil {
-			return nil, errors.Wrap(err, errLoadControllerTar)
+			return nil, errors.Wrap(err, errLoadRuntimeBaseImageTar)
 		}
-		return []xpkg.BuildOpt{xpkg.WithController(img)}, nil
-	case c.Controller != "":
-		ref, err := name.ParseReference(c.Controller)
+		return []xpkg.BuildOpt{xpkg.WithBaseImage(img)}, nil
+	case c.RuntimeBaseImage != "":
+		ref, err := name.ParseReference(c.RuntimeBaseImage)
 		if err != nil {
-			return nil, errors.Wrap(err, errParseControllerImage)
+			return nil, errors.Wrap(err, errParseRuntimeBaseImage)
 		}
 		img, err := daemon.Image(ref, daemon.WithContext(context.Background()))
 		if err != nil {
-			return nil, errors.Wrap(err, errPullControllerImage)
+			return nil, errors.Wrap(err, errPullRuntimeBaseImage)
 		}
-		return []xpkg.BuildOpt{xpkg.WithController(img)}, nil
+		return []xpkg.BuildOpt{xpkg.WithBaseImage(img)}, nil
 	}
 	return nil, nil
 
@@ -165,12 +165,10 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
-	var buildOpts []xpkg.BuildOpt
-	controllerBuildOpts, err := c.GetControllerBaseImageOpts()
+	buildOpts, err := c.GetRuntimeBaseImageOpts()
 	if err != nil {
-		return errors.Wrap(err, errGetControllerBaseImageOpts)
+		return errors.Wrap(err, errGetRuntimeBaseImageOpts)
 	}
-	buildOpts = append(buildOpts, controllerBuildOpts...)
 
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)
 	if err != nil {
