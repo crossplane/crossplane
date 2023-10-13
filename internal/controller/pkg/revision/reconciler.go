@@ -796,9 +796,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.runtimeHook != nil {
 		if err := r.runtimeHook.Post(ctx, pkgMeta, pr.(v1.PackageRevisionWithRuntime), runtimeManifestBuilder); err != nil {
-		    if kerrors.IsConflict(err) {
-			    return reconcile.Result{Requeue: true}, nil
-		    }
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 
 			err = errors.Wrap(err, errPostHook)
 			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))

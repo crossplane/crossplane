@@ -1,0 +1,19 @@
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-dummy
+spec:
+  # NOTE(negz): This is currently manually pushed. See README.md at
+  # https://github.com/crossplane-contrib/function-dummy.
+  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
+  runtimeConfigRef:
+    name: function-dummy-rc
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-auto-ready
+spec:
+  # NOTE(negz): This is also currently manually pushed.
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2

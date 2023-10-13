@@ -985,7 +985,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot run pre establish runtime hook for package: boom"))
+								want.SetConditions(v1.Unhealthy().WithMessage(errPreHook + ": boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1051,7 +1051,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot run post establish runtime hook for package: boom"))
+								want.SetConditions(v1.Unhealthy().WithMessage(errPostHook + ": boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

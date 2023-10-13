@@ -1,0 +1,45 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: function-dummy-rc
+spec:
+  serviceAccountTemplate:
+    metadata:
+      name: ibelieveicanfly # we can the service account name here and expect it to be used in the deployment even if we don't specify it in the deployment template
+      labels:
+        foo: bar
+  serviceTemplate:
+    metadata:
+      name: letscomplicateitfurther # this will require tls certificates to be generated properly for this service name
+  deploymentTemplate:
+    metadata:
+      name: iamfreetochoose
+    spec:
+      replicas: 2
+      selector: {}
+      template:
+        #metadata: # This is rejected with unknown field "spec.deploymentTemplate.spec.template.metadata.labels"
+        #  labels:
+        #    somepodlabels: cool
+        spec:
+          containers:
+            - name: package-runtime # this should change the package runtime container as we want without breaking something else.
+              resources:
+                limits:
+                  cpu: 2
+                  memory: 2Gi
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+              volumeMounts:
+                - name: shared-volume
+                  mountPath: /shared
+            - name: sidecar
+              image: busybox
+              command: ["sh", "-c", "while true; do sleep 3600; done"]
+              volumeMounts:
+                - name: shared-volume
+                  mountPath: /shared
+          volumes:
+            - name: shared-volume
+              emptyDir: {}

@@ -67,7 +67,7 @@ func (e *EnqueueRequestForReferencingProviderRevisions) Generic(ctx context.Cont
 	e.add(ctx, evt.Object, q)
 }
 
-func (e *EnqueueRequestForReferencingProviderRevisions) add(ctx context.Context, obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForReferencingProviderRevisions) add(ctx context.Context, obj runtime.Object, queue adder) { //nolint:gocyclo // it will be simplified soon when we clean up the controller config
 	cc, isCC := obj.(*v1alpha1.ControllerConfig)
 	rc, isRC := obj.(*v1beta1.DeploymentRuntimeConfig)
 
@@ -129,7 +129,7 @@ func (e *EnqueueRequestForReferencingFunctionRevisions) Generic(ctx context.Cont
 	e.add(ctx, evt.Object, q)
 }
 
-func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context, obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context, obj runtime.Object, queue adder) { //nolint:gocyclo // it will be simplified soon when we clean up the controller config
 	cc, isCC := obj.(*v1alpha1.ControllerConfig)
 	rc, isRC := obj.(*v1beta1.DeploymentRuntimeConfig)
 
