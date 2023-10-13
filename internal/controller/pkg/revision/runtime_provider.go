@@ -193,8 +193,8 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	return nil
 }
 
-func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) []DeploymentOverrides {
-	do := []DeploymentOverrides{
+func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) []DeploymentOverride {
+	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			{
 				// NOTE(turkenh): POD_NAMESPACE is needed to
@@ -211,9 +211,11 @@ func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.Package
 		}),
 	}
 
+	image := pr.GetSource()
 	if providerMeta.Spec.Controller.Image != nil {
-		do = append(do, DeploymentRuntimeWithImage(*providerMeta.Spec.Controller.Image))
+		image = *providerMeta.Spec.Controller.Image
 	}
+	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
 	if pr.GetTLSClientSecretName() != nil {
 		do = append(do, DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{

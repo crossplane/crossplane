@@ -145,7 +145,7 @@ func TestProviderPreHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceFn: func(overrides ...ServiceOverrides) *corev1.Service {
+					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
 						return &corev1.Service{}
 					},
 					TLSClientSecretFn: func() *corev1.Secret {
@@ -256,7 +256,7 @@ func TestProviderPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
 				},
@@ -292,10 +292,10 @@ func TestProviderPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
@@ -334,10 +334,10 @@ func TestProviderPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
@@ -373,10 +373,10 @@ func TestProviderPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
@@ -420,10 +420,10 @@ func TestProviderPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
@@ -491,7 +491,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 			reason: "Should return error if we fail to delete service account.",
 			args: args{
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
 				},
@@ -509,10 +509,10 @@ func TestProviderDeactivateHook(t *testing.T) {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
@@ -538,21 +538,21 @@ func TestProviderDeactivateHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "some-sa",
 							},
 						}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "some-deployment",
 							},
 						}
 					},
-					ServiceFn: func(overrides ...ServiceOverrides) *corev1.Service {
+					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
 						s := &corev1.Service{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "some-service",

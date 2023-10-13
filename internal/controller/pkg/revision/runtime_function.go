@@ -149,8 +149,8 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	return nil
 }
 
-func functionDeploymentOverrides(functionMeta *pkgmetav1beta1.Function, _ v1.PackageRevisionWithRuntime) []DeploymentOverrides {
-	do := []DeploymentOverrides{
+func functionDeploymentOverrides(functionMeta *pkgmetav1beta1.Function, pr v1.PackageRevisionWithRuntime) []DeploymentOverride {
+	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
 				Name:          grpcPortName,
@@ -159,15 +159,17 @@ func functionDeploymentOverrides(functionMeta *pkgmetav1beta1.Function, _ v1.Pac
 		}),
 	}
 
+	image := pr.GetSource()
 	if functionMeta.Spec.Image != nil {
-		do = append(do, DeploymentRuntimeWithImage(*functionMeta.Spec.Image))
+		image = *functionMeta.Spec.Image
 	}
+	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
 	return do
 }
 
-func functionServiceOverrides() []ServiceOverrides {
-	return []ServiceOverrides{
+func functionServiceOverrides() []ServiceOverride {
+	return []ServiceOverride{
 		// We want a headless service so that our gRPC client (i.e. the Crossplane
 		// FunctionComposer) can load balance across the endpoints.
 		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services

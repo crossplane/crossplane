@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -95,7 +96,7 @@ var (
 func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 	type args struct {
 		builder            ManifestBuilder
-		overrides          []DeploymentOverrides
+		overrides          []DeploymentOverride
 		serviceAccountName string
 	}
 	type want struct {
@@ -179,6 +180,154 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				}),
 			},
 		},
+		"ProviderDeploymentWithRuntimeConfig": {
+			reason: "Baseline provided by the runtime config should be applied to the deployment",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+					runtimeConfig: v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							DeploymentTemplate: &v1beta1.DeploymentTemplate{
+								Spec: &appsv1.DeploymentSpec{
+									Replicas: pointer.Int32(3),
+									Template: corev1.PodTemplateSpec{
+										ObjectMeta: metav1.ObjectMeta{
+											Labels: map[string]string{
+												"k": "v",
+											},
+										},
+										Spec: corev1.PodSpec{
+											Volumes: []corev1.Volume{
+												{Name: "vol-a"},
+												{Name: "vol-b"},
+											},
+											Containers: []corev1.Container{
+												{
+													Name:  runtimeContainerName,
+													Image: "crossplane/provider-foo:v1.2.4",
+													VolumeMounts: []corev1.VolumeMount{
+														{Name: "vm-a"},
+														{Name: "vm-b"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{}, providerRevision),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = pointer.Int32(3)
+					deployment.Spec.Template.Labels["k"] = "v"
+					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
+					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
+					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{Name: "vm-a"}, {Name: "vm-b"}}, deployment.Spec.Template.Spec.Containers[0].VolumeMounts...)
+				}),
+			},
+		},
+		"ProviderDeploymentWithAdvancedRuntimeConfig": {
+			reason: "Baseline provided by the runtime config should be applied to the deployment for advanced use cases",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+					runtimeConfig: v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							DeploymentTemplate: &v1beta1.DeploymentTemplate{
+								Metadata: &v1beta1.ObjectMeta{
+									Name: pointer.String("my-provider-foo"),
+									Labels: map[string]string{
+										"x": "y",
+									},
+									Annotations: map[string]string{
+										"foo": "bar",
+									},
+								},
+								Spec: &appsv1.DeploymentSpec{
+									Replicas: pointer.Int32(3),
+									Template: corev1.PodTemplateSpec{
+										ObjectMeta: metav1.ObjectMeta{
+											Labels: map[string]string{
+												"k": "v",
+											},
+										},
+										Spec: corev1.PodSpec{
+											Volumes: []corev1.Volume{
+												{Name: "vol-a"},
+												{Name: "vol-b"},
+											},
+											Containers: []corev1.Container{
+												{
+													Name:  "sidecar",
+													Image: "sidecar/sidecar:v1.0.0",
+												},
+												{
+													Name:  runtimeContainerName,
+													Image: "crossplane/provider-foo:v1.2.4",
+													VolumeMounts: []corev1.VolumeMount{
+														{Name: "vm-a"},
+														{Name: "vm-b"},
+													},
+													Resources: corev1.ResourceRequirements{
+														Requests: corev1.ResourceList{
+															"cpu":    resource.MustParse("1"),
+															"memory": resource.MustParse("1Gi"),
+														},
+														Limits: corev1.ResourceList{
+															"cpu":    resource.MustParse("2"),
+															"memory": resource.MustParse("2Gi"),
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{}, providerRevision),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, func(deployment *appsv1.Deployment) {
+					deployment.Name = "my-provider-foo"
+					deployment.Labels = map[string]string{
+						"x": "y",
+					}
+					deployment.Annotations = map[string]string{
+						"foo": "bar",
+					}
+					deployment.Spec.Replicas = pointer.Int32(3)
+					deployment.Spec.Template.Labels["k"] = "v"
+					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
+					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
+					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{Name: "vm-a"}, {Name: "vm-b"}}, deployment.Spec.Template.Spec.Containers[0].VolumeMounts...)
+					deployment.Spec.Template.Spec.Containers[0].Resources = corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							"cpu":    resource.MustParse("1"),
+							"memory": resource.MustParse("1Gi"),
+						},
+						Limits: corev1.ResourceList{
+							"cpu":    resource.MustParse("2"),
+							"memory": resource.MustParse("2Gi"),
+						},
+					}
+					deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, corev1.Container{
+						Name:  "sidecar",
+						Image: "sidecar/sidecar:v1.0.0",
+					})
+				}),
+			},
+		},
 		"FunctionDeploymentNoControllerConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
@@ -243,7 +392,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 	}
 }
 
-func deploymentProvider(provider string, revision string, image string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+func deploymentProvider(provider string, revision string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      revision,
@@ -400,7 +549,7 @@ func deploymentProvider(provider string, revision string, image string, override
 	return d
 }
 
-func deploymentFunction(function string, revision string, image string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+func deploymentFunction(function string, revision string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      revision,
@@ -512,25 +661,25 @@ func deploymentFunction(function string, revision string, image string, override
 
 // MockManifestBuilder is a mock implementation of ManifestBuilder.
 type MockManifestBuilder struct {
-	ServiceAccountFn  func(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
-	DeploymentFn      func(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
-	ServiceFn         func(overrides ...ServiceOverrides) *corev1.Service
+	ServiceAccountFn  func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
+	DeploymentFn      func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
+	ServiceFn         func(overrides ...ServiceOverride) *corev1.Service
 	TLSClientSecretFn func() *corev1.Secret
 	TLSServerSecretFn func() *corev1.Secret
 }
 
 // ServiceAccount returns the result of calling ServiceAccountFn.
-func (b *MockManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
+func (b *MockManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 	return b.ServiceAccountFn(overrides...)
 }
 
 // Deployment returns the result of calling DeploymentFn.
-func (b *MockManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
+func (b *MockManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	return b.DeploymentFn(serviceAccount, overrides...)
 }
 
 // Service returns the result of calling ServiceFn.
-func (b *MockManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
+func (b *MockManifestBuilder) Service(overrides ...ServiceOverride) *corev1.Service {
 	return b.ServiceFn(overrides...)
 }
 

@@ -63,18 +63,27 @@ const (
 
 const (
 	errGetControllerConfig = "cannot get referenced controller config"
+	errNoRuntimeConfig     = "no deployment runtime config set"
 	errGetRuntimeConfig    = "cannot get referenced deployment runtime config"
 	errGetServiceAccount   = "cannot get Crossplane service account"
+)
+
+var (
+	runAsUser                = int64(2000)
+	runAsGroup               = int64(2000)
+	allowPrivilegeEscalation = false
+	privileged               = false
+	runAsNonRoot             = true
 )
 
 // ManifestBuilder builds the runtime manifests for a package revision.
 type ManifestBuilder interface {
 	// ServiceAccount builds and returns the service account manifest.
-	ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount
+	ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
 	// Deployment builds and returns the deployment manifest.
-	Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment
+	Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
 	// Service builds and returns the service manifest.
-	Service(overrides ...ServiceOverrides) *corev1.Service
+	Service(overrides ...ServiceOverride) *corev1.Service
 	// TLSClientSecret builds and returns the TLS client secret manifest.
 	TLSClientSecret() *corev1.Secret
 	// TLSServerSecret builds and returns the TLS server secret manifest.
@@ -99,8 +108,8 @@ type RuntimeManifestBuilder struct {
 	revision                  v1.PackageRevisionWithRuntime
 	namespace                 string
 	serviceAccountPullSecrets []corev1.LocalObjectReference
+	runtimeConfig             v1beta1.DeploymentRuntimeConfig
 	controllerConfig          *v1alpha1.ControllerConfig
-	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 }
 
 // NewRuntimeManifestBuilder returns a new RuntimeManifestBuilder.
@@ -110,20 +119,23 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 		revision:  pwr,
 	}
 
+	rcRef := pwr.GetRuntimeConfigRef()
+	if rcRef == nil {
+		return nil, errors.New(errNoRuntimeConfig)
+	}
+
+	rc := &v1beta1.DeploymentRuntimeConfig{}
+	if err := client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
+		return nil, errors.Wrap(err, errGetControllerConfig)
+	}
+	b.runtimeConfig = *rc
+
 	if ccRef := pwr.GetControllerConfigRef(); ccRef != nil {
 		cc := &v1alpha1.ControllerConfig{}
 		if err := client.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
 			return nil, errors.Wrap(err, errGetControllerConfig)
 		}
 		b.controllerConfig = cc
-	}
-
-	if rcRef := pwr.GetRuntimeConfigRef(); rcRef != nil {
-		rc := &v1beta1.DeploymentRuntimeConfig{}
-		if err := client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
-			return nil, errors.Wrap(err, errGetControllerConfig)
-		}
-		b.runtimeConfig = rc
 	}
 
 	sa := &corev1.ServiceAccount{}
@@ -139,16 +151,16 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 }
 
 // ServiceAccount builds and returns the ServiceAccount manifest.
-func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverrides) *corev1.ServiceAccount {
-	sa := defaultServiceAccount(b.revision.GetName())
+func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+	sa := serviceAccountFromRuntimeConfig(b.runtimeConfig.Spec.ServiceAccountTemplate)
 
-	var allOverrides []ServiceAccountOverrides
+	var allOverrides []ServiceAccountOverride
 	allOverrides = append(allOverrides,
-		// Currently it is not possible to override the namespace,
-		// ownerReferences or pullSecrets of the service account, and we could
-		// define them as defaults. However, we will leave them as overrides
-		// to indicate that we are opinionated about them currently and follow
-		// a consistent pattern.
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		ServiceAccountWithOptionalName(b.revision.GetName()),
+
+		// Overrides that we are opinionated about.
 		ServiceAccountWithNamespace(b.namespace),
 		ServiceAccountWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		ServiceAccountWithAdditionalPullSecrets(append(b.revision.GetPackagePullSecrets(), b.serviceAccountPullSecrets...)),
@@ -170,17 +182,45 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 }
 
 // Deployment builds and returns the Deployment manifest.
-func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverrides) *appsv1.Deployment {
-	d := defaultDeployment(b.revision.GetName())
+func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+	d := deploymentFromRuntimeConfig(b.runtimeConfig.Spec.DeploymentTemplate)
 
-	var allOverrides []DeploymentOverrides
+	var allOverrides []DeploymentOverride
 	allOverrides = append(allOverrides,
+		// This will ensure that the runtime container exists and always the
+		// first one.
+		DeploymentWithRuntimeContainer(),
+
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		DeploymentWithOptionalName(b.revision.GetName()),
+		DeploymentWithOptionalReplicas(1),
+		DeploymentWithOptionalPodSecurityContext(&corev1.PodSecurityContext{
+			RunAsNonRoot: &runAsNonRoot,
+			RunAsUser:    &runAsUser,
+			RunAsGroup:   &runAsGroup,
+		}),
+		DeploymentRuntimeWithOptionalImagePullPolicy(corev1.PullIfNotPresent),
+		DeploymentRuntimeWithOptionalSecurityContext(&corev1.SecurityContext{
+			RunAsUser:                &runAsUser,
+			RunAsGroup:               &runAsGroup,
+			AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+			Privileged:               &privileged,
+			RunAsNonRoot:             &runAsNonRoot,
+		}),
+
+		// Overrides that we are opinionated about.
 		DeploymentWithNamespace(b.namespace),
 		DeploymentWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		DeploymentWithSelectors(b.podSelectors()),
 		DeploymentWithServiceAccount(serviceAccount),
 		DeploymentWithImagePullSecrets(b.revision.GetPackagePullSecrets()),
-		DeploymentRuntimeWithImage(b.revision.GetSource()),
+		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
+			{
+				Name:          metricsPortName,
+				ContainerPort: metricsPortNumber,
+			},
+		}),
 	)
 
 	if b.revision.GetPackagePullPolicy() != nil {
@@ -197,13 +237,15 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 		allOverrides = append(allOverrides, DeploymentRuntimeWithTLSServerSecret(*b.revision.GetTLSServerSecretName()))
 	}
 
-	if b.controllerConfig != nil {
-		allOverrides = append(allOverrides, DeploymentForControllerConfig(b.controllerConfig))
-	}
-
 	// We append the overrides passed to the function last so that they can
 	// override the above ones.
 	allOverrides = append(allOverrides, overrides...)
+
+	// ControllerConfig overrides should be applied last so that they can
+	// override any other overrides compatible with the existing behavior.
+	if b.controllerConfig != nil {
+		allOverrides = append(allOverrides, DeploymentForControllerConfig(b.controllerConfig))
+	}
 
 	for _, o := range allOverrides {
 		o(d)
@@ -213,16 +255,16 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 }
 
 // Service builds and returns the Service manifest.
-func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverrides) *corev1.Service {
-	svc := defaultService(b.packageName())
+func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.Service {
+	svc := serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
 
-	var allOverrides []ServiceOverrides
+	var allOverrides []ServiceOverride
 	allOverrides = append(allOverrides,
-		// Currently it is not possible to override the namespace,
-		// ownerReferences, selectors or ports of the service, and we could
-		// define them as defaults. However, we will leave them as overrides
-		// to indicate that we are opinionated about them currently and follow
-		// a consistent pattern.
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		ServiceWithOptionalName(b.revision.GetName()),
+
+		// Overrides that we are opinionated about.
 		ServiceWithNamespace(b.namespace),
 		ServiceWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		ServiceWithSelectors(b.podSelectors()),

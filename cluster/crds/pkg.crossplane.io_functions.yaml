@@ -110,6 +110,8 @@ spec:
                 format: int64
                 type: integer
               runtimeConfigRef:
+                default:
+                  name: default
                 description: RuntimeConfigRef references a RuntimeConfig resource
                   that will be used to configure the package runtime.
                 properties:

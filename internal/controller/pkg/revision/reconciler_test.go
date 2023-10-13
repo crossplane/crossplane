@@ -975,6 +975,7 @@ func TestReconcile(t *testing.T) {
 								if pr, ok := o.(*v1.ProviderRevision); ok {
 									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 									pr.SetDesiredState(v1.PackageRevisionActive)
+									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								}
 								return nil
 							}),
@@ -982,6 +983,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Unhealthy().WithMessage("cannot run pre establish runtime hook for package: boom"))
 
@@ -994,6 +996,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1038,6 +1041,7 @@ func TestReconcile(t *testing.T) {
 								if pr, ok := o.(*v1.ProviderRevision); ok {
 									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 									pr.SetDesiredState(v1.PackageRevisionActive)
+									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								}
 								return nil
 							}),
@@ -1045,6 +1049,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Unhealthy().WithMessage("cannot run post establish runtime hook for package: boom"))
 
@@ -1057,6 +1062,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

@@ -25,19 +25,29 @@ import (
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
-// ServiceAccountOverrides is a modifier option that overrides a ServiceAccount.
-type ServiceAccountOverrides func(sa *corev1.ServiceAccount)
+// ServiceAccountOverride is a modifier option that overrides a ServiceAccount.
+type ServiceAccountOverride func(sa *corev1.ServiceAccount)
 
 // ServiceAccountWithAdditionalPullSecrets adds additional image pull secrets to
 // a ServiceAccount.
-func ServiceAccountWithAdditionalPullSecrets(secrets []corev1.LocalObjectReference) ServiceAccountOverrides {
+func ServiceAccountWithAdditionalPullSecrets(secrets []corev1.LocalObjectReference) ServiceAccountOverride {
 	return func(sa *corev1.ServiceAccount) {
 		sa.ImagePullSecrets = append(sa.ImagePullSecrets, secrets...)
 	}
 }
 
+// ServiceAccountWithOptionalName overrides the name of a ServiceAccount if
+// empty.
+func ServiceAccountWithOptionalName(name string) ServiceAccountOverride {
+	return func(sa *corev1.ServiceAccount) {
+		if sa.Name == "" {
+			sa.Name = name
+		}
+	}
+}
+
 // ServiceAccountWithNamespace overrides the namespace of a ServiceAccount.
-func ServiceAccountWithNamespace(namespace string) ServiceAccountOverrides {
+func ServiceAccountWithNamespace(namespace string) ServiceAccountOverride {
 	return func(sa *corev1.ServiceAccount) {
 		sa.Namespace = namespace
 	}
@@ -45,7 +55,7 @@ func ServiceAccountWithNamespace(namespace string) ServiceAccountOverrides {
 
 // ServiceAccountWithOwnerReferences overrides the owner references of a
 // ServiceAccount.
-func ServiceAccountWithOwnerReferences(owners []metav1.OwnerReference) ServiceAccountOverrides {
+func ServiceAccountWithOwnerReferences(owners []metav1.OwnerReference) ServiceAccountOverride {
 	return func(sa *corev1.ServiceAccount) {
 		sa.OwnerReferences = owners
 	}
@@ -53,7 +63,7 @@ func ServiceAccountWithOwnerReferences(owners []metav1.OwnerReference) ServiceAc
 
 // ServiceAccountWithControllerConfig overrides the labels, annotations and
 // name of a ServiceAccount with the values defined in the ControllerConfig.
-func ServiceAccountWithControllerConfig(cc *v1alpha1.ControllerConfig) ServiceAccountOverrides {
+func ServiceAccountWithControllerConfig(cc *v1alpha1.ControllerConfig) ServiceAccountOverride {
 	return func(sa *corev1.ServiceAccount) {
 		sa.Labels = cc.Labels
 		sa.Annotations = cc.Annotations
@@ -63,33 +73,44 @@ func ServiceAccountWithControllerConfig(cc *v1alpha1.ControllerConfig) ServiceAc
 	}
 }
 
-// DeploymentOverrides is a modifier option that overrides a Deployment.
-type DeploymentOverrides func(deployment *appsv1.Deployment)
+// DeploymentOverride is a modifier option that overrides a Deployment.
+type DeploymentOverride func(deployment *appsv1.Deployment)
 
-// DeploymentWithName overrides the name of a Deployment.
-func DeploymentWithName(name string) DeploymentOverrides {
+// DeploymentWithOptionalName overrides the name of a Deployment if empty.
+func DeploymentWithOptionalName(name string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
-		d.Name = name
+		if d.Name == "" {
+			d.Name = name
+		}
 	}
 }
 
 // DeploymentWithNamespace overrides the namespace of a Deployment.
-func DeploymentWithNamespace(namespace string) DeploymentOverrides {
+func DeploymentWithNamespace(namespace string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.Namespace = namespace
 	}
 }
 
 // DeploymentWithOwnerReferences overrides the owner references of a Deployment.
-func DeploymentWithOwnerReferences(owners []metav1.OwnerReference) DeploymentOverrides {
+func DeploymentWithOwnerReferences(owners []metav1.OwnerReference) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.OwnerReferences = owners
 	}
 }
 
+// DeploymentWithOptionalReplicas set the replicas if it is unset.
+func DeploymentWithOptionalReplicas(replicas int32) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		if d.Spec.Replicas == nil {
+			d.Spec.Replicas = &replicas
+		}
+	}
+}
+
 // DeploymentWithSelectors overrides the selectors of a Deployment. It also
 // ensures that the pod template labels always contains the deployment selector.
-func DeploymentWithSelectors(selectors map[string]string) DeploymentOverrides {
+func DeploymentWithSelectors(selectors map[string]string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		if d.Spec.Selector == nil {
 			d.Spec.Selector = &metav1.LabelSelector{}
@@ -107,7 +128,7 @@ func DeploymentWithSelectors(selectors map[string]string) DeploymentOverrides {
 }
 
 // DeploymentWithServiceAccount overrides the service account of a Deployment.
-func DeploymentWithServiceAccount(sa string) DeploymentOverrides {
+func DeploymentWithServiceAccount(sa string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.ServiceAccountName = sa
 	}
@@ -115,24 +136,35 @@ func DeploymentWithServiceAccount(sa string) DeploymentOverrides {
 
 // DeploymentWithImagePullSecrets overrides the image pull secrets of a
 // Deployment.
-func DeploymentWithImagePullSecrets(secrets []corev1.LocalObjectReference) DeploymentOverrides {
+func DeploymentWithImagePullSecrets(secrets []corev1.LocalObjectReference) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.ImagePullSecrets = secrets
 	}
 }
 
-// DeploymentRuntimeWithImage overrides the image of the runtime container of a
-// Deployment.
-func DeploymentRuntimeWithImage(image string) DeploymentOverrides {
+// DeploymentRuntimeWithOptionalImage set the image for the runtime container
+// if it is unset, e.g. not specified in the DeploymentRuntimeConfig.
+func DeploymentRuntimeWithOptionalImage(image string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
-		// We will always ensure that the runtime container is the first.
-		d.Spec.Template.Spec.Containers[0].Image = image
+		if d.Spec.Template.Spec.Containers[0].Image == "" {
+			d.Spec.Template.Spec.Containers[0].Image = image
+		}
+	}
+}
+
+// DeploymentRuntimeWithOptionalImagePullPolicy set the image pull policy if it
+// is unset.
+func DeploymentRuntimeWithOptionalImagePullPolicy(policy corev1.PullPolicy) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		if d.Spec.Template.Spec.Containers[0].ImagePullPolicy == "" {
+			d.Spec.Template.Spec.Containers[0].ImagePullPolicy = policy
+		}
 	}
 }
 
 // DeploymentRuntimeWithImagePullPolicy overrides the image pull policy of the
 // runtime container of a Deployment.
-func DeploymentRuntimeWithImagePullPolicy(policy corev1.PullPolicy) DeploymentOverrides {
+func DeploymentRuntimeWithImagePullPolicy(policy corev1.PullPolicy) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.Containers[0].ImagePullPolicy = policy
 	}
@@ -141,7 +173,7 @@ func DeploymentRuntimeWithImagePullPolicy(policy corev1.PullPolicy) DeploymentOv
 // DeploymentRuntimeWithTLSServerSecret mounts a TLS Server secret as a volume
 // and sets the path of the mounted volume as an environment variable of the
 // runtime container of a Deployment.
-func DeploymentRuntimeWithTLSServerSecret(secret string) DeploymentOverrides {
+func DeploymentRuntimeWithTLSServerSecret(secret string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		mountTLSSecret(secret, tlsServerCertsVolumeName, tlsServerCertsDir, tlsServerCertDirEnvVar, d)
 	}
@@ -150,7 +182,7 @@ func DeploymentRuntimeWithTLSServerSecret(secret string) DeploymentOverrides {
 // DeploymentRuntimeWithTLSClientSecret mounts a TLS Client secret as a volume
 // and sets the path of the mounted volume as an environment variable of the
 // runtime container of a Deployment.
-func DeploymentRuntimeWithTLSClientSecret(secret string) DeploymentOverrides {
+func DeploymentRuntimeWithTLSClientSecret(secret string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		mountTLSSecret(secret, tlsClientCertsVolumeName, tlsClientCertsDir, tlsClientCertDirEnvVar, d)
 	}
@@ -158,7 +190,7 @@ func DeploymentRuntimeWithTLSClientSecret(secret string) DeploymentOverrides {
 
 // DeploymentRuntimeWithAdditionalEnvironments adds additional environment
 // variables to the runtime container of a Deployment.
-func DeploymentRuntimeWithAdditionalEnvironments(env []corev1.EnvVar) DeploymentOverrides {
+func DeploymentRuntimeWithAdditionalEnvironments(env []corev1.EnvVar) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, env...)
 	}
@@ -166,15 +198,61 @@ func DeploymentRuntimeWithAdditionalEnvironments(env []corev1.EnvVar) Deployment
 
 // DeploymentRuntimeWithAdditionalPorts adds additional ports to the runtime
 // container of a Deployment.
-func DeploymentRuntimeWithAdditionalPorts(ports []corev1.ContainerPort) DeploymentOverrides {
+func DeploymentRuntimeWithAdditionalPorts(ports []corev1.ContainerPort) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, ports...)
 	}
 }
 
+// DeploymentWithOptionalPodSecurityContext sets the pod security context if it
+// is unset.
+func DeploymentWithOptionalPodSecurityContext(podSecurityContext *corev1.PodSecurityContext) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		if d.Spec.Template.Spec.SecurityContext == nil {
+			d.Spec.Template.Spec.SecurityContext = podSecurityContext
+		}
+	}
+}
+
+// DeploymentRuntimeWithOptionalSecurityContext sets the security context of the
+// runtime container if it is unset.
+func DeploymentRuntimeWithOptionalSecurityContext(securityContext *corev1.SecurityContext) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		if d.Spec.Template.Spec.Containers[0].SecurityContext == nil {
+			d.Spec.Template.Spec.Containers[0].SecurityContext = securityContext
+		}
+	}
+}
+
+// DeploymentWithRuntimeContainer ensures that the runtime container exists and
+// is the first container.
+func DeploymentWithRuntimeContainer() DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		for i := range d.Spec.Template.Spec.Containers {
+			if d.Spec.Template.Spec.Containers[i].Name == runtimeContainerName {
+				if i == 0 {
+					// Already the first container, done.
+					return
+				}
+				// Move the runtime container to the first position
+				rc := d.Spec.Template.Spec.Containers[i]
+				d.Spec.Template.Spec.Containers = append([]corev1.Container{rc}, append(d.Spec.Template.Spec.Containers[:i], d.Spec.Template.Spec.Containers[i+1:]...)...)
+				return
+			}
+		}
+
+		// The runtime container does not exist, add it to the first position
+		d.Spec.Template.Spec.Containers = append([]corev1.Container{
+			{
+				Name: runtimeContainerName,
+			},
+		}, d.Spec.Template.Spec.Containers...)
+	}
+}
+
 // DeploymentForControllerConfig overrides the deployment with the values
 // defined in the ControllerConfig.
-func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOverrides { //nolint:gocyclo // Simple if statements for setting values if they are not nil/empty.
+func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOverride { //nolint:gocyclo // Simple if statements for setting values if they are not nil/empty.
 	return func(d *appsv1.Deployment) {
 		d.Labels = cc.Labels
 		d.Annotations = cc.Annotations
@@ -258,46 +336,55 @@ func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOver
 	}
 }
 
-// ServiceOverrides is a modifier option that overrides a Service.
-type ServiceOverrides func(service *corev1.Service)
+// ServiceOverride is a modifier option that overrides a Service.
+type ServiceOverride func(service *corev1.Service)
 
 // ServiceWithName overrides the name of a Service.
-func ServiceWithName(name string) ServiceOverrides {
+func ServiceWithName(name string) ServiceOverride {
 	return func(s *corev1.Service) {
 		s.Name = name
 	}
 }
 
+// ServiceWithOptionalName overrides the name of a Service if empty.
+func ServiceWithOptionalName(name string) ServiceOverride {
+	return func(s *corev1.Service) {
+		if s.Name == "" {
+			s.Name = name
+		}
+	}
+}
+
 // ServiceWithNamespace overrides the namespace of a Service.
-func ServiceWithNamespace(namespace string) ServiceOverrides {
+func ServiceWithNamespace(namespace string) ServiceOverride {
 	return func(s *corev1.Service) {
 		s.Namespace = namespace
 	}
 }
 
 // ServiceWithOwnerReferences overrides the owner references of a Service.
-func ServiceWithOwnerReferences(owners []metav1.OwnerReference) ServiceOverrides {
+func ServiceWithOwnerReferences(owners []metav1.OwnerReference) ServiceOverride {
 	return func(s *corev1.Service) {
 		s.OwnerReferences = owners
 	}
 }
 
 // ServiceWithSelectors overrides the selectors of a Service.
-func ServiceWithSelectors(selectors map[string]string) ServiceOverrides {
+func ServiceWithSelectors(selectors map[string]string) ServiceOverride {
 	return func(s *corev1.Service) {
 		s.Spec.Selector = selectors
 	}
 }
 
 // ServiceWithAdditionalPorts adds additional ports to a Service.
-func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverrides {
+func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverride {
 	return func(s *corev1.Service) {
 		s.Spec.Ports = append(s.Spec.Ports, ports...)
 	}
 }
 
 // ServiceWithClusterIP overrides the cluster IP of a Service.
-func ServiceWithClusterIP(clusterIP string) ServiceOverrides {
+func ServiceWithClusterIP(clusterIP string) ServiceOverride {
 	return func(s *corev1.Service) {
 		s.Spec.ClusterIP = clusterIP
 	}

@@ -28,6 +28,7 @@ type PackageRuntimeSpec struct {
 	// RuntimeConfigRef references a RuntimeConfig resource that will be used
 	// to configure the package runtime.
 	// +optional
+	// +kubebuilder:default={"name": "default"}
 	RuntimeConfigReference *RuntimeConfigReference `json:"runtimeConfigRef,omitempty"`
 }
 

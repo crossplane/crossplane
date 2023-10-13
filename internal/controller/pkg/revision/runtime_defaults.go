@@ -19,77 +19,62 @@ package revision
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
-var (
-	replicas                 = int32(1)
-	runAsUser                = int64(2000)
-	runAsGroup               = int64(2000)
-	allowPrivilegeEscalation = false
-	privileged               = false
-	runAsNonRoot             = true
-)
+func serviceAccountFromRuntimeConfig(tmpl *v1beta1.ServiceAccountTemplate) *corev1.ServiceAccount {
+	sa := &corev1.ServiceAccount{}
 
-func defaultServiceAccount(name string) *corev1.ServiceAccount {
-	return &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			// It is possible to override the name of the service account in the
-			// RuntimeConfig. So, we define it as a default here.
-			Name: name,
-		},
+	if tmpl == nil || tmpl.Metadata == nil {
+		return sa
 	}
+
+	if tmpl.Metadata.Name != nil {
+		sa.Name = *tmpl.Metadata.Name
+	}
+
+	sa.Annotations = tmpl.Metadata.Annotations
+	sa.Labels = tmpl.Metadata.Labels
+
+	return sa
 }
 
-func defaultDeployment(name string) *appsv1.Deployment {
-	// TODO(turkenh): Implement configurable defaults.
-	// See https://github.com/crossplane/crossplane/issues/4699#issuecomment-1748403479
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			// It is possible to override the name of the deployment in the
-			// RuntimeConfig. So, we define it as a default here.
-			Name: name,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: &replicas,
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &runAsNonRoot,
-						RunAsUser:    &runAsUser,
-						RunAsGroup:   &runAsGroup,
-					},
-					Containers: []corev1.Container{
-						{
-							Name:            runtimeContainerName,
-							ImagePullPolicy: corev1.PullIfNotPresent,
-							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:                &runAsUser,
-								RunAsGroup:               &runAsGroup,
-								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-								Privileged:               &privileged,
-								RunAsNonRoot:             &runAsNonRoot,
-							},
-							Ports: []corev1.ContainerPort{
-								{
-									Name:          metricsPortName,
-									ContainerPort: metricsPortNumber,
-								},
-							},
-						},
-					},
-				},
-			},
-		},
+func deploymentFromRuntimeConfig(tmpl *v1beta1.DeploymentTemplate) *appsv1.Deployment {
+	d := &appsv1.Deployment{}
+
+	if tmpl == nil {
+		return d
 	}
+
+	if meta := tmpl.Metadata; meta != nil {
+		if meta.Name != nil {
+			d.Name = *meta.Name
+		}
+		d.Annotations = meta.Annotations
+		d.Labels = meta.Labels
+	}
+
+	if spec := tmpl.Spec; spec != nil {
+		d.Spec = *spec
+	}
+
+	return d
 }
 
-func defaultService(name string) *corev1.Service {
-	return &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			// It is possible to override the name of the service in the
-			// RuntimeConfig. So, we define it as a default here.
-			Name: name,
-		},
+func serviceFromRuntimeConfig(tmpl *v1beta1.ServiceTemplate) *corev1.Service {
+	svc := &corev1.Service{}
+
+	if tmpl == nil || tmpl.Metadata == nil {
+		return svc
 	}
+
+	if tmpl.Metadata.Name != nil {
+		svc.Name = *tmpl.Metadata.Name
+	}
+
+	svc.Annotations = tmpl.Metadata.Annotations
+	svc.Labels = tmpl.Metadata.Labels
+
+	return svc
 }
