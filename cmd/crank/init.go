@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/storage/memory"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -20,10 +22,11 @@ type initCmd struct {
 }
 
 type initFunctionCmd struct {
-	Name string `arg:"" help:"Name of the Function to initialize."`
+	Language functionLanguage `arg:"" help:"Language of the Function to initialize." enum:"go"`
+	Name     string           `arg:"" help:"Name of the Function to initialize."`
 
-	Language  functionLanguage `short:"l" help:"Language of the Function to initialize." enum:"go" default:"go"`
-	Directory string           `short:"d" help:"Path of the directory to initialize." default:"." type:"path"`
+	CustomRepo string `short:"r" help:"URL of the custom template repository to use instead of the default one for the language."`
+	Directory  string `short:"d" help:"Path of the directory to initialize." default:"." type:"path"`
 }
 
 type functionLanguage string
@@ -32,7 +35,10 @@ const (
 	functionLanguageGo functionLanguage = "go"
 )
 
-func (c *initFunctionCmd) GetURLForLanguage() (string, error) {
+func (c *initFunctionCmd) GetTemplateURL() (string, error) {
+	if c.CustomRepo != "" {
+		return c.CustomRepo, nil
+	}
 	switch c.Language {
 	case functionLanguageGo:
 		return "https://github.com/crossplane/function-template-go", nil
@@ -62,30 +68,40 @@ func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	fs := osfs.New(c.Directory, osfs.WithBoundOS())
 
-	url, err := c.GetURLForLanguage()
+	repoURL, err := c.GetTemplateURL()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get URL for language %s", c.Language)
 	}
 
 	r, err := git.Clone(memory.NewStorage(), fs, &git.CloneOptions{
-		URL:   url,
+		URL:   repoURL,
 		Depth: 1,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to clone repo")
+		return errors.Wrapf(err, "failed to clone repo from %q", repoURL)
 	}
 
 	ref, err := r.Head()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get repository's HEAD")
+		return errors.Wrapf(err, "failed to get repository's HEAD from %q", repoURL)
 	}
 
 	// TODO(phisco): replace placeholders for the name all around the
 	// 	repository? Maybe we can just agree on some markdown text in the
 	// 	repos to print to let the user know what to do next?
 
-	_, err = fmt.Fprintf(k.Stdout, "Initialized Function %q in directory %q from %s/tree/%s (%s)\n", c.Name, c.Directory, url, ref.Hash().String(), ref.Name().Short())
+	_, err = fmt.Fprintf(k.Stdout, "Initialized Function %q in directory %q from %s (%s)\n", c.Name, c.Directory, getPrettyURL(logger, repoURL, ref), ref.Name().Short())
 	return err
+}
+
+func getPrettyURL(logger logging.Logger, repoURL string, ref *plumbing.Reference) string {
+	prettyURL, err := url.JoinPath(repoURL, "tree", ref.Hash().String())
+	if err != nil {
+		// we won't show the commit URL in this case, no big issue
+		logger.Debug("Failed to create commit URL, will just use original url", "error", err)
+		return repoURL
+	}
+	return prettyURL
 }
 
 func (c *initFunctionCmd) checkDirectoryContent() error {
