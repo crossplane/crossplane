@@ -83,9 +83,9 @@ const (
 	errIncompatible      = "incompatible Crossplane version"
 
 	errManifestBuilder  = "cannot create runtime manifest builder"
-	errPreHook          = "cannot run pre establish runtime hook for package"
-	errPostHook         = "cannot run post establish runtime hook for package"
-	errDeactivationHook = "cannot run deactivation runtimeHook for package"
+	errPreHook          = "pre establish runtime hook failed for package"
+	errPostHook         = "post establish runtime hook failed for package"
+	errDeactivationHook = "deactivation runtime hook failed for package"
 
 	errEstablishControl = "cannot establish control of object"
 	errReleaseObjects   = "cannot release objects"
@@ -387,7 +387,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
-		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
+		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())))
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
