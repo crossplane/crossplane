@@ -190,7 +190,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
 		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 
-		HealthProbeBindAddress: ":5000",
+		HealthProbeBindAddress: ":8081",
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create manager")

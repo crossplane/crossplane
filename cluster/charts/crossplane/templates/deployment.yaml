@@ -133,7 +133,7 @@ spec:
             port: healthz
         ports:
         - name: healthz
-          containerPort: 5000
+          containerPort: 8081
         {{- if .Values.metrics.enabled }}
         - name: metrics
           containerPort: 8080
