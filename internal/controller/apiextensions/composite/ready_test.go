@@ -117,7 +117,7 @@ func TestIsReady(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtRequiresFieldPath, ReadinessCheckTypeNonEmpty), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetObjectKind(), 0),
+				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtRequiresFieldPath, ReadinessCheckTypeNonEmpty), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetResourceVersion(), 0),
 			},
 		},
 		"NonEmptyErr": {
@@ -172,7 +172,7 @@ func TestIsReady(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: errors.Wrapf(fieldpath.Pave(nil).GetValueInto("metadata..uid", nil), errFmtRunCheck, composed.New().GetName(), composed.New().GetObjectKind(), 0),
+				err: errors.Wrapf(fieldpath.Pave(nil).GetValueInto("metadata..uid", nil), errFmtRunCheck, composed.New().GetName(), composed.New().GetResourceVersion(), 0),
 			},
 		},
 		"MatchStringMissing": {
@@ -185,7 +185,7 @@ func TestIsReady(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtRequiresMatchString, ReadinessCheckTypeMatchString), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetObjectKind(), 0),
+				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtRequiresMatchString, ReadinessCheckTypeMatchString), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetResourceVersion(), 0),
 			},
 		},
 		"MatchStringFalse": {
@@ -229,7 +229,7 @@ func TestIsReady(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: errors.Wrapf(fieldpath.Pave(nil).GetValueInto("metadata..uid", nil), errFmtRunCheck, composed.New().GetName(), composed.New().GetObjectKind(), 0),
+				err: errors.Wrapf(fieldpath.Pave(nil).GetValueInto("metadata..uid", nil), errFmtRunCheck, composed.New().GetName(), composed.New().GetResourceVersion(), 0),
 			},
 		},
 		"MatchIntegerMissing": {
@@ -242,7 +242,7 @@ func TestIsReady(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtRequiresMatchInteger, ReadinessCheckTypeMatchInteger), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetObjectKind(), 0),
+				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtRequiresMatchInteger, ReadinessCheckTypeMatchInteger), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetResourceVersion(), 0),
 			},
 		},
 		"MatchIntegerFalse": {
@@ -402,7 +402,7 @@ func TestIsReady(t *testing.T) {
 				rc: []ReadinessCheck{{Type: "Olala"}},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtUnknownCheck, "Olala"), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetObjectKind(), 0),
+				err: errors.Wrapf(errors.Wrap(errors.Errorf(errFmtUnknownCheck, "Olala"), errInvalidCheck), errFmtRunCheck, composed.New().GetName(), composed.New().GetResourceVersion(), 0),
 			},
 		},
 	}

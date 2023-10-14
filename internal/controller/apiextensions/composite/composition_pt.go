@@ -59,7 +59,7 @@ const (
 	errSetControllerRef = "cannot set controller reference"
 
 	errFmtResourceName = "composed resource %q"
-	errFmtPatch        = "cannot apply the %q patch at index %d for field %q"
+	errFmtPatch        = "cannot apply the %q patch at index %d for toField %q"
 )
 
 // TODO(negz): Move P&T Composition logic into its own package?
@@ -186,7 +186,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	if req.Environment != nil && req.Revision.Spec.Environment != nil {
 		for i, p := range req.Revision.Spec.Environment.Patches {
 			if err := ApplyEnvironmentPatch(p, xr, req.Environment); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtPatchEnvironment, p.Type, i, *p.FromFieldPath)
+				return CompositionResult{}, errors.Wrapf(err, errFmtPatchEnvironment, p.Type, i, *p.ToFieldPath)
 			}
 		}
 	}
@@ -526,11 +526,11 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 
 	for i := range t.Patches {
 		if err := Apply(t.Patches[i], cp, cd, patchTypesFromXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, t.Patches[i].Type, i, t.Patches[i].GetFromFieldPath())
+			return errors.Wrapf(err, errFmtPatch, t.Patches[i].Type, i, t.Patches[i].GetToFieldPath())
 		}
 		if env != nil {
 			if err := ApplyToObjects(t.Patches[i], env, cd, patchTypesFromToEnvironment()...); err != nil {
-				return errors.Wrapf(err, errFmtPatch, t.Patches[i].Type, i, t.Patches[i].GetFromFieldPath())
+				return errors.Wrapf(err, errFmtPatch, t.Patches[i].Type, i, t.Patches[i].GetToFieldPath())
 			}
 		}
 	}
@@ -575,7 +575,7 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 func RenderComposite(_ context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *env.Environment) error {
 	for i, p := range t.Patches {
 		if err := Apply(p, cp, cd, patchTypesToXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, p.Type, i, *p.FromFieldPath)
+			return errors.Wrapf(err, errFmtPatch, p.Type, i, *p.ToFieldPath)
 		}
 	}
 

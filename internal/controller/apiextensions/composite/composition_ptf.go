@@ -540,7 +540,7 @@ func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req Co
 	if req.Environment != nil && req.Revision.Spec.Environment != nil {
 		for i, p := range req.Revision.Spec.Environment.Patches {
 			if err := ApplyEnvironmentPatch(p, s.Composite, req.Environment); err != nil {
-				return errors.Wrapf(err, errFmtPatchEnvironment, p.Type, i, *p.FromFieldPath)
+				return errors.Wrapf(err, errFmtPatchEnvironment, p.Type, i)
 			}
 		}
 	}

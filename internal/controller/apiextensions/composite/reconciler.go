@@ -69,7 +69,7 @@ const (
 	errCompose                = "cannot compose resources"
 	errRenderCD               = "cannot render composed resource"
 
-	errFmtPatchEnvironment = "cannot apply %q environment patch at index %d for field %q"
+	errFmtPatchEnvironment = "cannot apply %q environment patch at index %d for toFied %s"
 )
 
 // Event reasons.

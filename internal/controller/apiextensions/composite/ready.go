@@ -41,7 +41,7 @@ const (
 	errFmtRequiresMatchConditions = "type %q requires a valid match condition"
 	errFmtRequiresMatchInteger    = "type %q requires a match integer"
 	errFmtUnknownCheck            = "unknown type %q"
-	errFmtRunCheck                = "cannot run readiness check for object %q of kind %q at index %d"
+	errFmtRunCheck                = "cannot run readiness check for %s/%s at index %d"
 )
 
 // ReadinessCheckType is used for readiness check types.
@@ -281,7 +281,7 @@ func IsReady(_ context.Context, o ConditionedObject, rc ...ReadinessCheck) (bool
 	for i := range rc {
 		ready, err := rc[i].IsReady(paved, o)
 		if err != nil {
-			return false, errors.Wrapf(err, errFmtRunCheck, o.GetName(), o.GetObjectKind(), i)
+			return false, errors.Wrapf(err, errFmtRunCheck, o.GetName(), o.GetResourceVersion(), i)
 		}
 		if !ready {
 			return false, nil
