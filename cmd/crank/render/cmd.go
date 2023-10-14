@@ -27,6 +27,9 @@ type Cmd struct {
 
 	ObservedResources []string `short:"o" help:"An optional stream or directory of YAML manifests mocking the observed state of composed resources."`
 	IncludeResults    bool     `short:"r" default:"true" help:"Include Results in the output. Results are emitted as a 'fake' KRM-like object of kind: Result."`
+
+	ContextValues map[string]string `placeholder:"KEY=JSON-VALUE;..." help:"Context variables to pass to the Function pipeline. Values should be JSON-encoded. Takes precedence over --context-files."`
+	ContextFiles  map[string]string `placeholder:"KEY=FILENAME;..." help:"Context variables to pass to the Function pipeline. Values should be files containing JSON-encoded data."`
 }
 
 // Run render.
@@ -69,6 +72,18 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		ors = append(ors, loaded...)
 	}
 
+	fctx := map[string][]byte{}
+	for k, filename := range c.ContextFiles {
+		v, err := os.ReadFile(filename) //nolint:gosec // We're intentionally reading a file that we're asked to.
+		if err != nil {
+			return errors.Wrapf(err, "cannot read context value for key %q", k)
+		}
+		fctx[k] = v
+	}
+	for k, v := range c.ContextValues {
+		fctx[k] = []byte(v)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
@@ -77,6 +92,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		Composition:       comp,
 		Functions:         fns,
 		ObservedResources: ors,
+		Context:           fctx,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot render composite resource")

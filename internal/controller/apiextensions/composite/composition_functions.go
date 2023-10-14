@@ -236,7 +236,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	events := []event.Event{}
 
-	// The Function context starts with empty desired state...
+	// The Function context starts empty...
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
 
 	// ...but we bootstrap it with the Composition environment, if there is one.
@@ -273,6 +273,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		d = rsp.GetDesired()
 
 		// Pass the Function context returned by this Function to the next one.
+		// We intentionally discard/ignore this after the last Function runs.
 		fctx = rsp.GetContext()
 
 		// Results of fatal severity stop the Composition process. Other results
