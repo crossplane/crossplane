@@ -41,7 +41,7 @@ type pushCmd struct {
 	Configuration pushConfigCmd   `cmd:"" help:"Push a Configuration package."`
 	Provider      pushProviderCmd `cmd:"" help:"Push a Provider package."`
 
-	Package string `short:"f" help:"Path to package. If not specified and only one package exists in current directory it will be used."`
+	Package string `short:"f" help:"xpkg file location."`
 }
 
 // Run runs the push cmd.
@@ -89,7 +89,7 @@ type pushChild struct {
 
 // pushConfigCmd pushes a Configuration.
 type pushConfigCmd struct {
-	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
+	Tag string `arg:"" help:"Package OCI image tag."`
 }
 
 // AfterApply sets the tag for the parent push command.
@@ -100,7 +100,7 @@ func (c pushConfigCmd) AfterApply(p *pushChild) error { //nolint:unparam // Afte
 
 // pushProviderCmd pushes a Provider.
 type pushProviderCmd struct {
-	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
+	Tag string `arg:"" help:"Package OCI image tag."`
 }
 
 // AfterApply sets the tag for the parent push command.

@@ -98,31 +98,19 @@ type buildCmd struct {
 	builder *xpkg.Builder
 	root    string
 
-	Output        string   `optional:"" short:"o" help:"Path for package output."`
-	Controller    string   `help:"Controller image used as base for package."`
-	ControllerTar string   `help:"Path to tar file, an alternative to Controller." xor:"controller" type:"existingfile"`
-	PackageRoot   string   `short:"f" help:"Path to package directory." default:"."`
+	Controller    string   `help:"Controller container image for Provider or Function packages."`
+	ControllerTar string   `help:"Controller tar file for Provider or Function packages. An alternative to --controller." xor:"controller" type:"existingfile"`
 	ExamplesRoot  string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore        []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Ignore        []string `help:"Comma-separated list of files and directories to exclude from the package."`
+	Output        string   `optional:"" short:"o" help:"Path and filename to export the package to."`
+	PackageRoot   string   `short:"f" help:"Path to directory of package YAML files." default:"."`
 }
 
 func (c *buildCmd) Help() string {
 	return `
-The build command creates a xpkg compatible OCI image for a Crossplane package
-from the local file system. It packages the found YAML files containing Kubernetes-like
-object manifests into the meta data layer of the OCI image. The package manager
-will use this information to install the package into a Crossplane instance.
-
-Only configuration, provider and function packages are supported at this time. 
-
-Example claims can be specified in the examples directory.
-
-For more generic information, see the xpkg parent command help. Also see the
-Crossplane documentation for more information on building packages:
-
-  https://docs.crossplane.io/latest/concepts/packages/#building-a-package
-
-Even more details can be found in the xpkg reference document.`
+	Read the Crossplane docs for information on packages.
+	https://docs.crossplane.io/latest/concepts/packages/
+  `
 }
 
 // GetControllerBaseImageOpts returns the controller base image options.

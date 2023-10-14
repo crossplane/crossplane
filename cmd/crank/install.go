@@ -76,13 +76,13 @@ func (c *installCmd) Run(_ *buildChild) error {
 
 // installConfigCmd installs a Configuration.
 type installConfigCmd struct {
-	Package string `arg:"" help:"Image containing Configuration package."`
+	Package string `arg:"" help:"Configuration xpkg file."`
 
-	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package."`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	ManualActivation     bool          `short:"m" help:"Set the RevisionActivationPolicy to Manual."`
+	Name                 string        `arg:"" optional:"" help:"Apply a name to the installed package."`
+	PackagePullSecrets   []string      `help:"List of Secrets to use to pull the package."`
+	RevisionHistoryLimit int64         `short:"r" help:"Apply a Package RevisionHistoryLimit."`
+	Wait                 time.Duration `short:"w" help:"Number of seconds to wait for a package to install."`
 }
 
 // Run runs the Configuration install cmd.
@@ -168,14 +168,14 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 
 // installProviderCmd install a Provider.
 type installProviderCmd struct {
-	Package string `arg:"" help:"Image containing Provider package."`
+	Package string `arg:"" help:"Provider xpkg file."`
 
-	Name                 string        `arg:"" optional:"" help:"Name of Provider."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	Config               string        `help:"Specify a ControllerConfig for this Provider."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	Config               string        `help:"Configure the Provider to use a ControllerConfig."`
+	ManualActivation     bool          `short:"m" help:"Set the RevisionActivationPolicy to Manual."`
+	Name                 string        `arg:"" optional:"" help:"Apply a custom Provider name."`
+	PackagePullSecrets   []string      `help:"List of Secrets to use to pull the package."`
+	RevisionHistoryLimit int64         `short:"r" help:"Apply a Package RevisionHistoryLimit."`
+	Wait                 time.Duration `short:"w" help:"Number of seconds to wait for a package to install."`
 }
 
 // Run runs the Provider install cmd.

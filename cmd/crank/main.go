@@ -60,21 +60,21 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
-	Install installCmd `cmd:"" help:"Install Crossplane packages."`
-	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
-	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
+	Build   buildCmd   `cmd:"" help:"🏗️_ Build Crossplane Configuration and Provider xpkg files."`
+	Install installCmd `cmd:"" help:"🎁 Install a Crossplane Configuration or Provider xpkg file."`
+	Push    pushCmd    `cmd:"" help:"🚢 Push Crossplane packages to a container registry."`
+	Update  updateCmd  `cmd:"" help:"🚀 Update an existing Crossplane package."`
 
-	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
+	XPKG xpkg.Cmd `cmd:"" help:"📦 Crossplane package management."`
 
 	Alpha struct {
 		// Add here alpha subcommands
-	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
+	} `cmd:"" help:"⚠️_ Alpha features. WARNING: May be changed or removed without notice"`
 
 	Beta struct {
 		Render render.Cmd `cmd:"" help:"Render an XR using Composition Functions."`
 		// Add here beta subcommands
-	} `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
+	} `cmd:"" help:"⚠️_ Beta features. WARNING: May be changed or deprecated in a future release"`
 }
 
 func main() {

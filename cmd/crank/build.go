@@ -39,12 +39,12 @@ const (
 
 // buildCmd builds a package.
 type buildCmd struct {
-	Configuration buildConfigCmd   `cmd:"" help:"Build a Configuration package."`
-	Provider      buildProviderCmd `cmd:"" help:"Build a Provider package."`
-	Function      buildFunctionCmd `cmd:"" help:"Build a Function package."`
+	Configuration buildConfigCmd   `cmd:"" help:"Build a Crossplane Configuration package."`
+	Function      buildFunctionCmd `cmd:"" help:"Build a Crossplane Function package."`
+	Provider      buildProviderCmd `cmd:"" help:"Build a Crossplane Provider package."`
 
-	PackageRoot string   `short:"f" help:"Path to package directory." default:"."`
-	Ignore      []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Ignore      []string `help:"Comma-separated list of files and directories to exclude from the package."`
+	PackageRoot string   `short:"f" help:"Path to directory of package YAML files." default:"."`
 }
 
 // Run runs the build cmd.

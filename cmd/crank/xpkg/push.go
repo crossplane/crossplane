@@ -40,8 +40,8 @@ const (
 type pushCmd struct {
 	fs afero.Fs
 
-	Tag     string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
-	Package string `short:"f" help:"Path to package. If not specified and only one package exists in current directory it will be used."`
+	Package string `short:"f" help:"xpkg file location."`
+	Tag     string `arg:"" help:"OCI image tag of the package."`
 }
 
 // AfterApply sets the tag for the parent push command.
