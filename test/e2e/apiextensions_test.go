@@ -20,9 +20,11 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -40,6 +42,20 @@ const LabelAreaAPIExtensions = "apiextensions"
 // resources do.
 func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
+
+	nopCrossplaneList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "nop.crossplane.io/v1alpha1",
+		Kind:       "NopResource",
+	}))
+	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "nop.example.org/v1alpha1",
+		Kind:       "NopResource",
+	}))
+	xnopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "nop.example.org/v1alpha1",
+		Kind:       "XNopResource",
+	}))
+
 	environment.Test(t,
 		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
@@ -53,6 +69,9 @@ func TestCompositionMinimal(t *testing.T) {
 			)).
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.InBackground(funcs.LogResources(nopList)),
+				funcs.InBackground(funcs.LogResources(xnopList)),
+				funcs.InBackground(funcs.LogResources(nopCrossplaneList)),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
