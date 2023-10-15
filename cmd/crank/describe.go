@@ -58,8 +58,14 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	}
 	logger.Debug("Found kubeconfig")
 
+	// Get client for k8s package
+	client, err := k8s.NewClient(kubeconfig)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't init kubeclient")
+	}
+
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
-	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, kubeconfig)
+	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, client)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)

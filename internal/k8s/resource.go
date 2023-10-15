@@ -111,15 +111,10 @@ func (r *Resource) HasChildren() bool {
 	return len(r.Children) > 0
 }
 
-// GetResource returns a Resource and all its child resources. The main function of resource.
-func GetResource(resourceKind string, resourceName string, namespace string, kubeconfig *rest.Config) (*Resource, error) {
-	// Init new client
-	client, err := newClient(kubeconfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Couldn't init kubeclient")
-	}
-
+// GetResource returns a Resource and all its child resources.
+func GetResource(resourceKind string, resourceName string, namespace string, client *Client) (*Resource, error) {
 	// Get manifest for root resource
+	var err error
 	root := Resource{}
 	root.Manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
@@ -284,8 +279,8 @@ func (kc *Client) event(resourceName string, resourceKind string, apiVersion str
 	return latestEvent.Message, nil
 }
 
-// The newClient function initializes and returns a Client struct
-func newClient(kubeconfig *rest.Config) (*Client, error) {
+// The NewClient function initializes and returns a Client struct
+func NewClient(kubeconfig *rest.Config) (*Client, error) {
 
 	// Use to get custom resources
 	dclient, err := dynamic.NewForConfig(kubeconfig)
