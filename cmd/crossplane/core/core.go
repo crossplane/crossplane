@@ -108,6 +108,7 @@ type startCommand struct {
 	EnableExternalSecretStores               bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableCompositionWebhookSchemaValidation bool `group:"Alpha Features:" help:"Enable support for Composition validation using schemas."`
 	EnableUsages                             bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableRealtimeCompositions               bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 
 	EnableCompositionFunctions bool `group:"Beta Features:" default:"true" help:"Enable support for Composition Functions."`
 
@@ -259,6 +260,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.ESSOptions = &controller.ESSOptions{
 			TLSConfig: tcfg,
 		}
+	}
+	if c.EnableRealtimeCompositions {
+		o.Features.Enable(features.EnableRealtimeCompositions)
+		log.Info("Alpha feature enabled", "flag", features.EnableRealtimeCompositions)
 	}
 
 	ao := apiextensionscontroller.Options{
