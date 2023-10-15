@@ -6,8 +6,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/cmd/crank/printer"
 	"github.com/crossplane/crossplane/internal/k8s"
-	"github.com/crossplane/crossplane/internal/printer"
 	"golang.org/x/exp/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
