@@ -29,35 +29,35 @@ type Client struct {
 }
 
 type Resource struct {
-	Manifest           *unstructured.Unstructured
+	manifest           *unstructured.Unstructured
 	Children           []*Resource
-	LatestEventMessage string
+	latestEventMessage string
 }
 
 // Returns resource kind as string
 func (r *Resource) GetKind() string {
-	return r.Manifest.GetKind()
+	return r.manifest.GetKind()
 }
 
 // Returns resource name as string
 func (r *Resource) GetName() string {
-	return r.Manifest.GetName()
+	return r.manifest.GetName()
 }
 
 // Returns resource namespace as string
 func (r *Resource) GetNamespace() string {
-	return r.Manifest.GetNamespace()
+	return r.manifest.GetNamespace()
 }
 
 // Returns resource apiversion as string
 func (r *Resource) GetApiVersion() string {
-	return r.Manifest.GetAPIVersion()
+	return r.manifest.GetAPIVersion()
 }
 
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
 // Returns the Status of the map with the conditionType as string
 func (r *Resource) GetConditionStatus(conditionKey string) string {
-	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
 		conditionMap, _ := condition.(map[string]interface{})
 		conditionType, _ := conditionMap["type"].(string)
@@ -72,7 +72,7 @@ func (r *Resource) GetConditionStatus(conditionKey string) string {
 
 // Returns the message as string if set under `status.conditions` in the manifest. Else return empty string
 func (r *Resource) GetConditionMessage() string {
-	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 
 	for _, item := range conditions {
 		if itemMap, ok := item.(map[string]interface{}); ok {
@@ -89,7 +89,7 @@ func (r *Resource) GetConditionMessage() string {
 
 // Returns the latest event of the resource as string
 func (r *Resource) GetEvent() string {
-	return r.LatestEventMessage
+	return r.latestEventMessage
 }
 
 // Returns true if the Resource has children set.
@@ -107,7 +107,7 @@ func GetResource(resourceKind string, resourceName string, namespace string, kub
 
 	// Get manifest for root resource
 	root := Resource{}
-	root.Manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
+	root.manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't get root resource manifest")
 	}
@@ -166,9 +166,9 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 // If resources are discovered they are added as getChildren to the passed r Resource.
 func (kc *Client) getChildren(r Resource) (Resource, error) {
 	// Check both singular and plural for spec.resourceRef(s)
-	if resourceRefMap, found, err := getStringMapFromNestedField(*r.Manifest, "spec", "resourceRef"); found && err == nil {
+	if resourceRefMap, found, err := getStringMapFromNestedField(*r.manifest, "spec", "resourceRef"); found && err == nil {
 		r, err = kc.setChild(resourceRefMap, r)
-	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.Manifest, "spec", "resourceRefs"); found && err == nil {
+	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.manifest, "spec", "resourceRefs"); found && err == nil {
 		for _, resourceRefMap := range resourceRefs {
 			r, err = kc.setChild(resourceRefMap, r)
 		}
@@ -202,8 +202,8 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	}
 	// Set child
 	child := Resource{
-		Manifest:           u,
-		LatestEventMessage: event,
+		manifest:           u,
+		latestEventMessage: event,
 	}
 	// Get children of children
 	child, err = kc.getChildren(child)
