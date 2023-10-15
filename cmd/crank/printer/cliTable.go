@@ -25,7 +25,7 @@ func (p *TablePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error
 	table.SetHeader(fields)
 
 	// add all children to the table
-	if err := p.CliTableAddResource(table, fields, r, ""); err != nil {
+	if err := cliTableAddResource(table, fields, r, ""); err != nil {
 		return err
 	}
 
@@ -43,7 +43,7 @@ func (p *TablePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error
 // CliTableAddResource adds rows to the passed table in the order and as specified in the fields variable
 //
 //nolint:gocyclo // This is a simple for loop with if-statements on how to populate fields.
-func (p *TablePrinter) CliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
+func cliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
 	var tableRow = make([]string, len(fields))
 
 	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument defined
@@ -86,7 +86,7 @@ func (p *TablePrinter) CliTableAddResource(table *tablewriter.Table, fields []st
 
 	// Recursively print children with the updated parent information.
 	for _, child := range r.Children {
-		err := p.CliTableAddResource(table, fields, *child, r.GetKind())
+		err := cliTableAddResource(table, fields, *child, r.GetKind())
 		if err != nil {
 			return err
 		}

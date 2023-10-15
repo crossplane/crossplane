@@ -34,35 +34,35 @@ type Client struct {
 
 // Resource struct represents a Crossplane k8s resource.
 type Resource struct {
-	manifest           *unstructured.Unstructured
+	Manifest           *unstructured.Unstructured
 	Children           []*Resource
-	latestEventMessage string
+	LatestEventMessage string
 }
 
 // GetKind returns resource kind as string
 func (r *Resource) GetKind() string {
-	return r.manifest.GetKind()
+	return r.Manifest.GetKind()
 }
 
 // GetName returns resource name as string
 func (r *Resource) GetName() string {
-	return r.manifest.GetName()
+	return r.Manifest.GetName()
 }
 
 // GetNamespace returns resource namespace as string
 func (r *Resource) GetNamespace() string {
-	return r.manifest.GetNamespace()
+	return r.Manifest.GetNamespace()
 }
 
 // GetAPIVersion returns resource apiversion as string
 func (r *Resource) GetAPIVersion() string {
-	return r.manifest.GetAPIVersion()
+	return r.Manifest.GetAPIVersion()
 }
 
 // GetConditionStatus returns the Status of the map with the conditionType as string
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
 func (r *Resource) GetConditionStatus(conditionKey string) string {
-	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
 		conditionMap, ok := condition.(map[string]interface{})
 		if !ok {
@@ -86,7 +86,7 @@ func (r *Resource) GetConditionStatus(conditionKey string) string {
 
 // GetConditionMessage returns the message as string if set under `status.conditions` in the manifest. Else return empty string
 func (r *Resource) GetConditionMessage() string {
-	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
 
 	for _, item := range conditions {
 		if itemMap, ok := item.(map[string]interface{}); ok {
@@ -103,7 +103,7 @@ func (r *Resource) GetConditionMessage() string {
 
 // GetEvent returns the latest event of the resource as string
 func (r *Resource) GetEvent() string {
-	return r.latestEventMessage
+	return r.LatestEventMessage
 }
 
 // HasChildren returns true if the Resource has children set.
@@ -121,7 +121,7 @@ func GetResource(resourceKind string, resourceName string, namespace string, kub
 
 	// Get manifest for root resource
 	root := Resource{}
-	root.manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
+	root.Manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't get root resource manifest")
 	}
@@ -180,12 +180,12 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 // If resources are discovered they are added as getChildren to the passed r Resource.
 func (kc *Client) getChildren(r Resource) (Resource, error) {
 	// Check both singular and plural for spec.resourceRef(s)
-	if resourceRefMap, found, err := getStringMapFromNestedField(*r.manifest, "spec", "resourceRef"); found && err == nil {
+	if resourceRefMap, found, err := getStringMapFromNestedField(*r.Manifest, "spec", "resourceRef"); found && err == nil {
 		r, err = kc.setChild(resourceRefMap, r)
 		if err != nil {
 			return r, err
 		}
-	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.manifest, "spec", "resourceRefs"); found && err == nil {
+	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.Manifest, "spec", "resourceRefs"); found && err == nil {
 		for _, resourceRefMap := range resourceRefs {
 			r, err = kc.setChild(resourceRefMap, r)
 			if err != nil {
@@ -222,8 +222,8 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	}
 	// Set child
 	child := Resource{
-		manifest:           u,
-		latestEventMessage: event,
+		Manifest:           u,
+		LatestEventMessage: event,
 	}
 	// Get children of children
 	child, err = kc.getChildren(child)
