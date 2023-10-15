@@ -60,16 +60,16 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Build    buildCmd    `cmd:"" help:"Build Crossplane packages."`
-	Install  installCmd  `cmd:"" help:"Install Crossplane packages."`
-	Update   updateCmd   `cmd:"" help:"Update Crossplane packages."`
-	Push     pushCmd     `cmd:"" help:"Push Crossplane packages."`
-	Describe describeCmd `cmd:"" help:"Describe a Kubernetes Crossplane resource."`
+	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
+	Install installCmd `cmd:"" help:"Install Crossplane packages."`
+	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
+	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
 	Alpha struct {
 		// Add here alpha subcommands
+		Describe describeCmd `cmd:"" help:"Describe a Kubernetes Crossplane resource."`
 	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
 
 	Beta struct {
