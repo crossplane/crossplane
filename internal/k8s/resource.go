@@ -59,9 +59,18 @@ func (r *Resource) GetApiVersion() string {
 func (r *Resource) GetConditionStatus(conditionKey string) string {
 	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
-		conditionMap, _ := condition.(map[string]interface{})
-		conditionType, _ := conditionMap["type"].(string)
-		conditionStatus, _ := conditionMap["status"].(string)
+		conditionMap, ok := condition.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		conditionType, ok := conditionMap["type"].(string)
+		if !ok {
+			continue
+		}
+		conditionStatus, ok := conditionMap["status"].(string)
+		if !ok {
+			continue
+		}
 
 		if conditionType == conditionKey {
 			return conditionStatus
