@@ -2,20 +2,21 @@ package printer
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 
-	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/olekukonko/tablewriter"
+
+	"github.com/crossplane/crossplane/internal/k8s"
 )
 
-type CliPrinter struct {
+// TablePrinter defines the TablePrinter configuration
+type TablePrinter struct {
 }
 
-var _ Printer = &CliPrinter{}
+var _ Printer = &TablePrinter{}
 
-// Prints out a CLI table of the passed Resource. The fields variable determines the header and values of the table.
-func (p *CliPrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
+// Print writes a CLI table of the passed Resource to the Writer. The fields variable determines the header and values of the table.
+func (p *TablePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
 	// Create a buffer to capture the table output
 	var buf bytes.Buffer
 
@@ -39,8 +40,10 @@ func (p *CliPrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
 	return nil
 }
 
-// This functions adds rows to the passed table in the order and as specified in the fields variable
-func (p *CliPrinter) CliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
+// CliTableAddResource adds rows to the passed table in the order and as specified in the fields variable
+//
+//nolint:gocyclo // This is a simple for loop with if-statements on how to populate fields.
+func (p *TablePrinter) CliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
 	var tableRow = make([]string, len(fields))
 
 	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument defined
@@ -48,7 +51,7 @@ func (p *CliPrinter) CliTableAddResource(table *tablewriter.Table, fields []stri
 		if field == "parent" {
 			var parentPrefix string
 			if parentKind != "" {
-				parentPrefix = fmt.Sprintf("%s", parentKind)
+				parentPrefix = parentKind
 			}
 			tableRow[i] = parentPrefix
 		}
@@ -62,7 +65,7 @@ func (p *CliPrinter) CliTableAddResource(table *tablewriter.Table, fields []stri
 			tableRow[i] = r.GetNamespace()
 		}
 		if field == "apiversion" {
-			tableRow[i] = r.GetApiVersion()
+			tableRow[i] = r.GetAPIVersion()
 		}
 		if field == "synced" {
 			tableRow[i] = r.GetConditionStatus("Synced")

@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/cmd/crank/printer"
-	"github.com/crossplane/crossplane/internal/k8s"
 	"golang.org/x/exp/slices"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/printer"
+	"github.com/crossplane/crossplane/internal/k8s"
 )
 
 const (
@@ -45,7 +47,7 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	// Check if output format is valid
 	if !slices.Contains(allowedOutput, c.Output) {
 		logger.Debug("Invalid output set", "invalidOutput", c.Output)
-		return fmt.Errorf("Invalid ouput set: %s\nOutput has to be one of: %s", c.Output, allowedOutput)
+		return fmt.Errorf("Invalid output set: %s\nOutput has to be one of: %s", c.Output, allowedOutput)
 	}
 
 	// set kubeconfig
@@ -73,7 +75,7 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 			IsLast: true,
 		}
 	case "table":
-		p = &printer.CliPrinter{}
+		p = &printer.TablePrinter{}
 	case "graph":
 		p = &printer.GraphPrinter{}
 	}

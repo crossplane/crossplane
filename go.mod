@@ -9,9 +9,9 @@ require (
 	github.com/alecthomas/kong v0.8.1
 	github.com/bufbuild/buf v1.27.0
 	github.com/crossplane/crossplane-runtime v1.14.0-rc.0.0.20231010042232-a8f755740977
-	github.com/emicklei/dot v1.6.0
 	github.com/docker/docker v24.0.6+incompatible
 	github.com/docker/go-connections v0.4.0
+	github.com/emicklei/dot v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.16.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2

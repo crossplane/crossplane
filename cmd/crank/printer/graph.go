@@ -5,45 +5,50 @@ import (
 	"io"
 	"strings"
 
-	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
+
+	"github.com/crossplane/crossplane/internal/k8s"
 )
 
+// GraphPrinter defines the GraphPrinter configuration
 type GraphPrinter struct {
 }
 
 var _ Printer = &GraphPrinter{}
 
-// Set a new graph. Gets all the nodes and then return the graph as a dot format string.
+// Print gets all the nodes and then return the graph as a dot format string to the Writer.
 func (p *GraphPrinter) Print(w io.Writer, resource k8s.Resource, fields []string) error {
 
 	g := dot.NewGraph(dot.Undirected)
 	p.buildGraph(g, resource, fields)
 
-	dot_string := g.String()
-	if dot_string == "" {
-		return errors.New("Graph is empty.")
+	dotString := g.String()
+	if dotString == "" {
+		return errors.New("graph is empty")
 	}
 
-	w.Write([]byte(g.String()))
+	_, err := w.Write([]byte(g.String()))
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // Iteratre over resources and set ID and label(content) of each node
 func (p *GraphPrinter) buildGraph(g *dot.Graph, r k8s.Resource, fields []string) {
-	node := g.Node(resourceId(r))
+	node := g.Node(resourceID(r))
 	node.Label(resourceLabel(r, fields))
 	node.Attr("penwidth", "2")
 
 	for _, child := range r.Children {
 		p.buildGraph(g, *child, fields)
-		g.Edge(node, g.Node(resourceId(*child)))
+		g.Edge(node, g.Node(resourceID(*child)))
 	}
 }
 
 // Set individual resourceID for node
-func resourceId(r k8s.Resource) string {
+func resourceID(r k8s.Resource) string {
 	name := r.GetName()
 	if len(name) > 24 {
 		name = name[:12] + "..." + name[len(name)-12:]
@@ -68,7 +73,7 @@ func resourceLabel(r k8s.Resource, fields []string) string {
 			label[i] = field + ": " + r.GetNamespace()
 		}
 		if field == "apiversion" {
-			label[i] = field + ": " + r.GetApiVersion()
+			label[i] = field + ": " + r.GetAPIVersion()
 		}
 		if field == "synced" {
 			label[i] = field + ": " + r.GetConditionStatus("Synced")

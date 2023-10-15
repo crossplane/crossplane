@@ -8,6 +8,7 @@ import (
 	"github.com/crossplane/crossplane/internal/k8s"
 )
 
+// TreePrinter defines the TreePrinter configuration
 type TreePrinter struct {
 	Indent string
 	IsLast bool
@@ -15,14 +16,26 @@ type TreePrinter struct {
 
 var _ Printer = &TreePrinter{}
 
+// Print writes the output to a Writer. The output of print is a tree, e.g. as in the bash `tree` command
+//
+//nolint:gocyclo // This is a simple for loop with if-statements on how to populate fields.
 func (p *TreePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
-	io.WriteString(w, p.Indent)
+	_, err := io.WriteString(w, p.Indent)
+	if err != nil {
+		return err
+	}
 
 	if p.IsLast {
-		io.WriteString(w, "└─ ")
+		_, err := io.WriteString(w, "└─ ")
+		if err != nil {
+			return err
+		}
 		p.Indent += "  "
 	} else {
-		io.WriteString(w, "├─ ")
+		_, err := io.WriteString(w, "├─ ")
+		if err != nil {
+			return err
+		}
 		p.Indent += "│ "
 	}
 
@@ -38,7 +51,7 @@ func (p *TreePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error 
 			output[i] = fmt.Sprintf("Namespace: %s", r.GetNamespace())
 		}
 		if field == "apiversion" {
-			output[i] = fmt.Sprintf("ApiVersion: %s", r.GetApiVersion())
+			output[i] = fmt.Sprintf("ApiVersion: %s", r.GetAPIVersion())
 		}
 		if field == "synced" {
 			output[i] = fmt.Sprintf("Synced: %s", r.GetConditionStatus("Synced"))
@@ -53,14 +66,20 @@ func (p *TreePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error 
 			output[i] = fmt.Sprintf("Event: %s", r.GetEvent())
 		}
 	}
-	io.WriteString(w, strings.Join(output, ", ")+"\n")
+	_, err = io.WriteString(w, strings.Join(output, ", ")+"\n")
+	if err != nil {
+		return err
+	}
 
 	for i, child := range r.Children {
 		childPrinter := TreePrinter{
 			Indent: p.Indent,
 			IsLast: i == len(r.Children)-1,
 		}
-		childPrinter.Print(w, *child, fields)
+		err := childPrinter.Print(w, *child, fields)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

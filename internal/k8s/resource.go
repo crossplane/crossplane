@@ -1,3 +1,5 @@
+// Package k8s implements a Resource struct, that represents a Crossplane k8s resource (usually a claim or composite resource).
+// The package also contains helper methods and functions for the Resource struct.
 package k8s
 
 import (
@@ -21,6 +23,8 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
+// Client struct contains the following k8s client types:
+// dynamic, discovery, static and a restmapper
 type Client struct {
 	dclient   *dynamic.DynamicClient
 	clientset *kubernetes.Clientset
@@ -28,34 +32,35 @@ type Client struct {
 	dc        *discovery.DiscoveryClient
 }
 
+// Resource struct represents a Crossplane k8s resource.
 type Resource struct {
 	manifest           *unstructured.Unstructured
 	Children           []*Resource
 	latestEventMessage string
 }
 
-// Returns resource kind as string
+// GetKind returns resource kind as string
 func (r *Resource) GetKind() string {
 	return r.manifest.GetKind()
 }
 
-// Returns resource name as string
+// GetName returns resource name as string
 func (r *Resource) GetName() string {
 	return r.manifest.GetName()
 }
 
-// Returns resource namespace as string
+// GetNamespace returns resource namespace as string
 func (r *Resource) GetNamespace() string {
 	return r.manifest.GetNamespace()
 }
 
-// Returns resource apiversion as string
-func (r *Resource) GetApiVersion() string {
+// GetAPIVersion returns resource apiversion as string
+func (r *Resource) GetAPIVersion() string {
 	return r.manifest.GetAPIVersion()
 }
 
+// GetConditionStatus returns the Status of the map with the conditionType as string
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
-// Returns the Status of the map with the conditionType as string
 func (r *Resource) GetConditionStatus(conditionKey string) string {
 	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
@@ -79,7 +84,7 @@ func (r *Resource) GetConditionStatus(conditionKey string) string {
 	return ""
 }
 
-// Returns the message as string if set under `status.conditions` in the manifest. Else return empty string
+// GetConditionMessage returns the message as string if set under `status.conditions` in the manifest. Else return empty string
 func (r *Resource) GetConditionMessage() string {
 	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 
@@ -96,17 +101,17 @@ func (r *Resource) GetConditionMessage() string {
 	return ""
 }
 
-// Returns the latest event of the resource as string
+// GetEvent returns the latest event of the resource as string
 func (r *Resource) GetEvent() string {
 	return r.latestEventMessage
 }
 
-// Returns true if the Resource has children set.
+// HasChildren returns true if the Resource has children set.
 func (r *Resource) HasChildren() bool {
 	return len(r.Children) > 0
 }
 
-// The main function of resource. Returns a Resource and all its child resources.
+// GetResource returns a Resource and all its child resources. The main function of resource.
 func GetResource(resourceKind string, resourceName string, namespace string, kubeconfig *rest.Config) (*Resource, error) {
 	// Init new client
 	client, err := newClient(kubeconfig)
@@ -177,9 +182,15 @@ func (kc *Client) getChildren(r Resource) (Resource, error) {
 	// Check both singular and plural for spec.resourceRef(s)
 	if resourceRefMap, found, err := getStringMapFromNestedField(*r.manifest, "spec", "resourceRef"); found && err == nil {
 		r, err = kc.setChild(resourceRefMap, r)
+		if err != nil {
+			return r, err
+		}
 	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.manifest, "spec", "resourceRefs"); found && err == nil {
 		for _, resourceRefMap := range resourceRefs {
 			r, err = kc.setChild(resourceRefMap, r)
+			if err != nil {
+				return r, err
+			}
 		}
 	} else if err != nil {
 		return r, errors.Wrap(err, "Couldn't get children of resource")
@@ -197,7 +208,7 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	kind := resourceRefMap["kind"]
 	apiVersion := resourceRefMap["apiVersion"]
 
-	// Get manifest. Assumes children is in same namespace as claim if resouce is namespaced.
+	// Get manifest. Assumes children is in same namespace as claim if resource is namespaced.
 	// TODO: Not sure if namespace is set in namespaced resources in `spec.resourceRef(s)`
 	u, err := kc.getManifest(kind, name, apiVersion, r.GetNamespace())
 	if err != nil {
@@ -227,7 +238,7 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 // The isResourceNamespaced function returns true if the passed resource is namespaced, else false.
 // The functions works by getting all k8s API resources and then checking for the specific resourceKind and apiVersion passed.
 // If an empty apiVersion string is passed the function also works. In that case issues may occur in case some kind exists more then once.
-// E.g both Azure and AWS provide a "group" resouce. So the function is not able to identify for which resource kind the namespace is checked and chooses the first match.
+// E.g both Azure and AWS provide a "group" resource. So the function is not able to identify for which resource kind the namespace is checked and chooses the first match.
 func (kc *Client) isResourceNamespaced(resourceKind string, apiVersion string) (bool, error) {
 	// Retrieve the API resource list
 	apiResourceLists, err := kc.dc.ServerPreferredResources()
@@ -253,7 +264,7 @@ func (kc *Client) isResourceNamespaced(resourceKind string, apiVersion string) (
 	return false, errors.Wrap(err, "resource not found in API server")
 }
 
-// The event function returns the latest occuring event of a resource.
+// The event function returns the latest occurring event of a resource.
 func (kc *Client) event(resourceName string, resourceKind string, apiVersion string, namespace string) (string, error) {
 	// List events for the resource.
 	eventList, err := kc.clientset.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
