@@ -1761,7 +1761,7 @@ func TestSetCrdMetadata(t *testing.T) {
 		want   *extv1.CustomResourceDefinition
 	}{
 		"SetAnnotations": {
-			reason: "Should properly set CRD annotations only from XRD spec",
+			reason: "Should set CRD annotations only from XRD spec",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1792,7 +1792,7 @@ func TestSetCrdMetadata(t *testing.T) {
 			},
 		},
 		"SetLabelsFromXRDSpec": {
-			reason: "Should properly set CRD labels from XRD spec",
+			reason: "Should set CRD labels from XRD spec",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1822,7 +1822,7 @@ func TestSetCrdMetadata(t *testing.T) {
 			},
 		},
 		"AppendLabelsFromXRDSpec": {
-			reason: "Should properly set CRD labels by appending labels from the XRD spec to the ones of the XRD itself",
+			reason: "Should set CRD labels by appending labels from the XRD spec to the ones of the XRD itself",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1858,7 +1858,7 @@ func TestSetCrdMetadata(t *testing.T) {
 			},
 		},
 		"SetLabelsAndAnnotations": {
-			reason: "Should properly set CRD labels and annotations from XRD spec and XRD itself",
+			reason: "Should set CRD labels and annotations from XRD spec and XRD itself",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
