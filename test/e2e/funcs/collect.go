@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
@@ -52,7 +51,7 @@ type coordinate struct {
 //
 // Note: this is a pretty expensive operation only suited for e2e tests with
 // small clusters.
-func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) { //nolint:gocyclo // TODO(phisco): refactor
+func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
 	// Discover all resource types
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
@@ -105,18 +104,6 @@ func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.Disc
 						Name:       ref.Name,
 						Namespace:  ref.Namespace,
 					})
-				}
-
-				// if it's an Event check the involved object
-				if obj.GetKind() == "Event" {
-					paved, err := fieldpath.PaveObject(obj.DeepCopyObject())
-					if err == nil {
-						ref := &corev1.ObjectReference{}
-						err := paved.GetValueInto("involvedObject", ref)
-						if err == nil {
-							refs = append(refs, *ref)
-						}
-					}
 				}
 
 				for _, ref := range refs {
