@@ -433,7 +433,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// the provider revision. Delete will not return an error so we
 		// will remove finalizer and leave the image in the cache.
 		if err := r.cache.Delete(pr.GetName()); err != nil {
-			log.Debug(errDeleteCache, "error", err)
 			err = errors.Wrap(err, errDeleteCache)
 			r.record.Event(pr, event.Warning(reasonSync, err))
 			return reconcile.Result{}, err
@@ -442,7 +441,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// likely already removed self. If we skipped dependency
 		// resolution, we will not be present in the lock.
 		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
-			log.Debug(errRemoveLock, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -457,7 +455,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// We don't need to run the deactivate hook either since the owned
 		// Deployment or similar objects will be garbage collected as well.
 		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
-			log.Debug(errRemoveFinalizer, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -469,7 +466,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
-		log.Debug(errAddFinalizer, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -481,7 +477,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.deactivateRevision(ctx, pr); err != nil {
-			log.Debug(errDeactivateRevision, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -543,10 +538,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if err != nil {
 			// If package contents are in the cache, but we cannot access them,
 			// we clear them and try again.
-			if err := r.cache.Delete(id); err != nil {
-				log.Debug(errDeleteCache, "error", err)
-			}
-			log.Debug(errInitParserBackend, "error", err)
+			_ = r.cache.Delete(id)
 			err = errors.Wrap(err, errGetCache)
 			r.record.Event(pr, event.Warning(reasonParse, err))
 			return reconcile.Result{}, err
@@ -559,8 +551,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// packagePullPolicy is Never and contents are not in the cache so we return
 	// an error.
 	if rc == nil && pullPolicyNever {
-		log.Debug(errPullPolicyNever)
-
 		err := errors.New(errPullPolicyNever)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
@@ -575,8 +565,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Initialize parser backend to obtain package contents.
 		imgrc, err := r.backend.Init(ctx, PackageRevision(pr))
 		if err != nil {
-			log.Debug(errInitParserBackend, "error", err)
-
 			err = errors.Wrap(err, errInitParserBackend)
 			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 			_ = r.client.Status().Update(ctx, pr)
@@ -620,8 +608,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 	if err != nil {
-		log.Debug(errParsePackage, "error", err)
-
 		err = errors.Wrap(err, errParsePackage)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
@@ -632,8 +618,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Lint package using package-specific linter.
 	if err := r.linter.Lint(pkg); err != nil {
-		log.Debug(errLintPackage, "error", err)
-
 		err = errors.Wrap(err, errLintPackage)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
@@ -651,8 +635,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// if a consumer forgets to pass an option to guarantee one meta object,
 	// we check here to avoid a potential panic on 0 index below.
 	if len(pkg.GetMeta()) != 1 {
-		log.Debug(errNotOneMeta)
-
 		err = errors.New(errNotOneMeta)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
@@ -668,7 +650,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	meta.AddLabels(pr, pmo.GetLabels())
 	meta.AddAnnotations(pr, pmo.GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
-		log.Debug(errUpdateMeta, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -685,8 +666,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Check Crossplane constraints if they exist.
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
 		if err := xpkg.PackageCrossplaneCompatible(r.versioner)(pkgMeta); err != nil {
-			log.Debug(errIncompatible, "error", err)
-
 			err = errors.Wrap(err, errIncompatible)
 			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 
@@ -706,7 +685,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		found, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
 		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
 		if err != nil {
-			log.Debug(errResolveDeps, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -722,7 +700,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
-		log.Debug(errPreHook, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -739,7 +716,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Establish control or ownership of objects.
 	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
-		log.Debug(errEstablishControl, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -771,7 +747,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetObjects(refs)
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
-		log.Debug(errPostHook, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
