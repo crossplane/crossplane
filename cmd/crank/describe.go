@@ -53,17 +53,17 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 		return errors.Wrap(err, "Couldn't init kubeclient")
 	}
 
+	// Init new printer
+	p, err := graph.NewPrinter(c.Output)
+	if err != nil {
+		return errors.Wrap(err, "cannot init new printer")
+	}
+
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
 	root, err := client.GetResource(c.Kind, c.Name, c.Namespace)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)
-	}
-
-	// Init new printer
-	p, err := graph.NewPrinter(c.Output)
-	if err != nil {
-		return errors.Wrap(err, "cannot init new printer")
 	}
 
 	// Print resources
