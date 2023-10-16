@@ -1,25 +1,23 @@
-package printer
+package graph
 
 import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/crossplane/crossplane/internal/k8s"
 )
 
-// TreePrinter defines the TreePrinter configuration
-type TreePrinter struct {
+// Tree defines the Tree configuration
+type Tree struct {
 	Indent string
 	IsLast bool
 }
 
-var _ Printer = &TreePrinter{}
+var _ Printer = &Tree{}
 
 // Print writes the output to a Writer. The output of print is a tree, e.g. as in the bash `tree` command
 //
 //nolint:gocyclo // This is a simple for loop with if-statements on how to populate fields.
-func (p *TreePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
+func (p *Tree) Print(w io.Writer, r Resource, fields []string) error {
 	_, err := io.WriteString(w, p.Indent)
 	if err != nil {
 		return err
@@ -72,7 +70,7 @@ func (p *TreePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error 
 	}
 
 	for i, child := range r.Children {
-		childPrinter := TreePrinter{
+		childPrinter := Tree{
 			Indent: p.Indent,
 			IsLast: i == len(r.Children)-1,
 		}

@@ -1,4 +1,4 @@
-package printer
+package graph
 
 import (
 	"fmt"
@@ -7,18 +7,16 @@ import (
 
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
-
-	"github.com/crossplane/crossplane/internal/k8s"
 )
 
-// GraphPrinter defines the GraphPrinter configuration
-type GraphPrinter struct {
+// DotGraph defines the DotGraph configuration
+type DotGraph struct {
 }
 
-var _ Printer = &GraphPrinter{}
+var _ Printer = &DotGraph{}
 
 // Print gets all the nodes and then return the graph as a dot format string to the Writer.
-func (p *GraphPrinter) Print(w io.Writer, resource k8s.Resource, fields []string) error {
+func (p *DotGraph) Print(w io.Writer, resource Resource, fields []string) error {
 
 	g := dot.NewGraph(dot.Undirected)
 	p.buildGraph(g, resource, fields)
@@ -36,7 +34,7 @@ func (p *GraphPrinter) Print(w io.Writer, resource k8s.Resource, fields []string
 }
 
 // Iteratre over resources and set ID and label(content) of each node
-func (p *GraphPrinter) buildGraph(g *dot.Graph, r k8s.Resource, fields []string) {
+func (p *DotGraph) buildGraph(g *dot.Graph, r Resource, fields []string) {
 	node := g.Node(resourceID(r))
 	node.Label(resourceLabel(r, fields))
 	node.Attr("penwidth", "2")
@@ -48,7 +46,7 @@ func (p *GraphPrinter) buildGraph(g *dot.Graph, r k8s.Resource, fields []string)
 }
 
 // Set individual resourceID for node
-func resourceID(r k8s.Resource) string {
+func resourceID(r Resource) string {
 	name := r.GetName()
 	if len(name) > 24 {
 		name = name[:12] + "..." + name[len(name)-12:]
@@ -59,7 +57,7 @@ func resourceID(r k8s.Resource) string {
 
 // This functions sets the label (the actual content) of the nodes in a graph.
 // Fields are defined by the fields string.
-func resourceLabel(r k8s.Resource, fields []string) string {
+func resourceLabel(r Resource, fields []string) string {
 
 	var label = make([]string, len(fields))
 	for i, field := range fields {

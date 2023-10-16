@@ -9,9 +9,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-
-	"github.com/crossplane/crossplane/cmd/crank/printer"
-	"github.com/crossplane/crossplane/internal/k8s"
+	"github.com/crossplane/crossplane/cmd/crank/internal/graph"
 )
 
 const (
@@ -21,13 +19,14 @@ const (
 
 // describeCmd describes a Kubernetes Crossplane resource.
 type describeCmd struct {
-	Kind       string   `arg:"" required:"" help:"Kind of resource to describe."`
-	Name       string   `arg:"" required:"" help:"Name of specified resource to describe."`
-	Namespace  string   `short:"n" name:"namespace" help:"Namespace of resource to describe." default:"default"`
-	Output     string   `short:"o" name:"output" help:"Output type of graph. Possible output types: tree, table, graph." enum:"tree,table,graph" default:"tree"`
-	Fields     []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"kind,name"`
+	Kind      string   `arg:"" required:"" help:"Kind of resource to describe."`
+	Name      string   `arg:"" required:"" help:"Name of specified resource to describe."`
+	Namespace string   `short:"n" name:"namespace" help:"Namespace of resource to describe." default:"default"`
+	Output    string   `short:"o" name:"output" help:"Output type of graph. Possible output types: tree, table, graph." enum:"tree,table,graph" default:"tree"`
+	Fields    []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"kind,name"`
 }
 
+//nolint:gocyclo // FFew simple if statements to validate fields and to select output
 func (c *describeCmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("Kind", c.Kind, "Name", c.Name)
 
@@ -57,31 +56,31 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	logger.Debug("Found kubeconfig")
 
 	// Get client for k8s package
-	client, err := k8s.NewClient(kubeconfig)
+	client, err := graph.NewClient(kubeconfig)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't init kubeclient")
 	}
 
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
-	root, err := k8s.GetResource(c.Kind, c.Name, c.Namespace, client)
+	root, err := graph.GetResource(c.Kind, c.Name, c.Namespace, client)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)
 	}
 
 	// Configure printer
-	var p printer.Printer
+	var p graph.Printer
 
 	switch c.Output {
 	case "tree":
-		p = &printer.TreePrinter{
+		p = &graph.Tree{
 			Indent: "",
 			IsLast: true,
 		}
 	case "table":
-		p = &printer.TablePrinter{}
+		p = &graph.Table{}
 	case "graph":
-		p = &printer.GraphPrinter{}
+		p = &graph.DotGraph{}
 	}
 
 	// Print resources

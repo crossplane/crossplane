@@ -1,4 +1,4 @@
-package printer
+package graph
 
 import (
 	"bytes"
@@ -6,13 +6,12 @@ import (
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/internal/k8s"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestCliTree(t *testing.T) {
 	type args struct {
-		resource k8s.Resource
+		resource Resource
 		fields   []string
 	}
 
@@ -30,20 +29,20 @@ func TestCliTree(t *testing.T) {
 		"ResourceWithChildren": {
 			reason: "CLI tree should be able to print Resource struct containing children",
 			args: args{
-				resource: k8s.Resource{
-					Manifest:           DummyManifest("ObjectStorage", "test-resource", "True", "True"),
-					LatestEventMessage: "Successfully selected composition",
-					Children: []*k8s.Resource{
+				resource: Resource{
+					manifest:           DummyManifest("ObjectStorage", "test-resource", "True", "True"),
+					latestEventMessage: "Successfully selected composition",
+					Children: []*Resource{
 						{
-							Manifest: DummyManifest("XObjectStorage", "test-resource-hash", "True", "True"),
-							Children: []*k8s.Resource{
+							manifest: DummyManifest("XObjectStorage", "test-resource-hash", "True", "True"),
+							Children: []*Resource{
 								{
-									Manifest:           DummyManifest("Bucket", "test-resource-bucket-hash", "True", "True"),
-									LatestEventMessage: "Synced bucket",
+									manifest:           DummyManifest("Bucket", "test-resource-bucket-hash", "True", "True"),
+									latestEventMessage: "Synced bucket",
 								},
 								{
-									Manifest:           DummyManifest("User", "test-resource-user-hash", "True", "True"),
-									LatestEventMessage: "User ready",
+									manifest:           DummyManifest("User", "test-resource-user-hash", "True", "True"),
+									latestEventMessage: "User ready",
 								},
 							},
 						},
@@ -66,7 +65,7 @@ func TestCliTree(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			p := TreePrinter{
+			p := Tree{
 				Indent: "",
 				IsLast: true,
 			}
@@ -74,7 +73,7 @@ func TestCliTree(t *testing.T) {
 			err := p.Print(&buf, tc.args.resource, tc.args.fields)
 			got := buf.String()
 
-			//Check error
+			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
 			}

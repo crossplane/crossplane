@@ -1,6 +1,6 @@
-// Package k8s implements a Resource struct, that represents a Crossplane k8s resource (usually a claim or composite resource).
+// Package graph implements a Resource struct, that represents a Crossplane k8s resource (usually a claim or composite resource).
 // The package also contains helper methods and functions for the Resource struct.
-package k8s
+package graph
 
 import (
 	"context"
@@ -34,35 +34,35 @@ type Client struct {
 
 // Resource struct represents a Crossplane k8s resource.
 type Resource struct {
-	Manifest           *unstructured.Unstructured
+	manifest           *unstructured.Unstructured
 	Children           []*Resource
-	LatestEventMessage string
+	latestEventMessage string
 }
 
 // GetKind returns resource kind as string
 func (r *Resource) GetKind() string {
-	return r.Manifest.GetKind()
+	return r.manifest.GetKind()
 }
 
 // GetName returns resource name as string
 func (r *Resource) GetName() string {
-	return r.Manifest.GetName()
+	return r.manifest.GetName()
 }
 
 // GetNamespace returns resource namespace as string
 func (r *Resource) GetNamespace() string {
-	return r.Manifest.GetNamespace()
+	return r.manifest.GetNamespace()
 }
 
 // GetAPIVersion returns resource apiversion as string
 func (r *Resource) GetAPIVersion() string {
-	return r.Manifest.GetAPIVersion()
+	return r.manifest.GetAPIVersion()
 }
 
 // GetConditionStatus returns the Status of the map with the conditionType as string
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
 func (r *Resource) GetConditionStatus(conditionKey string) string {
-	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 	for _, condition := range conditions {
 		conditionMap, ok := condition.(map[string]interface{})
 		if !ok {
@@ -86,7 +86,7 @@ func (r *Resource) GetConditionStatus(conditionKey string) string {
 
 // GetConditionMessage returns the message as string if set under `status.conditions` in the manifest. Else return empty string
 func (r *Resource) GetConditionMessage() string {
-	conditions, _, _ := unstructured.NestedSlice(r.Manifest.Object, "status", "conditions")
+	conditions, _, _ := unstructured.NestedSlice(r.manifest.Object, "status", "conditions")
 
 	for _, item := range conditions {
 		if itemMap, ok := item.(map[string]interface{}); ok {
@@ -103,7 +103,7 @@ func (r *Resource) GetConditionMessage() string {
 
 // GetEvent returns the latest event of the resource as string
 func (r *Resource) GetEvent() string {
-	return r.LatestEventMessage
+	return r.latestEventMessage
 }
 
 // HasChildren returns true if the Resource has children set.
@@ -116,7 +116,7 @@ func GetResource(resourceKind string, resourceName string, namespace string, cli
 	// Get manifest for root resource
 	var err error
 	root := Resource{}
-	root.Manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
+	root.manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't get root resource manifest")
 	}
@@ -175,12 +175,12 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 // If resources are discovered they are added as getChildren to the passed r Resource.
 func (kc *Client) getChildren(r Resource) (Resource, error) {
 	// Check both singular and plural for spec.resourceRef(s)
-	if resourceRefMap, found, err := getStringMapFromNestedField(*r.Manifest, "spec", "resourceRef"); found && err == nil {
+	if resourceRefMap, found, err := getStringMapFromNestedField(*r.manifest, "spec", "resourceRef"); found && err == nil {
 		r, err = kc.setChild(resourceRefMap, r)
 		if err != nil {
 			return r, err
 		}
-	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.Manifest, "spec", "resourceRefs"); found && err == nil {
+	} else if resourceRefs, found, err := getSliceOfMapsFromNestedField(*r.manifest, "spec", "resourceRefs"); found && err == nil {
 		for _, resourceRefMap := range resourceRefs {
 			r, err = kc.setChild(resourceRefMap, r)
 			if err != nil {
@@ -217,8 +217,8 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 	}
 	// Set child
 	child := Resource{
-		Manifest:           u,
-		LatestEventMessage: event,
+		manifest:           u,
+		latestEventMessage: event,
 	}
 	// Get children of children
 	child, err = kc.getChildren(child)
@@ -279,7 +279,7 @@ func (kc *Client) event(resourceName string, resourceKind string, apiVersion str
 	return latestEvent.Message, nil
 }
 
-// The NewClient function initializes and returns a Client struct
+// NewClient function initializes and returns a Client struct
 func NewClient(kubeconfig *rest.Config) (*Client, error) {
 
 	// Use to get custom resources

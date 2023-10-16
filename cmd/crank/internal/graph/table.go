@@ -1,22 +1,20 @@
-package printer
+package graph
 
 import (
 	"bytes"
 	"io"
 
 	"github.com/olekukonko/tablewriter"
-
-	"github.com/crossplane/crossplane/internal/k8s"
 )
 
-// TablePrinter defines the TablePrinter configuration
-type TablePrinter struct {
+// Table defines the Table configuration
+type Table struct {
 }
 
-var _ Printer = &TablePrinter{}
+var _ Printer = &Table{}
 
 // Print writes a CLI table of the passed Resource to the Writer. The fields variable determines the header and values of the table.
-func (p *TablePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error {
+func (p *Table) Print(w io.Writer, r Resource, fields []string) error {
 	// Create a buffer to capture the table output
 	var buf bytes.Buffer
 
@@ -43,7 +41,7 @@ func (p *TablePrinter) Print(w io.Writer, r k8s.Resource, fields []string) error
 // CliTableAddResource adds rows to the passed table in the order and as specified in the fields variable
 //
 //nolint:gocyclo // This is a simple for loop with if-statements on how to populate fields.
-func cliTableAddResource(table *tablewriter.Table, fields []string, r k8s.Resource, parentKind string) error {
+func cliTableAddResource(table *tablewriter.Table, fields []string, r Resource, parentKind string) error {
 	var tableRow = make([]string, len(fields))
 
 	// Using this for loop and if statement approach ensures keeping the same output order as the fields argument defined
