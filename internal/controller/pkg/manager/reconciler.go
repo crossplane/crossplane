@@ -317,7 +317,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(p) {
 		if len(prs.GetRevisions()) > 0 {
 			for _, pr := range prs.GetRevisions() {
-				if pr.GetDesiredState() == v1.PackageRevisionActive {
+				if pr.GetDesiredState() != v1.PackageRevisionActive {
+					continue
+				}
 					for _, ref := range pr.GetObjects() {
 						if ref.Kind == "CustomResourceDefinition" {
 							crd := apiextensionsv1.CustomResourceDefinition{
