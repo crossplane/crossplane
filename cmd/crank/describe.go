@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	errGetResource = "Couldn't get requested resource."
-	errCliOutput   = "Error printing CLI table."
-	errGraphOutput = "Error generating graph PNG."
+	errGetResource = "cannot get requested resource"
+	errCliOutput   = "cannot print output"
 )
 
 // describeCmd describes a Kubernetes Crossplane resource.
