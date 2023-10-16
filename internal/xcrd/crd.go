@@ -24,6 +24,7 @@ package xcrd
 
 import (
 	"encoding/json"
+	"fmt"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,7 +118,13 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource Claim", xrd.Name)
 		}
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...)
-		for k, v := range CompositeResourceClaimSpecProps() {
+		props := CompositeResourceClaimSpecProps()
+		if xrd.Spec.DefaultCompositeDeletePolicy != nil {
+			cdp := props["compositeDeletePolicy"]
+			cdp.Default = &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *xrd.Spec.DefaultCompositeDeletePolicy))}
+			props["compositeDeletePolicy"] = cdp
+		}
+		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
 		crd.Spec.Versions[i] = *crdv

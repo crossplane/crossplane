@@ -218,7 +218,6 @@ type crClaim struct {
 	Binder
 	Configurator
 	ConnectionUnpublisher
-	DefaultsSelector
 }
 
 func defaultCRClaim(c client.Client) crClaim {
@@ -278,14 +277,6 @@ func WithConnectionUnpublisher(u ConnectionUnpublisher) ReconcilerOption {
 func WithBinder(b Binder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.claim.Binder = b
-	}
-}
-
-// WithDefaultsSelector specifies which DefaultsSelector should be used
-// to copy defaults from the CompositeResourceDefinition to the claim
-func WithDefaultsSelector(d DefaultsSelector) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.claim.DefaultsSelector = d
 	}
 }
 
@@ -484,14 +475,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-	}
-
-	if err := r.claim.SelectDefaults(ctx, cm); err != nil {
-		log.Debug(errSelectDefaults, "error", err)
-		err = errors.Wrap(err, errSelectDefaults)
-		record.Event(cm, event.Warning(reasonClaimSelectDefaults, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
