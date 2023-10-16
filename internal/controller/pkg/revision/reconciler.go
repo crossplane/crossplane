@@ -165,8 +165,10 @@ func WithDependencyManager(m DependencyManager) ReconcilerOption {
 	}
 }
 
-// WithRuntimeHooks specifies how the Reconciler should perform pre and post
-// object establishment operations.
+// WithRuntimeHooks specifies how the Reconciler should perform preparations
+// (pre- and post-establishment) and cleanup (deactivate) for package runtime.
+// The hooks are only used when the package has a runtime and the runtime is
+// configured as Deployment.
 func WithRuntimeHooks(h RuntimeHooks) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.runtimeHook = h

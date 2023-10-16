@@ -61,11 +61,11 @@ type RuntimeConfigReference struct {
 	// API version of the referent.
 	// +optional
 	// +kubebuilder:default="pkg.crossplane.io/v1beta1"
-	APIVersion string `json:"apiVersion,omitempty"`
+	APIVersion *string `json:"apiVersion,omitempty"`
 	// Kind of the referent.
 	// +optional
 	// +kubebuilder:default="DeploymentRuntimeConfig"
-	Kind string `json:"kind,omitempty"`
+	Kind *string `json:"kind,omitempty"`
 	// Name of the RuntimeConfig.
 	Name string `json:"name"`
 }

@@ -65,7 +65,7 @@ func NewFunctionHooks(client client.Client) *FunctionHooks {
 }
 
 // Pre performs operations meant to happen before establishing objects.
-func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
@@ -73,7 +73,15 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	}
 
 	// Ensure Prerequisites
-	svc := manifests.Service(functionServiceOverrides()...)
+	// Note(turkenh): We need certificates have generated when we get to the
+	// establish step, i.e. we want to inject the CA to CRDs (webhook caBundle).
+	// Therefore, we need to generate the certificates pre establish and
+	// generating certificates requires the service to be defined. This is why
+	// we're creating the service here but service account and deployment in the
+	// post establish.
+	// As a rule of thumb, we create objects named after the package in the
+	// pre hook and objects named after the package revision in the post hook.
+	svc := build.Service(functionServiceOverrides()...)
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
@@ -82,7 +90,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	fRev := pr.(*v1beta1.FunctionRevision)
 	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
 
-	secServer := manifests.TLSServerSecret()
+	secServer := build.TLSServerSecret()
 	if err := h.client.Apply(ctx, secServer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
@@ -97,7 +105,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
 	functionMeta, ok := po.(*pkgmetav1beta1.Function)
 	if !ok {
@@ -107,12 +115,12 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return nil
 	}
 
-	sa := manifests.ServiceAccount()
+	sa := build.ServiceAccount()
 	if err := h.client.Apply(ctx, sa); err != nil {
 		return errors.Wrap(err, errApplyFunctionSA)
 	}
 
-	d := manifests.Deployment(sa.Name, functionDeploymentOverrides(functionMeta, pr)...)
+	d := build.Deployment(sa.Name, functionDeploymentOverrides(functionMeta, pr)...)
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
@@ -129,8 +137,8 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
-	sa := manifests.ServiceAccount()
+func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+	sa := build.ServiceAccount()
 	// Delete the service account if it exists.
 	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteFunctionSA)
@@ -140,7 +148,7 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "functionDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
-	if err := h.client.Delete(ctx, manifests.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
+	if err := h.client.Delete(ctx, build.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 

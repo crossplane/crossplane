@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	errCreateDefaultRuntimeConfig = "cannot create default runtime config"
+	errCreateDefaultRuntimeConfig = "cannot create DeploymentRuntimeConfig \"default\""
 )
 
 // DefaultDeploymentRuntimeConfig creates a "default" DeploymentRuntimeConfig

@@ -68,8 +68,6 @@ const (
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
 
-	errUnexpectedPackageRevision = "unexpected package revision, expected a revision with runtime"
-
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
 
@@ -399,20 +397,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetCommonLabels(p.GetCommonLabels())
 
 	if pwr, ok := p.(v1.PackageWithRuntime); ok {
-		pwrr, ok := pr.(v1.PackageRevisionWithRuntime)
-		if !ok {
-			log.Debug(errUnexpectedPackageRevision)
-			err = errors.New(errUnexpectedPackageRevision)
-			r.record.Event(p, event.Warning(reasonInstall, err))
-			return reconcile.Result{}, err
-		}
+		pwrr := pr.(v1.PackageRevisionWithRuntime)
 		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
 		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
 		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
 		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}
 
-	// If current revision is not active and we have an automatic or
+	// If current revision is not active, and we have an automatic or
 	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
 		pr.SetDesiredState(v1.PackageRevisionActive)

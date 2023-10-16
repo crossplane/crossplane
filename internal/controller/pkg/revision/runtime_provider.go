@@ -66,7 +66,7 @@ func NewProviderHooks(client client.Client) *ProviderHooks {
 }
 
 // Pre performs operations meant to happen before establishing objects.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -87,13 +87,21 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	}
 
 	// Ensure Prerequisites
-	svc := manifests.Service()
+	// Note(turkenh): We need certificates have generated when we get to the
+	// establish step, i.e. we want to inject the CA to CRDs (webhook caBundle).
+	// Therefore, we need to generate the certificates pre establish and
+	// generating certificates requires the service to be defined. This is why
+	// we're creating the service here but service account and deployment in the
+	// post establish.
+	// As a rule of thumb, we create objects named after the package in the
+	// pre hook and objects named after the package revision in the post hook.
+	svc := build.Service()
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
 
-	secClient := manifests.TLSClientSecret()
-	secServer := manifests.TLSServerSecret()
+	secClient := build.TLSClientSecret()
+	secServer := build.TLSServerSecret()
 
 	if secClient == nil || secServer == nil {
 		// We should wait for the provider revision reconciler to set the secret
@@ -119,7 +127,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error { //nolint:gocyclo // this is just slightly over our limit, i.e. 11 > 10.
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error { //nolint:gocyclo // this is just slightly over our limit, i.e. 11 > 10.
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -129,12 +137,12 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return nil
 	}
 
-	sa := manifests.ServiceAccount()
+	sa := build.ServiceAccount()
 	if err := h.client.Apply(ctx, sa); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
 
-	d := manifests.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
+	d := build.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
 	if err := h.client.Apply(ctx, d); err != nil {
 		// Note(turkenh): Previously, we were using the provider "meta" name in
 		// the selector of the deployment. However, we changed the selector to
@@ -166,8 +174,8 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, manifests ManifestBuilder) error {
-	sa := manifests.ServiceAccount()
+func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+	sa := build.ServiceAccount()
 	// Delete the service account if it exists.
 	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderSA)
@@ -177,13 +185,13 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "providerDeploymentOverrides()" here, because we're only interested
 	// in the name and namespace of the deployment to delete it.
-	if err := h.client.Delete(ctx, manifests.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
+	if err := h.client.Delete(ctx, build.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
 
 	// TODO(phisco): only added to cleanup the service we were previously
 	// 	deploying for each provider revision, remove in a future release.
-	svc := manifests.Service(ServiceWithName(pr.GetName()))
+	svc := build.Service(ServiceWithName(pr.GetName()))
 	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderService)
 	}

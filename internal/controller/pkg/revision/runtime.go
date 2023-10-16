@@ -113,7 +113,7 @@ type RuntimeManifestBuilder struct {
 }
 
 // NewRuntimeManifestBuilder returns a new RuntimeManifestBuilder.
-func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namespace string, serviceAccount string, pwr v1.PackageRevisionWithRuntime) (*RuntimeManifestBuilder, error) {
+func NewRuntimeManifestBuilder(ctx context.Context, c client.Client, namespace, serviceAccount string, pwr v1.PackageRevisionWithRuntime) (*RuntimeManifestBuilder, error) {
 	b := &RuntimeManifestBuilder{
 		namespace: namespace,
 		revision:  pwr,
@@ -125,14 +125,14 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 	}
 
 	rc := &v1beta1.DeploymentRuntimeConfig{}
-	if err := client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
-		return nil, errors.Wrap(err, errGetControllerConfig)
+	if err := c.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
+		return nil, errors.Wrap(err, errGetRuntimeConfig)
 	}
 	b.runtimeConfig = *rc
 
 	if ccRef := pwr.GetControllerConfigRef(); ccRef != nil {
 		cc := &v1alpha1.ControllerConfig{}
-		if err := client.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
+		if err := c.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
 			return nil, errors.Wrap(err, errGetControllerConfig)
 		}
 		b.controllerConfig = cc
@@ -142,7 +142,7 @@ func NewRuntimeManifestBuilder(ctx context.Context, client client.Client, namesp
 	// Fetch XP ServiceAccount to get the ImagePullSecrets defined there.
 	// We will append them to the list of ImagePullSecrets for the runtime
 	// ServiceAccount.
-	if err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: serviceAccount}, sa); err != nil {
+	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: serviceAccount}, sa); err != nil {
 		return nil, errors.Wrap(err, errGetServiceAccount)
 	}
 	b.serviceAccountPullSecrets = sa.ImagePullSecrets
