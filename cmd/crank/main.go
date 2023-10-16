@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/alecthomas/kong"
-	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -60,10 +59,8 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
 	Install installCmd `cmd:"" help:"Install Crossplane packages."`
 	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
-	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
@@ -79,19 +76,12 @@ var cli struct {
 }
 
 func main() {
-	buildChild := &buildChild{
-		fs: afero.NewOsFs(),
-	}
-	pushChild := &pushChild{
-		fs: afero.NewOsFs(),
-	}
 	logger := logging.NewNopLogger()
 	ctx := kong.Parse(&cli,
 		kong.Name("crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands
 		// at runtime.
-		kong.Bind(buildChild, pushChild),
 		kong.BindTo(logger, (*logging.Logger)(nil)),
 		kong.ConfigureHelp(kong.HelpOptions{
 			Tree:      true,

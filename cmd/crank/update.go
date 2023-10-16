@@ -28,11 +28,6 @@ type updateCmd struct {
 	Provider      updateProviderCmd `cmd:"" help:"Update a Provider package."`
 }
 
-// Run runs the update cmd.
-func (c *updateCmd) Run(_ *buildChild) error {
-	return nil
-}
-
 // updateConfigCmd updates a Configuration.
 type updateConfigCmd struct {
 	Name string `arg:"" help:"Name of Configuration."`
