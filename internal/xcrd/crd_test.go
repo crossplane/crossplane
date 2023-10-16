@@ -901,7 +901,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 		want   *extv1.CustomResourceDefinition
 	}{
 		"CompositeDeletionPolicyUnspecified": {
-			reason: "if default composite deletion unspecified on XRD, set no default value on claim's spec.compositeDeletionPolicy",
+			reason: "If default composite deletion unspecified on XRD, set no default value on claim's spec.compositeDeletionPolicy",
 			crd: &v1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        name,
@@ -1177,7 +1177,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 			},
 		},
 		"CompositeDeletionPolicySetToDefault": {
-			reason: "propagate default composite deletion set on XRD as the default value on claim's spec.compositeDeletionPolicy",
+			reason: "Propagate default composite deletion set on XRD as the default value on claim's spec.compositeDeletionPolicy",
 			crd: &v1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        name,
