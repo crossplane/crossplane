@@ -37,7 +37,8 @@ const (
 	namespace = "crossplane-system"
 
 	providerImage        = "crossplane/provider-foo:v1.2.3"
-	providerName         = "provider-foo"
+	providerName         = "upbound-provider-foo"
+	providerMetaName     = "provider-foo"
 	providerRevisionName = "provider-foo-1234"
 
 	functionImage        = "crossplane/function-foo:v1.2.3"
@@ -115,10 +116,13 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					namespace: namespace,
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
 			},
 			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage),
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/revision": providerRevisionName,
+				})),
 			},
 		},
 		"ProviderDeploymentWithImageOverride": {
@@ -130,6 +134,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				},
 				serviceAccountName: providerRevisionName,
 				overrides: providerDeploymentOverrides(&pkgmetav1.Provider{
+					ObjectMeta: metav1.ObjectMeta{Name: providerMetaName},
 					Spec: pkgmetav1.ProviderSpec{
 						Controller: pkgmetav1.ControllerSpec{
 							Image: pointer.String("crossplane/provider-foo-controller:v1.2.3"),
@@ -138,7 +143,10 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				}, providerRevision),
 			},
 			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, "crossplane/provider-foo-controller:v1.2.3"),
+				want: deploymentProvider(providerName, providerRevisionName, "crossplane/provider-foo-controller:v1.2.3", DeploymentWithSelectors(map[string]string{
+					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/revision": providerRevisionName,
+				})),
 			},
 		},
 		"ProviderDeploymentWithControllerConfig": {
@@ -168,10 +176,13 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
 			},
 			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage, func(deployment *appsv1.Deployment) {
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/revision": providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Replicas = pointer.Int32(3)
 					deployment.Spec.Template.Labels["k"] = "v"
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
@@ -220,10 +231,13 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
 			},
 			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage, func(deployment *appsv1.Deployment) {
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/revision": providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Replicas = pointer.Int32(3)
 					deployment.Spec.Template.Labels["k"] = "v"
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
@@ -295,10 +309,13 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
 			},
 			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage, func(deployment *appsv1.Deployment) {
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/revision": providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
 					deployment.Name = "my-provider-foo"
 					deployment.Labels = map[string]string{
 						"x": "y",

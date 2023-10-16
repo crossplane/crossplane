@@ -19,11 +19,9 @@ package revision
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -95,7 +93,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	// post establish.
 	// As a rule of thumb, we create objects named after the package in the
 	// pre hook and objects named after the package revision in the post hook.
-	svc := build.Service()
+	svc := build.Service(ServiceWithSelectors(providerSelectors(providerMeta, pr)))
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
@@ -127,7 +125,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error { //nolint:gocyclo // this is just slightly over our limit, i.e. 11 > 10.
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	providerMeta, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -144,21 +142,6 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 
 	d := build.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
 	if err := h.client.Apply(ctx, d); err != nil {
-		// Note(turkenh): Previously, we were using the provider "meta" name in
-		// the selector of the deployment. However, we changed the selector to
-		// use the package name, derived from "v1.LabelParentPackage" instead.
-		// "meta" name and "v1.LabelParentPackage" differs when the package is
-		// installed with a different name, e.g. "upbound-provider-aws-family"
-		// whereas meta name is "provider-aws-family".
-		// Below is a migration since deployment selectors are immutable and
-		// we cannot change it in-place.
-		// TODO(turkenh): Remove this migration in a future release, i.e. > v1.17 (v1.14  + 3 supported release ).
-		if kerrors.IsInvalid(err) && strings.Contains(strings.ToLower(err.Error()), "field is immutable") {
-			if err = h.client.Delete(ctx, d); err != nil {
-				return errors.Wrap(err, errDeleteProviderDeployment)
-			}
-			return errors.New("provider deployment was immutable, deleted and needs to be recreated")
-		}
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 
@@ -217,6 +200,16 @@ func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.Package
 				},
 			},
 		}),
+
+		// Note(turkenh): By default, in manifest builder, we're setting the
+		// provider name in the selector using the package name, derived from
+		// "v1.LabelParentPackage". However, we used to set the provider name in
+		// the selector using the provider "meta" name. Since we cannot change
+		// the selector in-place, this would require a migration. We're keeping
+		// the old selector for backward compatibility with existing providers
+		// and plan to remove this after implementing a migration in a future
+		// release.
+		DeploymentWithSelectors(providerSelectors(providerMeta, pr)),
 	}
 
 	image := pr.GetSource()
@@ -255,4 +248,11 @@ func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.Package
 	}
 
 	return do
+}
+
+func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) map[string]string {
+	return map[string]string{
+		"pkg.crossplane.io/revision": pr.GetName(),
+		"pkg.crossplane.io/provider": providerMeta.GetName(),
+	}
 }
