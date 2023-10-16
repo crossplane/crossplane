@@ -69,11 +69,6 @@ type installCmd struct {
 	Provider      installProviderCmd `cmd:"" help:"Install a Provider package."`
 }
 
-// Run runs the install cmd.
-func (c *installCmd) Run(_ *buildChild) error {
-	return nil
-}
-
 // installConfigCmd installs a Configuration.
 type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
