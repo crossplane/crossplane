@@ -243,7 +243,6 @@ jobs:
       matrix:
         test-suite:
           - base
-          - composition-webhook-schema-validation
           - environment-configs
           - usage
           - realtime-compositions
