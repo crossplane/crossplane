@@ -2,6 +2,7 @@ package render
 
 import (
 	"context"
+	"encoding/json"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -44,6 +45,7 @@ type Inputs struct {
 	Composition       *apiextensionsv1.Composition
 	Functions         []pkgv1beta1.Function
 	ObservedResources []composed.Unstructured
+	Context           map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
 	// details. Maybe as Secrets? What if secret stores are in use?
@@ -111,11 +113,27 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 
 	results := make([]unstructured.Unstructured, 0)
 
+	// The Function context starts empty.
+	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
+
+	// Load user-supplied context.
+	for k, data := range in.Context {
+		var jv any
+		if err := json.Unmarshal(data, &jv); err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot unmarshal JSON value for context key %q", k)
+		}
+		v, err := structpb.NewValue(jv)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot store JSON value for context key %q", k)
+		}
+		fctx.Fields[k] = v
+	}
+
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
 	// results.
 	for _, fn := range in.Composition.Spec.Pipeline {
-		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d}
+		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -135,7 +153,12 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 			return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
 		}
 
+		// Pass the desired state returned by this Function to the next one.
 		d = rsp.GetDesired()
+
+		// Pass the Function context returned by this Function to the next one.
+		// We intentionally discard/ignore this after the last Function runs.
+		fctx = rsp.GetContext()
 
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.Results {

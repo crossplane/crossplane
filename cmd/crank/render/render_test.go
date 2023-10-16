@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -44,6 +45,39 @@ func TestRender(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"InvalidContextValue": {
+			args: args{
+				in: Inputs{
+					CompositeResource: composite.New(),
+					Context: map[string][]byte{
+						"not-valid-json": []byte(`{`),
+					},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"InvalidInput": {
+			args: args{
+				in: Inputs{
+					CompositeResource: composite.New(),
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									// Not valid JSON.
+									Input: &runtime.RawExtension{Raw: []byte(`{`)},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
 		"UnknownRuntime": {
 			args: args{
 				in: Inputs{
@@ -127,7 +161,6 @@ func TestRender(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
-
 		"Success": {
 			args: args{
 				ctx: context.Background(),
@@ -191,6 +224,9 @@ func TestRender(t *testing.T) {
 								},
 							}
 						}(),
+					},
+					Context: map[string][]byte{
+						"crossplane.io/context-key": []byte(`{}`),
 					},
 				},
 			},

@@ -18,11 +18,16 @@ spec:
     type: {{ .Values.deploymentStrategy }}
   template:
     metadata:
-      {{- if .Values.metrics.enabled }}
+      {{- if or .Values.metrics.enabled .Values.customAnnotations }}
       annotations:
+      {{- end }}
+      {{- if .Values.metrics.enabled }}
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
+      {{- end }}
+      {{- with .Values.customAnnotations }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
         app: {{ template "crossplane.name" . }}-rbac-manager
