@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"bytes"
 	"io"
 
 	"github.com/olekukonko/tablewriter"
@@ -16,10 +15,7 @@ var _ Printer = &Table{}
 // Print writes a CLI table of the passed Resource to the Writer. The fields variable determines the header and values of the table.
 func (p *Table) Print(w io.Writer, r Resource, fields []string) error {
 	// Create a buffer to capture the table output
-	var buf bytes.Buffer
-
-	// Create a new table and set header, but write to the buffer
-	table := tablewriter.NewWriter(&buf)
+	table := tablewriter.NewWriter(w)
 	table.SetHeader(fields)
 
 	// add all children to the table
@@ -28,12 +24,6 @@ func (p *Table) Print(w io.Writer, r Resource, fields []string) error {
 	}
 
 	table.Render()
-
-	// Write the table content from the buffer to the provided io.Writer
-	_, err := io.Copy(w, &buf)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -54,16 +44,16 @@ func cliTableAddResource(table *tablewriter.Table, fields []string, r Resource, 
 			tableRow[i] = parentPrefix
 		}
 		if field == "name" {
-			tableRow[i] = r.GetName()
+			tableRow[i] = r.manifest.GetName()
 		}
 		if field == "kind" {
-			tableRow[i] = r.GetKind()
+			tableRow[i] = r.manifest.GetKind()
 		}
 		if field == "namespace" {
-			tableRow[i] = r.GetNamespace()
+			tableRow[i] = r.manifest.GetNamespace()
 		}
 		if field == "apiversion" {
-			tableRow[i] = r.GetAPIVersion()
+			tableRow[i] = r.manifest.GetAPIVersion()
 		}
 		if field == "synced" {
 			tableRow[i] = r.GetConditionStatus("Synced")
@@ -84,7 +74,7 @@ func cliTableAddResource(table *tablewriter.Table, fields []string, r Resource, 
 
 	// Recursively print children with the updated parent information.
 	for _, child := range r.Children {
-		err := cliTableAddResource(table, fields, *child, r.GetKind())
+		err := cliTableAddResource(table, fields, *child, r.manifest.GetKind())
 		if err != nil {
 			return err
 		}

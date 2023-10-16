@@ -39,26 +39,6 @@ type Resource struct {
 	latestEventMessage string
 }
 
-// GetKind returns resource kind as string
-func (r *Resource) GetKind() string {
-	return r.manifest.GetKind()
-}
-
-// GetName returns resource name as string
-func (r *Resource) GetName() string {
-	return r.manifest.GetName()
-}
-
-// GetNamespace returns resource namespace as string
-func (r *Resource) GetNamespace() string {
-	return r.manifest.GetNamespace()
-}
-
-// GetAPIVersion returns resource apiversion as string
-func (r *Resource) GetAPIVersion() string {
-	return r.manifest.GetAPIVersion()
-}
-
 // GetConditionStatus returns the Status of the map with the conditionType as string
 // This function takes a certain conditionType as input e.g. "Ready" or "Synced"
 func (r *Resource) GetConditionStatus(conditionKey string) string {
@@ -205,13 +185,13 @@ func (kc *Client) setChild(resourceRefMap map[string]string, r Resource) (Resour
 
 	// Get manifest. Assumes children is in same namespace as claim if resource is namespaced.
 	// TODO: Not sure if namespace is set in namespaced resources in `spec.resourceRef(s)`
-	u, err := kc.getManifest(kind, name, apiVersion, r.GetNamespace())
+	u, err := kc.getManifest(kind, name, apiVersion, r.manifest.GetNamespace())
 	if err != nil {
 		return r, errors.Wrap(err, "Couldn't get manifest of children")
 	}
 
 	// Get event
-	event, err := kc.event(name, kind, apiVersion, r.GetNamespace())
+	event, err := kc.getLatestEventMessage(name, kind, apiVersion, r.manifest.GetNamespace())
 	if err != nil {
 		return r, errors.Wrap(err, "Couldn't get event for resource")
 	}
@@ -259,8 +239,8 @@ func (kc *Client) isResourceNamespaced(resourceKind string, apiVersion string) (
 	return false, errors.Wrap(err, "resource not found in API server")
 }
 
-// The event function returns the latest occurring event of a resource.
-func (kc *Client) event(resourceName string, resourceKind string, apiVersion string, namespace string) (string, error) {
+// The getLatestEventMessage function returns the latest occurring getLatestEventMessage of a resource.
+func (kc *Client) getLatestEventMessage(resourceName string, resourceKind string, apiVersion string, namespace string) (string, error) {
 	// List events for the resource.
 	eventList, err := kc.clientset.CoreV1().Events(namespace).List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=%s,involvedObject.apiVersion=%s", resourceName, resourceKind, apiVersion),

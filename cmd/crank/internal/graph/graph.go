@@ -26,10 +26,8 @@ func (p *DotGraph) Print(w io.Writer, resource Resource, fields []string) error 
 		return errors.New("graph is empty")
 	}
 
-	_, err := w.Write([]byte(g.String()))
-	if err != nil {
-		return err
-	}
+	g.Write(w)
+
 	return nil
 }
 
@@ -47,11 +45,11 @@ func (p *DotGraph) buildGraph(g *dot.Graph, r Resource, fields []string) {
 
 // Set individual resourceID for node
 func resourceID(r Resource) string {
-	name := r.GetName()
+	name := r.manifest.GetName()
 	if len(name) > 24 {
 		name = name[:12] + "..." + name[len(name)-12:]
 	}
-	kind := r.GetKind()
+	kind := r.manifest.GetKind()
 	return fmt.Sprintf("%s-%s", kind, name)
 }
 
@@ -62,16 +60,16 @@ func resourceLabel(r Resource, fields []string) string {
 	var label = make([]string, len(fields))
 	for i, field := range fields {
 		if field == "name" {
-			label[i] = field + ": " + r.GetName()
+			label[i] = field + ": " + r.manifest.GetName()
 		}
 		if field == "kind" {
-			label[i] = field + ": " + r.GetKind()
+			label[i] = field + ": " + r.manifest.GetKind()
 		}
 		if field == "namespace" {
-			label[i] = field + ": " + r.GetNamespace()
+			label[i] = field + ": " + r.manifest.GetNamespace()
 		}
 		if field == "apiversion" {
-			label[i] = field + ": " + r.GetAPIVersion()
+			label[i] = field + ": " + r.manifest.GetAPIVersion()
 		}
 		if field == "synced" {
 			label[i] = field + ": " + r.GetConditionStatus("Synced")
