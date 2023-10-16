@@ -1755,13 +1755,13 @@ func TestSetCrdMetadata(t *testing.T) {
 		crd *extv1.CustomResourceDefinition
 		xrd *v1.CompositeResourceDefinition
 	}
-	tests := []struct {
-		name string
-		args args
-		want *extv1.CustomResourceDefinition
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   *extv1.CustomResourceDefinition
 	}{
-		{
-			name: "set crd annotations",
+		"SetAnnotations": {
+			reason: "Should properly set CRD annotations only from XRD spec",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1791,8 +1791,8 @@ func TestSetCrdMetadata(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "set crd labels",
+		"SetLabelsFromXRDSpec": {
+			reason: "Should properly set CRD labels from XRD spec",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1821,8 +1821,8 @@ func TestSetCrdMetadata(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "append labels",
+		"AppendLabelsFromXRDSpec": {
+			reason: "Should properly set CRD labels by appending labels from the XRD spec to the ones of the XRD itself",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1857,8 +1857,8 @@ func TestSetCrdMetadata(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "labels and annotations",
+		"SetLabelsAndAnnotations": {
+			reason: "Should properly set CRD labels and annotations from XRD spec and XRD itself",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1905,8 +1905,8 @@ func TestSetCrdMetadata(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "no labels and no annotations",
+		"NoLabelsAndAnnotations": {
+			reason: "Should do nothing if no annotations or labels are set in XRD spec or XRD itself",
 			args: args{
 				crd: &extv1.CustomResourceDefinition{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1926,11 +1926,11 @@ func TestSetCrdMetadata(t *testing.T) {
 			},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			got := setCrdMetadata(tt.args.crd, tt.args.xrd)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("setCrdMetadata(...): -want, +got:\n%s", diff)
+				t.Errorf("\n%s\nsetCrdMetadata(...): -want, +got:\n%s", tt.reason, diff)
 			}
 		})
 	}
