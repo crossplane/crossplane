@@ -26,25 +26,17 @@ type describeCmd struct {
 	Fields    []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"kind,name"`
 }
 
-//nolint:gocyclo // FFew simple if statements to validate fields and to select output
 func (c *describeCmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("Kind", c.Kind, "Name", c.Name)
 
-	allowedFields := []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"}
-	allowedOutput := []string{"tree", "table", "graph"}
+	AllowedFields := []string{"parent", "name", "kind", "namespace", "apiversion", "synced", "ready", "message", "event"}
 
 	// Check if fields are valid
 	for _, field := range c.Fields {
-		if !slices.Contains(allowedFields, field) {
+		if !slices.Contains(AllowedFields, field) {
 			logger.Debug("Invalid field set", "invalidField", field)
-			return fmt.Errorf("Invalid field set: %s\nField has to be one of: %s", field, allowedFields)
+			return fmt.Errorf("Invalid field set: %s\nField has to be one of: %s", field, AllowedFields)
 		}
-	}
-
-	// Check if output format is valid
-	if !slices.Contains(allowedOutput, c.Output) {
-		logger.Debug("Invalid output set", "invalidOutput", c.Output)
-		return fmt.Errorf("Invalid output set: %s\nOutput has to be one of: %s", c.Output, allowedOutput)
 	}
 
 	// set kubeconfig
@@ -62,25 +54,16 @@ func (c *describeCmd) Run(logger logging.Logger) error {
 	}
 
 	// Get Resource object. Contains k8s resource and all its children, also as Resource.
-	root, err := graph.GetResource(c.Kind, c.Name, c.Namespace, client)
+	root, err := client.GetResource(c.Kind, c.Name, c.Namespace)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)
 	}
 
-	// Configure printer
-	var p graph.Printer
-
-	switch c.Output {
-	case "tree":
-		p = &graph.Tree{
-			Indent: "",
-			IsLast: true,
-		}
-	case "table":
-		p = &graph.Table{}
-	case "graph":
-		p = &graph.DotGraph{}
+	// Init new printer
+	p, err := graph.NewPrinter(c.Output)
+	if err != nil {
+		return errors.Wrap(err, "cannot init new printer")
 	}
 
 	// Print resources

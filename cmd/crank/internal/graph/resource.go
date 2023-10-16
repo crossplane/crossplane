@@ -92,17 +92,17 @@ func (r *Resource) HasChildren() bool {
 }
 
 // GetResource returns a Resource and all its child resources.
-func GetResource(resourceKind string, resourceName string, namespace string, client *Client) (*Resource, error) {
+func (kc *Client) GetResource(resourceKind string, resourceName string, namespace string) (*Resource, error) {
 	// Get manifest for root resource
 	var err error
 	root := Resource{}
-	root.manifest, err = client.getManifest(resourceKind, resourceName, "", namespace)
+	root.manifest, err = kc.getManifest(resourceKind, resourceName, "", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't get root resource manifest")
 	}
 
 	// Get all children for root resource by checking resourceRef(s) in manifest
-	root, err = client.getChildren(root)
+	root, err = kc.getChildren(root)
 	if err != nil {
 		return &root, errors.Wrap(err, "Couldn't get children of root resource")
 	}
