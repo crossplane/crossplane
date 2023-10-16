@@ -273,6 +273,17 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	cb := ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1.ProviderRevision{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&corev1.Secret{}).
+		Owns(&corev1.ServiceAccount{}).
+		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
+			client: mgr.GetClient(),
+		})
+
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ProviderPackageType)),
@@ -289,22 +300,12 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
 		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
+		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
+			client: mgr.GetClient(),
+		})
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		For(&v1.ProviderRevision{}).
-		Owns(&appsv1.Deployment{}).
-		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.ServiceAccount{}).
-		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
-			client: mgr.GetClient(),
-		}).
-		Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
-			client: mgr.GetClient(),
-		}).
-		WithOptions(o.ForControllerRuntime()).
+	return cb.WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
 
@@ -375,6 +376,17 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	cb := ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1beta1.FunctionRevision{}).
+		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Service{}).
+		Owns(&corev1.Secret{}).
+		Owns(&corev1.ServiceAccount{}).
+		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
+			client: mgr.GetClient(),
+		})
+
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.FunctionPackageType)),
@@ -391,22 +403,12 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
 		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())))
+		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
+			client: mgr.GetClient(),
+		})
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		For(&v1beta1.FunctionRevision{}).
-		Owns(&appsv1.Deployment{}).
-		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.ServiceAccount{}).
-		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
-			client: mgr.GetClient(),
-		}).
-		Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
-			client: mgr.GetClient(),
-		}).
-		WithOptions(o.ForControllerRuntime()).
+	return cb.WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
 
