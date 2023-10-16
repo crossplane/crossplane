@@ -27,7 +27,6 @@ type describeCmd struct {
 	Namespace  string   `short:"n" name:"namespace" help:"Namespace of resource to describe." default:"default"`
 	Output     string   `short:"o" name:"output" help:"Output type of graph. Possible output types: tree, table, graph." enum:"tree,table,graph" default:"tree"`
 	Fields     []string `short:"f" name:"fields" help:"Fields that are printed out in the header." default:"kind,name"`
-	OutputPath string   `short:"p" name:"path" help:"Output path for graph PNG. Only valid when set with output=graph." default:"graph.png"`
 }
 
 func (c *describeCmd) Run(logger logging.Logger) error {
