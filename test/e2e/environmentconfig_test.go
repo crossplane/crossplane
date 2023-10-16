@@ -80,10 +80,7 @@ func TestEnvironmentConfigDefault(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -134,10 +131,7 @@ func TestEnvironmentResolutionOptional(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -198,10 +192,7 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -262,10 +253,7 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -316,10 +304,7 @@ func TestEnvironmentConfigMultipleMaxMatchNil(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -369,10 +354,7 @@ func TestEnvironmentConfigMultipleMaxMatch1(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),

@@ -81,10 +81,7 @@ func TestCompositionValidation(t *testing.T) {
 				funcs.DeleteResources(manifests, "*-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "*-valid.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			// Disable our feature flag.
 			WithTeardown("DisableAlphaCompositionValidation", funcs.AllOf(
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
