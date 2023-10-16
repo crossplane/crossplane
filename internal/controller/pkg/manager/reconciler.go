@@ -320,46 +320,45 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				if pr.GetDesiredState() != v1.PackageRevisionActive {
 					continue
 				}
-					for _, ref := range pr.GetObjects() {
-						if ref.Kind == "CustomResourceDefinition" {
-							crd := apiextensionsv1.CustomResourceDefinition{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: ref.Name,
-								},
-							}
+				for _, ref := range pr.GetObjects() {
+					if ref.Kind == "CustomResourceDefinition" {
+						crd := apiextensionsv1.CustomResourceDefinition{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: ref.Name,
+							},
+						}
 
-							if err := r.client.Get(ctx, types.NamespacedName{Name: crd.GetName()}, &crd); err != nil {
-								if kerrors.IsNotFound(err) {
-									continue
-								}
-								return reconcile.Result{}, errors.Wrapf(err, "cannot get CRD %q", crd.GetName())
+						if err := r.client.Get(ctx, types.NamespacedName{Name: crd.GetName()}, &crd); err != nil {
+							if kerrors.IsNotFound(err) {
+								continue
 							}
+							return reconcile.Result{}, errors.Wrapf(err, "cannot get CRD %q", crd.GetName())
+						}
 
-							// Ensure no CRs of this CRD exist.
-							objs := unstructured.UnstructuredList{}
+						// Ensure no CRs of this CRD exist.
+						objs := unstructured.UnstructuredList{}
 
-							version := crd.Spec.Versions[0].Name
-							for _, v := range crd.Spec.Versions {
-								if v.Storage {
-									version = v.Name
-								}
+						version := crd.Spec.Versions[0].Name
+						for _, v := range crd.Spec.Versions {
+							if v.Storage {
+								version = v.Name
 							}
+						}
 
-							objs.SetGroupVersionKind(schema.GroupVersionKind{
-								Group:   crd.Spec.Group,
-								Version: version,
-								Kind:    crd.Spec.Names.ListKind,
-							})
+						objs.SetGroupVersionKind(schema.GroupVersionKind{
+							Group:   crd.Spec.Group,
+							Version: version,
+							Kind:    crd.Spec.Names.ListKind,
+						})
 
-							if err := r.client.List(ctx, &objs); err != nil {
-								return reconcile.Result{}, errors.Wrapf(err, "cannot list CRs of the CRD %q", crd.GetName())
-							}
-							if len(objs.Items) > 0 {
-								msg := fmt.Sprintf("Cannot delete package with active CRs, waiting for CRs of the CRD %q to be deleted", crd.GetName())
-								p.SetConditions(v1.Uninstalling().WithMessage(msg))
-								r.record.Event(p, event.Warning(reasonUninstall, errors.New(msg)))
-								return reconcile.Result{}, errors.New(msg)
-							}
+						if err := r.client.List(ctx, &objs); err != nil {
+							return reconcile.Result{}, errors.Wrapf(err, "cannot list CRs of the CRD %q", crd.GetName())
+						}
+						if len(objs.Items) > 0 {
+							msg := fmt.Sprintf("Cannot delete package with active CRs, waiting for CRs of the CRD %q to be deleted", crd.GetName())
+							p.SetConditions(v1.Uninstalling().WithMessage(msg))
+							r.record.Event(p, event.Warning(reasonUninstall, errors.New(msg)))
+							return reconcile.Result{}, errors.New(msg)
 						}
 					}
 				}
