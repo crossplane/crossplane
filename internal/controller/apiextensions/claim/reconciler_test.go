@@ -18,7 +18,9 @@ package claim
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -42,6 +45,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestReconcile(t *testing.T) {
@@ -50,21 +55,26 @@ func TestReconcile(t *testing.T) {
 	name := "coolclaim"
 
 	type args struct {
-		mgr   manager.Manager
-		of    resource.CompositeClaimKind
-		with  resource.CompositeKind
-		opts  []ReconcilerOption
-		claim *claim.Unstructured
+		mgr        manager.Manager
+		of         resource.CompositeClaimKind
+		with       resource.CompositeKind
+		opts       []ReconcilerOption
+		claim      *claim.Unstructured
+		claimPatch *claim.Unstructured
 	}
 	type want struct {
-		r     reconcile.Result
-		claim *claim.Unstructured
-		err   error
+		r           reconcile.Result
+		claim       *claim.Unstructured
+		claimPatch  *claim.Unstructured
+		err         error
+		claimAssert func(args args, want want) error
 	}
 
 	type claimModifier func(o *claim.Unstructured)
 	withClaim := func(mods ...claimModifier) *claim.Unstructured {
 		cm := claim.New()
+		cm.SetAPIVersion("")
+		cm.SetKind("")
 		for _, m := range mods {
 			m(cm)
 		}
@@ -73,6 +83,12 @@ func TestReconcile(t *testing.T) {
 
 	now := metav1.Now()
 
+	noOpConfigureComposite := func(ctx context.Context, cm *claim.Unstructured, cp, cpPatch *composite.Unstructured) error {
+		return nil
+	}
+	noOpConfigureClaim := func(ctx context.Context, cm, cmPatch *claim.Unstructured, cp, cpPatch *composite.Unstructured) error {
+		return nil
+	}
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -83,10 +99,8 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					}),
 				},
 			},
@@ -99,11 +113,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(errBoom),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockGet:          test.NewMockGetFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					}),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
@@ -123,10 +135,8 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -153,17 +163,15 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&claim.Reference{Name: "some-other-claim"})
-								}
-								return nil
-							}),
-							MockDelete: test.NewMockDeleteFn(errBoom),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.Now())
+								o.SetClaimReference(&claim.Reference{Name: "some-other-claim"})
+							}
+							return nil
+						}),
+						MockDelete: test.NewMockDeleteFn(errBoom),
 					}),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
@@ -187,17 +195,15 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&claim.Reference{Name: name})
-								}
-								return nil
-							}),
-							MockDelete: test.NewMockDeleteFn(errBoom),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.Now())
+								o.SetClaimReference(&claim.Reference{Name: name})
+							}
+							return nil
+						}),
+						MockDelete: test.NewMockDeleteFn(errBoom),
 					}),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
@@ -227,10 +233,8 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockDelete: test.NewMockDeleteFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
@@ -255,17 +259,15 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil),
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&claim.Reference{Name: name})
-								}
-								return nil
-							}),
-						},
+					WithClient(&test.MockClient{
+						MockDelete: test.NewMockDeleteFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.Now())
+								o.SetClaimReference(&claim.Reference{Name: name})
+							}
+							return nil
+						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -296,17 +298,15 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil),
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetCreationTimestamp(metav1.Now())
-									o.SetClaimReference(&claim.Reference{Name: name})
-								}
-								return nil
-							}),
-						},
+					WithClient(&test.MockClient{
+						MockDelete: test.NewMockDeleteFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.Now())
+								o.SetClaimReference(&claim.Reference{Name: name})
+							}
+							return nil
+						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -336,18 +336,16 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil),
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetCreationTimestamp(now)
-									o.SetDeletionTimestamp(&now)
-									o.SetClaimReference(&claim.Reference{Name: name})
-								}
-								return nil
-							}),
-						},
+					WithClient(&test.MockClient{
+						MockDelete: test.NewMockDeleteFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(now)
+								o.SetDeletionTimestamp(&now)
+								o.SetClaimReference(&claim.Reference{Name: name})
+							}
+							return nil
+						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -372,37 +370,14 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"AddFinalizerError": {
-			reason: "We should return any error we encounter while adding the claim's finalizer",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
-					}),
-				},
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
-				}),
-			},
-			want: want{
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-
 		"ConfigureError": {
 			reason: "We should return any error we encounter configuring the composite resource",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					withCompositeConfigurator(func(ctx context.Context, cm *claim.Unstructured, cp, cpPatch *composite.Unstructured) error {
+						return errBoom
 					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -416,58 +391,35 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"BindError": {
-			reason: "We should return any error we encounter binding the composite resource",
+		"PatchError": {
+			reason: "We should return any error we encounter patching the composite resource",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					WithClient(&test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							obj.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							return nil
+						},
+						MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+							if patch != client.Apply {
+								return fmt.Errorf("Should be ssa patch")
+							}
+							if _, ok := obj.(*composite.Unstructured); ok {
+								return errBoom
+							}
+							return nil
 						},
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+					withCompositeConfigurator(noOpConfigureComposite),
 				},
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
-				}),
+				claim: withClaim(),
 			},
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetFinalizers([]string{finalizer})
 					o.SetResourceReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errBindComposite)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"ApplyError": {
-			reason: "We should return any error we encounter applying the composite resource",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return errBoom
-						}),
-					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-				},
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
-				}),
-			},
-			want: want{
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errApplyComposite)))
+					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPatchComposite)))
 				}),
 				r: reconcile.Result{Requeue: true},
 			},
@@ -477,28 +429,19 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
+					WithClient(&test.MockClient{
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockCreate:       test.NewMockCreateFn(nil),
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					withCompositeConfigurator(noOpConfigureComposite),
+					withClaimConfigurator(func(ctx context.Context, cm, cmPatch *claim.Unstructured, cp, cpPatch *composite.Unstructured) error {
+						return errBoom
 					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
 				},
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
-				}),
+				claim: withClaim(),
 			},
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetResourceReference(&corev1.ObjectReference{})
 					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errConfigureClaim)))
 				}),
 				r: reconcile.Result{Requeue: true},
@@ -509,20 +452,22 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+					WithClient(&test.MockClient{
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							}
+							return nil
+						}),
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Unavailable())
+							}
 							return nil
 						}),
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					withCompositeConfigurator(noOpConfigureComposite),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -531,6 +476,7 @@ func TestReconcile(t *testing.T) {
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
+					o.SetFinalizers([]string{finalizer})
 					o.SetConditions(xpv1.ReconcileSuccess(), Waiting())
 				}),
 				r: reconcile.Result{Requeue: false},
@@ -541,26 +487,24 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetConditions(xpv1.Available())
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Available())
+								o.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							}
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Available())
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					withCompositeConfigurator(noOpConfigureComposite),
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return false, errBoom
 					})),
@@ -571,6 +515,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetFinalizers([]string{finalizer})
 					o.SetResourceReference(&corev1.ObjectReference{})
 					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPropagateCDs)))
 				}),
@@ -582,26 +527,25 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetConditions(xpv1.Available())
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Available())
+								o.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							}
 							return nil
 						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Available())
+								o.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							}
+							return nil
+
+						}),
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					withCompositeConfigurator(noOpConfigureComposite),
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
@@ -613,6 +557,7 @@ func TestReconcile(t *testing.T) {
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
+					o.SetFinalizers([]string{finalizer})
 					o.SetConnectionDetailsLastPublishedTime(&now)
 					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 				}),
@@ -642,10 +587,8 @@ func TestReconcile(t *testing.T) {
 					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 				}),
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
-						},
+					WithClient(&test.MockClient{
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 					}),
 				},
 			},
@@ -662,26 +605,22 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetConditions(xpv1.Available())
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Available())
+							}
 							return nil
 						}),
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					withCompositeConfigurator(noOpConfigureComposite),
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
@@ -694,9 +633,9 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
-					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 					o.SetResourceReference(&corev1.ObjectReference{})
+					o.SetFinalizers([]string{finalizer})
+					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 					o.SetConnectionDetailsLastPublishedTime(&now)
 				}),
 			},
@@ -706,26 +645,22 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									o.SetConditions(xpv1.Available())
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							}
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							if o, ok := obj.(*composite.Unstructured); ok {
+								o.SetConditions(xpv1.Available())
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					withCompositeConfigurator(noOpConfigureComposite),
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
@@ -739,9 +674,182 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 					o.SetResourceReference(&corev1.ObjectReference{})
+					o.SetFinalizers([]string{finalizer})
+					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 					o.SetConnectionDetailsLastPublishedTime(&now)
+				}),
+			},
+		},
+		"CreateComposite": {
+			reason: "create composite with a generated name and refer it in the claim",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Group: "foo.com", Resource: "composite"}, "foo")),
+					},
+				},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							want := &composite.Unstructured{
+								Unstructured: unstructured.Unstructured{
+									Object: map[string]any{
+										"spec": map[string]any{
+											"foo": "bar",
+											"claimRef": map[string]any{
+												"name":       "c",
+												"namespace":  "ns",
+												"apiVersion": "foo.com/v1",
+												"kind":       "Claim",
+											},
+										},
+									},
+								},
+							}
+							want.SetName(obj.GetName())
+							want.SetGenerateName("c-")
+							want.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Composite"})
+							want.SetLabels(map[string]string{
+								xcrd.LabelKeyClaimName:      "c",
+								xcrd.LabelKeyClaimNamespace: "ns",
+							})
+							cp, ok := obj.(*composite.Unstructured)
+							if !ok {
+								return nil
+							}
+							if diff := cmp.Diff(want, cp); diff != "" {
+								return errors.New(diff)
+							}
+							return nil
+						}),
+					}),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+				}),
+			},
+			want: want{
+				claimAssert: func(args args, want want) error {
+					ref := args.claimPatch.GetResourceReference()
+					if ref.Namespace != "" || !strings.HasPrefix(ref.Name, "c-") ||
+						ref.Kind != "Composite" || ref.APIVersion != "foo.com/v1" {
+						return fmt.Errorf("Claim has no valid composite ref %v", ref)
+					}
+					return nil
+				},
+			},
+		},
+		"RecoverFromBindingToWrongComposite": {
+			reason: "previous loop generate existing composite name, claim got updated with the reference, but composite could not be created. We need to detect this, clean reference and requeue once again.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							if key.Namespace != "" || key.Name != "wrong-composite" {
+								return fmt.Errorf("Unexpect get request for composite %v", key)
+							}
+							obj.(*composite.Unstructured).Unstructured.Object["spec"] = map[string]any{
+								"claimRef": map[string]any{
+									"name":       "wrong-c",
+									"namespace":  "ns2",
+									"apiVersion": "foo.com/v1",
+									"kind":       "Claim",
+								},
+							}
+							obj.SetCreationTimestamp(metav1.NewTime(time.Now()))
+							return nil
+						},
+						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					}),
+					withClaimConfigurator(noOpConfigureClaim),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetResourceReference(&corev1.ObjectReference{
+						Name:       "wrong-composite",
+						APIVersion: "foo.com/v1",
+						Kind:       "Composite",
+					})
+				}),
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+				claimPatch: withClaim(func(o *claim.Unstructured) {
+					o.SetFinalizers([]string{finalizer})
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.SetName("c")
+					o.SetNamespace("ns")
+				}),
+			},
+		},
+		"CompositeCreatedButNotInCacheByNextReconcile": {
+			reason: "previous loop created composite, bound it to claim, but in the next loop still not present in the cache. We should try to create composite again under the same name, but we are going to fails and requeu",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet:          test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Group: "foo.com", Resource: "composite"}, "composite")),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+						MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+							cp, ok := obj.(*composite.Unstructured)
+							if !ok {
+								return nil
+							}
+							if cp.GetName() != "composite" {
+								return errors.Errorf("Unexpected composite name: %s", obj.GetName())
+							}
+							return nil
+						},
+					}),
+					withClaimConfigurator(noOpConfigureClaim),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return true, nil
+					})),
+				},
+				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
+				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetResourceReference(&corev1.ObjectReference{
+						Name:       "composite",
+						APIVersion: "foo.com/v1",
+						Kind:       "Composite",
+					})
+				}),
+			},
+			want: want{
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
+					o.SetName("c")
+					o.SetNamespace("ns")
+					o.SetFinalizers([]string{finalizer})
+					o.Object["status"] = nil
 				}),
 			},
 		},
@@ -755,6 +863,8 @@ func TestReconcile(t *testing.T) {
 				tc.args.opts = append(tc.args.opts, func(r *Reconciler) {
 					var customGet test.MockGetFn
 					var customStatusUpdate test.MockSubResourceUpdateFn
+					var customUpdate test.MockUpdateFn
+					var customPatch test.MockPatchFn
 					mockGet := func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
 							tc.args.claim.DeepCopyInto(&o.Unstructured)
@@ -776,16 +886,45 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}
 
-					if mockClient, ok := r.client.Client.(*test.MockClient); ok {
+					mockUpdate := func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+						if o, ok := obj.(*claim.Unstructured); ok {
+							o.DeepCopyInto(&tc.args.claim.Unstructured)
+						}
+						if customStatusUpdate != nil {
+							return customUpdate(ctx, obj, opts...)
+						}
+						return nil
+					}
+
+					mockPatch := func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+						if o, ok := obj.(*claim.Unstructured); ok {
+							tc.args.claimPatch = o
+						}
+						if customPatch != nil {
+							return customPatch(ctx, obj, patch, opts...)
+						}
+						return nil
+					}
+
+					if mockClient, ok := r.client.(*test.MockClient); ok {
 						customGet = mockClient.MockGet
 						customStatusUpdate = mockClient.MockStatusUpdate
+						customUpdate = mockClient.MockUpdate
+						customPatch = mockClient.MockPatch
 						mockClient.MockGet = mockGet
 						mockClient.MockStatusUpdate = mockStatusUpdate
+						mockClient.MockUpdate = mockUpdate
+						mockClient.MockPatch = mockPatch
 					} else {
-						r.client.Client = &test.MockClient{
+						r.client = &test.MockClient{
 							MockGet:          mockGet,
 							MockStatusUpdate: mockStatusUpdate,
+							MockUpdate:       mockUpdate,
+							MockPatch:        mockPatch,
 						}
+						// r.composite = defaultCRComposite(&test.MockClient{
+						//	MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Group: "g", Resource: "r"}, "foo")),
+						// })
 					}
 				})
 			}
@@ -794,14 +933,32 @@ func TestReconcile(t *testing.T) {
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-			if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
-				ts, err := time.Parse(time.RFC3339, s)
-				if err != nil {
-					return s
+			if tc.want.claim != nil {
+				if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
+					ts, err := time.Parse(time.RFC3339, s)
+					if err != nil {
+						return s
+					}
+					return ts
+				}), cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 				}
-				return ts
-			}), cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
-				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if tc.want.claimPatch != nil {
+				if diff := cmp.Diff(tc.want.claimPatch, tc.args.claimPatch, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
+					ts, err := time.Parse(time.RFC3339, s)
+					if err != nil {
+						return s
+					}
+					return ts
+				}), cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
+					t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+			if tc.want.claimAssert != nil {
+				if err := tc.want.claimAssert(tc.args, tc.want); err != nil {
+					t.Error(err)
+				}
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

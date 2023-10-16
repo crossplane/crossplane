@@ -67,6 +67,8 @@ import (
 // DefaultPollInterval is the suggested poll interval for wait.For.
 const DefaultPollInterval = time.Millisecond * 500
 
+type onSuccessHandler func(o k8s.Object)
+
 // AllOf runs the supplied functions in order.
 func AllOf(fns ...features.Func) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
@@ -392,17 +394,53 @@ func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOptio
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
 
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager), options...); err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
 		files, _ := fs.Glob(dfs, pattern)
 		if len(files) == 0 {
 			t.Errorf("No resources found in %s", filepath.Join(dir, pattern))
 			return ctx
 		}
+
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager), options...); err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+
 		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+		return ctx
+	}
+}
+
+type claimCtxKey struct{}
+
+// ApplyClaim applies the claim stored in the given folder and file
+// and stores it in the test context for later retrival if needed
+func ApplyClaim(manager, dir, cm string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		dfs := os.DirFS(dir)
+
+		files, _ := fs.Glob(dfs, cm)
+		if len(files) == 0 {
+			t.Errorf("No resources found in %s", filepath.Join(dir, cm))
+			return ctx
+		}
+
+		objs, err := decoder.DecodeAllFiles(ctx, dfs, cm)
+		if err != nil {
+			t.Error(err)
+			return ctx
+		}
+		if len(objs) != 1 {
+			t.Errorf("Only one claim allows in %s", filepath.Join(dir, cm))
+			return ctx
+		}
+		f := func(o k8s.Object) {
+			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)})
+		}
+		if err := decoder.DecodeEachFile(ctx, dfs, cm, ApplyHandler(c.Client().Resources(), manager, f)); err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, cm), len(files))
 		return ctx
 	}
 }
@@ -444,7 +482,7 @@ func ResourcesFailToApply(manager, dir, pattern string) features.Func {
 
 // ApplyHandler is a decoder.Handler that uses server-side apply to apply the
 // supplied object.
-func ApplyHandler(r *resources.Resources, manager string) decoder.HandlerFunc {
+func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandler) decoder.HandlerFunc {
 	return func(ctx context.Context, obj k8s.Object) error {
 		// TODO(negz): Use r.Patch when the below issue is solved?
 		// https://github.com/kubernetes-sigs/e2e-framework/issues/254
@@ -453,7 +491,13 @@ func ApplyHandler(r *resources.Resources, manager string) decoder.HandlerFunc {
 		// sometimes, e.g. due to conflicts with a provider managing the same
 		// fields. I'm guessing controller-runtime is setting providers as a
 		// field manager at create time even though it doesn't use SSA?
-		return r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager), client.ForceOwnership)
+		if err := r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager), client.ForceOwnership); err != nil {
+			return err
+		}
+		for _, h := range osh {
+			h(obj)
+		}
+		return nil
 	}
 }
 
@@ -506,6 +550,87 @@ func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Dura
 			t.Fatalf("copying image `%s` to registry `%s` not successful: %v", image, reg, err)
 		}
 
+		return ctx
+	}
+}
+
+// ClaimUnderTestMustNotChangeWithin asserts that the claim available in
+// the test context does not change within the given time
+func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm, ok := ctx.Value(claimCtxKey{}).(*claim.Unstructured)
+		if !ok {
+			t.Fatalf("claim not available in the context")
+			return ctx
+		}
+		list := &unstructured.UnstructuredList{}
+		ucm := unstructured.Unstructured{}
+		ucm.SetNamespace(cm.GetNamespace())
+		ucm.SetName(cm.GetName())
+		ucm.SetGroupVersionKind(cm.GroupVersionKind())
+		list.Items = append(list.Items, ucm)
+
+		m := func(o k8s.Object) bool {
+			return o.GetGeneration() != cm.GetGeneration()
+		}
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
+			if deadlineExceed(err) {
+				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
+			} else {
+				t.Errorf("Error while observing composite %s: %v", identifier(cm), err)
+			}
+			return ctx
+		}
+		t.Errorf("Claim %s got changed, but it should not", identifier(cm))
+		return ctx
+	}
+}
+
+// CompositeResourceMustMatchWithin assert that a composite referred by the given file
+// must be matched by the given function within the given timeout
+func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, match func(xr *composite.Unstructured) bool) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm := &claim.Unstructured{}
+
+		if err := decoder.DecodeFile(os.DirFS(dir), claimFile, cm); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+			return ctx
+		}
+
+		xrRef := cm.GetResourceReference()
+
+		list := &unstructured.UnstructuredList{}
+
+		uxr := unstructured.Unstructured{}
+		uxr.SetName(xrRef.Name)
+		uxr.SetNamespace(xrRef.Namespace)
+		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
+
+		list.Items = append(list.Items, uxr)
+
+		count := atomic.Int32{}
+		m := func(o k8s.Object) bool {
+			count.Add(1)
+			u := asUnstructured(o)
+			return match(&composite.Unstructured{Unstructured: *u})
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil && count.Load() > 0 {
+			t.Errorf("composite %s did not match the condition before timeout (%s): %s\n\n", identifier(&uxr), d.String(), err)
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("there were composite resource %s", identifier(&uxr))
+			return ctx
+		}
+
+		t.Logf("composite resource %s matched", identifier(&uxr))
 		return ctx
 	}
 }
@@ -869,4 +994,8 @@ func itemsToObjects(items []unstructured.Unstructured) []client.Object {
 
 func since(t time.Time) string {
 	return fmt.Sprintf("%.3fs", time.Since(t).Seconds())
+}
+
+func deadlineExceed(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "would exceed context deadline")
 }

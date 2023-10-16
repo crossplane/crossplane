@@ -30,7 +30,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -47,12 +46,12 @@ func TestCompositeConfigure(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		cm  resource.CompositeClaim
-		cp  resource.Composite
+		cm  *claim.Unstructured
+		cp  *composite.Unstructured
 	}
 
 	type want struct {
-		cp  resource.Composite
+		cp  *composite.Unstructured
 		err error
 	}
 
@@ -61,40 +60,6 @@ func TestCompositeConfigure(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ClaimNotUnstructured": {
-			reason: "We should return early if the claim is not unstructured",
-			args: args{
-				cm: &fake.CompositeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: ns,
-						Name:      name,
-					},
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				cp: &fake.Composite{},
-			},
-		},
-		"CompositeNotUnstructured": {
-			reason: "We should return early if the composite is not unstructured",
-			args: args{
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name,
-							},
-						},
-					},
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				cp: &fake.Composite{},
-			},
-		},
 		"UnsupportedSpecError": {
 			reason: "We should return early if the claim's spec is not an unstructured object",
 			args: args{
@@ -160,7 +125,7 @@ func TestCompositeConfigure(t *testing.T) {
 						},
 					},
 				},
-				err: errors.New(errBindCompositeConflict),
+				err: ErrBindCompositeConflict,
 			},
 		},
 		"ConfiguredNewXR": {
@@ -282,17 +247,12 @@ func TestCompositeConfigure(t *testing.T) {
 						Object: map[string]any{
 							"metadata": map[string]any{
 								"name": name,
-								"creationTimestamp": func() string {
-									b, _ := now.MarshalJSON()
-									return strings.Trim(string(b), "\"")
-								}(),
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
 								},
 								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
-									"xr":                           "annotation",
 									"xrc":                          "annotation",
 								},
 							},
@@ -382,12 +342,7 @@ func TestCompositeConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
-								"creationTimestamp": func() string {
-									b, _ := now.MarshalJSON()
-									return strings.Trim(string(b), "\"")
-								}(),
+								"name": name + "-12345",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -400,14 +355,6 @@ func TestCompositeConfigure(t *testing.T) {
 									"kind":       kind,
 									"namespace":  ns,
 									"name":       name,
-								},
-							},
-							"status": map[string]any{
-								"previousCoolness": 28,
-								"conditions": []map[string]any{
-									{
-										"type": "otherCondition",
-									},
 								},
 							},
 						},
@@ -490,12 +437,7 @@ func TestCompositeConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
-								"creationTimestamp": func() string {
-									b, _ := now.MarshalJSON()
-									return strings.Trim(string(b), "\"")
-								}(),
+								"name": name + "-12345",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -511,14 +453,6 @@ func TestCompositeConfigure(t *testing.T) {
 									"kind":       kind,
 									"namespace":  ns,
 									"name":       name,
-								},
-							},
-							"status": map[string]any{
-								"previousCoolness": 28,
-								"conditions": []map[string]any{
-									{
-										"type": "otherCondition",
-									},
 								},
 							},
 						},
@@ -559,15 +493,26 @@ func TestCompositeConfigure(t *testing.T) {
 						},
 					},
 				},
-				cp: &composite.Unstructured{},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]any{
+								"name": "foo",
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+							},
+						},
+					},
+				},
 			},
 			want: want{
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"generateName": name + "-",
-								"name":         name + "-1",
+								"name": "foo",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -625,15 +570,25 @@ func TestCompositeConfigure(t *testing.T) {
 						},
 					},
 				},
-				cp: &composite.Unstructured{},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]any{
+								"name": "foo",
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+							},
+						},
+					}},
 			},
 			want: want{
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"generateName": name + "-",
-								"name":         name + "-1",
+								"name": "foo",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -660,13 +615,16 @@ func TestCompositeConfigure(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPICompositeConfigurator(&mockNameGenerator{})
-			got := c.Configure(tc.args.ctx, tc.args.cm, tc.args.cp)
+			patchCp := &composite.Unstructured{}
+			c := &apiCompositeConfigurator{NameGenerator: &mockNameGenerator{}}
+			got := c.Configure(tc.args.ctx, tc.args.cm, tc.args.cp, patchCp)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("Configure(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
-				t.Errorf("Configure(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+			if tc.want.err == nil {
+				if diff := cmp.Diff(tc.want.cp, patchCp); diff != "" {
+					t.Errorf("Configure(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+				}
 			}
 		})
 	}
@@ -684,18 +642,17 @@ func (m *mockNameGenerator) GenerateName(_ context.Context, obj resource.Object)
 }
 
 func TestClaimConfigure(t *testing.T) {
-	errBoom := errors.New("boom")
 	ns := "spacename"
 	name := "cool"
 
 	type args struct {
-		cm     resource.CompositeClaim
-		cp     resource.Composite
+		cm     *claim.Unstructured
+		cp     *composite.Unstructured
 		client client.Client
 	}
 
 	type want struct {
-		cm  resource.CompositeClaim
+		cm  *claim.Unstructured
 		err error
 	}
 
@@ -730,7 +687,7 @@ func TestClaimConfigure(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.New(errUnsupportedDstObject), errMergeClaimStatus),
+				err: errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimStatus),
 			},
 		},
 		"MergeStatusCompositeError": {
@@ -752,49 +709,7 @@ func TestClaimConfigure(t *testing.T) {
 				},
 			},
 			want: want{
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"status": map[string]any{},
-						},
-					},
-				},
 				err: errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimStatus),
-			},
-		},
-		"UpdateStatusError": {
-			reason: "Should return an error if unable to update status",
-			args: args{
-				client: &test.MockClient{
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
-				},
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"spec":   map[string]any{},
-							"status": map[string]any{},
-						},
-					},
-				},
-				cp: &composite.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"spec":   map[string]any{},
-							"status": map[string]any{},
-						},
-					},
-				},
-			},
-			want: want{
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"spec":   map[string]any{},
-							"status": map[string]any{},
-						},
-					},
-				},
-				err: errors.Wrap(errBoom, errUpdateClaimStatus),
 			},
 		},
 		"MergeSpecError": {
@@ -829,43 +744,7 @@ func TestClaimConfigure(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errors.New(errUnsupportedDstObject), errMergeClaimSpec),
-			},
-		},
-		"UpdateClaimError": {
-			reason: "Should return an error if unable to update claim",
-			args: args{
-				client: &test.MockClient{
-					MockUpdate:       test.NewMockUpdateFn(errBoom),
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-				},
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"spec":   map[string]any{},
-							"status": map[string]any{},
-						},
-					},
-				},
-				cp: &composite.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"spec":   map[string]any{},
-							"status": map[string]any{},
-						},
-					},
-				},
-			},
-			want: want{
-				cm: &claim.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"spec":   map[string]any{},
-							"status": map[string]any{},
-						},
-					},
-				},
-				err: errors.Wrap(errBoom, errUpdateClaim),
+				err: errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimSpec),
 			},
 		},
 		"LateInitializeClaim": {
@@ -895,8 +774,7 @@ func TestClaimConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
+								"name": name + "-12345",
 								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
 								},
@@ -924,20 +802,15 @@ func TestClaimConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name,
 								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
 								},
 							},
 							"spec": map[string]any{
-								"someField":                  "someValue",
-								"coolness":                   23,
-								"compositionSelector":        "sel",
-								"compositionRef":             "ref",
-								"compositionUpdatePolicy":    "pol",
-								"resourceRef":                "ref",
-								"writeConnectionSecretToRef": "ref",
+								"resourceRef":             map[string]any{"name": "cool-12345"},
+								"compositionSelector":     "sel",
+								"compositionRef":          "ref",
+								"compositionUpdatePolicy": "pol",
 							},
 							"status": map[string]any{},
 						},
@@ -975,8 +848,7 @@ func TestClaimConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
+								"name": name + "-12345",
 							},
 							"spec": map[string]any{
 								"resourceRefs": "ref",
@@ -998,13 +870,8 @@ func TestClaimConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
-							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name,
-							},
 							"spec": map[string]any{
-								"resourceRef":                "ref",
-								"writeConnectionSecretToRef": "ref",
+								"resourceRef": map[string]any{"name": string("cool-12345")},
 							},
 							"status": map[string]any{
 								"previousCoolness": 28,
@@ -1053,8 +920,7 @@ func TestClaimConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
+								"name": name + "-12345",
 							},
 							"spec": map[string]any{
 								"resourceRefs":            "ref",
@@ -1080,17 +946,9 @@ func TestClaimConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
-							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name,
-							},
 							"spec": map[string]any{
-								"resourceRef":                "ref",
-								"writeConnectionSecretToRef": "ref",
-								"compositionUpdatePolicy":    "Manual",
-								"compositionRevisionRef": map[string]any{
-									"name": "oldref",
-								},
+								"resourceRef":             map[string]any{"name": string("cool-12345")},
+								"compositionUpdatePolicy": "Manual",
 							},
 							"status": map[string]any{
 								"previousCoolness": 28,
@@ -1139,8 +997,7 @@ func TestClaimConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
+								"name": name + "-12345",
 							},
 							"spec": map[string]any{
 								"resourceRefs":            "ref",
@@ -1166,14 +1023,9 @@ func TestClaimConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
-							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name,
-							},
 							"spec": map[string]any{
-								"resourceRef":                "ref",
-								"writeConnectionSecretToRef": "ref",
-								"compositionUpdatePolicy":    "Automatic",
+								"resourceRef":             map[string]any{"name": string("cool-12345")},
+								"compositionUpdatePolicy": "Automatic",
 								"compositionRevisionRef": map[string]any{
 									"name": "newref",
 								},
@@ -1191,17 +1043,58 @@ func TestClaimConfigure(t *testing.T) {
 				},
 			},
 		},
+		"CompositeRefConflict": {
+			reason: "An error should be returned if the claim is bound to another composite resource",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"spec": map[string]any{
+								"resourceRef": map[string]any{
+									"name": "who",
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name": "wat",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"spec": map[string]any{
+								"resourceRef": map[string]any{
+									"name": "who",
+								},
+							},
+						},
+					},
+				},
+				err: errors.New(errBindClaimConflict),
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIClaimConfigurator(tc.args.client)
-			got := c.Configure(context.Background(), tc.args.cm, tc.args.cp)
+			patchCm := claim.New()
+			got := configureClaim(context.Background(), tc.args.cm, patchCm, tc.args.cp, tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("c.Configure(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
-				t.Errorf("c.Configure(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+			if tc.want.err == nil {
+				if diff := cmp.Diff(tc.want.cm, patchCm); diff != "" {
+					t.Errorf("c.Configure(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+				}
 			}
 		})
 	}

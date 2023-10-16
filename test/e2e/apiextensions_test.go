@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -24,7 +25,9 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -191,6 +194,53 @@ func TestCompositionFunctions(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
+
+func TestPropagateFieldsRemovalToXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
+			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
+				funcs.CompositeResourceMustMatchWithin(1*time.Minute, manifests, "claim.yaml", func(xr *composite.Unstructured) bool {
+					labels := xr.GetLabels()
+					_, barLabelExists := labels["bar"]
+					annotations := xr.GetAnnotations()
+					_, barAnnotationExists := annotations["test/bar"]
+					p := fieldpath.Pave(xr.Object)
+					_, err := p.GetValue("spec.tags.newtag")
+					n, _ := p.GetStringArray("spec.numbers")
+					return labels["foo"] == "1" && !barLabelExists && labels["foo2"] == "3" &&
+						annotations["test/foo"] == "1" && !barAnnotationExists && annotations["test/foo2"] == "4" &&
+						reflect.DeepEqual(n, []string{"one", "five"}) &&
+						err != nil
+				}),
+				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
+				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim-update.yaml", "status.coolerField", "I'm cool!"),
+			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }
