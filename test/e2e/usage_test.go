@@ -123,11 +123,6 @@ func TestUsageStandalone(t *testing.T) {
 func TestUsageComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/composition"
 
-	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
-		APIVersion: "nop.crossplane.io/v1alpha1",
-		Kind:       "NopResource",
-	}))
-
 	usageList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "apiextensions.crossplane.io/v1alpha1",
 		Kind:       "Usage",

@@ -652,6 +652,17 @@ func DeletionBlockedByUsageWebhook(dir, pattern string) features.Func {
 	}
 }
 
+// ResourcesDeletedAfterListedAreGone will ensure that the resources matching
+// the supplied pattern under the supplied directory are deleted after the
+// supplied list of resources are deleted.
+func ResourcesDeletedAfterListedAreGone(d time.Duration, dir, pattern string, list k8s.ObjectList, listOptions ...resources.ListOption) features.Func {
+	return AllOf(
+		ListedResourcesDeletedWithin(d, list, listOptions...),
+		DeleteResources(dir, pattern),
+		ResourcesDeletedWithin(d, dir, pattern),
+	)
+}
+
 // asUnstructured turns an arbitrary runtime.Object into an *Unstructured. If
 // it's already a concrete *Unstructured it just returns it, otherwise it
 // round-trips it through JSON encoding. This is necessary because types that
