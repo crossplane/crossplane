@@ -19,9 +19,11 @@ package claim
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
+	"golang.org/x/exp/maps"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -92,7 +94,22 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	// external name.
 	en := meta.GetExternalName(ucp)
 
-	meta.AddAnnotations(ucp, ucm.GetAnnotations())
+	// Do not propagate *.kubernetes.io annotations down to the composite
+	// For example: when a claim gets deployed using kubectl,
+	// its kubectl.kubernetes.io/last-applied-configuration annotation
+	// should not be propagated to the corresponding composite resource,
+	// because:
+	// * XR was not created using kubectl
+	// * The content of the annotaton refers to the claim, not XR
+	// See https://kubernetes.io/docs/reference/labels-annotations-taints/
+	// for all annotations and their semantic
+	annot := ucm.GetAnnotations()
+	maps.DeleteFunc(annot, func(k string, _ string) bool {
+		s := strings.Split(k, "/")
+		return strings.HasSuffix(s[0], "kubernetes.io")
+	})
+	meta.AddAnnotations(ucp, annot)
+
 	meta.AddLabels(ucp, cm.GetLabels())
 	meta.AddLabels(ucp, map[string]string{
 		xcrd.LabelKeyClaimName:      ucm.GetName(),
