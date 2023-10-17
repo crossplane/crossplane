@@ -176,6 +176,9 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 				})).
 			Assess("DeploymentHasSpecFromDeploymentRuntimeConfig", funcs.AllOf(
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.replicas", int64(2)),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.metadata.labels.some-pod-labels", "cool-label"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.metadata.annotations.some-pod-annotations", "cool-annotation"),
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.containers[0].resources.limits.memory", "2Gi"),
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.containers[0].resources.limits.memory", "2Gi"),
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.containers[0].resources.requests.cpu", "100m"),
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.containers[0].volumeMounts[0].name", "shared-volume"),
@@ -186,10 +189,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),
 	)
 }

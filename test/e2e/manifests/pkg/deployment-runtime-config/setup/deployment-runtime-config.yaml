@@ -18,9 +18,11 @@ spec:
       replicas: 2
       selector: {}
       template:
-        #metadata: # This is rejected with unknown field "spec.deploymentTemplate.spec.template.metadata.labels"
-        #  labels:
-        #    somepodlabels: cool
+        metadata:
+          labels:
+            some-pod-labels: cool-label
+          annotations:
+            some-pod-annotations: cool-annotation
         spec:
           containers:
             - name: package-runtime # this should change the package runtime container as we want without breaking something else.

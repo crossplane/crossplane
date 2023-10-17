@@ -43,7 +43,7 @@ limitations under the License.
 // generate them all together in one command.
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1 crd:crdVersions=v1 output:artifacts:config=../cluster/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=../cluster/crds
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./secrets/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 
