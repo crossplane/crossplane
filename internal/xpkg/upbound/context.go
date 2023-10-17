@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package upbound contains
+// Package upbound implements authentication for xpkg.upbound.io.
 package upbound
 
 import (
@@ -37,7 +37,8 @@ import (
 const (
 	// UserAgent is the default user agent to use to make requests to the
 	// Upbound API.
-	UserAgent = "up-cli"
+	UserAgent = "crossplane-cli"
+
 	// CookieName is the default cookie name used to identify a session token.
 	CookieName = "SID"
 
