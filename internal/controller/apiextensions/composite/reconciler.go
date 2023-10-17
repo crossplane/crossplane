@@ -338,6 +338,14 @@ func WithComposer(c Composer) ReconcilerOption {
 	}
 }
 
+// WithKindObserver specifies how the Reconciler should observe kinds for
+// realtime events.
+func WithKindObserver(o KindObserver) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.kindObserver = o
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
 	CompositionRevisionValidator
@@ -368,6 +376,23 @@ type compositeResource struct {
 	EnvironmentSelector
 	Configurator
 	managed.ConnectionPublisher
+}
+
+// KindObserver tracks kinds of referenced composed resources in composite
+// resources in order to start watches for them for realtime events.
+type KindObserver interface {
+	// WatchComposedResources starts a watch of the given kinds to trigger reconciles when
+	// a referenced object of those kinds changes.
+	WatchComposedResources(kind ...schema.GroupVersionKind)
+}
+
+// KindObserverFunc implements KindObserver as a function.
+type KindObserverFunc func(kind ...schema.GroupVersionKind)
+
+// WatchComposedResources starts a watch of the given kinds to trigger reconciles when
+// a referenced object of those kinds changes.
+func (fn KindObserverFunc) WatchComposedResources(kind ...schema.GroupVersionKind) {
+	fn(kind...)
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
@@ -436,7 +461,8 @@ type Reconciler struct {
 	revision  revision
 	composite compositeResource
 
-	resource Composer
+	resource     Composer
+	kindObserver KindObserver
 
 	log    logging.Logger
 	record event.Recorder
@@ -598,6 +624,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	}
+
+	if r.kindObserver != nil {
+		var gvks []schema.GroupVersionKind
+		for _, ref := range xr.GetResourceReferences() {
+			gvks = append(gvks, ref.GroupVersionKind())
+		}
+		r.kindObserver.WatchComposedResources(gvks...)
 	}
 
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)

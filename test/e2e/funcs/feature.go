@@ -42,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
+	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/printers"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -72,6 +73,14 @@ func AllOf(fns ...features.Func) features.Func {
 		for _, fn := range fns {
 			ctx = fn(ctx, t, c)
 		}
+		return ctx
+	}
+}
+
+// InBackground runs the supplied function in a goroutine.
+func InBackground(fn features.Func) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		go fn(ctx, t, c)
 		return ctx
 	}
 }
@@ -246,7 +255,7 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 				got := s.GetCondition(want.Type)
 				if !got.Equal(old[i]) {
 					old[i] = got
-					t.Logf("- %s: %s=%s Reason=%s: %s (%s)", identifier(u), got.Type, got.Status, got.Reason, or(got.Message, `""`), got.LastTransitionTime)
+					t.Logf("- CONDITION: %s: %s=%s Reason=%s: %s (%s)", identifier(u), got.Type, got.Status, got.Reason, or(got.Message, `""`), got.LastTransitionTime)
 				}
 
 				// do compare modulo message as the message in e2e tests
@@ -642,6 +651,69 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 	}
 }
 
+// LogResources polls the given kind of resources and logs creations, deletions
+// and changed conditions.
+func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) features.Func { //nolint:gocyclo // this is a test helper
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		prev := map[string]map[xpv1.ConditionType]xpv1.Condition{}
+
+		_ = apimachinerywait.PollUntilContextCancel(ctx, 500*time.Millisecond, true, func(ctx context.Context) (done bool, err error) {
+			if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
+				return false, nil //nolint:nilerr // retry and ignore the error
+			}
+			metaList, err := meta.ExtractList(list)
+			if err != nil {
+				return false, err
+			}
+
+			found := map[string]bool{}
+			for _, obj := range metaList {
+				obj, ok := obj.(k8s.Object)
+				if !ok {
+					return false, fmt.Errorf("unexpected type %T in list, does not satisfy k8s.Object", obj)
+				}
+				id := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
+				if _, ok := prev[id]; !ok {
+					t.Logf("- CREATED:   %s (%s)", identifier(obj), obj.GetCreationTimestamp().String())
+				}
+
+				u := asUnstructured(obj)
+				s := xpv1.ConditionedStatus{}
+				_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
+
+				got := map[xpv1.ConditionType]xpv1.Condition{}
+				for _, c := range s.Conditions {
+					got[c.Type] = c
+				}
+
+				for ty, c := range got {
+					if !c.Equal(prev[id][ty]) {
+						t.Logf("- CONDITION: %s: %s=%s Reason=%s: %s (%s)", identifier(u), c.Type, c.Status, c.Reason, or(c.Message, `""`), c.LastTransitionTime)
+					}
+				}
+				for ty, c := range prev[id] {
+					if _, ok := got[ty]; !ok {
+						t.Logf("- %s: %s disappeared", identifier(u), c.Type)
+					}
+				}
+
+				prev[id] = got
+				found[id] = true
+			}
+
+			for id := range prev {
+				if _, ok := found[id]; !ok {
+					t.Logf("- DELETED:   %s", id)
+					delete(prev, id)
+				}
+			}
+
+			return false, nil
+		})
+		return ctx
+	}
+}
+
 // DeletionBlockedByUsageWebhook attempts deleting all resources
 // defined by the manifests under the supplied directory that match the supplied
 // glob pattern (e.g. *.yaml) and verifies that they are blocked by the usage
@@ -694,7 +766,7 @@ func asUnstructured(o runtime.Object) *unstructured.Unstructured {
 	return u
 }
 
-// identifier returns the supplied resource's kind, name, and (if any)
+// identifier returns the supplied resource's kind, group, name, and (if any)
 // namespace.
 func identifier(o k8s.Object) string {
 	k := o.GetObjectKind().GroupVersionKind().Kind
@@ -709,10 +781,14 @@ func identifier(o k8s.Object) string {
 			k = fmt.Sprintf("%T", o)
 		}
 	}
-	if o.GetNamespace() == "" {
-		return fmt.Sprintf("%s %s", k, o.GetName())
+	groupSuffix := ""
+	if g := o.GetObjectKind().GroupVersionKind().Group; g != "" {
+		groupSuffix = "." + g
 	}
-	return fmt.Sprintf("%s %s/%s", k, o.GetNamespace(), o.GetName())
+	if o.GetNamespace() == "" {
+		return fmt.Sprintf("%s%s %s", k, groupSuffix, o.GetName())
+	}
+	return fmt.Sprintf("%s%s %s/%s", k, groupSuffix, o.GetNamespace(), o.GetName())
 }
 
 // FilterByGK returns a filter function that returns true if the supplied object is of the supplied GroupKind.
