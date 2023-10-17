@@ -32,38 +32,35 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
-// initCmd initializes a repository from a template
+// WellKnownTemplates are short aliases for template repositories.
+func WellKnownTemplates() map[string]string {
+	return map[string]string{
+		"provider-minimal": "https://github.com/crossplane/provider-template",
+		"provider-upjet":   "https://github.com/upbound/upjet-provider-template",
+		"function-go":      "https://github.com/crossplane/function-template-go",
+	}
+}
+
+// initCmd initializes a new package repository from a template repository.
 type initCmd struct {
-	Function initFunctionCmd `cmd:"" help:"Initialize a Function from the repo template for a selected language."`
+	Name     string `arg:"" help:"Name of the package to initialize."`
+	Template string `arg:"" help:"Template to initialize the package from."`
+
+	Directory string `short:"d" help:"Path of the directory to initialize." default:"." type:"path"`
 }
 
-type initFunctionCmd struct {
-	Language functionLanguage `arg:"" help:"Language of the Function to initialize." enum:"go"`
-	Name     string           `arg:"" help:"Name of the Function to initialize."`
-
-	CustomRepo string `short:"r" help:"URL of the custom template repository to use instead of the default one for the language."`
-	Directory  string `short:"d" help:"Path of the directory to initialize." default:"." type:"path"`
-}
-
-type functionLanguage string
-
-const (
-	functionLanguageGo functionLanguage = "go"
-)
-
-func (c *initFunctionCmd) GetTemplateURL() (string, error) {
-	if c.CustomRepo != "" {
-		return c.CustomRepo, nil
+func (c *initCmd) Help() string {
+	b := strings.Builder{}
+	b.WriteString("Crossplane initializes a package by using git to clone a template from a repository.\n")
+	b.WriteString("The template can be either a git repository URL, or a well-known template name.\n\n")
+	b.WriteString("Crossplane supports the following well-known-template names:\n\n")
+	for name, url := range WellKnownTemplates() {
+		b.WriteString(fmt.Sprintf(" - %s (%s)\n", name, url))
 	}
-	switch c.Language {
-	case functionLanguageGo:
-		return "https://github.com/crossplane/function-template-go", nil
-	default:
-		return "", errors.Errorf("unknown language %s", c.Language)
-	}
+	return b.String()
 }
 
-func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {
 	f, err := os.Stat(c.Directory)
 	switch {
 	case err == nil && !f.IsDir():
@@ -82,19 +79,19 @@ func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
 		return err
 	}
 
-	fs := osfs.New(c.Directory, osfs.WithBoundOS())
-
-	repoURL, err := c.GetTemplateURL()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get URL for language %s", c.Language)
+	repoURL, ok := WellKnownTemplates()[c.Template]
+	if !ok {
+		// If the template isn't one of the well-known ones, assume its a URL.
+		repoURL = c.Template
 	}
 
+	fs := osfs.New(c.Directory, osfs.WithBoundOS())
 	r, err := git.Clone(memory.NewStorage(), fs, &git.CloneOptions{
 		URL:   repoURL,
 		Depth: 1,
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to clone repo from %q", repoURL)
+		return errors.Wrapf(err, "failed to clone repository from %q", repoURL)
 	}
 
 	ref, err := r.Head()
@@ -106,7 +103,7 @@ func (c *initFunctionCmd) Run(k *kong.Context, logger logging.Logger) error {
 	// 	repository? Maybe we can just agree on some markdown text in the
 	// 	repos to print to let the user know what to do next?
 
-	_, err = fmt.Fprintf(k.Stdout, "Initialized Function %q in directory %q from %s (%s)\n", c.Name, c.Directory, getPrettyURL(logger, repoURL, ref), ref.Name().Short())
+	_, err = fmt.Fprintf(k.Stdout, "Initialized package %q in directory %q from %s (%s)\n", c.Name, c.Directory, getPrettyURL(logger, repoURL, ref), ref.Name().Short())
 	return err
 }
 
@@ -120,7 +117,7 @@ func getPrettyURL(logger logging.Logger, repoURL string, ref *plumbing.Reference
 	return prettyURL
 }
 
-func (c *initFunctionCmd) checkDirectoryContent() error {
+func (c *initCmd) checkDirectoryContent() error {
 	entries, err := os.ReadDir(c.Directory)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read directory %s", c.Directory)
