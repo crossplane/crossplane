@@ -16,4 +16,4 @@ spec:
    - conditionType: Ready
      conditionStatus: "True"
      conditionReason: "Available"
-     time: 10s
+     time: 1s

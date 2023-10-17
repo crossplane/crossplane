@@ -24,7 +24,7 @@ spec:
         spec:
           forProvider:
             conditionAfter:
-              - time: 10s
+              - time: 1s
                 conditionType: Ready
                 conditionStatus: "True"
           providerConfigRef:
