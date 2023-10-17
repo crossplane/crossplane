@@ -126,21 +126,20 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 	// The if is to catch if a apiversion was passed as input parameter.
 	var gvr schema.GroupVersionResource
 	var err error
+	var group, version string
 	_, apiversion, found := strings.Cut(resourceKind, ".")
 	if found {
-		group, version, _ := strings.Cut(apiversion, "/")
-		gvr, err = kc.rmapper.ResourceFor(schema.GroupVersionResource{
-			Group:    group,
-			Version:  version,
-			Resource: manifest.GetKind(),
-		})
+		group, version, _ = strings.Cut(apiversion, "/")
 	} else {
-		gvr, err = kc.rmapper.ResourceFor(schema.GroupVersionResource{
-			Group:    manifest.GroupVersionKind().Group,
-			Version:  manifest.GroupVersionKind().Version,
-			Resource: manifest.GetKind(),
-		})
+		group = manifest.GroupVersionKind().Group
+		version = manifest.GroupVersionKind().Version
 	}
+
+	gvr, err = kc.rmapper.ResourceFor(schema.GroupVersionResource{
+		Group:    group,
+		Version:  version,
+		Resource: manifest.GetKind(),
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't build GVR schema for resource")
 	}
