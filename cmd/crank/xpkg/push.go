@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/internal/upbound/credhelper"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -81,7 +82,11 @@ func (c *pushCmd) Run(logger logging.Logger) error {
 		logger.Debug("Failed to create image from package tarball", "error", err)
 		return err
 	}
-	if err := remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+	kc := authn.NewMultiKeychain(
+		authn.NewKeychainFromHelper(credhelper.New()),
+		authn.DefaultKeychain,
+	)
+	if err := remote.Write(tag, img, remote.WithAuthFromKeychain(kc)); err != nil {
 		logger.Debug("Failed to push created image to remote location", "error", err)
 		return err
 	}
