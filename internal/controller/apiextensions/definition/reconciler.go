@@ -262,7 +262,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	crd, err := r.composite.Render(d)
 	if err != nil {
-		log.Debug(errRenderCRD, "error", err)
 		err = errors.Wrap(err, errRenderCRD)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
 		return reconcile.Result{}, err
@@ -281,7 +280,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
-			log.Debug(errGetCRD, "error", err)
 			err = errors.Wrap(err, errGetCRD)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
 			return reconcile.Result{}, err
@@ -300,11 +298,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// just in case. This is a no-op if the controller was
 			// already stopped.
 			r.composite.Stop(composite.ControllerName(d.GetName()))
-			log.Debug("Stopped composite resource controller")
 			r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
-				log.Debug(errRemoveFinalizer, "error", err)
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
 				}
@@ -328,7 +324,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		o := &kunstructured.Unstructured{}
 		o.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 		if err := r.client.DeleteAllOf(ctx, o); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
-			log.Debug(errDeleteCRs, "error", err)
 			err = errors.Wrap(err, errDeleteCRs)
 			r.record.Event(d, event.Warning(reasonTerminateXR, err))
 			return reconcile.Result{}, err

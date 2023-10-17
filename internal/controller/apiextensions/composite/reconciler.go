@@ -467,7 +467,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(xr) {
-		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
 		r.record.Event(xr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
 		xr.SetConditions(xpv1.ReconcilePaused())
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
@@ -480,7 +479,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		xr.SetConditions(xpv1.Deleting())
 		if err := r.composite.UnpublishConnection(ctx, xr, nil); err != nil {
-			log.Debug(errUnpublish, "error", err)
 			err = errors.Wrap(err, errUnpublish)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			xr.SetConditions(xpv1.ReconcileError(err))
@@ -488,7 +486,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
-			log.Debug(errRemoveFinalizer, "error", err)
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -504,7 +501,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.composite.AddFinalizer(ctx, xr); err != nil {
-		log.Debug(errAddFinalizer, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -515,7 +511,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.composite.SelectCompositionUpdatePolicy(ctx, xr); err != nil {
-		log.Debug(errSelectCompUpdatePolicy, "error", err)
 		err = errors.Wrap(err, errSelectCompUpdatePolicy)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
@@ -524,7 +519,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	orig := xr.GetCompositionReference()
 	if err := r.composite.SelectComposition(ctx, xr); err != nil {
-		log.Debug(errSelectComp, "error", err)
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))

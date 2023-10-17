@@ -371,7 +371,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(cm) {
-		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
 		r.record.Event(cm, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
 		cm.SetConditions(xpv1.ReconcilePaused())
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
@@ -385,7 +384,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
 		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); resource.IgnoreNotFound(err) != nil {
-			log.Debug(errGetComposite, "error", err)
 			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
 			cm.SetConditions(xpv1.ReconcileError(err))
@@ -418,7 +416,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				// be queued implicitly when the claim is
 				// edited.
 				err := errors.New(errDeleteUnbound)
-				log.Debug(errDeleteComposite, "error", err)
 				record.Event(cm, event.Warning(reasonDelete, err))
 				cm.SetConditions(xpv1.ReconcileError(err))
 				return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
@@ -429,7 +426,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
 			}
 			if err := r.client.Delete(ctx, cp, do); resource.IgnoreNotFound(err) != nil {
-				log.Debug(errDeleteComposite, "error", err)
 				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
 				cm.SetConditions(xpv1.ReconcileError(err))
@@ -445,18 +441,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// secrets. Hence, we need to clean up propagated secrets when the
 		// claim is deleted.
 		if err := r.claim.UnpublishConnection(ctx, cm, nil); err != nil {
-			log.Debug(errDeleteCDs, "error", err)
 			err = errors.Wrap(err, errDeleteCDs)
 			record.Event(cm, event.Warning(reasonDelete, err))
 			cm.SetConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
-		log.Debug("Successfully deleted composite resource")
 		record.Event(cm, event.Normal(reasonDelete, "Successfully deleted composite resource"))
 
 		if err := r.claim.RemoveFinalizer(ctx, cm); err != nil {
-			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
 			cm.SetConditions(xpv1.ReconcileError(err))
@@ -469,7 +462,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.claim.AddFinalizer(ctx, cm); err != nil {
-		log.Debug(errAddFinalizer, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -480,7 +472,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.composite.Configure(ctx, cm, cp); err != nil {
-		log.Debug(errConfigureComposite, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -503,7 +494,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// error between when we created the composite resource and when we
 	// persisted its resourceRef.
 	if err := r.claim.Bind(ctx, cm, cp); err != nil {
-		log.Debug(errBindComposite, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -518,7 +508,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	case resource.IsNotAllowed(err):
 		log.Debug("Skipped no-op composite resource apply")
 	case err != nil:
-		log.Debug(errApplyComposite, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -527,12 +516,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		cm.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	default:
-		log.Debug("Successfully applied composite resource")
 		record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 	}
 
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
-		log.Debug(errConfigureClaim, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -545,7 +532,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cm.SetConditions(xpv1.ReconcileSuccess())
 
 	if !resource.IsConditionTrue(cp.GetCondition(xpv1.TypeReady)) {
-		log.Debug("Composite resource is not yet ready")
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
 		// We should be watching the composite resource and will have a
@@ -554,12 +540,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
-	log.Debug("Successfully bound composite resource")
 	record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
 
 	propagated, err := r.composite.PropagateConnection(ctx, cm, cp)
 	if err != nil {
-		log.Debug(errPropagateCDs, "error", err)
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
@@ -567,7 +551,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	if propagated {
 		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
-		log.Debug("Successfully propagated connection details from composite resource")
 		record.Event(cm, event.Normal(reasonPropagate, "Successfully propagated connection details from composite resource"))
 	}
 

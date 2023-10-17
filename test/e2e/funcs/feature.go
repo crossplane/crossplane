@@ -17,12 +17,14 @@ limitations under the License.
 package funcs
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -40,7 +42,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/cli-runtime/pkg/printers"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	kubectlevents "k8s.io/kubectl/pkg/cmd/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
@@ -52,6 +57,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -166,9 +172,11 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 		}
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d)); err != nil {
-			y, _ := yaml.Marshal(list.Items)
-			related, _ := relatedObjectString(ctx, c.Client().RESTConfig(), itemsToObjects(list.Items)...)
-			t.Errorf("resources not deleted: %v:\n\n%s\n\nrelated objects:\n\n%s\n", err, y, related)
+			objs := itemsToObjects(list.Items)
+			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
+			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
+
+			t.Errorf("resources not deleted: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", err, toYAML(objs...), events, toYAML(related...))
 			return ctx
 		}
 
@@ -245,9 +253,11 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		}
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
-			y, _ := yaml.Marshal(list.Items)
-			related, _ := relatedObjectString(ctx, c.Client().RESTConfig(), itemsToObjects(list.Items)...)
-			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\nrelated objects:\n\n%s\n", desired, err, y, related)
+			objs := itemsToObjects(list.Items)
+			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
+			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
+
+			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(objs...), events, toYAML(related...))
 			return ctx
 		}
 
@@ -689,21 +699,58 @@ func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
 	}
 }
 
-// relatedObjectString returns all objects related to the supplied root
-// objects, marshalled as a multi-document YAML string.
-func relatedObjectString(ctx context.Context, cfg *rest.Config, roots ...client.Object) (string, error) {
-	related, err := RelatedObjects(ctx, cfg, roots...)
+func toYAML(objs ...client.Object) string {
+	docs := make([]string, 0, len(objs))
+	for _, o := range objs {
+		oy, _ := yaml.Marshal(o)
+		docs = append(docs, string(oy))
+	}
+
+	return strings.Join(docs, "---\n")
+}
+
+func eventString(ctx context.Context, cfg *rest.Config, objs ...client.Object) (string, error) {
+	c, err := client.New(cfg, client.Options{Scheme: clientgoscheme.Scheme})
 	if err != nil {
 		return "", err
 	}
 
-	relatedYAML := make([]string, 0, len(related))
-	for _, o := range related {
-		oy, _ := yaml.Marshal(o)
-		relatedYAML = append(relatedYAML, string(oy))
+	evts := &corev1.EventList{}
+	for _, o := range objs {
+		opts := []client.ListOption{
+			client.MatchingFields{"involvedObject.uid": string(o.GetUID())},
+		}
+		if ns := o.GetNamespace(); ns != "" {
+			opts = append(opts, client.InNamespace(ns))
+		}
+		list := &corev1.EventList{}
+		if err := c.List(ctx, list, opts...); err != nil {
+			return "", errors.Errorf("failed to list events: %v", err)
+		}
+
+		evts.Items = append(evts.Items, list.Items...)
+	}
+	if len(evts.Items) == 0 {
+		return "", nil
 	}
 
-	return strings.Join(relatedYAML, "\n---\n"), nil
+	sort.Sort(kubectlevents.SortableEvents(evts.Items))
+
+	var buf bytes.Buffer
+	w := printers.GetNewTabWriter(&buf)
+	if err := kubectlevents.NewEventPrinter(false, true).PrintObj(evts, w); err != nil {
+		return "", errors.Errorf("failed to print events: %v", err)
+	}
+	_ = w.Flush()
+
+	return buf.String(), nil
+}
+
+func valueOrError(s string, err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return s
 }
 
 func itemsToObjects(items []unstructured.Unstructured) []client.Object {

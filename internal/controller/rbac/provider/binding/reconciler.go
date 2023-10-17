@@ -165,7 +165,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	l := &corev1.ServiceAccountList{}
 	if err := r.client.List(ctx, l); err != nil {
-		log.Debug(errListSAs, "error", err)
 		err = errors.Wrap(err, errListSAs)
 		r.record.Event(pr, event.Warning(reasonBind, err))
 		return reconcile.Result{}, err
@@ -216,7 +215,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 	if err != nil {
-		log.Debug(errApplyBinding, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -226,7 +224,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	r.record.Event(pr, event.Normal(reasonBind, fmt.Sprintf("Bound system ClusterRole %q to provider ServiceAccount(s): %s", n, strings.Join(subjectStrings, ", "))))
-	log.Debug("Applied system ClusterRoleBinding")
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
