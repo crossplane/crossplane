@@ -63,6 +63,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
+// DefaultPollInterval is the suggested poll interval for wait.For.
+const DefaultPollInterval = time.Millisecond * 500
+
 // AllOf runs the supplied functions in order.
 func AllOf(fns ...features.Func) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
@@ -100,7 +103,7 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Waiting %s for deployment %s/%s to become Available...", d, dp.GetNamespace(), dp.GetName())
-		if err := wait.For(conditions.New(c.Client().Resources()).DeploymentConditionMatch(dp, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).DeploymentConditionMatch(dp, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
@@ -127,7 +130,7 @@ func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func 
 			t.Logf("Waiting %s for %s to exist...", d, identifier(u))
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesFound(list), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesFound(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resources did not exist: %v", err)
 			return ctx
 		}
@@ -143,7 +146,7 @@ func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Logf("Waiting %s for %s to be created...", d, identifier(o))
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, func(object k8s.Object) bool { return true }), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, func(object k8s.Object) bool { return true }), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resource %s did not exist: %v", identifier(o), err)
 			return ctx
 		}
@@ -171,7 +174,7 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 			t.Logf("Waiting %s for %s to be deleted...", d, identifier(u))
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			objs := itemsToObjects(list.Items)
 			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
 			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
@@ -191,7 +194,7 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Logf("Waiting %s for %s to be deleted...", d, identifier(o))
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceDeleted(o), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceDeleted(o), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resource %s not deleted: %v", identifier(o), err)
 			return ctx
 		}
@@ -252,7 +255,7 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 			return true
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			objs := itemsToObjects(list.Items)
 			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
 			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
@@ -316,7 +319,7 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 			return cmp.Equal(want, got)
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
 			t.Errorf("resources did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
 			return ctx
@@ -353,7 +356,7 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 			return true
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(o)
 			t.Errorf("resource did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
 			return ctx
@@ -481,7 +484,7 @@ func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Dura
 				return false, nil //nolint:nilerr // we want to retry and to throw error
 			}
 			return true, nil
-		}, wait.WithTimeout(timeout))
+		}, wait.WithTimeout(timeout), wait.WithInterval(DefaultPollInterval))
 		if err != nil {
 			t.Fatalf("copying image `%s` to registry `%s` not successful: %v", image, reg, err)
 		}
@@ -544,7 +547,7 @@ func ComposedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pa
 			return cmp.Equal(want, got)
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
 			t.Errorf("resources did not have desired value %q at field path %q before timeout (%s): %s\n\n%s\n\n", want, path, d.String(), err, y)
 
@@ -566,7 +569,7 @@ func ComposedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pa
 // validation function within the supplied duration.
 func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, min, validate, listOptions...), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, min, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources didn't pass validation: %v:\n\n%s\n\n", err, y)
 			return ctx
@@ -584,7 +587,7 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources wasn't deleted: %v:\n\n%s\n\n", err, y)
 			return ctx
