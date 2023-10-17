@@ -26,7 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -67,7 +67,7 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: pointer.String("some-server-secret"),
+							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
 				},
@@ -102,7 +102,7 @@ func TestFunctionPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSServerSecretName: pointer.String("some-server-secret"),
+							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
 					Status: v1beta1.FunctionRevisionStatus{

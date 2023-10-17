@@ -24,7 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
@@ -66,8 +66,8 @@ var (
 				Package: providerImage,
 			},
 			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-				TLSServerSecretName: pointer.String(tlsServerSecretName),
-				TLSClientSecretName: pointer.String(tlsClientSecretName),
+				TLSServerSecretName: ptr.To(tlsServerSecretName),
+				TLSClientSecretName: ptr.To(tlsClientSecretName),
 			},
 		},
 	}
@@ -88,7 +88,7 @@ var (
 				Package: functionImage,
 			},
 			PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-				TLSServerSecretName: pointer.String(tlsServerSecretName),
+				TLSServerSecretName: ptr.To(tlsServerSecretName),
 			},
 		},
 	}
@@ -137,7 +137,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: providerMetaName},
 					Spec: pkgmetav1.ProviderSpec{
 						Controller: pkgmetav1.ControllerSpec{
-							Image: pointer.String("crossplane/provider-foo-controller:v1.2.3"),
+							Image: ptr.To("crossplane/provider-foo-controller:v1.2.3"),
 						},
 					},
 				}, providerRevision),
@@ -157,13 +157,13 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					namespace: namespace,
 					controllerConfig: &v1alpha1.ControllerConfig{
 						Spec: v1alpha1.ControllerConfigSpec{
-							Replicas: pointer.Int32(3),
+							Replicas: ptr.To[int32](3),
 							Metadata: &v1alpha1.PodObjectMeta{
 								Labels: map[string]string{
 									"k": "v",
 								},
 							},
-							Image: pointer.String("crossplane/provider-foo:v1.2.4"),
+							Image: ptr.To("crossplane/provider-foo:v1.2.4"),
 							Volumes: []corev1.Volume{
 								{Name: "vol-a"},
 								{Name: "vol-b"},
@@ -183,7 +183,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					"pkg.crossplane.io/provider": providerMetaName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = pointer.Int32(3)
+					deployment.Spec.Replicas = ptr.To[int32](3)
 					deployment.Spec.Template.Labels["k"] = "v"
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
 					deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, corev1.Volume{Name: "vol-a"}, corev1.Volume{Name: "vol-b"})
@@ -201,7 +201,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Spec: &appsv1.DeploymentSpec{
-									Replicas: pointer.Int32(3),
+									Replicas: ptr.To[int32](3),
 									Template: corev1.PodTemplateSpec{
 										ObjectMeta: metav1.ObjectMeta{
 											Labels: map[string]string{
@@ -238,7 +238,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					"pkg.crossplane.io/provider": providerMetaName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = pointer.Int32(3)
+					deployment.Spec.Replicas = ptr.To[int32](3)
 					deployment.Spec.Template.Labels["k"] = "v"
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
 					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
@@ -256,7 +256,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Metadata: &v1beta1.ObjectMeta{
-									Name: pointer.String("my-provider-foo"),
+									Name: ptr.To("my-provider-foo"),
 									Labels: map[string]string{
 										"x": "y",
 									},
@@ -265,7 +265,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 									},
 								},
 								Spec: &appsv1.DeploymentSpec{
-									Replicas: pointer.Int32(3),
+									Replicas: ptr.To[int32](3),
 									Template: corev1.PodTemplateSpec{
 										ObjectMeta: metav1.ObjectMeta{
 											Labels: map[string]string{
@@ -323,7 +323,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					deployment.Annotations = map[string]string{
 						"foo": "bar",
 					}
-					deployment.Spec.Replicas = pointer.Int32(3)
+					deployment.Spec.Replicas = ptr.To[int32](3)
 					deployment.Spec.Template.Labels["k"] = "v"
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
 					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
@@ -369,7 +369,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				serviceAccountName: functionRevisionName,
 				overrides: functionDeploymentOverrides(&pkgmetav1beta1.Function{
 					Spec: pkgmetav1beta1.FunctionSpec{
-						Image: pointer.String("crossplane/function-foo-server:v1.2.3"),
+						Image: ptr.To("crossplane/function-foo-server:v1.2.3"),
 					},
 				}, functionRevision),
 			},
@@ -385,7 +385,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					namespace: namespace,
 					controllerConfig: &v1alpha1.ControllerConfig{
 						Spec: v1alpha1.ControllerConfigSpec{
-							Replicas: pointer.Int32(3),
+							Replicas: ptr.To[int32](3),
 						},
 					},
 				},
@@ -394,7 +394,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage, func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = pointer.Int32(3)
+					deployment.Spec.Replicas = ptr.To[int32](3)
 				}),
 			},
 		},
@@ -419,13 +419,13 @@ func deploymentProvider(provider string, revision string, image string, override
 					APIVersion:         "pkg.crossplane.io/v1",
 					Kind:               "ProviderRevision",
 					Name:               revision,
-					Controller:         pointer.Bool(true),
-					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32(1),
+			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"pkg.crossplane.io/revision": revision,
@@ -576,13 +576,13 @@ func deploymentFunction(function string, revision string, image string, override
 					APIVersion:         "pkg.crossplane.io/v1beta1",
 					Kind:               "FunctionRevision",
 					Name:               revision,
-					Controller:         pointer.Bool(true),
-					BlockOwnerDeletion: pointer.Bool(true),
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
 				},
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32(1),
+			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"pkg.crossplane.io/revision": revision,
