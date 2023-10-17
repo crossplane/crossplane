@@ -25,7 +25,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/cmd/crank/marketplace"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 	"github.com/crossplane/crossplane/internal/version"
@@ -64,8 +63,6 @@ var cli struct {
 	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
 
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
-
-	Marketplace marketplace.Cmd `cmd:"" help:"Interact with the Upbound Marketplace."`
 
 	Alpha struct {
 		// Add here alpha subcommands
