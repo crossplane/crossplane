@@ -26,7 +26,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -98,7 +98,7 @@ func TestProviderPreHook(t *testing.T) {
 								Version: versionCrossplane,
 							},
 							DependsOn: []pkgmetav1.Dependency{{
-								Provider: pointer.String(providerDep),
+								Provider: ptr.To(providerDep),
 								Version:  versionDep,
 							}},
 						},
@@ -139,8 +139,8 @@ func TestProviderPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSClientSecretName: pointer.String("some-client-secret"),
-							TLSServerSecretName: pointer.String("some-server-secret"),
+							TLSClientSecretName: ptr.To("some-client-secret"),
+							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
 				},
@@ -174,8 +174,8 @@ func TestProviderPreHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
-							TLSClientSecretName: pointer.String("some-client-secret"),
-							TLSServerSecretName: pointer.String("some-server-secret"),
+							TLSClientSecretName: ptr.To("some-client-secret"),
+							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
 				},
