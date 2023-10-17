@@ -19,6 +19,7 @@ package claim
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
@@ -92,8 +93,17 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	// external name.
 	en := meta.GetExternalName(ucp)
 
-	meta.AddAnnotations(ucp, ucm.GetAnnotations())
-	meta.AddLabels(ucp, cm.GetLabels())
+	// Do not propagate *.kubernetes.io annotations/labels down to the composite
+	// For example: when a claim gets deployed using kubectl,
+	// its kubectl.kubernetes.io/last-applied-configuration annotation
+	// should not be propagated to the corresponding composite resource,
+	// because:
+	// * XR was not created using kubectl
+	// * The content of the annotaton refers to the claim, not XR
+	// See https://kubernetes.io/docs/reference/labels-annotations-taints/
+	// for all annotations and their semantic
+	meta.AddAnnotations(ucp, withoutReservedK8sEntries(ucm.GetAnnotations()))
+	meta.AddLabels(ucp, withoutReservedK8sEntries(cm.GetLabels()))
 	meta.AddLabels(ucp, map[string]string{
 		xcrd.LabelKeyClaimName:      ucm.GetName(),
 		xcrd.LabelKeyClaimNamespace: ucm.GetNamespace(),
@@ -144,6 +154,16 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 
 	return nil
+}
+
+func withoutReservedK8sEntries(a map[string]string) map[string]string {
+	for k := range a {
+		s := strings.Split(k, "/")
+		if strings.HasSuffix(s[0], "kubernetes.io") || strings.HasSuffix(s[0], "k8s.io") {
+			delete(a, k)
+		}
+	}
+	return a
 }
 
 func filter(in map[string]any, keys ...string) map[string]any {
