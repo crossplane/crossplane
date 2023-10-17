@@ -36,8 +36,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	"github.com/crossplane/crossplane/cmd/crank/internal/upbound"
-	"github.com/crossplane/crossplane/cmd/crank/internal/upbound/config"
+	"github.com/crossplane/crossplane/internal/xpkg/upbound"
+	"github.com/crossplane/crossplane/internal/xpkg/upbound/config"
 )
 
 const (
