@@ -31,7 +31,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	"github.com/crossplane/crossplane/cmd/crank/internal/config"
+	config2 "github.com/crossplane/crossplane/cmd/crank/internal/upbound/config"
 )
 
 const (
@@ -76,7 +76,7 @@ type Flags struct {
 // Context includes common data that Upbound consumers may utilize.
 type Context struct {
 	ProfileName string
-	Profile     config.Profile
+	Profile     config2.Profile
 	Token       string
 	Account     string
 	Domain      *url.URL
@@ -86,8 +86,8 @@ type Context struct {
 	APIEndpoint      *url.URL
 	ProxyEndpoint    *url.URL
 	RegistryEndpoint *url.URL
-	Cfg              *config.Config
-	CfgSrc           config.Source
+	Cfg              *config2.Config
+	CfgSrc           config2.Source
 
 	allowMissingProfile bool
 	cfgPath             string
@@ -107,7 +107,7 @@ func AllowMissingProfile() Option {
 
 // NewFromFlags constructs a new context from flags.
 func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo // TODO(phisco): imported as is, refactor
-	p, err := config.GetDefaultPath()
+	p, err := config2.GetDefaultPath()
 	if err != nil {
 		return nil, err
 	}
@@ -121,14 +121,14 @@ func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo 
 		o(c)
 	}
 
-	src := config.NewFSSource(
-		config.WithFS(c.fs),
-		config.WithPath(c.cfgPath),
+	src := config2.NewFSSource(
+		config2.WithFS(c.fs),
+		config2.WithPath(c.cfgPath),
 	)
 	if err := src.Initialize(); err != nil {
 		return nil, err
 	}
-	conf, err := config.Extract(src)
+	conf, err := config2.Extract(src)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo 
 
 	// If profile identifier is not provided, use the default, or empty if the
 	// default cannot be obtained.
-	c.Profile = config.Profile{}
+	c.Profile = config2.Profile{}
 	if f.Profile == "" {
 		if name, p, err := c.Cfg.GetDefaultUpboundProfile(); err == nil {
 			c.Profile = p

@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/cmd/crank/internal/config"
+	config2 "github.com/crossplane/crossplane/cmd/crank/internal/upbound/config"
 )
 
 // TODO(hasheddan): these tests are testing through to the underlying config
@@ -71,7 +71,7 @@ func TestGet(t *testing.T) {
 				server: testServer,
 			},
 			opts: []Opt{
-				WithSource(&config.MockSource{
+				WithSource(&config2.MockSource{
 					InitializeFn: func() error {
 						return errBoom
 					},
@@ -87,11 +87,11 @@ func TestGet(t *testing.T) {
 				server: testServer,
 			},
 			opts: []Opt{
-				WithSource(&config.MockSource{
+				WithSource(&config2.MockSource{
 					InitializeFn: func() error {
 						return nil
 					},
-					GetConfigFn: func() (*config.Config, error) {
+					GetConfigFn: func() (*config2.Config, error) {
 						return nil, errBoom
 					},
 				}),
@@ -106,12 +106,12 @@ func TestGet(t *testing.T) {
 				server: testServer,
 			},
 			opts: []Opt{
-				WithSource(&config.MockSource{
+				WithSource(&config2.MockSource{
 					InitializeFn: func() error {
 						return nil
 					},
-					GetConfigFn: func() (*config.Config, error) {
-						return &config.Config{}, nil
+					GetConfigFn: func() (*config2.Config, error) {
+						return &config2.Config{}, nil
 					},
 				}),
 			},
@@ -126,12 +126,12 @@ func TestGet(t *testing.T) {
 			},
 			opts: []Opt{
 				WithProfile(testProfile),
-				WithSource(&config.MockSource{
+				WithSource(&config2.MockSource{
 					InitializeFn: func() error {
 						return nil
 					},
-					GetConfigFn: func() (*config.Config, error) {
-						return &config.Config{}, nil
+					GetConfigFn: func() (*config2.Config, error) {
+						return &config2.Config{}, nil
 					},
 				}),
 			},
@@ -146,14 +146,14 @@ func TestGet(t *testing.T) {
 			},
 			opts: []Opt{
 				WithProfile(testProfile),
-				WithSource(&config.MockSource{
+				WithSource(&config2.MockSource{
 					InitializeFn: func() error {
 						return nil
 					},
-					GetConfigFn: func() (*config.Config, error) {
-						return &config.Config{
-							Upbound: config.Upbound{
-								Profiles: map[string]config.Profile{
+					GetConfigFn: func() (*config2.Config, error) {
+						return &config2.Config{
+							Upbound: config2.Upbound{
+								Profiles: map[string]config2.Profile{
 									testProfile: {
 										Session: testSecret,
 									},

@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/cmd/crank/internal/config"
+	config2 "github.com/crossplane/crossplane/cmd/crank/internal/upbound/config"
 )
 
 const (
@@ -47,7 +47,7 @@ type Helper struct {
 
 	profile string
 	domain  string
-	src     config.Source
+	src     config2.Source
 }
 
 // Opt sets a helper option.
@@ -75,7 +75,7 @@ func WithProfile(p string) Opt {
 }
 
 // WithSource sets the source for the helper config.
-func WithSource(src config.Source) Opt {
+func WithSource(src config2.Source) Opt {
 	return func(h *Helper) {
 		h.src = src
 	}
@@ -85,7 +85,7 @@ func WithSource(src config.Source) Opt {
 func New(opts ...Opt) *Helper {
 	h := &Helper{
 		log: logging.NewNopLogger(),
-		src: config.NewFSSource(),
+		src: config2.NewFSSource(),
 	}
 
 	for _, o := range opts {
@@ -118,11 +118,11 @@ func (h *Helper) Get(serverURL string) (string, string, error) {
 	if err := h.src.Initialize(); err != nil {
 		return "", "", errors.Wrap(err, errInitializeSource)
 	}
-	conf, err := config.Extract(h.src)
+	conf, err := config2.Extract(h.src)
 	if err != nil {
 		return "", "", errors.Wrap(err, errExtractConfig)
 	}
-	var p config.Profile
+	var p config2.Profile
 	if h.profile == "" {
 		_, p, err = conf.GetDefaultUpboundProfile()
 		if err != nil {
