@@ -59,9 +59,6 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Install installCmd `cmd:"" help:"Install Crossplane packages."`
-	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
-
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
 	Alpha struct {
