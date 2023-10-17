@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package config contains functionality for managing Upbound configuration.
+// Package config manages the Crossplane CLI configuration.
 package config
 
 import (
@@ -27,9 +27,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Location of up config file.
+// TODO(negz): If/when this config file stores anything apart from Upbound user
+// profiles (i.e. for authenticating to xpkg.upbound.io) we should split out the
+// generic Crossplane config from the xpkg.upbound.io stuff.
+
+// Location of crossplane CLI config file.
 const (
-	ConfigDir  = ".up"
+	ConfigDir  = ".crossplane"
 	ConfigFile = "config.json"
 )
 
