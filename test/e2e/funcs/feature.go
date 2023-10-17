@@ -657,7 +657,10 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		prev := map[string]map[xpv1.ConditionType]xpv1.Condition{}
 
-		_ = apimachinerywait.PollUntilContextCancel(ctx, 500*time.Millisecond, true, func(ctx context.Context) (done bool, err error) {
+		pollCtx, cancel := context.WithCancel(ctx)
+		t.Cleanup(cancel)
+
+		_ = apimachinerywait.PollUntilContextCancel(pollCtx, 500*time.Millisecond, true, func(ctx context.Context) (done bool, err error) {
 			if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 				return false, nil //nolint:nilerr // retry and ignore the error
 			}
