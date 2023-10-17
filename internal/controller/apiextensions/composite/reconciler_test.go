@@ -48,6 +48,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 )
 
 var _ Composer = ComposerSelectorFn(func(cm *v1.CompositionMode) Composer { return nil })
@@ -759,7 +760,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, tc.args.of, tc.args.opts...)
+			r := NewReconciler(tc.args.mgr, tc.args.of, apiextensionscontroller.Options{}, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

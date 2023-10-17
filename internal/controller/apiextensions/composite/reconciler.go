@@ -45,6 +45,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/features"
 )
 
 const (
@@ -396,7 +398,7 @@ func (fn KindObserverFunc) WatchComposedResources(kind ...schema.GroupVersionKin
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(mgr manager.Manager, of resource.CompositeKind, o apiextensionscontroller.Options, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
@@ -441,6 +443,8 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		record: event.NewNopRecorder(),
 
 		pollInterval: defaultPollInterval,
+
+		options: o,
 	}
 
 	for _, f := range opts {
@@ -468,6 +472,8 @@ type Reconciler struct {
 	record event.Recorder
 
 	pollInterval time.Duration
+
+	options apiextensionscontroller.Options
 }
 
 // Reconcile a composite resource.
@@ -712,6 +718,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// resources - we can't know what type of resources we might compose
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
+
+	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+
+	}
+
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 }
 

@@ -455,7 +455,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
 		ro = append(ro, composite.WithKindObserver(composite.KindObserverFunc(r.xrInformers.WatchComposedResources)))
 	}
-	cr := composite.NewReconciler(r.mgr, ck, ro...)
+	cr := composite.NewReconciler(r.mgr, ck, r.options, ro...)
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
