@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -767,7 +767,7 @@ func TestGetComposedResources(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						_ = meta.AddControllerReference(obj, metav1.OwnerReference{
 							UID:        types.UID("someone-else"),
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 						})
 
 						return nil
@@ -1039,7 +1039,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: pointer.Bool(true),
+									Controller: ptr.To(true),
 									UID:        "cool-xr",
 								}},
 							},
@@ -1070,7 +1070,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: pointer.Bool(true),
+									Controller: ptr.To(true),
 									UID:        "cool-xr",
 								}},
 							},
@@ -1102,7 +1102,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
-									Controller: pointer.Bool(true),
+									Controller: ptr.To(true),
 									UID:        "cool-xr",
 								}},
 							},

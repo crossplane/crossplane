@@ -24,6 +24,7 @@ package xcrd
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -31,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -244,6 +245,12 @@ func TestForCompositeResource(t *testing.T) {
 											// NOTE(muvaf): api-server takes care of validating
 											// metadata.
 											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](63),
+												},
+											},
 										},
 										"spec": {
 											Type:        "object",
@@ -345,7 +352,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: pointer.String("atomic"),
+													XListType: ptr.To("atomic"),
 												},
 												"publishConnectionDetailsTo": {
 													Type:     "object",
@@ -411,7 +418,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -520,6 +527,12 @@ func TestForCompositeResource(t *testing.T) {
 											// NOTE(muvaf): api-server takes care of validating
 											// metadata.
 											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](63),
+												},
+											},
 										},
 										"spec": {
 											Type:        "object",
@@ -610,7 +623,7 @@ func TestForCompositeResource(t *testing.T) {
 															Required: []string{"apiVersion", "kind"},
 														},
 													},
-													XListType: pointer.String("atomic"),
+													XListType: ptr.To("atomic"),
 												},
 												"publishConnectionDetailsTo": {
 													Type:     "object",
@@ -669,7 +682,7 @@ func TestForCompositeResource(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -690,6 +703,570 @@ func TestForCompositeResource(t *testing.T) {
 													Properties: map[string]extv1.JSONSchemaProps{
 														"lastPublishedTime": {Type: "string", Format: "date-time"},
 													},
+												},
+											},
+										},
+									},
+								},
+							},
+						}},
+					},
+				},
+			},
+		},
+		"RestrictingNameLength": {
+			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion.",
+			args: args{
+				v: &v1.CompositeResourceValidation{
+					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(strings.Replace(schema, `"spec":`, `"metadata":{"type":"object","properties":{"name":{"type":"string","maxLength":10}}},"spec":`, 1))},
+				},
+			},
+			want: want{
+				c: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+						},
+					},
+					Spec: extv1.CustomResourceDefinitionSpec{
+						Group: group,
+						Names: extv1.CustomResourceDefinitionNames{
+							Plural:     plural,
+							Singular:   singular,
+							Kind:       kind,
+							ListKind:   listKind,
+							Categories: []string{CategoryComposite},
+						},
+						Scope: extv1.ClusterScoped,
+						Versions: []extv1.CustomResourceDefinitionVersion{{
+							Name:    version,
+							Served:  true,
+							Storage: true,
+							Subresources: &extv1.CustomResourceSubresources{
+								Status: &extv1.CustomResourceSubresourceStatus{},
+							},
+							AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+								{
+									Name:     "SYNCED",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+								},
+								{
+									Name:     "READY",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+								},
+								{
+									Name:     "COMPOSITION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "AGE",
+									Type:     "date",
+									JSONPath: ".metadata.creationTimestamp",
+								},
+							},
+							Schema: &extv1.CustomResourceValidation{
+								OpenAPIV3Schema: &extv1.JSONSchemaProps{
+									Type:        "object",
+									Description: "What the resource is for.",
+									Required:    []string{"spec"},
+									Properties: map[string]extv1.JSONSchemaProps{
+										"apiVersion": {
+											Type: "string",
+										},
+										"kind": {
+											Type: "string",
+										},
+										"metadata": {
+											// NOTE(muvaf): api-server takes care of validating
+											// metadata.
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](10),
+												},
+											},
+										},
+										"spec": {
+											Type:        "object",
+											Required:    []string{"storageGB", "engineVersion"},
+											Description: "Specification of the resource.",
+											Properties: map[string]extv1.JSONSchemaProps{
+												// From CRDSpecTemplate.Validation
+												"storageGB": {Type: "integer", Description: "Pretend this is useful."},
+												"engineVersion": {
+													Type: "string",
+													Enum: []extv1.JSON{
+														{Raw: []byte(`"5.6"`)},
+														{Raw: []byte(`"5.7"`)},
+													},
+												},
+
+												// From CompositeResourceSpecProps()
+												"compositionRef": {
+													Type:     "object",
+													Required: []string{"name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {Type: "string"},
+													},
+												},
+												"compositionSelector": {
+													Type:     "object",
+													Required: []string{"matchLabels"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"matchLabels": {
+															Type: "object",
+															AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																Allows: true,
+																Schema: &extv1.JSONSchemaProps{Type: "string"},
+															},
+														},
+													},
+												},
+												"compositionRevisionRef": {
+													Type:     "object",
+													Required: []string{"name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {Type: "string"},
+													},
+												},
+												"compositionRevisionSelector": {
+													Type:     "object",
+													Required: []string{"matchLabels"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"matchLabels": {
+															Type: "object",
+															AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																Allows: true,
+																Schema: &extv1.JSONSchemaProps{Type: "string"},
+															},
+														},
+													},
+												},
+												"compositionUpdatePolicy": {
+													Type: "string",
+													Enum: []extv1.JSON{
+														{Raw: []byte(`"Automatic"`)},
+														{Raw: []byte(`"Manual"`)},
+													},
+												},
+												"claimRef": {
+													Type:     "object",
+													Required: []string{"apiVersion", "kind", "namespace", "name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"apiVersion": {Type: "string"},
+														"kind":       {Type: "string"},
+														"namespace":  {Type: "string"},
+														"name":       {Type: "string"},
+													},
+												},
+												"environmentConfigRefs": {
+													Type: "array",
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"apiVersion": {Type: "string"},
+																"name":       {Type: "string"},
+																"kind":       {Type: "string"},
+															},
+															Required: []string{"apiVersion", "kind"},
+														},
+													},
+												},
+												"resourceRefs": {
+													Type: "array",
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"apiVersion": {Type: "string"},
+																"name":       {Type: "string"},
+																"kind":       {Type: "string"},
+															},
+															Required: []string{"apiVersion", "kind"},
+														},
+													},
+													XListType: ptr.To("atomic"),
+												},
+												"publishConnectionDetailsTo": {
+													Type:     "object",
+													Required: []string{"name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {Type: "string"},
+														"configRef": {
+															Type:    "object",
+															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {
+																	Type: "string",
+																},
+															},
+														},
+														"metadata": {
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"labels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+																"annotations": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+																"type": {
+																	Type: "string",
+																},
+															},
+														},
+													},
+												},
+												"writeConnectionSecretToRef": {
+													Type:     "object",
+													Required: []string{"name", "namespace"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name":      {Type: "string"},
+														"namespace": {Type: "string"},
+													},
+												},
+											},
+											XValidations: extv1.ValidationRules{
+												{
+													Message: "Cannot change engine version",
+													Rule:    "self.engineVersion == oldSelf.engineVersion",
+												},
+											},
+										},
+										"status": {
+											Type:        "object",
+											Description: "Status of the resource.",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"phase": {Type: "string"},
+
+												// From CompositeResourceStatusProps()
+												"conditions": {
+													Description:  "Conditions of the resource.",
+													Type:         "array",
+													XListType:    ptr.To("map"),
+													XListMapKeys: []string{"type"},
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type:     "object",
+															Required: []string{"lastTransitionTime", "reason", "status", "type"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"lastTransitionTime": {Type: "string", Format: "date-time"},
+																"message":            {Type: "string"},
+																"reason":             {Type: "string"},
+																"status":             {Type: "string"},
+																"type":               {Type: "string"},
+															},
+														},
+													},
+												},
+												"connectionDetails": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"lastPublishedTime": {Type: "string", Format: "date-time"},
+													},
+												},
+											},
+											XValidations: extv1.ValidationRules{
+												{
+													Message: "Phase is required once set",
+													Rule:    "!has(oldSelf.phase) || has(self.phase)",
+												},
+											},
+										},
+									},
+								},
+							},
+						}},
+					},
+				},
+			},
+		},
+		"WeaklyRestrictingNameLength": {
+			reason: "A CRD should be generated from a CompositeResourceDefinitionVersion.",
+			args: args{
+				v: &v1.CompositeResourceValidation{
+					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(strings.Replace(schema, `"spec":`, `"metadata":{"type":"object","properties":{"name":{"type":"string","maxLength":100}}},"spec":`, 1))},
+				},
+			},
+			want: want{
+				c: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   name,
+						Labels: labels,
+						OwnerReferences: []metav1.OwnerReference{
+							meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
+						},
+					},
+					Spec: extv1.CustomResourceDefinitionSpec{
+						Group: group,
+						Names: extv1.CustomResourceDefinitionNames{
+							Plural:     plural,
+							Singular:   singular,
+							Kind:       kind,
+							ListKind:   listKind,
+							Categories: []string{CategoryComposite},
+						},
+						Scope: extv1.ClusterScoped,
+						Versions: []extv1.CustomResourceDefinitionVersion{{
+							Name:    version,
+							Served:  true,
+							Storage: true,
+							Subresources: &extv1.CustomResourceSubresources{
+								Status: &extv1.CustomResourceSubresourceStatus{},
+							},
+							AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+								{
+									Name:     "SYNCED",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+								},
+								{
+									Name:     "READY",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+								},
+								{
+									Name:     "COMPOSITION",
+									Type:     "string",
+									JSONPath: ".spec.compositionRef.name",
+								},
+								{
+									Name:     "AGE",
+									Type:     "date",
+									JSONPath: ".metadata.creationTimestamp",
+								},
+							},
+							Schema: &extv1.CustomResourceValidation{
+								OpenAPIV3Schema: &extv1.JSONSchemaProps{
+									Type:        "object",
+									Description: "What the resource is for.",
+									Required:    []string{"spec"},
+									Properties: map[string]extv1.JSONSchemaProps{
+										"apiVersion": {
+											Type: "string",
+										},
+										"kind": {
+											Type: "string",
+										},
+										"metadata": {
+											// NOTE(muvaf): api-server takes care of validating
+											// metadata.
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](63),
+												},
+											},
+										},
+										"spec": {
+											Type:        "object",
+											Required:    []string{"storageGB", "engineVersion"},
+											Description: "Specification of the resource.",
+											Properties: map[string]extv1.JSONSchemaProps{
+												// From CRDSpecTemplate.Validation
+												"storageGB": {Type: "integer", Description: "Pretend this is useful."},
+												"engineVersion": {
+													Type: "string",
+													Enum: []extv1.JSON{
+														{Raw: []byte(`"5.6"`)},
+														{Raw: []byte(`"5.7"`)},
+													},
+												},
+
+												// From CompositeResourceSpecProps()
+												"compositionRef": {
+													Type:     "object",
+													Required: []string{"name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {Type: "string"},
+													},
+												},
+												"compositionSelector": {
+													Type:     "object",
+													Required: []string{"matchLabels"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"matchLabels": {
+															Type: "object",
+															AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																Allows: true,
+																Schema: &extv1.JSONSchemaProps{Type: "string"},
+															},
+														},
+													},
+												},
+												"compositionRevisionRef": {
+													Type:     "object",
+													Required: []string{"name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {Type: "string"},
+													},
+												},
+												"compositionRevisionSelector": {
+													Type:     "object",
+													Required: []string{"matchLabels"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"matchLabels": {
+															Type: "object",
+															AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																Allows: true,
+																Schema: &extv1.JSONSchemaProps{Type: "string"},
+															},
+														},
+													},
+												},
+												"compositionUpdatePolicy": {
+													Type: "string",
+													Enum: []extv1.JSON{
+														{Raw: []byte(`"Automatic"`)},
+														{Raw: []byte(`"Manual"`)},
+													},
+												},
+												"claimRef": {
+													Type:     "object",
+													Required: []string{"apiVersion", "kind", "namespace", "name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"apiVersion": {Type: "string"},
+														"kind":       {Type: "string"},
+														"namespace":  {Type: "string"},
+														"name":       {Type: "string"},
+													},
+												},
+												"environmentConfigRefs": {
+													Type: "array",
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"apiVersion": {Type: "string"},
+																"name":       {Type: "string"},
+																"kind":       {Type: "string"},
+															},
+															Required: []string{"apiVersion", "kind"},
+														},
+													},
+												},
+												"resourceRefs": {
+													Type: "array",
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"apiVersion": {Type: "string"},
+																"name":       {Type: "string"},
+																"kind":       {Type: "string"},
+															},
+															Required: []string{"apiVersion", "kind"},
+														},
+													},
+													XListType: ptr.To("atomic"),
+												},
+												"publishConnectionDetailsTo": {
+													Type:     "object",
+													Required: []string{"name"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {Type: "string"},
+														"configRef": {
+															Type:    "object",
+															Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {
+																	Type: "string",
+																},
+															},
+														},
+														"metadata": {
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"labels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+																"annotations": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+																"type": {
+																	Type: "string",
+																},
+															},
+														},
+													},
+												},
+												"writeConnectionSecretToRef": {
+													Type:     "object",
+													Required: []string{"name", "namespace"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name":      {Type: "string"},
+														"namespace": {Type: "string"},
+													},
+												},
+											},
+											XValidations: extv1.ValidationRules{
+												{
+													Message: "Cannot change engine version",
+													Rule:    "self.engineVersion == oldSelf.engineVersion",
+												},
+											},
+										},
+										"status": {
+											Type:        "object",
+											Description: "Status of the resource.",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"phase": {Type: "string"},
+
+												// From CompositeResourceStatusProps()
+												"conditions": {
+													Description:  "Conditions of the resource.",
+													Type:         "array",
+													XListType:    ptr.To("map"),
+													XListMapKeys: []string{"type"},
+													Items: &extv1.JSONSchemaPropsOrArray{
+														Schema: &extv1.JSONSchemaProps{
+															Type:     "object",
+															Required: []string{"lastTransitionTime", "reason", "status", "type"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"lastTransitionTime": {Type: "string", Format: "date-time"},
+																"message":            {Type: "string"},
+																"reason":             {Type: "string"},
+																"status":             {Type: "string"},
+																"type":               {Type: "string"},
+															},
+														},
+													},
+												},
+												"connectionDetails": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"lastPublishedTime": {Type: "string", Format: "date-time"},
+													},
+												},
+											},
+											XValidations: extv1.ValidationRules{
+												{
+													Message: "Phase is required once set",
+													Rule:    "!has(oldSelf.phase) || has(self.phase)",
 												},
 											},
 										},
@@ -998,6 +1575,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 											// NOTE(muvaf): api-server takes care of validating
 											// metadata.
 											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](63),
+												},
+											},
 										},
 										"spec": {
 											Type:        "object",
@@ -1138,7 +1721,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1275,6 +1858,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 											// NOTE(muvaf): api-server takes care of validating
 											// metadata.
 											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {
+													Type:      "string",
+													MaxLength: ptr.To[int64](63),
+												},
+											},
 										},
 										"spec": {
 											Type:        "object",
@@ -1416,7 +2005,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
-													XListType:    pointer.String("map"),
+													XListType:    ptr.To("map"),
 													XListMapKeys: []string{"type"},
 													Items: &extv1.JSONSchemaPropsOrArray{
 														Schema: &extv1.JSONSchemaProps{
@@ -1586,6 +2175,12 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 									// NOTE(muvaf): api-server takes care of validating
 									// metadata.
 									Type: "object",
+									Properties: map[string]extv1.JSONSchemaProps{
+										"name": {
+											Type:      "string",
+											MaxLength: ptr.To[int64](63),
+										},
+									},
 								},
 								"spec": {
 									Type:        "object",
@@ -1708,7 +2303,7 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 										"conditions": {
 											Description:  "Conditions of the resource.",
 											Type:         "array",
-											XListType:    pointer.String("map"),
+											XListType:    ptr.To("map"),
 											XListMapKeys: []string{"type"},
 											Items: &extv1.JSONSchemaPropsOrArray{
 												Schema: &extv1.JSONSchemaProps{

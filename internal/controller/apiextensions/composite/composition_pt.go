@@ -24,7 +24,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -202,7 +202,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		ta := tas[i]
 
 		// If this resource is anonymous its "name" is just its index.
-		name := pointer.StringDeref(ta.Template.Name, fmt.Sprintf("resource %d", i+1))
+		name := ptr.Deref(ta.Template.Name, fmt.Sprintf("resource %d", i+1))
 		r := composed.New(composed.FromReference(ta.Reference))
 
 		if err := RenderFromJSON(r, ta.Template.Base.Raw); err != nil {
@@ -228,7 +228,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			rendered = false
 		}
 
-		if err := RenderComposedResourceMetadata(r, xr, ResourceName(pointer.StringDeref(ta.Template.Name, ""))); err != nil {
+		if err := RenderComposedResourceMetadata(r, xr, ResourceName(ptr.Deref(ta.Template.Name, ""))); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderMetadata, name)))
 			rendered = false
 		}
@@ -298,7 +298,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 
 		// If this resource is anonymous its "name" is just its index within the
 		// array of composed resource templates.
-		name := ResourceName(pointer.StringDeref(t.Name, fmt.Sprintf("resource %d", i+1)))
+		name := ResourceName(ptr.Deref(t.Name, fmt.Sprintf("resource %d", i+1)))
 
 		// If we were unable to render the composed resource we should not try
 		// to observe it. We still want to return it to the Reconciler so that

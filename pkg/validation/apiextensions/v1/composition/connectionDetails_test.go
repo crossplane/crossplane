@@ -23,7 +23,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -78,7 +78,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withConnectionDetails(
 					0,
 					v1.ConnectionDetail{
-						FromFieldPath: pointer.String("spec.someOtherField"),
+						FromFieldPath: ptr.To("spec.someOtherField"),
 					},
 				)),
 				gkToCRD: defaultGKToCRDs(),
@@ -93,10 +93,10 @@ func TestValidateConnectionDetails(t *testing.T) {
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withConnectionDetails(
 					0,
 					v1.ConnectionDetail{
-						FromFieldPath: pointer.String("spec.someWrongField"),
+						FromFieldPath: ptr.To("spec.someWrongField"),
 					},
 					v1.ConnectionDetail{
-						FromFieldPath: pointer.String("spec.someField"),
+						FromFieldPath: ptr.To("spec.someField"),
 					},
 				)),
 				gkToCRD: buildGkToCRDs(

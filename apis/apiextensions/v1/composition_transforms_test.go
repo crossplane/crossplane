@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -49,7 +49,7 @@ func TestTransformValidate(t *testing.T) {
 					Type: TransformTypeMath,
 					Math: &MathTransform{
 						Type:     MathTransformTypeMultiply,
-						Multiply: pointer.Int64(2),
+						Multiply: ptr.To[int64](2),
 					},
 				},
 			},
@@ -60,7 +60,7 @@ func TestTransformValidate(t *testing.T) {
 				transform: &Transform{
 					Type: TransformTypeMath,
 					Math: &MathTransform{
-						Multiply: pointer.Int64(2),
+						Multiply: ptr.To[int64](2),
 					},
 				},
 			},
@@ -72,7 +72,7 @@ func TestTransformValidate(t *testing.T) {
 					Type: TransformTypeMath,
 					Math: &MathTransform{
 						Type:     MathTransformTypeClampMin,
-						ClampMin: pointer.Int64(10),
+						ClampMin: ptr.To[int64](10),
 					},
 				},
 			},
@@ -84,7 +84,7 @@ func TestTransformValidate(t *testing.T) {
 					Type: TransformTypeMath,
 					Math: &MathTransform{
 						Type:     MathTransformTypeMultiply,
-						ClampMin: pointer.Int64(10),
+						ClampMin: ptr.To[int64](10),
 					},
 				},
 			},
@@ -192,7 +192,7 @@ func TestTransformValidate(t *testing.T) {
 						Patterns: []MatchTransformPattern{
 							{
 								Type:   MatchTransformPatternTypeRegexp,
-								Regexp: pointer.String(".*"),
+								Regexp: ptr.To(".*"),
 							},
 						},
 					},
@@ -208,7 +208,7 @@ func TestTransformValidate(t *testing.T) {
 						Patterns: []MatchTransformPattern{
 							{
 								Type:   MatchTransformPatternTypeRegexp,
-								Regexp: pointer.String("?"),
+								Regexp: ptr.To("?"),
 							},
 						},
 					},
@@ -230,10 +230,10 @@ func TestTransformValidate(t *testing.T) {
 						Patterns: []MatchTransformPattern{
 							{
 								Type:    MatchTransformPatternTypeLiteral,
-								Literal: pointer.String("foo"),
+								Literal: ptr.To("foo"),
 							},
 							{
-								Literal: pointer.String("bar"),
+								Literal: ptr.To("bar"),
 							},
 						},
 					},
@@ -261,7 +261,7 @@ func TestTransformValidate(t *testing.T) {
 				transform: &Transform{
 					Type: TransformTypeString,
 					String: &StringTransform{
-						Format: pointer.String("foo"),
+						Format: ptr.To("foo"),
 					},
 				},
 			},

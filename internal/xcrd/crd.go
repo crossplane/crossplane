@@ -28,7 +28,7 @@ import (
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -72,8 +72,12 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 
 	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryComposite)
 
+	// The composite name is used as a label value, so we must ensure it is not
+	// longer.
+	const maxCompositeNameLength = 63
+
 	for i, vr := range xrd.Spec.Versions {
-		crdv, err := genCrdVersion(vr)
+		crdv, err := genCrdVersion(vr, maxCompositeNameLength)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource", xrd.Name)
 		}
@@ -112,8 +116,13 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 
 	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryClaim)
 
+	// 63 because the names are used as label values. We don't put 63-6
+	// (generateName suffix length) here because the name generator shortens
+	// the base to 57 automatically before appending the suffix.
+	const maxClaimNameLength = 63
+
 	for i, vr := range xrd.Spec.Versions {
-		crdv, err := genCrdVersion(vr)
+		crdv, err := genCrdVersion(vr, maxClaimNameLength)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource Claim", xrd.Name)
 		}
@@ -133,12 +142,12 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 	return crd, nil
 }
 
-func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResourceDefinitionVersion, error) {
+func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64) (*extv1.CustomResourceDefinitionVersion, error) {
 	crdv := extv1.CustomResourceDefinitionVersion{
 		Name:                     vr.Name,
 		Served:                   vr.Served,
 		Storage:                  vr.Referenceable,
-		Deprecated:               pointer.BoolDeref(vr.Deprecated, false),
+		Deprecated:               ptr.Deref(vr.Deprecated, false),
 		DeprecationWarning:       vr.DeprecationWarning,
 		AdditionalPrinterColumns: vr.AdditionalPrinterColumns,
 		Schema: &extv1.CustomResourceValidation{
@@ -158,6 +167,17 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResou
 	}
 
 	crdv.Schema.OpenAPIV3Schema.Description = s.Description
+
+	maxLength := maxNameLength
+	if old := s.Properties["metadata"].Properties["name"].MaxLength; old != nil && *old < maxLength {
+		maxLength = *old
+	}
+	xName := crdv.Schema.OpenAPIV3Schema.Properties["metadata"].Properties["name"]
+	xName.MaxLength = ptr.To(maxLength)
+	xName.Type = "string"
+	xMetaData := crdv.Schema.OpenAPIV3Schema.Properties["metadata"]
+	xMetaData.Properties = map[string]extv1.JSONSchemaProps{"name": xName}
+	crdv.Schema.OpenAPIV3Schema.Properties["metadata"] = xMetaData
 
 	xSpec := s.Properties["spec"]
 	cSpec := crdv.Schema.OpenAPIV3Schema.Properties["spec"]

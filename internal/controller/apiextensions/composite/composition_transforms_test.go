@@ -25,7 +25,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -167,7 +167,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("5"),
+							Literal: ptr.To("5"),
 						},
 					},
 				},
@@ -256,7 +256,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result:  asJSON("bar"),
 						},
 					},
@@ -273,12 +273,12 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result:  asJSON("bar"),
 						},
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result:  asJSON("not this"),
 						},
 					},
@@ -295,7 +295,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result: asJSON(map[string]interface{}{
 								"Hello": "World",
 							}),
@@ -316,7 +316,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result: asJSON([]string{
 								"Hello", "World",
 							}),
@@ -337,7 +337,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result:  asJSON(5),
 						},
 					},
@@ -354,7 +354,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result:  asJSON(true),
 						},
 					},
@@ -371,7 +371,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:    v1.MatchTransformPatternTypeLiteral,
-							Literal: pointer.String("foo"),
+							Literal: ptr.To("foo"),
 							Result:  asJSON(nil),
 						},
 					},
@@ -386,7 +386,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:   v1.MatchTransformPatternTypeRegexp,
-							Regexp: pointer.String("^foo.*$"),
+							Regexp: ptr.To("^foo.*$"),
 							Result: asJSON("Hello World"),
 						},
 					},
@@ -417,7 +417,7 @@ func TestMatchResolve(t *testing.T) {
 					Patterns: []v1.MatchTransformPattern{
 						{
 							Type:   v1.MatchTransformPatternTypeRegexp,
-							Regexp: pointer.String("?="),
+							Regexp: ptr.To("?="),
 						},
 					},
 				},
@@ -971,7 +971,7 @@ func TestStringResolve(t *testing.T) {
 				stype: v1.StringTransformTypeRegexp,
 				regexp: &v1.StringTransformRegexp{
 					Match: "my-([0-9]+)-string",
-					Group: pointer.Int(1),
+					Group: ptr.To[int](1),
 				},
 				i: "my-1-string",
 			},
@@ -984,7 +984,7 @@ func TestStringResolve(t *testing.T) {
 				stype: v1.StringTransformTypeRegexp,
 				regexp: &v1.StringTransformRegexp{
 					Match: "my-([0-9]+)-string",
-					Group: pointer.Int(2),
+					Group: ptr.To[int](2),
 				},
 				i: "my-1-string",
 			},
@@ -1077,7 +1077,7 @@ func TestConvertResolve(t *testing.T) {
 			args: args{
 				i:      "1000m",
 				to:     v1.TransformIOTypeFloat64,
-				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
+				format: (*v1.ConvertTransformFormat)(ptr.To(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
 				o: 1.0,
@@ -1087,7 +1087,7 @@ func TestConvertResolve(t *testing.T) {
 			args: args{
 				i:      "1000 blabla",
 				to:     v1.TransformIOTypeFloat64,
-				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
+				format: (*v1.ConvertTransformFormat)(ptr.To(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
 				err: resource.ErrFormatWrong,
@@ -1115,7 +1115,7 @@ func TestConvertResolve(t *testing.T) {
 			args: args{
 				i:      "{\"foo\":\"bar\"}",
 				to:     v1.TransformIOTypeObject,
-				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatJSON))),
+				format: (*v1.ConvertTransformFormat)(ptr.To(string(v1.ConvertTransformFormatJSON))),
 			},
 			want: want{
 				o: map[string]any{
@@ -1127,7 +1127,7 @@ func TestConvertResolve(t *testing.T) {
 			args: args{
 				i:      "[\"foo\", \"bar\", \"baz\"]",
 				to:     v1.TransformIOTypeArray,
-				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatJSON))),
+				format: (*v1.ConvertTransformFormat)(ptr.To(string(v1.ConvertTransformFormatJSON))),
 			},
 			want: want{
 				o: []any{
@@ -1148,7 +1148,7 @@ func TestConvertResolve(t *testing.T) {
 			args: args{
 				i:      100,
 				to:     v1.TransformIOTypeString,
-				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
+				format: (*v1.ConvertTransformFormat)(ptr.To(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
 				err: errors.Errorf(errFmtConvertFormatPairNotSupported, "int", "string", string(v1.ConvertTransformFormatQuantity)),
