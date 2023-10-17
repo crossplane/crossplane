@@ -25,7 +25,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/cmd/crank/render"
+	"github.com/crossplane/crossplane/cmd/crank/beta"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -61,15 +61,7 @@ var cli struct {
 
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
-	Alpha struct {
-		// Add here alpha subcommands
-		Init initCmd `cmd:"" help:"Initialize directories for Crossplane packages from templates."`
-	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
-
-	Beta struct {
-		Render render.Cmd `cmd:"" help:"Render an XR using Composition Functions."`
-		// Add here beta subcommands
-	} `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
+	Beta beta.Cmd `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
 }
 
 func main() {
