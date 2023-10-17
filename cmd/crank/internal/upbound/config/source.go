@@ -134,7 +134,7 @@ func (src *FSSource) UpdateConfig(c *Config) error {
 	// deferred Close() will error (see https://golang.org/pkg/os/#File.Close),
 	// but we do not check it.
 	defer f.Close() //nolint:errcheck // we don't care about the error
-	b, err := json.Marshal(c)
+	b, err := json.MarshalIndent(c, "", "\t")
 	if err != nil {
 		return err
 	}
