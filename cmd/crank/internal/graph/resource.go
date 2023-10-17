@@ -123,6 +123,31 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 		Kind:    gr.Resource,
 	})
 
+	// The if is to catch if a apiversion was passed as input parameter.
+	var gvr schema.GroupVersionResource
+	var err error
+	_, apiversion, found := strings.Cut(resourceKind, ".")
+	if found {
+		group, version, _ := strings.Cut(apiversion, "/")
+		gvr, err = kc.rmapper.ResourceFor(schema.GroupVersionResource{
+			Group:    group,
+			Version:  version,
+			Resource: manifest.GetKind(),
+		})
+	} else {
+		gvr, err = kc.rmapper.ResourceFor(schema.GroupVersionResource{
+			Group:    manifest.GroupVersionKind().Group,
+			Version:  manifest.GroupVersionKind().Version,
+			Resource: manifest.GetKind(),
+		})
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "Couldn't build GVR schema for resource")
+	}
+
+	if apiversion != "" {
+		apiVersion = apiversion
+	}
 	// Check if resource is namespaced as the namespace parameter has to bet set in the kc.client.Resource() call below
 	isNamespaced, err := kc.isResourceNamespaced(gr.Resource, apiVersion)
 	if err != nil {
@@ -130,16 +155,6 @@ func (kc *Client) getManifest(resourceKind string, resourceName string, apiVersi
 	}
 	if isNamespaced {
 		manifest.SetNamespace(namespace)
-	}
-
-	// Built GVR schema for API server call below.
-	gvr, err := kc.rmapper.ResourceFor(schema.GroupVersionResource{
-		Group:    manifest.GroupVersionKind().Group,
-		Version:  manifest.GroupVersionKind().Version,
-		Resource: manifest.GetKind(),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "Couldn't build GVR schema for resource")
 	}
 
 	// Get manifest for resource
