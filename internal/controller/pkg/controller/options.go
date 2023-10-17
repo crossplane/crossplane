@@ -42,4 +42,7 @@ type Options struct {
 	// FetcherOptions can be used to add optional parameters to
 	// NewK8sFetcher.
 	FetcherOptions []xpkg.FetcherOpt
+
+	// PackageRuntime specifies the runtime to use for package runtime.
+	PackageRuntime PackageRuntime
 }

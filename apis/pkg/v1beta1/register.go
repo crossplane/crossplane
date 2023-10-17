@@ -64,8 +64,17 @@ var (
 	FunctionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionRevisionKind)
 )
 
+// DeploymentRuntimeConfig type metadata.
+var (
+	DeploymentRuntimeConfigKind             = reflect.TypeOf(DeploymentRuntimeConfig{}).Name()
+	DeploymentRuntimeConfigGroupKind        = schema.GroupKind{Group: Group, Kind: DeploymentRuntimeConfigKind}.String()
+	DeploymentRuntimeConfigKindAPIVersion   = DeploymentRuntimeConfigKind + "." + SchemeGroupVersion.String()
+	DeploymentRuntimeConfigGroupVersionKind = SchemeGroupVersion.WithKind(DeploymentRuntimeConfigKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Lock{}, &LockList{})
 	SchemeBuilder.Register(&Function{}, &FunctionList{})
 	SchemeBuilder.Register(&FunctionRevision{}, &FunctionRevisionList{})
+	SchemeBuilder.Register(&DeploymentRuntimeConfig{}, &DeploymentRuntimeConfigList{})
 }

@@ -82,9 +82,10 @@ const (
 	errNotOneMeta        = "cannot install package with multiple meta types"
 	errIncompatible      = "incompatible Crossplane version"
 
-	errPreHook          = "cannot run pre establish hook for package"
-	errPostHook         = "cannot run post establish hook for package"
-	errDeactivationHook = "cannot run deactivation hook for package"
+	errManifestBuilder  = "cannot create runtime manifest builder"
+	errPreHook          = "pre establish runtime hook failed for package"
+	errPostHook         = "post establish runtime hook failed for package"
+	errDeactivationHook = "deactivation runtime hook failed for package"
 
 	errEstablishControl = "cannot establish control of object"
 	errReleaseObjects   = "cannot release objects"
@@ -164,11 +165,13 @@ func WithDependencyManager(m DependencyManager) ReconcilerOption {
 	}
 }
 
-// WithHooks specifies how the Reconciler should perform pre and post object
-// establishment operations.
-func WithHooks(h Hooks) ReconcilerOption {
+// WithRuntimeHooks specifies how the Reconciler should perform preparations
+// (pre- and post-establishment) and cleanup (deactivate) for package runtime.
+// The hooks are only used when the package has a runtime and the runtime is
+// configured as Deployment.
+func WithRuntimeHooks(h RuntimeHooks) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.hook = h
+		r.runtimeHook = h
 	}
 }
 
@@ -208,6 +211,21 @@ func WithVersioner(v version.Operations) ReconcilerOption {
 	}
 }
 
+// WithNamespace specifies the namespace in which the Reconciler should create
+// runtime resources.
+func WithNamespace(n string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.namespace = n
+	}
+}
+
+// WithServiceAccount specifies the core Crossplane ServiceAccount name.
+func WithServiceAccount(sa string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.serviceAccount = sa
+	}
+}
+
 // uniqueResourceIdentifier returns a unique identifier for a resource in a
 // package, consisting of the group, version, kind, and name.
 func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
@@ -216,18 +234,20 @@ func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client    client.Client
-	cache     xpkg.PackageCache
-	revision  resource.Finalizer
-	lock      DependencyManager
-	hook      Hooks
-	objects   Establisher
-	parser    parser.Parser
-	linter    parser.Linter
-	versioner version.Operations
-	backend   parser.Backend
-	log       logging.Logger
-	record    event.Recorder
+	client         client.Client
+	cache          xpkg.PackageCache
+	revision       resource.Finalizer
+	lock           DependencyManager
+	runtimeHook    RuntimeHooks
+	objects        Establisher
+	parser         parser.Parser
+	linter         parser.Linter
+	versioner      version.Operations
+	backend        parser.Backend
+	log            logging.Logger
+	record         event.Recorder
+	namespace      string
+	serviceAccount string
 
 	newPackageRevision func() v1.PackageRevision
 }
@@ -255,23 +275,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
-	r := NewReconciler(mgr,
-		WithCache(o.Cache),
-		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ProviderPackageType)),
-		WithHooks(NewProviderHooks(resource.ClientApplicator{
-			Client:     mgr.GetClient(),
-			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
-		}, o.Namespace, o.ServiceAccount)),
-		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
-		WithNewPackageRevisionFn(nr),
-		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
-		WithLinter(xpkg.NewProviderLinter()),
-		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-	)
-
-	return ctrl.NewControllerManagedBy(mgr).
+	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&appsv1.Deployment{}).
@@ -280,9 +284,31 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
 			client: mgr.GetClient(),
-		}).
-		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		})
+
+	ro := []ReconcilerOption{
+		WithCache(o.Cache),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ProviderPackageType)),
+		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
+		WithNewPackageRevisionFn(nr),
+		WithParser(parser.New(metaScheme, objScheme)),
+		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithLinter(xpkg.NewProviderLinter()),
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithNamespace(o.Namespace),
+		WithServiceAccount(o.ServiceAccount),
+	}
+
+	if o.PackageRuntime == controller.PackageRuntimeDeployment {
+		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
+		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
+			client: mgr.GetClient(),
+		})
+	}
+
+	return cb.WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
@@ -311,7 +337,6 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ConfigurationPackageType)),
-		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -319,6 +344,8 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithNamespace(o.Namespace),
+		WithServiceAccount(o.ServiceAccount),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -351,23 +378,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
-	r := NewReconciler(mgr,
-		WithCache(o.Cache),
-		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.FunctionPackageType)),
-		WithHooks(NewFunctionHooks(resource.ClientApplicator{
-			Client:     mgr.GetClient(),
-			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
-		}, o.Namespace, o.ServiceAccount)),
-		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
-		WithNewPackageRevisionFn(nr),
-		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
-		WithLinter(xpkg.NewFunctionLinter()),
-		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-	)
-
-	return ctrl.NewControllerManagedBy(mgr).
+	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1beta1.FunctionRevision{}).
 		Owns(&appsv1.Deployment{}).
@@ -376,9 +387,31 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
-		}).
-		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+		})
+
+	ro := []ReconcilerOption{
+		WithCache(o.Cache),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.FunctionPackageType)),
+		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
+		WithNewPackageRevisionFn(nr),
+		WithParser(parser.New(metaScheme, objScheme)),
+		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithLinter(xpkg.NewFunctionLinter()),
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithNamespace(o.Namespace),
+		WithServiceAccount(o.ServiceAccount),
+	}
+
+	if o.PackageRuntime == controller.PackageRuntimeDeployment {
+		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())))
+		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
+			client: mgr.GetClient(),
+		})
+	}
+
+	return cb.WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, ro...)), o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package revision reconciler.
@@ -388,7 +421,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		client:    mgr.GetClient(),
 		cache:     xpkg.NewNopCache(),
 		revision:  resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
-		hook:      NewNopHooks(),
 		objects:   NewNopEstablisher(),
 		parser:    parser.New(nil, nil),
 		linter:    parser.NewPackageLinter(nil, nil, nil),
@@ -452,7 +484,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// we don't need to run relinquish step since when the parent objects
 		// (i.e. Package Revision) is gone, the controller reference on the
 		// child objects (i.e. CRD) will be garbage collected.
-		// We don't need to run the deactivate hook either since the owned
+		// We don't need to run the deactivate runtimeHook either since the owned
 		// Deployment or similar objects will be garbage collected as well.
 		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
 			if kerrors.IsConflict(err) {
@@ -474,9 +506,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	var runtimeManifestBuilder ManifestBuilder
+	if r.runtimeHook != nil {
+		var err error
+		runtimeManifestBuilder, err = NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pr.(v1.PackageRevisionWithRuntime))
+		if err != nil {
+			log.Debug(errManifestBuilder, "error", err)
+
+			err = errors.Wrap(err, errManifestBuilder)
+			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+			_ = r.client.Status().Update(ctx, pr)
+
+			r.record.Event(pr, event.Warning(reasonSync, err))
+
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
-		if err := r.deactivateRevision(ctx, pr); err != nil {
+		if err := r.deactivateRevision(ctx, pr, runtimeManifestBuilder); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -699,18 +748,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
+	if r.runtimeHook != nil {
+		pwr := pr.(v1.PackageRevisionWithRuntime)
+		if err := r.runtimeHook.Pre(ctx, pkgMeta, pwr, runtimeManifestBuilder); err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+
+			err = errors.Wrap(err, errPreHook)
+			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+			_ = r.client.Status().Update(ctx, pr)
+
+			r.record.Event(pr, event.Warning(reasonSync, err))
+
+			return reconcile.Result{}, err
 		}
-
-		err = errors.Wrap(err, errPreHook)
-		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
-		_ = r.client.Status().Update(ctx, pr)
-
-		r.record.Event(pr, event.Warning(reasonSync, err))
-
-		return reconcile.Result{}, err
 	}
 
 	// Establish control or ownership of objects.
@@ -746,18 +798,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	})
 	pr.SetObjects(refs)
 
-	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
+	if r.runtimeHook != nil {
+		if err := r.runtimeHook.Post(ctx, pkgMeta, pr.(v1.PackageRevisionWithRuntime), runtimeManifestBuilder); err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+
+			err = errors.Wrap(err, errPostHook)
+			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+			_ = r.client.Status().Update(ctx, pr)
+
+			r.record.Event(pr, event.Warning(reasonSync, err))
+
+			return reconcile.Result{}, err
 		}
-
-		err = errors.Wrap(err, errPostHook)
-		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
-		_ = r.client.Status().Update(ctx, pr)
-
-		r.record.Event(pr, event.Warning(reasonSync, err))
-
-		return reconcile.Result{}, err
 	}
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
@@ -765,7 +819,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 
-func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision) error {
+func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision, runtimeManifestBuilder ManifestBuilder) error {
 	// Remove self from the lock if we are present.
 	if err := r.lock.RemoveSelf(ctx, pr); err != nil {
 		return errors.Wrap(err, errRemoveLock)
@@ -776,8 +830,12 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 		return errors.Wrap(err, errReleaseObjects)
 	}
 
+	if r.runtimeHook == nil {
+		return nil
+	}
+
 	// Call deactivation hook.
-	if err := r.hook.Deactivate(ctx, pr); err != nil {
+	if err := r.runtimeHook.Deactivate(ctx, pr.(v1.PackageRevisionWithRuntime), runtimeManifestBuilder); err != nil {
 		return errors.Wrap(err, errDeactivationHook)
 	}
 

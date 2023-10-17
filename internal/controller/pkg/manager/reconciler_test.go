@@ -42,11 +42,6 @@ import (
 
 var _ Revisioner = &MockRevisioner{}
 
-var (
-	tlsServerSecret = "test-tls-server"
-	tlsClientSecret = "test-tls-client"
-)
-
 type MockRevisioner struct {
 	MockRevision func() (string, error)
 }
@@ -334,10 +329,6 @@ func TestReconcile(t *testing.T) {
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
 									},
-									Spec: v1.PackageRevisionSpec{
-										TLSServerSecretName: &tlsServerSecret,
-										TLSClientSecretName: &tlsClientSecret,
-									},
 								}
 								cr.SetConditions(v1.Healthy())
 								c := v1.ConfigurationRevisionList{
@@ -395,10 +386,6 @@ func TestReconcile(t *testing.T) {
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
-									},
-									Spec: v1.PackageRevisionSpec{
-										TLSServerSecretName: &tlsServerSecret,
-										TLSClientSecretName: &tlsClientSecret,
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)

@@ -394,12 +394,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
-	pr.SetControllerConfigRef(p.GetControllerConfigRef())
-	pr.SetTLSServerSecretName(p.GetTLSServerSecretName())
-	pr.SetTLSClientSecretName(p.GetTLSClientSecretName())
 	pr.SetCommonLabels(p.GetCommonLabels())
 
-	// If current revision is not active and we have an automatic or
+	if pwr, ok := p.(v1.PackageWithRuntime); ok {
+		pwrr := pr.(v1.PackageRevisionWithRuntime)
+		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
+		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
+		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+	}
+
+	// If current revision is not active, and we have an automatic or
 	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
 		pr.SetDesiredState(v1.PackageRevisionActive)

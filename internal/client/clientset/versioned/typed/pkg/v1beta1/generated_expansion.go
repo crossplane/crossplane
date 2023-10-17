@@ -18,6 +18,8 @@ limitations under the License.
 
 package v1beta1
 
+type DeploymentRuntimeConfigExpansion interface{}
+
 type FunctionExpansion interface{}
 
 type FunctionRevisionExpansion interface{}

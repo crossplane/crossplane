@@ -28,6 +28,7 @@ import (
 
 type PkgV1beta1Interface interface {
 	RESTClient() rest.Interface
+	DeploymentRuntimeConfigsGetter
 	FunctionsGetter
 	FunctionRevisionsGetter
 	LocksGetter
@@ -36,6 +37,10 @@ type PkgV1beta1Interface interface {
 // PkgV1beta1Client is used to interact with features provided by the pkg.crossplane.io group.
 type PkgV1beta1Client struct {
 	restClient rest.Interface
+}
+
+func (c *PkgV1beta1Client) DeploymentRuntimeConfigs() DeploymentRuntimeConfigInterface {
+	return newDeploymentRuntimeConfigs(c)
 }
 
 func (c *PkgV1beta1Client) Functions() FunctionInterface {

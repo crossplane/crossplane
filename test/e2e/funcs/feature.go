@@ -346,7 +346,11 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 				return false
 			}
 
-			return cmp.Equal(want, got)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Logf("value doesn't match with diff %s", diff)
+				return false
+			}
+			return true
 		}
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d)); err != nil {

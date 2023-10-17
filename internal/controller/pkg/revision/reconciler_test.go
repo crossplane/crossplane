@@ -87,7 +87,7 @@ func (e *MockEstablisher) ReleaseObjects(context.Context, v1.PackageRevision) er
 	return e.MockRelinquish()
 }
 
-var _ Hooks = &MockHook{}
+var _ RuntimeHooks = &MockHook{}
 
 type MockHook struct {
 	MockPre        func() error
@@ -107,15 +107,15 @@ func NewMockDeactivateFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockPre()
 }
 
-func (h *MockHook) Post(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *MockHook) Post(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockPost()
 }
 
-func (h *MockHook) Deactivate(context.Context, v1.PackageRevision) error {
+func (h *MockHook) Deactivate(context.Context, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockDeactivate()
 }
 
@@ -963,7 +963,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrPreHook": {
-			reason: "We should return an error if pre establishment hook returns an error.",
+			reason: "We should return an error if pre establishment runtimeHook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -972,17 +972,20 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
+								if pr, ok := o.(*v1.ProviderRevision); ok {
+									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+									pr.SetDesiredState(v1.PackageRevisionActive)
+									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								}
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot run pre establish hook for package: boom"))
+								want.SetConditions(v1.Unhealthy().WithMessage(errPreHook + ": boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -993,6 +996,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1004,7 +1008,7 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(&MockHook{
+					WithRuntimeHooks(&MockHook{
 						MockPre: NewMockPreFn(errBoom),
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
@@ -1025,7 +1029,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrPostHook": {
-			reason: "We should return an error if post establishment hook returns an error.",
+			reason: "We should return an error if post establishment runtimeHook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -1034,17 +1038,20 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								pr := o.(*v1.ProviderRevision)
-								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1.PackageRevisionActive)
+								if pr, ok := o.(*v1.ProviderRevision); ok {
+									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+									pr.SetDesiredState(v1.PackageRevisionActive)
+									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								}
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot run post establish hook for package: boom"))
+								want.SetConditions(v1.Unhealthy().WithMessage(errPostHook + ": boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1055,6 +1062,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1066,7 +1074,7 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(&MockHook{
+					WithRuntimeHooks(&MockHook{
 						MockPre:  NewMockPreFn(nil),
 						MockPost: NewMockPostFn(errBoom),
 					}),
@@ -1132,7 +1140,6 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(NewNopHooks()),
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
@@ -1199,7 +1206,6 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(NewNopHooks()),
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
@@ -1261,7 +1267,6 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(NewNopHooks()),
 					WithEstablisher(&MockEstablisher{
 						MockEstablish: NewMockEstablishFn(nil, errBoom),
 					}),
@@ -1338,7 +1343,6 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(NewNopHooks()),
 					WithEstablisher(&MockEstablisher{
 						MockRelinquish: func() error {
 							return errBoom
@@ -1397,7 +1401,6 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(NewNopHooks()),
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
@@ -1472,7 +1475,6 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithHooks(NewNopHooks()),
 					WithEstablisher(NewMockEstablisher()),
 				},
 			},

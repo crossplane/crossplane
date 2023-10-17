@@ -246,11 +246,11 @@ func TestReconcile(t *testing.T) {
 								l.Items = []v1.ProviderRevision{
 									{
 										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
-										Spec:       v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"},
+										Spec:       v1.ProviderRevisionSpec{PackageRevisionSpec: v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"}},
 									},
 									{
 										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
-										Spec:       v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"},
+										Spec:       v1.ProviderRevisionSpec{PackageRevisionSpec: v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"}},
 									},
 								}
 								return nil
