@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package credhelper provides a docker credential helper for the Upbound marketplace.
 package credhelper
 
 import (
@@ -21,6 +22,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplane/crossplane/cmd/crank/internal/config"
 )
 
@@ -92,12 +94,12 @@ func New(opts ...Opt) *Helper {
 }
 
 // Add adds the supplied credentials.
-func (h *Helper) Add(c *credentials.Credentials) error {
+func (h *Helper) Add(_ *credentials.Credentials) error {
 	return errors.New(errUnimplemented)
 }
 
 // Delete deletes credentials for the supplied server.
-func (h *Helper) Delete(serverURL string) error {
+func (h *Helper) Delete(_ string) error {
 	return errors.New(errUnimplemented)
 }
 

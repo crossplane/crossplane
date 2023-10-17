@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package upbound contains
 package upbound
 
 import (
@@ -24,11 +25,11 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
-
 	"github.com/upbound/up-sdk-go"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	config2 "github.com/crossplane/crossplane/cmd/crank/internal/config"
+
+	"github.com/crossplane/crossplane/cmd/crank/internal/config"
 )
 
 const (
@@ -73,7 +74,7 @@ type Flags struct {
 // Context includes common data that Upbound consumers may utilize.
 type Context struct {
 	ProfileName string
-	Profile     config2.Profile
+	Profile     config.Profile
 	Token       string
 	Account     string
 	Domain      *url.URL
@@ -83,8 +84,8 @@ type Context struct {
 	APIEndpoint      *url.URL
 	ProxyEndpoint    *url.URL
 	RegistryEndpoint *url.URL
-	Cfg              *config2.Config
-	CfgSrc           config2.Source
+	Cfg              *config.Config
+	CfgSrc           config.Source
 
 	allowMissingProfile bool
 	cfgPath             string
@@ -103,8 +104,8 @@ func AllowMissingProfile() Option {
 }
 
 // NewFromFlags constructs a new context from flags.
-func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo
-	p, err := config2.GetDefaultPath()
+func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo // TODO(phisco): imported as is, refactor
+	p, err := config.GetDefaultPath()
 	if err != nil {
 		return nil, err
 	}
@@ -118,14 +119,14 @@ func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo
 		o(c)
 	}
 
-	src := config2.NewFSSource(
-		config2.WithFS(c.fs),
-		config2.WithPath(c.cfgPath),
+	src := config.NewFSSource(
+		config.WithFS(c.fs),
+		config.WithPath(c.cfgPath),
 	)
 	if err := src.Initialize(); err != nil {
 		return nil, err
 	}
-	conf, err := config2.Extract(src)
+	conf, err := config.Extract(src)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo
 
 	// If profile identifier is not provided, use the default, or empty if the
 	// default cannot be obtained.
-	c.Profile = config2.Profile{}
+	c.Profile = config.Profile{}
 	if f.Profile == "" {
 		if name, p, err := c.Cfg.GetDefaultUpboundProfile(); err == nil {
 			c.Profile = p
@@ -206,7 +207,7 @@ func (c *Context) BuildSDKConfig() (*up.Config, error) {
 	}
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: c.InsecureSkipTLSVerify, //nolint:gosec
+			InsecureSkipVerify: c.InsecureSkipTLSVerify, //nolint:gosec // We need to support insecure connections if required
 		},
 	}
 	client := up.NewClient(func(u *up.HTTPClient) {

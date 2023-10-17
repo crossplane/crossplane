@@ -107,7 +107,7 @@ func TestGetConfig(t *testing.T) {
 					fs := afero.NewMemMapFs()
 					file, _ := fs.OpenFile("/.up/config.json", os.O_CREATE, 0600)
 					defer file.Close()
-					b, _ := json.Marshal(testConf)
+					b, _ := json.Marshal(testConf) //nolint:errchkjson // marshalling should not fail
 					_, _ = file.Write(b)
 					f.fs = fs
 				},

@@ -52,7 +52,7 @@ func TokenFromPath(path string, opts ...TokenOption) (TokenFile, error) {
 	if err != nil {
 		return tf, err
 	}
-	defer f.Close() //nolint:errcheck,gosec
+	defer f.Close() //nolint:errcheck // we don't care about the error
 	if err := json.NewDecoder(f).Decode(&tf); err != nil {
 		return tf, err
 	}

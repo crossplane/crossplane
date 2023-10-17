@@ -15,11 +15,11 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/upbound/up-sdk-go/service/userinfo"
 	"golang.org/x/term"
 
-	"github.com/upbound/up-sdk-go/service/userinfo"
-
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
 	"github.com/crossplane/crossplane/cmd/crank/internal/config"
 	"github.com/crossplane/crossplane/cmd/crank/internal/upbound"
 )
@@ -55,7 +55,7 @@ func (c *loginCmd) AfterApply(kongCtx *kong.Context) error {
 	c.client = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: upCtx.InsecureSkipTLSVerify, //nolint:gosec
+				InsecureSkipVerify: upCtx.InsecureSkipTLSVerify, //nolint:gosec // we need to support insecure connections if requested
 			},
 		},
 	}
@@ -70,7 +70,7 @@ func (c *loginCmd) AfterApply(kongCtx *kong.Context) error {
 }
 
 // Run executes the login command.
-func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error {
+func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error { //nolint:gocyclo // TODO(phisco): refactor
 	auth, profType, err := constructAuth(c.Username, c.Token, c.Password)
 	if err != nil {
 		return errors.Wrap(err, "failed to construct auth")
@@ -92,7 +92,7 @@ func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to send request")
 	}
-	defer res.Body.Close() // nolint:gosec,errcheck
+	defer res.Body.Close() //nolint:errcheck // we don't care about the error here
 	session, err := extractSession(res, upbound.CookieName)
 	if err != nil {
 		return errors.Wrap(err, "failed to extract session")
@@ -253,10 +253,5 @@ func extractSession(res *http.Response, cookieName string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to read body")
 	}
-	return "", errors.Errorf("failed to read cookie format", string(b))
-}
-
-// isEmail determines if the specified username is an email address.
-func isEmail(user string) bool {
-	return strings.Contains(user, "@")
+	return "", errors.Errorf("failed to read cookie format: %v", string(b))
 }

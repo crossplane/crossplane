@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package config contains functionality for managing Upbound configuration.
 package config
 
 import (

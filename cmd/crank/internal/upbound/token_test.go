@@ -41,7 +41,10 @@ func TestTokenFromPath(t *testing.T) {
 		AccessID: "cool-access",
 		Token:    "cool-token",
 	}
-	validTF, _ := json.Marshal(tf)
+	validTF, err := json.Marshal(tf)
+	if err != nil {
+		t.Fatalf("Failed to marshal token file: %s", err)
+	}
 	type args struct {
 		path string
 		opts []TokenOption
