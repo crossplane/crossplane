@@ -485,7 +485,7 @@ func (c ConvertTransformFormat) IsValid() bool {
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
 	// ToType is the type of the output of this transform.
-	// +kubebuilder:validation:Enum=string;int;int64;bool;float64;object;list
+	// +kubebuilder:validation:Enum=string;int;int64;bool;float64;object;array
 	ToType TransformIOType `json:"toType"`
 
 	// The expected input format.
