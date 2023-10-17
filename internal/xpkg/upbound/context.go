@@ -44,11 +44,6 @@ const (
 
 	// Default API subdomain.
 	apiSubdomain = "api."
-	// Default proxy subdomain.
-	proxySubdomain = "proxy."
-
-	// Base path for proxy.
-	proxyPath = "/v1/controlPlanes"
 
 	// Default registry subdomain.
 	xpkgSubdomain = "xpkg."
@@ -70,7 +65,6 @@ type Flags struct {
 
 	// Hidden
 	APIEndpoint      *url.URL `env:"OVERRIDE_API_ENDPOINT" hidden:"" name:"override-api-endpoint" help:"Overrides the default API endpoint." json:"apiEndpoint,omitempty"`
-	ProxyEndpoint    *url.URL `env:"OVERRIDE_PROXY_ENDPOINT" hidden:"" name:"override-proxy-endpoint" help:"Overrides the default proxy endpoint." json:"proxyEndpoint,omitempty"`
 	RegistryEndpoint *url.URL `env:"OVERRIDE_REGISTRY_ENDPOINT" hidden:"" name:"override-registry-endpoint" help:"Overrides the default registry endpoint." json:"registryEndpoint,omitempty"`
 }
 
@@ -85,7 +79,6 @@ type Context struct {
 	InsecureSkipTLSVerify bool
 
 	APIEndpoint      *url.URL
-	ProxyEndpoint    *url.URL
 	RegistryEndpoint *url.URL
 	Cfg              *config.Config
 	CfgSrc           config.Source
@@ -164,14 +157,6 @@ func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo 
 		u := *of.Domain
 		u.Host = apiSubdomain + u.Host
 		c.APIEndpoint = &u
-	}
-
-	c.ProxyEndpoint = of.ProxyEndpoint
-	if c.ProxyEndpoint == nil {
-		u := *of.Domain
-		u.Host = proxySubdomain + u.Host
-		u.Path = proxyPath
-		c.ProxyEndpoint = &u
 	}
 
 	c.RegistryEndpoint = of.RegistryEndpoint
@@ -278,7 +263,6 @@ func (f Flags) MarshalJSON() ([]byte, error) {
 		Account:               f.Account,
 		InsecureSkipTLSVerify: f.InsecureSkipTLSVerify,
 		APIEndpoint:           nullableURL(f.APIEndpoint),
-		ProxyEndpoint:         nullableURL(f.ProxyEndpoint),
 		RegistryEndpoint:      nullableURL(f.RegistryEndpoint),
 	}
 	return json.Marshal(flags)
