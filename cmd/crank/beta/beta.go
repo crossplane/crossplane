@@ -26,6 +26,6 @@ import (
 
 // Cmd contains beta commands.
 type Cmd struct {
-	XPKG   xpkg.Cmd   `cmd:"" help:"Crossplane package management."`
-	Render render.Cmd `cmd:"" help:"Render a Crossplane claim or XR"`
+	XPKG   xpkg.Cmd   `cmd:"" help:"Manage packages."`
+	Render render.Cmd `cmd:"" help:"Render a claim or XR locally."`
 }

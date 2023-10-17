@@ -71,12 +71,12 @@ type installCmd struct {
 type installFunctionCmd struct {
 	Package string `arg:"" help:"Image containing Function package."`
 
-	Name                 string        `arg:"" optional:"" help:"Name of Function."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	Name                 string        `arg:"" optional:"" help:"Name of the Function."`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of the package."`
 	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	Config               string        `help:"Specify a DeploymentRuntimeConfig for this Function."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	Config               string        `help:"Specify a DeploymentRuntimeConfig for the Function."`
+	PackagePullSecrets   []string      `help:"List of secrets used to pull the package."`
 }
 
 // Run runs the Function install cmd.

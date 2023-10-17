@@ -45,8 +45,8 @@ type updateCmd struct {
 
 // updateFunctionCmd update a Function.
 type updateFunctionCmd struct {
-	Name string `arg:"" help:"Name of Function."`
-	Tag  string `arg:"" help:"Updated tag for Function package."`
+	Name string `arg:"" help:"Name of the Function."`
+	Tag  string `arg:"" help:"Updated tag of the Function package."`
 }
 
 // Run runs the Function update cmd.

@@ -46,8 +46,8 @@ type updateCmd struct {
 
 // updateConfigCmd updates a Configuration.
 type updateConfigCmd struct {
-	Name string `arg:"" help:"Name of Configuration."`
-	Tag  string `arg:"" help:"Updated tag for Configuration package."`
+	Name string `arg:"" help:"Name of the Configuration."`
+	Tag  string `arg:"" help:"Updated tag for the Configuration package."`
 }
 
 // Run runs the Configuration update cmd.
@@ -104,8 +104,8 @@ func (c *updateConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 
 // updateProviderCmd update a Provider.
 type updateProviderCmd struct {
-	Name string `arg:"" help:"Name of Provider."`
-	Tag  string `arg:"" help:"Updated tag for Provider package."`
+	Name string `arg:"" help:"Name of the Provider."`
+	Tag  string `arg:"" help:"Updated tag for the Provider package."`
 }
 
 // Run runs the Provider update cmd.
