@@ -32,21 +32,20 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
-	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/v2"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/yaml"
+	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
+	"github.com/crossplane/crossplane/internal/xpkg/parser/yaml"
 )
 
 const (
-	errGetNameFromMeta            = "failed to get package name from crossplane.yaml"
-	errBuildPackage               = "failed to build package"
-	errImageDigest                = "failed to get package digest"
-	errCreatePackage              = "failed to create package file"
-	errParseControllerImage       = "failed to parse controller image"
-	errPullControllerImage        = "failed to pull controller image"
-	errLoadControllerTar          = "failed to load controller tar"
-	errGetControllerBaseImageOpts = "failed to get controller base image options"
+	errGetNameFromMeta         = "failed to get package name from crossplane.yaml"
+	errBuildPackage            = "failed to build package"
+	errImageDigest             = "failed to get package digest"
+	errCreatePackage           = "failed to create package file"
+	errParseRuntimeImageRef    = "failed to parse runtime image reference"
+	errPullRuntimeImage        = "failed to pull runtime image"
+	errLoadRuntimeTarball      = "failed to load runtime tarball"
+	errGetRuntimeBaseImageOpts = "failed to get runtime base image options"
 )
 
 // AfterApply constructs and binds context to any subcommands
@@ -98,52 +97,52 @@ type buildCmd struct {
 	builder *xpkg.Builder
 	root    string
 
-	Output        string   `optional:"" short:"o" help:"Path for package output."`
-	Controller    string   `help:"Controller image used as base for package."`
-	ControllerTar string   `help:"Path to tar file, an alternative to Controller." xor:"controller" type:"existingfile"`
-	PackageRoot   string   `short:"f" help:"Path to package directory." default:"."`
-	ExamplesRoot  string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore        []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Output       string   `optional:"" short:"o" help:"Path for package output."`
+	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
+	ExamplesRoot string   `short:"e" help:"Path to package examples directory." default:"./examples"`
+	Ignore       []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+
+	EmbedRuntimeImage   string `help:"An OCI image reference to the package's runtime. The package will embed this image." placeholder:"\"example/runtime-image:latest\"" xor:"runtime-image"`
+	EmbedRuntimeTarball string `help:"An OCI image tarball of the package's runtime. The package will embed this image." placeholder:"\"example-runtime-image.tar\"" type:"existingfile" xor:"runtime-image"`
 }
 
 func (c *buildCmd) Help() string {
 	return `
-The build command creates a xpkg compatible OCI image for a Crossplane package
-from the local file system. It packages the found YAML files containing Kubernetes-like
-object manifests into the meta data layer of the OCI image. The package manager
-will use this information to install the package into a Crossplane instance.
+The build command creates a Crossplane package from the local filesystem. A
+package is an OCI image containing metadata and configuration manifests that can
+be used to extend Crossplane with new functionality.
 
-Only configuration, provider and function packages are supported at this time. 
+Crossplane supports configuration, provider and function packages. 
 
-Example claims can be specified in the examples directory.
+Packages can embed a runtime image. When a package embeds a runtime image
+Crossplane can use the same OCI image to install and run the package. For
+example a provider package can embed the provider's controller image (its
+"runtime"). Crossplane will then use the package as the provider pod's image.
 
-For more generic information, see the xpkg parent command help. Also see the
-Crossplane documentation for more information on building packages:
-
-  https://docs.crossplane.io/latest/concepts/packages/#building-a-package
-
-Even more details can be found in the xpkg reference document.`
+See the Crossplane documentation for more information on building packages:
+https://docs.crossplane.io/latest/concepts/packages/#building-a-package
+`
 }
 
-// GetControllerBaseImageOpts returns the controller base image options.
-func (c *buildCmd) GetControllerBaseImageOpts() ([]xpkg.BuildOpt, error) {
+// GetRuntimeBaseImageOpts returns the controller base image options.
+func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 	switch {
-	case c.ControllerTar != "":
-		img, err := tarball.ImageFromPath(filepath.Clean(c.ControllerTar), nil)
+	case c.EmbedRuntimeTarball != "":
+		img, err := tarball.ImageFromPath(filepath.Clean(c.EmbedRuntimeTarball), nil)
 		if err != nil {
-			return nil, errors.Wrap(err, errLoadControllerTar)
+			return nil, errors.Wrap(err, errLoadRuntimeTarball)
 		}
-		return []xpkg.BuildOpt{xpkg.WithController(img)}, nil
-	case c.Controller != "":
-		ref, err := name.ParseReference(c.Controller)
+		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
+	case c.EmbedRuntimeImage != "":
+		ref, err := name.ParseReference(c.EmbedRuntimeImage, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
-			return nil, errors.Wrap(err, errParseControllerImage)
+			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}
 		img, err := daemon.Image(ref, daemon.WithContext(context.Background()))
 		if err != nil {
-			return nil, errors.Wrap(err, errPullControllerImage)
+			return nil, errors.Wrap(err, errPullRuntimeImage)
 		}
-		return []xpkg.BuildOpt{xpkg.WithController(img)}, nil
+		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	}
 	return nil, nil
 
@@ -157,8 +156,8 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 		if !ok {
 			return "", errors.New(errGetNameFromMeta)
 		}
-		pkgName := xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
-		output = xpkgv1.BuildPath(c.root, pkgName, xpkgv1.XpkgExtension)
+		pkgName := xpkg.FriendlyID(pkgMeta.GetName(), hash.Hex)
+		output = xpkg.BuildPath(c.root, pkgName, xpkg.XpkgExtension)
 	}
 	return output, nil
 }
@@ -166,11 +165,11 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 // Run executes the build command.
 func (c *buildCmd) Run(logger logging.Logger) error {
 	var buildOpts []xpkg.BuildOpt
-	controllerBuildOpts, err := c.GetControllerBaseImageOpts()
+	rtBuildOpts, err := c.GetRuntimeBaseImageOpts()
 	if err != nil {
-		return errors.Wrap(err, errGetControllerBaseImageOpts)
+		return errors.Wrap(err, errGetRuntimeBaseImageOpts)
 	}
-	buildOpts = append(buildOpts, controllerBuildOpts...)
+	buildOpts = append(buildOpts, rtBuildOpts...)
 
 	img, meta, err := c.builder.Build(context.Background(), buildOpts...)
 	if err != nil {

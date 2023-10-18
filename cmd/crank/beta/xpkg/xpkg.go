@@ -14,24 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package xpkg contains Crossplane packaging commands.
+// Package xpkg contains beta Crossplane packaging commands.
 package xpkg
 
 // Cmd contains commands for interacting with xpkgs.
-// TODO(lsviben) add the rest of the commands from up (batch, xpextract).
 type Cmd struct {
-	Login   loginCmd   `cmd:"" help:"Login to the default package registry (xpkg.upbound.io)."`
-	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry (xpkg.upbound.io)."`
-	Build   buildCmd   `cmd:"" help:"Build a package, by default from the current directory."`
-	Push    pushCmd    `cmd:"" help:"Push a package, by default to xpkg.upbound.io."`
-	Install InstallCmd `cmd:"" help:"Install a package."`
-	Update  UpdateCmd  `cmd:"" help:"Update an installed package."`
+	Init initCmd `cmd:"" help:"Initialize a package from a template."`
 }
 
 // Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
-
 Crossplane can be extended with packages. Several types of packages exist,
 including providers and configurations. A package is an opinionated OCI image
 that contains everything needed to extend Crossplane. For more detailed

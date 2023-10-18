@@ -25,8 +25,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/cmd/crank/marketplace"
-	"github.com/crossplane/crossplane/cmd/crank/render"
+	"github.com/crossplane/crossplane/cmd/crank/beta"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -60,22 +59,9 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Install installCmd `cmd:"" help:"Install Crossplane packages."`
-	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
-
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
-	Marketplace marketplace.Cmd `cmd:"" help:"Interact with the Upbound Marketplace."`
-
-	Alpha struct {
-		// Add here alpha subcommands
-		Init initCmd `cmd:"" help:"Initialize directories for Crossplane packages from templates."`
-	} `cmd:"" help:"Alpha features. WARN: May be changed or removed without notice"`
-
-	Beta struct {
-		Render render.Cmd `cmd:"" help:"Render an XR using Composition Functions."`
-		// Add here beta subcommands
-	} `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
+	Beta beta.Cmd `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
 }
 
 func main() {
@@ -87,8 +73,9 @@ func main() {
 		// at runtime.
 		kong.BindTo(logger, (*logging.Logger)(nil)),
 		kong.ConfigureHelp(kong.HelpOptions{
-			Tree:      true,
-			FlagsLast: true,
+			FlagsLast:      true,
+			Compact:        true,
+			WrapUpperBound: 80,
 		}),
 		kong.UsageOnError())
 	err := ctx.Run()
