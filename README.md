@@ -76,7 +76,7 @@ find the meetings in the [Community Calendar][community calendar].
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
 - [#sig-devex][sig-devex-slack]
 - [#sig-e2e-testing][sig-e2e-testing-slack]
-- [#sig-observability][sig-observability]
+- [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
