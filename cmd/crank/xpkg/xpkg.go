@@ -20,11 +20,12 @@ package xpkg
 // Cmd contains commands for interacting with xpkgs.
 // TODO(lsviben) add the rest of the commands from up (batch, xpextract).
 type Cmd struct {
+	// Keep subcommands sorted alphabetically.
+	Build   buildCmd   `cmd:"" help:"Build a package, by default from the current directory."`
+	Install installCmd `cmd:"" help:"Install a package."`
 	Login   loginCmd   `cmd:"" help:"Login to the default package registry (xpkg.upbound.io)."`
 	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry (xpkg.upbound.io)."`
-	Build   buildCmd   `cmd:"" help:"Build a package, by default from the current directory."`
 	Push    pushCmd    `cmd:"" help:"Push a package, by default to xpkg.upbound.io."`
-	Install InstallCmd `cmd:"" help:"Install a package."`
 	Update  UpdateCmd  `cmd:"" help:"Update an installed package."`
 }
 

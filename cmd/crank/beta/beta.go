@@ -26,6 +26,8 @@ import (
 
 // Cmd contains beta commands.
 type Cmd struct {
-	XPKG   xpkg.Cmd   `cmd:"" help:"Manage packages."`
+	// Subcommands and flags will appear in the CLI help output in the same
+	// order they're specified here. Keep them in alphabetical order.
 	Render render.Cmd `cmd:"" help:"Render a claim or XR locally."`
+	XPKG   xpkg.Cmd   `cmd:"" help:"Manage packages."`
 }

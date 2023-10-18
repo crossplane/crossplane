@@ -47,14 +47,19 @@ const (
 )
 
 type loginCmd struct {
-	stdin  *os.File
-	client *http.Client
-
-	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to execute command."`
+	// Flags. Keep sorted alphabetically.
 	Password string `short:"p" env:"UP_PASSWORD" help:"Password for specified user. '-' to read from stdin."`
 	Token    string `short:"t" env:"UP_TOKEN" xor:"identifier" help:"Token used to execute command. '-' to read from stdin."`
+	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to execute command."`
 
+	// Common Upbound API configuration.
+	// Unfortunately these will show up as a second, alphabetically sorted list
+	// of flags immediately concatenated with the above set.
 	upbound.Flags `embed:""`
+
+	// Internal state. These aren't part of the user-exposed CLI structure.
+	stdin  *os.File
+	client *http.Client
 }
 
 // BeforeApply sets default values in login before assignment and validation.

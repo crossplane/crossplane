@@ -17,8 +17,9 @@ limitations under the License.
 // Package xpkg contains beta Crossplane packaging commands.
 package xpkg
 
-// Cmd contains commands for interacting with xpkgs.
+// Cmd contains commands for interacting with packages.
 type Cmd struct {
+	// Keep commands sorted alphabetically.
 	Init initCmd `cmd:"" help:"Initialize a package from a template."`
 }
 

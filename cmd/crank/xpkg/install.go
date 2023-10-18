@@ -50,24 +50,23 @@ const (
 	errKubeClient    = "failed to create kube client"
 )
 
-// InstallCmd is exported so that it can be re-used by the beta xpkg subcommand.
-
-// InstallCmd installs a package.
-type InstallCmd struct {
+// installCmd installs a package.
+type installCmd struct {
+	// Arguments.
 	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
 	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
 	Name string `arg:""  optional:"" help:"Name of the new package. Will be derived from the ref if omitted."`
 
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
+	// Flags. Keep sorted alphabetically.
+	Config               string        `help:"Specify a runtime config. Configuration packages do not support runtime config."`
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
-
-	Config string `help:"Specify a runtime config. Configuration packages do not support runtime config."`
+	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
 }
 
 // Run the package install cmd.
-func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
+func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name
 	if pkgName == "" {
 		ref, err := name.ParseReference(c.Ref, name.WithDefaultRegistry(DefaultRegistry))

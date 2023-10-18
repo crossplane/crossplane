@@ -35,17 +35,17 @@ import (
 
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
-	Timeout time.Duration `help:"How long to run before timing out." default:"1m"`
-
+	// Arguments.
 	CompositeResource string `arg:"" type:"existingfile" help:"A YAML manifest containing the Composite Resource (XR) to render."`
 	Composition       string `arg:"" type:"existingfile" help:"A YAML manifest containing the Composition to use. Must be mode: Pipeline."`
 	Functions         string `arg:"" help:"A stream or directory of YAML manifests containing the Composition Functions to use."`
 
-	ObservedResources []string `short:"o" help:"An optional stream or directory of YAML manifests mocking the observed state of composed resources."`
-	IncludeResults    bool     `short:"r" default:"true" help:"Include Results in the output. Results are emitted as a 'fake' KRM-like object of kind: Result."`
-
-	ContextValues map[string]string `placeholder:"KEY=JSON-VALUE;..." help:"Context variables to pass to the Function pipeline. Values should be JSON-encoded. Takes precedence over --context-files."`
-	ContextFiles  map[string]string `placeholder:"KEY=FILENAME;..." help:"Context variables to pass to the Function pipeline. Values should be files containing JSON-encoded data."`
+	// Flags. Keep them in alphabetical order.
+	ContextFiles      map[string]string `placeholder:"KEY=FILENAME;..." help:"Context variables to pass to the Function pipeline. Values should be files containing JSON-encoded data."`
+	ContextValues     map[string]string `placeholder:"KEY=JSON-VALUE;..." help:"Context variables to pass to the Function pipeline. Values should be JSON-encoded. Takes precedence over --context-files."`
+	IncludeResults    bool              `short:"r" default:"true" help:"Include Results in the output. Results are emitted as a 'fake' KRM-like object of kind: Result."`
+	ObservedResources []string          `short:"o" help:"An optional stream or directory of YAML manifests mocking the observed state of composed resources."`
+	Timeout           time.Duration     `help:"How long to run before timing out." default:"1m"`
 }
 
 // Run render.

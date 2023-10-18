@@ -93,17 +93,18 @@ func (c *buildCmd) AfterApply() error {
 
 // buildCmd builds a crossplane package.
 type buildCmd struct {
+	// Flags. Keep sorted alphabetically.
+	EmbedRuntimeImage   string   `help:"An OCI image reference to the package's runtime. The package will embed this image." placeholder:"\"example/runtime-image:latest\"" xor:"runtime-image"`
+	EmbedRuntimeTarball string   `help:"An OCI image tarball of the package's runtime. The package will embed this image." placeholder:"\"example-runtime-image.tar\"" type:"existingfile" xor:"runtime-image"`
+	ExamplesRoot        string   `short:"e" help:"Path to package examples directory." default:"./examples"`
+	Ignore              []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
+	Output              string   `short:"o" help:"Path for package output."`
+	PackageRoot         string   `short:"f" help:"Path to package directory." default:"."`
+
+	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs      afero.Fs
 	builder *xpkg.Builder
 	root    string
-
-	Output       string   `optional:"" short:"o" help:"Path for package output."`
-	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
-	ExamplesRoot string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore       []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
-
-	EmbedRuntimeImage   string `help:"An OCI image reference to the package's runtime. The package will embed this image." placeholder:"\"example/runtime-image:latest\"" xor:"runtime-image"`
-	EmbedRuntimeTarball string `help:"An OCI image tarball of the package's runtime. The package will embed this image." placeholder:"\"example-runtime-image.tar\"" type:"existingfile" xor:"runtime-image"`
 }
 
 func (c *buildCmd) Help() string {

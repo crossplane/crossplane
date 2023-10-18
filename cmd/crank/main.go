@@ -55,13 +55,21 @@ func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // 
 	return nil
 }
 
+// The top-level crossplane CLI.
 var cli struct {
-	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
-	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
+	// Subcommands and flags will appear in the CLI help output in the same
+	// order they're specified here. Keep them in alphabetical order.
 
+	// Subcommands.
 	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
 
+	// The alpha and beta subcommands are intentionally in a separate block. We
+	// want them to appear after all other subcommands.
 	Beta beta.Cmd `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
+
+	// Flags.
+	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
+	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 }
 
 func main() {

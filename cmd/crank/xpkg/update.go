@@ -43,9 +43,10 @@ import (
 
 // UpdateCmd updates a package.
 type UpdateCmd struct {
+	// Arguments.
 	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
 	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
-	Name string `arg:""  optional:"" help:"Name of the package to update. Will be derived from the ref if omitted."`
+	Name string `arg:"" optional:"" help:"Name of the package to update. Will be derived from the ref if omitted."`
 }
 
 // Run the package update cmd.

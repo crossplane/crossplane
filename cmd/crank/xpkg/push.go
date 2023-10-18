@@ -42,10 +42,14 @@ const DefaultRegistry = "xpkg.upbound.io"
 
 // pushCmd pushes a package.
 type pushCmd struct {
-	fs afero.Fs
+	// Arguments.
+	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag. Unqualified tags will be pushed to xpkg.upbound.io."`
 
-	Tag     string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag. Unqualified tags will be pushed to xpkg.upbound.io."`
+	// Flags. Keep sorted alphabetically.
 	Package string `short:"f" help:"Path to package. If not specified and only one package exists in current directory it will be used."`
+
+	// Internal state. These aren't part of the user-exposed CLI structure.
+	fs afero.Fs
 }
 
 // AfterApply sets the tag for the parent push command.
