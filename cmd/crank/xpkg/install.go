@@ -88,57 +88,36 @@ func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 	if c.ManualActivation {
 		rap = v1.ManualActivation
 	}
-	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
+	secrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
-		packagePullSecrets[i] = corev1.LocalObjectReference{
+		secrets[i] = corev1.LocalObjectReference{
 			Name: s,
 		}
 	}
 
-	var pkg v1.Package
+	spec := v1.PackageSpec{
+		Package:                  c.Ref,
+		RevisionActivationPolicy: &rap,
+		RevisionHistoryLimit:     &c.RevisionHistoryLimit,
+		PackagePullSecrets:       secrets,
+	}
 
+	var pkg v1.Package
 	switch c.Kind {
 	case "provider":
 		pkg = &v1.Provider{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: pkgName,
-			},
-			Spec: v1.ProviderSpec{
-				PackageSpec: v1.PackageSpec{
-					Package:                  c.Ref,
-					RevisionActivationPolicy: &rap,
-					RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-					PackagePullSecrets:       packagePullSecrets,
-				},
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: pkgName},
+			Spec:       v1.ProviderSpec{PackageSpec: spec},
 		}
 	case "configuration":
 		pkg = &v1.Configuration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: pkgName,
-			},
-			Spec: v1.ConfigurationSpec{
-				PackageSpec: v1.PackageSpec{
-					Package:                  c.Ref,
-					RevisionActivationPolicy: &rap,
-					RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-					PackagePullSecrets:       packagePullSecrets,
-				},
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: pkgName},
+			Spec:       v1.ConfigurationSpec{PackageSpec: spec},
 		}
 	case "function":
 		pkg = &v1beta1.Function{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: pkgName,
-			},
-			Spec: v1beta1.FunctionSpec{
-				PackageSpec: v1.PackageSpec{
-					Package:                  c.Ref,
-					RevisionActivationPolicy: &rap,
-					RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-					PackagePullSecrets:       packagePullSecrets,
-				},
-			},
+			ObjectMeta: metav1.ObjectMeta{Name: pkgName},
+			Spec:       v1beta1.FunctionSpec{PackageSpec: spec},
 		}
 	default:
 		// The enum struct tag on the Kind field should make this impossible.
