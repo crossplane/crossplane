@@ -21,7 +21,8 @@ Generally:
 * Any significant feature should be covered by E2E tests. If you're adding a new
   feature, you should probably be adding or updating E2Es.
 * Any significant feature should be documented. If you're adding a new feature,
-  you should probably be opening a docs PR.
+  you should probably be opening a docs PR or tracking issue. If you make a
+  change it's your responsibility to document it before it's released.
 * Most PRs that (only) fix a bug should have a backport label.
 
 If you're still unsure, just leave the checklist box unticked (and
