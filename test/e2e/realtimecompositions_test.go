@@ -97,13 +97,13 @@ func TestRealtimeCompositions(t *testing.T) {
 				// considerably below the normal reconcile time for a XR.
 				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 			).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			// Disable our feature flag.
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopCrossplaneList)).
 			WithTeardown("DisableAlphaRealtimeCompositions", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),
