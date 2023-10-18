@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/upbound/up-sdk-go/service/userinfo"
 	"golang.org/x/term"
 
