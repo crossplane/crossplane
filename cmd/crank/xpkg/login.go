@@ -50,9 +50,9 @@ type loginCmd struct {
 	stdin  *os.File
 	client *http.Client
 
-	Username string `short:"u" env:"MARKETPLACE_USER" xor:"identifier" help:"Username used to execute command."`
-	Password string `short:"p" env:"MARKETPLACE_PASSWORD" help:"Password for specified user. '-' to read from stdin."`
-	Token    string `short:"t" env:"MARKETPLACE_TOKEN" xor:"identifier" help:"Token used to execute command. '-' to read from stdin."`
+	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to execute command."`
+	Password string `short:"p" env:"UP_PASSWORD" help:"Password for specified user. '-' to read from stdin."`
+	Token    string `short:"t" env:"UP_TOKEN" xor:"identifier" help:"Token used to execute command. '-' to read from stdin."`
 
 	upbound.Flags `embed:""`
 }
