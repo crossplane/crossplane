@@ -165,6 +165,7 @@ func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 		wait.UntilWithContext(ctx, func(ctx context.Context) {
 			if err := kube.Get(ctx, client.ObjectKeyFromObject(pkg), pkg); err != nil {
 				logger.Debug("Cannot get package", "error", err)
+				return
 			}
 
 			// Our package is ready, cancel the context to stop our wait loop.
