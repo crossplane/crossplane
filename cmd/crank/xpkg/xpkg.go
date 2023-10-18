@@ -31,29 +31,10 @@ type Cmd struct {
 // Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
-A Crossplane package is an opinionated OCI image that contains an additional layer
-holding meta information to drive the Crossplane package manager. The package manager
-uses this information to install packages into a Crossplane instance.
 
-Furthermore, a Crossplane package may contain meta information that describes
-how to represent the package in a user interface. This information is used by
-the Upbound marketplace to display packages and their contents. See the xpkg
-reference document for more information.
-
-There are different kinds of Crossplane packages, each with a different set of
-meta information and files in the additional layer. The following kinds are 
-currently supported:
-
-- **Provider**: A Crossplane package that contains a Crossplane provider. The layer
-  contains a crossplane.yaml file with a "meta.pkg.crossplane.io/v1alpha1"
-  kind "Provider" manifest, and optionally CRD manifest.
-- **Configuration**: A Crossplane package that contains a Crossplane configuration,
-  with a "meta.pkg.crossplane.io/v1" kind "Configuration" manifest in crossplane.yaml.
-- in newer versions of Crossplane, more kinds will be supported.
-
-For more detailed information on Crossplane packages, see
-
-  https://docs.crossplane.io/latest/concepts/packages/#building-a-package
-
-Even more details can be found in the xpkg reference document.`
+Crossplane can be extended with packages. Several types of packages exist,
+including providers and configurations. A package is an opinionated OCI image
+that contains everything needed to extend Crossplane. For more detailed
+information on packages, see https://docs.crossplane.io/latest/concepts/packages.
+`
 }

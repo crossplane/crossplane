@@ -108,21 +108,16 @@ type buildCmd struct {
 
 func (c *buildCmd) Help() string {
 	return `
-The build command creates a xpkg compatible OCI image for a Crossplane package
-from the local file system. It packages the found YAML files containing Kubernetes-like
-object manifests into the meta data layer of the OCI image. The package manager
-will use this information to install the package into a Crossplane instance.
+The build command creates a Crossplane package (xpkg) from the local filesystem.
+A package is an OCI image containing metadata and configuration manifests. Some
+packages can also embed a runtime, such as a Provider's controller binary.
 
 Only configuration, provider and function packages are supported at this time. 
 
-Example claims can be specified in the examples directory.
-
-For more generic information, see the xpkg parent command help. Also see the
-Crossplane documentation for more information on building packages:
+See the Crossplane documentation for more information on building packages:
 
   https://docs.crossplane.io/latest/concepts/packages/#building-a-package
-
-Even more details can be found in the xpkg reference document.`
+`
 }
 
 // GetControllerBaseImageOpts returns the controller base image options.
