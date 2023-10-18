@@ -50,15 +50,11 @@ var (
 func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
 
-	nopCrossplaneList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
-		APIVersion: "nop.crossplane.io/v1alpha1",
-		Kind:       "NopResource",
-	}))
-	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+	claimList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "nop.example.org/v1alpha1",
 		Kind:       "NopResource",
 	}))
-	xnopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+	xrList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "nop.example.org/v1alpha1",
 		Kind:       "XNopResource",
 	}))
@@ -76,9 +72,9 @@ func TestCompositionMinimal(t *testing.T) {
 			)).
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.InBackground(funcs.LogResources(claimList)),
+				funcs.InBackground(funcs.LogResources(xrList)),
 				funcs.InBackground(funcs.LogResources(nopList)),
-				funcs.InBackground(funcs.LogResources(xnopList)),
-				funcs.InBackground(funcs.LogResources(nopCrossplaneList)),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
