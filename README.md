@@ -1,4 +1,4 @@
-![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
+![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://img.shields.io/badge/slack-crossplane-red?logo=slack)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io?logo=X&label=Follow&style=flat)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
 ![Crossplane](banner.png)
 
@@ -76,7 +76,7 @@ find the meetings in the [Community Calendar][community calendar].
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
 - [#sig-devex][sig-devex-slack]
 - [#sig-e2e-testing][sig-e2e-testing-slack]
-- [#sig-observability][sig-observability]
+- [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
