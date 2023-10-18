@@ -24,8 +24,8 @@ type Cmd struct {
 	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry (xpkg.upbound.io)."`
 	Build   buildCmd   `cmd:"" help:"Build a package, by default from the current directory."`
 	Push    pushCmd    `cmd:"" help:"Push a package, by default to xpkg.upbound.io."`
-	Install installCmd `cmd:"" help:"Install a package."`
-	Update  updateCmd  `cmd:"" help:"Update an installed package."`
+	Install InstallCmd `cmd:"" help:"Install a package."`
+	Update  UpdateCmd  `cmd:"" help:"Update an installed package."`
 }
 
 // Help prints out the help for the xpkg command.

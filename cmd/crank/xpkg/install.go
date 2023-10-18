@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -28,15 +27,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	clientpkgv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 
@@ -48,226 +48,176 @@ const (
 	errPkgIdentifier = "invalid package image identifier"
 	errKubeConfig    = "failed to get kubeconfig"
 	errKubeClient    = "failed to create kube client"
-
-	errFmtPkgNotReadyTimeout = "%s is not ready in timeout duration"
-	errFmtWatchPkg           = "Failed to watch for %s object"
 )
 
-const (
-	msgConfigurationReady    = "Configuration is ready"
-	msgConfigurationNotReady = "Configuration is not ready"
-	msgConfigurationWaiting  = "Waiting for the Configuration to be ready"
+// InstallCmd is exported so that it can be re-used by the beta xpkg subcommand.
 
-	msgProviderReady    = "Provider is ready"
-	msgProviderNotReady = "Provider is not ready"
-	msgProviderWaiting  = "Waiting for the Provider to be ready"
-)
+// InstallCmd installs a package.
+type InstallCmd struct {
+	Kind string `arg:"" help:"Kind of package to install. One of \"provider\" or \"configuration\"." enum:"provider,configuration"`
+	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
+	Name string `arg:""  optional:"" help:"Name of the new package. Will be derived from the ref if omitted."`
 
-// TODO(negz): These install<T>Cmd implementations are all identical. Can they
-// be deduplicated into one reusable implementation?
-
-type installCmd struct {
-	Configuration installConfigCmd   `cmd:"" help:"Install a Configuration package."`
-	Provider      installProviderCmd `cmd:"" help:"Install a Provider package."`
-}
-
-// installConfigCmd installs a Configuration.
-type installConfigCmd struct {
-	Package string `arg:"" help:"Image containing Configuration package."`
-
-	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package."`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
-}
-
-// Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
-	rap := v1.AutomaticActivation
-	if c.ManualActivation {
-		rap = v1.ManualActivation
-	}
-	pkgName := c.Name
-	if pkgName == "" {
-		ref, err := name.ParseReference(c.Package)
-		if err != nil {
-			logger.Debug(errPkgIdentifier, "error", err)
-			return errors.Wrap(err, errPkgIdentifier)
-		}
-		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
-	}
-	logger = logger.WithValues("configurationName", pkgName)
-	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
-	for i, s := range c.PackagePullSecrets {
-		packagePullSecrets[i] = corev1.LocalObjectReference{
-			Name: s,
-		}
-	}
-	cr := &v1.Configuration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: pkgName,
-		},
-		Spec: v1.ConfigurationSpec{
-			PackageSpec: v1.PackageSpec{
-				Package:                  c.Package,
-				RevisionActivationPolicy: &rap,
-				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-				PackagePullSecrets:       packagePullSecrets,
-			},
-		},
-	}
-	kubeConfig, err := ctrl.GetConfig()
-	if err != nil {
-		logger.Debug(errKubeConfig, "error", err)
-		return errors.Wrap(err, errKubeConfig)
-	}
-	logger.Debug("Found kubeconfig")
-	kube, err := clientpkgv1.NewForConfig(kubeConfig)
-	if err != nil {
-		logger.Debug(errKubeConfig, "error", err)
-		return errors.Wrap(err, errKubeClient)
-	}
-	logger.Debug("Created Kubernetes client")
-	res, err := kube.Configurations().Create(context.Background(), cr, metav1.CreateOptions{})
-	if err != nil {
-		logger.Debug("Failed to create configuration", "error", warnIfNotFound(err))
-		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
-	}
-	if c.Wait != 0 {
-		logger.Debug(msgConfigurationWaiting)
-		watchList := cache.NewListWatchFromClient(kube.RESTClient(), "configurations", corev1.NamespaceAll, fields.Everything())
-		waitSeconds := int64(c.Wait.Seconds())
-		watcher, err := watchList.Watch(metav1.ListOptions{Watch: true, TimeoutSeconds: &waitSeconds})
-		defer watcher.Stop()
-		if err != nil {
-			logger.Debug(fmt.Sprintf(errFmtWatchPkg, "Configuration"), "error", err)
-			return err
-		}
-		for {
-			event, ok := <-watcher.ResultChan()
-			if !ok {
-				logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"))
-				return errors.Errorf(errFmtPkgNotReadyTimeout, "Configuration")
-			}
-			obj := (event.Object).(*v1.Configuration)
-			cond := obj.GetCondition(v1.TypeHealthy)
-			if obj.ObjectMeta.Name == pkgName && cond.Status == corev1.ConditionTrue {
-				logger.Debug(msgConfigurationReady)
-				break
-			}
-			logger.Debug(msgConfigurationNotReady)
-		}
-	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
-	return err
-}
-
-// installProviderCmd installs a Provider.
-type installProviderCmd struct {
-	Package string `arg:"" help:"Image containing Provider package."`
-
-	Name                 string        `arg:"" optional:"" help:"Name of Provider."`
 	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
 	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	Config               string        `help:"Specify a ControllerConfig for this Provider."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+
+	Config string `help:"Specify a runtime config. Configuration packages do not support runtime config."`
 }
 
-// Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
-	rap := v1.AutomaticActivation
-	if c.ManualActivation {
-		rap = v1.ManualActivation
-	}
+// Run the package install cmd.
+func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Package)
+		ref, err := name.ParseReference(c.Ref, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
-	logger = logger.WithValues("providerName", pkgName)
+
+	logger = logger.WithValues(
+		"kind", c.Kind,
+		"ref", c.Ref,
+		"name", pkgName,
+	)
+
+	rap := v1.AutomaticActivation
+	if c.ManualActivation {
+		rap = v1.ManualActivation
+	}
 	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
 		packagePullSecrets[i] = corev1.LocalObjectReference{
 			Name: s,
 		}
 	}
-	cr := &v1.Provider{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: pkgName,
-		},
-		Spec: v1.ProviderSpec{
-			PackageSpec: v1.PackageSpec{
-				Package:                  c.Package,
-				RevisionActivationPolicy: &rap,
-				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-				PackagePullSecrets:       packagePullSecrets,
+
+	var pkg v1.Package
+
+	switch c.Kind {
+	case "provider":
+		pkg = &v1.Provider{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pkgName,
 			},
-		},
-	}
-	if c.Config != "" {
-		cr.Spec.ControllerConfigReference = &v1.ControllerConfigReference{
-			Name: c.Config,
+			Spec: v1.ProviderSpec{
+				PackageSpec: v1.PackageSpec{
+					Package:                  c.Ref,
+					RevisionActivationPolicy: &rap,
+					RevisionHistoryLimit:     &c.RevisionHistoryLimit,
+					PackagePullSecrets:       packagePullSecrets,
+				},
+			},
 		}
+	case "configuration":
+		pkg = &v1.Configuration{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pkgName,
+			},
+			Spec: v1.ConfigurationSpec{
+				PackageSpec: v1.PackageSpec{
+					Package:                  c.Ref,
+					RevisionActivationPolicy: &rap,
+					RevisionHistoryLimit:     &c.RevisionHistoryLimit,
+					PackagePullSecrets:       packagePullSecrets,
+				},
+			},
+		}
+	case "function":
+		// Only the beta implementation of this command currently has an enum
+		// struct tag allowing the user to update a Function. We support it here
+		// so that we can re-use this code in the "beta" command, which exists
+		// more to indicate that functions (not this CLI command) are beta.
+		pkg = &v1beta1.Function{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: pkgName,
+			},
+			Spec: v1beta1.FunctionSpec{
+				PackageSpec: v1.PackageSpec{
+					Package:                  c.Ref,
+					RevisionActivationPolicy: &rap,
+					RevisionHistoryLimit:     &c.RevisionHistoryLimit,
+					PackagePullSecrets:       packagePullSecrets,
+				},
+			},
+		}
+	default:
+		// The enum struct tag on the Kind field should make this impossible.
+		return errors.Errorf("unsupported package kind %q", c.Kind)
 	}
-	kubeConfig, err := ctrl.GetConfig()
+
+	if c.Config != "" {
+		rpkg, ok := pkg.(v1.PackageRevisionWithRuntime)
+		if !ok {
+			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
+		}
+		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.Config})
+	}
+
+	cfg, err := ctrl.GetConfig()
 	if err != nil {
-		logger.Debug(errKubeConfig, "error", err)
 		return errors.Wrap(err, errKubeConfig)
 	}
 	logger.Debug("Found kubeconfig")
-	kube, err := clientpkgv1.NewForConfig(kubeConfig)
+
+	s := runtime.NewScheme()
+	_ = v1.AddToScheme(s)
+	_ = v1beta1.AddToScheme(s)
+
+	kube, err := client.New(cfg, client.Options{Scheme: s})
 	if err != nil {
-		logger.Debug(errKubeClient, "error", err)
 		return errors.Wrap(err, errKubeClient)
 	}
 	logger.Debug("Created kubernetes client")
-	res, err := kube.Providers().Create(context.Background(), cr, metav1.CreateOptions{})
-	if err != nil {
-		logger.Debug("Failed to create provider", "error", warnIfNotFound(err))
-		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
+
+	timeout := 10 * time.Second
+	if c.Wait > 0 {
+		timeout = c.Wait
 	}
-	if c.Wait != 0 {
-		logger.Debug(msgProviderWaiting)
-		watchList := cache.NewListWatchFromClient(kube.RESTClient(), "providers", corev1.NamespaceAll, fields.Everything())
-		waitSeconds := int64(c.Wait.Seconds())
-		watcher, err := watchList.Watch(metav1.ListOptions{Watch: true, TimeoutSeconds: &waitSeconds})
-		defer watcher.Stop()
-		if err != nil {
-			logger.Debug(fmt.Sprintf(errFmtWatchPkg, "Provider"), "error", err)
-			return err
-		}
-		for {
-			event, ok := <-watcher.ResultChan()
-			if !ok {
-				logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"))
-				return errors.Errorf(errFmtPkgNotReadyTimeout, "Provider")
-			}
-			obj := (event.Object).(*v1.Provider)
-			cond := obj.GetCondition(v1.TypeHealthy)
-			if obj.ObjectMeta.Name == pkgName && cond.Status == corev1.ConditionTrue {
-				logger.Debug(msgProviderReady, "pkgName", obj.ObjectMeta.Name)
-				break
-			}
-			logger.Debug(msgProviderNotReady)
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := kube.Create(ctx, pkg); err != nil {
+		return errors.Wrap(warnIfNotFound(err), "cannot create package")
 	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
+
+	if c.Wait > 0 {
+		// Poll every 2 seconds to see whether the package is ready.
+		logger.Debug("Waiting for package to be ready", "timeout", timeout)
+		wait.UntilWithContext(ctx, func(ctx context.Context) {
+			if err := kube.Get(ctx, client.ObjectKeyFromObject(pkg), pkg); err != nil {
+				logger.Debug("Cannot get package", "error", err)
+			}
+
+			// Our package is ready, cancel the context to stop our wait loop.
+			if pkg.GetCondition(v1.TypeHealthy).Status == corev1.ConditionTrue {
+				logger.Debug("Package is ready")
+				cancel()
+				return
+			}
+
+			logger.Debug("Package is not yet ready")
+		}, 2*time.Second)
+	}
+
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", c.Kind, pkg.GetName())
 	return err
 }
 
+// TODO(negz): What is this trying to do? My guess is its trying to handle the
+// case where the CRD of the package kind isn't installed. Perhaps we could be
+// clearer in the error?
+
 func warnIfNotFound(err error) error {
-	serr, ok := err.(*kerrors.StatusError) //nolint:errorlint // we need to be able to extract the underlying typed error
-	if !ok {
+	serr := &kerrors.StatusError{}
+	if !errors.As(err, &serr) {
 		return err
 	}
 	if serr.ErrStatus.Code != http.StatusNotFound {
 		return err
 	}
-	return errors.WithMessagef(err, "CLI crossplane %s might be out of date", version.New().GetVersionString())
+	return errors.WithMessagef(err, "crossplane CLI (version %s) might be out of date", version.New().GetVersionString())
 }
