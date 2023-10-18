@@ -43,7 +43,7 @@ import (
 
 // UpdateCmd updates a package.
 type UpdateCmd struct {
-	Kind string `arg:"" help:"Kind of package to install. One of \"provider\" or \"configuration\"." enum:"provider,configuration"`
+	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
 	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
 	Name string `arg:""  optional:"" help:"Name of the package to update. Will be derived from the ref if omitted."`
 }
@@ -73,10 +73,6 @@ func (c *UpdateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	case "configuration":
 		pkg = &v1.Configuration{}
 	case "function":
-		// Only the beta implementation of this command currently has an enum
-		// struct tag allowing the user to update a Function. We support it here
-		// so that we can re-use this code in the "beta" command, which exists
-		// more to indicate that functions (not this CLI command) are beta.
 		pkg = &v1beta1.Function{}
 	default:
 		// The enum struct tag on the Kind field should make this impossible.

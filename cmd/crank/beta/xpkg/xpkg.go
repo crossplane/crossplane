@@ -18,11 +18,8 @@ limitations under the License.
 package xpkg
 
 // Cmd contains commands for interacting with xpkgs.
-// TODO(lsviben) add the rest of the commands from up (batch, xpextract).
 type Cmd struct {
-	Init    initCmd    `cmd:"" help:"Initialize a package from a template."`
-	Install installCmd `cmd:"" help:"Install a package."`
-	Update  updateCmd  `cmd:"" help:"Update an installed package."`
+	Init initCmd `cmd:"" help:"Initialize a package from a template."`
 }
 
 // Help prints out the help for the xpkg command.
