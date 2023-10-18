@@ -27,8 +27,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
-	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
 )
 
 // Layer creates a v1.Layer that represents the layer contents for the xpkg and
@@ -87,5 +85,5 @@ func writeLayer(tw *tar.Writer, hdr *tar.Header, buf io.Reader) error {
 
 // Label constructs a specially formated label using the annotationKey.
 func Label(annotation string) string {
-	return fmt.Sprintf("%s:%s", xpkgv1.AnnotationKey, annotation)
+	return fmt.Sprintf("%s:%s", AnnotationKey, annotation)
 }

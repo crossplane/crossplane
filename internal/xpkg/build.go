@@ -34,8 +34,7 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
-	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
+	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
 )
 
 const (
@@ -50,7 +49,6 @@ const (
 	errConfigFile        = "failed to get config file from image"
 	errMutateConfig      = "failed to mutate config for image"
 	errBuildObjectScheme = "failed to build scheme for package encoder"
-	errNotExactlyOneMeta = "package must contain exactly one meta object"
 )
 
 // annotatedTeeReadCloser is a copy of io.TeeReader that implements
@@ -169,11 +167,11 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	var linter parser.Linter
 	switch meta.GetObjectKind().GroupVersionKind().Kind {
 	case pkgmetav1.ConfigurationKind:
-		linter = xpkgv1.NewConfigurationLinter()
+		linter = NewConfigurationLinter()
 	case v1beta1.FunctionKind:
-		linter = xpkgv1.NewFunctionLinter()
+		linter = NewFunctionLinter()
 	case pkgmetav1.ProviderKind:
-		linter = xpkgv1.NewProviderLinter()
+		linter = NewProviderLinter()
 	}
 	if err := linter.Lint(pkg); err != nil {
 		return nil, nil, errors.Wrap(err, errLintPackage)
@@ -193,7 +191,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 		return nil, nil, errors.Wrap(err, errConfigFile)
 	}
 
-	pkgLayer, err := Layer(pkgBytes, xpkgv1.StreamFile, xpkgv1.PackageAnnotation, int64(pkgBytes.Len()), xpkgv1.StreamFileMode, &cfg)
+	pkgLayer, err := Layer(pkgBytes, StreamFile, PackageAnnotation, int64(pkgBytes.Len()), StreamFileMode, &cfg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -206,7 +204,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 			return nil, nil, errors.Wrap(err, errParserExample)
 		}
 
-		exLayer, err := Layer(exBuf, xpkgv1.XpkgExamplesFile, xpkgv1.ExamplesAnnotation, int64(exBuf.Len()), xpkgv1.StreamFileMode, &cfg)
+		exLayer, err := Layer(exBuf, XpkgExamplesFile, ExamplesAnnotation, int64(exBuf.Len()), StreamFileMode, &cfg)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -232,7 +230,7 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 // or quantity i.e. it should be linted first to ensure that it is valid.
 func encode(pkg parser.Lintable) (*bytes.Buffer, error) {
 	pkgBuf := new(bytes.Buffer)
-	objScheme, err := xpkgv1.BuildObjectScheme()
+	objScheme, err := BuildObjectScheme()
 	if err != nil {
 		return nil, errors.New(errBuildObjectScheme)
 	}

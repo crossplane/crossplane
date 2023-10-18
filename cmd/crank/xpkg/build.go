@@ -32,10 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
-	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/v2"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/yaml"
+	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
+	"github.com/crossplane/crossplane/internal/xpkg/parser/yaml"
 )
 
 const (
@@ -157,8 +156,8 @@ func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string,
 		if !ok {
 			return "", errors.New(errGetNameFromMeta)
 		}
-		pkgName := xpkgv1.FriendlyID(pkgMeta.GetName(), hash.Hex)
-		output = xpkgv1.BuildPath(c.root, pkgName, xpkgv1.XpkgExtension)
+		pkgName := xpkg.FriendlyID(pkgMeta.GetName(), hash.Hex)
+		output = xpkg.BuildPath(c.root, pkgName, xpkg.XpkgExtension)
 	}
 	return output, nil
 }

@@ -36,9 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	xpkgv1 "github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/examples"
-	"github.com/crossplane/crossplane/internal/xpkg/v2/parser/yaml"
+	"github.com/crossplane/crossplane/internal/xpkg/parser/examples"
 )
 
 var (
@@ -137,7 +135,7 @@ func TestBuild(t *testing.T) {
 }
 
 func TestBuildExamples(t *testing.T) {
-	pkgp, _ := yaml.New()
+	pkgp, _ := yamlParser()
 
 	defaultFilters := []parser.FilterFn{
 		parser.SkipDirs(),
@@ -180,7 +178,7 @@ func TestBuildExamples(t *testing.T) {
 			want: want{
 				pkgExists: true,
 				labels: []string{
-					xpkgv1.PackageAnnotation,
+					PackageAnnotation,
 				},
 			},
 		},
@@ -204,8 +202,8 @@ func TestBuildExamples(t *testing.T) {
 				pkgExists: true,
 				exExists:  true,
 				labels: []string{
-					xpkgv1.PackageAnnotation,
-					xpkgv1.ExamplesAnnotation,
+					PackageAnnotation,
+					ExamplesAnnotation,
 				},
 			},
 		},
@@ -230,8 +228,8 @@ func TestBuildExamples(t *testing.T) {
 				pkgExists: true,
 				exExists:  true,
 				labels: []string{
-					xpkgv1.PackageAnnotation,
-					xpkgv1.ExamplesAnnotation,
+					PackageAnnotation,
+					ExamplesAnnotation,
 				},
 			},
 		},
@@ -299,7 +297,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 
 	reader := mutate.Extract(i)
 	fs := tarfs.New(tar.NewReader(reader))
-	pkgYaml, err := fs.Open(xpkgv1.StreamFile)
+	pkgYaml, err := fs.Open(StreamFile)
 	if err != nil {
 		return contents, err
 	}
@@ -310,7 +308,7 @@ func readImg(i v1.Image) (xpkgContents, error) {
 	}
 	contents.pkgBytes = pkgBytes
 
-	exYaml, err := fs.Open(xpkgv1.XpkgExamplesFile)
+	exYaml, err := fs.Open(XpkgExamplesFile)
 	if err != nil && !os.IsNotExist(err) {
 		return contents, err
 	}
@@ -348,4 +346,18 @@ func allLabels(i partial.WithConfigFile) ([]string, error) {
 	}
 
 	return labels, nil
+}
+
+// This is equivalent to yaml.New. Duplicated here to avoid an import cycle.
+func yamlParser() (*parser.PackageParser, error) {
+	metaScheme, err := BuildMetaScheme()
+	if err != nil {
+		panic(err)
+	}
+	objScheme, err := BuildObjectScheme()
+	if err != nil {
+		panic(err)
+	}
+
+	return parser.New(metaScheme, objScheme), nil
 }
