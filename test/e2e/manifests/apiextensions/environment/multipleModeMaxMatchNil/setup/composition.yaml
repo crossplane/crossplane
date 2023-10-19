@@ -32,7 +32,7 @@ spec:
                 time: 0s
               - conditionType: Ready
                 conditionStatus: "True"
-                time: 10s
+                time: 1s
       patches:
         - type: FromEnvironmentFieldPath
           fromFieldPath: complex.c.f

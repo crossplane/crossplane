@@ -21,14 +21,20 @@ import (
 	"io"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -36,19 +42,27 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/features"
 )
 
 type MockEngine struct {
 	ControllerEngine
-	MockStart func(name string, o kcontroller.Options, w ...controller.Watch) error
-	MockStop  func(name string)
-	MockErr   func(name string) error
+	MockCreate func(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
+	MockStart  func(name string, o kcontroller.Options, w ...controller.Watch) error
+	MockStop   func(name string)
+	MockErr    func(name string) error
+}
+
+func (m *MockEngine) Create(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error) {
+	return m.MockCreate(name, o, w...)
 }
 
 func (m *MockEngine) Start(name string, o kcontroller.Options, w ...controller.Watch) error {
@@ -519,10 +533,23 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"StartControllerError": {
+		"CreateControllerError": {
 			reason: "We should return any error we encounter while starting our controller.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+					GetSchemeFn: runtime.NewScheme,
+					GetRESTMapperFn: func() meta.RESTMapper {
+						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
+					},
+				},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -545,8 +572,10 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr:   func(_ string) error { return nil },
-						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return errBoom },
+						MockErr: func(_ string) error { return nil },
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+							return nil, errBoom
+						},
 					}),
 				},
 			},
@@ -558,7 +587,20 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulStart": {
 			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+					GetSchemeFn: runtime.NewScheme,
+					GetRESTMapperFn: func() meta.RESTMapper {
+						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
+					},
+				},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -590,9 +632,23 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr:   func(name string) error { return errBoom }, // This error should only be logged.
-						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil }},
-					),
+						MockErr: func(name string) error { return errBoom }, // This error should only be logged.
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+							return mockNamedController{
+								MockStart: func(ctx context.Context) error { return nil },
+								MockGetCache: func() cache.Cache {
+									return &mockCache{
+										IndexFieldFn: func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+											return nil
+										},
+										WaitForCacheSyncFn: func(ctx context.Context) bool {
+											return true
+										},
+									}
+								},
+							}, nil
+						},
+					}),
 				},
 			},
 			want: want{
@@ -602,7 +658,20 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulUpdateControllerVersion": {
 			reason: "We should return without requeueing if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+					GetSchemeFn: runtime.NewScheme,
+					GetRESTMapperFn: func() meta.RESTMapper {
+						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
+					},
+				},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -647,9 +716,23 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr:   func(name string) error { return nil },
-						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil },
-						MockStop:  func(_ string) {},
+						MockErr: func(name string) error { return nil },
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+							return mockNamedController{
+								MockStart: func(ctx context.Context) error { return nil },
+								MockGetCache: func() cache.Cache {
+									return &mockCache{
+										IndexFieldFn: func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+											return nil
+										},
+										WaitForCacheSyncFn: func(ctx context.Context) bool {
+											return true
+										},
+									}
+								},
+							}, nil
+						},
+						MockStop: func(_ string) {},
 					}),
 				},
 			},
@@ -659,17 +742,104 @@ func TestReconcile(t *testing.T) {
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.opts, WithLogger(testLog))...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+	withRealtimeComposition := feature.Flags{}
+	withRealtimeComposition.Enable(features.EnableRealtimeCompositions)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+	type mode struct {
+		name    string
+		options apiextensionscontroller.Options
+	}
+	for _, m := range []mode{
+		{name: "polling", options: apiextensionscontroller.Options{Options: controller.DefaultOptions()}},
+		{name: "realtime", options: apiextensionscontroller.Options{Options: controller.Options{Features: &withRealtimeComposition}}},
+	} {
+		t.Run(m.name, func(t *testing.T) {
+			for name, tc := range cases {
+				t.Run(name, func(t *testing.T) {
+					r := NewReconciler(tc.args.mgr, m.options, append(tc.args.opts, WithLogger(testLog))...)
+					got, err := r.Reconcile(context.Background(), reconcile.Request{})
+
+					if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+						t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+					}
+					if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
+						t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+					}
+				})
 			}
 		})
 	}
+}
+
+type mockNamedController struct {
+	MockStart    func(ctx context.Context) error
+	MockGetCache func() cache.Cache
+}
+
+func (m mockNamedController) Start(ctx context.Context) error {
+	return m.MockStart(ctx)
+}
+
+func (m mockNamedController) GetCache() cache.Cache {
+	return m.MockGetCache()
+}
+
+type mockManager struct {
+	manager.Manager
+
+	GetCacheFn             func() cache.Cache
+	GetClientFn            func() client.Client
+	GetSchemeFn            func() *runtime.Scheme
+	GetRESTMapperFn        func() meta.RESTMapper
+	GetConfigFn            func() *rest.Config
+	GetLoggerFn            func() logr.Logger
+	GetControllerOptionsFn func() ctrlconfig.Controller
+}
+
+func (m *mockManager) GetCache() cache.Cache {
+	return m.GetCacheFn()
+}
+
+func (m *mockManager) GetClient() client.Client {
+	return m.GetClientFn()
+}
+
+func (m *mockManager) GetScheme() *runtime.Scheme {
+	return m.GetSchemeFn()
+}
+
+func (m *mockManager) GetRESTMapper() meta.RESTMapper {
+	return m.GetRESTMapperFn()
+}
+
+func (m *mockManager) GetConfig() *rest.Config {
+	return m.GetConfigFn()
+}
+
+func (m *mockManager) GetLogger() logr.Logger {
+	return m.GetLoggerFn()
+}
+
+func (m *mockManager) GetControllerOptions() ctrlconfig.Controller {
+	return m.GetControllerOptionsFn()
+}
+
+type mockCache struct {
+	cache.Cache
+
+	ListFn             func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+	IndexFieldFn       func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error
+	WaitForCacheSyncFn func(ctx context.Context) bool
+}
+
+func (m *mockCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return m.ListFn(ctx, list, opts...)
+}
+
+func (m *mockCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+	return m.IndexFieldFn(ctx, obj, field, extractValue)
+}
+
+func (m *mockCache) WaitForCacheSync(ctx context.Context) bool {
+	return m.WaitForCacheSyncFn(ctx)
 }

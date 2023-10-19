@@ -9,6 +9,8 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
@@ -71,19 +73,17 @@ func TestEnvironmentConfigDefault(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), xpv1.Available()),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -125,19 +125,17 @@ func TestEnvironmentResolutionOptional(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), xpv1.Available()),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "1",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -179,9 +177,10 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), xpv1.Available()),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			Assess("CreateAdditionalEnvironmentConfigMatchingSelector", funcs.AllOf(
@@ -198,10 +197,7 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -243,9 +239,10 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), xpv1.Available()),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			Assess("CreateAdditionalEnvironmentConfigMatchingSelector", funcs.AllOf(
@@ -262,10 +259,7 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -307,19 +301,17 @@ func TestEnvironmentConfigMultipleMaxMatchNil(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), xpv1.Available()),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "3",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
@@ -360,19 +352,17 @@ func TestEnvironmentConfigMultipleMaxMatch1(t *testing.T) {
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), xpv1.Available()),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "*.yaml")),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml"), nopList)).
 			WithTeardown("DeleteGlobalPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),

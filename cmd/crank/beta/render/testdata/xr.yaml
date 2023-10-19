@@ -1,0 +1,6 @@
+apiVersion: nop.example.org/v1alpha1
+kind: XNopResource
+metadata:
+  name: test-render
+spec:
+  coolField: "I'm cool!"

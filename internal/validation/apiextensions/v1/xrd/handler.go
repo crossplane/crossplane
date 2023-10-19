@@ -23,7 +23,7 @@ import (
 	"fmt"
 
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -151,7 +151,7 @@ func (v *validator) dryRunUpdateOrCreateIfNotFound(ctx context.Context, crd *api
 		got.Spec = crd.Spec
 		return v.client.Update(ctx, got, client.DryRunAll)
 	}
-	if apierrors.IsNotFound(err) {
+	if kerrors.IsNotFound(err) {
 		return v.client.Create(ctx, crd, client.DryRunAll)
 	}
 	return err
@@ -169,7 +169,7 @@ func (v *validator) rewriteError(err error, in *v1.CompositeResourceDefinition, 
 	if err == nil {
 		return nil
 	}
-	var apiErr *apierrors.StatusError
+	var apiErr *kerrors.StatusError
 	if errors.As(err, &apiErr) {
 		apiErr.ErrStatus.Message = "invalid CRD generated for CompositeResourceDefinition: " + apiErr.ErrStatus.Message
 		apiErr.ErrStatus.Details.Kind = v1.CompositeResourceDefinitionKind

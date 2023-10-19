@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -61,85 +61,9 @@ func TestResolve(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"SuccessfulInactiveNoLock": {
-			reason: "Should not return error if we are inactive and lock does not exist.",
+		"SuccessfulInactiveNothingToDo": {
+			reason: "Should return no error if resolve is called for an inactive revision.",
 			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-		},
-		"ErrorInactiveGetLock": {
-			reason: "Should return error if we are inactive and we fail to get the lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-			want: want{
-				err: errBoom,
-			},
-		},
-		"SuccessfulInactiveAlreadyRemoved": {
-			reason: "Should not return error if we are inactive and not in lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							return nil
-						}),
-						MockCreate: test.NewMockCreateFn(nil),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "config-nop-a-abc123",
-					},
-					Spec: v1.PackageRevisionSpec{
-						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		"SuccessfulInactiveExists": {
-			reason: "Should not return error if we are inactive and successfully remove from lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							l := obj.(*v1beta1.Lock)
-							l.Packages = []v1beta1.LockPackage{
-								{
-									Source: "hasheddan/config-nop-a:v0.0.1",
-								},
-							}
-							return nil
-						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
-					},
-				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
@@ -148,38 +72,7 @@ func TestResolve(t *testing.T) {
 					},
 				},
 			},
-			want: want{
-				err: nil,
-			},
-		},
-		"ErrorRemoveInactiveFromLock": {
-			reason: "Should return error if we are inactive and fail to remove from lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							l := obj.(*v1beta1.Lock)
-							l.Packages = []v1beta1.LockPackage{
-								{
-									Source: "hasheddan/config-nop-a",
-								},
-							}
-							return nil
-						}),
-						MockUpdate: test.NewMockUpdateFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-			want: want{
-				err: errBoom,
-			},
+			want: want{},
 		},
 		"ErrNotMeta": {
 			reason: "Should return error if not a valid package meta type.",
@@ -332,10 +225,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 								},
 							},
 						},
@@ -419,10 +312,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 								},
 							},
 						},
@@ -515,11 +408,11 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -563,6 +456,10 @@ func TestResolve(t *testing.T) {
 											Package: "not-here-2",
 											Type:    v1beta1.ConfigurationPackageType,
 										},
+										{
+											Package: "function-not-here-1",
+											Type:    v1beta1.FunctionPackageType,
+										},
 									},
 								},
 								{
@@ -589,9 +486,10 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									"not-here-1":          &v1beta1.Dependency{},
+									"not-here-2":          &v1beta1.Dependency{},
+									"not-here-3":          &v1beta1.Dependency{},
+									"function-not-here-1": &v1beta1.Dependency{},
 								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
@@ -607,6 +505,13 @@ func TestResolve(t *testing.T) {
 										Version: "v0.100.1",
 									}, nil
 								}
+								if s == "function-not-here-1" {
+									return &v1beta1.LockPackage{
+										Source:  "function-not-here-1",
+										Version: "v0.1.0",
+									}, nil
+								}
+
 								return nil, nil
 							},
 						}
@@ -617,11 +522,15 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
+									Version:  ">=v0.1.0",
+								},
+								{
+									Function: ptr.To("function-not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -639,8 +548,8 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				total:     3,
-				installed: 3,
+				total:     4,
+				installed: 4,
 				invalid:   0,
 			},
 		},

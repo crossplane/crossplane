@@ -31,9 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -41,11 +43,6 @@ import (
 )
 
 var _ Revisioner = &MockRevisioner{}
-
-var (
-	tlsServerSecret = "test-tls-server"
-	tlsClientSecret = "test-tls-client"
-)
 
 type MockRevisioner struct {
 	MockRevision func() (string, error)
@@ -290,7 +287,7 @@ func TestReconcile(t *testing.T) {
 								want.SetActivationPolicy(&v1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
 								want.SetConditions(v1.UnknownHealth())
-								want.SetConditions(v1.Inactive())
+								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -333,10 +330,6 @@ func TestReconcile(t *testing.T) {
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
-									},
-									Spec: v1.PackageRevisionSpec{
-										TLSServerSecretName: &tlsServerSecret,
-										TLSClientSecretName: &tlsClientSecret,
 									},
 								}
 								cr.SetConditions(v1.Healthy())
@@ -395,10 +388,6 @@ func TestReconcile(t *testing.T) {
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
-									},
-									Spec: v1.PackageRevisionSpec{
-										TLSServerSecretName: &tlsServerSecret,
-										TLSClientSecretName: &tlsClientSecret,
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
@@ -539,7 +528,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Unhealthy())
+								cr.SetConditions(v1.Unhealthy().WithMessage("some message"))
 								cr.SetDesiredState(v1.PackageRevisionActive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
@@ -552,7 +541,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.Unhealthy())
+								want.SetConditions(v1.Unhealthy().WithMessage("some message"))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -749,6 +738,101 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGCPackageRevision),
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackage:             func() v1.Package { return &v1.Configuration{} },
+					newPackageRevision:     func() v1.PackageRevision { return &v1.ConfigurationRevision{} },
+					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								p := o.(*v1.Configuration)
+								p.SetName("test")
+								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+								p.SetActivationPolicy(&v1.AutomaticActivation)
+								p.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.Configuration{}
+								want.SetName("test")
+								want.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+								want.SetActivationPolicy(&v1.AutomaticActivation)
+								want.SetConditions(commonv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					},
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					log:    testLog,
+					record: event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ResumeReconcile": {
+			reason: "We should be active and not requeue on successful creation of the first revision with auto activation.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackage:             func() v1.Package { return &v1.Configuration{} },
+					newPackageRevision:     func() v1.PackageRevision { return &v1.ConfigurationRevision{} },
+					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								p := o.(*v1.Configuration)
+								p.SetName("test")
+								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+								p.SetActivationPolicy(&v1.AutomaticActivation)
+								p.SetConditions(commonv1.ReconcilePaused())
+								return nil
+							}),
+							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.Configuration{}
+								want.SetName("test")
+								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
+								want.SetCurrentRevision("test-1234567")
+								want.SetActivationPolicy(&v1.AutomaticActivation)
+								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Active())
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					},
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					log:    testLog,
+					record: event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 	}

@@ -308,7 +308,7 @@ spec:
                                     - bool
                                     - float64
                                     - object
-                                    - list
+                                    - array
                                     type: string
                                 required:
                                 - toType
@@ -689,7 +689,7 @@ spec:
                                       - bool
                                       - float64
                                       - object
-                                      - list
+                                      - array
                                       type: string
                                   required:
                                   - toType
@@ -1148,7 +1148,7 @@ spec:
                                       - bool
                                       - float64
                                       - object
-                                      - list
+                                      - array
                                       type: string
                                   required:
                                   - toType
@@ -1462,6 +1462,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
             type: object
         type: object
     served: true
@@ -1759,7 +1762,7 @@ spec:
                                     - bool
                                     - float64
                                     - object
-                                    - list
+                                    - array
                                     type: string
                                 required:
                                 - toType
@@ -2140,7 +2143,7 @@ spec:
                                       - bool
                                       - float64
                                       - object
-                                      - list
+                                      - array
                                       type: string
                                   required:
                                   - toType
@@ -2599,7 +2602,7 @@ spec:
                                       - bool
                                       - float64
                                       - object
-                                      - list
+                                      - array
                                       type: string
                                   required:
                                   - toType
@@ -2913,6 +2916,9 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
             type: object
         type: object
     served: true

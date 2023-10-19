@@ -61,11 +61,29 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	return stringRefs
 }
 
+// PackageWithRuntime is the interface satisfied by packages with runtime types.
+// +k8s:deepcopy-gen=false
+type PackageWithRuntime interface {
+	Package
+
+	GetControllerConfigRef() *ControllerConfigReference
+	SetControllerConfigRef(r *ControllerConfigReference)
+
+	GetRuntimeConfigRef() *RuntimeConfigReference
+	SetRuntimeConfigRef(r *RuntimeConfigReference)
+
+	GetTLSServerSecretName() *string
+
+	GetTLSClientSecretName() *string
+}
+
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
 type Package interface {
 	resource.Object
 	resource.Conditioned
+
+	CleanConditions()
 
 	GetSource() string
 	SetSource(s string)
@@ -85,9 +103,6 @@ type Package interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
-
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
 
@@ -99,10 +114,6 @@ type Package interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
-
-	GetTLSServerSecretName() *string
-
-	GetTLSClientSecretName() *string
 }
 
 // GetCondition of this Provider.
@@ -113,6 +124,11 @@ func (p *Provider) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 // SetConditions of this Provider.
 func (p *Provider) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions
+func (p *Provider) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
 }
 
 // GetSource of this Provider.
@@ -185,6 +201,16 @@ func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
 }
 
+// GetRuntimeConfigRef of this Provider.
+func (p *Provider) GetRuntimeConfigRef() *RuntimeConfigReference {
+	return p.Spec.RuntimeConfigReference
+}
+
+// SetRuntimeConfigRef of this Provider.
+func (p *Provider) SetRuntimeConfigRef(r *RuntimeConfigReference) {
+	p.Spec.RuntimeConfigReference = r
+}
+
 // GetCurrentRevision of this Provider.
 func (p *Provider) GetCurrentRevision() string {
 	return p.Status.CurrentRevision
@@ -243,6 +269,11 @@ func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 // SetConditions of this Configuration.
 func (p *Configuration) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions
+func (p *Configuration) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
 }
 
 // GetSource of this Configuration.
@@ -305,14 +336,6 @@ func (p *Configuration) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this Configuration.
-func (p *Configuration) GetControllerConfigRef() *ControllerConfigReference {
-	return nil
-}
-
-// SetControllerConfigRef of this Configuration.
-func (p *Configuration) SetControllerConfigRef(_ *ControllerConfigReference) {}
-
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
 	return p.Status.CurrentRevision
@@ -353,14 +376,23 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
-// GetTLSServerSecretName of this Configuration.
-func (p *Configuration) GetTLSServerSecretName() *string {
-	return nil
-}
+// PackageRevisionWithRuntime is the interface satisfied by revision of packages
+// with runtime types.
+// +k8s:deepcopy-gen=false
+type PackageRevisionWithRuntime interface {
+	PackageRevision
 
-// GetTLSClientSecretName of this Configuration.
-func (p *Configuration) GetTLSClientSecretName() *string {
-	return nil
+	GetControllerConfigRef() *ControllerConfigReference
+	SetControllerConfigRef(r *ControllerConfigReference)
+
+	GetRuntimeConfigRef() *RuntimeConfigReference
+	SetRuntimeConfigRef(r *RuntimeConfigReference)
+
+	GetTLSServerSecretName() *string
+	SetTLSServerSecretName(n *string)
+
+	GetTLSClientSecretName() *string
+	SetTLSClientSecretName(n *string)
 }
 
 // PackageRevision is the interface satisfied by package revision types.
@@ -369,11 +401,10 @@ type PackageRevision interface {
 	resource.Object
 	resource.Conditioned
 
+	CleanConditions()
+
 	GetObjects() []xpv1.TypedReference
 	SetObjects(c []xpv1.TypedReference)
-
-	GetControllerReference() ControllerReference
-	SetControllerReference(c ControllerReference)
 
 	GetSource() string
 	SetSource(s string)
@@ -390,9 +421,6 @@ type PackageRevision interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
-
 	GetRevision() int64
 	SetRevision(r int64)
 
@@ -402,22 +430,8 @@ type PackageRevision interface {
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
 
-	// These methods will be removed once we start to consume certificates generated per entities
-	GetWebhookTLSSecretName() *string
-	SetWebhookTLSSecretName(n *string)
-
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
-
-	// These methods will be removed once we start to consume certificates generated per entities
-	GetESSTLSSecretName() *string
-	SetESSTLSSecretName(s *string)
-
-	GetTLSServerSecretName() *string
-	SetTLSServerSecretName(n *string)
-
-	GetTLSClientSecretName() *string
-	SetTLSClientSecretName(n *string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -430,6 +444,11 @@ func (p *ProviderRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
+// CleanConditions removes all conditions
+func (p *ProviderRevision) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
+}
+
 // GetObjects of this ProviderRevision.
 func (p *ProviderRevision) GetObjects() []xpv1.TypedReference {
 	return p.Status.ObjectRefs
@@ -438,16 +457,6 @@ func (p *ProviderRevision) GetObjects() []xpv1.TypedReference {
 // SetObjects of this ProviderRevision.
 func (p *ProviderRevision) SetObjects(c []xpv1.TypedReference) {
 	p.Status.ObjectRefs = c
-}
-
-// GetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) GetControllerReference() ControllerReference {
-	return p.Status.ControllerRef
-}
-
-// SetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) SetControllerReference(c ControllerReference) {
-	p.Status.ControllerRef = c
 }
 
 // GetSource of this ProviderRevision.
@@ -527,9 +536,19 @@ func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
 	return p.Spec.ControllerConfigReference
 }
 
-// SetControllerConfigRef of this ProviderREvsion.
+// SetControllerConfigRef of this ProviderRevision.
 func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
+}
+
+// GetRuntimeConfigRef of this ProviderRevision.
+func (p *ProviderRevision) GetRuntimeConfigRef() *RuntimeConfigReference {
+	return p.Spec.RuntimeConfigReference
+}
+
+// SetRuntimeConfigRef of this ProviderRevision.
+func (p *ProviderRevision) SetRuntimeConfigRef(r *RuntimeConfigReference) {
+	p.Spec.RuntimeConfigReference = r
 }
 
 // GetSkipDependencyResolution of this ProviderRevision.
@@ -540,21 +559,6 @@ func (p *ProviderRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ProviderRevision.
 func (p *ProviderRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
-}
-
-// GetWebhookTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) GetWebhookTLSSecretName() *string {
-	return p.Spec.WebhookTLSSecretName
-}
-
-// SetWebhookTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) SetWebhookTLSSecretName(b *string) {
-	p.Spec.WebhookTLSSecretName = b
-}
-
-// GetESSTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) GetESSTLSSecretName() *string {
-	return p.Spec.ESSTLSSecretName
 }
 
 // GetTLSServerSecretName of this ProviderRevision.
@@ -577,11 +581,6 @@ func (p *ProviderRevision) SetTLSClientSecretName(s *string) {
 	p.Spec.TLSClientSecretName = s
 }
 
-// SetESSTLSSecretName of this ProviderRevision.
-func (p *ProviderRevision) SetESSTLSSecretName(s *string) {
-	p.Spec.ESSTLSSecretName = s
-}
-
 // GetCommonLabels of this ProviderRevision.
 func (p *ProviderRevision) GetCommonLabels() map[string]string {
 	return p.Spec.CommonLabels
@@ -602,6 +601,11 @@ func (p *ConfigurationRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
+// CleanConditions removes all conditions
+func (p *ConfigurationRevision) CleanConditions() {
+	p.Status.Conditions = []xpv1.Condition{}
+}
+
 // GetObjects of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetObjects() []xpv1.TypedReference {
 	return p.Status.ObjectRefs
@@ -610,16 +614,6 @@ func (p *ConfigurationRevision) GetObjects() []xpv1.TypedReference {
 // SetObjects of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetObjects(c []xpv1.TypedReference) {
 	p.Status.ObjectRefs = c
-}
-
-// GetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerReference() ControllerReference {
-	return p.Status.ControllerRef
-}
-
-// SetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerReference(c ControllerReference) {
-	p.Status.ControllerRef = c
 }
 
 // GetSource of this ConfigurationRevision.
@@ -694,16 +688,6 @@ func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerConfigRef() *ControllerConfigReference {
-	return p.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerConfigRef(r *ControllerConfigReference) {
-	p.Spec.ControllerConfigReference = r
-}
-
 // GetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 	return p.Spec.SkipDependencyResolution
@@ -712,46 +696,6 @@ func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
-}
-
-// GetWebhookTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetWebhookTLSSecretName() *string {
-	return p.Spec.WebhookTLSSecretName
-}
-
-// SetWebhookTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetWebhookTLSSecretName(b *string) {
-	p.Spec.WebhookTLSSecretName = b
-}
-
-// GetESSTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetESSTLSSecretName() *string {
-	return p.Spec.ESSTLSSecretName
-}
-
-// SetESSTLSSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetESSTLSSecretName(s *string) {
-	p.Spec.ESSTLSSecretName = s
-}
-
-// GetTLSServerSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetTLSServerSecretName() *string {
-	return p.Spec.TLSServerSecretName
-}
-
-// SetTLSServerSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetTLSServerSecretName(s *string) {
-	p.Spec.TLSServerSecretName = s
-}
-
-// GetTLSClientSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetTLSClientSecretName() *string {
-	return p.Spec.TLSClientSecretName
-}
-
-// SetTLSClientSecretName of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetTLSClientSecretName(s *string) {
-	p.Spec.TLSClientSecretName = s
 }
 
 // GetCommonLabels of this ConfigurationRevision.

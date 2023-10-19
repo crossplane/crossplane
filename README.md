@@ -1,4 +1,4 @@
-![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
+![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://img.shields.io/badge/slack-crossplane-red?logo=slack)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io?logo=X&label=Follow&style=flat)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
 ![Crossplane](banner.png)
 
@@ -73,13 +73,14 @@ Each SIG collaborates in Slack and some groups have regular meetings, you can
 find the meetings in the [Community Calendar][community calendar].
 - [#sig-composition-environments][sig-composition-environments-slack]
 - [#sig-composition-functions][sig-composition-functions-slack]
+- [#sig-deletion-ordering][sig-deletion-ordering-slack]
+- [#sig-devex][sig-devex-slack]
 - [#sig-e2e-testing][sig-e2e-testing-slack]
+- [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
-- [#sig-deletion-ordering][sig-deletion-ordering-slack]
 - [#sig-upjet-provider-efficiency][sig-upjet-provider-efficiency-slack]
-
 
 ## Adopters
 
@@ -116,9 +117,11 @@ Crossplane is under the Apache 2.0 license.
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/3?pane=info
 [sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE
+[sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
+[sig-devex-slack]: https://crossplane.slack.com/archives/C05U1LLM3B2
 [sig-e2e-testing-slack]: https://crossplane.slack.com/archives/C05C8CCTVNV
+[sig-observability-slack]: https://crossplane.slack.com/archives/C061GNH3LA0
 [sig-observe-only-slack]: https://crossplane.slack.com/archives/C04D5988QEA
 [sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
 [sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
-[sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
 [sig-upjet-provider-efficiency-slack]: https://crossplane.slack.com/archives/C04QLETDJGN

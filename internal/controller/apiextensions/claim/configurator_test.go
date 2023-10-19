@@ -588,6 +588,140 @@ func TestCompositeConfigure(t *testing.T) {
 				},
 			},
 		},
+		"SkipK8sAnnotationPropagation": {
+			reason: "Claim's kubernetes.io annotations should not be propagated to XR",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+								"annotations": map[string]any{
+									"foo":                   "v1",
+									"foo.kubernetes.io":     "v2",
+									"foo.kubernetes.io/bar": "v3",
+									"foo.k8s.io":            "v4",
+									"foo.k8s.io/bar":        "v5",
+								},
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+
+								// These should be preserved.
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+
+								// These should be filtered out.
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"generateName": name + "-",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+								"annotations": map[string]any{
+									"foo": "v1",
+								},
+							},
+							"spec": map[string]any{
+								"coolness":            23,
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"SkipK8sLabelPropagation": {
+			reason: "Claim's kubernetes.io annotations should not be propagated to XR",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+								"labels": map[string]any{
+									"foo":                   "v1",
+									"foo.kubernetes.io":     "v2",
+									"foo.kubernetes.io/bar": "v3",
+									"foo.k8s.io":            "v4",
+									"foo.k8s.io/bar":        "v5",
+								},
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+
+								// These should be preserved.
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+
+								// These should be filtered out.
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"generateName": name + "-",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+									"foo":                       "v1",
+								},
+							},
+							"spec": map[string]any{
+								"coolness":            23,
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {

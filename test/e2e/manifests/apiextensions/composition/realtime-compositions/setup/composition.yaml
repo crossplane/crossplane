@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.realtime-compositions.e2e.crossplane.io
+spec:
+  compositeTypeRef:
+    apiVersion: realtime-compositions.e2e.crossplane.io/v1alpha1
+    kind: XNopResource
+  resources:
+  - name: nop-resource-1
+    base:
+      apiVersion: nop.crossplane.io/v1alpha1
+      kind: NopResource
+      metadata:
+        labels:
+          realtime-compositions: "true"
+      spec:
+        forProvider:
+          conditionAfter:
+          - conditionType: Ready
+            conditionStatus: "True"
+            time: 0s
+    patches:
+    - type: ToCompositeFieldPath
+      fromFieldPath: metadata.annotations[cool-field]
+      toFieldPath: status.coolerField

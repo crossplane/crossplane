@@ -123,11 +123,6 @@ func TestUsageStandalone(t *testing.T) {
 func TestUsageComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/composition"
 
-	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
-		APIVersion: "nop.crossplane.io/v1alpha1",
-		Kind:       "NopResource",
-	}))
-
 	usageList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "apiextensions.crossplane.io/v1alpha1",
 		Kind:       "Usage",
@@ -149,7 +144,7 @@ func TestUsageComposition(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("ClaimCreatedAndReady", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),

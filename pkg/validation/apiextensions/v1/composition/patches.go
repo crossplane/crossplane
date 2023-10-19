@@ -24,7 +24,7 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -412,7 +412,7 @@ func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segmen
 	// TODO(phisco): any remaining fields? e.g. XValidations' CEL Rules?
 	prop, exists := parent.Properties[segment.Field]
 	if !exists {
-		if pointer.BoolDeref(parent.XPreserveUnknownFields, false) {
+		if ptr.Deref(parent.XPreserveUnknownFields, false) {
 			return nil, nil
 		}
 

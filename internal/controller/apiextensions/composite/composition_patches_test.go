@@ -25,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -100,8 +100,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -133,8 +133,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -165,8 +165,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.name"),
-					ToFieldPath:   pointer.String("objectMeta.ownerReferences[*].name"),
+					FromFieldPath: ptr.To("objectMeta.name"),
+					ToFieldPath:   ptr.To("objectMeta.ownerReferences[*].name"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -211,8 +211,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.name"),
-					ToFieldPath:   pointer.String("objectMeta.ownerReferences[*].badField"),
+					FromFieldPath: ptr.To("objectMeta.name"),
+					ToFieldPath:   ptr.To("objectMeta.ownerReferences[*].badField"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -240,8 +240,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -267,14 +267,14 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("wat"),
+					FromFieldPath: ptr.To("wat"),
 					Policy: &v1.PatchPolicy{
 						FromFieldPath: func() *v1.FromFieldPathPolicy {
 							s := v1.FromFieldPathPolicyRequired
 							return &s
 						}(),
 					},
-					ToFieldPath: pointer.String("wat"),
+					ToFieldPath: ptr.To("wat"),
 				},
 				cp: &fake.Composite{
 					ConnectionDetailsLastPublishedTimer: lpt,
@@ -297,8 +297,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -330,14 +330,14 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
-					FromFieldPath: pointer.String("wat"),
+					FromFieldPath: ptr.To("wat"),
 					Policy: &v1.PatchPolicy{
 						FromFieldPath: func() *v1.FromFieldPathPolicy {
 							s := v1.FromFieldPathPolicyRequired
 							return &s
 						}(),
 					},
-					ToFieldPath: pointer.String("wat"),
+					ToFieldPath: ptr.To("wat"),
 				},
 				cp: &fake.Composite{
 					ConnectionDetailsLastPublishedTimer: lpt,
@@ -360,13 +360,13 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
 					Policy: &v1.PatchPolicy{
 						MergeOptions: &xpv1.MergeOptions{
-							KeepMapValues: pointer.Bool(true),
+							KeepMapValues: ptr.To(true),
 						},
 					},
-					ToFieldPath: pointer.String("objectMeta.labels"),
+					ToFieldPath: ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -406,8 +406,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -437,8 +437,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -470,7 +470,7 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -512,8 +512,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeToCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -555,8 +555,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeToCompositeFieldPath,
-					FromFieldPath: pointer.String("objectMeta.name"),
-					ToFieldPath:   pointer.String("objectMeta.ownerReferences[*].name"),
+					FromFieldPath: ptr.To("objectMeta.name"),
+					ToFieldPath:   ptr.To("objectMeta.ownerReferences[*].name"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -602,8 +602,8 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:          v1.PatchTypeToEnvironmentFieldPath,
-					FromFieldPath: pointer.String("objectMeta.labels"),
-					ToFieldPath:   pointer.String("objectMeta.labels"),
+					FromFieldPath: ptr.To("objectMeta.labels"),
+					ToFieldPath:   ptr.To("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -645,7 +645,7 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:        v1.PatchTypeCombineFromComposite,
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -692,7 +692,7 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type:        v1.PatchTypeCombineFromEnvironment,
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -746,7 +746,7 @@ func TestPatchApply(t *testing.T) {
 						},
 						Strategy: v1.CombineStrategyString,
 					},
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -798,7 +798,7 @@ func TestPatchApply(t *testing.T) {
 						Strategy:  v1.CombineStrategyString,
 						String:    &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -857,7 +857,7 @@ func TestPatchApply(t *testing.T) {
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -912,7 +912,7 @@ func TestPatchApply(t *testing.T) {
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -968,7 +968,7 @@ func TestPatchApply(t *testing.T) {
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1024,7 +1024,7 @@ func TestPatchApply(t *testing.T) {
 						Strategy: v1.CombineStrategyString,
 						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
-					ToFieldPath: pointer.String("objectMeta.labels.destination"),
+					ToFieldPath: ptr.To("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1204,11 +1204,11 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.name"),
+								FromFieldPath: ptr.To("metadata.name"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.namespace"),
+								FromFieldPath: ptr.To("metadata.namespace"),
 							},
 						},
 					},
@@ -1220,11 +1220,11 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.name"),
+								FromFieldPath: ptr.To("metadata.name"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.namespace"),
+								FromFieldPath: ptr.To("metadata.namespace"),
 							},
 						},
 					},
@@ -1238,7 +1238,7 @@ func TestComposedTemplates(t *testing.T) {
 					Patches: []v1.Patch{
 						{
 							Type:         v1.PatchTypePatchSet,
-							PatchSetName: pointer.String("patch-set-1"),
+							PatchSetName: ptr.To("patch-set-1"),
 						},
 					},
 				}},
@@ -1258,11 +1258,11 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.namespace"),
+								FromFieldPath: ptr.To("metadata.namespace"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("spec.parameters.test"),
+								FromFieldPath: ptr.To("spec.parameters.test"),
 							},
 						},
 					},
@@ -1271,11 +1271,11 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.annotations.patch-test-1"),
+								FromFieldPath: ptr.To("metadata.annotations.patch-test-1"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.annotations.patch-test-2"),
+								FromFieldPath: ptr.To("metadata.annotations.patch-test-2"),
 								Transforms: []v1.Transform{{
 									Type: v1.TransformTypeMap,
 									Map: &v1.MapTransform{
@@ -1294,15 +1294,15 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:         v1.PatchTypePatchSet,
-								PatchSetName: pointer.String("patch-set-2"),
+								PatchSetName: ptr.To("patch-set-2"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.name"),
+								FromFieldPath: ptr.To("metadata.name"),
 							},
 							{
 								Type:         v1.PatchTypePatchSet,
-								PatchSetName: pointer.String("patch-set-1"),
+								PatchSetName: ptr.To("patch-set-1"),
 							},
 						},
 					},
@@ -1310,7 +1310,7 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:         v1.PatchTypePatchSet,
-								PatchSetName: pointer.String("patch-set-1"),
+								PatchSetName: ptr.To("patch-set-1"),
 							},
 						},
 					},
@@ -1323,11 +1323,11 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.annotations.patch-test-1"),
+								FromFieldPath: ptr.To("metadata.annotations.patch-test-1"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.annotations.patch-test-2"),
+								FromFieldPath: ptr.To("metadata.annotations.patch-test-2"),
 								Transforms: []v1.Transform{{
 									Type: v1.TransformTypeMap,
 									Map: &v1.MapTransform{
@@ -1340,15 +1340,15 @@ func TestComposedTemplates(t *testing.T) {
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.name"),
+								FromFieldPath: ptr.To("metadata.name"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.namespace"),
+								FromFieldPath: ptr.To("metadata.namespace"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("spec.parameters.test"),
+								FromFieldPath: ptr.To("spec.parameters.test"),
 							},
 						},
 					},
@@ -1356,11 +1356,11 @@ func TestComposedTemplates(t *testing.T) {
 						Patches: []v1.Patch{
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("metadata.namespace"),
+								FromFieldPath: ptr.To("metadata.namespace"),
 							},
 							{
 								Type:          v1.PatchTypeFromCompositeFieldPath,
-								FromFieldPath: pointer.String("spec.parameters.test"),
+								FromFieldPath: ptr.To("spec.parameters.test"),
 							},
 						},
 					},
@@ -1430,7 +1430,7 @@ func TestResolveTransforms(t *testing.T) {
 				}, {
 					Type: v1.TransformTypeMath,
 					Math: &v1.MathTransform{
-						Multiply: pointer.Int64(2),
+						Multiply: ptr.To[int64](2),
 					},
 				}},
 				input: int64(2),
@@ -1450,7 +1450,7 @@ func TestResolveTransforms(t *testing.T) {
 				}, {
 					Type: v1.TransformTypeMath,
 					Math: &v1.MathTransform{
-						Multiply: pointer.Int64(2),
+						Multiply: ptr.To[int64](2),
 					},
 				}},
 				input: int64(2),

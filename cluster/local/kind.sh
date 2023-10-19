@@ -43,13 +43,14 @@ function check_context() {
 
 # configure kind
 KIND_NAME=${KIND_NAME:-"kind"}
+IMAGE_REPOSITORY="xpkg.upbound.io/${PROJECT_NAME}/${PROJECT_NAME}"
 case "${1:-}" in
   up)
     ${KIND} create cluster --name "${KIND_NAME}" --image "${KUBE_IMAGE}" --wait 5m
     ;;
   update)
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${IMAGE_REPOSITORY}:${helm_tag}" "${KIND_NAME}"
     ;;
   restart)
     if check_context; then
@@ -63,20 +64,20 @@ case "${1:-}" in
   helm-install)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${IMAGE_REPOSITORY}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package into \"$ns\" namespace"
-    ${HELM3} install ${PROJECT_NAME} --namespace ${ns} --create-namespace ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets='',image.tag="${helm_tag}" ${HELM3_FLAGS}
+    ${HELM3} install ${PROJECT_NAME} --namespace ${ns} --create-namespace ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets='',image.tag="${helm_tag}" --set args='{"--debug"}' ${HELM3_FLAGS}
     ;;
   helm-upgrade)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${IMAGE_REPOSITORY}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "upgrading helm package in \"$ns\" namespace"
-    ${HELM3} upgrade --install --namespace ${ns} --create-namespace ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME} ${HELM3_FLAGS} --set image.pullPolicy=Never,imagePullSecrets='',image.tag=${helm_tag}
+    ${HELM3} upgrade --install --namespace ${ns} --create-namespace ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets='',image.tag=${helm_tag} --set args='{"--debug"}' ${HELM3_FLAGS}
     ;;
   helm-delete)
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"

@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -55,8 +55,8 @@ func TestValidatorValidate(t *testing.T) {
 			args: args{
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"},
 					withPatches(0, v1.Patch{
-						FromFieldPath: pointer.String("spec.someField"),
-						ToFieldPath:   pointer.String("spec.someOtherField"),
+						FromFieldPath: ptr.To("spec.someField"),
+						ToFieldPath:   ptr.To("spec.someOtherField"),
 					})),
 				gkToCRDs: nil,
 			},
@@ -85,8 +85,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -104,8 +104,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someWrongField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someWrongField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -123,8 +123,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherWrongField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherWrongField"),
 				})),
 			},
 		},
@@ -149,8 +149,8 @@ func TestValidatorValidate(t *testing.T) {
 				),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -168,12 +168,12 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 					Transforms: []v1.Transform{{
 						Type: v1.TransformTypeMath,
 						Math: &v1.MathTransform{
-							Multiply: pointer.Int64(int64(2)),
+							Multiply: ptr.To[int64](int64(2)),
 						},
 					}},
 				})),
@@ -193,8 +193,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 					Transforms: []v1.Transform{{
 						Type: v1.TransformTypeConvert,
 						Convert: &v1.ConvertTransform{
@@ -236,7 +236,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: pointer.String("spec.someOtherField"),
+					ToFieldPath: ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -268,7 +268,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: pointer.String("spec.someOtherField"),
+					ToFieldPath: ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -281,8 +281,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -301,8 +301,8 @@ func TestValidatorValidate(t *testing.T) {
 				}).build(), defaultCompositeCrdBuilder().build()),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.someField"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("spec.someField"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -318,12 +318,12 @@ func TestValidatorValidate(t *testing.T) {
 						Name: "some-patch-set",
 						Patches: []v1.Patch{{
 							Type:          v1.PatchTypeFromCompositeFieldPath,
-							FromFieldPath: pointer.String("spec.someField"),
-							ToFieldPath:   pointer.String("spec.someOtherField"),
+							FromFieldPath: ptr.To("spec.someField"),
+							ToFieldPath:   ptr.To("spec.someOtherField"),
 						}}},
 				), withPatches(0, v1.Patch{
 					Type:         v1.PatchTypePatchSet,
-					PatchSetName: pointer.String("some-patch-set"),
+					PatchSetName: ptr.To("some-patch-set"),
 				})),
 			},
 		},
@@ -359,11 +359,11 @@ func TestValidatorValidate(t *testing.T) {
 										Format: "%s-%s",
 									},
 								},
-								ToFieldPath: pointer.String("spec.someOtherField"),
+								ToFieldPath: ptr.To("spec.someOtherField"),
 							}}},
 					), withPatches(0, v1.Patch{
 						Type:         v1.PatchTypePatchSet,
-						PatchSetName: pointer.String("some-patch-set"),
+						PatchSetName: ptr.To("some-patch-set"),
 					})),
 			},
 		},
@@ -376,8 +376,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
-					FromFieldPath: pointer.String("tier.name"),
-					ToFieldPath:   pointer.String("spec.someOtherField"),
+					FromFieldPath: ptr.To("tier.name"),
+					ToFieldPath:   ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -395,8 +395,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
-					FromFieldPath: pointer.String("tier.name"),
-					ToFieldPath:   pointer.String("spec.someOtherWrongField"),
+					FromFieldPath: ptr.To("tier.name"),
+					ToFieldPath:   ptr.To("spec.someOtherWrongField"),
 				})),
 			},
 		},
@@ -409,8 +409,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeToEnvironmentFieldPath,
-					FromFieldPath: pointer.String("spec.someOtherField"),
-					ToFieldPath:   pointer.String("tier.name"),
+					FromFieldPath: ptr.To("spec.someOtherField"),
+					ToFieldPath:   ptr.To("tier.name"),
 				})),
 			},
 		},
@@ -428,8 +428,8 @@ func TestValidatorValidate(t *testing.T) {
 				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeToEnvironmentFieldPath,
-					FromFieldPath: pointer.String("spec.someOtherWrongField"),
-					ToFieldPath:   pointer.String("tier.name"),
+					FromFieldPath: ptr.To("spec.someOtherWrongField"),
+					ToFieldPath:   ptr.To("tier.name"),
 				})),
 			},
 		},
@@ -456,7 +456,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: pointer.String("tier.name"),
+					ToFieldPath: ptr.To("tier.name"),
 				})),
 			},
 		},
@@ -483,7 +483,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: pointer.String("spec.someOtherField"),
+					ToFieldPath: ptr.To("spec.someOtherField"),
 				})),
 			},
 		},
@@ -515,7 +515,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: pointer.String("spec.someOtherWrongField"),
+					ToFieldPath: ptr.To("spec.someOtherWrongField"),
 				})),
 			},
 		},
@@ -547,7 +547,7 @@ func TestValidatorValidate(t *testing.T) {
 							Format: "%s-%s",
 						},
 					},
-					ToFieldPath: pointer.String("tier.name"),
+					ToFieldPath: ptr.To("tier.name"),
 				})),
 			},
 		},
@@ -561,18 +561,18 @@ func TestValidatorValidate(t *testing.T) {
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromCompositeFieldPath,
-						FromFieldPath: pointer.String("spec.someNonRequiredField"),
-						ToFieldPath:   pointer.String("tier.name"),
+						FromFieldPath: ptr.To("spec.someNonRequiredField"),
+						ToFieldPath:   ptr.To("tier.name"),
 					},
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeToCompositeFieldPath,
-						FromFieldPath: pointer.String("tier.name"),
-						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+						FromFieldPath: ptr.To("tier.name"),
+						ToFieldPath:   ptr.To("spec.someNonRequiredField"),
 					},
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromEnvironmentFieldPath,
-						FromFieldPath: pointer.String("tier.name"),
-						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+						FromFieldPath: ptr.To("tier.name"),
+						ToFieldPath:   ptr.To("spec.someNonRequiredField"),
 					},
 				)),
 			},
@@ -592,13 +592,13 @@ func TestValidatorValidate(t *testing.T) {
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromCompositeFieldPath,
-						FromFieldPath: pointer.String("spec.someWrongField"),
-						ToFieldPath:   pointer.String("tier.name"),
+						FromFieldPath: ptr.To("spec.someWrongField"),
+						ToFieldPath:   ptr.To("tier.name"),
 					},
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromEnvironmentFieldPath,
-						FromFieldPath: pointer.String("tier.name"),
-						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+						FromFieldPath: ptr.To("tier.name"),
+						ToFieldPath:   ptr.To("spec.someNonRequiredField"),
 					})),
 			},
 		},
@@ -621,18 +621,18 @@ func TestValidatorValidate(t *testing.T) {
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromCompositeFieldPath,
-						FromFieldPath: pointer.String("spec.someWrongField"),
-						ToFieldPath:   pointer.String("tier.name"),
+						FromFieldPath: ptr.To("spec.someWrongField"),
+						ToFieldPath:   ptr.To("tier.name"),
 					},
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeToCompositeFieldPath,
-						FromFieldPath: pointer.String("tier.name"),
-						ToFieldPath:   pointer.String("spec.someOtherWrongField"),
+						FromFieldPath: ptr.To("tier.name"),
+						ToFieldPath:   ptr.To("spec.someOtherWrongField"),
 					},
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeToCompositeFieldPath,
-						FromFieldPath: pointer.String("tier.name"),
-						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+						FromFieldPath: ptr.To("tier.name"),
+						ToFieldPath:   ptr.To("spec.someNonRequiredField"),
 					},
 				)),
 			},
@@ -670,10 +670,6 @@ func marshalJSON(t *testing.T, obj interface{}) []byte {
 		t.Errorf("Failed to marshal object: %v", err)
 	}
 	return b
-}
-
-func toPointer[T any](v T) *T {
-	return &v
 }
 
 func defaultCompositeCrdBuilder() *crdBuilder {
@@ -851,7 +847,7 @@ func buildDefaultComposition(t *testing.T, validationMode v1.CompositionValidati
 			},
 			Resources: []v1.ComposedTemplate{
 				{
-					Name: toPointer("test"),
+					Name: ptr.To("test"),
 					Base: runtime.RawExtension{
 						Raw: marshalJSON(t, map[string]any{
 							"apiVersion": testGroup + "/v1",

@@ -137,6 +137,7 @@ func TestRenderClusterRoles(t *testing.T) {
 				{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:            nameSystem,
+						Labels:          map[string]string{keyProviderName: prName},
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 					},
 					Rules: append([]rbacv1.PolicyRule{

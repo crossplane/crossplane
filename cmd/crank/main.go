@@ -14,18 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package main implements Crossplane's crank CLI - aka kubectl crossplane.
+// Package main implements Crossplane's crank CLI - aka crossplane CLI.
 package main
 
 import (
 	"fmt"
 
 	"github.com/alecthomas/kong"
-	"github.com/spf13/afero"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/beta"
+	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
@@ -58,27 +59,24 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
-	Install installCmd `cmd:"" help:"Install Crossplane packages."`
-	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
-	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
+	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
+
+	Beta beta.Cmd `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
 }
 
 func main() {
-	buildChild := &buildChild{
-		fs: afero.NewOsFs(),
-	}
-	pushChild := &pushChild{
-		fs: afero.NewOsFs(),
-	}
 	logger := logging.NewNopLogger()
 	ctx := kong.Parse(&cli,
-		kong.Name("kubectl crossplane"),
+		kong.Name("crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands
 		// at runtime.
-		kong.Bind(buildChild, pushChild),
 		kong.BindTo(logger, (*logging.Logger)(nil)),
+		kong.ConfigureHelp(kong.HelpOptions{
+			FlagsLast:      true,
+			Compact:        true,
+			WrapUpperBound: 80,
+		}),
 		kong.UsageOnError())
 	err := ctx.Run()
 	ctx.FatalIfErrorf(err)

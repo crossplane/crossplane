@@ -62,17 +62,17 @@ case $OS in
 esac
 
 url="https://releases.crossplane.io/${XP_CHANNEL}/${XP_VERSION}/bin/${OS_ARCH}/${BIN}"
-if ! curl -sLo kubectl-crossplane "${url}"; then
+if ! curl -sLo crossplane "${url}"; then
   echo "Failed to download Crossplane CLI. Please make sure version ${XP_VERSION} exists on channel ${XP_CHANNEL}."
   exit 1
 fi
 
-chmod +x kubectl-crossplane
+chmod +x crossplane
 
-echo "kubectl plugin downloaded successfully! Run the following commands to finish installing it:"
+echo "crossplane CLI downloaded successfully! Run the following commands to finish installing it:"
 echo 
-echo sudo mv kubectl-crossplane $(dirname $(which kubectl))
-echo kubectl crossplane --help
+echo sudo mv crossplane /usr/local/bin
+echo crossplane --help
 echo
 echo "Visit https://crossplane.io to get started. 🚀"
 echo "Have a nice day! 👋\n"

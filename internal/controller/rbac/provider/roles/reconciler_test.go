@@ -37,6 +37,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -246,11 +247,11 @@ func TestReconcile(t *testing.T) {
 								l.Items = []v1.ProviderRevision{
 									{
 										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
-										Spec:       v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"},
+										Spec:       v1.ProviderRevisionSpec{PackageRevisionSpec: v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"}},
 									},
 									{
 										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
-										Spec:       v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"},
+										Spec:       v1.ProviderRevisionSpec{PackageRevisionSpec: v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"}},
 									},
 								}
 								return nil
@@ -259,6 +260,34 @@ func TestReconcile(t *testing.T) {
 						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return nil
 						}),
+					}),
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
+						return []rbacv1.ClusterRole{{}}
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"PauseReconcile": {
+			reason: "Pause reconciliation if the pause annotation is set.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								pr.SetUID(ourUID)
+								pr.SetLabels(map[string]string{v1.LabelProviderFamily: family})
+								pr.Spec.Package = "cool/provider:v1.0.0"
+								pr.SetAnnotations(map[string]string{
+									meta.AnnotationKeyReconciliationPaused: "true",
+								})
+								return nil
+							}),
+						},
 					}),
 					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}

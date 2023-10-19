@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -286,7 +286,7 @@ func TestValidateTransforms(t *testing.T) {
 					{
 						Type: v1.TransformTypeMath,
 						Math: &v1.MathTransform{
-							Multiply: pointer.Int64(2),
+							Multiply: ptr.To[int64](2),
 						},
 					},
 				},
@@ -305,7 +305,7 @@ func TestValidateTransforms(t *testing.T) {
 					{
 						Type: v1.TransformTypeMath,
 						Math: &v1.MathTransform{
-							Multiply: pointer.Int64(2),
+							Multiply: ptr.To[int64](2),
 						},
 					},
 				},
@@ -982,7 +982,7 @@ func TestIsValidInputForTransform(t *testing.T) {
 					Type: v1.TransformTypeString,
 					String: &v1.StringTransform{
 						Type:    v1.StringTransformTypeConvert,
-						Convert: toPointer(v1.StringConversionTypeToUpper),
+						Convert: ptr.To(v1.StringConversionTypeToUpper),
 					},
 				},
 			},
@@ -995,7 +995,7 @@ func TestIsValidInputForTransform(t *testing.T) {
 					Type: v1.TransformTypeString,
 					String: &v1.StringTransform{
 						Type:    v1.StringTransformTypeConvert,
-						Convert: toPointer(v1.StringConversionTypeToJSON),
+						Convert: ptr.To(v1.StringConversionTypeToJSON),
 					},
 				},
 			},
@@ -1008,7 +1008,7 @@ func TestIsValidInputForTransform(t *testing.T) {
 					Type: v1.TransformTypeString,
 					String: &v1.StringTransform{
 						Type:    v1.StringTransformTypeConvert,
-						Convert: toPointer(v1.StringConversionTypeToUpper),
+						Convert: ptr.To(v1.StringConversionTypeToUpper),
 					},
 				},
 			},

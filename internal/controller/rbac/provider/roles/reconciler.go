@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -109,7 +110,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
 			WithOptions(o.ForControllerRuntime()).
-			Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+			Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 	}
 
 	wrh := &EnqueueRequestForAllRevisionsWithRequests{
@@ -133,7 +134,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&rbacv1.ClusterRole{}, wrh).
 		Watches(&v1.ProviderRevision{}, sfh).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -249,6 +250,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"name", pr.GetName(),
 	)
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(pr) {
+		return reconcile.Result{}, nil
+	}
+
 	if meta.WasDeleted(pr) {
 		// There's nothing to do if our PR is being deleted. Any ClusterRoles
 		// we created will be garbage collected by Kubernetes.
@@ -270,7 +277,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// TODO(negz): Get active revisions in family.
 		prs := &v1.ProviderRevisionList{}
 		if err := r.client.List(ctx, prs, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
-			log.Debug(errListPRs, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errListPRs)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 			return reconcile.Result{}, err
@@ -302,14 +311,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
 	if err != nil {
-		log.Debug(errValidatePermissions, "error", err)
 		err = errors.Wrap(err, errValidatePermissions)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 		return reconcile.Result{}, err
 	}
 
 	for _, rule := range rejected {
-		log.Debug(errRejectedPermission, "rule", rule)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errRejectedPermission, rule)))
 	}
 
@@ -338,7 +345,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			continue
 		}
 		if err != nil {
-			log.Debug(errApplyRole, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errApplyRole)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 			return reconcile.Result{}, err

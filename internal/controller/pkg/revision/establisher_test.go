@@ -27,6 +27,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -44,7 +45,7 @@ var _ Establisher = &APIEstablisher{}
 
 func TestAPIEstablisherEstablish(t *testing.T) {
 	errBoom := errors.New("boom")
-	webhookTLSSecretName := "webhook-tls"
+	tlsServerSecretName := "tls-server-secret"
 	caBundle := []byte("CABUNDLE")
 
 	type args struct {
@@ -190,6 +191,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						Kind: "ProviderRevision",
 					},
 					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-name-1234",
 						OwnerReferences: []metav1.OwnerReference{
 							{
 								Kind: "Provider",
@@ -201,8 +203,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							v1.LabelParentPackage: "provider-name",
 						},
 					},
-					Spec: v1.PackageRevisionSpec{
-						WebhookTLSSecretName: &webhookTLSSecretName,
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
 					},
 				},
 				control: true,
@@ -310,8 +314,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				parent: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						WebhookTLSSecretName: &webhookTLSSecretName,
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
 					},
 				},
 			},
@@ -332,8 +338,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				parent: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						WebhookTLSSecretName: &webhookTLSSecretName,
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
 					},
 				},
 			},
@@ -401,14 +409,234 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			refs, err := tc.args.est.Establish(context.TODO(), tc.args.objs, tc.args.parent, tc.args.control)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
 				return x.Name < y.Name
 			})
-			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), sort); diff != "" {
+			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), sort, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIEstablisherRelinquish(t *testing.T) {
+	errBoom := errors.New("boom")
+	controls := true
+	noControl := false
+
+	type args struct {
+		est    *APIEstablisher
+		parent v1.PackageRevision
+	}
+
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"CannotGetObject": {
+			reason: "Should return an error if we cannot get the owned object.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							return errBoom
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+					Status: v1.PackageRevisionStatus{
+						ObjectRefs: []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "releases.helm.crossplane.io",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtGetOwnedObject, "CustomResourceDefinition", "releases.helm.crossplane.io"),
+			},
+		},
+		"IgnoreOwnedObjectNotFound": {
+			reason: "Should ignore if we the owned object does not exist.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+					Status: v1.PackageRevisionStatus{
+						ObjectRefs: []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "releases.helm.crossplane.io",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"CannotGetUpdate": {
+			reason: "Should return an error if we cannot update the owned object.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							o := obj.(*unstructured.Unstructured)
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "Provider",
+									Name:       "provider-helm",
+									UID:        "some-other-uid-1234",
+									Controller: &noControl,
+								},
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "ProviderRevision",
+									Name:       "provider-helm-ce18dd03e6e4",
+									UID:        "some-unique-uid-2312",
+									Controller: &controls,
+								},
+							})
+							return nil
+						},
+						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+							return errBoom
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+					Status: v1.PackageRevisionStatus{
+						ObjectRefs: []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "releases.helm.crossplane.io",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtUpdateOwnedObject, "CustomResourceDefinition", "releases.helm.crossplane.io"),
+			},
+		},
+		"NoObjectsInStatus": {
+			reason: "Should not return an error if there are no objects in the status.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							return nil
+						},
+						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+							return nil
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"SuccessfulRelinquish": {
+			reason: "ReleaseObjects should be successful if we can relinquish control of existing objects",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							o := obj.(*unstructured.Unstructured)
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "Provider",
+									Name:       "provider-helm",
+									UID:        "some-other-uid-1234",
+									Controller: &noControl,
+								},
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "ProviderRevision",
+									Name:       "provider-helm-ce18dd03e6e4",
+									UID:        "some-unique-uid-2312",
+									Controller: &controls,
+								},
+							})
+							return nil
+						},
+						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+							o := obj.(*unstructured.Unstructured)
+							if len(o.GetOwnerReferences()) != 2 {
+								t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
+							}
+							for _, ref := range o.GetOwnerReferences() {
+								if ref.UID == "some-unique-uid-2312" && *ref.Controller {
+									t.Errorf("expected controller to be false, got %t", *ref.Controller)
+								}
+							}
+							return nil
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+					Status: v1.PackageRevisionStatus{
+						ObjectRefs: []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "releases.helm.crossplane.io",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := tc.args.est.ReleaseObjects(context.TODO(), tc.args.parent)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

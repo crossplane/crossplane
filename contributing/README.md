@@ -10,6 +10,25 @@ us on [Slack]. Please also take a look at our [code of conduct], which details
 how contributors are expected to conduct themselves as part of the Crossplane
 community.
 
+## Checklist Cheat Sheet
+
+Wondering whether something on the pull request checklist applies to your PR?
+Generally:
+
+* Everyone must read and follow this contribution process.
+* Every PR must run (and pass) `make reviewable`.
+* Most PRs that touch code should touch unit tests. We want ~80% coverage.
+* Any significant feature should be covered by E2E tests. If you're adding a new
+  feature, you should probably be adding or updating E2Es.
+* Any significant feature should be documented. If you're adding a new feature,
+  you should probably be opening a docs PR or tracking issue. If you make a
+  change it's your responsibility to document it before it's released.
+* Most PRs that (only) fix a bug should have a backport label.
+
+If you're still unsure, just leave the checklist box unticked (and
+un-struck-through). This will cause the `checklist-completed` CI job to fail
+until you and your reviewer figure out what to do.
+
 ## Contributing Code
 
 To contribute bug fixes or features to Crossplane:
@@ -46,7 +65,7 @@ values readable, idiomatic Go code. Familiarise yourself with the
 [Coding Style](#coding-style) section below and try to preempt any comments your
 reviewers would otherwise leave. Run `make reviewable` to lint your change.
 
-All Crossplane code must be covered by unit **and** end-to-end (E2E) tests.
+All Crossplane features must be covered by unit **and** end-to-end (E2E) tests.
 
 Crossplane uses table driven unit tests - you can find an example
 [below](#prefer-table-driven-tests). Crossplane does not use third-party test
@@ -55,7 +74,9 @@ to any PR that introduces one. See the Go [test review comments] for our
 rationale.
 
 E2E tests live under `test/e2e`. Refer to the [E2E readme] for information on
-adding and updating E2E tests.
+adding and updating E2E tests. They are considered to be expensive,
+therefore add them only for important use cases that cannot be verified by
+unit tests. If in a doubt, check with the maintainers for guidance.
 
 All Crossplane documentation is under revision control; see the [docs]
 repository. Any change that introduces new behaviour or changes existing

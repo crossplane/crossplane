@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -87,7 +87,7 @@ func (c crdGetterMap) Get(_ context.Context, gk schema.GroupKind) (*apiextension
 	if crd, ok := c[gk]; ok {
 		return &crd, nil
 	}
-	return nil, apierrors.NewNotFound(schema.GroupResource{Group: gk.Group, Resource: "CustomResourceDefinition"}, gk.String())
+	return nil, kerrors.NewNotFound(schema.GroupResource{Group: gk.Group, Resource: "CustomResourceDefinition"}, gk.String())
 }
 
 func (c crdGetterMap) GetAll(_ context.Context) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, error) {

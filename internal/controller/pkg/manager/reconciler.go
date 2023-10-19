@@ -25,12 +25,14 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -51,6 +53,8 @@ const (
 	// updated content for the given package reference. This behavior is only
 	// enabled when the packagePullPolicy is Always.
 	pullWait = 1 * time.Minute
+
+	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
 
 func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
@@ -84,26 +88,11 @@ const (
 	reasonTransitionRevision event.Reason = "TransitionRevision"
 	reasonGarbageCollect     event.Reason = "GarbageCollect"
 	reasonInstall            event.Reason = "InstallPackageRevision"
+	reasonPaused             event.Reason = "ReconciliationPaused"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
-
-// WithWebhookTLSSecretName configures the name of the webhook TLS Secret that
-// Reconciler will add to PackageRevisions it creates.
-func WithWebhookTLSSecretName(n string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.webhookTLSSecretName = &n
-	}
-}
-
-// WithESSTLSSecretName configures the name of the ESS TLS certificate secret that
-// Reconciler will add to PackageRevisions it creates.
-func WithESSTLSSecretName(s *string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.essTLSSecretName = s
-	}
-}
 
 // WithNewPackageFn determines the type of package being reconciled.
 func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
@@ -150,12 +139,10 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client               resource.ClientApplicator
-	pkg                  Revisioner
-	log                  logging.Logger
-	record               event.Recorder
-	webhookTLSSecretName *string
-	essTLSSecretName     *string
+	client resource.ClientApplicator
+	pkg    Revisioner
+	log    logging.Logger
+	record event.Recorder
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -186,19 +173,13 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
-	if o.WebhookTLSSecretName != "" {
-		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
-	}
-	if o.ESSOptions != nil && o.ESSOptions.TLSSecretName != nil {
-		opts = append(opts, WithESSTLSSecretName(o.ESSOptions.TLSSecretName))
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Provider{}).
 		Owns(&v1.ProviderRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, NewReconciler(mgr, opts...), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
@@ -231,7 +212,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.Configuration{}).
 		Owns(&v1.ConfigurationRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
 
 // SetupFunction adds a controller that reconciles Functions.
@@ -264,7 +245,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.Function{}).
 		Owns(&v1beta1.FunctionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, NewReconciler(mgr, opts...), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package reconciler.
@@ -302,16 +283,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackage)
 	}
 
-	log = log.WithValues(
-		"uid", p.GetUID(),
-		"version", p.GetResourceVersion(),
-		"name", p.GetName(),
-	)
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(p) {
+		r.record.Event(p, event.Normal(reasonPaused, reconcilePausedMsg))
+		p.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	}
+	if c := p.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		p.CleanConditions()
+	}
 
 	// Get existing package revisions.
 	prs := r.newPackageRevisionList()
 	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
-		log.Debug(errListRevisions, "error", err)
 		err = errors.Wrap(err, errListRevisions)
 		r.record.Event(p, event.Warning(reasonList, err))
 		return reconcile.Result{}, err
@@ -319,7 +306,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	revisionName, err := r.pkg.Revision(ctx, p)
 	if err != nil {
-		log.Debug(errUnpack, "error", err)
 		err = errors.Wrap(err, errUnpack)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
@@ -332,7 +318,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if revisionName == "" {
-		p.SetConditions(v1.Unpacking())
+		p.SetConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
@@ -376,7 +362,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// the package's revision activation policy.
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
-				log.Debug(errUpdateInactivePackageRevision, "error", err)
+				if kerrors.IsConflict(err) {
+					return reconcile.Result{Requeue: true}, nil
+				}
 				err = errors.Wrap(err, errUpdateInactivePackageRevision)
 				r.record.Event(p, event.Warning(reasonTransitionRevision, err))
 				return reconcile.Result{}, err
@@ -396,7 +384,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		gcRev := revisions[oldestRevisionIndex]
 		// Find the oldest revision and delete it.
 		if err := r.client.Delete(ctx, gcRev); err != nil {
-			log.Debug(errGCPackageRevision, "error", err)
 			err = errors.Wrap(err, errGCPackageRevision)
 			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
 			return reconcile.Result{}, err
@@ -407,12 +394,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		p.SetConditions(v1.Healthy())
 		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 	}
-	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionFalse {
-		p.SetConditions(v1.Unhealthy())
+	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionFalse {
+		p.SetConditions(v1.Unhealthy().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
 	}
-	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
-		p.SetConditions(v1.UnknownHealth())
+	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
+		p.SetConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
@@ -424,24 +411,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
-	pr.SetControllerConfigRef(p.GetControllerConfigRef())
-	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
-	pr.SetESSTLSSecretName(r.essTLSSecretName)
-	pr.SetTLSServerSecretName(p.GetTLSServerSecretName())
-	pr.SetTLSClientSecretName(p.GetTLSClientSecretName())
 	pr.SetCommonLabels(p.GetCommonLabels())
 
-	// If current revision is not active and we have an automatic or
+	if pwr, ok := p.(v1.PackageWithRuntime); ok {
+		pwrr := pr.(v1.PackageRevisionWithRuntime)
+		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
+		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
+		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+	}
+
+	// If current revision is not active, and we have an automatic or
 	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
 		pr.SetDesiredState(v1.PackageRevisionActive)
 	}
 
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
-	controlRef.BlockOwnerDeletion = pointer.Bool(true)
+	controlRef.BlockOwnerDeletion = ptr.To(true)
 	meta.AddOwnerReference(pr, controlRef)
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
-		log.Debug(errApplyPackageRevision, "error", err)
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errApplyPackageRevision)
 		r.record.Event(p, event.Warning(reasonInstall, err))
 		return reconcile.Result{}, err
@@ -452,7 +444,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if !same {
 		pr.SetCommonLabels(p.GetCommonLabels())
 		if err := r.client.Update(ctx, pr); err != nil {
-			log.Debug(errApplyPackageRevision, "error", err)
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			err = errors.Wrap(err, errApplyPackageRevision)
 			r.record.Event(p, event.Warning(reasonInstall, err))
 			return reconcile.Result{}, err
@@ -463,7 +457,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// If current revision is still not active, the package is inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		p.SetConditions(v1.Inactive())
+		p.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a

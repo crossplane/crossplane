@@ -18,9 +18,9 @@ spec:
       name: AGE
       type: date
     deprecated: true
-    deprecationWarning: ControllerConfig.pkg.crossplane.io/v1alpha1 has been deprecated
-      and will be removed in a future release, but only after a comparable alternative
-      is available.
+    deprecationWarning: 'ControllerConfig.pkg.crossplane.io/v1alpha1 is deprecated.
+      It is safe to use, but no new features will be added. Future replacement design:
+      https://github.com/crossplane/crossplane/blob/master/design/one-pager-package-runtime-config.md'
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -2068,6 +2068,23 @@ spec:
                               description: May contain labels and annotations that
                                 will be copied into the PVC when creating it. No other
                                 fields are allowed and will be rejected during validation.
+                              properties:
+                                annotations:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                finalizers:
+                                  items:
+                                    type: string
+                                  type: array
+                                labels:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
                               type: object
                             spec:
                               description: The specification for the PersistentVolumeClaim.

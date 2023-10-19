@@ -37,6 +37,14 @@ type Step interface {
 	Run(ctx context.Context, kube client.Client) error
 }
 
+// StepFunc is a function that implements Step.
+type StepFunc func(ctx context.Context, kube client.Client) error
+
+// Run calls the step function.
+func (f StepFunc) Run(ctx context.Context, kube client.Client) error {
+	return f(ctx, kube)
+}
+
 // Initializer makes sure the CRDs Crossplane reconciles are ready to go before
 // starting main Crossplane routines.
 type Initializer struct {

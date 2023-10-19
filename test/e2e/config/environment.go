@@ -22,7 +22,7 @@ import (
 	"os"
 	"sort"
 
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -48,6 +48,7 @@ type Environment struct {
 	preinstallCrossplane  *bool
 	loadImagesKindCluster *bool
 	kindClusterName       *string
+	kindLogsLocation      *string
 
 	selectedTestSuite *selectedTestSuite
 
@@ -102,6 +103,7 @@ func NewEnvironmentFromFlags() Environment {
 		suites: map[string]testSuite{},
 	}
 	c.kindClusterName = flag.String("kind-cluster-name", "", "name of the kind cluster to use")
+	c.kindLogsLocation = flag.String("kind-logs-location", "", "destination of the the kind cluster logs on failure")
 	c.createKindCluster = flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests, if the cluster does not already exist with the same name")
 	c.destroyKindCluster = flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
 	c.preinstallCrossplane = flag.Bool("preinstall-crossplane", true, "install Crossplane before running tests")
@@ -141,6 +143,11 @@ func (e *Environment) GetKindClusterName() string {
 	return *e.kindClusterName
 }
 
+// GetKindClusterLogsLocation returns the location of the kind cluster logs.
+func (e *Environment) GetKindClusterLogsLocation() string {
+	return *e.kindLogsLocation
+}
+
 // SetEnvironment sets the environment to be used by the e2e test configuration.
 func (e *Environment) SetEnvironment(env env.Environment) {
 	e.Environment = env
@@ -149,6 +156,12 @@ func (e *Environment) SetEnvironment(env env.Environment) {
 // IsKindCluster returns true if the test is running against a kind cluster.
 func (e *Environment) IsKindCluster() bool {
 	return *e.createKindCluster || *e.kindClusterName != ""
+}
+
+// ShouldCollectKindLogsOnFailure returns true if the test should collect the kind
+// cluster logs on failure.
+func (e *Environment) ShouldCollectKindLogsOnFailure() bool {
+	return *e.kindLogsLocation != "" && e.IsKindCluster()
 }
 
 // ShouldLoadImages returns true if the test should load images into the kind
@@ -327,7 +340,7 @@ func (e *Environment) EnrichLabels(labels features.Labels) features.Labels {
 func (e *Environment) isSelectingTests() bool {
 	if e.specificTestSelected == nil {
 		f := flag.Lookup("test.run")
-		e.specificTestSelected = pointer.Bool(f != nil && f.Value.String() != "")
+		e.specificTestSelected = ptr.To(f != nil && f.Value.String() != "")
 	}
 	return *e.specificTestSelected
 }

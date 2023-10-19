@@ -36,11 +36,6 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] **[In Core Crossplane]:** Update the Crossplane Runtime dependency on master and backport it to `release-X.Y` branch.
 - [ ] Run the [Tag workflow][tag-workflow] on the `release-X.Y` branch with the proper release version, `vX.Y.0`. Message suggested, but not required: `Release vX.Y.0`.
 - [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel, e.g. `build/release-X.Y/vX.Y.0/...` should contain all the relevant binaries.
-- [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
-  - [ ] `xp/getting-started-with-aws`
-  - [ ] `xp/getting-started-with-aws-with-vpc`
-  - [ ] `xp/getting-started-with-azure`
-  - [ ] `xp/getting-started-with-gcp`
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the `release-X.Y` branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel at `stable/vX.Y.0/...`.
 - [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.<Y-1>.0`, so the first of the releases for the previous minor. Before publishing the release notes, set them as Draft and ask the rest of the team to double check them.
 - [ ] Checked that the [docs release issue] created previously has been completed.
@@ -70,6 +65,5 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [releases table]: https://github.com/crossplane/crossplane#releases
 [releases.crossplane.io]: https://releases.crossplane.io
 [tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
-[xpkg.upbound.io]: https://marketplace.upbound.io/configurations?query=getting-started
 [GitHub milestone]: https://github.com/crossplane/crossplane/milestones
 [crossplane blog]: https://blog.crossplane.io

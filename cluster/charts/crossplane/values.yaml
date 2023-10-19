@@ -9,8 +9,8 @@ deploymentStrategy: RollingUpdate
 
 image:
   # -- Repository for the Crossplane pod image.
-  repository: crossplane/crossplane
-  # -- The Crossplane image tag. Defaults to the value of `appVersion` in Chart.yaml.
+  repository: xpkg.upbound.io/crossplane/crossplane
+  # -- The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`.
   tag: ""
   # -- The image pull policy used for Crossplane and RBAC Manager pods.
   pullPolicy: IfNotPresent
@@ -22,7 +22,7 @@ tolerations: []
 # -- Add `affinities` to the Crossplane pod deployment.
 affinity: {}
 
-# -- Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork`` grants the Crossplane Pod access to the host network namespace.
+# -- Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace.
 hostNetwork: false
 
 # -- Add custom `labels` to the Crossplane pod deployment.
@@ -110,7 +110,7 @@ securityContextCrossplane:
   readOnlyRootFilesystem: true
 
 packageCache:
-  # -- Set to `Memory` to hold the package cache in a RAM-backed file system. Useful for Crossplane development.
+  # -- Set to `Memory` to hold the package cache in a RAM backed file system. Useful for Crossplane development.
   medium: ""
   # -- The size limit for the package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory.
   sizeLimit: 20Mi
@@ -164,3 +164,16 @@ extraVolumesCrossplane: {}
 
 # -- Add custom `volumeMounts` to the Crossplane pod.
 extraVolumeMountsCrossplane: {}
+
+# -- To add arbitrary Kubernetes Objects during a Helm Install
+extraObjects: []
+  # - apiVersion: pkg.crossplane.io/v1alpha1
+  #   kind: ControllerConfig
+  #   metadata:
+  #     name: aws-config
+  #     annotations:
+  #       eks.amazonaws.com/role-arn: arn:aws:iam::123456789101:role/example
+  #       helm.sh/hook: post-install
+  #   spec:
+  #     podSecurityContext:
+  #       fsGroup: 2000
