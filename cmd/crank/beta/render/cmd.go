@@ -79,7 +79,7 @@ the following annotations to each Function to change how they're run:
 
   render.crossplane.io/runtime-docker-pull-policy: "Always"
 
-    Always pull the Function's OCI image, even if it already exists locally.
+    Always pull the Function's package, even if it already exists locally.
 	Other supported values are Never, or IfNotPresent. 
 
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and

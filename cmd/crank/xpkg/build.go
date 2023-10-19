@@ -98,7 +98,7 @@ type buildCmd struct {
 	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"An OCI image tarball to embed in the package as its runtime." xor:"runtime-image"`
 	ExamplesRoot             string   `short:"e" type:"path" help:"A directory of example YAML files to include in the package." default:"./examples"`
 	Ignore                   []string `placeholder:"PATH" help:"Comma-separated paths, specified relative to --package-root, to exclude from the package."`
-	Output                   string   `short:"o" type:"path" placeholder:"PATH" help:"The file to write the package to. Defaults to a generated filename in --package-root."`
+	PackageFile              string   `short:"o" type:"path" placeholder:"PATH" help:"The file to write the package to. Defaults to a generated filename in --package-root."`
 	PackageRoot              string   `short:"f" type:"existingdir" help:"The directory that contains the package's crossplane.yaml file." default:"."`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
@@ -155,8 +155,8 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 
 // GetOutputFileName prepares output file name.
 func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string, error) {
-	output := filepath.Clean(c.Output)
-	if c.Output == "" {
+	output := filepath.Clean(c.PackageFile)
+	if c.PackageFile == "" {
 		pkgMeta, ok := meta.(metav1.Object)
 		if !ok {
 			return "", errors.New(errGetNameFromMeta)

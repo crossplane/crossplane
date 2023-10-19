@@ -42,9 +42,9 @@ import (
 // updateCmd updates a package.
 type updateCmd struct {
 	// Arguments.
-	Kind  string `arg:"" help:"The kind of package to update. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
-	Image string `arg:"" help:"The OCI image name to update the package to."`
-	Name  string `arg:""  optional:"" help:"The name of the package to update in the Crossplane API. Derived from the package's OCI image name by default."`
+	Kind    string `arg:"" help:"The kind of package to update. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
+	Package string `arg:"" help:"The package to update to. An OCI repository and tag or digest, optionally prefixed with a registry."`
+	Name    string `arg:""  optional:"" help:"The name of the package to update in the Crossplane API. Derived from the package repository and tag by default."`
 }
 
 func (c *updateCmd) Help() string {
@@ -70,7 +70,7 @@ See https://docs.crossplane.io/latest/concepts/packages for more information.
 func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Image, name.WithDefaultRegistry(DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
@@ -80,7 +80,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger = logger.WithValues(
 		"kind", c.Kind,
-		"ref", c.Image,
+		"ref", c.Package,
 		"name", pkgName,
 	)
 
@@ -122,7 +122,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 		}
 		logger.Debug("Found existing package")
 
-		pkg.SetSource(c.Image)
+		pkg.SetSource(c.Package)
 
 		return kube.Update(ctx, pkg)
 	}); err != nil {

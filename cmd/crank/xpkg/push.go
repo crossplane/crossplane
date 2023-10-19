@@ -43,7 +43,7 @@ const DefaultRegistry = "xpkg.upbound.io"
 // pushCmd pushes a package.
 type pushCmd struct {
 	// Arguments.
-	Image string `arg:"" help:"The OCI image name to push the package to."`
+	Package string `arg:"" help:"Where to push the package. An OCI repository and tag, optionally prefixed with a registry."`
 
 	// Flags. Keep sorted alphabetically.
 	PackageFile string `short:"f" type:"existingfile" placeholder:"PATH" help:"The xpkg file to push."`
@@ -78,8 +78,8 @@ func (c *pushCmd) AfterApply() error {
 
 // Run runs the push cmd.
 func (c *pushCmd) Run(logger logging.Logger) error {
-	logger = logger.WithValues("image", c.Image)
-	tag, err := name.NewTag(c.Image, name.WithDefaultRegistry(DefaultRegistry))
+	logger = logger.WithValues("image", c.Package)
+	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 	if err != nil {
 		logger.Debug("Failed to create tag for package", "error", err)
 		return err

@@ -53,9 +53,9 @@ const (
 // installCmd installs a package.
 type installCmd struct {
 	// Arguments.
-	Kind  string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
-	Image string `arg:"" help:"The OCI image name of the package to install."`
-	Name  string `arg:""  optional:"" help:"The name of the new package in the Crossplane API. Derived from the package's OCI image name by default."`
+	Kind    string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
+	Package string `arg:"" help:"The package to install. An OCI repository and tag, optionally prefixed with a registry."`
+	Name    string `arg:""  optional:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default."`
 
 	// Flags. Keep sorted alphabetically.
 	RuntimeConfig        string        `placeholder:"NAME" help:"Install the package with a runtime configuration (for example a DeploymentRuntimeConfig)."`
@@ -87,7 +87,7 @@ See https://docs.crossplane.io/latest/concepts/packages for more information.
 func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Image, name.WithDefaultRegistry(DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
@@ -97,7 +97,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 
 	logger = logger.WithValues(
 		"kind", c.Kind,
-		"ref", c.Image,
+		"ref", c.Package,
 		"name", pkgName,
 	)
 
@@ -113,7 +113,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 	}
 
 	spec := v1.PackageSpec{
-		Package:                  c.Image,
+		Package:                  c.Package,
 		RevisionActivationPolicy: &rap,
 		RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 		PackagePullSecrets:       secrets,
