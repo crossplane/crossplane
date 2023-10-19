@@ -43,13 +43,14 @@ function check_context() {
 
 # configure kind
 KIND_NAME=${KIND_NAME:-"kind"}
+IMAGE_REPOSITORY="xpkg.upbound.io/${PROJECT_NAME}/${PROJECT_NAME}"
 case "${1:-}" in
   up)
     ${KIND} create cluster --name "${KIND_NAME}" --image "${KUBE_IMAGE}" --wait 5m
     ;;
   update)
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${IMAGE_REPOSITORY}:${helm_tag}" "${KIND_NAME}"
     ;;
   restart)
     if check_context; then
@@ -63,7 +64,7 @@ case "${1:-}" in
   helm-install)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${IMAGE_REPOSITORY}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package into \"$ns\" namespace"
@@ -72,7 +73,7 @@ case "${1:-}" in
   helm-upgrade)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${IMAGE_REPOSITORY}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "upgrading helm package in \"$ns\" namespace"
