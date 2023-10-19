@@ -40,8 +40,8 @@ type Cmd struct {
 	Functions         string `arg:"" type:"path" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR."`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles           map[string]string `mapsep:"," help:"Comma-separated context key value pairs to pass to the Function pipeline. Values must be files containing JSON."`
-	ContextValues          map[string]string `mapsep:"," help:"Comma-separated context key value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files."`
+	ContextFiles           map[string]string `mapsep:"," help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."`
+	ContextValues          map[string]string `mapsep:"," help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files."`
 	IncludeFunctionResults bool              `short:"r" help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."`
 	ObservedResources      string            `short:"o" placeholder:"PATH" type:"path" help:"A YAML file or directory of YAML files specifying the observed state of composed resources."`
 	Timeout                time.Duration     `help:"How long to run before timing out." default:"1m"`
