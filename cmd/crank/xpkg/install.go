@@ -65,6 +65,24 @@ type installCmd struct {
 	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
 }
 
+func (c *installCmd) Help() string {
+	return `
+Crossplane can be extended using packages. A Crossplane package is sometimes
+called an xpkg. Crossplane supports configuration, provider and function
+packages. 
+
+A package is an opinionated OCI image that contains everything needed to extend
+Crossplane with new functionality. For example installing a provider package
+extends Crossplane with support for new kinds of managed resource (MR).
+
+This command tells the Crossplane package manager to install a package from a
+package registry. It uses ~/.kube/config to know how to connect to the package
+manager. You can override this using the KUBECONFIG environment variable.
+
+See https://docs.crossplane.io/latest/concepts/packages for more information.
+`
+}
+
 // Run the package install cmd.
 func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name

@@ -61,11 +61,11 @@ var cli struct {
 	// order they're specified here. Keep them in alphabetical order.
 
 	// Subcommands.
-	XPKG xpkg.Cmd `cmd:"" help:"Crossplane package management."`
+	XPKG xpkg.Cmd `cmd:"" help:"Manage Crossplane packages."`
 
 	// The alpha and beta subcommands are intentionally in a separate block. We
 	// want them to appear after all other subcommands.
-	Beta beta.Cmd `cmd:"" help:"Beta features. WARN: May be changed or deprecated in a future release"`
+	Beta beta.Cmd `cmd:"" help:"Beta commands."`
 
 	// Flags.
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`

@@ -21,21 +21,25 @@ package xpkg
 // TODO(lsviben) add the rest of the commands from up (batch, xpextract).
 type Cmd struct {
 	// Keep subcommands sorted alphabetically.
-	Build   buildCmd   `cmd:"" help:"Build a package, by default from the current directory."`
-	Install installCmd `cmd:"" help:"Install a package."`
-	Login   loginCmd   `cmd:"" help:"Login to the default package registry (xpkg.upbound.io)."`
-	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry (xpkg.upbound.io)."`
-	Push    pushCmd    `cmd:"" help:"Push a package, by default to xpkg.upbound.io."`
-	Update  UpdateCmd  `cmd:"" help:"Update an installed package."`
+	Build   buildCmd   `cmd:"" help:"Build a new package."`
+	Install installCmd `cmd:"" help:"Install a package from a package registry."`
+	Login   loginCmd   `cmd:"" help:"Login to the default package registry."`
+	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry."`
+	Push    pushCmd    `cmd:"" help:"Push a package to a package registry."`
+	Update  updateCmd  `cmd:"" help:"Update the version of an installed package."`
 }
 
 // Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
+Crossplane can be extended using packages. A Crossplane package is sometimes
+called an xpkg. Crossplane supports configuration, provider and function
+packages. 
 
-Crossplane can be extended with packages. Several types of packages exist,
-including providers and configurations. A package is an opinionated OCI image
-that contains everything needed to extend Crossplane. For more detailed
-information on packages, see https://docs.crossplane.io/latest/concepts/packages.
+A package is an opinionated OCI image that contains everything needed to extend
+Crossplane with new functionality. For example installing a provider package
+extends Crossplane with support for new kinds of managed resource (MR).
+
+See https://docs.crossplane.io/latest/concepts/packages for more information.
 `
 }

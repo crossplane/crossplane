@@ -52,6 +52,24 @@ type pushCmd struct {
 	fs afero.Fs
 }
 
+func (c *pushCmd) Help() string {
+	return `
+Crossplane can be extended using packages. A Crossplane package is sometimes
+called an xpkg. Crossplane supports configuration, provider and function
+packages. 
+
+A package is an opinionated OCI image that contains everything needed to extend
+Crossplane with new functionality. For example installing a provider package
+extends Crossplane with support for new kinds of managed resource (MR).
+
+This command pushes a package to a registry. Packages are pushed to
+xpkg.upbound.io by default. You can override this by including a registry in
+your OCI reference: for example index.docker.io/example/package:v1.0.0.
+
+See https://docs.crossplane.io/latest/concepts/packages for more information.
+`
+}
+
 // AfterApply sets the tag for the parent push command.
 func (c *pushCmd) AfterApply() error {
 	c.fs = afero.NewOsFs()

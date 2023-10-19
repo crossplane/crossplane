@@ -48,6 +48,47 @@ type Cmd struct {
 	Timeout           time.Duration     `help:"How long to run before timing out." default:"1m"`
 }
 
+// Help prints out the help for the render command.
+func (c *Cmd) Help() string {
+	return `
+Crossplane uses a Composition to produce a set of composed resources for a given
+XR. This command shows you what composed resources Crossplane would create by
+printing them to stdout. It also prints any changes that would be made to the
+status of the XR.
+
+This command doesn't talk to Crossplane. Instead it runs the Composition
+Function pipeline specified by the Composition locally, and uses that to render
+the XR. It only supports Compositions that use the Pipeline mode.
+
+Composition Functions are pulled and run using Docker by default. You can add
+the following annotations to each Function to change how they're run:
+
+  render.crossplane.io/runtime: "Development"
+
+    Connect to a Function that is already running, instead of using Docker. This
+	is useful to develop and debug new Functions. The Function must be listening
+	at localhost:9443 and running with the --insecure flag.
+
+  render.crossplane.io/runtime-development-target: "dns:///example.org:7443"
+
+    Connect to a Function running somewhere other than localhost:9443. The
+	target uses gRPC target syntax.
+
+  render.crossplane.io/runtime-docker-cleanup: "Orphan"
+
+    Don't stop the Function's Docker container after rendering.
+
+  render.crossplane.io/runtime-docker-pull-policy: "Always"
+
+    Always pull the Function's OCI image, even if it already exists locally.
+	Other supported values are Never, or IfNotPresent. 
+
+Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
+DOCKER_TLS_VERIFY environment variables to configure how this command connects
+to the Docker daemon.
+`
+}
+
 // Run render.
 func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo // Only a touch over.
 	xr, err := LoadCompositeResource(c.CompositeResource)

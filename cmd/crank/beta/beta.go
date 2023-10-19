@@ -28,6 +28,11 @@ import (
 type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
-	Render render.Cmd `cmd:"" help:"Render a claim or XR locally."`
-	XPKG   xpkg.Cmd   `cmd:"" help:"Manage packages."`
+	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
+	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
+}
+
+// Help output for crossplane beta.
+func (c *Cmd) Help() string {
+	return "WARNING: These commands may be changed or removed in a future release."
 }

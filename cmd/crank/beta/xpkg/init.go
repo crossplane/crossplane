@@ -50,14 +50,33 @@ type initCmd struct {
 }
 
 func (c *initCmd) Help() string {
+	tpl := `
+Crossplane can be extended using packages. A Crossplane package is sometimes
+called an xpkg. Crossplane supports configuration, provider and function
+packages. 
+
+A package is an opinionated OCI image that contains everything needed to extend
+Crossplane with new functionality. For example installing a provider package
+extends Crossplane with support for new kinds of managed resource (MR).
+
+This command initializes a directory that you can use to build a package. It
+uses a template to initialize the directory. It can use any Git repository as a
+template.
+
+You can specify either a full Git URL or a well-known name as a template. The
+following well-known template names are supported:
+
+%s
+
+See https://docs.crossplane.io/latest/concepts/packages for more information.
+`
+
 	b := strings.Builder{}
-	b.WriteString("Crossplane initializes a package by using git to clone a template from a repository.\n")
-	b.WriteString("The template can be either a git repository URL, or a well-known template name.\n\n")
-	b.WriteString("Crossplane supports the following well-known-template names:\n\n")
 	for name, url := range WellKnownTemplates() {
 		b.WriteString(fmt.Sprintf(" - %s (%s)\n", name, url))
 	}
-	return b.String()
+
+	return fmt.Sprintf(tpl, b.String())
 }
 
 func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {

@@ -39,18 +39,35 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all the auth plugins for the cloud providers.
 )
 
-// UpdateCmd is exported so that it can be re-used by the beta xpkg subcommand.
-
-// UpdateCmd updates a package.
-type UpdateCmd struct {
+// updateCmd updates a package.
+type updateCmd struct {
 	// Arguments.
 	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
 	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
 	Name string `arg:"" optional:"" help:"Name of the package to update. Will be derived from the ref if omitted."`
 }
 
+func (c *updateCmd) Help() string {
+	return `
+Crossplane can be extended using packages. A Crossplane package is sometimes
+called an xpkg. Crossplane supports configuration, provider and function
+packages. 
+
+A package is an opinionated OCI image that contains everything needed to extend
+Crossplane with new functionality. For example installing a provider package
+extends Crossplane with support for new kinds of managed resource (MR).
+
+This command tells the Crossplane package manager to update an installed package
+to a new version, pulled from a package registry. It uses ~/.kube/config to know
+how to connect to the package manager. You can override this using the
+KUBECONFIG environment variable.
+
+See https://docs.crossplane.io/latest/concepts/packages for more information.
+`
+}
+
 // Run the package update cmd.
-func (c *UpdateCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
 		ref, err := name.ParseReference(c.Ref, name.WithDefaultRegistry(DefaultRegistry))

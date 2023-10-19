@@ -20,15 +20,20 @@ package xpkg
 // Cmd contains commands for interacting with packages.
 type Cmd struct {
 	// Keep commands sorted alphabetically.
-	Init initCmd `cmd:"" help:"Initialize a package from a template."`
+	Init initCmd `cmd:"" help:"Initialize a new package from a template."`
 }
 
 // Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
-Crossplane can be extended with packages. Several types of packages exist,
-including providers and configurations. A package is an opinionated OCI image
-that contains everything needed to extend Crossplane. For more detailed
-information on packages, see https://docs.crossplane.io/latest/concepts/packages.
+Crossplane can be extended using packages. A Crossplane package is sometimes
+called an xpkg. Crossplane supports configuration, provider and function
+packages. 
+
+A package is an opinionated OCI image that contains everything needed to extend
+Crossplane with new functionality. For example installing a provider package
+extends Crossplane with support for new kinds of managed resource (MR).
+
+See https://docs.crossplane.io/latest/concepts/packages for more information.
 `
 }
