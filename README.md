@@ -78,7 +78,7 @@ find the meetings in the [Community Calendar][community calendar].
 - [#sig-provider-families][sig-provider-families-slack]
 - [#sig-secret-stores][sig-secret-stores-slack]
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
-- [#sig-upjet-provider-resource-utilization][sig-upjet-provider-resource-utilization-slack]
+- [#sig-upjet-provider-efficiency][sig-upjet-provider-efficiency-slack]
 
 
 ## Adopters
@@ -121,4 +121,4 @@ Crossplane is under the Apache 2.0 license.
 [sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
 [sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
 [sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
-[sig-upjet-provider-resource-utilization-slack]: https://crossplane.slack.com/archives/C04QLETDJGN
+[sig-upjet-provider-efficiency-slack]: https://crossplane.slack.com/archives/C04QLETDJGN
