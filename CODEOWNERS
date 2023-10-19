@@ -3,17 +3,17 @@
 # * https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 # * https://docs.github.com/en/organizations/organizing-members-into-teams/managing-code-review-settings-for-your-team
 #
-# The goal of this file is for most PRs to automatically and fairly have one
-# maintainer and two reviewers set as PR reviewers. All maintainers have
-# permission to approve and merge PRs, but reviewers do not. Most PRs should be
-# reviewed by members of the reviewers group before being passed to a maintainer
-# for final review.
+# The goal of this file is for most PRs to automatically and fairly have 1 to 2
+# maintainers set as PR reviewers. All maintainers have permission to approve
+# and merge PRs. PRs only need 
+#
+# Most lines in this file will assign one subject matter expert and one random
+# maintainer. PRs only need to be approved by one of these people to be merged.
 #
 # This in part depends on how the groups in this file are configured.
 #
 # @crossplane/steering-committee - Assigns 3 members. Admin perms to this repo.
 # @crossplane/crossplane-maintainers - Assigns 1 member. Maintain perms to this repo.
-# @crossplane/crossplane-reviewers - Assigns 2 members. Write perms to this repo.
 #
 # Where possible, prefer explicitly specifying a maintainer who is a subject
 # matter expert for a particular part of the codebase rather than using the
@@ -22,7 +22,7 @@
 # See also OWNERS.md for governance details
 
 # Fallback owners
-*                                   @crossplane/crossplane-maintainers @crossplane/crossplane-reviewers
+*                                   @crossplane/crossplane-maintainers
 
 # Governance owners - steering committee
 /README.md                           @crossplane/steering-committee
@@ -36,23 +36,29 @@
 # Design documents
 /design/                             @crossplane/crossplane-maintainers @negz
 
+# Contributing documentation
+/contributing/                       @crossplane/crossplane-maintainers @negz
+
 # Package manager
-/apis/pkg/                           @crossplane/crossplane-reviewers @turkenh
-/internal/xpkg/                      @crossplane/crossplane-reviewers @turkenh
-/internal/dag/                       @crossplane/crossplane-reviewers @turkenh
-/internal/controller/pkg/            @crossplane/crossplane-reviewers @turkenh
+/apis/pkg/                           @crossplane/crossplane-maintainers @turkenh
+/internal/xpkg/                      @crossplane/crossplane-maintainers @turkenh
+/internal/dag/                       @crossplane/crossplane-maintainers @turkenh
+/internal/controller/pkg/            @crossplane/crossplane-maintainers @turkenh
 
 # Composition
-/apis/apiextensions/                 @crossplane/crossplane-reviewers @turkenh
-/internal/xcrd/                      @crossplane/crossplane-reviewers @turkenh
-/internal/controller/apiextensions/  @crossplane/crossplane-reviewers @turkenh
+/apis/apiextensions/                 @crossplane/crossplane-maintainers @negz
+/internal/controller/apiextensions/  @crossplane/crossplane-maintainers @negz
+/internal/xcrd/                      @crossplane/crossplane-maintainers @negz
+/internal/xfn/                       @crossplane/crossplane-maintainers @negz
+/internal/validation/                @crossplane/crossplane-maintainers @phisco
 
-# RBAC
-/cmd/crossplane/rbac/                @crossplane/crossplane-reviewers @negz
-/internal/controller/rbac/           @crossplane/crossplane-reviewers @negz
+# RBAC Manager
+/cmd/crossplane/rbac/                @crossplane/crossplane-maintainers @negz
+/internal/controller/rbac/           @crossplane/crossplane-maintainers @negz
+
+# Crossplane CLI
+/cmd/crank/                          @crossplane/crossplane-maintainers @phisco
 
 # Misc
-/apis/secrets/                       @crossplane/crossplane-reviewers @turkenh
-/cmd/crank/                          @crossplane/crossplane-reviewers @negz
-/internal/initializer/               @crossplane/crossplane-reviewers @muvaf
-/internal/features/                  @crossplane/crossplane-reviewers @negz
+/apis/secrets/                       @crossplane/crossplane-maintainers @turkenh
+/internal/features/                  @crossplane/crossplane-maintainers @negz
