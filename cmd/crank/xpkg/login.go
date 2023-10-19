@@ -47,14 +47,13 @@ const (
 )
 
 type loginCmd struct {
-	// Flags. Keep sorted alphabetically.
+	// Flags. We're intentionally making an exception to the rule here and not
+	// sorting these alphabetically.
+	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to authenticate."`
 	Password string `short:"p" env:"UP_PASSWORD" help:"Password for specified username. '-' to read from stdin."`
 	Token    string `short:"t" env:"UP_TOKEN" xor:"identifier" help:"Token used to authenticate. '-' to read from stdin."`
-	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to authenticate."`
 
 	// Common Upbound API configuration.
-	// Unfortunately these will show up as a second, alphabetically sorted list
-	// of flags immediately concatenated with the above set.
 	upbound.Flags `embed:""`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
