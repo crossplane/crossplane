@@ -46,7 +46,7 @@ type pushCmd struct {
 	Image string `arg:"" help:"The OCI image name to push the package to."`
 
 	// Flags. Keep sorted alphabetically.
-	PackageFile string `short:"f" type:"existingfile" placeholder:"PATH" help:"The xpkg file to push. If not specified and only one xpkg file exists in current directory it will be used."`
+	PackageFile string `short:"f" type:"existingfile" placeholder:"PATH" help:"The xpkg file to push."`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs afero.Fs
