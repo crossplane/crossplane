@@ -48,9 +48,9 @@ const (
 
 type loginCmd struct {
 	// Flags. Keep sorted alphabetically.
-	Password string `short:"p" env:"UP_PASSWORD" help:"Password for specified user. '-' to read from stdin."`
-	Token    string `short:"t" env:"UP_TOKEN" xor:"identifier" help:"Token used to execute command. '-' to read from stdin."`
-	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to execute command."`
+	Password string `short:"p" env:"UP_PASSWORD" help:"Password for specified username. '-' to read from stdin."`
+	Token    string `short:"t" env:"UP_TOKEN" xor:"identifier" help:"Token used to authenticate. '-' to read from stdin."`
+	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to authenticate."`
 
 	// Common Upbound API configuration.
 	// Unfortunately these will show up as a second, alphabetically sorted list

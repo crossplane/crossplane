@@ -94,12 +94,12 @@ func (c *buildCmd) AfterApply() error {
 // buildCmd builds a crossplane package.
 type buildCmd struct {
 	// Flags. Keep sorted alphabetically.
-	EmbedRuntimeImage   string   `help:"An OCI image reference to the package's runtime. The package will embed this image." placeholder:"\"example/runtime-image:latest\"" xor:"runtime-image"`
-	EmbedRuntimeTarball string   `help:"An OCI image tarball of the package's runtime. The package will embed this image." placeholder:"\"example-runtime-image.tar\"" type:"existingfile" xor:"runtime-image"`
-	ExamplesRoot        string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore              []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
-	Output              string   `short:"o" help:"Path for package output."`
-	PackageRoot         string   `short:"f" help:"Path to package directory." default:"."`
+	EmbedRuntimeImageName    string   `placeholder:"NAME" help:"The name of an OCI image to embed in the package as its runtime." xor:"runtime-image"`
+	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"The tarball of an OCI image to embed in the package as its runtime." xor:"runtime-image"`
+	ExamplesRoot             string   `short:"e" type:"path" help:"A directory of example YAML files to include in the package." default:"./examples"`
+	Ignore                   []string `placeholder:"PATH" help:"Comma-separated paths, specified relative to --package-root, to exclude from the package."`
+	Output                   string   `short:"o" type:"path" placeholder:"PATH" help:"The path to write the built xpkg file to."`
+	PackageRoot              string   `short:"f" type:"existingdir" help:"The directory that contains the package's crossplane.yaml file." default:"."`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs      afero.Fs
@@ -132,14 +132,14 @@ See https://docs.crossplane.io/latest/concepts/packages for more information.
 // GetRuntimeBaseImageOpts returns the controller base image options.
 func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 	switch {
-	case c.EmbedRuntimeTarball != "":
-		img, err := tarball.ImageFromPath(filepath.Clean(c.EmbedRuntimeTarball), nil)
+	case c.EmbedRuntimeImageTarball != "":
+		img, err := tarball.ImageFromPath(filepath.Clean(c.EmbedRuntimeImageTarball), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, errLoadRuntimeTarball)
 		}
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
-	case c.EmbedRuntimeImage != "":
-		ref, err := name.ParseReference(c.EmbedRuntimeImage, name.WithDefaultRegistry(DefaultRegistry))
+	case c.EmbedRuntimeImageName != "":
+		ref, err := name.ParseReference(c.EmbedRuntimeImageName, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}

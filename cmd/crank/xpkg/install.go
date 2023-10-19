@@ -53,16 +53,16 @@ const (
 // installCmd installs a package.
 type installCmd struct {
 	// Arguments.
-	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
-	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
-	Name string `arg:""  optional:"" help:"Name of the new package. Will be derived from the ref if omitted."`
+	Kind  string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
+	Image string `arg:"" help:"The OCI image name of the package to install."`
+	Name  string `arg:""  optional:"" help:"The name of the new package resource in the Crossplane API. Derived from the package's OCI image name by default."`
 
 	// Flags. Keep sorted alphabetically.
-	Config               string        `help:"Specify a runtime config. Configuration packages do not support runtime config."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	RuntimeConfigName    string        `placeholder:"NAME" help:"The name of the runtime config the package should use."`
+	ManualActivation     bool          `short:"m" help:"Require the new package's first revision to be manually activated."`
+	PackagePullSecrets   []string      `placeholder:"NAME" help:"A comma-separated list of secret names the package manager should use to pull the package from the registry."`
+	RevisionHistoryLimit int64         `short:"r" default:"LIMIT" help:"How many package revisions may exist before the oldest revisions are deleted."`
+	Wait                 time.Duration `short:"w" default:"0s" help:"How long to wait for the package to install before returning. The command does not wait by default."`
 }
 
 func (c *installCmd) Help() string {
@@ -87,7 +87,7 @@ See https://docs.crossplane.io/latest/concepts/packages for more information.
 func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Ref, name.WithDefaultRegistry(DefaultRegistry))
+		ref, err := name.ParseReference(c.Image, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
@@ -97,7 +97,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 
 	logger = logger.WithValues(
 		"kind", c.Kind,
-		"ref", c.Ref,
+		"ref", c.Image,
 		"name", pkgName,
 	)
 
@@ -113,7 +113,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 	}
 
 	spec := v1.PackageSpec{
-		Package:                  c.Ref,
+		Package:                  c.Image,
 		RevisionActivationPolicy: &rap,
 		RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 		PackagePullSecrets:       secrets,
@@ -141,12 +141,12 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 		return errors.Errorf("unsupported package kind %q", c.Kind)
 	}
 
-	if c.Config != "" {
+	if c.RuntimeConfigName != "" {
 		rpkg, ok := pkg.(v1.PackageRevisionWithRuntime)
 		if !ok {
 			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
 		}
-		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.Config})
+		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.RuntimeConfigName})
 	}
 
 	cfg, err := ctrl.GetConfig()

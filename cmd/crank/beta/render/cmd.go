@@ -28,7 +28,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -36,16 +35,16 @@ import (
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
 	// Arguments.
-	CompositeResource string `arg:"" type:"existingfile" help:"A YAML manifest containing the Composite Resource (XR) to render."`
-	Composition       string `arg:"" type:"existingfile" help:"A YAML manifest containing the Composition to use. Must be mode: Pipeline."`
-	Functions         string `arg:"" help:"A stream or directory of YAML manifests containing the Composition Functions to use."`
+	CompositeResource string `arg:"" type:"existingfile" help:"A YAML file specifying the composite resource (XR) to render."`
+	Composition       string `arg:"" type:"existingfile" help:"A YAML file specifying the Composition to use to render the XR. Must be mode: Pipeline."`
+	Functions         string `arg:"" type:"path" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR."`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles      map[string]string `placeholder:"KEY=FILENAME;..." help:"Context variables to pass to the Function pipeline. Values should be files containing JSON-encoded data."`
-	ContextValues     map[string]string `placeholder:"KEY=JSON-VALUE;..." help:"Context variables to pass to the Function pipeline. Values should be JSON-encoded. Takes precedence over --context-files."`
-	IncludeResults    bool              `short:"r" default:"true" help:"Include Results in the output. Results are emitted as a 'fake' KRM-like object of kind: Result."`
-	ObservedResources []string          `short:"o" help:"An optional stream or directory of YAML manifests mocking the observed state of composed resources."`
-	Timeout           time.Duration     `help:"How long to run before timing out." default:"1m"`
+	ContextFiles           map[string]string `mapsep:"," help:"Comma-separated context key value pairs to pass to the Function pipeline. Values must be files containing JSON."`
+	ContextValues          map[string]string `mapsep:"," help:"Comma-separated context key value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files."`
+	IncludeFunctionResults bool              `short:"r" help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."`
+	ObservedResources      string            `short:"o" placeholder:"PATH" type:"path" help:"A YAML file or directory of YAML files specifying the observed state of composed resources."`
+	Timeout                time.Duration     `help:"How long to run before timing out." default:"1m"`
 }
 
 // Help prints out the help for the render command.
@@ -120,13 +119,9 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
 
-	ors := []composed.Unstructured{}
-	for i := range c.ObservedResources {
-		loaded, err := LoadObservedResources(c.ObservedResources[i])
-		if err != nil {
-			return errors.Wrapf(err, "cannot load observed composed resources from %q", c.ObservedResources[i])
-		}
-		ors = append(ors, loaded...)
+	ors, err := LoadObservedResources(c.ObservedResources)
+	if err != nil {
+		return errors.Wrapf(err, "cannot load observed composed resources from %q", c.ObservedResources)
 	}
 
 	fctx := map[string][]byte{}
@@ -177,7 +172,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		}
 	}
 
-	if c.IncludeResults {
+	if c.IncludeFunctionResults {
 		for i := range out.Results {
 			fmt.Fprintln(k.Stdout, "---")
 			if err := s.Encode(&out.Results[i], os.Stdout); err != nil {

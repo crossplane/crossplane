@@ -43,10 +43,10 @@ func WellKnownTemplates() map[string]string {
 
 // initCmd initializes a new package repository from a template repository.
 type initCmd struct {
-	Name     string `arg:"" help:"Name of the package to initialize."`
-	Template string `arg:"" help:"Template to initialize the package from."`
+	Name     string `arg:"" help:"The name of the new package to initialize."`
+	Template string `arg:"" help:"The template name or URL to use to initialize the new package."`
 
-	Directory string `short:"d" help:"Path of the directory to initialize." default:"." type:"path"`
+	Directory string `short:"d" default:"." type:"path" help:"The directory to initialize. It must be empty. It will be created if it doesn't exist."`
 }
 
 func (c *initCmd) Help() string {
