@@ -55,12 +55,12 @@ type installCmd struct {
 	// Arguments.
 	Kind  string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
 	Image string `arg:"" help:"The OCI image name of the package to install."`
-	Name  string `arg:""  optional:"" help:"The name of the new package resource in the Crossplane API. Derived from the package's OCI image name by default."`
+	Name  string `arg:""  optional:"" help:"The name of the new package in the Crossplane API. Derived from the package's OCI image name by default."`
 
 	// Flags. Keep sorted alphabetically.
-	RuntimeConfigName    string        `placeholder:"NAME" help:"The name of the runtime config the package should use."`
+	RuntimeConfig        string        `placeholder:"NAME" help:"Install the package with a runtime configuration (for example a DeploymentRuntimeConfig)."`
 	ManualActivation     bool          `short:"m" help:"Require the new package's first revision to be manually activated."`
-	PackagePullSecrets   []string      `placeholder:"NAME" help:"A comma-separated list of secret names the package manager should use to pull the package from the registry."`
+	PackagePullSecrets   []string      `placeholder:"NAME" help:"A comma-separated list of secrets the package manager should use to pull the package from the registry."`
 	RevisionHistoryLimit int64         `short:"r" placeholder:"LIMIT" help:"How many package revisions may exist before the oldest revisions are deleted."`
 	Wait                 time.Duration `short:"w" default:"0s" help:"How long to wait for the package to install before returning. The command does not wait by default."`
 }
@@ -141,12 +141,12 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 		return errors.Errorf("unsupported package kind %q", c.Kind)
 	}
 
-	if c.RuntimeConfigName != "" {
+	if c.RuntimeConfig != "" {
 		rpkg, ok := pkg.(v1.PackageRevisionWithRuntime)
 		if !ok {
 			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
 		}
-		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.RuntimeConfigName})
+		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.RuntimeConfig})
 	}
 
 	cfg, err := ctrl.GetConfig()

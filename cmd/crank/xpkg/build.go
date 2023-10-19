@@ -94,11 +94,11 @@ func (c *buildCmd) AfterApply() error {
 // buildCmd builds a crossplane package.
 type buildCmd struct {
 	// Flags. Keep sorted alphabetically.
-	EmbedRuntimeImageName    string   `placeholder:"NAME" help:"The name of an OCI image to embed in the package as its runtime." xor:"runtime-image"`
-	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"The tarball of an OCI image to embed in the package as its runtime." xor:"runtime-image"`
+	EmbedRuntimeImage        string   `placeholder:"NAME" help:"An OCI image to embed in the package as its runtime." xor:"runtime-image"`
+	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"An OCI image tarball to embed in the package as its runtime." xor:"runtime-image"`
 	ExamplesRoot             string   `short:"e" type:"path" help:"A directory of example YAML files to include in the package." default:"./examples"`
 	Ignore                   []string `placeholder:"PATH" help:"Comma-separated paths, specified relative to --package-root, to exclude from the package."`
-	Output                   string   `short:"o" type:"path" placeholder:"PATH" help:"The path to write the built xpkg file to."`
+	Output                   string   `short:"o" type:"path" placeholder:"PATH" help:"The file to write the package to. Defaults to a generated filename in --package-root."`
 	PackageRoot              string   `short:"f" type:"existingdir" help:"The directory that contains the package's crossplane.yaml file." default:"."`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
@@ -138,8 +138,8 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 			return nil, errors.Wrap(err, errLoadRuntimeTarball)
 		}
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
-	case c.EmbedRuntimeImageName != "":
-		ref, err := name.ParseReference(c.EmbedRuntimeImageName, name.WithDefaultRegistry(DefaultRegistry))
+	case c.EmbedRuntimeImage != "":
+		ref, err := name.ParseReference(c.EmbedRuntimeImage, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}

@@ -44,7 +44,7 @@ type updateCmd struct {
 	// Arguments.
 	Kind  string `arg:"" help:"The kind of package to update. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
 	Image string `arg:"" help:"The OCI image name to update the package to."`
-	Name  string `arg:""  optional:"" help:"The name of the package resource to update in the Crossplane API. Derived from the package's OCI image name by default."`
+	Name  string `arg:""  optional:"" help:"The name of the package to update in the Crossplane API. Derived from the package's OCI image name by default."`
 }
 
 func (c *updateCmd) Help() string {
