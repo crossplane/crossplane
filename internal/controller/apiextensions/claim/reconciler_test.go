@@ -630,7 +630,7 @@ func TestReconcile(t *testing.T) {
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-					o.SetConditions(xpv1.ReconcilePaused())
+					o.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 				}),
 			},
 		},
@@ -653,7 +653,7 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateClaimStatus),
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-					o.SetConditions(xpv1.ReconcilePaused())
+					o.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 				}),
 			},
 		},

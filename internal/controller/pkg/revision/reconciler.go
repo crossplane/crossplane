@@ -101,6 +101,8 @@ const (
 	errCannotBuildMetaSchema         = "cannot build meta scheme for package parser"
 	errCannotBuildObjectSchema       = "cannot build object scheme for package parser"
 	errCannotBuildFetcher            = "cannot build fetcher for package parser"
+
+	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
 
 // Event reasons.
@@ -110,6 +112,7 @@ const (
 	reasonDependencies event.Reason = "ResolveDependencies"
 	reasonSync         event.Reason = "SyncPackage"
 	reasonDeactivate   event.Reason = "DeactivateRevision"
+	reasonPaused       event.Reason = "ReconciliationPaused"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -458,6 +461,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"name", pr.GetName(),
 	)
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(pr) {
+		r.record.Event(pr, event.Normal(reasonPaused, reconcilePausedMsg))
+		pr.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
 	if meta.WasDeleted(pr) {
 		// NOTE(hasheddan): In the event that a pre-cached package was
 		// used for this revision, delete will not remove the pre-cached
@@ -495,6 +508,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		return reconcile.Result{Requeue: false}, nil
+	}
+
+	if c := pr.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
+		pr.CleanConditions()
 	}
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
