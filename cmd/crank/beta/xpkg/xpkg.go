@@ -26,9 +26,8 @@ type Cmd struct {
 // Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
-Crossplane can be extended using packages. A Crossplane package is sometimes
-called an xpkg. Crossplane supports configuration, provider and function
-packages. 
+Crossplane can be extended using packages. Crossplane packages are called xpkgs.
+Crossplane supports configuration, provider and function packages. 
 
 A package is an opinionated OCI image that contains everything needed to extend
 Crossplane with new functionality. For example installing a provider package
