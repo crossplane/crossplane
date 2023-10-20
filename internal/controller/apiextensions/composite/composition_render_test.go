@@ -18,12 +18,15 @@ package composite
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -292,7 +295,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	}
 }
 
-func TestDryRunRender(t *testing.T) {
+func TestGenerateName(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
@@ -309,8 +312,8 @@ func TestDryRunRender(t *testing.T) {
 		args
 		want
 	}{
-		"SkipDryRunForNamedResources": {
-			reason: "We should not try to dry-run create resources that already have a name",
+		"SkipGenerateNamedResources": {
+			reason: "We should not try naming a resource that already have a name",
 			// We must be returning early, or else we'd hit this error.
 			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
 			args: args{
@@ -325,8 +328,8 @@ func TestDryRunRender(t *testing.T) {
 				err: nil,
 			},
 		},
-		"SkipDryRunForResourcesWithoutGenerateName": {
-			reason: "We should not try to dry-run create resources that don't have a generate name (though that should never happen)",
+		"SkipGenerateNameForResourcesWithoutGenerateName": {
+			reason: "We should not try to name resources that don't have a generate name (though that should never happen)",
 			// We must be returning early, or else we'd hit this error.
 			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
 			args: args{
@@ -337,9 +340,9 @@ func TestDryRunRender(t *testing.T) {
 				err: nil,
 			},
 		},
-		"DryRunError": {
-			reason: "Errors dry-run creating the rendered composed resource to name it should be returned",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
+		"NameGeneratorClientError": {
+			reason: "Client error finding a free name for a composed resource",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 			args: args{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cool-resource-",
@@ -349,15 +352,12 @@ func TestDryRunRender(t *testing.T) {
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cool-resource-",
 				}},
-				err: errors.Wrap(errBoom, errName),
+				err: errBoom,
 			},
 		},
 		"Success": {
-			reason: "Updates returned by dry-run creating the composed resource should be rendered",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
-				obj.SetName("cool-resource-42")
-				return nil
-			})},
+			reason: "Name is found on first try",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, "cool-resource-42"))},
 			args: args{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "cool-resource-",
@@ -370,11 +370,47 @@ func TestDryRunRender(t *testing.T) {
 				}},
 			},
 		},
+		"SuccessAfterConflict": {
+			reason: "Name is found on second try",
+			client: &test.MockClient{MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+				if key.Name == "cool-resource-42" {
+					return nil
+				}
+				return kerrors.NewNotFound(schema.GroupResource{Resource: "CoolResource"}, key.Name)
+			}},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+					Name:         "cool-resource-43",
+				}},
+			},
+		},
+		"AlwaysConflict": {
+			reason: "Name cannot be found",
+			client: &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			args: args{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+				}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "cool-resource-",
+				}},
+				err: errors.New(errGenerateName),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewAPIDryRunRenderer(tc.client)
-			err := r.DryRunRender(tc.args.ctx, tc.args.cd)
+			r := NewAPINameGenerator(tc.client)
+			r.namer = &mockNameGenerator{last: 41}
+			err := r.GenerateName(tc.args.ctx, tc.args.cd)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nDryRunRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -383,4 +419,13 @@ func TestDryRunRender(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockNameGenerator struct {
+	last int
+}
+
+func (m *mockNameGenerator) GenerateName(prefix string) string {
+	m.last++
+	return prefix + strconv.Itoa(m.last)
 }
