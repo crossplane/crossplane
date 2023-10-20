@@ -43,7 +43,7 @@ const DefaultRegistry = "xpkg.upbound.io"
 // pushCmd pushes a package.
 type pushCmd struct {
 	// Arguments.
-	Package string `arg:"" help:"Where to push the package. An OCI repository and tag, optionally prefixed with a registry."`
+	Package string `arg:"" help:"Where to push the package."`
 
 	// Flags. Keep sorted alphabetically.
 	PackageFile string `short:"f" type:"existingfile" placeholder:"PATH" help:"The xpkg file to push."`
@@ -54,19 +54,17 @@ type pushCmd struct {
 
 func (c *pushCmd) Help() string {
 	return `
-Crossplane can be extended using packages. A Crossplane package is sometimes
-called an xpkg. Crossplane supports configuration, provider and function
-packages. 
+Packages can be pushed to any OCI registry. Packages are pushed to the
+xpkg.upbound.io registry by default. A package's OCI tag must be a semantic
+version.
 
-A package is an opinionated OCI image that contains everything needed to extend
-Crossplane with new functionality. For example installing a provider package
-extends Crossplane with support for new kinds of managed resource (MR).
+Examples:
 
-This command pushes a package to a registry. Packages are pushed to
-xpkg.upbound.io by default. You can override this by including a registry in
-your OCI image name: for example index.docker.io/example/package:v1.0.0.
+  # Push a package.
+  crossplane xpkg push -f function-example.xpkg crossplane/function-example:v1.0.0
 
-See https://docs.crossplane.io/latest/concepts/packages for more information.
+  # Push the xpkg file in the current directory to a different registry.
+  crossplane xpkg push index.docker.io/crossplane/function-example:v1.0.0
 `
 }
 

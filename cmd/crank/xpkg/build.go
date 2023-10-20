@@ -109,23 +109,17 @@ type buildCmd struct {
 
 func (c *buildCmd) Help() string {
 	return `
-Crossplane can be extended using packages. A Crossplane package is sometimes
-called an xpkg. Crossplane supports configuration, provider and function
-packages. 
+This command builds a package file from a local directory of files.
 
-A package is an opinionated OCI image that contains everything needed to extend
-Crossplane with new functionality. For example installing a provider package
-extends Crossplane with support for new kinds of managed resource (MR).
+Examples:
 
-This command builds a package from a local directory of files.
+  # Build a package from the files in the 'package' directory.
+  crossplane xpkg build --package-root=package/
 
-Provider and function packages can embed a runtime image. When a package embeds
-a runtime image Crossplane can use the same OCI image to install and run the
-package. For example a provider package can embed the provider's controller
-image (its "runtime"). Crossplane will then use the package as the provider
-pod's image.
-
-See https://docs.crossplane.io/latest/concepts/packages for more information.
+  # Build a package that embeds a Provider's controller OCI image built with
+  # 'docker build' so that the package can also be used to run the provider.
+  # Provider and Function packages support embedding runtime images.
+  crossplane xpkg build --embed-runtime-image=cc873e13cdc1
 `
 }
 

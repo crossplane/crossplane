@@ -50,14 +50,11 @@ type Cmd struct {
 // Help prints out the help for the render command.
 func (c *Cmd) Help() string {
 	return `
-Crossplane uses a Composition to produce a set of composed resources for a given
-XR. This command shows you what composed resources Crossplane would create by
+This command shows you what composed resources Crossplane would create by
 printing them to stdout. It also prints any changes that would be made to the
-status of the XR.
-
-This command doesn't talk to Crossplane. Instead it runs the Composition
+status of the XR. It doesn't talk to Crossplane. Instead it runs the Composition
 Function pipeline specified by the Composition locally, and uses that to render
-the XR. It only supports Compositions that use the Pipeline mode.
+the XR. It only supports Compositions in Pipeline mode.
 
 Composition Functions are pulled and run using Docker by default. You can add
 the following annotations to each Function to change how they're run:
@@ -85,6 +82,19 @@ the following annotations to each Function to change how they're run:
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
 to the Docker daemon.
+
+Examples:
+
+  # Simulate creating a new XR.
+  crossplane beta render xr.yaml composition.yaml functions.yaml
+
+  # Simulate updating an XR that already exists.
+  crossplane beta render xr.yaml composition.yaml functions.yaml \
+    --observed-resources=existing-observed-resources.yaml
+
+  # Pass context values to the Function pipeline.
+  crossplane beta render xr.yaml composition.yaml functions.yaml \
+    --context-values=apiextensions.crossplane.io/environment='{"key": "value"}'
 `
 }
 

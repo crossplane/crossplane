@@ -54,7 +54,7 @@ const (
 type installCmd struct {
 	// Arguments.
 	Kind    string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
-	Package string `arg:"" help:"The package to install. An OCI repository and tag, optionally prefixed with a registry."`
+	Package string `arg:"" help:"The package to install."`
 	Name    string `arg:""  optional:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default."`
 
 	// Flags. Keep sorted alphabetically.
@@ -67,19 +67,19 @@ type installCmd struct {
 
 func (c *installCmd) Help() string {
 	return `
-Crossplane can be extended using packages. A Crossplane package is sometimes
-called an xpkg. Crossplane supports configuration, provider and function
-packages. 
+This command tells the Crossplane package manager to install a package. It uses
+~/.kube/config to connect to the package manager. You can override this using
+the KUBECONFIG environment variable.
 
-A package is an opinionated OCI image that contains everything needed to extend
-Crossplane with new functionality. For example installing a provider package
-extends Crossplane with support for new kinds of managed resource (MR).
+Examples:
 
-This command tells the Crossplane package manager to install a package from a
-package registry. It uses ~/.kube/config to know how to connect to the package
-manager. You can override this using the KUBECONFIG environment variable.
+  # Wait 1 minute for the package to finish installing before returning.
+  crossplane xpkg install provider upbound/provider-aws-eks:v0.41.0 --wait=1m
 
-See https://docs.crossplane.io/latest/concepts/packages for more information.
+  # Install a Function named function-eg that uses a runtime config named
+  # customconfig.
+  crossplane xpkg install function upbound/function-example:v0.1.4 function-eg \
+    --runtime-config=customconfig
 `
 }
 

@@ -64,18 +64,10 @@ type loginCmd struct {
 // Help prints out the help for the login command.
 func (c *loginCmd) Help() string {
 	return `
-Crossplane can be extended using packages. A Crossplane package is sometimes
-called an xpkg. Crossplane supports configuration, provider and function
-packages. 
-
-A package is an opinionated OCI image that contains everything needed to extend
-Crossplane with new functionality. For example installing a provider package
-extends Crossplane with support for new kinds of managed resource (MR).
-
 This command logs in to the xpkg.upbound.io package registry. The Crossplane CLI
-pushes packages to xpkg.upbound.io by default.
+uses xpkg.upbound.io if you don't explicitly specify a different registry.
 
-See https://docs.crossplane.io/latest/concepts/packages for more information.
+You can create an xpkg.upbound.io account at https://accounts.upbound.io.
 `
 }
 

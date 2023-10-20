@@ -35,9 +35,9 @@ import (
 // WellKnownTemplates are short aliases for template repositories.
 func WellKnownTemplates() map[string]string {
 	return map[string]string{
-		"provider-minimal": "https://github.com/crossplane/provider-template",
-		"provider-upjet":   "https://github.com/upbound/upjet-provider-template",
-		"function-go":      "https://github.com/crossplane/function-template-go",
+		"provider-template":       "https://github.com/crossplane/provider-template",
+		"provider-template-upjet": "https://github.com/upbound/upjet-provider-template",
+		"function-template-go":    "https://github.com/crossplane/function-template-go",
 	}
 }
 
@@ -51,14 +51,6 @@ type initCmd struct {
 
 func (c *initCmd) Help() string {
 	tpl := `
-Crossplane can be extended using packages. A Crossplane package is sometimes
-called an xpkg. Crossplane supports configuration, provider and function
-packages. 
-
-A package is an opinionated OCI image that contains everything needed to extend
-Crossplane with new functionality. For example installing a provider package
-extends Crossplane with support for new kinds of managed resource (MR).
-
 This command initializes a directory that you can use to build a package. It
 uses a template to initialize the directory. It can use any Git repository as a
 template.
@@ -68,7 +60,13 @@ following well-known template names are supported:
 
 %s
 
-See https://docs.crossplane.io/latest/concepts/packages for more information.
+Examples:
+
+  # Initialize a new Go Composition Function named function-example.
+  crossplane beta xpkg init function-example function-template-go
+
+  # Initialize a new Provider named provider-example from a custom template.
+  crossplane beta xpkg init provider-example https://github.com/crossplane/provider-template-custom
 `
 
 	b := strings.Builder{}
