@@ -50,27 +50,44 @@ const (
 	errKubeClient    = "failed to create kube client"
 )
 
-// InstallCmd is exported so that it can be re-used by the beta xpkg subcommand.
+// installCmd installs a package.
+type installCmd struct {
+	// Arguments.
+	Kind    string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
+	Package string `arg:"" help:"The package to install."`
+	Name    string `arg:""  optional:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default."`
 
-// InstallCmd installs a package.
-type InstallCmd struct {
-	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
-	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
-	Name string `arg:""  optional:"" help:"Name of the new package. Will be derived from the ref if omitted."`
+	// Flags. Keep sorted alphabetically.
+	RuntimeConfig        string        `placeholder:"NAME" help:"Install the package with a runtime configuration (for example a DeploymentRuntimeConfig)."`
+	ManualActivation     bool          `short:"m" help:"Require the new package's first revision to be manually activated."`
+	PackagePullSecrets   []string      `placeholder:"NAME" help:"A comma-separated list of secrets the package manager should use to pull the package from the registry."`
+	RevisionHistoryLimit int64         `short:"r" placeholder:"LIMIT" help:"How many package revisions may exist before the oldest revisions are deleted."`
+	Wait                 time.Duration `short:"w" default:"0s" help:"How long to wait for the package to install before returning. The command does not wait by default."`
+}
 
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+func (c *installCmd) Help() string {
+	return `
+This command installs a package in a Crossplane control plane. It uses
+~/.kube/config to connect to the control plane. You can override this using the
+KUBECONFIG environment variable.
 
-	Config string `help:"Specify a runtime config. Configuration packages do not support runtime config."`
+Examples:
+
+  # Wait 1 minute for the package to finish installing before returning.
+  crossplane xpkg install provider upbound/provider-aws-eks:v0.41.0 --wait=1m
+
+  # Install a Function named function-eg that uses a runtime config named
+  # customconfig.
+  crossplane xpkg install function upbound/function-example:v0.1.4 function-eg \
+    --runtime-config=customconfig
+`
 }
 
 // Run the package install cmd.
-func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
+func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Ref, name.WithDefaultRegistry(DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
@@ -80,7 +97,7 @@ func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 
 	logger = logger.WithValues(
 		"kind", c.Kind,
-		"ref", c.Ref,
+		"ref", c.Package,
 		"name", pkgName,
 	)
 
@@ -96,7 +113,7 @@ func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 	}
 
 	spec := v1.PackageSpec{
-		Package:                  c.Ref,
+		Package:                  c.Package,
 		RevisionActivationPolicy: &rap,
 		RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 		PackagePullSecrets:       secrets,
@@ -124,12 +141,12 @@ func (c *InstallCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 		return errors.Errorf("unsupported package kind %q", c.Kind)
 	}
 
-	if c.Config != "" {
+	if c.RuntimeConfig != "" {
 		rpkg, ok := pkg.(v1.PackageRevisionWithRuntime)
 		if !ok {
 			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
 		}
-		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.Config})
+		rpkg.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: c.RuntimeConfig})
 	}
 
 	cfg, err := ctrl.GetConfig()

@@ -42,10 +42,30 @@ const DefaultRegistry = "xpkg.upbound.io"
 
 // pushCmd pushes a package.
 type pushCmd struct {
-	fs afero.Fs
+	// Arguments.
+	Package string `arg:"" help:"Where to push the package."`
 
-	Tag     string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag. Unqualified tags will be pushed to xpkg.upbound.io."`
-	Package string `short:"f" help:"Path to package. If not specified and only one package exists in current directory it will be used."`
+	// Flags. Keep sorted alphabetically.
+	PackageFile string `short:"f" type:"existingfile" placeholder:"PATH" help:"The xpkg file to push."`
+
+	// Internal state. These aren't part of the user-exposed CLI structure.
+	fs afero.Fs
+}
+
+func (c *pushCmd) Help() string {
+	return `
+Packages can be pushed to any OCI registry. Packages are pushed to the
+xpkg.upbound.io registry by default. A package's OCI tag must be a semantic
+version.
+
+Examples:
+
+  # Push a package.
+  crossplane xpkg push -f function-example.xpkg crossplane/function-example:v1.0.0
+
+  # Push the xpkg file in the current directory to a different registry.
+  crossplane xpkg push index.docker.io/crossplane/function-example:v1.0.0
+`
 }
 
 // AfterApply sets the tag for the parent push command.
@@ -56,8 +76,8 @@ func (c *pushCmd) AfterApply() error {
 
 // Run runs the push cmd.
 func (c *pushCmd) Run(logger logging.Logger) error {
-	logger = logger.WithValues("tag", c.Tag)
-	tag, err := name.NewTag(c.Tag, name.WithDefaultRegistry(DefaultRegistry))
+	logger = logger.WithValues("image", c.Package)
+	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 	if err != nil {
 		logger.Debug("Failed to create tag for package", "error", err)
 		return err
@@ -65,7 +85,7 @@ func (c *pushCmd) Run(logger logging.Logger) error {
 
 	// If package is not defined, attempt to find single package in current
 	// directory.
-	if c.Package == "" {
+	if c.PackageFile == "" {
 		logger.Debug("Trying to find package in current directory")
 		wd, err := os.Getwd()
 		if err != nil {
@@ -77,10 +97,10 @@ func (c *pushCmd) Run(logger logging.Logger) error {
 			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errFindPackageinWd))
 			return errors.Wrap(err, errFindPackageinWd)
 		}
-		c.Package = path
+		c.PackageFile = path
 		logger.Debug("Found package in directory", "path", path)
 	}
-	img, err := tarball.ImageFromPath(c.Package, nil)
+	img, err := tarball.ImageFromPath(c.PackageFile, nil)
 	if err != nil {
 		logger.Debug("Failed to create image from package tarball", "error", err)
 		return err

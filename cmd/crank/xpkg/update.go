@@ -39,20 +39,32 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Load all the auth plugins for the cloud providers.
 )
 
-// UpdateCmd is exported so that it can be re-used by the beta xpkg subcommand.
+// updateCmd updates a package.
+type updateCmd struct {
+	// Arguments.
+	Kind    string `arg:"" help:"The kind of package to update. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
+	Package string `arg:"" help:"The package to update to."`
+	Name    string `arg:""  optional:"" help:"The name of the package to update in the Crossplane API. Derived from the package repository and tag by default."`
+}
 
-// UpdateCmd updates a package.
-type UpdateCmd struct {
-	Kind string `arg:"" help:"Kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
-	Ref  string `arg:"" help:"The package's OCI image reference (e.g. tag)."`
-	Name string `arg:""  optional:"" help:"Name of the package to update. Will be derived from the ref if omitted."`
+func (c *updateCmd) Help() string {
+	return `
+This command updates a package in a Crossplane control plane. It uses
+~/.kube/config to connect to the control plane. You can override this using the
+KUBECONFIG environment variable.
+
+Examples:
+
+  # Update the Function named function-eg
+  crossplane xpkg update function upbound/function-example:v0.1.5 function-eg
+`
 }
 
 // Run the package update cmd.
-func (c *UpdateCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Ref, name.WithDefaultRegistry(DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
@@ -62,7 +74,7 @@ func (c *UpdateCmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger = logger.WithValues(
 		"kind", c.Kind,
-		"ref", c.Ref,
+		"ref", c.Package,
 		"name", pkgName,
 	)
 
@@ -104,7 +116,7 @@ func (c *UpdateCmd) Run(k *kong.Context, logger logging.Logger) error {
 		}
 		logger.Debug("Found existing package")
 
-		pkg.SetSource(c.Ref)
+		pkg.SetSource(c.Package)
 
 		return kube.Update(ctx, pkg)
 	}); err != nil {

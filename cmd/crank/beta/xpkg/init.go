@@ -35,29 +35,46 @@ import (
 // WellKnownTemplates are short aliases for template repositories.
 func WellKnownTemplates() map[string]string {
 	return map[string]string{
-		"provider-minimal": "https://github.com/crossplane/provider-template",
-		"provider-upjet":   "https://github.com/upbound/upjet-provider-template",
-		"function-go":      "https://github.com/crossplane/function-template-go",
+		"provider-template":       "https://github.com/crossplane/provider-template",
+		"provider-template-upjet": "https://github.com/upbound/upjet-provider-template",
+		"function-template-go":    "https://github.com/crossplane/function-template-go",
 	}
 }
 
 // initCmd initializes a new package repository from a template repository.
 type initCmd struct {
-	Name     string `arg:"" help:"Name of the package to initialize."`
-	Template string `arg:"" help:"Template to initialize the package from."`
+	Name     string `arg:"" help:"The name of the new package to initialize."`
+	Template string `arg:"" help:"The template name or URL to use to initialize the new package."`
 
-	Directory string `short:"d" help:"Path of the directory to initialize." default:"." type:"path"`
+	Directory string `short:"d" default:"." type:"path" help:"The directory to initialize. It must be empty. It will be created if it doesn't exist."`
 }
 
 func (c *initCmd) Help() string {
+	tpl := `
+This command initializes a directory that you can use to build a package. It
+uses a template to initialize the directory. It can use any Git repository as a
+template.
+
+You can specify either a full Git URL or a well-known name as a template. The
+following well-known template names are supported:
+
+%s
+
+Examples:
+
+  # Initialize a new Go Composition Function named function-example.
+  crossplane beta xpkg init function-example function-template-go
+
+  # Initialize a new Provider named provider-example from a custom template.
+  crossplane beta xpkg init provider-example https://github.com/crossplane/provider-template-custom
+`
+
 	b := strings.Builder{}
-	b.WriteString("Crossplane initializes a package by using git to clone a template from a repository.\n")
-	b.WriteString("The template can be either a git repository URL, or a well-known template name.\n\n")
-	b.WriteString("Crossplane supports the following well-known-template names:\n\n")
 	for name, url := range WellKnownTemplates() {
 		b.WriteString(fmt.Sprintf(" - %s (%s)\n", name, url))
 	}
-	return b.String()
+
+	return fmt.Sprintf(tpl, b.String())
 }
 
 func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {

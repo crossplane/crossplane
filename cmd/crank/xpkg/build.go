@@ -93,42 +93,41 @@ func (c *buildCmd) AfterApply() error {
 
 // buildCmd builds a crossplane package.
 type buildCmd struct {
+	// Flags. Keep sorted alphabetically.
+	EmbedRuntimeImage        string   `placeholder:"NAME" help:"An OCI image to embed in the package as its runtime." xor:"runtime-image"`
+	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"An OCI image tarball to embed in the package as its runtime." xor:"runtime-image"`
+	ExamplesRoot             string   `short:"e" type:"path" help:"A directory of example YAML files to include in the package." default:"./examples"`
+	Ignore                   []string `placeholder:"PATH" help:"Comma-separated paths, specified relative to --package-root, to exclude from the package."`
+	PackageFile              string   `short:"o" type:"path" placeholder:"PATH" help:"The file to write the package to. Defaults to a generated filename in --package-root."`
+	PackageRoot              string   `short:"f" type:"existingdir" help:"The directory that contains the package's crossplane.yaml file." default:"."`
+
+	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs      afero.Fs
 	builder *xpkg.Builder
 	root    string
-
-	Output       string   `optional:"" short:"o" help:"Path for package output."`
-	PackageRoot  string   `short:"f" help:"Path to package directory." default:"."`
-	ExamplesRoot string   `short:"e" help:"Path to package examples directory." default:"./examples"`
-	Ignore       []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
-
-	EmbedRuntimeImage   string `help:"An OCI image reference to the package's runtime. The package will embed this image." placeholder:"\"example/runtime-image:latest\"" xor:"runtime-image"`
-	EmbedRuntimeTarball string `help:"An OCI image tarball of the package's runtime. The package will embed this image." placeholder:"\"example-runtime-image.tar\"" type:"existingfile" xor:"runtime-image"`
 }
 
 func (c *buildCmd) Help() string {
 	return `
-The build command creates a Crossplane package from the local filesystem. A
-package is an OCI image containing metadata and configuration manifests that can
-be used to extend Crossplane with new functionality.
+This command builds a package file from a local directory of files.
 
-Crossplane supports configuration, provider and function packages. 
+Examples:
 
-Packages can embed a runtime image. When a package embeds a runtime image
-Crossplane can use the same OCI image to install and run the package. For
-example a provider package can embed the provider's controller image (its
-"runtime"). Crossplane will then use the package as the provider pod's image.
+  # Build a package from the files in the 'package' directory.
+  crossplane xpkg build --package-root=package/
 
-See the Crossplane documentation for more information on building packages:
-https://docs.crossplane.io/latest/concepts/packages/#building-a-package
+  # Build a package that embeds a Provider's controller OCI image built with
+  # 'docker build' so that the package can also be used to run the provider.
+  # Provider and Function packages support embedding runtime images.
+  crossplane xpkg build --embed-runtime-image=cc873e13cdc1
 `
 }
 
 // GetRuntimeBaseImageOpts returns the controller base image options.
 func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 	switch {
-	case c.EmbedRuntimeTarball != "":
-		img, err := tarball.ImageFromPath(filepath.Clean(c.EmbedRuntimeTarball), nil)
+	case c.EmbedRuntimeImageTarball != "":
+		img, err := tarball.ImageFromPath(filepath.Clean(c.EmbedRuntimeImageTarball), nil)
 		if err != nil {
 			return nil, errors.Wrap(err, errLoadRuntimeTarball)
 		}
@@ -150,8 +149,8 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 
 // GetOutputFileName prepares output file name.
 func (c *buildCmd) GetOutputFileName(meta runtime.Object, hash v1.Hash) (string, error) {
-	output := filepath.Clean(c.Output)
-	if c.Output == "" {
+	output := filepath.Clean(c.PackageFile)
+	if c.PackageFile == "" {
 		pkgMeta, ok := meta.(metav1.Object)
 		if !ok {
 			return "", errors.New(errGetNameFromMeta)

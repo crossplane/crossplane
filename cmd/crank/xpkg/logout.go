@@ -53,10 +53,11 @@ func (c *logoutCmd) AfterApply(kongCtx *kong.Context) error {
 
 // logoutCmd invalidates a stored session token for a given profile.
 type logoutCmd struct {
-	client up.Client
-
 	// Common Upbound API configuration
 	Flags upbound.Flags `embed:""`
+
+	// Internal state. These aren't part of the user-exposed CLI structure.
+	client up.Client
 }
 
 // Run executes the logout command.

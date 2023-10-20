@@ -55,15 +55,13 @@ const (
 
 // Flags are common flags used by commands that interact with Upbound.
 type Flags struct {
-	// Optional
-	Domain  *url.URL `env:"UP_DOMAIN" default:"https://upbound.io" help:"Root Upbound domain." json:"domain,omitempty"`
-	Profile string   `env:"UP_PROFILE" help:"Profile used to execute command." predictor:"profiles" json:"profile,omitempty"`
-	Account string   `short:"a" env:"UP_ACCOUNT" help:"Account used to execute command." json:"account,omitempty"`
+	// Keep sorted alphabetically.
+	Account               string   `short:"a" env:"UP_ACCOUNT" help:"Account used to execute command." json:"account,omitempty"`
+	Domain                *url.URL `env:"UP_DOMAIN" default:"https://upbound.io" help:"Root Upbound domain." json:"domain,omitempty"`
+	InsecureSkipTLSVerify bool     `env:"UP_INSECURE_SKIP_TLS_VERIFY" help:"[INSECURE] Skip verifying TLS certificates." json:"insecureSkipTLSVerify,omitempty"`
+	Profile               string   `env:"UP_PROFILE" help:"Profile used to execute command." predictor:"profiles" json:"profile,omitempty"`
 
-	// Insecure
-	InsecureSkipTLSVerify bool `env:"UP_INSECURE_SKIP_TLS_VERIFY" help:"[INSECURE] Skip verifying TLS certificates." json:"insecureSkipTLSVerify,omitempty"`
-
-	// Hidden
+	// Hidden flags.
 	APIEndpoint      *url.URL `env:"OVERRIDE_API_ENDPOINT" hidden:"" name:"override-api-endpoint" help:"Overrides the default API endpoint." json:"apiEndpoint,omitempty"`
 	RegistryEndpoint *url.URL `env:"OVERRIDE_REGISTRY_ENDPOINT" hidden:"" name:"override-registry-endpoint" help:"Overrides the default registry endpoint." json:"registryEndpoint,omitempty"`
 }
