@@ -14,12 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package resource contains the definition of the Resource used by all describe
+// Package resource contains the definition of the Resource used by all trace
 // printers, and the client used to get a Resource and its children.
 package resource
 
 import (
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -29,8 +28,8 @@ import (
 // Resource struct represents a kubernetes resource.
 type Resource struct {
 	Unstructured unstructured.Unstructured `json:"object"`
+	Error        error                     `json:"error,omitempty"`
 	Children     []*Resource               `json:"children,omitempty"`
-	LatestEvent  *v1.Event                 `json:"latestEvent,omitempty"`
 }
 
 // GetCondition of this resource.
@@ -40,5 +39,12 @@ func (r *Resource) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	if err := fieldpath.Pave(r.Unstructured.Object).GetValueInto("status", &conditioned); err != nil {
 		return xpv1.Condition{}
 	}
-	return conditioned.GetCondition(ct)
+	// We didn't use xpv1.CondidionedStatus.GetCondition because that's defaulting the
+	// status to unknown if the condition is not found at all.
+	for _, c := range conditioned.Conditions {
+		if c.Type == ct {
+			return c
+		}
+	}
+	return xpv1.Condition{}
 }

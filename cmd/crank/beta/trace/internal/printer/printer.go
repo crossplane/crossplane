@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/describe/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 const (
@@ -36,7 +36,9 @@ type Type string
 // Implemented PrinterTypes
 const (
 	TypeDefault Type = "default"
+	TypeWide    Type = "wide"
 	TypeJSON    Type = "json"
+	TypeDot     Type = "dot"
 )
 
 // Printer implements the interface which is used by all printers in this package.
@@ -51,8 +53,14 @@ func New(typeStr string) (Printer, error) {
 	switch Type(typeStr) {
 	case TypeDefault:
 		p = &DefaultPrinter{}
+	case TypeWide:
+		p = &DefaultPrinter{
+			wide: true,
+		}
 	case TypeJSON:
 		p = &JSONPrinter{}
+	case TypeDot:
+		p = &DotPrinter{}
 	default:
 		return nil, errors.Errorf(errFmtUnknownPrinterType, typeStr)
 	}
