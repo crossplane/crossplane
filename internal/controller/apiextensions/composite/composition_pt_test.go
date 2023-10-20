@@ -122,7 +122,7 @@ func TestPTCompose(t *testing.T) {
 						}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -160,7 +160,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 				},
 			},
 			args: args{
@@ -192,7 +192,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 				},
 			},
 			args: args{
@@ -224,7 +224,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
@@ -259,7 +259,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -297,7 +297,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -368,7 +368,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -427,7 +427,7 @@ func TestPTCompose(t *testing.T) {
 						}
 						return tas, nil
 					})),
-					WithComposedDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error {
+					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
 						if cd.GetObjectKind().GroupVersionKind().Kind == "BrokenResource" {
 							return errBoom
 						}
@@ -464,7 +464,7 @@ func TestPTCompose(t *testing.T) {
 					},
 					ConnectionDetails: details,
 					Events: []event.Event{
-						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtDryRunApply, "uncool-resource")),
+						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtGenerateName, "uncool-resource")),
 					},
 				},
 			},

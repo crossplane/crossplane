@@ -18,12 +18,15 @@ package composite
 import (
 	"context"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apiserver/pkg/storage/names"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -33,7 +36,7 @@ import (
 const (
 	errUnmarshalJSON      = "cannot unmarshal JSON data"
 	errMarshalProtoStruct = "cannot marshal protobuf Struct to JSON"
-	errName               = "cannot use dry-run create to name composed resource"
+	errGenerateName       = "cannot generate a name for a composed resource"
 	errSetControllerRef   = "cannot set controller reference"
 
 	errFmtKindChanged     = "cannot change the kind of a composed resource from %s to %s (possible composed resource template mismatch)"
@@ -143,51 +146,75 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	return errors.Wrap(meta.AddControllerReference(cd, or), errSetControllerRef)
 }
 
-// TODO(negz): Is this really a 'renderer'? It's simple enough that we should
-// just inline it into the PTComposer, which is now the only consumer.
+// TODO(negz): It's simple enough that we should just inline it into the
+// PTComposer, which is now the only consumer.
 
-// A DryRunRenderer performs a dry-run create to validate and name the supplied
-// managed resource.
-type DryRunRenderer interface {
-	DryRunRender(ctx context.Context, cd resource.Object) error
+// A NameGenerator finds a name for a composed resource with a
+// metadata.generateName value. The name is temporary available, but might be
+// taken by the time the composed resource is created.
+type NameGenerator interface {
+	GenerateName(ctx context.Context, cd resource.Object) error
 }
 
-// A DryRunRendererFn is a function that satisfies DryRunRenderer.
-type DryRunRendererFn func(ctx context.Context, cd resource.Object) error
+// A NameGeneratorFn is a function that satisfies NameGenerator.
+type NameGeneratorFn func(ctx context.Context, cd resource.Object) error
 
-// DryRunRender performs a dry-run create to validate and name the supplied
-// managed resource.
-func (fn DryRunRendererFn) DryRunRender(ctx context.Context, cd resource.Object) error {
+// GenerateName generates a name using the same algorithm as the API server, and
+// verifies temporary name availability. It does not submit the composed
+// resource to the API server and hence it does not fall over validation errors.
+func (fn NameGeneratorFn) GenerateName(ctx context.Context, cd resource.Object) error {
 	return fn(ctx, cd)
 }
 
-// An APIDryRunRenderer submits a resource to the API server in order to name
-// and validate it.
-type APIDryRunRenderer struct{ client client.Client }
-
-// NewAPIDryRunRenderer returns a Renderer that submits a resource to
-// the API server in order to name and validate it.
-func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
-	return &APIDryRunRenderer{client: c}
+// An APINameGenerator generates a name using the same algorithm as the API
+// server and verifies temporary name availability via the API.
+type APINameGenerator struct {
+	client client.Client
+	namer  names.NameGenerator
 }
 
-// DryRunRender submits the resource to the API server via a dry run create in
-// order to name and validate it.
-func (r *APIDryRunRenderer) DryRunRender(ctx context.Context, cd resource.Object) error {
-	// We don't want to dry-run create a resource that can't be named by the API
-	// server due to a missing generate name. We also don't want to create one
-	// that is already named, because doing so will result in an error. The API
-	// server seems to respond with a 500 ServerTimeout error for all dry-run
-	// failures, so we can't just perform a dry-run and ignore 409 Conflicts for
-	// resources that are already named.
+// NewAPINameGenerator returns a new NameGenerator against the API.
+func NewAPINameGenerator(c client.Client) *APINameGenerator {
+	return &APINameGenerator{client: c, namer: names.SimpleNameGenerator}
+}
+
+// GenerateName generates a name using the same algorithm as the API server, and
+// verifies temporary name availability. It does not submit the composed
+// resource to the API server and hence it does not fall over validation errors.
+func (r *APINameGenerator) GenerateName(ctx context.Context, cd resource.Object) error {
+	// Don't rename.
 	if cd.GetName() != "" || cd.GetGenerateName() == "" {
 		return nil
 	}
 
-	// The API server returns an available name derived from generateName when
-	// we perform a dry-run create. This name is likely (but not guaranteed) to
-	// be available when we create the composed resource. If the API server
-	// generates a name that is unavailable it will return a 500 ServerTimeout
-	// error.
-	return errors.Wrap(r.client.Create(ctx, cd, client.DryRunAll), errName)
+	// We guess a random name and verify that it is available. Names can become
+	// unavailable shortly after. Also the client.Get call could be a cache
+	// miss. We accepts that very little risk of a name collision though:
+	// 1. with 8 million names, a collision against 10k names is 0.01%. We retry
+	//    name generation 10 times, to reduce the risks to 0.01%^10, which is
+	//    acceptable.
+	// 2. the risk that a name gets taken between the client.Get and the
+	//    client.Create is that of a name conflict between objects just created
+	//    in that short time-span. There are 8 million (minus 10k) free names.
+	//    And if there are 100 objects created in parallel, chance of conflict
+	//    is 0.06% (birthday paradoxon). This is the best we can do here
+	//    locally. To reduce that risk even further the caller must employ a
+	//    conflict recovery mechanism.
+	maxTries := 10
+	for i := 0; i < maxTries; i++ {
+		name := r.namer.GenerateName(cd.GetGenerateName())
+		obj := composite.Unstructured{}
+		obj.SetGroupVersionKind(cd.GetObjectKind().GroupVersionKind())
+		err := r.client.Get(ctx, client.ObjectKey{Name: name}, &obj)
+		if kerrors.IsNotFound(err) {
+			// The name is available.
+			cd.SetName(name)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return errors.New(errGenerateName)
 }

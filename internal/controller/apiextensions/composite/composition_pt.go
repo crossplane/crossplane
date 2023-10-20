@@ -54,7 +54,7 @@ const (
 	errFmtRenderToCompositePatches     = "cannot render ToComposite patches for composed resource %q"
 	errFmtRenderFromEnvironmentPatches = "cannot render FromEnvironment patches for composed resource %q"
 	errFmtRenderMetadata               = "cannot render metadata for composed resource %q"
-	errFmtDryRunApply                  = "cannot dry-run apply composed resource %q"
+	errFmtGenerateName                 = "cannot generate a name for composed resource %q"
 	errFmtExtractDetails               = "cannot extract composite resource connection details from composed resource %q"
 	errFmtCheckReadiness               = "cannot check whether composed resource %q is ready"
 )
@@ -72,12 +72,11 @@ func WithTemplateAssociator(a CompositionTemplateAssociator) PTComposerOption {
 	}
 }
 
-// WithComposedDryRunRenderer configures how the PTComposer should dry-run
-// render composed resources - i.e. by submitting them to the API server to
-// generate a name for them.
-func WithComposedDryRunRenderer(r DryRunRenderer) PTComposerOption {
+// WithComposedNameGenerator configures how the PTComposer should generate names
+// for unnamed composed resources.
+func WithComposedNameGenerator(r NameGenerator) PTComposerOption {
 	return func(c *PTComposer) {
-		c.composed.DryRunRenderer = r
+		c.composed.NameGenerator = r
 	}
 }
 
@@ -107,7 +106,7 @@ func WithComposedConnectionDetailsExtractor(e ConnectionDetailsExtractor) PTComp
 }
 
 type composedResource struct {
-	DryRunRenderer
+	NameGenerator
 	managed.ConnectionDetailsFetcher
 	ConnectionDetailsExtractor
 	ReadinessChecker
@@ -136,7 +135,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
-			DryRunRenderer:             NewAPIDryRunRenderer(kube),
+			NameGenerator:              NewAPINameGenerator(kube),
 			ReadinessChecker:           ReadinessCheckerFn(IsReady),
 			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
 			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
@@ -233,8 +232,8 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			rendered = false
 		}
 
-		if err := c.composed.DryRunRender(ctx, r); err != nil {
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtDryRunApply, name)))
+		if err := c.composed.GenerateName(ctx, r); err != nil {
+			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtGenerateName, name)))
 			rendered = false
 		}
 
