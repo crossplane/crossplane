@@ -191,11 +191,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// hundreds of reconciles per second and ~200rps to the API
 		// server. Switching to Leases only and longer leases appears to
 		// alleviate this.
-		LeaderElection:             c.LeaderElection,
-		LeaderElectionID:           "crossplane-leader-election-core",
-		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
-		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
+		LeaderElection:                c.LeaderElection,
+		LeaderElectionID:              "crossplane-leader-election-core",
+		LeaderElectionResourceLock:    resourcelock.LeasesResourceLock,
+		LeaderElectionReleaseOnCancel: true,
+		LeaseDuration:                 func() *time.Duration { d := 60 * time.Second; return &d }(),
+		RenewDeadline:                 func() *time.Duration { d := 50 * time.Second; return &d }(),
 
 		HealthProbeBindAddress: ":8081",
 	})
