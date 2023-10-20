@@ -22,11 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -59,13 +56,6 @@ const (
 	tlsClientCertDirEnvVar   = "TLS_CLIENT_CERTS_DIR"
 	tlsClientCertsVolumeName = "tls-client-certs"
 	tlsClientCertsDir        = "/tls/client"
-)
-
-const (
-	errGetControllerConfig = "cannot get referenced controller config"
-	errNoRuntimeConfig     = "no deployment runtime config set"
-	errGetRuntimeConfig    = "cannot get referenced deployment runtime config"
-	errGetServiceAccount   = "cannot get Crossplane service account"
 )
 
 var (
@@ -108,51 +98,57 @@ type RuntimeManifestBuilder struct {
 	revision                  v1.PackageRevisionWithRuntime
 	namespace                 string
 	serviceAccountPullSecrets []corev1.LocalObjectReference
-	runtimeConfig             v1beta1.DeploymentRuntimeConfig
+	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 	controllerConfig          *v1alpha1.ControllerConfig
 }
 
+// RuntimeManifestBuilderOption is used to configure a RuntimeManifestBuilder.
+type RuntimeManifestBuilderOption func(*RuntimeManifestBuilder)
+
+// RuntimeManifestBuilderWithRuntimeConfig sets the deployment runtime config to
+// use when building the runtime manifests.
+func RuntimeManifestBuilderWithRuntimeConfig(rc *v1beta1.DeploymentRuntimeConfig) RuntimeManifestBuilderOption {
+	return func(b *RuntimeManifestBuilder) {
+		b.runtimeConfig = rc
+	}
+}
+
+// RuntimeManifestBuilderWithControllerConfig sets the controller config to use
+// when building the runtime manifests.
+func RuntimeManifestBuilderWithControllerConfig(cc *v1alpha1.ControllerConfig) RuntimeManifestBuilderOption {
+	return func(b *RuntimeManifestBuilder) {
+		b.controllerConfig = cc
+	}
+}
+
+// RuntimeManifestBuilderWithServiceAccountPullSecrets sets the service account
+// pull secrets to use when building the runtime manifests.
+func RuntimeManifestBuilderWithServiceAccountPullSecrets(secrets []corev1.LocalObjectReference) RuntimeManifestBuilderOption {
+	return func(b *RuntimeManifestBuilder) {
+		b.serviceAccountPullSecrets = secrets
+	}
+}
+
 // NewRuntimeManifestBuilder returns a new RuntimeManifestBuilder.
-func NewRuntimeManifestBuilder(ctx context.Context, c client.Client, namespace, serviceAccount string, pwr v1.PackageRevisionWithRuntime) (*RuntimeManifestBuilder, error) {
+func NewRuntimeManifestBuilder(pwr v1.PackageRevisionWithRuntime, namespace string, opts ...RuntimeManifestBuilderOption) *RuntimeManifestBuilder {
 	b := &RuntimeManifestBuilder{
 		namespace: namespace,
 		revision:  pwr,
 	}
 
-	rcRef := pwr.GetRuntimeConfigRef()
-	if rcRef == nil {
-		return nil, errors.New(errNoRuntimeConfig)
+	for _, o := range opts {
+		o(b)
 	}
 
-	rc := &v1beta1.DeploymentRuntimeConfig{}
-	if err := c.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
-		return nil, errors.Wrap(err, errGetRuntimeConfig)
-	}
-	b.runtimeConfig = *rc
-
-	if ccRef := pwr.GetControllerConfigRef(); ccRef != nil {
-		cc := &v1alpha1.ControllerConfig{}
-		if err := c.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
-			return nil, errors.Wrap(err, errGetControllerConfig)
-		}
-		b.controllerConfig = cc
-	}
-
-	sa := &corev1.ServiceAccount{}
-	// Fetch XP ServiceAccount to get the ImagePullSecrets defined there.
-	// We will append them to the list of ImagePullSecrets for the runtime
-	// ServiceAccount.
-	if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: serviceAccount}, sa); err != nil {
-		return nil, errors.Wrap(err, errGetServiceAccount)
-	}
-	b.serviceAccountPullSecrets = sa.ImagePullSecrets
-
-	return b, nil
+	return b
 }
 
 // ServiceAccount builds and returns the ServiceAccount manifest.
 func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
-	sa := serviceAccountFromRuntimeConfig(b.runtimeConfig.Spec.ServiceAccountTemplate)
+	sa := &corev1.ServiceAccount{}
+	if b.runtimeConfig != nil {
+		sa = serviceAccountFromRuntimeConfig(b.runtimeConfig.Spec.ServiceAccountTemplate)
+	}
 
 	var allOverrides []ServiceAccountOverride
 	allOverrides = append(allOverrides,
@@ -183,7 +179,10 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 
 // Deployment builds and returns the Deployment manifest.
 func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
-	d := deploymentFromRuntimeConfig(b.runtimeConfig.Spec.DeploymentTemplate)
+	d := &appsv1.Deployment{}
+	if b.runtimeConfig != nil {
+		d = deploymentFromRuntimeConfig(b.runtimeConfig.Spec.DeploymentTemplate)
+	}
 
 	var allOverrides []DeploymentOverride
 	allOverrides = append(allOverrides,
@@ -256,7 +255,10 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 
 // Service builds and returns the Service manifest.
 func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.Service {
-	svc := serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
+	svc := &corev1.Service{}
+	if b.runtimeConfig != nil {
+		svc = serviceFromRuntimeConfig(b.runtimeConfig.Spec.ServiceTemplate)
+	}
 
 	var allOverrides []ServiceOverride
 	allOverrides = append(allOverrides,

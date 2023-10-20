@@ -115,6 +115,7 @@ type startCommand struct {
 
 	EnableCompositionFunctions               bool `group:"Beta Features:" default:"true" help:"Enable support for Composition Functions."`
 	EnableCompositionWebhookSchemaValidation bool `group:"Beta Features:" default:"true" help:"Enable support for Composition validation using schemas."`
+	EnableDeploymentRuntimeConfigs           bool `group:"Beta Features:" default:"true" help:"Enable support for Deployment Runtime Configs."`
 
 	// These are GA features that previously had alpha or beta feature flags.
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
@@ -276,6 +277,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableRealtimeCompositions {
 		o.Features.Enable(features.EnableRealtimeCompositions)
 		log.Info("Alpha feature enabled", "flag", features.EnableRealtimeCompositions)
+	}
+	if c.EnableDeploymentRuntimeConfigs {
+		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaDeploymentRuntimeConfigs)
 	}
 
 	ao := apiextensionscontroller.Options{

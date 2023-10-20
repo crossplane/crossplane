@@ -197,7 +197,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				builder: &RuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
-					runtimeConfig: v1beta1.DeploymentRuntimeConfig{
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Spec: &appsv1.DeploymentSpec{
@@ -252,7 +252,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				builder: &RuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
-					runtimeConfig: v1beta1.DeploymentRuntimeConfig{
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
 								Metadata: &v1beta1.ObjectMeta{

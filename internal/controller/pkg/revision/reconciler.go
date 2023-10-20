@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,6 +51,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -82,10 +84,10 @@ const (
 	errNotOneMeta        = "cannot install package with multiple meta types"
 	errIncompatible      = "incompatible Crossplane version"
 
-	errManifestBuilder  = "cannot create runtime manifest builder"
-	errPreHook          = "pre establish runtime hook failed for package"
-	errPostHook         = "post establish runtime hook failed for package"
-	errDeactivationHook = "deactivation runtime hook failed for package"
+	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
+	errPreHook                = "pre establish runtime hook failed for package"
+	errPostHook               = "post establish runtime hook failed for package"
+	errDeactivationHook       = "deactivation runtime hook failed for package"
 
 	errEstablishControl = "cannot establish control of object"
 	errReleaseObjects   = "cannot release objects"
@@ -101,6 +103,11 @@ const (
 	errCannotBuildMetaSchema         = "cannot build meta scheme for package parser"
 	errCannotBuildObjectSchema       = "cannot build object scheme for package parser"
 	errCannotBuildFetcher            = "cannot build fetcher for package parser"
+
+	errGetControllerConfig = "cannot get referenced controller config"
+	errNoRuntimeConfig     = "no deployment runtime config set"
+	errGetRuntimeConfig    = "cannot get referenced deployment runtime config"
+	errGetServiceAccount   = "cannot get Crossplane service account"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -229,6 +236,14 @@ func WithServiceAccount(sa string) ReconcilerOption {
 	}
 }
 
+// WithRuntimeConfigEnabled specifies whether the Reconciler should enable
+// runtime configuration for package runtime.
+func WithRuntimeConfigEnabled(b bool) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.runtimeConfigEnabled = b
+	}
+}
+
 // uniqueResourceIdentifier returns a unique identifier for a resource in a
 // package, consisting of the group, version, kind, and name.
 func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
@@ -237,20 +252,21 @@ func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client         client.Client
-	cache          xpkg.PackageCache
-	revision       resource.Finalizer
-	lock           DependencyManager
-	runtimeHook    RuntimeHooks
-	objects        Establisher
-	parser         parser.Parser
-	linter         parser.Linter
-	versioner      version.Operations
-	backend        parser.Backend
-	log            logging.Logger
-	record         event.Recorder
-	namespace      string
-	serviceAccount string
+	client               client.Client
+	cache                xpkg.PackageCache
+	revision             resource.Finalizer
+	lock                 DependencyManager
+	runtimeHook          RuntimeHooks
+	objects              Establisher
+	parser               parser.Parser
+	linter               parser.Linter
+	versioner            version.Operations
+	backend              parser.Backend
+	log                  logging.Logger
+	record               event.Recorder
+	namespace            string
+	serviceAccount       string
+	runtimeConfigEnabled bool
 
 	newPackageRevision func() v1.PackageRevision
 }
@@ -305,9 +321,13 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
 		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
-		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
-			client: mgr.GetClient(),
-		})
+
+		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
+			ro = append(ro, WithRuntimeConfigEnabled(true))
+			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
+				client: mgr.GetClient(),
+			})
+		}
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
@@ -408,9 +428,13 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
 		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())))
-		cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
-			client: mgr.GetClient(),
-		})
+
+		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
+			ro = append(ro, WithRuntimeConfigEnabled(true))
+			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
+				client: mgr.GetClient(),
+			})
+		}
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
@@ -525,12 +549,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	var runtimeManifestBuilder ManifestBuilder
 	if r.runtimeHook != nil {
-		var err error
-		runtimeManifestBuilder, err = NewRuntimeManifestBuilder(ctx, r.client, r.namespace, r.serviceAccount, pr.(v1.PackageRevisionWithRuntime))
-		if err != nil {
-			log.Debug(errManifestBuilder, "error", err)
+		pwr := pr.(v1.PackageRevisionWithRuntime)
 
-			err = errors.Wrap(err, errManifestBuilder)
+		opts, err := r.runtimeManifestBuilderOptions(ctx, pwr)
+		if err != nil {
+			log.Debug(errManifestBuilderOptions, "error", err)
+
+			err = errors.Wrap(err, errManifestBuilderOptions)
 			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
 			_ = r.client.Status().Update(ctx, pr)
 
@@ -538,6 +563,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			return reconcile.Result{}, err
 		}
+
+		runtimeManifestBuilder = NewRuntimeManifestBuilder(pwr, r.namespace, opts...)
 	}
 
 	// Deactivate revision if it is inactive.
@@ -857,4 +884,42 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 	}
 
 	return nil
+}
+
+func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.PackageRevisionWithRuntime) ([]RuntimeManifestBuilderOption, error) {
+	var opts []RuntimeManifestBuilderOption
+
+	if r.runtimeConfigEnabled {
+		rcRef := pwr.GetRuntimeConfigRef()
+		if rcRef == nil {
+			return nil, errors.New(errNoRuntimeConfig)
+		}
+
+		rc := &v1beta1.DeploymentRuntimeConfig{}
+		if err := r.client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
+			return nil, errors.Wrap(err, errGetRuntimeConfig)
+		}
+		opts = append(opts, RuntimeManifestBuilderWithRuntimeConfig(rc))
+	}
+
+	cc := &v1alpha1.ControllerConfig{}
+	if ccRef := pwr.GetControllerConfigRef(); ccRef != nil {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
+			return nil, errors.Wrap(err, errGetControllerConfig)
+		}
+		opts = append(opts, RuntimeManifestBuilderWithControllerConfig(cc))
+	}
+
+	sa := &corev1.ServiceAccount{}
+	// Fetch XP ServiceAccount to get the ImagePullSecrets defined there.
+	// We will append them to the list of ImagePullSecrets for the runtime
+	// ServiceAccount.
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: r.namespace, Name: r.serviceAccount}, sa); err != nil {
+		return nil, errors.Wrap(err, errGetServiceAccount)
+	}
+	if len(sa.ImagePullSecrets) > 0 {
+		opts = append(opts, RuntimeManifestBuilderWithServiceAccountPullSecrets(sa.ImagePullSecrets))
+	}
+
+	return opts, nil
 }

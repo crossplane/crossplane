@@ -54,4 +54,9 @@ const (
 	// details.
 	// https://github.com/crossplane/crossplane/blob/f32496bed53a393c8239376fd8266ddf2ef84d61/design/design-doc-composition-validating-webhook.md
 	EnableBetaCompositionWebhookSchemaValidation feature.Flag = "EnableBetaCompositionWebhookSchemaValidation"
+
+	// EnableBetaDeploymentRuntimeConfigs enables beta support for deployment
+	// runtime configs. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/c2e206/design/one-pager-package-runtime-config.md
+	EnableBetaDeploymentRuntimeConfigs feature.Flag = "EnableBetaDeploymentRuntimeConfigs"
 )
