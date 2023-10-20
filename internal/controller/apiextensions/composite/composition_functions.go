@@ -57,7 +57,6 @@ const (
 	errEnvAsStruct              = "cannot encode environment to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
 
-	errFmtDryRunCreateCD             = "cannot name (i.e. dry-run create) composed resource %q"
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
@@ -100,6 +99,7 @@ type FunctionComposer struct {
 }
 
 type xr struct {
+	NameGenerator
 	managed.ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
@@ -191,6 +191,7 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 			ConnectionDetailsFetcher:         f,
 			ComposedResourceObserver:         NewExistingComposedResourceObserver(kube, f),
 			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(kube),
+			NameGenerator:                    NewAPINameGenerator(kube),
 		},
 
 		pipeline: r,
@@ -316,17 +317,17 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			return CompositionResult{}, errors.Wrapf(err, errFmtRenderMetadata, name)
 		}
 
-		// We (ab)use dry-run create to generate a unique, available name for
-		// our composed resource using metadata.generateName semantics. We want
-		// to allocate this name before we actually create the resource so that
-		// we can persist a resourceRef to it. This ensures we don't leak
-		// composed resources - see UpdateResourceRefs below.
+		// Generate a name. We want to allocate this name before we actually
+		// create the resource so that we can persist a resourceRef to it.
+		// This ensures we don't leak composed resources - see
+		// UpdateResourceRefs below.
+		// Note: there is no guarantee this names stays free. But the chance
+		// that it's taken before we create the object is low (there are 8
+		// million names).
 		if cd.GetName() == "" {
-			named := cd.DeepCopy()
-			if err := c.client.Create(ctx, named, client.FieldOwner(FieldOwnerComposed), client.DryRunAll); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtDryRunCreateCD, name)
+			if err := c.composite.GenerateName(ctx, cd); err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtGenerateName, name)
 			}
-			cd.SetName(named.GetName())
 		}
 
 		// TODO(negz): Should we try to automatically derive readiness if the

@@ -265,11 +265,11 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrapf(RenderComposedResourceMetadata(nil, composite.New(), ""), errFmtRenderMetadata, "cool-resource"),
 			},
 		},
-		"DryRunCreateComposedResourceError": {
-			reason: "We should return any error we encounter when dry-run creating a composed resource",
+		"GenerateNameCreateComposedResourceError": {
+			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
 				kube: &test.MockClient{
-					MockCreate: test.NewMockCreateFn(errBoom),
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 				r: FunctionRunnerFn(func(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
 					d := &v1beta1.State{
@@ -311,7 +311,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtDryRunCreateCD, "cool-resource"),
+				err: errors.Wrapf(errBoom, errFmtGenerateName, "cool-resource"),
 			},
 		},
 		"GarbageCollectComposedResourcesError": {
@@ -454,7 +454,7 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error we encounter when applying a composed resource",
 			params: params{
 				kube: &test.MockClient{
-					MockCreate: test.NewMockCreateFn(nil),
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")), // all names are available
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error if we're patching a
 						// composed resource.
@@ -514,7 +514,7 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
 				kube: &test.MockClient{
-					MockCreate:      test.NewMockCreateFn(nil),
+					MockGet:         test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")), // all names are available
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
