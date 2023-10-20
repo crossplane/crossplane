@@ -67,7 +67,7 @@ type installCmd struct {
 
 func (c *installCmd) Help() string {
 	return `
-This command installs a package into a Crossplane control plane. It uses
+This command installs a package in a Crossplane control plane. It uses
 ~/.kube/config to connect to the control plane. You can override this using the
 KUBECONFIG environment variable.
 
