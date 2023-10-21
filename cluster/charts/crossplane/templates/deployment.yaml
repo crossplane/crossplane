@@ -123,16 +123,13 @@ spec:
         name: {{ .Chart.Name }}
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: healthz
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: healthz
+        startupProbe:
+          tcpSocket:
+            port: readyz
+            failureThreshold: 30
+            periodSeconds: 2
         ports:
-        - name: healthz
+        - name: readyz
           containerPort: 8081
         {{- if .Values.metrics.enabled }}
         - name: metrics
