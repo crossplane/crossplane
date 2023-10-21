@@ -38,6 +38,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -236,11 +237,10 @@ func WithServiceAccount(sa string) ReconcilerOption {
 	}
 }
 
-// WithRuntimeConfigEnabled specifies whether the Reconciler should enable
-// runtime configuration for package runtime.
-func WithRuntimeConfigEnabled(b bool) ReconcilerOption {
+// WithFeatureFlags specifies the feature flags to inject into the Reconciler.
+func WithFeatureFlags(f *feature.Flags) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.runtimeConfigEnabled = b
+		r.features = f
 	}
 }
 
@@ -252,21 +252,21 @@ func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client               client.Client
-	cache                xpkg.PackageCache
-	revision             resource.Finalizer
-	lock                 DependencyManager
-	runtimeHook          RuntimeHooks
-	objects              Establisher
-	parser               parser.Parser
-	linter               parser.Linter
-	versioner            version.Operations
-	backend              parser.Backend
-	log                  logging.Logger
-	record               event.Recorder
-	namespace            string
-	serviceAccount       string
-	runtimeConfigEnabled bool
+	client         client.Client
+	cache          xpkg.PackageCache
+	revision       resource.Finalizer
+	lock           DependencyManager
+	runtimeHook    RuntimeHooks
+	objects        Establisher
+	parser         parser.Parser
+	linter         parser.Linter
+	versioner      version.Operations
+	backend        parser.Backend
+	log            logging.Logger
+	record         event.Recorder
+	features       *feature.Flags
+	namespace      string
+	serviceAccount string
 
 	newPackageRevision func() v1.PackageRevision
 }
@@ -317,13 +317,13 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
+		WithFeatureFlags(o.Features),
 	}
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
 		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
 
 		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-			ro = append(ro, WithRuntimeConfigEnabled(true))
 			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
 				client: mgr.GetClient(),
 			})
@@ -369,6 +369,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
+		WithFeatureFlags(o.Features),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -424,13 +425,13 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
+		WithFeatureFlags(o.Features),
 	}
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
 		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())))
 
 		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-			ro = append(ro, WithRuntimeConfigEnabled(true))
 			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 				client: mgr.GetClient(),
 			})
@@ -889,7 +890,7 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.PackageRevisionWithRuntime) ([]RuntimeManifestBuilderOption, error) {
 	var opts []RuntimeManifestBuilderOption
 
-	if r.runtimeConfigEnabled {
+	if r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
 		rcRef := pwr.GetRuntimeConfigRef()
 		if rcRef == nil {
 			return nil, errors.New(errNoRuntimeConfig)
