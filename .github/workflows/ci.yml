@@ -68,6 +68,7 @@ jobs:
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: false # golang-ci-lint-action does its own caching
 
       # We could run 'make lint' to ensure our desired Go version, but we prefer
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
