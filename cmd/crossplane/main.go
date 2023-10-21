@@ -78,6 +78,8 @@ func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // Bef
 }
 
 func main() {
+	fmt.Println("cache me")
+
 	zl := zap.New().WithName("crossplane")
 	// Setting the controller-runtime logger to a no-op logger by default,
 	// unless debug mode is enabled. This is because the controller-runtime
