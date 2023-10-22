@@ -42,6 +42,15 @@ import (
 const (
 	errGetwd           = "failed to get working directory while searching for package"
 	errFindPackageinWd = "failed to find a package in current working directory"
+
+	errFmtNewTag        = "failed to parse package tag %q"
+	errFmtReadPackage   = "failed to read package file %s"
+	errFmtPushPackage   = "failed to push package file %s"
+	errFmtGetDigest     = "failed to get digest of package file %s"
+	errFmtNewDigest     = "failed to parse digest %q for package file %s"
+	errFmtGetMediaType  = "failed to get media type of package file %s"
+	errFmtGetConfigFile = "failed to get OCI config file of package file %s"
+	errFmtWriteIndex    = "failed to push an OCI image index of %d packages"
 )
 
 // DefaultRegistry for pushing Crossplane packages.
@@ -67,7 +76,7 @@ version.
 
 Examples:
 
-  # Push a multi-architecture package.
+  # Push a multi-platform package.
   crossplane xpkg push -f function-amd64.xpkg,function-arm64.xpkg crossplane/function-example:v1.0.0
 
   # Push the xpkg file in the current directory to a different registry.
@@ -83,25 +92,20 @@ func (c *pushCmd) AfterApply() error {
 
 // Run runs the push cmd.
 func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This feels easier to read as-is.
-	logger = logger.WithValues("image", c.Package)
 	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 	if err != nil {
-		logger.Debug("Failed to create tag for package", "error", err)
-		return err
+		return errors.Wrapf(err, errFmtNewTag, c.Package)
 	}
 
 	// If package is not defined, attempt to find single package in current
 	// directory.
 	if len(c.PackageFiles) == 0 {
-		logger.Debug("Trying to find package in current directory")
 		wd, err := os.Getwd()
 		if err != nil {
-			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errGetwd))
 			return errors.Wrap(err, errGetwd)
 		}
 		path, err := xpkg.FindXpkgInDir(c.fs, wd)
 		if err != nil {
-			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errFindPackageinWd))
 			return errors.Wrap(err, errFindPackageinWd)
 		}
 		c.PackageFiles = []string{path}
@@ -117,14 +121,12 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 	if len(c.PackageFiles) == 1 {
 		img, err := tarball.ImageFromPath(c.PackageFiles[0], nil)
 		if err != nil {
-			logger.Debug("Failed to create image from package tarball", "error", err)
-			return err
+			return errors.Wrapf(err, errFmtReadPackage, c.PackageFiles[0])
 		}
 		if err := remote.Write(tag, img, remote.WithAuthFromKeychain(kc)); err != nil {
-			logger.Debug("Failed to push created image to remote location", "error", err)
-			return err
+			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
 		}
-		return nil
+		logger.Debug("Pushed package", "path", c.PackageFiles[0], "ref", tag.String())
 	}
 
 	// If there's more than one package file we'll write (push) them all by
@@ -137,26 +139,27 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 		g.Go(func() error {
 			img, err := tarball.ImageFromPath(filepath.Clean(file), nil)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, errFmtReadPackage, file)
 			}
 
 			d, err := img.Digest()
 			if err != nil {
-				return err
+				return errors.Wrapf(err, errFmtGetDigest, file)
 			}
-			ref, err := name.NewDigest(fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String()), name.WithDefaultRegistry(DefaultRegistry))
+			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
+			ref, err := name.NewDigest(n, name.WithDefaultRegistry(DefaultRegistry))
 			if err != nil {
-				return err
+				return errors.Wrapf(err, errFmtNewDigest, n, file)
 			}
 
 			mt, err := img.MediaType()
 			if err != nil {
-				return err
+				return errors.Wrapf(err, errFmtGetMediaType, file)
 			}
 
 			conf, err := img.ConfigFile()
 			if err != nil {
-				return err
+				return errors.Wrapf(err, errFmtGetConfigFile, file)
 			}
 
 			adds[i] = mutate.IndexAddendum{
@@ -170,7 +173,11 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 					},
 				},
 			}
-			return remote.Write(ref, img, remote.WithAuthFromKeychain(kc), remote.WithContext(ctx))
+			if err := remote.Write(ref, img, remote.WithAuthFromKeychain(kc), remote.WithContext(ctx)); err != nil {
+				return errors.Wrapf(err, errFmtPushPackage, file)
+			}
+			logger.Debug("Pushed package", "path", file, "ref", ref.String())
+			return nil
 		})
 	}
 
@@ -178,5 +185,9 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 		return err
 	}
 
-	return remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), remote.WithAuthFromKeychain(kc))
+	if err := remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), remote.WithAuthFromKeychain(kc)); err != nil {
+		return errors.Wrapf(err, errFmtWriteIndex, len(adds))
+	}
+	logger.Debug("Wrote OCI index", "ref", tag.String(), "manifests", len(adds))
+	return nil
 }
