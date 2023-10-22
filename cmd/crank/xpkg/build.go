@@ -133,7 +133,11 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 		}
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	case c.EmbedRuntimeImage != "":
-		ref, err := name.ParseReference(c.EmbedRuntimeImage, name.WithDefaultRegistry(DefaultRegistry))
+		// We intentionally don't override the default registry here. Doing so
+		// leads to unintuitive behavior, in that you can't tag your runtime
+		// image as some/image:latest then pass that same tag to xpkg build.
+		// Instead you'd need to pass index.docker.io/some/image:latest.
+		ref, err := name.ParseReference(c.EmbedRuntimeImage)
 		if err != nil {
 			return nil, errors.Wrap(err, errParseRuntimeImageRef)
 		}
