@@ -17,13 +17,20 @@ limitations under the License.
 package xpkg
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -46,7 +53,7 @@ type pushCmd struct {
 	Package string `arg:"" help:"Where to push the package."`
 
 	// Flags. Keep sorted alphabetically.
-	PackageFile string `short:"f" type:"existingfile" placeholder:"PATH" help:"The xpkg file to push."`
+	PackageFiles []string `short:"f" type:"existingfile" placeholder:"PATH" help:"A comma-separated list of xpkg files to push."`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs afero.Fs
@@ -60,8 +67,8 @@ version.
 
 Examples:
 
-  # Push a package.
-  crossplane xpkg push -f function-example.xpkg crossplane/function-example:v1.0.0
+  # Push a multi-architecture package.
+  crossplane xpkg push -f function-amd64.xpkg,function-arm64.xpkg crossplane/function-example:v1.0.0
 
   # Push the xpkg file in the current directory to a different registry.
   crossplane xpkg push index.docker.io/crossplane/function-example:v1.0.0
@@ -75,7 +82,7 @@ func (c *pushCmd) AfterApply() error {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(logger logging.Logger) error {
+func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This feels easier to read as-is.
 	logger = logger.WithValues("image", c.Package)
 	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(DefaultRegistry))
 	if err != nil {
@@ -85,7 +92,7 @@ func (c *pushCmd) Run(logger logging.Logger) error {
 
 	// If package is not defined, attempt to find single package in current
 	// directory.
-	if c.PackageFile == "" {
+	if len(c.PackageFiles) == 0 {
 		logger.Debug("Trying to find package in current directory")
 		wd, err := os.Getwd()
 		if err != nil {
@@ -97,21 +104,79 @@ func (c *pushCmd) Run(logger logging.Logger) error {
 			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errFindPackageinWd))
 			return errors.Wrap(err, errFindPackageinWd)
 		}
-		c.PackageFile = path
+		c.PackageFiles = []string{path}
 		logger.Debug("Found package in directory", "path", path)
 	}
-	img, err := tarball.ImageFromPath(c.PackageFile, nil)
-	if err != nil {
-		logger.Debug("Failed to create image from package tarball", "error", err)
-		return err
-	}
+
 	kc := authn.NewMultiKeychain(
 		authn.NewKeychainFromHelper(credhelper.New()),
 		authn.DefaultKeychain,
 	)
-	if err := remote.Write(tag, img, remote.WithAuthFromKeychain(kc)); err != nil {
-		logger.Debug("Failed to push created image to remote location", "error", err)
+
+	// If there's only one package file, handle the simple path.
+	if len(c.PackageFiles) == 1 {
+		img, err := tarball.ImageFromPath(c.PackageFiles[0], nil)
+		if err != nil {
+			logger.Debug("Failed to create image from package tarball", "error", err)
+			return err
+		}
+		if err := remote.Write(tag, img, remote.WithAuthFromKeychain(kc)); err != nil {
+			logger.Debug("Failed to push created image to remote location", "error", err)
+			return err
+		}
+		return nil
+	}
+
+	// If there's more than one package file we'll write (push) them all by
+	// their digest, and create an index with the specified tag. This pattern is
+	// typically used to create a multi-platform image.
+	adds := make([]mutate.IndexAddendum, len(c.PackageFiles))
+	g, ctx := errgroup.WithContext(context.Background())
+	for i, file := range c.PackageFiles {
+		i, file := i, file // Pin range variables for use in goroutine
+		g.Go(func() error {
+			img, err := tarball.ImageFromPath(filepath.Clean(file), nil)
+			if err != nil {
+				return err
+			}
+
+			d, err := img.Digest()
+			if err != nil {
+				return err
+			}
+			ref, err := name.NewDigest(fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String()), name.WithDefaultRegistry(DefaultRegistry))
+			if err != nil {
+				return err
+			}
+
+			mt, err := img.MediaType()
+			if err != nil {
+				return err
+			}
+
+			conf, err := img.ConfigFile()
+			if err != nil {
+				return err
+			}
+
+			adds[i] = mutate.IndexAddendum{
+				Add: img,
+				Descriptor: v1.Descriptor{
+					MediaType: mt,
+					Platform: &v1.Platform{
+						Architecture: conf.Architecture,
+						OS:           conf.OS,
+						OSVersion:    conf.OSVersion,
+					},
+				},
+			}
+			return remote.Write(ref, img, remote.WithAuthFromKeychain(kc), remote.WithContext(ctx))
+		})
+	}
+
+	if err := g.Wait(); err != nil {
 		return err
 	}
-	return nil
+
+	return remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), remote.WithAuthFromKeychain(kc))
 }
