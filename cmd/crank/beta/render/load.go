@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -108,10 +109,11 @@ func LoadYAMLStream(fileOrDir string) ([][]byte, error) {
 	if !info.IsDir() {
 		files = append(files, fileOrDir)
 	} else {
-		files, err = filepath.Glob(filepath.Join(fileOrDir, "*.{yaml,yml}"))
+		yamls, err := getYAMLFiles(fileOrDir)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot glob YAML files")
+			return nil, errors.Wrap(err, "cannot get YAML files")
 		}
+		files = append(files, yamls...)
 		if len(files) == 0 {
 			return nil, errors.Errorf("no YAML files found in %q (.yaml or .yml)", fileOrDir)
 		}
@@ -127,6 +129,24 @@ func LoadYAMLStream(fileOrDir string) ([][]byte, error) {
 	}
 
 	return out, nil
+}
+
+// getYAMLFiles returns a list of YAML files in the supplied directory, ignoring any subdirectory.
+func getYAMLFiles(dir string) (yamls []string, err error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read directory")
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// We don't care about nested directories.
+			continue
+		}
+		if ext := strings.ToLower(filepath.Ext(entry.Name())); ext == ".yaml" || ext == ".yml" {
+			yamls = append(yamls, filepath.Join(dir, entry.Name()))
+		}
+	}
+	return yamls, nil
 }
 
 // LoadYAMLStreamFromFile from the supplied file. Returns an array of byte
