@@ -349,7 +349,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "cannot start controller manager")
 }
 
-// SetupProbes sets up the health and ready probes.
+// SetupProbes sets up the health and readiness probes.
 func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
 	// Add default readiness probe
 	if err := mgr.AddReadyzCheck("ping", healthz.Ping); err != nil {
