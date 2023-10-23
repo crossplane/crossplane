@@ -17,11 +17,14 @@ limitations under the License.
 package render
 
 import (
+	"embed"
 	"encoding/json"
 	"testing"
+	"testing/fstest"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/afero"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -32,9 +35,17 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+
+	_ "embed"
+)
+
+var (
+	//go:embed testdata
+	testdatafs embed.FS
 )
 
 func TestLoadCompositeResource(t *testing.T) {
+	fs := afero.FromIOFS{FS: testdatafs}
 	type want struct {
 		xr  *composite.Unstructured
 		err error
@@ -72,7 +83,7 @@ func TestLoadCompositeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			xr, err := LoadCompositeResource(tc.file)
+			xr, err := LoadCompositeResource(fs, tc.file)
 
 			if diff := cmp.Diff(tc.want.xr, xr, test.EquateConditions()); diff != "" {
 				t.Errorf("LoadCompositeResource(..), -want, +got:\n%s", diff)
@@ -86,6 +97,7 @@ func TestLoadCompositeResource(t *testing.T) {
 }
 
 func TestLoadComposition(t *testing.T) {
+	fs := afero.FromIOFS{FS: testdatafs}
 	pipeline := apiextensionsv1.CompositionModePipeline
 
 	type want struct {
@@ -129,7 +141,7 @@ func TestLoadComposition(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			xr, err := LoadComposition(tc.file)
+			xr, err := LoadComposition(fs, tc.file)
 
 			if diff := cmp.Diff(tc.want.comp, xr, test.EquateConditions()); diff != "" {
 				t.Errorf("LoadComposition(..), -want, +got:\n%s", diff)
@@ -143,6 +155,7 @@ func TestLoadComposition(t *testing.T) {
 }
 
 func TestLoadFunctions(t *testing.T) {
+	fs := afero.FromIOFS{FS: testdatafs}
 
 	type want struct {
 		fns []pkgv1beta1.Function
@@ -205,7 +218,7 @@ func TestLoadFunctions(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			xr, err := LoadFunctions(tc.file)
+			xr, err := LoadFunctions(fs, tc.file)
 
 			if diff := cmp.Diff(tc.want.fns, xr, test.EquateConditions()); diff != "" {
 				t.Errorf("LoadFunctions(..), -want, +got:\n%s", diff)
@@ -219,6 +232,7 @@ func TestLoadFunctions(t *testing.T) {
 }
 
 func TestLoadObservedResources(t *testing.T) {
+	fs := afero.FromIOFS{FS: testdatafs}
 
 	type want struct {
 		ors []composed.Unstructured
@@ -275,7 +289,7 @@ func TestLoadObservedResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			xr, err := LoadObservedResources(tc.file)
+			xr, err := LoadObservedResources(fs, tc.file)
 
 			if diff := cmp.Diff(tc.want.ors, xr, test.EquateConditions()); diff != "" {
 				t.Errorf("LoadObservedResources(..), -want, +got:\n%s", diff)
@@ -283,6 +297,94 @@ func TestLoadObservedResources(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("LoadObservedResources(..), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestLoadYAMLStream(t *testing.T) {
+	type args struct {
+		file string
+		fs   afero.Fs
+	}
+	type want struct {
+		out [][]byte
+		err error
+	}
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"Success": {
+			args: args{
+				file: "testdata/observed.yaml",
+				fs: afero.FromIOFS{FS: fstest.MapFS{
+					"testdata/observed.yaml": &fstest.MapFile{
+						Data: []byte(`---
+test: "test"
+---
+test: "test2"
+`),
+					},
+				},
+				},
+			},
+			want: want{
+				out: [][]byte{
+					[]byte("---\ntest: \"test\"\n"),
+					[]byte("test: \"test2\"\n"),
+				},
+			},
+		},
+		"NoSuchFile": {
+			args: args{
+				file: "testdata/nonexist.yaml",
+				fs:   afero.FromIOFS{FS: fstest.MapFS{}},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"SuccessWithSubdirectory": {
+			args: args{
+				file: "testdata",
+				fs: afero.FromIOFS{FS: fstest.MapFS{
+					"testdata/file-1.yaml": &fstest.MapFile{
+						Data: []byte(`---
+test: "file-1"
+`),
+					},
+					"testdata/file-2.yaml": &fstest.MapFile{
+						Data: []byte(`---
+test: "file-2"
+`),
+					},
+					"testdata/file-3.txt": &fstest.MapFile{
+						Data: []byte(`THIS SHOULD NOT BE LOADED`),
+					},
+				}},
+			},
+			want: want{
+				out: [][]byte{
+					[]byte("---\ntest: \"file-1\"\n"),
+					[]byte("---\ntest: \"file-2\"\n"),
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f, err := LoadYAMLStream(tc.args.fs, tc.args.file)
+
+			if diff := cmp.Diff(tc.want.out, f, cmpopts.AcyclicTransformer("string", func(in []byte) string {
+				return string(in)
+			})); diff != "" {
+				t.Errorf("LoadYAMLStreamFromFile(..), -want, +got:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("LoadYAMLStreamFromFile(..), -want, +got:\n%s", diff)
 			}
 		})
 	}
