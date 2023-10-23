@@ -249,8 +249,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
 	}
 	if c.EnableCompositionWebhookSchemaValidation {
-		o.Features.Enable(features.EnableAlphaCompositionWebhookSchemaValidation)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionWebhookSchemaValidation)
+		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
 	}
 	if c.EnableUsages {
 		o.Features.Enable(features.EnableAlphaUsages)

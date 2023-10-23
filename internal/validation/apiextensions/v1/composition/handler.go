@@ -55,7 +55,7 @@ const (
 
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
-	if options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
+	if options.Features.Enabled(features.EnableBetaCompositionWebhookSchemaValidation) {
 		// Setup an index on CRDs so we can retrieve them by group and kind.
 		// The index is used by the getCRD function below.
 		indexer := mgr.GetFieldIndexer()
@@ -91,7 +91,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 		return warns, kerrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), validationErrs)
 	}
 
-	if !v.options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
+	if !v.options.Features.Enabled(features.EnableBetaCompositionWebhookSchemaValidation) {
 		return warns, nil
 	}
 
