@@ -29,6 +29,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -138,9 +139,12 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
 
-	ors, err := LoadObservedResources(c.fs, c.ObservedResources)
-	if err != nil {
-		return errors.Wrapf(err, "cannot load observed composed resources from %q", c.ObservedResources)
+	ors := []composed.Unstructured{}
+	if c.ObservedResources != "" {
+		ors, err = LoadObservedResources(c.fs, c.ObservedResources)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load observed composed resources from %q", c.ObservedResources)
+		}
 	}
 
 	fctx := map[string][]byte{}
