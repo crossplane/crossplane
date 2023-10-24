@@ -903,6 +903,13 @@ func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.P
 		opts = append(opts, RuntimeManifestBuilderWithRuntimeConfig(rc))
 	}
 
+	// Note(turkenh): Until we completely remove the old controller config
+	// reference, we support both the old and the new way with DeploymentRuntimeConfig.
+	// If both are specified, we will start with DeploymentRuntimeConfig as the
+	// base, apply optional and mandatory overrides and finally apply the
+	// ControllerConfig on top. While it sounds like we are giving precedence
+	// to the ControllerConfig, this is to make sure that we keep the old
+	// behavior of the controller config reference for existing users.
 	cc := &v1alpha1.ControllerConfig{}
 	if ccRef := pwr.GetControllerConfigRef(); ccRef != nil {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: ccRef.Name}, cc); err != nil {
