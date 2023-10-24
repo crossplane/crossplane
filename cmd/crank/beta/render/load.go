@@ -53,7 +53,15 @@ func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, er
 		return nil, errors.Wrap(err, "cannot read composition file")
 	}
 	comp := &apiextensionsv1.Composition{}
-	return comp, errors.Wrap(yaml.Unmarshal(y, comp), "cannot unmarshal composition resource YAML")
+	if err := yaml.Unmarshal(y, comp); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal composition resource YAML")
+	}
+	switch gvk := comp.GroupVersionKind(); gvk {
+	case apiextensionsv1.CompositionGroupVersionKind:
+		return comp, nil
+	default:
+		return nil, errors.Errorf("not a composition: %s/%s", gvk.Kind, comp.GetName())
+	}
 }
 
 // TODO(negz): Support optionally loading functions and observed resources from
@@ -72,7 +80,12 @@ func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1beta1.Function, error)
 		if err := yaml.Unmarshal(y, f); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML Function manifest")
 		}
-		functions = append(functions, *f)
+		switch gvk := f.GroupVersionKind(); gvk {
+		case pkgv1beta1.FunctionGroupVersionKind:
+			functions = append(functions, *f)
+		default:
+			return nil, errors.Errorf("not a function: %s/%s", gvk.Kind, f.GetName())
+		}
 	}
 
 	return functions, nil
