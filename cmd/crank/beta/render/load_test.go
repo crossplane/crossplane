@@ -35,8 +35,6 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
-
-	_ "embed"
 )
 
 var (
@@ -137,6 +135,12 @@ func TestLoadComposition(t *testing.T) {
 				err: cmpopts.AnyError,
 			},
 		},
+		"NotAComposition": {
+			file: "testdata/xr.yaml",
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -210,6 +214,12 @@ func TestLoadFunctions(t *testing.T) {
 		},
 		"NoSuchFile": {
 			file: "testdata/nonexist.yaml",
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"NotAFunction": {
+			file: "testdata/xr.yaml",
 			want: want{
 				err: cmpopts.AnyError,
 			},
