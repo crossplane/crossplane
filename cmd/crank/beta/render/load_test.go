@@ -362,6 +362,9 @@ test: "file-2"
 					"testdata/file-3.txt": &fstest.MapFile{
 						Data: []byte(`THIS SHOULD NOT BE LOADED`),
 					},
+					"testdata/subdir/file-4.yaml": &fstest.MapFile{
+						Data: []byte(`THIS IS IN A SUBDIRECTORY AND SHOULD NOT BE LOADED`),
+					},
 				}},
 			},
 			want: want{

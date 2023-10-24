@@ -134,9 +134,16 @@ func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
 	return out, nil
 }
 
-// getYAMLFiles returns a list of YAML files in the supplied directory, ignoring any subdirectory.
+// getYAMLFiles returns a list of YAML files from the supplied directory, sorted
+// by file name, ignoring any subdirectory.
 func getYAMLFiles(fs afero.Fs, dir string) (files []string, err error) {
-	// We don't care about nested directories.
+	// We don't care about nested directories, so we decided to go with a plain
+	// ReadDir, instead of a Walk.
+	//
+	// Previously we used Glob, but the pattern doesn't support the
+	// `.{yaml,yml}` syntax, so we would have had to run it twice, merge the
+	// results and sort them again. This just felt easier to switch to afero.Walk if
+	// we ever decided to support subdirectories.
 	entries, err := afero.ReadDir(fs, dir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read directory")
