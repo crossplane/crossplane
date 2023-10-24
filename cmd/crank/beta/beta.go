@@ -21,6 +21,7 @@ package beta
 
 import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/render"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace"
 	"github.com/crossplane/crossplane/cmd/crank/beta/xpkg"
 )
 
@@ -29,6 +30,7 @@ type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
 	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
+	Trace  trace.Cmd  `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
 	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
 }
 
