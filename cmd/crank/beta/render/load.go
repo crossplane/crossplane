@@ -19,9 +19,9 @@ package render
 import (
 	"bufio"
 	"io"
-	"os"
 	"path/filepath"
 
+	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -33,8 +33,8 @@ import (
 )
 
 // LoadCompositeResource from a YAML manifest.
-func LoadCompositeResource(file string) (*composite.Unstructured, error) {
-	y, err := os.ReadFile(file) //nolint:gosec // Taking this input is intentional.
+func LoadCompositeResource(fs afero.Fs, file string) (*composite.Unstructured, error) {
+	y, err := afero.ReadFile(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read composite resource file")
 	}
@@ -47,21 +47,21 @@ func LoadCompositeResource(file string) (*composite.Unstructured, error) {
 // we match XRs to Compositions (e.g. selectors, refs etc)
 
 // LoadComposition form a YAML manifest.
-func LoadComposition(file string) (*apiextensionsv1.Composition, error) {
-	y, err := os.ReadFile(file) //nolint:gosec // Taking this as input is intentional.
+func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, error) {
+	y, err := afero.ReadFile(fs, file)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot read composite resource file")
+		return nil, errors.Wrap(err, "cannot read composition file")
 	}
 	comp := &apiextensionsv1.Composition{}
-	return comp, errors.Wrap(yaml.Unmarshal(y, comp), "cannot unmarshal composite resource YAML")
+	return comp, errors.Wrap(yaml.Unmarshal(y, comp), "cannot unmarshal composition resource YAML")
 }
 
 // TODO(negz): Support optionally loading functions and observed resources from
 // a directory of manifests instead of a single stream.
 
 // LoadFunctions from a stream of YAML manifests.
-func LoadFunctions(file string) ([]pkgv1beta1.Function, error) {
-	stream, err := LoadYAMLStream(file)
+func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1beta1.Function, error) {
+	stream, err := LoadYAMLStream(filesys, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from file")
 	}
@@ -79,8 +79,8 @@ func LoadFunctions(file string) ([]pkgv1beta1.Function, error) {
 }
 
 // LoadObservedResources from a stream of YAML manifests.
-func LoadObservedResources(file string) ([]composed.Unstructured, error) {
-	stream, err := LoadYAMLStream(file)
+func LoadObservedResources(fs afero.Fs, file string) ([]composed.Unstructured, error) {
+	stream, err := LoadYAMLStream(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from file")
 	}
@@ -99,19 +99,24 @@ func LoadObservedResources(file string) ([]composed.Unstructured, error) {
 
 // LoadYAMLStream from the supplied file or directory. Returns an array of byte
 // arrays, where each byte array is expected to be a YAML manifest.
-func LoadYAMLStream(fileOrDir string) ([][]byte, error) {
+func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
 	var files []string
-	info, err := os.Stat(fileOrDir)
+	f, err := filesys.Open(fileOrDir)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot open file")
+	}
+	info, err := f.Stat()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot stat file")
 	}
 	if !info.IsDir() {
 		files = append(files, fileOrDir)
 	} else {
-		files, err = filepath.Glob(filepath.Join(fileOrDir, "*.{yaml,yml}"))
+		yamls, err := getYAMLFiles(filesys, fileOrDir)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot glob YAML files")
+			return nil, errors.Wrap(err, "cannot get YAML files")
 		}
+		files = append(files, yamls...)
 		if len(files) == 0 {
 			return nil, errors.Errorf("no YAML files found in %q (.yaml or .yml)", fileOrDir)
 		}
@@ -119,7 +124,7 @@ func LoadYAMLStream(fileOrDir string) ([][]byte, error) {
 
 	out := make([][]byte, 0)
 	for i := range files {
-		o, err := LoadYAMLStreamFromFile(files[i])
+		o, err := LoadYAMLStreamFromFile(filesys, files[i])
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot load YAML stream from file")
 		}
@@ -129,11 +134,38 @@ func LoadYAMLStream(fileOrDir string) ([][]byte, error) {
 	return out, nil
 }
 
+// getYAMLFiles returns a list of YAML files from the supplied directory, sorted
+// by file name, ignoring any subdirectory.
+func getYAMLFiles(fs afero.Fs, dir string) (files []string, err error) {
+	// We don't care about nested directories, so we decided to go with a plain
+	// ReadDir, instead of a Walk.
+	//
+	// Previously we used Glob, but the pattern doesn't support the
+	// `.{yaml,yml}` syntax, so we would have had to run it twice, merge the
+	// results and sort them again. This just felt easier to switch to afero.Walk if
+	// we ever decided to support subdirectories.
+	entries, err := afero.ReadDir(fs, dir)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read directory")
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			// We don't care about nested directories.
+			continue
+		}
+		switch filepath.Ext(entry.Name()) {
+		case ".yaml", ".yml":
+			files = append(files, filepath.Join(dir, entry.Name()))
+		}
+	}
+	return files, nil
+}
+
 // LoadYAMLStreamFromFile from the supplied file. Returns an array of byte
 // arrays, where each byte array is expected to be a YAML manifest.
-func LoadYAMLStreamFromFile(file string) ([][]byte, error) {
+func LoadYAMLStreamFromFile(fs afero.Fs, file string) ([][]byte, error) {
 	out := make([][]byte, 0)
-	f, err := os.Open(file) //nolint:gosec // Taking this input is intentional.
+	f, err := fs.Open(file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open file")
 	}

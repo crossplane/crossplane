@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -45,6 +46,8 @@ type Cmd struct {
 	IncludeFunctionResults bool              `short:"r" help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."`
 	ObservedResources      string            `short:"o" placeholder:"PATH" type:"path" help:"A YAML file or directory of YAML files specifying the observed state of composed resources."`
 	Timeout                time.Duration     `help:"How long to run before timing out." default:"1m"`
+
+	fs afero.Fs
 }
 
 // Help prints out the help for the render command.
@@ -98,16 +101,22 @@ Examples:
 `
 }
 
+// AfterApply implements kong.AfterApply.
+func (c *Cmd) AfterApply() error {
+	c.fs = afero.NewOsFs()
+	return nil
+}
+
 // Run render.
 func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo // Only a touch over.
-	xr, err := LoadCompositeResource(c.CompositeResource)
+	xr, err := LoadCompositeResource(c.fs, c.CompositeResource)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
 	// TODO(negz): Should we do some simple validations, e.g. that the
 	// Composition's compositeTypeRef matches the XR's type?
-	comp, err := LoadComposition(c.Composition)
+	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
 	}
@@ -124,19 +133,19 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		return errors.Errorf("render only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
 	}
 
-	fns, err := LoadFunctions(c.Functions)
+	fns, err := LoadFunctions(c.fs, c.Functions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
 
-	ors, err := LoadObservedResources(c.ObservedResources)
+	ors, err := LoadObservedResources(c.fs, c.ObservedResources)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load observed composed resources from %q", c.ObservedResources)
 	}
 
 	fctx := map[string][]byte{}
 	for k, filename := range c.ContextFiles {
-		v, err := os.ReadFile(filename) //nolint:gosec // We're intentionally reading a file that we're asked to.
+		v, err := afero.ReadFile(c.fs, filename)
 		if err != nil {
 			return errors.Wrapf(err, "cannot read context value for key %q", k)
 		}
