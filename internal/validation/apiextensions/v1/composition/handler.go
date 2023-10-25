@@ -134,7 +134,12 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 	schemaWarns, errList := cv.Validate(ctx, comp)
 	warns = append(warns, schemaWarns...)
 	if len(errList) != 0 {
-		return warns, kerrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
+		if validationMode != v1.CompositionValidationModeWarn {
+			return warns, kerrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
+		}
+		for _, err := range errList {
+			warns = append(warns, err.Error())
+		}
 	}
 	return warns, nil
 }

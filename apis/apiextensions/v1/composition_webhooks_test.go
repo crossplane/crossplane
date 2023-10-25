@@ -31,7 +31,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				},
 			},
 			want: want{
-				mode: CompositionValidationModeLoose,
+				mode: DefaultCompositionValidationMode,
 			},
 		},
 		"ValidStrict": {
@@ -47,6 +47,36 @@ func TestCompositionGetValidationMode(t *testing.T) {
 			},
 			want: want{
 				mode: CompositionValidationModeStrict,
+			},
+		},
+		"ValidLoose": {
+			reason: "Loose mode should be returned if specified",
+			args: args{
+				comp: &Composition{
+					ObjectMeta: v1.ObjectMeta{
+						Annotations: map[string]string{
+							CompositionValidationModeAnnotation: string(CompositionValidationModeLoose),
+						},
+					},
+				},
+			},
+			want: want{
+				mode: CompositionValidationModeLoose,
+			},
+		},
+		"ValidWarn": {
+			reason: "Warn mode should be returned if specified",
+			args: args{
+				comp: &Composition{
+					ObjectMeta: v1.ObjectMeta{
+						Annotations: map[string]string{
+							CompositionValidationModeAnnotation: string(CompositionValidationModeWarn),
+						},
+					},
+				},
+			},
+			want: want{
+				mode: CompositionValidationModeWarn,
 			},
 		},
 		"InvalidValue": {

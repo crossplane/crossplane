@@ -36,10 +36,13 @@ type CompositionValidationMode string
 
 var (
 	// DefaultCompositionValidationMode is the default validation mode for Compositions.
-	DefaultCompositionValidationMode = CompositionValidationModeLoose
+	DefaultCompositionValidationMode = CompositionValidationModeWarn
 	// CompositionValidationModeLoose means that Compositions will be validated loosely, so no errors will be returned
 	// in case of missing referenced resources, e.g. Managed Resources or Composite Resources.
 	CompositionValidationModeLoose CompositionValidationMode = "loose"
+	// CompositionValidationModeWarn means only warnings will be returned in
+	// case of errors during validation.
+	CompositionValidationModeWarn CompositionValidationMode = "warn"
 	// CompositionValidationModeStrict means that Compositions will be validated strictly, so errors will be returned
 	// in case of missing referenced resources, e.g. Managed Resources or Composite Resources.
 	CompositionValidationModeStrict CompositionValidationMode = "strict"
@@ -57,7 +60,7 @@ func (in *Composition) GetValidationMode() (CompositionValidationMode, error) {
 	}
 
 	switch mode := CompositionValidationMode(mode); mode {
-	case CompositionValidationModeStrict, CompositionValidationModeLoose:
+	case CompositionValidationModeStrict, CompositionValidationModeLoose, CompositionValidationModeWarn:
 		return mode, nil
 	}
 	return "", errors.Errorf(errFmtInvalidCompositionValidationMode, mode)
