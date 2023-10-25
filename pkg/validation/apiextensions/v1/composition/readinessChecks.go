@@ -68,6 +68,10 @@ func validateReadinessChecks(resource v1.ComposedTemplate, schema *apiextensions
 			errs = append(errs, field.Invalid(field.NewPath("readinessCheck").Index(j).Child("fieldPath"), r.FieldPath, err.Error()))
 			continue
 		}
+		if fieldType == "" {
+			// nothing to do, we don't have a type defined for the field
+			continue
+		}
 		if matchType := getReadinessCheckExpectedType(r); matchType != "" && matchType != fieldType {
 			errs = append(errs, field.Invalid(field.NewPath("readinessCheck").Index(j).Child("fieldPath"), r.FieldPath, fmt.Sprintf("expected field path to be of type %s", matchType)))
 			continue
