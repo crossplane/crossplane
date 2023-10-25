@@ -45,16 +45,16 @@ var _ Printer = &DefaultPrinter{}
 
 type defaultPrinterRow struct {
 	name   string
-	ready  string
 	synced string
+	ready  string
 	status string
 }
 
 func (r *defaultPrinterRow) String() string {
 	return strings.Join([]string{
 		r.name,
-		r.ready,
 		r.synced,
+		r.ready,
 		r.status,
 	}, "\t") + "\t"
 }
@@ -66,8 +66,8 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 
 	headers := defaultPrinterRow{
 		name:   "NAME",
-		ready:  "READY",
 		synced: "SYNCED",
+		ready:  "READY",
 		status: "STATUS",
 	}
 	if _, err := fmt.Fprintln(tw, headers.String()); err != nil {
@@ -181,10 +181,10 @@ func getResourceStatus(r *resource.Resource, wide bool) (ready string, synced st
 		status = fmt.Sprintf("%s: %s", status, m)
 	}
 
-	return mapEmtyStatusToDash(readyCond.Status), mapEmtyStatusToDash(syncedCond.Status), status
+	return mapEmptyStatusToDash(readyCond.Status), mapEmptyStatusToDash(syncedCond.Status), status
 }
 
-func mapEmtyStatusToDash(s corev1.ConditionStatus) string {
+func mapEmptyStatusToDash(s corev1.ConditionStatus) string {
 	if s == "" {
 		return "-"
 	}

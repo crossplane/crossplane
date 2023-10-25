@@ -52,15 +52,15 @@ func TestDefaultPrinter(t *testing.T) {
 			want: want{
 				// Note: Use spaces instead of tabs for intendation
 				output: `
-NAME                                                   READY   SYNCED    STATUS                                              
-ObjectStorage/test-resource (default)                  True    True                                                          
-└─ XObjectStorage/test-resource-hash                   True    True                                                          
-   ├─ Bucket/test-resource-bucket-hash                 True    True                                                          
-   │  ├─ User/test-resource-child-1-bucket-hash        False   True      SomethingWrongHappened: Error with bucket child 1   
-   │  ├─ User/test-resource-child-mid-bucket-hash      True    False     CantSync: Sync error with bucket child mid          
-   │  └─ User/test-resource-child-2-bucket-hash        False   True      SomethingWrongHappened: Error with bucket child 2   
-   │     └─ User/test-resource-child-2-1-bucket-hash   -       True                                                          
-   └─ User/test-resource-user-hash                     True    Unknown                                                       
+NAME                                                   SYNCED    READY   STATUS                                              
+ObjectStorage/test-resource (default)                  True      True                                                        
+└─ XObjectStorage/test-resource-hash                   True      True                                                        
+   ├─ Bucket/test-resource-bucket-hash                 True      True                                                        
+   │  ├─ User/test-resource-child-1-bucket-hash        True      False   SomethingWrongHappened: Error with bucket child 1   
+   │  ├─ User/test-resource-child-mid-bucket-hash      False     True    CantSync: Sync error with bucket child mid          
+   │  └─ User/test-resource-child-2-bucket-hash        True      False   SomethingWrongHappened: Error with bucket child 2   
+   │     └─ User/test-resource-child-2-1-bucket-hash   True      -                                                           
+   └─ User/test-resource-user-hash                     Unknown   True                                                        
 `,
 				err: nil,
 			},
