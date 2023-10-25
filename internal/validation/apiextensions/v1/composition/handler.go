@@ -96,7 +96,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 	}
 
 	// Get the composition validation mode from annotation
-	validationMode, err := comp.GetValidationMode()
+	validationMode, err := comp.GetSchemaAwareValidationMode()
 	if err != nil {
 		return warns, errors.Wrap(err, errValidationMode)
 	}
@@ -107,7 +107,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 	// If we have errors, and we are in strict mode or any of the errors is not
 	// a NotFound, return them.
 	if len(errs) != 0 {
-		if validationMode == v1.CompositionValidationModeStrict || containsOtherThanNotFound(errs) {
+		if validationMode == v1.SchemaAwareCompositionValidationModeStrict || containsOtherThanNotFound(errs) {
 			return warns, errors.Errorf(errFmtGetCRDs, errs)
 		}
 		// If we have errors, but we are not in strict mode, and all of the
@@ -134,11 +134,11 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 	schemaWarns, errList := cv.Validate(ctx, comp)
 	warns = append(warns, schemaWarns...)
 	if len(errList) != 0 {
-		if validationMode != v1.CompositionValidationModeWarn {
+		if validationMode != v1.SchemaAwareCompositionValidationModeWarn {
 			return warns, kerrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
 		}
 		for _, err := range errList {
-			warns = append(warns, err.Error())
+			warns = append(warns, fmt.Sprintf("Composition %q invalid for schema-aware validation: %s", comp.GetName(), err))
 		}
 	}
 	return warns, nil

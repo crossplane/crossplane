@@ -3,7 +3,7 @@ kind: Composition
 metadata:
   name: valid-with-warnings
   annotations:
-    crossplane.io/composition-validation-mode: warn
+    crossplane.io/composition-schema-aware-validation-mode: warn
 spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1

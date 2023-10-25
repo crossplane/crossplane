@@ -50,7 +50,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept empty readiness check",
 			args: args{
-				comp:    buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil),
+				comp:    buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil),
 				gkToCRD: defaultGKToCRDs(),
 			},
 			want: want{
@@ -60,7 +60,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - none type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type: v1.ReadinessCheckTypeNone,
@@ -75,7 +75,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - nonEmpty type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:      v1.ReadinessCheckTypeNonEmpty,
@@ -91,7 +91,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - matchTrue type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:      v1.ReadinessCheckTypeMatchTrue,
@@ -107,7 +107,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - matchFalse type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:      v1.ReadinessCheckTypeMatchFalse,
@@ -123,7 +123,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - matchString type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:        v1.ReadinessCheckTypeMatchString,
@@ -140,7 +140,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should reject invalid readiness check - matchInteger type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:         v1.ReadinessCheckTypeMatchInteger,
@@ -168,7 +168,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - matchInteger type",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:         v1.ReadinessCheckTypeMatchInteger,
@@ -190,7 +190,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should reject invalid readiness check - matchInteger type - type mismatch",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:         v1.ReadinessCheckTypeMatchInteger,
@@ -218,7 +218,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should reject invalid readiness check - matchInteger type - type mismatch - multiple versions",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:         v1.ReadinessCheckTypeMatchInteger,
@@ -253,7 +253,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 		{
 			name: "should accept valid readiness check - matchInteger type - free object allowed",
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withReadinessChecks(
 					0,
 					v1.ReadinessCheck{
 						Type:         v1.ReadinessCheckTypeMatchInteger,

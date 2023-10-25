@@ -3,7 +3,7 @@ kind: Composition
 metadata:
   name: invalid
   annotations:
-    crossplane.io/composition-validation-mode: strict
+    crossplane.io/composition-schema-aware-validation-mode: strict
 spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1

@@ -31,7 +31,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				},
 			},
 			want: want{
-				mode: DefaultCompositionValidationMode,
+				mode: DefaultSchemaAwareCompositionValidationMode,
 			},
 		},
 		"ValidStrict": {
@@ -40,13 +40,13 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				comp: &Composition{
 					ObjectMeta: v1.ObjectMeta{
 						Annotations: map[string]string{
-							CompositionValidationModeAnnotation: string(CompositionValidationModeStrict),
+							SchemaAwareCompositionValidationModeAnnotation: string(SchemaAwareCompositionValidationModeStrict),
 						},
 					},
 				},
 			},
 			want: want{
-				mode: CompositionValidationModeStrict,
+				mode: SchemaAwareCompositionValidationModeStrict,
 			},
 		},
 		"ValidLoose": {
@@ -55,13 +55,13 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				comp: &Composition{
 					ObjectMeta: v1.ObjectMeta{
 						Annotations: map[string]string{
-							CompositionValidationModeAnnotation: string(CompositionValidationModeLoose),
+							SchemaAwareCompositionValidationModeAnnotation: string(SchemaAwareCompositionValidationModeLoose),
 						},
 					},
 				},
 			},
 			want: want{
-				mode: CompositionValidationModeLoose,
+				mode: SchemaAwareCompositionValidationModeLoose,
 			},
 		},
 		"ValidWarn": {
@@ -70,13 +70,13 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				comp: &Composition{
 					ObjectMeta: v1.ObjectMeta{
 						Annotations: map[string]string{
-							CompositionValidationModeAnnotation: string(CompositionValidationModeWarn),
+							SchemaAwareCompositionValidationModeAnnotation: string(SchemaAwareCompositionValidationModeWarn),
 						},
 					},
 				},
 			},
 			want: want{
-				mode: CompositionValidationModeWarn,
+				mode: SchemaAwareCompositionValidationModeWarn,
 			},
 		},
 		"InvalidValue": {
@@ -85,7 +85,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				comp: &Composition{
 					ObjectMeta: v1.ObjectMeta{
 						Annotations: map[string]string{
-							CompositionValidationModeAnnotation: "invalid",
+							SchemaAwareCompositionValidationModeAnnotation: "invalid",
 						},
 					},
 				},
@@ -97,7 +97,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.comp.GetValidationMode()
+			got, err := tc.args.comp.GetSchemaAwareValidationMode()
 			if diff := cmp.Diff(tc.want.mode, got); diff != "" {
 				t.Errorf("\n%s\nGetValidationMode(...) -want, +got:\n%s", tc.reason, diff)
 			}

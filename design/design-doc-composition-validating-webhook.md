@@ -155,7 +155,7 @@ In order to address the possible absence of Managed Resources' CRDs, Composite
 Resources' CRDs or any other required external resource at validation time we
 should allow explicitly setting one of 2 modes, `strict` and `loose`(default) .
 These should be configurable through an annotation, e.g.
-`crossplane.io/composition-validation-mode`, on a Composition or maybe even
+`crossplane.io/composition-schema-aware-validation-mode`, on a Composition or maybe even
 globally via a flag, and would respectively imply that any missing resource
 should result in a direct rejection or a possibly incomplete validation.
 
@@ -245,7 +245,7 @@ kind: Composition
 metadata:
   name: xpostgresqlinstances.aws.database.example.org
   annotations:
-    crossplane.io/composition-validation-mode: <selected_mode> # "loose" or "strict"
+    crossplane.io/composition-schema-aware-validation-mode: <selected_mode> # "loose" or "strict"
   labels:
     provider: aws
     guide: quickstart
@@ -305,7 +305,7 @@ kind: Composition
 metadata:
   name: xpostgresqlinstances.aws.database.example.org
   annotations:
-    crossplane.io/composition-validation-mode: <selected_mode> # "loose" or "strict"
+    crossplane.io/composition-schema-aware-validation-mode: <selected_mode> # "loose" or "strict"
   labels:
     provider: aws
     guide: quickstart
