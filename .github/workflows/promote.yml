@@ -10,6 +10,14 @@ on:
         description: 'Release channel'
         required: true
         default: 'stable'
+      # Note: For pre-releases, we want to promote the pre-release version to
+      # the (stable) channel, but not set it as the "current" version.
+      # See: https://github.com/upbound/build/pull/243
+      pre-release:
+        type: boolean
+        description: 'This is a pre-release'
+        required: true
+        default: false
 
 env:
   # Common versions
@@ -61,6 +69,7 @@ jobs:
         env:
           VERSION: ${{ github.event.inputs.version }}
           CHANNEL: ${{ github.event.inputs.channel }}
+          PRE_RELEASE: ${{ github.event.inputs.pre-release }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
           AWS_DEFAULT_REGION: us-east-1
