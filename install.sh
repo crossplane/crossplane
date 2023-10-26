@@ -62,7 +62,7 @@ case $OS in
 esac
 
 url="https://releases.crossplane.io/${XP_CHANNEL}/${XP_VERSION}/bin/${OS_ARCH}/${BIN}"
-if ! curl -sLo crossplane "${url}"; then
+if ! curl -sfLo crossplane "${url}"; then
   echo "Failed to download Crossplane CLI. Please make sure version ${XP_VERSION} exists on channel ${XP_CHANNEL}."
   exit 1
 fi
