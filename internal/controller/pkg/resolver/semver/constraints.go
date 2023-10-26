@@ -10,7 +10,8 @@ import (
 // Constraints is one or more constraint that a semantic version can be
 // checked against.
 type Constraints struct {
-	constraints [][]*constraint
+	constraints          [][]*constraint
+	specifiedLowerBounds []Version
 }
 
 // NewConstraint returns a Constraints instance that a Version instance can
@@ -36,7 +37,7 @@ func NewConstraint(c string) (*Constraints, error) {
 		or[k] = result
 	}
 
-	o := &Constraints{constraints: or}
+	o := &Constraints{constraints: or, specifiedLowerBounds: greatestLowerBounds(or)}
 	return o, nil
 }
 
@@ -161,6 +162,7 @@ type constraint struct {
 	// The version used in the constraint check. For example, if a constraint
 	// is '<= 2.0.0' the con a version instance representing 2.0.0.
 	con *Version
+	op  string
 
 	// The original parsed version (e.g., 4.x from != 4.x)
 	orig string
@@ -214,6 +216,7 @@ func parseConstraint(c string) (*constraint, error) {
 		function:   constraintOps[m[1]],
 		msg:        constraintMsg[m[1]],
 		con:        con,
+		op:         m[1],
 		orig:       orig,
 		minorDirty: minorDirty,
 		patchDirty: patchDirty,
