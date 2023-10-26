@@ -38,7 +38,7 @@ func TestValidatorValidate(t *testing.T) {
 				errs: nil,
 			},
 			args: args{
-				comp:     buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
+				comp:     buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
 				gkToCRDs: nil,
 			},
 		},
@@ -53,7 +53,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"},
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, map[string]any{"someOtherField": "test"},
 					withPatches(0, v1.Patch{
 						FromFieldPath: ptr.To("spec.someField"),
 						ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -66,7 +66,7 @@ func TestValidatorValidate(t *testing.T) {
 			want:   want{errs: nil},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp:     buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
+				comp:     buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
 			},
 		},
 		"AcceptStrictInvalid": {
@@ -75,7 +75,7 @@ func TestValidatorValidate(t *testing.T) {
 			want: want{errs: nil},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp:     buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil),
+				comp:     buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil),
 			},
 		},
 		"AcceptStrictRequiredFieldByPatch": {
@@ -83,7 +83,7 @@ func TestValidatorValidate(t *testing.T) {
 			want:   want{errs: nil},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -102,7 +102,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someWrongField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -121,7 +121,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, map[string]any{"someOtherField": "test"}, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherWrongField"),
@@ -147,7 +147,7 @@ func TestValidatorValidate(t *testing.T) {
 					}).build(),
 					defaultManagedCrdBuilder().build(),
 				),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -166,7 +166,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -191,7 +191,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -220,7 +220,7 @@ func TestValidatorValidate(t *testing.T) {
 					}).build(),
 					defaultManagedCrdBuilder().build(),
 				),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -252,7 +252,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -279,7 +279,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -299,7 +299,7 @@ func TestValidatorValidate(t *testing.T) {
 						Type: "string",
 					}
 				}).build(), defaultCompositeCrdBuilder().build()),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: ptr.To("spec.someField"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -313,7 +313,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatchSets(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeLoose, nil, withPatchSets(
 					v1.PatchSet{
 						Name: "some-patch-set",
 						Patches: []v1.Patch{{
@@ -339,7 +339,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil,
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil,
 					withPatchSets(
 						v1.PatchSet{
 							Name: "some-patch-set",
@@ -374,7 +374,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
 					FromFieldPath: ptr.To("tier.name"),
 					ToFieldPath:   ptr.To("spec.someOtherField"),
@@ -393,7 +393,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
 					FromFieldPath: ptr.To("tier.name"),
 					ToFieldPath:   ptr.To("spec.someOtherWrongField"),
@@ -407,7 +407,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeToEnvironmentFieldPath,
 					FromFieldPath: ptr.To("spec.someOtherField"),
 					ToFieldPath:   ptr.To("tier.name"),
@@ -426,7 +426,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeToEnvironmentFieldPath,
 					FromFieldPath: ptr.To("spec.someOtherWrongField"),
 					ToFieldPath:   ptr.To("tier.name"),
@@ -440,7 +440,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineToEnvironment,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -467,7 +467,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineFromEnvironment,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -499,7 +499,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineFromEnvironment,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -531,7 +531,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineToEnvironment,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -558,7 +558,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withEnvironmentPatches(
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromCompositeFieldPath,
 						FromFieldPath: ptr.To("spec.someNonRequiredField"),
@@ -589,7 +589,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withEnvironmentPatches(
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromCompositeFieldPath,
 						FromFieldPath: ptr.To("spec.someWrongField"),
@@ -618,7 +618,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 			args: args{
 				gkToCRDs: defaultGKToCRDs(),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
+				comp: buildDefaultComposition(t, v1.SchemaAwareCompositionValidationModeStrict, nil, withEnvironmentPatches(
 					v1.EnvironmentPatch{
 						Type:          v1.PatchTypeFromCompositeFieldPath,
 						FromFieldPath: ptr.To("spec.someWrongField"),
@@ -837,7 +837,7 @@ func buildDefaultComposition(t *testing.T, validationMode v1.CompositionValidati
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "testComposition",
 			Annotations: map[string]string{
-				v1.CompositionValidationModeAnnotation: string(validationMode),
+				v1.SchemaAwareCompositionValidationModeAnnotation: string(validationMode),
 			},
 		},
 		Spec: v1.CompositionSpec{

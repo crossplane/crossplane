@@ -31,7 +31,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				},
 			},
 			want: want{
-				mode: CompositionValidationModeLoose,
+				mode: DefaultSchemaAwareCompositionValidationMode,
 			},
 		},
 		"ValidStrict": {
@@ -40,13 +40,43 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				comp: &Composition{
 					ObjectMeta: v1.ObjectMeta{
 						Annotations: map[string]string{
-							CompositionValidationModeAnnotation: string(CompositionValidationModeStrict),
+							SchemaAwareCompositionValidationModeAnnotation: string(SchemaAwareCompositionValidationModeStrict),
 						},
 					},
 				},
 			},
 			want: want{
-				mode: CompositionValidationModeStrict,
+				mode: SchemaAwareCompositionValidationModeStrict,
+			},
+		},
+		"ValidLoose": {
+			reason: "Loose mode should be returned if specified",
+			args: args{
+				comp: &Composition{
+					ObjectMeta: v1.ObjectMeta{
+						Annotations: map[string]string{
+							SchemaAwareCompositionValidationModeAnnotation: string(SchemaAwareCompositionValidationModeLoose),
+						},
+					},
+				},
+			},
+			want: want{
+				mode: SchemaAwareCompositionValidationModeLoose,
+			},
+		},
+		"ValidWarn": {
+			reason: "Warn mode should be returned if specified",
+			args: args{
+				comp: &Composition{
+					ObjectMeta: v1.ObjectMeta{
+						Annotations: map[string]string{
+							SchemaAwareCompositionValidationModeAnnotation: string(SchemaAwareCompositionValidationModeWarn),
+						},
+					},
+				},
+			},
+			want: want{
+				mode: SchemaAwareCompositionValidationModeWarn,
 			},
 		},
 		"InvalidValue": {
@@ -55,7 +85,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 				comp: &Composition{
 					ObjectMeta: v1.ObjectMeta{
 						Annotations: map[string]string{
-							CompositionValidationModeAnnotation: "invalid",
+							SchemaAwareCompositionValidationModeAnnotation: "invalid",
 						},
 					},
 				},
@@ -67,7 +97,7 @@ func TestCompositionGetValidationMode(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.comp.GetValidationMode()
+			got, err := tc.args.comp.GetSchemaAwareValidationMode()
 			if diff := cmp.Diff(tc.want.mode, got); diff != "" {
 				t.Errorf("\n%s\nGetValidationMode(...) -want, +got:\n%s", tc.reason, diff)
 			}

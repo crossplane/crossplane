@@ -25,39 +25,43 @@ import (
 const (
 	// CompositionValidatingWebhookPath is the path for the Composition's validating webhook, should be kept in sync with the annotation above.
 	CompositionValidatingWebhookPath = "/validate-apiextensions-crossplane-io-v1-composition"
-	// CompositionValidationModeAnnotation is the annotation that can be used to specify the validation mode for a Composition.
-	CompositionValidationModeAnnotation = "crossplane.io/composition-validation-mode"
+	// SchemaAwareCompositionValidationModeAnnotation is the annotation that can be used to specify the schema-aware validation mode for a Composition.
+	SchemaAwareCompositionValidationModeAnnotation = "crossplane.io/composition-schema-aware-validation-mode"
 
-	errFmtInvalidCompositionValidationMode = "invalid composition validation mode: %s"
+	errFmtInvalidCompositionValidationMode = "invalid schema-aware composition validation mode: %s"
 )
 
 // CompositionValidationMode is the validation mode for a Composition.
 type CompositionValidationMode string
 
 var (
-	// DefaultCompositionValidationMode is the default validation mode for Compositions.
-	DefaultCompositionValidationMode = CompositionValidationModeLoose
-	// CompositionValidationModeLoose means that Compositions will be validated loosely, so no errors will be returned
+	// DefaultSchemaAwareCompositionValidationMode is the default validation mode for Compositions.
+	DefaultSchemaAwareCompositionValidationMode = SchemaAwareCompositionValidationModeWarn
+	// SchemaAwareCompositionValidationModeWarn means only warnings will be
+	// returned in case of errors during schema-aware validation, both for missing CRDs or any schema related error.
+	SchemaAwareCompositionValidationModeWarn CompositionValidationMode = "warn"
+	// SchemaAwareCompositionValidationModeLoose means that Compositions will be validated loosely, so no errors will be returned
 	// in case of missing referenced resources, e.g. Managed Resources or Composite Resources.
-	CompositionValidationModeLoose CompositionValidationMode = "loose"
-	// CompositionValidationModeStrict means that Compositions will be validated strictly, so errors will be returned
-	// in case of missing referenced resources, e.g. Managed Resources or Composite Resources.
-	CompositionValidationModeStrict CompositionValidationMode = "strict"
+	SchemaAwareCompositionValidationModeLoose CompositionValidationMode = "loose"
+	// SchemaAwareCompositionValidationModeStrict means that Compositions will
+	// be validated strictly, so errors will be returned in case of errors
+	// during schema-aware validation or for missing resources' CRDs.
+	SchemaAwareCompositionValidationModeStrict CompositionValidationMode = "strict"
 )
 
-// GetValidationMode returns the validation mode set for the composition.
-func (in *Composition) GetValidationMode() (CompositionValidationMode, error) {
+// GetSchemaAwareValidationMode returns the schema-aware validation mode set for the Composition.
+func (in *Composition) GetSchemaAwareValidationMode() (CompositionValidationMode, error) {
 	if in.Annotations == nil {
-		return DefaultCompositionValidationMode, nil
+		return DefaultSchemaAwareCompositionValidationMode, nil
 	}
 
-	mode, ok := in.Annotations[CompositionValidationModeAnnotation]
+	mode, ok := in.Annotations[SchemaAwareCompositionValidationModeAnnotation]
 	if !ok {
-		return DefaultCompositionValidationMode, nil
+		return DefaultSchemaAwareCompositionValidationMode, nil
 	}
 
 	switch mode := CompositionValidationMode(mode); mode {
-	case CompositionValidationModeStrict, CompositionValidationModeLoose:
+	case SchemaAwareCompositionValidationModeStrict, SchemaAwareCompositionValidationModeLoose, SchemaAwareCompositionValidationModeWarn:
 		return mode, nil
 	}
 	return "", errors.Errorf(errFmtInvalidCompositionValidationMode, mode)

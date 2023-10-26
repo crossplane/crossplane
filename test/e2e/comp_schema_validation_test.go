@@ -39,6 +39,14 @@ func TestCompositionValidation(t *testing.T) {
 			Name:       "InvalidCompositionIsRejectedStrictMode",
 			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid.yaml"),
 		},
+		{
+			// An invalid Composition should be accepted when validated in warn mode.
+			Name: "InvalidCompositionIsAcceptedWarnMode",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-warn-valid.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-warn-valid.yaml"),
+			),
+		},
 	}
 	environment.Test(t,
 		cases.Build(t.Name()).
