@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/name"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +40,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/controller/pkg/resolver/semver"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -49,24 +49,34 @@ const (
 	reconcileTimeout = 1 * time.Minute
 
 	packageTagFmt = "%s:%s"
+
+	// breakingChangeOCIDescriptorAnnotation is the annotation put onto a
+	// package as OCI descriptor annotation (such that we can quickly retrieve
+	// it). It is the last breaking change version for the package. If a user
+	// expresses a dependency on such a package, and does not specify a lower
+	// bound of at least that version, it is not considered a valid dependency,
+	// i.e. if there is an older package that older package will be selected.
+	breakingChangeOCIDescriptorAnnotation = "package.crossplane.io/breaking-change-version"
 )
 
 const (
 	finalizer = "lock.pkg.crossplane.io"
 
-	errGetLock              = "cannot get package lock"
-	errAddFinalizer         = "cannot add lock finalizer"
-	errRemoveFinalizer      = "cannot remove lock finalizer"
-	errBuildDAG             = "cannot build DAG"
-	errSortDAG              = "cannot sort DAG"
-	errFmtMissingDependency = "missing package (%s) is not a dependency"
-	errInvalidConstraint    = "version constraint on dependency is invalid"
-	errInvalidDependency    = "dependency package is not valid"
-	errFetchTags            = "cannot fetch dependency package tags"
-	errNoValidVersion       = "cannot find a valid version for package constraints"
-	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
-	errInvalidPackageType   = "cannot create invalid package dependency type"
-	errCreateDependency     = "cannot create dependency package"
+	errGetLock                 = "cannot get package lock"
+	errAddFinalizer            = "cannot add lock finalizer"
+	errRemoveFinalizer         = "cannot remove lock finalizer"
+	errBuildDAG                = "cannot build DAG"
+	errSortDAG                 = "cannot sort DAG"
+	errFmtMissingDependency    = "missing package (%s) is not a dependency"
+	errInvalidConstraint       = "version constraint on dependency is invalid"
+	errInvalidDependency       = "dependency package is not valid"
+	errFetchTags               = "cannot fetch dependency package tags"
+	errFetchDescriptor         = "cannot fetch dependency package descriptor"
+	errNoValidVersion          = "cannot find a valid version for package constraints"
+	errFmtNoValidVersion       = "dependency (%s) does not have version in constraints (%s)"
+	errInvalidPackageType      = "cannot create invalid package dependency type"
+	errCreateDependency        = "cannot create dependency package"
+	errParseBreakingVersionFmt = "cannot parse %s annotation value %q on dependency package (%s)"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -256,11 +266,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		vs = append(vs, v)
 	}
 
-	sort.Sort(semver.Collection(vs))
+	sort.Sort(sort.Reverse(semver.Collection(vs)))
 	var addVer string
 	for _, v := range vs {
+		// get descriptor annotations to check for breaking change version
+		fullRef, err := name.ParseReference(fmt.Sprintf(packageTagFmt, ref.String(), addVer))
+		if err != nil {
+			log.Debug(errInvalidDependency, "error", err)
+			continue
+		}
+		desc, err := r.fetcher.Head(ctx, fullRef)
+		if err != nil {
+			log.Debug(errFetchDescriptor, "error", err)
+			continue
+		}
+		if breakingChange := desc.Annotations[breakingChangeOCIDescriptorAnnotation]; breakingChange != "" {
+			bv, err := semver.NewVersion(breakingChange)
+			if err != nil {
+				err = errors.Wrapf(err, errParseBreakingVersionFmt, breakingChangeOCIDescriptorAnnotation, breakingChange, fullRef)
+				log.Debug(errInvalidDependency, "error", err)
+				continue
+			}
+			if c.CheckWithBreakingVersion(v, bv) {
+				addVer = v.Original()
+				break
+			}
+		}
+
 		if c.Check(v) {
 			addVer = v.Original()
+			break
 		}
 	}
 
