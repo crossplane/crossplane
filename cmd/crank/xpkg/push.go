@@ -42,6 +42,7 @@ import (
 const (
 	errGetwd           = "failed to get working directory while searching for package"
 	errFindPackageinWd = "failed to find a package in current working directory"
+	errAnnotateLayers  = "failed to propagate xpkg annotations from OCI image config file to image layers"
 
 	errFmtNewTag        = "failed to parse package tag %q"
 	errFmtReadPackage   = "failed to read package file %s"
@@ -123,6 +124,10 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 		if err != nil {
 			return errors.Wrapf(err, errFmtReadPackage, c.PackageFiles[0])
 		}
+		img, err = xpkg.AnnotateLayers(img)
+		if err != nil {
+			return errors.Wrapf(err, errAnnotateLayers)
+		}
 		if err := remote.Write(tag, img, remote.WithAuthFromKeychain(kc)); err != nil {
 			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
 		}
@@ -140,6 +145,11 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 			img, err := tarball.ImageFromPath(filepath.Clean(file), nil)
 			if err != nil {
 				return errors.Wrapf(err, errFmtReadPackage, file)
+			}
+
+			img, err = xpkg.AnnotateLayers(img)
+			if err != nil {
+				return errors.Wrapf(err, errAnnotateLayers)
 			}
 
 			d, err := img.Digest()
