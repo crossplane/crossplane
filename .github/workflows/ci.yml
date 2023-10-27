@@ -451,3 +451,35 @@ jobs:
         with:
           name: artifacts
           path: ./out/artifacts
+
+
+  protobuf-schemas:
+    runs-on: ubuntu-22.04
+    needs: detect-noop
+    if: needs.detect-noop.outputs.noop != 'true'
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+
+      - name: Setup Buf
+        uses: bufbuild/buf-setup-action@v1
+      
+      - name: Lint Protocol Buffers
+        uses: bufbuild/buf-lint-action@v1
+        with:
+          input: apis
+
+      - name: Detect Breaking Changes in Protocol Buffers
+        uses: bufbuild/buf-breaking-action@v1
+        with:
+          input: apis
+          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,subdir=apis"
+        
+      - name: Push Protocol Buffers to Buf Schema Registry
+        if: github.ref == 'refs/heads/master'
+        uses: bufbuild/buf-push-action@v1
+        with:
+          input: apis
+          buf_token: ${{ secrets.BUF_TOKEN }}
