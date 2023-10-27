@@ -124,10 +124,10 @@ spec:
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
         startupProbe:
+          failureThreshold: 30
+          periodSeconds: 2
           tcpSocket:
             port: readyz
-            failureThreshold: 30
-            periodSeconds: 2
         ports:
         - name: readyz
           containerPort: 8081
