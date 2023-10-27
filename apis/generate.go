@@ -69,7 +69,7 @@ limitations under the License.
 // We go install the required plugins because they need to be in $PATH for buf
 // (or protoc) to invoke them.
 
-//go:generate go install google.golang.org/protobuf/cmd/protoc-gen-go google.golang.org/grpc/cmd/protoc-gen-go-grpc
+//go:generate go install google.golang.org/protobuf/cmd/protoc-gen-go google.golang.org/grpc/cmd/protoc-gen-go-grpc istio.io/tools/cmd/protoc-gen-docs
 //go:generate go run github.com/bufbuild/buf/cmd/buf generate
 
 package apis
@@ -79,6 +79,7 @@ import (
 	_ "github.com/jmattheis/goverter/cmd/goverter"      //nolint:typecheck
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"   //nolint:typecheck
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"    //nolint:typecheck
+	_ "istio.io/tools/cmd/protoc-gen-docs"              //nolint:typecheck
 	_ "k8s.io/code-generator"                           //nolint:typecheck
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen" //nolint:typecheck
 )

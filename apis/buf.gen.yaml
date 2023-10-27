@@ -8,3 +8,6 @@ plugins:
   - plugin: go-grpc
     out: .
     opt: paths=source_relative
+  - plugin: docs
+    out: .
+    opt: mode=html_fragment_with_front_matter,warnings=true,warnings_as_errors=true

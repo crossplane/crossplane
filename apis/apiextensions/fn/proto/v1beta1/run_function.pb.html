@@ -1,0 +1,509 @@
+---
+title: apiextensions.fn.proto.v1beta1
+layout: protoc-gen-docs
+generator: protoc-gen-docs
+number_of_entries: 10
+---
+<p>Package apiextensions.fn.proto.v1beta1 defines the RPCs Crossplane uses to
+call Composition Functions.</p>
+
+<h2 id="Services">Services</h2>
+<h3 id="FunctionRunnerService">FunctionRunnerService</h3>
+<section>
+<p>A FunctionRunnerService is a Composition Function.</p>
+
+<pre id="FunctionRunnerService-RunFunction"><code class="language-proto">rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse)
+</code></pre>
+<p>RunFunction runs the Composition Function.</p>
+
+</section>
+<h2 id="Types">Types</h2>
+<h3 id="RunFunctionRequest">RunFunctionRequest</h3>
+<section>
+<p>A RunFunctionRequest requests that the Composition Function be run.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RunFunctionRequest-meta">
+<td><code>meta</code></td>
+<td><code><a href="#RequestMeta">RequestMeta</a></code></td>
+<td>
+<p>Metadata pertaining to this request.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionRequest-observed">
+<td><code>observed</code></td>
+<td><code><a href="#State">State</a></code></td>
+<td>
+<p>The observed state prior to invocation of a Function pipeline. State passed
+to each Function is fresh as of the time the pipeline was invoked, not as
+of the time each Function was invoked.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionRequest-desired">
+<td><code>desired</code></td>
+<td><code><a href="#State">State</a></code></td>
+<td>
+<p>Desired state according to a Function pipeline. The state passed to a
+particular Function may have been accumulated by previous Functions in the
+pipeline.</p>
+<p>Note that the desired state must be a partial object with only the fields
+that this function (and its predecessors in the pipeline) wants to have
+set in the object. Copying a non-partial observed state to desired is most
+likely not what you want to do. Leaving out fields that had been returned
+as desired before will result in them being deleted from the objects in the
+cluster.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionRequest-input" class="oneof oneof-start">
+<td><code>input</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#struct">Struct (oneof)</a></code></td>
+<td>
+<p>Optional input specific to this Function invocation. A JSON representation
+of the &lsquo;input&rsquo; block of the relevant entry in a Composition&rsquo;s pipeline.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionRequest-context" class="oneof oneof-start">
+<td><code>context</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#struct">Struct (oneof)</a></code></td>
+<td>
+<p>Optional context. Crossplane may pass arbitary contextual information to a
+Function. A Function may also return context in its RunFunctionResponse,
+and that context will be passed to subsequent Functions. Crossplane
+discards all context returned by the last Function in the pipeline.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="RunFunctionResponse">RunFunctionResponse</h3>
+<section>
+<p>A RunFunctionResponse contains the result of a Composition Function run.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RunFunctionResponse-meta">
+<td><code>meta</code></td>
+<td><code><a href="#ResponseMeta">ResponseMeta</a></code></td>
+<td>
+<p>Metadata pertaining to this response.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionResponse-desired">
+<td><code>desired</code></td>
+<td><code><a href="#State">State</a></code></td>
+<td>
+<p>Desired state according to a Function pipeline. Functions may add desired
+state, and may mutate or delete any part of the desired state they are
+concerned with. A Function must pass through any part of the desired state
+that it is not concerned with.</p>
+<p>Note that the desired state must be a partial object with only the fields
+that this function (and its predecessors in the pipeline) wants to have
+set in the object. Copying a non-partial observed state to desired is most
+likely not what you want to do. Leaving out fields that had been returned
+as desired before will result in them being deleted from the objects in the
+cluster.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionResponse-results">
+<td><code>results</code></td>
+<td><code><a href="#Result">Result[]</a></code></td>
+<td>
+<p>Results of the Function run. Results are used for observability purposes.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="RunFunctionResponse-context" class="oneof oneof-start">
+<td><code>context</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#struct">Struct (oneof)</a></code></td>
+<td>
+<p>Optional context to be passed to the next Function in the pipeline as part
+of the RunFunctionRequest. Dropped on the last function in the pipeline.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="RequestMeta">RequestMeta</h3>
+<section>
+<p>RequestMeta contains metadata pertaining to a RunFunctionRequest.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="RequestMeta-tag">
+<td><code>tag</code></td>
+<td><code>string</code></td>
+<td>
+<p>An opaque string identifying the content of the request. Two identical
+requests should have the same tag.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="ResponseMeta">ResponseMeta</h3>
+<section>
+<p>ResponseMeta contains metadata pertaining to a RunFunctionResponse.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="ResponseMeta-tag">
+<td><code>tag</code></td>
+<td><code>string</code></td>
+<td>
+<p>An opaque string identifying the content of the request. Must match the
+meta.tag of the corresponding RunFunctionRequest.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="ResponseMeta-ttl" class="oneof oneof-start">
+<td><code>ttl</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#duration">Duration (oneof)</a></code></td>
+<td>
+<p>Time-to-live of this response. Deterministic Functions with no side-effects
+(e.g. simple templating Functions) may specify a TTL. Crossplane may choose
+to cache responses until the TTL expires.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="State">State</h3>
+<section>
+<p>State of the composite resource (XR) and any composed resources.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="State-composite">
+<td><code>composite</code></td>
+<td><code><a href="#Resource">Resource</a></code></td>
+<td>
+<p>The state of the composite resource (XR).</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="State-resources">
+<td><code>resources</code></td>
+<td><code>map&lt;string,&nbsp;<a href="#Resource">Resource</a>&gt;</code></td>
+<td>
+<p>The state of any composed resources.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="Resource">Resource</h3>
+<section>
+<p>A Resource represents the state of a composite or composed resource.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Resource-resource">
+<td><code>resource</code></td>
+<td><code><a href="https://developers.google.com/protocol-buffers/docs/reference/google.protobuf#struct">Struct</a></code></td>
+<td>
+<p>The JSON representation of the resource.</p>
+<ul>
+<li>
+<p>Crossplane will set this field in a RunFunctionRequest to the entire
+observed state of a resource - including its metadata, spec, and status.</p>
+</li>
+<li>
+<p>A Function should set this field in a RunFunctionRequest to communicate
+the desired state of a composite or composed resource.</p>
+</li>
+<li>
+<p>A Function may only specify the desired status of a composite resource -
+not its metadata or spec. A Function should not return desired metadata
+or spec for a composite resource. This will be ignored.</p>
+</li>
+<li>
+<p>A Function may not specify the desired status of a composed resource -
+only its metadata and spec. A Function should not return desired status
+for a composed resource. This will be ignored.</p>
+</li>
+</ul>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Resource-connection_details">
+<td><code>connectionDetails</code></td>
+<td><code>map&lt;string,&nbsp;bytes&gt;</code></td>
+<td>
+<p>The resource&rsquo;s connection details.</p>
+<ul>
+<li>
+<p>Crossplane will set this field in a RunFunctionRequest to communicate the
+the observed connection details of a composite or composed resource.</p>
+</li>
+<li>
+<p>A Function should set this field in a RunFunctionResponse to indicate the
+desired connection details of the composite resource.</p>
+</li>
+<li>
+<p>A Function should not set this field in a RunFunctionResponse to indicate
+the desired connection details of a composed resource. This will be
+ignored.</p>
+</li>
+</ul>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Resource-ready">
+<td><code>ready</code></td>
+<td><code><a href="#Ready">Ready</a></code></td>
+<td>
+<p>Ready indicates whether the resource should be considered ready.</p>
+<ul>
+<li>
+<p>Crossplane will never set this field in a RunFunctionRequest.</p>
+</li>
+<li>
+<p>A Function should set this field to READY_TRUE in a RunFunctionResponse
+to indicate that a desired composed resource is ready.</p>
+</li>
+<li>
+<p>A Function should not set this field in a RunFunctionResponse to indicate
+that the desired composite resource is ready. This will be ignored.</p>
+</li>
+</ul>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="Result">Result</h3>
+<section>
+<p>A Result of running a Function.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+<th>Required</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Result-severity">
+<td><code>severity</code></td>
+<td><code><a href="#Severity">Severity</a></code></td>
+<td>
+<p>Severity of this result.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+<tr id="Result-message">
+<td><code>message</code></td>
+<td><code>string</code></td>
+<td>
+<p>Human-readable details about the result.</p>
+
+</td>
+<td>
+No
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="Ready">Ready</h3>
+<section>
+<p>Ready indicates whether a composed resource should be considered ready.</p>
+
+<table class="enum-values">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Ready-READY_UNSPECIFIED">
+<td><code>READY_UNSPECIFIED</code></td>
+<td>
+<p>Unspecified means the readiness of the resource is unknown.</p>
+
+</td>
+</tr>
+<tr id="Ready-READY_TRUE">
+<td><code>READY_TRUE</code></td>
+<td>
+<p>True means the composed resource has been observed to be ready.</p>
+
+</td>
+</tr>
+<tr id="Ready-READY_FALSE">
+<td><code>READY_FALSE</code></td>
+<td>
+<p>False means the composed resource has not been observed to be ready.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h3 id="Severity">Severity</h3>
+<section>
+<p>Severity of Function results.</p>
+
+<table class="enum-values">
+<thead>
+<tr>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Severity-SEVERITY_UNSPECIFIED">
+<td><code>SEVERITY_UNSPECIFIED</code></td>
+<td>
+<p>Unspecified means the severity of the result is unknown. Crossplane treats
+results of unspecified severity as warnings.</p>
+
+</td>
+</tr>
+<tr id="Severity-SEVERITY_FATAL">
+<td><code>SEVERITY_FATAL</code></td>
+<td>
+<p>Fatal results are fatal; subsequent Composition Functions may run, but
+the Composition Function pipeline run will be considered a failure and
+the first fatal result will be returned as an error.</p>
+
+</td>
+</tr>
+<tr id="Severity-SEVERITY_WARNING">
+<td><code>SEVERITY_WARNING</code></td>
+<td>
+<p>Warning results are non-fatal; the entire Composition will run to
+completion but warning events and debug logs associated with the
+composite resource will be emitted.</p>
+
+</td>
+</tr>
+<tr id="Severity-SEVERITY_NORMAL">
+<td><code>SEVERITY_NORMAL</code></td>
+<td>
+<p>Normal results are emitted as normal events and debug logs associated
+with the composite resource.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>

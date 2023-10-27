@@ -14,11 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// We auto-generate API documentation from this file using protoc-gen-docs.
+// https://pkg.go.dev/istio.io/tools@latest/cmd/protoc-gen-docs#readme-writing-docs
+
 syntax = "proto3";
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/duration.proto";
 
+// Package apiextensions.fn.proto.v1beta1 defines the RPCs Crossplane uses to
+// call Composition Functions.
 package apiextensions.fn.proto.v1beta1;
 
 option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1";
@@ -163,6 +168,7 @@ message Resource {
 
 // Ready indicates whether a composed resource should be considered ready.
 enum Ready {
+  // Unspecified means the readiness of the resource is unknown.
   READY_UNSPECIFIED = 0;
 
   // True means the composed resource has been observed to be ready.
@@ -183,6 +189,8 @@ message Result {
 
 // Severity of Function results.
 enum Severity {
+  // Unspecified means the severity of the result is unknown. Crossplane treats
+  // results of unspecified severity as warnings.
   SEVERITY_UNSPECIFIED = 0;
 
   // Fatal results are fatal; subsequent Composition Functions may run, but
