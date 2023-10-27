@@ -47,13 +47,15 @@ const (
 	errGetMapping             = "cannot get mapping for resource"
 	errInitPrinter            = "cannot init new printer"
 	errMissingName            = "missing name, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
+	errNameDoubled            = "name provided twice, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
+	errInvalidResource        = "invalid resource, must be provided in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
 	errInvalidResourceAndName = "invalid resource and name"
 )
 
 // Cmd builds the trace tree for a Crossplane resource.
 type Cmd struct {
-	Resource string `arg:"" help:"Kind of the of the Crossplane resource, accepts the 'TYPE[.VERSION][.GROUP][/NAME]' format."`
-	Name     string `arg:"" optional:"" help:"Name of the Crossplane resource."`
+	Resource string `arg:"" help:"Kind of the Crossplane resource, accepts the 'TYPE[.VERSION][.GROUP][/NAME]' format."`
+	Name     string `arg:"" optional:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."`
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
@@ -172,13 +174,36 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 }
 
 func (c *Cmd) getResourceAndName() (string, string, error) {
-	// Split resource kind and name
-	if c.Name != "" {
-		return c.Resource, c.Name, nil
+	// If no resource was provided, error out (should never happen as it's
+	// required by Kong)
+	if c.Resource == "" {
+		return "", "", errors.New(errInvalidResource)
 	}
 
-	if out := strings.Split(c.Resource, "/"); len(out) == 2 {
-		return out[0], out[1], nil
+	// Split the resource into its components
+	splittedResource := strings.Split(c.Resource, "/")
+	length := len(splittedResource)
+
+	if length == 1 {
+		// If no name is provided, error out
+		if c.Name == "" {
+			return "", "", errors.New(errMissingName)
+		}
+
+		// Resource has only kind and the name is separately provided
+		return splittedResource[0], c.Name, nil
 	}
-	return "", "", errors.New(errMissingName)
+
+	if length == 2 {
+		// If a name is separately provided, error out
+		if c.Name != "" {
+			return "", "", errors.New(errNameDoubled)
+		}
+
+		// Resource includes both kind and name
+		return splittedResource[0], splittedResource[1], nil
+	}
+
+	// Handle the case when resource format is invalid
+	return "", "", errors.New(errInvalidResource)
 }

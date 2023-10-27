@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestCmd_getResourceAndName(t *testing.T) {
@@ -41,17 +43,18 @@ func TestCmd_getResourceAndName(t *testing.T) {
 				Name:     "",
 			},
 			want: want{
-				err: cmpopts.AnyError,
+				err: errors.New(errMissingName),
 			},
 		},
 		"Empty": {
+			// should never happen, resource is required by kong
 			reason: "Should return an error if no resource is provided",
 			fields: args{
 				Resource: "",
 				Name:     "",
 			},
 			want: want{
-				err: cmpopts.AnyError,
+				err: errors.New(errInvalidResource),
 			},
 		},
 		"Combined": {
@@ -72,7 +75,17 @@ func TestCmd_getResourceAndName(t *testing.T) {
 				Name:     "",
 			},
 			want: want{
-				err: cmpopts.AnyError,
+				err: errors.New(errInvalidResource),
+			},
+		},
+		"BothAndCombined": {
+			reason: "Should return an error if a name is provided both in the resource and separately",
+			fields: args{
+				Resource: "resource/name",
+				Name:     "name",
+			},
+			want: want{
+				err: errors.New(errNameDoubled),
 			},
 		},
 	}
@@ -83,9 +96,8 @@ func TestCmd_getResourceAndName(t *testing.T) {
 				Name:     tt.fields.Name,
 			}
 			gotResource, gotName, err := c.getResourceAndName()
-			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Cmd.getResourceAndName() error = %v, wantErr %v", err, tt.want.err)
-				return
 			}
 			if diff := cmp.Diff(tt.want.resource, gotResource); diff != "" {
 				t.Errorf("Cmd.getResourceAndName() resource = %v, want %v", gotResource, tt.want.resource)
