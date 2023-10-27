@@ -27,7 +27,7 @@ import (
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -131,7 +131,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResou
 		Name:                     vr.Name,
 		Served:                   vr.Served,
 		Storage:                  vr.Referenceable,
-		Deprecated:               pointer.BoolDeref(vr.Deprecated, false),
+		Deprecated:               ptr.Deref(vr.Deprecated, false),
 		DeprecationWarning:       vr.DeprecationWarning,
 		AdditionalPrinterColumns: vr.AdditionalPrinterColumns,
 		Schema: &extv1.CustomResourceValidation{

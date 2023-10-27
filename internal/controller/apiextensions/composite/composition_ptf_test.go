@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -572,7 +572,7 @@ func TestGetComposedResources(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						_ = meta.AddControllerReference(obj, metav1.OwnerReference{
 							UID:        types.UID("someone-else"),
-							Controller: pointer.Bool(true),
+							Controller: ptr.To(true),
 						})
 
 						return nil
@@ -855,7 +855,7 @@ func TestPatchAndTransform(t *testing.T) {
 									// This reference to a non-existent patchset
 									// triggers the error.
 									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("nonexistent-patchset"),
+									PatchSetName: ptr.To("nonexistent-patchset"),
 								}},
 							}},
 						},
@@ -880,7 +880,7 @@ func TestPatchAndTransform(t *testing.T) {
 						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{
 								{
-									Name: pointer.String("cool-resource"),
+									Name: ptr.To("cool-resource"),
 								},
 							},
 						},
@@ -935,7 +935,7 @@ func TestPatchAndTransform(t *testing.T) {
 						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{
 								{
-									Name: pointer.String("cool-resource"),
+									Name: ptr.To("cool-resource"),
 								},
 							},
 						},
@@ -971,7 +971,7 @@ func TestPatchAndTransform(t *testing.T) {
 								return r
 							}(),
 							Template: &v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 							TemplateRenderErr: errBoom,
 						},
@@ -1622,7 +1622,7 @@ func TestRunFunction(t *testing.T) {
 
 			// Tell the function to connect to our mock server.
 			tc.args.fn.Runner = &v1.ContainerFunctionRunner{
-				Endpoint: pointer.String(lis.Addr().String()),
+				Endpoint: ptr.To(lis.Addr().String()),
 			}
 
 			fnio, err := RunFunction(tc.args.ctx, tc.args.fnio, tc.args.fn)
@@ -1738,8 +1738,8 @@ func TestParseDesiredResource(t *testing.T) {
 						SetCompositionResourceName(cd, "cool-resource")
 						cd.SetOwnerReferences([]metav1.OwnerReference{{
 							UID:                types.UID("owner"),
-							Controller:         pointer.Bool(true),
-							BlockOwnerDeletion: pointer.Bool(true),
+							Controller:         ptr.To(true),
+							BlockOwnerDeletion: ptr.To(true),
 						}})
 						cd.SetLabels(map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "pfx",
@@ -2042,7 +2042,7 @@ func TestDeleteComposedResources(t *testing.T) {
 
 									// This resource is controlled by the XR.
 									OwnerReferences: []metav1.OwnerReference{{
-										Controller: pointer.Bool(true),
+										Controller: ptr.To(true),
 										UID:        "cool-xr",
 									}},
 								},
@@ -2089,7 +2089,7 @@ func TestDeleteComposedResources(t *testing.T) {
 
 									// This resource is controlled by the XR.
 									OwnerReferences: []metav1.OwnerReference{{
-										Controller: pointer.Bool(true),
+										Controller: ptr.To(true),
 										UID:        "cool-xr",
 									}},
 								},

@@ -27,14 +27,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 func TestSelect(t *testing.T) {
@@ -204,7 +204,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -256,7 +256,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:               v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
-												ValueFromFieldPath: pointer.String("objectMeta.name"),
+												ValueFromFieldPath: ptr.To("objectMeta.name"),
 											},
 										},
 									},
@@ -302,7 +302,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -352,7 +352,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -426,7 +426,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -459,7 +459,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -493,7 +493,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:               v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
-												ValueFromFieldPath: pointer.String("wrong.path"),
+												ValueFromFieldPath: ptr.To("wrong.path"),
 											},
 										},
 									},
@@ -555,7 +555,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -651,7 +651,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -753,7 +753,7 @@ func TestSelect(t *testing.T) {
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -840,13 +840,13 @@ func TestSelect(t *testing.T) {
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
-										MaxMatch:        pointer.Uint64(3),
+										MaxMatch:        ptr.To[uint64](3),
 										SortByFieldPath: "data[int/weight]",
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -921,12 +921,12 @@ func TestSelect(t *testing.T) {
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
 										SortByFieldPath: "data[int/weight]",
-										MaxMatch:        pointer.Uint64(3),
+										MaxMatch:        ptr.To[uint64](3),
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -984,12 +984,12 @@ func TestSelect(t *testing.T) {
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
 										SortByFieldPath: "data[int/weight]",
-										MaxMatch:        pointer.Uint64(3),
+										MaxMatch:        ptr.To[uint64](3),
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
@@ -1037,12 +1037,12 @@ func TestSelect(t *testing.T) {
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
 										SortByFieldPath: "metadata.annotations[int/weight]",
-										MaxMatch:        pointer.Uint64(3),
+										MaxMatch:        ptr.To[uint64](3),
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
-												Value: pointer.String("bar"),
+												Value: ptr.To("bar"),
 											},
 										},
 									},
