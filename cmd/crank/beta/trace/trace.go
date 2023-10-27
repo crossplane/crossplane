@@ -19,6 +19,7 @@ package trace
 
 import (
 	"context"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	v1 "k8s.io/api/core/v1"
@@ -38,19 +39,23 @@ import (
 )
 
 const (
-	errGetResource        = "cannot get requested resource"
-	errCliOutput          = "cannot print output"
-	errKubeConfig         = "failed to get kubeconfig"
-	errInitKubeClient     = "cannot init kubeclient"
-	errGetDiscoveryClient = "cannot get discovery client"
-	errGetMapping         = "cannot get mapping for resource"
-	errInitPrinter        = "cannot init new printer"
+	errGetResource            = "cannot get requested resource"
+	errCliOutput              = "cannot print output"
+	errKubeConfig             = "failed to get kubeconfig"
+	errInitKubeClient         = "cannot init kubeclient"
+	errGetDiscoveryClient     = "cannot get discovery client"
+	errGetMapping             = "cannot get mapping for resource"
+	errInitPrinter            = "cannot init new printer"
+	errMissingName            = "missing name, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
+	errNameDoubled            = "name provided twice, must be provided separately 'TYPE[.VERSION][.GROUP] [NAME]' or in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
+	errInvalidResource        = "invalid resource, must be provided in the 'TYPE[.VERSION][.GROUP][/NAME]' format"
+	errInvalidResourceAndName = "invalid resource and name"
 )
 
 // Cmd builds the trace tree for a Crossplane resource.
 type Cmd struct {
-	Resource string `arg:"" help:"Kind of the of the Crossplane resource, accepts the 'TYPE[.VERSION][.GROUP]' format."`
-	Name     string `arg:"" help:"Name of the Crossplane resource."`
+	Resource string `arg:"" help:"Kind of the Crossplane resource, accepts the 'TYPE[.VERSION][.GROUP][/NAME]' format."`
+	Name     string `arg:"" optional:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."`
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
@@ -66,7 +71,8 @@ This command trace a Crossplane resource (Claim, Composite, or Managed Resource)
 to get a detailed output of its relationships, helpful for troubleshooting.
 
 If needed the resource kind can be also specified further,
-'TYPE[.VERSION][.GROUP]', e.g. mykind.example.org.
+'TYPE[.VERSION][.GROUP]', e.g. mykind.example.org or
+mykind.v1alpha1.example.org.
 
 Examples:
   # Trace a MyKind resource (mykinds.example.org/v1alpha1) named 'my-res' in the namespace 'my-ns'
@@ -130,7 +136,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	}
 	logger.Debug("Built client")
 
-	mapping, err := resClient.MappingFor(c.Resource)
+	resource, name, err := c.getResourceAndName()
+	if err != nil {
+		return errors.Wrap(err, errInvalidResourceAndName)
+	}
+
+	mapping, err := resClient.MappingFor(resource)
 	if err != nil {
 		return errors.Wrap(err, errGetMapping)
 	}
@@ -139,7 +150,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	rootRef := &v1.ObjectReference{
 		Kind:       mapping.GroupVersionKind.Kind,
 		APIVersion: mapping.GroupVersionKind.GroupVersion().String(),
-		Name:       c.Name,
+		Name:       name,
 	}
 	if mapping.Scope.Name() == meta.RESTScopeNameNamespace && c.Namespace != "" {
 		logger.Debug("Requested resource is namespaced", "namespace", c.Namespace)
@@ -160,4 +171,39 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	}
 
 	return nil
+}
+
+func (c *Cmd) getResourceAndName() (string, string, error) {
+	// If no resource was provided, error out (should never happen as it's
+	// required by Kong)
+	if c.Resource == "" {
+		return "", "", errors.New(errInvalidResource)
+	}
+
+	// Split the resource into its components
+	splittedResource := strings.Split(c.Resource, "/")
+	length := len(splittedResource)
+
+	if length == 1 {
+		// If no name is provided, error out
+		if c.Name == "" {
+			return "", "", errors.New(errMissingName)
+		}
+
+		// Resource has only kind and the name is separately provided
+		return splittedResource[0], c.Name, nil
+	}
+
+	if length == 2 {
+		// If a name is separately provided, error out
+		if c.Name != "" {
+			return "", "", errors.New(errNameDoubled)
+		}
+
+		// Resource includes both kind and name
+		return splittedResource[0], splittedResource[1], nil
+	}
+
+	// Handle the case when resource format is invalid
+	return "", "", errors.New(errInvalidResource)
 }
