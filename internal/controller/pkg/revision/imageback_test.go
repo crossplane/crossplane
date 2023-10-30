@@ -125,7 +125,7 @@ func TestImageBackend(t *testing.T) {
 					},
 				})},
 			},
-			want: errors.Wrap(io.EOF, errOpenPackageStream),
+			want: errors.Wrapf(io.EOF, errFmtNoPackageFileFound, 1, true),
 		},
 		"ErrEmptyImage": {
 			reason: "Should return error if image is empty.",
@@ -141,7 +141,7 @@ func TestImageBackend(t *testing.T) {
 					},
 				})},
 			},
-			want: errors.Wrap(io.EOF, errOpenPackageStream),
+			want: errors.Wrapf(io.EOF, errFmtNoPackageFileFound, 0, false),
 		},
 		"ErrFetchPackage": {
 			reason: "Should return error if package is not in cache and we fail to fetch it.",
