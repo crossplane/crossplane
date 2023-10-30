@@ -39,7 +39,7 @@ const (
 	errFetchLayer              = "failed to fetch annotated base layer from remote"
 	errGetUncompressed         = "failed to get uncompressed contents from layer"
 	errMultipleAnnotatedLayers = "package is invalid due to multiple annotated base layers"
-	errOpenPackageStream       = "failed to open package stream file"
+	errFmtNoPackageFileFound   = "couldn't find \"" + xpkg.StreamFile + "\" file after checking %d files in the archive (annotated layer: %v)"
 	errFmtMaxManifestLayers    = "package has %d layers, but only %d are allowed"
 	errValidateLayer           = "invalid package layer"
 	errValidateImage           = "invalid package image"
@@ -154,14 +154,16 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	// layer contents or flattened filesystem content. Either way, we only want
 	// the package YAML stream.
 	t := tar.NewReader(tarc)
+	var read int
 	for {
 		h, err := t.Next()
 		if err != nil {
-			return nil, errors.Wrap(err, errOpenPackageStream)
+			return nil, errors.Wrapf(err, errFmtNoPackageFileFound, read, foundAnnotated)
 		}
 		if h.Name == xpkg.StreamFile {
 			break
 		}
+		read++
 	}
 
 	// NOTE(hasheddan): we return a JoinedReadCloser such that closing will free
