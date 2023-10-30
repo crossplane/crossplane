@@ -26,7 +26,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -334,32 +334,32 @@ func TestExtractConnectionDetails(t *testing.T) {
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "bar",
-						FromConnectionSecretKey: pointer.String("bar"),
+						FromConnectionSecretKey: ptr.To("bar"),
 					},
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "none",
-						FromConnectionSecretKey: pointer.String("none"),
+						FromConnectionSecretKey: ptr.To("none"),
 					},
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "convfoo",
-						FromConnectionSecretKey: pointer.String("foo"),
+						FromConnectionSecretKey: ptr.To("foo"),
 					},
 					{
 						Type:  ConnectionDetailTypeFromValue,
 						Name:  "fixed",
-						Value: pointer.String("value"),
+						Value: ptr.To("value"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "name",
-						FromFieldPath: pointer.String("objectMeta.name"),
+						FromFieldPath: ptr.To("objectMeta.name"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "generation",
-						FromFieldPath: pointer.String("objectMeta.generation"),
+						FromFieldPath: ptr.To("objectMeta.generation"),
 					},
 				},
 			},
@@ -418,9 +418,9 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 			args: args{
 				t: &v1.ComposedTemplate{
 					ConnectionDetails: []v1.ConnectionDetail{{
-						Name:                    pointer.String("cool-detail"),
+						Name:                    ptr.To("cool-detail"),
 						Type:                    &tfk,
-						FromConnectionSecretKey: pointer.String("cool-key"),
+						FromConnectionSecretKey: ptr.To("cool-key"),
 					}},
 				},
 			},
@@ -428,7 +428,7 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 				cfgs: []ConnectionDetailExtractConfig{{
 					Name:                    "cool-detail",
 					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: pointer.String("cool-key"),
+					FromConnectionSecretKey: ptr.To("cool-key"),
 				}},
 			},
 		},
@@ -438,7 +438,7 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 				t: &v1.ComposedTemplate{
 					ConnectionDetails: []v1.ConnectionDetail{{
 						Type:                    &tfk,
-						FromConnectionSecretKey: pointer.String("cool-key"),
+						FromConnectionSecretKey: ptr.To("cool-key"),
 					}},
 				},
 			},
@@ -446,7 +446,7 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 				cfgs: []ConnectionDetailExtractConfig{{
 					Name:                    "cool-key",
 					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: pointer.String("cool-key"),
+					FromConnectionSecretKey: ptr.To("cool-key"),
 				}},
 			},
 		},
@@ -491,9 +491,9 @@ func TestExtractConfigsFromDesired(t *testing.T) {
 			args: args{
 				d: &iov1alpha1.DesiredResource{
 					ConnectionDetails: []iov1alpha1.DerivedConnectionDetail{{
-						Name:                    pointer.String("cool-detail"),
+						Name:                    ptr.To("cool-detail"),
 						Type:                    iov1alpha1.ConnectionDetailTypeFromConnectionSecretKey,
-						FromConnectionSecretKey: pointer.String("cool-key"),
+						FromConnectionSecretKey: ptr.To("cool-key"),
 					}},
 				},
 			},
@@ -501,7 +501,7 @@ func TestExtractConfigsFromDesired(t *testing.T) {
 				cfgs: []ConnectionDetailExtractConfig{{
 					Name:                    "cool-detail",
 					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: pointer.String("cool-key"),
+					FromConnectionSecretKey: ptr.To("cool-key"),
 				}},
 			},
 		},
@@ -512,7 +512,7 @@ func TestExtractConfigsFromDesired(t *testing.T) {
 				d: &iov1alpha1.DesiredResource{
 					ConnectionDetails: []iov1alpha1.DerivedConnectionDetail{{
 						Type:                    iov1alpha1.ConnectionDetailTypeFromConnectionSecretKey,
-						FromConnectionSecretKey: pointer.String("cool-key"),
+						FromConnectionSecretKey: ptr.To("cool-key"),
 					}},
 				},
 			},
@@ -520,7 +520,7 @@ func TestExtractConfigsFromDesired(t *testing.T) {
 				cfgs: []ConnectionDetailExtractConfig{{
 					Name:                    "cool-key",
 					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: pointer.String("cool-key"),
+					FromConnectionSecretKey: ptr.To("cool-key"),
 				}},
 			},
 		},

@@ -23,6 +23,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/utils/ptr"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -215,6 +216,39 @@ func TestValidateReadinessCheck(t *testing.T) {
 						BadValue: "spec.someField",
 					},
 				},
+			},
+		},
+		{
+			name: "should accept valid readiness check - matchInteger type - free object allowed",
+			args: args{
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+					0,
+					v1.ReadinessCheck{
+						Type:         v1.ReadinessCheckTypeMatchInteger,
+						MatchInteger: 10,
+						FieldPath:    "status.atProvider.manifest.status.readyReplicas",
+					},
+				)),
+				gkToCRD: buildGkToCRDs(
+					defaultManagedCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
+						crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["status"] = extv1.JSONSchemaProps{
+							Type: "object",
+							Properties: map[string]extv1.JSONSchemaProps{
+								"atProvider": {
+									Type: "object",
+									Properties: map[string]extv1.JSONSchemaProps{
+										"manifest": {
+											Type:                   "object",
+											XPreserveUnknownFields: ptr.To(true),
+										},
+									},
+								},
+							},
+						}
+					}).build()),
+			},
+			want: want{
+				errs: nil,
 			},
 		},
 	}

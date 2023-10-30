@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 func TestPatchValidate(t *testing.T) {
@@ -44,7 +44,7 @@ func TestPatchValidate(t *testing.T) {
 			args: args{
 				patch: &Patch{
 					Type:          PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.forProvider.foo"),
+					FromFieldPath: ptr.To("spec.forProvider.foo"),
 				},
 			},
 		},
@@ -53,7 +53,7 @@ func TestPatchValidate(t *testing.T) {
 			args: args{
 				patch: &Patch{
 					Type:          PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.String("spec.forProvider.foo"),
+					FromFieldPath: ptr.To("spec.forProvider.foo"),
 					Transforms: []Transform{
 						{
 							Type: TransformTypeMath,

@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -332,10 +332,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 								},
 							},
 						},
@@ -419,10 +419,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 								},
 							},
 						},
@@ -515,11 +515,11 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -617,11 +617,11 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.String("not-here-1"),
+									Provider: ptr.To("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: pointer.String("not-here-2"),
+									Provider: ptr.To("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},

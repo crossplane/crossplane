@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -79,7 +79,7 @@ func TestPTCompose(t *testing.T) {
 									// This reference to a non-existent patchset
 									// triggers the error.
 									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("nonexistent-patchset"),
+									PatchSetName: ptr.To("nonexistent-patchset"),
 								}},
 							}},
 						},
@@ -123,7 +123,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -167,7 +167,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -200,7 +200,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -234,7 +234,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -271,7 +271,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -311,7 +311,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -354,7 +354,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil
@@ -431,7 +431,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
+								Name: ptr.To("cool-resource"),
 							},
 						}}
 						return tas, nil

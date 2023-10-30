@@ -45,11 +45,11 @@ const (
 	promPortName   = "metrics"
 	promPortNumber = 8080
 
-	webhookVolumeName       = "webhook-tls-secret"
-	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
-	webhookTLSCertDir       = "/webhook/tls"
-	webhookPortName         = "webhook"
-	webhookPort             = 9443
+	webhookVolumeName             = "webhook-tls-secret"
+	webhookTLSCertDirEnvVar       = "WEBHOOK_TLS_CERT_DIR"
+	webhookTLSCertDir             = "/webhook/tls"
+	webhookPortName               = "webhook"
+	webhookPort             int32 = 9443
 
 	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
 	essCertsVolumeName  = "ess-client-certs"
