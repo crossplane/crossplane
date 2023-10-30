@@ -82,7 +82,13 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource", xrd.Name)
 		}
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourcePrinterColumns()...)
-		for k, v := range CompositeResourceSpecProps() {
+		props := CompositeResourceSpecProps()
+		if xrd.Spec.DefaultCompositionUpdatePolicy != nil {
+			cup := props["compositionUpdatePolicy"]
+			cup.Default = &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *xrd.Spec.DefaultCompositionUpdatePolicy))}
+			props["compositionUpdatePolicy"] = cup
+		}
+		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
 		crd.Spec.Versions[i] = *crdv

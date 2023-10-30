@@ -399,35 +399,3 @@ func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Compo
 	meta.AddLabels(cp, map[string]string{xcrd.LabelKeyNamePrefixForComposed: cp.GetName()})
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }
-
-// NewAPIDefaultCompositionUpdatePolicySelector returns a APIDefaultCompositionUpdatePolicySelector.
-func NewAPIDefaultCompositionUpdatePolicySelector(c client.Client, ref corev1.ObjectReference, r event.Recorder) *APIDefaultCompositionUpdatePolicySelector {
-	return &APIDefaultCompositionUpdatePolicySelector{client: c, defRef: ref, recorder: r}
-}
-
-// APIDefaultCompositionUpdatePolicySelector selects the default composition update policy referenced in
-// the definition of the resource if neither a reference nor selector is given
-// in composite resource.
-type APIDefaultCompositionUpdatePolicySelector struct {
-	client   client.Client
-	defRef   corev1.ObjectReference
-	recorder event.Recorder
-}
-
-// SelectCompositionUpdatePolicy selects the default composition update policy if neither a reference nor
-// selector is given in composite resource.
-func (s *APIDefaultCompositionUpdatePolicySelector) SelectCompositionUpdatePolicy(ctx context.Context, cp resource.Composite) error {
-	if cp.GetCompositionUpdatePolicy() != nil {
-		return nil
-	}
-	def := &v1.CompositeResourceDefinition{}
-	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
-		return errors.Wrap(err, errGetXRD)
-	}
-	if def.Spec.DefaultCompositionUpdatePolicy == nil {
-		return nil
-	}
-	cp.SetCompositionUpdatePolicy(def.Spec.DefaultCompositionUpdatePolicy)
-	s.recorder.Event(cp, event.Normal(reasonCompositionUpdatePolicy, "Default composition update policy has been selected"))
-	return nil
-}

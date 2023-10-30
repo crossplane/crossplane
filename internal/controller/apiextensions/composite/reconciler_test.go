@@ -209,25 +209,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"SelectCompositionUpdatePolicyError": {
-			reason: "We should return any error encountered while selecting a composition update policy.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClient(&test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
-							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSelectCompUpdatePolicy)))
-						})),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return errBoom })),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
 		"SelectCompositionError": {
 			reason: "We should return any error encountered while selecting a composition.",
 			args: args{
@@ -243,7 +224,6 @@ func TestReconcile(t *testing.T) {
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, _ resource.Composite) error {
 						return errBoom
 					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -270,7 +250,6 @@ func TestReconcile(t *testing.T) {
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
 						return nil, errBoom
 					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -299,9 +278,6 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error {
 						return errBoom
-					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error {
-						return nil
 					})),
 				},
 			},
@@ -333,7 +309,6 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 						return errBoom
 					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -362,7 +337,6 @@ func TestReconcile(t *testing.T) {
 					WithEnvironmentSelector(EnvironmentSelectorFn(func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
 						return errBoom
 					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -391,7 +365,6 @@ func TestReconcile(t *testing.T) {
 					WithEnvironmentFetcher(EnvironmentFetcherFn(func(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error) {
 						return nil, errBoom
 					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -425,7 +398,6 @@ func TestReconcile(t *testing.T) {
 					WithComposer(ComposerFn(func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{}, errBoom
 					})),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -464,7 +436,6 @@ func TestReconcile(t *testing.T) {
 							return false, errBoom
 						},
 					}),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -508,7 +479,6 @@ func TestReconcile(t *testing.T) {
 							return false, nil
 						},
 					}),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -570,7 +540,6 @@ func TestReconcile(t *testing.T) {
 							return false, nil
 						},
 					}),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -617,7 +586,6 @@ func TestReconcile(t *testing.T) {
 							return true, nil
 						},
 					}),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -701,7 +669,6 @@ func TestReconcile(t *testing.T) {
 							return true, nil
 						},
 					}),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -748,7 +715,6 @@ func TestReconcile(t *testing.T) {
 							return true, nil
 						},
 					}),
-					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
