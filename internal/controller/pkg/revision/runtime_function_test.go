@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
@@ -188,6 +189,9 @@ func TestFunctionPostHook(t *testing.T) {
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
@@ -368,6 +372,69 @@ func TestFunctionPostHook(t *testing.T) {
 								Status: corev1.ConditionTrue,
 							}}
 							return nil
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+			},
+		},
+		"SuccessfulWithExternallyManagedSA": {
+			reason: "Should be successful without creating an SA, when the SA is managed externally",
+			args: args{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						if sa, ok := obj.(*corev1.ServiceAccount); ok {
+							if sa.GetName() == xpManagedSA {
+								return kerrors.NewNotFound(corev1.Resource("serviceaccount"), xpManagedSA)
+							}
+						}
+						return nil
+					},
+					MockCreate: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+						if sa, ok := obj.(*corev1.ServiceAccount); ok {
+							if sa.GetName() == xpManagedSA {
+								t.Error("unexpected call to create SA when SA is managed externally")
+							}
+						}
+						return nil
+					},
+					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+						if d, ok := obj.(*appsv1.Deployment); ok {
+							d.Status.Conditions = []appsv1.DeploymentCondition{{
+								Type:   appsv1.DeploymentAvailable,
+								Status: corev1.ConditionTrue,
+							}}
+							return nil
+						}
+						if sa, ok := obj.(*corev1.ServiceAccount); ok {
+							if sa.GetName() == xpManagedSA {
+								t.Error("unexpected call to patch SA when the SA is managed externally")
+							}
 						}
 						return nil
 					},

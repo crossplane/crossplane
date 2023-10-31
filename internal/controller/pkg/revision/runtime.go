@@ -207,12 +207,12 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 			Privileged:               &privileged,
 			RunAsNonRoot:             &runAsNonRoot,
 		}),
+		DeploymentWithOptionalServiceAccount(serviceAccount),
 
 		// Overrides that we are opinionated about.
 		DeploymentWithNamespace(b.namespace),
 		DeploymentWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		DeploymentWithSelectors(b.podSelectors()),
-		DeploymentWithServiceAccount(serviceAccount),
 		DeploymentWithImagePullSecrets(b.revision.GetPackagePullSecrets()),
 		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
