@@ -116,11 +116,17 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 
 	sa := build.ServiceAccount()
-	if err := h.client.Apply(ctx, sa); err != nil {
-		return errors.Wrap(err, errApplyFunctionSA)
-	}
-
 	d := build.Deployment(sa.Name, functionDeploymentOverrides(functionMeta, pr)...)
+	// Create/Apply the SA only if the deployment references it.
+	// This is to avoid creating a SA that is NOT used by the deployment when
+	// the SA is managed externally by the user and configured by setting
+	// `deploymentTemplate.spec.template.spec.serviceAccountName` in the
+	// DeploymentRuntimeConfig.
+	if sa.Name == d.Spec.Template.Spec.ServiceAccountName {
+		if err := h.client.Apply(ctx, sa); err != nil {
+			return errors.Wrap(err, errApplyFunctionSA)
+		}
+	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
