@@ -361,7 +361,7 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
-			if err != nil {
+			if err != nil && !fieldpath.IsNotFound(err) {
 				return false
 			}
 

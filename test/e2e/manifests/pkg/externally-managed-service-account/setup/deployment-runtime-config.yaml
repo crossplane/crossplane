@@ -1,0 +1,14 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: provider-external-sa
+spec:
+  deploymentTemplate:
+    metadata:
+      name: provider-runtime
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers: []
+          serviceAccountName: external-sa
