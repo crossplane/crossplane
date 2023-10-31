@@ -20,11 +20,18 @@ rules:
   - ""
   resources:
   - namespaces
-  - serviceaccounts
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+    - apps
+  resources:
+    - deployments
+  verbs:
+    - get
+    - list
+    - watch
 # The RBAC manager creates a series of RBAC roles for each namespace it sees.
 # These RBAC roles are controlled (in the owner reference sense) by the namespace.
 # The RBAC manager needs permission to set finalizers on Namespaces in order to

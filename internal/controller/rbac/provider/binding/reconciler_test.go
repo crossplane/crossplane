@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -112,8 +112,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"ListServiceAccountsError": {
-			reason: "We should return an error encountered listing ServiceAccounts.",
+		"ListDeploymentsError": {
+			reason: "We should return an error encountered listing Deployments.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -130,7 +130,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListSAs),
+				err: errors.Wrap(errBoom, errDeployments),
 			},
 		},
 		"ApplyClusterRoleBindingError": {
@@ -178,8 +178,8 @@ func TestReconcile(t *testing.T) {
 								// owned's UID matches that of the
 								// ProviderRevision because they're both the
 								// empty string.
-								l := o.(*corev1.ServiceAccountList)
-								l.Items = []corev1.ServiceAccount{{
+								l := o.(*appsv1.DeploymentList)
+								l.Items = []appsv1.Deployment{{
 									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{}}},
 								}}
 								return nil

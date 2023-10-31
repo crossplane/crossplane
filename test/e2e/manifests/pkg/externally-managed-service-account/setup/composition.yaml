@@ -1,0 +1,44 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                coolerField: "I'M COOLER!"
+          resources:
+            nop-resource-1:
+              resource:
+                apiVersion: nop.crossplane.io/v1alpha1
+                kind: NopResource
+                spec:
+                  forProvider:
+                    conditionAfter:
+                    - conditionType: Ready
+                      conditionStatus: "False"
+                      time: 0s
+                    - conditionType: Ready
+                      conditionStatus: "True"
+                      time: 10s
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing a compose!"
+  - step: detect-readiness
+    functionRef:
+      name: function-auto-ready
