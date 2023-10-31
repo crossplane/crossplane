@@ -25,7 +25,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,7 +75,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
-		Watches(&corev1.ServiceAccount{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1.ProviderRevision{})).
+		Watches(&appsv1.Deployment{}, handler.EnqueueRequestForOwner(mgr.GetScheme(), mgr.GetRESTMapper(), &v1.ProviderRevision{})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
