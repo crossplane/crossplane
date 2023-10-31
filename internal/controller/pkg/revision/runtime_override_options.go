@@ -127,10 +127,12 @@ func DeploymentWithSelectors(selectors map[string]string) DeploymentOverride {
 	}
 }
 
-// DeploymentWithServiceAccount overrides the service account of a Deployment.
-func DeploymentWithServiceAccount(sa string) DeploymentOverride {
+// DeploymentWithOptionalServiceAccount overrides the service account of a Deployment.
+func DeploymentWithOptionalServiceAccount(sa string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
-		d.Spec.Template.Spec.ServiceAccountName = sa
+		if d.Spec.Template.Spec.ServiceAccountName == "" {
+			d.Spec.Template.Spec.ServiceAccountName = sa
+		}
 	}
 }
 

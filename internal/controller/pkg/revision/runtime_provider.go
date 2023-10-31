@@ -136,11 +136,17 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 
 	sa := build.ServiceAccount()
-	if err := h.client.Apply(ctx, sa); err != nil {
-		return errors.Wrap(err, errApplyProviderSA)
-	}
-
 	d := build.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
+	// Create/Apply the SA only if the deployment references it.
+	// This is to avoid creating a SA that is not used by the deployment when
+	// the SA is managed externally by the user and configured by setting
+	// `deploymentTemplate.spec.template.spec.serviceAccountName` in the
+	// DeploymentRuntimeConfig.
+	if sa.Name == d.Spec.Template.Spec.ServiceAccountName {
+		if err := h.client.Apply(ctx, sa); err != nil {
+			return errors.Wrap(err, errApplyProviderSA)
+		}
+	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
