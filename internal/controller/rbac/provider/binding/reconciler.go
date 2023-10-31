@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +51,7 @@ const (
 	timeout = 2 * time.Minute
 
 	errGetPR        = "cannot get ProviderRevision"
-	errListSAs      = "cannot list ServiceAccounts"
+	errDeployments  = "cannot list Deployments"
 	errApplyBinding = "cannot apply ClusterRoleBinding"
 
 	kindClusterRole = "ClusterRole"
@@ -169,27 +170,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	l := &corev1.ServiceAccountList{}
+	l := &appsv1.DeploymentList{}
 	if err := r.client.List(ctx, l); err != nil {
-		err = errors.Wrap(err, errListSAs)
+		err = errors.Wrap(err, errDeployments)
 		r.record.Event(pr, event.Warning(reasonBind, err))
 		return reconcile.Result{}, err
 	}
 
-	// Filter down to the ServiceAccounts that are owned by this
+	// Filter down to the Deployments that are owned by this
 	// ProviderRevision. Each revision should control at most one, but it's easy
 	// and relatively harmless for us to handle there being many.
 	subjects := make([]rbacv1.Subject, 0)
 	subjectStrings := make([]string, 0)
-	for _, sa := range l.Items {
-		for _, ref := range sa.GetOwnerReferences() {
+	for _, d := range l.Items {
+		for _, ref := range d.GetOwnerReferences() {
 			if ref.UID == pr.GetUID() {
+				sa := d.Spec.Template.Spec.ServiceAccountName
+				ns := d.Namespace
+
 				subjects = append(subjects, rbacv1.Subject{
 					Kind:      rbacv1.ServiceAccountKind,
-					Namespace: sa.GetNamespace(),
-					Name:      sa.GetName(),
+					Namespace: ns,
+					Name:      sa,
 				})
-				subjectStrings = append(subjectStrings, sa.GetNamespace()+"/"+sa.GetName())
+				subjectStrings = append(subjectStrings, ns+"/"+sa)
 			}
 		}
 	}
