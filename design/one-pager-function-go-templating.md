@@ -58,6 +58,8 @@ spec:
 apiVersion: iam.aws.upbound.io/v1beta1
 kind: AccessKey
 metadata:
+  annotations:
+    gotemplating.fn.crossplane.io/composition-resource-name: sample-access-key-{{ $i }}
   name: sample-access-key-{{ $i }}
 spec:
   forProvider:
@@ -130,7 +132,7 @@ spec:
 
 ## Helper Functions
 
-A set of helper functions like `getComposedResource` or `getEnvVar` will be 
+A set of helper functions like `getComposedResource` or `getCompositionEnvVar` will be 
 provided to make it easier to access resources or environment config variables 
 referenced in the composition. Without these functions, users can access 
 resources or environment config variables by using the `index` function like 
@@ -173,7 +175,7 @@ metadata:
     testing.upbound.io/example-name: test-user-{{ $i }}
     {{ $composed := getComposedResource $.observed ( print "test-user-" $i ) }}
     dummy: {{ default ( randomChoice "foo" "bar" "baz" ) $composed.resource.metadata.labels.dummy }}
-    env: {{ getEnvVar $. "key1" }}
+    env: {{ getCompositionEnvVar $. "key1" }}
   name: test-user-{{ $i }}
 spec:
   forProvider: {}
