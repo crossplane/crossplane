@@ -12,7 +12,7 @@
   "prConcurrentLimit": 5,
 // The branches renovate should target
 // PLEASE UPDATE THIS WHEN RELEASING.
-  "baseBranches": ["master","release-1.11","release-1.12","release-1.13"],
+  "baseBranches": ["master","release-1.12","release-1.13","release-1.14"],
   "ignorePaths": ["design/**"],
   "postUpdateOptions": ["gomodTidy"],
 // All PRs should have a label
