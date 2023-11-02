@@ -452,14 +452,14 @@ jobs:
           name: artifacts
           path: ./out/artifacts
 
-
+  # TODO(negz): Refactor this job. Should the parts pertaining to release
+  # branches live in promote.yaml instead?
   protobuf-schemas:
     runs-on: ubuntu-22.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
-
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
 
@@ -471,14 +471,24 @@ jobs:
         with:
           input: apis
 
-      - name: Detect Breaking Changes in Protocol Buffers
+      - name: Detect Breaking Changes in Protocol Buffers (Master Branch)
         uses: bufbuild/buf-breaking-action@a074e988ee34efcd4927079e79c611f428354c01 # v1
+        # We want to run this for the master branch, and PRs.
+        if: ${{ ! startsWith(github.ref, 'refs/heads/release-') }}
         with:
           input: apis
           against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,subdir=apis"
+
+      - name: Detect Breaking Changes in Protocol Buffers (Release Branch)
+        uses: bufbuild/buf-breaking-action@a074e988ee34efcd4927079e79c611f428354c01 # v1
+        # We want to run this only on release branches.
+        if: ${{ startsWith(github.ref, 'refs/heads/release-') }}
+        with:
+          input: apis
+          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=${GITHUB_REF_NAME},subdir=apis"
         
       - name: Push Protocol Buffers to Buf Schema Registry
-        if: github.ref == 'refs/heads/master' && github.repository == 'crossplane/crossplane'
+        if: ${{ github.repository == 'crossplane/crossplane' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release-')) }}
         uses: bufbuild/buf-push-action@v1
         with:
           input: apis
