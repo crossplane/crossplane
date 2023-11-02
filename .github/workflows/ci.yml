@@ -478,7 +478,7 @@ jobs:
           against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,subdir=apis"
         
       - name: Push Protocol Buffers to Buf Schema Registry
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/master' && github.repository == 'crossplane/crossplane'
         uses: bufbuild/buf-push-action@v1
         with:
           input: apis
