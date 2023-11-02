@@ -472,7 +472,7 @@ jobs:
           input: apis
 
       - name: Detect Breaking Changes in Protocol Buffers
-        uses: bufbuild/buf-breaking-action@v1
+        uses: bufbuild/buf-breaking-action@a074e988ee34efcd4927079e79c611f428354c01 # v1
         with:
           input: apis
           against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,subdir=apis"
