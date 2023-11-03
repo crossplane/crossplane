@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	apimachinerywait "k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -48,6 +49,7 @@ import (
 	"k8s.io/client-go/rest"
 	kubectlevents "k8s.io/kubectl/pkg/cmd/events"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/e2e-framework/klient"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
@@ -410,6 +412,27 @@ func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOptio
 	}
 }
 
+// UpdateResources updates k8s resources from the provided manifests
+func UpdateResources(dir, pattern string, options ...decoder.DecodeOption) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		dfs := os.DirFS(dir)
+
+		files, _ := fs.Glob(dfs, pattern)
+		if len(files) == 0 {
+			t.Errorf("No resources found in %s", filepath.Join(dir, pattern))
+			return ctx
+		}
+
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, updateHandler(c.Client().Resources()), options...); err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+
+		t.Logf("Updated resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+		return ctx
+	}
+}
+
 type claimCtxKey struct{}
 
 // ApplyClaim applies the claim stored in the given folder and file
@@ -492,6 +515,26 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 		// fields. I'm guessing controller-runtime is setting providers as a
 		// field manager at create time even though it doesn't use SSA?
 		if err := r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager), client.ForceOwnership); err != nil {
+			return err
+		}
+		for _, h := range osh {
+			h(obj)
+		}
+		return nil
+	}
+}
+
+func updateHandler(r *resources.Resources, osh ...onSuccessHandler) decoder.HandlerFunc {
+	return func(ctx context.Context, obj k8s.Object) error {
+		u := &unstructured.Unstructured{}
+		u.SetName(obj.GetName())
+		gvk := obj.GetObjectKind().GroupVersionKind()
+		u.SetGroupVersionKind(gvk)
+		if err := r.GetControllerRuntimeClient().Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, u); err != nil {
+			return err
+		}
+		obj.SetResourceVersion(u.GetResourceVersion())
+		if err := r.GetControllerRuntimeClient().Update(ctx, obj); err != nil {
 			return err
 		}
 		for _, h := range osh {
@@ -745,6 +788,115 @@ func ComposedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pa
 		}
 
 		t.Logf("matching resources had desired value %q at field path %s", want, path)
+		return ctx
+	}
+}
+
+// ComposedResourcesOfClaimHaveNotFieldWithin asserts that the composed resources of the given claim
+// do not contain the given field
+func ComposedResourcesOfClaimHaveNotFieldWithin(d time.Duration, dir, file, path string, filter func(object k8s.Object) bool) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm := &claim.Unstructured{}
+		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+			return ctx
+		}
+
+		xrRef := cm.GetResourceReference()
+		uxr := &composite.Unstructured{}
+
+		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
+		if err := c.Client().Resources().Get(ctx, xrRef.Name, xrRef.Namespace, uxr); err != nil {
+			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
+			return ctx
+		}
+
+		mrRefs := uxr.GetResourceReferences()
+
+		list := &unstructured.UnstructuredList{}
+		for _, ref := range mrRefs {
+			mr := &unstructured.Unstructured{}
+			mr.SetName(ref.Name)
+			mr.SetNamespace(ref.Namespace)
+			mr.SetGroupVersionKind(ref.GroupVersionKind())
+			list.Items = append(list.Items, *mr)
+		}
+
+		count := atomic.Int32{}
+		match := func(o k8s.Object) bool {
+			// filter function should return true if the object needs to be checked. e.g., if you want to check the field
+			// path of a VPC object, filter function should return true for VPC objects only.
+			if filter != nil && !filter(o) {
+				t.Logf("skipping resource %s/%s/%s due to filtering", o.GetNamespace(), o.GetName(), o.GetObjectKind().GroupVersionKind().String())
+				return true
+			}
+			count.Add(1)
+			u := asUnstructured(o)
+			_, err := fieldpath.Pave(u.Object).GetValue(path)
+			return err != nil
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(list.Items)
+			t.Errorf("resources still has field path %q before timeout (%s): %s\n\n%s\n\n", path, d.String(), err, y)
+
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("there were no unfiltered referred managed resources to check")
+			return ctx
+		}
+
+		t.Logf("matching resources had no field %s", path)
+		return ctx
+	}
+}
+
+// MRVisitorFn invoked when visiting a MR
+type MRVisitorFn func(ctx context.Context, client klient.Client, mr *unstructured.Unstructured) error
+
+// VisitComposedResourcesOfClaim iterates over composed resources of a claim and
+// for each of them invokes the provided visitor function
+func VisitComposedResourcesOfClaim(dir, file string, visitor MRVisitorFn) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm := &claim.Unstructured{}
+		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+			return ctx
+		}
+
+		xrRef := cm.GetResourceReference()
+		uxr := &composite.Unstructured{}
+
+		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
+		if err := c.Client().Resources().Get(ctx, xrRef.Name, xrRef.Namespace, uxr); err != nil {
+			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
+			return ctx
+		}
+
+		mrRefs := uxr.GetResourceReferences()
+
+		for _, ref := range mrRefs {
+			mr := &unstructured.Unstructured{}
+			mr.SetName(ref.Name)
+			mr.SetNamespace(ref.Namespace)
+			mr.SetGroupVersionKind(ref.GroupVersionKind())
+			if err := visitor(ctx, c.Client(), mr); err != nil {
+				t.Errorf("Error processing MR %v: %v", mr, err)
+			}
+		}
+
 		return ctx
 	}
 }

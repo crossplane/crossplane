@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -45,6 +46,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/csaupgrade"
 )
 
 const (
@@ -55,23 +57,24 @@ const (
 
 // Error strings
 const (
-	errGet                    = "cannot get composite resource"
-	errUpdate                 = "cannot update composite resource"
-	errUpdateStatus           = "cannot update composite resource status"
-	errAddFinalizer           = "cannot add composite resource finalizer"
-	errRemoveFinalizer        = "cannot remove composite resource finalizer"
-	errSelectComp             = "cannot select Composition"
-	errSelectCompUpdatePolicy = "cannot select CompositionUpdatePolicy"
-	errFetchComp              = "cannot fetch Composition"
-	errConfigure              = "cannot configure composite resource"
-	errPublish                = "cannot publish connection details"
-	errUnpublish              = "cannot unpublish connection details"
-	errValidate               = "refusing to use invalid Composition"
-	errAssociate              = "cannot associate composed resources with Composition resource templates"
-	errFetchEnvironment       = "cannot fetch environment"
-	errSelectEnvironment      = "cannot select environment"
-	errCompose                = "cannot compose resources"
-	errRenderCD               = "cannot render composed resource"
+	errGet                        = "cannot get composite resource"
+	errUpdate                     = "cannot update composite resource"
+	errUpdateStatus               = "cannot update composite resource status"
+	errFixFieldOwnershipComposite = "cannot fix field ownerships on composite resource"
+	errFixFieldOwnershipComposed  = "cannot fix field ownerships on composed resource"
+	errRemoveFinalizer            = "cannot remove composite resource finalizer"
+	errSelectComp                 = "cannot select Composition"
+	errSelectCompUpdatePolicy     = "cannot select CompositionUpdatePolicy"
+	errFetchComp                  = "cannot fetch Composition"
+	errConfigure                  = "cannot configure composite resource"
+	errPublish                    = "cannot publish connection details"
+	errUnpublish                  = "cannot unpublish connection details"
+	errValidate                   = "refusing to use invalid Composition"
+	errAssociate                  = "cannot associate composed resources with Composition resource templates"
+	errFetchEnvironment           = "cannot fetch environment"
+	errSelectEnvironment          = "cannot select environment"
+	errCompose                    = "cannot compose resources"
+	errRenderCD                   = "cannot render composed resource"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -81,9 +84,26 @@ const (
 	reasonResolve event.Reason = "SelectComposition"
 	reasonCompose event.Reason = "ComposeResources"
 	reasonPublish event.Reason = "PublishConnectionSecret"
-	reasonInit    event.Reason = "InitializeCompositeResource"
+	reasonMigrate event.Reason = "MigrateCompositeResource"
 	reasonDelete  event.Reason = "DeleteCompositeResource"
 	reasonPaused  event.Reason = "ReconciliationPaused"
+)
+
+// Server-side-apply field owners. We need two of these because it's possible
+// an invocation of this controller will operate on the same resource in two
+// different contexts. For example if an XR composes another XR we'll spin up
+// two XR controllers. The 'parent' XR controller will treat the child XR as a
+// composed resource, while the child XR controller will treat it as an XR. The
+// controller owns different parts of the resource (i.e. has different fully
+// specified intent) depending on the context.
+const (
+	// fieldOwnerXR owns the fields this controller mutates on composite
+	// resources (XR).
+	fieldOwnerXR = "apiextensions.crossplane.io/composite"
+
+	// fieldOwnerComposed owns the fields this controller mutates on composed
+	// resources.
+	fieldOwnerComposed = "apiextensions.crossplane.io/composed"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -99,14 +119,14 @@ type ConnectionSecretFilterer interface {
 
 // A CompositionSelector selects a composition reference.
 type CompositionSelector interface {
-	SelectComposition(ctx context.Context, cr resource.Composite) error
+	SelectComposition(ctx context.Context, cr resource.Composite) (*corev1.ObjectReference, error)
 }
 
 // A CompositionSelectorFn selects a composition reference.
-type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) error
+type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) (*corev1.ObjectReference, error)
 
 // SelectComposition for the supplied composite resource.
-func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resource.Composite) error {
+func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resource.Composite) (*corev1.ObjectReference, error) {
 	return fn(ctx, cr)
 }
 
@@ -191,14 +211,14 @@ type CompositionResult struct {
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
 // supplied composite resource and composition request.
 type Composer interface {
-	Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error)
+	Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error)
 }
 
 // A ComposerFn composes resources.
-type ComposerFn func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error)
+type ComposerFn func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error)
 
 // Compose resources.
-func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
+func (fn ComposerFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
 	return fn(ctx, xr, req)
 }
 
@@ -206,7 +226,7 @@ func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, re
 type ComposerSelectorFn func(*v1.CompositionMode) Composer
 
 // Compose calls the Composer returned by calling fn.
-func (fn ComposerSelectorFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
+func (fn ComposerSelectorFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
 	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
 }
 
@@ -385,7 +405,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		gvk: schema.GroupVersionKind(of),
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(kube),
 			CompositionRevisionValidator: CompositionRevisionValidatorFn(func(rev *v1.CompositionRevision) error {
 				// TODO(negz): Presumably this validation will eventually be
 				// removed in favor of the new Composition validation
@@ -407,7 +427,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			Finalizer:           resource.NewAPIFinalizer(kube, finalizer),
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
 			EnvironmentSelector: NewNoopEnvironmentSelector(),
-			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
+			Configurator:        NewConfiguratorChain(ConfiguratorFn(APINamingConfigure), ConfiguratorFn(APIConfigure)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
 			// never filter any keys. Is there an unfiltered variant we could
@@ -458,11 +478,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvk))
-	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
+	xrObserved := composite.New(composite.WithGroupVersionKind(r.gvk))
+	if err := r.client.Get(ctx, req.NamespacedName, xrObserved); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
+	// Previous versions of crossplane did not use server-side apply for updating composites.
+	// We need to fix the manager name so that future reconciliations do not
+	// create shared field ownership between old and actual managers.
+	// Only subresource field manager is fixed here, because the claim controller fixes the rest.
+	if ownershipFixed := csaupgrade.MaybeFixFieldOwnership(xrObserved.GetUnstructured(), fieldOwnerXR, csaupgrade.OnlySubresources); ownershipFixed {
+		if err := r.client.Update(ctx, xrObserved); err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			r.record.Event(xrObserved, event.Warning(reasonMigrate, err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(err, errFixFieldOwnershipComposite)
+		}
+	}
+	xr := newOverlayComposite(xrObserved)
 
 	log = log.WithValues(
 		"uid", xr.GetUID(),
@@ -477,7 +511,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		xr.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
 
 	if meta.WasDeleted(xr) {
@@ -488,7 +522,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errUnpublish)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			xr.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 		}
 
 		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
@@ -498,35 +532,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
 			xr.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
 		xr.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
 
-	if err := r.composite.AddFinalizer(ctx, xr); err != nil {
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
-		}
-		err = errors.Wrap(err, errAddFinalizer)
-		r.record.Event(xr, event.Warning(reasonInit, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-	}
+	xr.SetFinalizers([]string{finalizer})
 
 	orig := xr.GetCompositionReference()
-	if err := r.composite.SelectComposition(ctx, xr); err != nil {
+	compRef, err := r.composite.SelectComposition(ctx, xr)
+	if err != nil || compRef == nil {
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
+	xr.SetCompositionReference(compRef)
+	if orig == nil || *compRef != *orig {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition: %s", compRef.Name)))
 	}
-
 	// Select (if there is a new one) and fetch the composition revision.
 	origRev := xr.GetCompositionRevisionReference()
 	rev, err := r.revision.Fetch(ctx, xr)
@@ -535,9 +562,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
+	revRef := &corev1.ObjectReference{Name: rev.Name}
+	xr.SetCompositionRevisionReference(revRef)
+	if origRev == nil || *revRef != *origRev {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
 	}
 
@@ -548,9 +577,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errValidate)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
 		log.Debug(errConfigure, "error", err)
 		if kerrors.IsConflict(err) {
@@ -559,9 +587,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-
 	// Prepare the environment.
 	// Note that environments are optional, so env can be nil.
 	if err := r.composite.SelectEnvironment(ctx, xr, rev); err != nil {
@@ -569,9 +596,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSelectEnvironment)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-
 	env, err := r.environment.Fetch(ctx, EnvironmentFetcherRequest{
 		Composite: xr,
 		Revision:  rev,
@@ -582,9 +608,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errFetchEnvironment)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-
 	// TODO(negz): Pass this method a copy of xr, to make very clear that
 	// anything it does won't be reflected in the state of xr?
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev, Environment: env})
@@ -596,9 +621,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errCompose)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
-
+	log.Debug("Composed status", "status", xrObserved.Object["status"])
 	if r.kindObserver != nil {
 		var gvks []schema.GroupVersionKind
 		for _, ref := range xr.GetResourceReferences() {
@@ -606,7 +631,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		r.kindObserver.WatchComposedResources(gvks...)
 	}
-
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
 	if err != nil {
 		log.Debug(errPublish, "error", err)
@@ -616,7 +640,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
 	if published {
 		xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
@@ -672,14 +696,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.
 		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 	}
 
 	// We requeue after our poll interval because we can't watch composed
 	// resources - we can't know what type of resources we might compose
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr, client.FieldOwner(fieldOwnerXR)), errUpdateStatus)
 }
 
 // EnqueueForCompositionRevisionFunc returns a function that enqueues (the

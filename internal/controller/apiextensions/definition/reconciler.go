@@ -564,8 +564,8 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 		}
 
 		cc := composite.NewConfiguratorChain(
-			composite.NewAPINamingConfigurator(c),
-			composite.NewAPIConfigurator(c),
+			composite.ConfiguratorFn(composite.APINamingConfigure),
+			composite.ConfiguratorFn(composite.APIConfigure),
 			composite.NewSecretStoreConnectionDetailsConfigurator(c),
 		)
 

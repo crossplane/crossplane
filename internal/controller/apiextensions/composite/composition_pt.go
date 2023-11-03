@@ -23,21 +23,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
+	"github.com/crossplane/crossplane/internal/csaupgrade"
 	"github.com/crossplane/crossplane/internal/names"
 )
 
@@ -117,7 +116,7 @@ type composedResource struct {
 // along with a series of patches and transforms. It does not support Functions
 // - any entries in the functions array are ignored.
 type PTComposer struct {
-	client resource.ClientApplicator
+	client *overlayAwareClient
 
 	composition CompositionTemplateAssociator
 	composed    composedResource
@@ -131,7 +130,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	kube = unstructured.NewClient(kube)
 
 	c := &PTComposer{
-		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+		client: &overlayAwareClient{kube},
 
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
@@ -159,7 +158,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 //  3. Apply all composed resources that rendered successfully.
 //  4. Observe the readiness and connection details of all composed resources
 //     that rendered successfully.
-func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
+func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets before composing resources.
 	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
 	if err != nil {
@@ -196,7 +195,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 	// input. Errors are recorded, but not considered fatal to the composition
 	// process.
 	refs := make([]corev1.ObjectReference, len(tas))
-	cds := make([]resource.Composed, len(tas))
+	cds := make([]*composed.Unstructured, len(tas))
 	for i := range tas {
 		ta := tas[i]
 
@@ -238,7 +237,11 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		// resource templates we also need to record a reference even if it's
 		// empty, so that our XR's spec.resourceRefs remains the same length and
 		// order as our CompositionRevisions's array of templates.
-		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
+		refs[i] = corev1.ObjectReference{
+			Name:       r.GetName(),
+			APIVersion: r.GetAPIVersion(),
+			Kind:       r.GetKind(),
+		}
 
 		// We only need the composed resource if it rendered correctly.
 		if rendered {
@@ -251,7 +254,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 	// non-deterministic names, and also potentially recover from any errors
 	// we encounter while applying composed resources without leaking them.
 	xr.SetResourceReferences(refs)
-	if err := c.client.Update(ctx, xr); err != nil {
+	if err := c.client.Patch(ctx, xr, client.Apply, client.FieldOwner(fieldOwnerXR), client.ForceOwnership); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
@@ -270,9 +273,10 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			continue
 		}
 
-		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
-		o = append(o, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))...)
-		if err := c.client.Apply(ctx, cd, o...); err != nil {
+		if err := c.applyMergesToComposed(ctx, cd, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))); err != nil {
+			return CompositionResult{}, errors.Wrap(err, errApplyComposed)
+		}
+		if err := c.client.Patch(ctx, cd, client.Apply, client.FieldOwner(fieldOwnerComposed), client.ForceOwnership); err != nil {
 			// TODO(negz): Include the template name (if any) in this error.
 			// Including the rendered resource's kind may help too (e.g. if the
 			// template is anonymous).
@@ -331,21 +335,10 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		resources[i] = ComposedResource{ResourceName: name, Ready: ready}
 	}
 
-	// Call Apply so that we do not just replace fields on existing XR but
-	// merge fields for which a merge configuration has been specified. For
-	// fields for which a merge configuration does not exist, the behavior
-	// will be a replace from copy. We pass a deepcopy because the Apply
-	// method doesn't update status, but calling Apply resets any pending
-	// status changes.
-	//
-	// Unless this Apply is a no-op it will cause the XR's resource version to
-	// be incremented. Our original copy of the XR (cr) will still have the old
-	// resource version, so subsequent attempts to update it or its status will
-	// be rejected by the API server. This will trigger an immediate requeue,
-	// and we'll proceed to update the status as soon as there are no changes to
-	// be made to the spec.
-	objCopy := xr.DeepCopyObject().(client.Object)
-	if err := c.client.Apply(ctx, objCopy, mergeOptions(toXRPatchesFromTAs(tas))...); err != nil {
+	// Apply patches with merge configurations to XR.
+	// All changes to non-status parts are ignored
+	// and will be not persisted.
+	if err := c.applyMergesToXR(ctx, xr, mergeOptions(toXRPatchesFromTAs(tas))); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
@@ -377,6 +370,41 @@ func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
 		}
 	}
 	return filtered
+}
+
+func (c *PTComposer) applyMergesToXR(ctx context.Context, obj resource.Composite, merges []resource.ApplyOption) error {
+	observed := obj.DeepCopyObject().(*kunstructured.Unstructured)
+	if err := c.client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, observed); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	for _, m := range merges {
+		if err := m(ctx, observed, obj); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *PTComposer) applyMergesToComposed(ctx context.Context, obj *composed.Unstructured, merges []resource.ApplyOption) error {
+	observed := &kunstructured.Unstructured{}
+	observed.SetName(obj.GetName())
+	observed.SetKind(obj.GetKind())
+	observed.SetAPIVersion(obj.GetAPIVersion())
+	if err := c.client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, observed); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	for _, m := range merges {
+		if err := m(ctx, observed, obj); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // A TemplateAssociation associates a composed resource template with a composed
@@ -474,6 +502,15 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			return nil, errors.Wrap(err, errGetComposed)
 		}
 
+		// Previous versions of crossplane did not use server-side apply for updating composed resources.
+		// We need to fix the manager name so that future reconciliations do not
+		// create shared field ownership between old and actual managers.
+		// Only subresource field manager is fixed here, because the claim controller fixes the rest.
+		if ownershipFixed := csaupgrade.MaybeFixFieldOwnership(cd.GetUnstructured(), fieldOwnerComposed, csaupgrade.SkipSubresources); ownershipFixed {
+			if err := a.client.Update(ctx, cd); err != nil {
+				return nil, errors.Wrap(err, errFixFieldOwnershipComposed)
+			}
+		}
 		name := GetCompositionResourceName(cd)
 		if name == "" {
 			// All of our templates are named, but this existing composed

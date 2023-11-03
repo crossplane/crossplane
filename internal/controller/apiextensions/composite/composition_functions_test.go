@@ -401,55 +401,6 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrap(errBoom, errApplyXRRefs),
 			},
 		},
-		"ApplyXRStatusError": {
-			reason: "We should return any error we encounter when applying the composite resource status",
-			params: params{
-				kube: &test.MockClient{
-					MockPatch:       test.NewMockPatchFn(nil),
-					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
-				},
-				r: FunctionRunnerFn(func(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					d := &v1beta1.State{
-						Composite: &v1beta1.Resource{
-							Resource: MustStruct(map[string]any{
-								"status": map[string]any{
-									"widgets": 42,
-								},
-							})},
-					}
-					return &v1beta1.RunFunctionResponse{Desired: d}, nil
-				}),
-				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						return nil, nil
-					})),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
-						return nil
-					})),
-				},
-			},
-			args: args{
-				xr: composite.New(),
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Pipeline: []v1.PipelineStep{
-								{
-									Step:        "run-cool-function",
-									FunctionRef: v1.FunctionReference{Name: "cool-function"},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errApplyXRStatus),
-			},
-		},
 		"ApplyComposedResourceError": {
 			reason: "We should return any error we encounter when applying a composed resource",
 			params: params{

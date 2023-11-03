@@ -17,11 +17,20 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
+	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/e2e-framework/klient"
+	"sigs.k8s.io/e2e-framework/klient/decoder"
+	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -234,6 +243,87 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim-update.yaml", "status.coolerField", "I'm cool!"),
 				funcs.CompositeUnderTestMustNotChangeWithin(1*time.Minute),
 			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
+
+// TestPropagateFieldsUpdatesToMR verifies that the following reported bugs are fixed
+// * https://github.com/crossplane/crossplane/issues/3335
+// * https://github.com/crossplane/crossplane/issues/4162
+func TestPropagateFieldUpdatesToMR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-updates-mr"
+	updateMR := func(manifest string) func(ctx context.Context, klient klient.Client, obj *unstructured.Unstructured) error {
+		return func(ctx context.Context, klient klient.Client, obj *unstructured.Unstructured) error {
+			u := &unstructured.Unstructured{}
+			if err := decoder.DecodeFile(os.DirFS(manifests), manifest, u); err != nil {
+				return err
+			}
+			u.SetName(obj.GetName())
+
+			for i := 0; i < 10; i++ {
+				err := klient.Resources().GetControllerRuntimeClient().Patch(ctx, u, client.Apply, client.FieldOwner("provider"))
+				if err == nil {
+					return nil
+				}
+				if !kerrors.IsConflict(err) {
+					return err
+				}
+				time.Sleep(1 * time.Second)
+			}
+			return nil
+		}
+	}
+	mrGK := funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"})
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy()),
+				func(ctx context.Context, t *testing.T, e *envconf.Config) context.Context {
+					// wait some time so that we can be sure
+					// that CRD reconciliation is over
+					time.Sleep(30 * time.Second)
+					return ctx
+				},
+				// update CRD
+				funcs.UpdateResources(manifests, "crd-update.yaml"),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("CompositeHasLabel", funcs.CompositeResourceMustMatchWithin(1*time.Minute, manifests, "claim.yaml", func(xr *composite.Unstructured) bool {
+				return xr.GetLabels()["crossplane.io/composite"] == xr.GetName()
+			})).
+			Assess("MRGotCreated", funcs.AllOf(
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.bArr[0].targetSelector.matchLabels[key2]", "foo", mrGK),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.someField", "someValue", mrGK),
+			)).
+			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
+			Assess("MRGotUpdated", funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.numbers", []any{"1", "2", "3"}, mrGK)).
+			Assess("ProviderUpdatesMR", funcs.VisitComposedResourcesOfClaim(manifests, "claim.yaml", updateMR("mr-update.yaml"))).
+			Assess("fof", funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.bArr[0].targetRefs[0].name", "bar", mrGK)).
+			Assess("RemoveFieldFromCompositionTemplate", funcs.ApplyResources(FieldManager, manifests, "composition-update.yaml")).
+			Assess("MRFieldRemoved", funcs.AllOf(
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.bArr[0].targetSelector.matchLabels[key2]", "foo", mrGK),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.bArr[0].targetRefs[0].name", "bar", mrGK),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.otherField", "otherValue", mrGK),
+				funcs.ComposedResourcesOfClaimHaveNotFieldWithin(1*time.Minute, manifests, "claim.yaml", "spec.forProvider.fields.someField", mrGK),
+			)).
+			Assess("ClaimStatusUpdated", funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "claim.yaml", "status.numbers", []any{"1", "2"})).
+			Assess("ProviderUpdatesMR", funcs.VisitComposedResourcesOfClaim(manifests, "claim.yaml", updateMR("mr-update2.yaml"))).
+			Assess("ClaimStatusUpdated", funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "claim.yaml", "status.numbers", []any{"1", "2", "3", "4"})).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),

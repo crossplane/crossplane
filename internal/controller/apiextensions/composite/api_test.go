@@ -456,7 +456,7 @@ func TestFetchRevision(t *testing.T) {
 			},
 		},
 		"SetRevisionError": {
-			reason: "We should return the latest revision and update our reference if none is set.",
+			reason: "We should return the latest revision.",
 			client: resource.ClientApplicator{
 				Client: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
@@ -486,7 +486,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdate),
+				rev: rev2,
 			},
 		},
 	}
@@ -508,8 +508,6 @@ func TestFetchRevision(t *testing.T) {
 }
 
 func TestConfigure(t *testing.T) {
-	errBoom := errors.New("boom")
-
 	cs := fake.ConnectionSecretWriterTo{Ref: &xpv1.SecretReference{
 		Name:      "foo",
 		Namespace: "bar",
@@ -581,29 +579,10 @@ func TestConfigure(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 			}},
 		},
-		"UpdateFailed": {
-			reason: "Should fail if kube update failed",
-			args: args{
-				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
-				cp: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
-				},
-				rev: &v1.CompositionRevision{
-					Spec: v1.CompositionRevisionSpec{
-						WriteConnectionSecretsToNamespace: &cs.Ref.Namespace,
-					},
-				},
-			},
-			want: want{
-				cp:  cp,
-				err: errors.Wrap(errBoom, errUpdateComposite),
-			},
-		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &APIConfigurator{client: tc.args.kube}
-			err := c.Configure(context.Background(), tc.args.cp, tc.args.rev)
+			err := APIConfigure(context.Background(), tc.args.cp, tc.args.rev)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -635,7 +614,7 @@ func TestSelectorResolver(t *testing.T) {
 		cp   resource.Composite
 	}
 	type want struct {
-		cp  resource.Composite
+		ref *corev1.ObjectReference
 		err error
 	}
 
@@ -644,19 +623,6 @@ func TestSelectorResolver(t *testing.T) {
 		args
 		want
 	}{
-		"AlreadyResolved": {
-			reason: "Should be no-op if the composition selector is already resolved",
-			args: args{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
-			},
-			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
-			},
-		},
 		"ListFailed": {
 			reason: "Should fail if List query fails",
 			args: args{
@@ -664,7 +630,6 @@ func TestSelectorResolver(t *testing.T) {
 				cp:   &fake.Composite{},
 			},
 			want: want{
-				cp:  &fake.Composite{},
 				err: errors.Wrap(errBoom, errListCompositions),
 			},
 		},
@@ -677,9 +642,6 @@ func TestSelectorResolver(t *testing.T) {
 				},
 			},
 			want: want{
-				cp: &fake.Composite{
-					CompositionSelector: fake.CompositionSelector{Sel: sel},
-				},
 				err: errors.New(errNoCompatibleComposition),
 			},
 		},
@@ -711,21 +673,18 @@ func TestSelectorResolver(t *testing.T) {
 				},
 			},
 			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-					CompositionSelector:   fake.CompositionSelector{Sel: sel},
-				},
+				ref: &corev1.ObjectReference{Name: comp.Name},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewAPILabelSelectorResolver(tc.args.kube)
-			err := c.SelectComposition(context.Background(), tc.args.cp)
+			got, err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+			if diff := cmp.Diff(tc.want.ref, got); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -750,7 +709,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 		cp     resource.Composite
 	}
 	type want struct {
-		cp  resource.Composite
+		ref *corev1.ObjectReference
 		err error
 	}
 
@@ -759,34 +718,6 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 		args
 		want
 	}{
-		"AlreadyResolved": {
-			reason: "Should be no-op if a composition is already selected",
-			args: args{
-				defRef: corev1.ObjectReference{},
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
-			},
-			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
-			},
-		},
-		"SelectorInPlace": {
-			reason: "Should be no-op if a composition selector is in place",
-			args: args{
-				defRef: corev1.ObjectReference{},
-				cp: &fake.Composite{
-					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
-				},
-			},
-			want: want{
-				cp: &fake.Composite{
-					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
-				},
-			},
-		},
 		"NoDefault": {
 			reason: "Should be no-op if no default is given in definition",
 			args: args{
@@ -796,7 +727,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 				cp: &fake.Composite{},
 			},
 			want: want{
-				cp: &fake.Composite{},
+				ref: nil,
 			},
 		},
 		"GetDefinitionFailed": {
@@ -809,7 +740,6 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetXRD),
-				cp:  &fake.Composite{},
 			},
 		},
 		"Success": {
@@ -832,20 +762,18 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 				cp: &fake.Composite{},
 			},
 			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
+				ref: &corev1.ObjectReference{Name: comp.Name},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewAPIDefaultCompositionSelector(tc.args.kube, tc.args.defRef, event.NewNopRecorder())
-			err := c.SelectComposition(context.Background(), tc.args.cp)
+			got, err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+			if diff := cmp.Diff(tc.want.ref, got); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -868,7 +796,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		cp  resource.Composite
 	}
 	type want struct {
-		cp  resource.Composite
+		ref *corev1.ObjectReference
 		err error
 	}
 
@@ -883,9 +811,6 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 				def: v1.CompositeResourceDefinition{},
 				cp:  &fake.Composite{},
 			},
-			want: want{
-				cp: &fake.Composite{},
-			},
 		},
 		"EnforcedAlreadySet": {
 			reason: "Should be no-op if enforced composition reference is already set",
@@ -898,13 +823,11 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 				},
 			},
 			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
+				ref: &corev1.ObjectReference{Name: comp.Name},
 			},
 		},
 		"Success": {
-			reason: "Successfully set the default composition reference",
+			reason: "Successfully select the default composition reference",
 			args: args{
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
@@ -912,13 +835,11 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 				cp: &fake.Composite{},
 			},
 			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
+				ref: &corev1.ObjectReference{Name: comp.Name},
 			},
 		},
 		"SuccessOverride": {
-			reason: "Successfully set the default composition reference even if another one was set",
+			reason: "Successfully select the default composition reference even if another one was set",
 			args: args{
 				def: v1.CompositeResourceDefinition{
 					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
@@ -928,20 +849,18 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 				},
 			},
 			want: want{
-				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
-				},
+				ref: &corev1.ObjectReference{Name: comp.Name},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewEnforcedCompositionSelector(tc.args.def, event.NewNopRecorder())
-			err := c.SelectComposition(context.Background(), tc.args.cp)
+			got, err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+			if diff := cmp.Diff(tc.want.ref, got); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -963,15 +882,6 @@ func TestAPINamingConfigurator(t *testing.T) {
 		args
 		want
 	}{
-		"LabelAlreadyExists": {
-			reason: "No operation should be done if the name prefix is already given",
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "given"}}},
-			},
-			want: want{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "given"}}},
-			},
-		},
 		"AssignedName": {
 			reason: "Its own name should be used as name prefix if it is not given",
 			args: args{
@@ -987,8 +897,7 @@ func TestAPINamingConfigurator(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPINamingConfigurator(tc.args.kube)
-			err := c.Configure(context.Background(), tc.args.cp, nil)
+			err := APINamingConfigure(context.Background(), tc.args.cp, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}

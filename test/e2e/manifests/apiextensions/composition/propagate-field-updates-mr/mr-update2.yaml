@@ -1,0 +1,17 @@
+apiVersion: nop.crossplane.io/v1alpha1
+kind: NopResource
+metadata:
+  # the name is set to concrete MR name during the test
+  name: xxx
+spec:
+  # MR is updated via server-side apply, hence
+  # we specify here only fields we are interested to be updated
+  forProvider:
+    fields:
+      otherNumbers:
+        - "3"
+        - "4"
+      bArr:
+      - name: f
+        targetRefs:
+          - name: bar

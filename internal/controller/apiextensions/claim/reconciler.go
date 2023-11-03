@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -42,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	"github.com/crossplane/crossplane/internal/csaupgrade"
 	"github.com/crossplane/crossplane/internal/names"
 )
 
@@ -86,11 +86,6 @@ const (
 	reasonClaimConfigure     event.Reason = "ConfigureClaim"
 	reasonPropagate          event.Reason = "PropagateConnectionSecret"
 	reasonPaused             event.Reason = "ReconciliationPaused"
-)
-
-var (
-	// field manager names used by previous Crossplane versions
-	csaManagerNames = []string{"Go-http-client", "crossplane"}
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -348,7 +343,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Previous versions of crossplane did not use server-side apply for updating claims.
 	// We need to fix the manager name so that future reconciliations do not
 	// create shared field ownership between old and actual managers
-	if ownershipFixed := r.maybeFixFieldOwnership(cm.GetUnstructured(), true, fieldOwnerName, csaManagerNames...); ownershipFixed {
+	if ownershipFixed := csaupgrade.MaybeFixFieldOwnership(cm.GetUnstructured(), fieldOwnerName, csaupgrade.All); ownershipFixed {
 		if err := r.client.Update(ctx, cm); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
@@ -456,7 +451,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// so that the claim controller becomes an exclusive owner
 	// of the fields mirrored from the claim to the composite
 	if meta.WasCreated(cp) {
-		if ownershipFixed := r.maybeFixFieldOwnership(cp.GetUnstructured(), false, fieldOwnerName, csaManagerNames...); ownershipFixed {
+		if ownershipFixed := csaupgrade.MaybeFixFieldOwnership(cp.GetUnstructured(), fieldOwnerName, csaupgrade.SkipSubresources); ownershipFixed {
 			if err := r.client.Update(ctx, cp); err != nil {
 				if kerrors.IsConflict(err) {
 					return reconcile.Result{Requeue: true}, nil
@@ -572,45 +567,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// need to requeue here.
 	cm.SetConditions(xpv1.Available())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm, client.FieldOwner(fieldOwnerName)), errUpdateClaimStatus)
-}
-
-// For the background, check https://github.com/kubernetes/kubernetes/issues/99003
-// Managed fields owner key is a pair (manager name, used operation).
-// Previous versions of Crossplane create a composite using patching applicator.
-// Even if the server-side apply is not used, api server derives manager name
-// from the submitted user agent (see net/http/request.go).
-// After Crossplane update, we need to replace the ownership so that
-// field removals can be propagated properly.
-// In order to fix that, we need to manually change operation to "Apply",
-// and the manager name, before the first composite patch is sent to k8s api server.
-// Returns true if the ownership was fixed.
-// TODO: this code can be removed once Crossplane v1.13 is not longer supported
-func (r *Reconciler) maybeFixFieldOwnership(obj *kunstructured.Unstructured, fixSubresource bool, ssaManagerName string, csaManagerNames ...string) bool {
-	mfs := obj.GetManagedFields()
-	umfs := make([]metav1.ManagedFieldsEntry, len(mfs))
-	copy(umfs, mfs)
-	fixed := false
-	for j := range csaManagerNames {
-		for i := range umfs {
-			if umfs[i].Manager == ssaManagerName {
-				return false
-			}
-			if umfs[i].Subresource != "" && !fixSubresource {
-				continue
-			}
-
-			if umfs[i].Manager == csaManagerNames[j] && umfs[i].Operation == metav1.ManagedFieldsOperationUpdate {
-				umfs[i].Operation = metav1.ManagedFieldsOperationApply
-				umfs[i].Manager = ssaManagerName
-				fixed = true
-			}
-		}
-	}
-	if fixed {
-		obj.SetManagedFields(umfs)
-	}
-	return fixed
-
 }
 
 // Waiting returns a condition that indicates the composite resource claim is

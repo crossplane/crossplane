@@ -38,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	"github.com/crossplane/crossplane/internal/names"
@@ -66,23 +65,6 @@ const (
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
-)
-
-// Server-side-apply field owners. We need two of these because it's possible
-// an invocation of this controller will operate on the same resource in two
-// different contexts. For example if an XR composes another XR we'll spin up
-// two XR controllers. The 'parent' XR controller will treat the child XR as a
-// composed resource, while the child XR controller will treat it as an XR. The
-// controller owns different parts of the resource (i.e. has different fully
-// specified intent) depending on the context.
-const (
-	// FieldOwnerXR owns the fields this controller mutates on composite
-	// resources (XR).
-	FieldOwnerXR = "apiextensions.crossplane.io/composite"
-
-	// FieldOwnerComposed owns the fields this controller mutates on composed
-	// resources.
-	FieldOwnerComposed = "apiextensions.crossplane.io/composed"
 )
 
 const (
@@ -186,7 +168,7 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 	f := NewSecretConnectionDetailsFetcher(kube)
 
 	c := &FunctionComposer{
-		client: kube,
+		client: &overlayAwareClient{kube},
 
 		composite: xr{
 			ConnectionDetailsFetcher:         f,
@@ -206,7 +188,7 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 }
 
 // Compose resources using the Functions pipeline.
-func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
+func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
@@ -356,41 +338,23 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	refs := composite.New()
-	refs.SetAPIVersion(xr.GetAPIVersion())
-	refs.SetKind(xr.GetKind())
-	refs.SetName(xr.GetName())
-	UpdateResourceRefs(refs, desired)
+	UpdateResourceRefs(xr, desired)
 
-	// Persist our updated composed resource references. We want this to be an
-	// atomic replace of the entire array. Note that we're relying on the status
-	// patch that immediately follows to load the latest version of uxr from the
-	// API server.
-	if err := c.client.Patch(ctx, refs, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
+	// Persist all changes to our composite at once.
+	// In case of success, xr variable contains the latest version available
+	// at API server.
+	if err := c.client.Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(fieldOwnerXR)); err != nil {
 		// It's important we don't proceed if this fails, because we need to be
 		// sure we've persisted our resource references before we create any new
 		// composed resources below.
 		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
 	}
 
-	// Our goal here is to patch our XR's status using server-side apply. We
-	// want the resulting, patched object loaded into uxr. We need to pass in
-	// only our "fully specified intent" - i.e. only the fields that we actually
-	// care about. FromStruct will replace uxr's backing map[string]any with the
-	// content of GetResource (i.e. the desired status). We then need to set its
-	// GVK and name so that our client knows what resource to patch.
-	v := xr.GetAPIVersion()
-	k := xr.GetKind()
-	n := xr.GetName()
-	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	// Update the composite status from the specified intent
+	// Any other changes on the composite are ignored.
+	// The status is updated later by the reconciler
+	if err := FromStruct(xr, d.GetComposite().GetResource(), "status"); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
-	}
-	xr.SetAPIVersion(v)
-	xr.SetKind(k)
-	xr.SetName(n)
-
-	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
-		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
 	// Produce our array of resources to return to the Reconciler. The
@@ -406,7 +370,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Specifically it will merge rather than replace owner references (e.g.
 		// for Usages), and will fail if we try to add a controller reference to
 		// a resource that already has a different one.
-		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerComposed)); err != nil {
+		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(fieldOwnerComposed)); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
 		}
 
@@ -534,19 +498,37 @@ func AsStruct(o runtime.Object) (*structpb.Struct, error) {
 }
 
 // FromStruct populates the supplied object with content loaded from the Struct.
-func FromStruct(o client.Object, s *structpb.Struct) error {
+func FromStruct(o client.Object, s *structpb.Struct, fields ...string) error {
 	// If the supplied object is *Unstructured we don't need to round-trip.
 	if u, ok := o.(*kunstructured.Unstructured); ok {
-		u.Object = s.AsMap()
+		if len(fields) == 0 {
+			u.Object = s.AsMap()
+			return nil
+		}
+		m := s.AsMap()
+		for _, f := range fields {
+			u.Object[f] = m[f]
+		}
 		return nil
 	}
 
 	// If the supplied object wraps *Unstructured we don't need to round-trip.
 	if w, ok := o.(unstructured.Wrapper); ok {
-		w.GetUnstructured().Object = s.AsMap()
+		if len(fields) == 0 {
+			w.GetUnstructured().Object = s.AsMap()
+			return nil
+		}
+		m := s.AsMap()
+		u := w.GetUnstructured()
+		for _, f := range fields {
+			u.Object[f] = m[f]
+		}
 		return nil
 	}
 
+	if len(fields) > 0 {
+		return errors.New("fields not supported for general object")
+	}
 	// Fall back to a JSON round-trip.
 	b, err := protojson.Marshal(s)
 	if err != nil {

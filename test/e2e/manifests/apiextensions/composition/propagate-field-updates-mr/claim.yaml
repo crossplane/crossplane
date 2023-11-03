@@ -1,0 +1,10 @@
+apiVersion: nop.example.org/v1alpha1
+kind: NopResource
+metadata:
+  namespace: default
+  name: propagate-field-updates-mr
+spec:
+  coolField: "foo"
+  numbers:
+    - "1"
+    - "2"

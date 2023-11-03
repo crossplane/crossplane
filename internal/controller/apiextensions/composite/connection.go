@@ -158,13 +158,13 @@ type SecretStoreConnectionDetailsConfigurator struct {
 
 // Configure any required fields that were omitted from the composite resource
 // by copying them from its composition.
-func (c *SecretStoreConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
+func (c *SecretStoreConnectionDetailsConfigurator) Configure(_ context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if rev.Spec.CompositeTypeRef.APIVersion != apiVersion || rev.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
 	}
 
-	if cp.GetPublishConnectionDetailsTo() != nil || rev.Spec.PublishConnectionDetailsWithStoreConfigRef == nil {
+	if rev.Spec.PublishConnectionDetailsWithStoreConfigRef == nil {
 		return nil
 	}
 
@@ -175,7 +175,7 @@ func (c *SecretStoreConnectionDetailsConfigurator) Configure(ctx context.Context
 		},
 	})
 
-	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
+	return nil
 }
 
 // ConnectionDetailsExtractor extracts the connection details of a resource.

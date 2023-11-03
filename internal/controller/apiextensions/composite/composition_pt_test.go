@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -145,11 +146,11 @@ func TestPTCompose(t *testing.T) {
 				err: errors.Wrapf(errors.Wrap(errors.New("Object 'Kind' is missing in '{}'"), errUnmarshalJSON), errFmtParseBase, "uncool-resource"),
 			},
 		},
-		"UpdateCompositeError": {
-			reason: "We should return any error encountered while updating our composite resource with references.",
+		"PatchCompositeError": {
+			reason: "We should return any error encountered while patching our composite resource with references.",
 			params: params{
 				kube: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(errBoom),
+					MockPatch: test.NewMockPatchFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -174,14 +175,19 @@ func TestPTCompose(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdate),
 			},
 		},
-		"ApplyComposedError": {
-			reason: "We should return any error encountered while applying a composed resource.",
+		"PatchComposedError": {
+			reason: "We should return any error encountered while patching a composed resource.",
 			params: params{
 				kube: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
-
-					// Apply calls Create because GenerateName is set.
-					MockCreate: test.NewMockCreateFn(errBoom),
+					MockGet: test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						if u, ok := obj.(*unstructured.Unstructured); ok {
+							if u.GetKind() == "" {
+								return nil
+							}
+						}
+						return errBoom
+					}),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -203,17 +209,15 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot create object"), errApplyComposed),
+				err: errors.Wrap(errBoom, errApplyComposed),
 			},
 		},
 		"FetchConnectionDetailsError": {
 			reason: "We should return any error encountered while fetching a composed resource's connection details.",
 			params: params{
 				kube: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
-
-					// Apply calls Create because GenerateName is set.
-					MockCreate: test.NewMockCreateFn(nil),
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -246,9 +250,8 @@ func TestPTCompose(t *testing.T) {
 			params: params{
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
-
-					// Apply calls Create because GenerateName is set.
-					MockCreate: test.NewMockCreateFn(nil),
+					MockGet:    test.NewMockGetFn(nil),
+					MockPatch:  test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -284,9 +287,8 @@ func TestPTCompose(t *testing.T) {
 			params: params{
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
-
-					// Apply calls Create because GenerateName is set.
-					MockCreate: test.NewMockCreateFn(nil),
+					MockGet:    test.NewMockGetFn(nil),
+					MockPatch:  test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -320,7 +322,7 @@ func TestPTCompose(t *testing.T) {
 				err: errors.Wrapf(errBoom, errFmtCheckReadiness, "cool-resource"),
 			},
 		},
-		"CompositeApplyError": {
+		"CompositePatchError": {
 			reason: "We should return any error encountered while applying the Composite.",
 			params: params{
 				kube: &test.MockClient{
@@ -329,8 +331,8 @@ func TestPTCompose(t *testing.T) {
 					// Apply calls Get and Patch. We won't hit this for any
 					// composed resources because none we returned by the
 					// TemplateAssociator below.
-					MockGet:   test.NewMockGetFn(errBoom),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -345,7 +347,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errUpdate),
+				err: errors.Wrap(errBoom, errUpdate),
 			},
 		},
 		"Success": {
@@ -401,12 +403,10 @@ func TestPTCompose(t *testing.T) {
 			reason: "We should return the resources we composed, and our derived connection details. We should return events for any resources we couldn't compose",
 			params: params{
 				kube: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
+					//MockUpdate: test.NewMockUpdateFn(nil),
 
-					// Apply uses Get, Create, and Patch.
-					MockGet:    test.NewMockGetFn(nil),
-					MockCreate: test.NewMockCreateFn(nil),
-					MockPatch:  test.NewMockPatchFn(nil),
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
