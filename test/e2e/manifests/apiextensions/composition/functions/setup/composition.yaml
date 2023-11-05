@@ -22,6 +22,17 @@ spec:
             resource:
               status:
                 coolerField: "I'M COOLER!"
+                coolMap:
+                - name: kinda-cool
+                  coolness: 10
+                - name: a-bit-cooler
+                  coolness: 20
+                - name: getting-pretty-cool
+                  coolness: 30
+                - name: almost-there
+                  coolness: 40
+                - name: so-cool
+                  coolness: 50
           resources:
             # We compose a nested XR, which in turn composes an MR. This tests
             # regression of https://github.com/crossplane/crossplane/issues/4715.

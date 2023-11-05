@@ -32,3 +32,17 @@ spec:
           properties:
             coolerField:
               type: string
+            coolMap:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  coolness:
+                    type: integer
+                required:
+                - name
+              x-kubernetes-list-type: map
+              x-kubernetes-list-map-keys:
+              - name
