@@ -369,6 +369,8 @@ github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJS
 github.com/jhump/protoreflect v1.15.3 h1:6SFRuqU45u9hIZPJAoZ8c28T3nK64BNdp9w6jFonzls=
 github.com/jmattheis/goverter v0.18.0 h1:tOeDCSZQaq+Z+KKR1Y6g/pJgxUvlcT5VvbqxEial6zs=
 github.com/jmattheis/goverter v0.18.0/go.mod h1:cKOfZ0hADOS3Ef0+raoD3uBEgs2Qzbd3DhE3JXEnqJo=
+github.com/jmattheis/goverter v1.1.0 h1:HcIxgkUJ44Ah2JYCmdmippjUwQH4vJxclxWUzmaKCxA=
+github.com/jmattheis/goverter v1.1.0/go.mod h1:Il/E+0riIfIgRBUpM+Fnh2s8/sJhMp5NeDZZenTd6S4=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGwWFoC7ycTf1rcQZHOlsJ6N8=
