@@ -132,6 +132,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
 		}
 		logger.Debug("Pushed package", "path", c.PackageFiles[0], "ref", tag.String())
+		return nil
 	}
 
 	// If there's more than one package file we'll write (push) them all by
