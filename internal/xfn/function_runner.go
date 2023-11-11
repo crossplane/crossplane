@@ -65,8 +65,9 @@ const (
 // active FunctionRevision. You must call GarbageCollectClientConnections in
 // order to ensure connections are properly closed.
 type PackagedFunctionRunner struct {
-	client client.Reader
-	creds  credentials.TransportCredentials
+	client       client.Reader
+	creds        credentials.TransportCredentials
+	interceptors []grpc.UnaryClientInterceptor
 
 	connsMx sync.RWMutex
 	conns   map[string]*grpc.ClientConn
@@ -77,14 +78,22 @@ type PackagedFunctionRunner struct {
 // A PackagedFunctionRunnerOption configures a PackagedFunctionRunner.
 type PackagedFunctionRunnerOption func(r *PackagedFunctionRunner)
 
-// WithLogger configures the logger the PackageFunctionRunner should use.
+// WithInterceptors configures gRPC client interceptors (i.e. middlewares) that
+// the PackagedFunctionRunner should use.
+func WithInterceptors(i ...grpc.UnaryClientInterceptor) PackagedFunctionRunnerOption {
+	return func(r *PackagedFunctionRunner) {
+		r.interceptors = i
+	}
+}
+
+// WithLogger configures the logger the PackagedFunctionRunner should use.
 func WithLogger(l logging.Logger) PackagedFunctionRunnerOption {
 	return func(r *PackagedFunctionRunner) {
 		r.log = l
 	}
 }
 
-// WithTLSConfig configures the client TLS the PackageFunctionRunner should use.
+// WithTLSConfig configures the client TLS the PackagedFunctionRunner should use.
 func WithTLSConfig(cfg *tls.Config) PackagedFunctionRunnerOption {
 	return func(r *PackagedFunctionRunner) {
 		r.creds = credentials.NewTLS(cfg)
@@ -193,7 +202,8 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 
 	conn, err := grpc.DialContext(ctx, active.Status.Endpoint,
 		grpc.WithTransportCredentials(r.creds),
-		grpc.WithDefaultServiceConfig(lbRoundRobin))
+		grpc.WithDefaultServiceConfig(lbRoundRobin),
+		grpc.WithChainUnaryInterceptor(r.interceptors...))
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtDialFunction, active.Status.Endpoint, active.GetName())
 	}
