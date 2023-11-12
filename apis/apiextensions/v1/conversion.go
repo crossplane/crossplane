@@ -27,6 +27,8 @@ import (
 // goverter:converter
 // goverter:name GeneratedRevisionSpecConverter
 // goverter:extend ConvertRawExtension ConvertResourceQuantity
+// goverter:output:file ./zz_generated.conversion.go
+// goverter:output:package github.com/crossplane/crossplane/apis/apiextensions/v1
 // +k8s:deepcopy-gen=false
 type RevisionSpecConverter interface {
 	// goverter:ignore Revision
