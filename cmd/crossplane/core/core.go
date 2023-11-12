@@ -27,7 +27,6 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
@@ -54,6 +52,7 @@ import (
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
+	"github.com/crossplane/crossplane/internal/metrics"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/usage"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
@@ -61,10 +60,6 @@ import (
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
-
-// PrometheusSubsystemCompositionFunctions is the subsystem used by all metrics
-// relating to composition functions.
-const PrometheusSubsystemCompositionFunctions = "composition_functions"
 
 // Command runs the core crossplane controllers
 type Command struct {
@@ -212,18 +207,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			return errors.Wrap(err, "cannot load client TLS certificates")
 		}
 
-		// TODO(negz): Is it okay that we have multiple gRPC clients all sharing
-		// these metric? We probably want to break this down by function.
-		pi := prometheus.NewClientMetrics(
-			prometheus.WithClientCounterOptions(prometheus.WithSubsystem(PrometheusSubsystemCompositionFunctions)),
-			prometheus.WithClientHandlingTimeHistogram(prometheus.WithHistogramSubsystem(PrometheusSubsystemCompositionFunctions)))
-		metrics.Registry.MustRegister(pi)
+		m := xfn.NewMetrics()
+		metrics.Registry.MustRegister(m)
 
 		// We want all XR controllers to share the same gRPC clients.
 		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(),
 			xfn.WithLogger(log),
 			xfn.WithTLSConfig(clienttls),
-			xfn.WithInterceptors(pi.UnaryClientInterceptor()),
+			xfn.WithInterceptorCreators(m),
 		)
 
 		// Periodically remove clients for Functions that no longer exist.
