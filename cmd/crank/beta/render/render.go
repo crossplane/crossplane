@@ -177,10 +177,10 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 		fctx = rsp.GetContext()
 
 		// Results of fatal severity stop the Composition process.
-		for _, rs := range rsp.Results {
-			switch rs.Severity { //nolint:exhaustive // We intentionally have a broad default case.
+		for _, rs := range rsp.GetResults() {
+			switch rs.GetSeverity() { //nolint:exhaustive // We intentionally have a broad default case.
 			case fnv1beta1.Severity_SEVERITY_FATAL:
-				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.Message)
+				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
 					"apiVersion": "render.crossplane.io/v1beta1",

@@ -279,19 +279,19 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		// Results of fatal severity stop the Composition process. Other results
 		// are accumulated to be emitted as events by the Reconciler.
-		for _, rs := range rsp.Results {
-			switch rs.Severity {
+		for _, rs := range rsp.GetResults() {
+			switch rs.GetSeverity() {
 			case v1beta1.Severity_SEVERITY_FATAL:
-				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.Message)
+				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
 			case v1beta1.Severity_SEVERITY_WARNING:
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.Message)))
+				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
 			case v1beta1.Severity_SEVERITY_NORMAL:
-				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.Message)))
+				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
 			case v1beta1.Severity_SEVERITY_UNSPECIFIED:
 				// We could hit this case if a Function was built against a newer
 				// protobuf than this build of Crossplane, and the new protobuf
 				// introduced a severity that we don't know about.
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.Message)))
+				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
 			}
 		}
 	}
@@ -337,7 +337,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		desired[ResourceName(name)] = ComposedResourceState{
 			Resource:          cd,
 			ConnectionDetails: dr.GetConnectionDetails(),
-			Ready:             dr.Ready == v1beta1.Ready_READY_TRUE,
+			Ready:             dr.GetReady() == v1beta1.Ready_READY_TRUE,
 		}
 	}
 
