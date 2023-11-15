@@ -21,8 +21,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net/http"
-	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"time"
@@ -61,8 +59,6 @@ import (
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
-
-const pprofPath = "/debug/pprof/"
 
 // Command runs the core crossplane controllers
 type Command struct {
@@ -126,33 +122,6 @@ type startCommand struct {
 
 // Run core Crossplane controllers.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo // Only slightly over.
-	if c.Profile != "" {
-		// NOTE(negz): These log messages attempt to match those emitted by
-		// controller-runtime's metrics HTTP server when it starts.
-		log.Debug("Profiling server is starting to listen", "addr", c.Profile)
-		go func() {
-
-			// Registering these explicitly ensures they're only served by the
-			// HTTP server we start explicitly for profiling.
-			mux := http.NewServeMux()
-			mux.HandleFunc(pprofPath, pprof.Index)
-			mux.HandleFunc(filepath.Join(pprofPath, "cmdline"), pprof.Cmdline)
-			mux.HandleFunc(filepath.Join(pprofPath, "profile"), pprof.Profile)
-			mux.HandleFunc(filepath.Join(pprofPath, "symbol"), pprof.Symbol)
-			mux.HandleFunc(filepath.Join(pprofPath, "trace"), pprof.Trace)
-
-			s := &http.Server{
-				Addr:         c.Profile,
-				ReadTimeout:  2 * time.Minute,
-				WriteTimeout: 2 * time.Minute,
-				Handler:      mux,
-			}
-			log.Debug("Starting server", "type", "pprof", "path", pprofPath, "addr", s.Addr)
-			err := s.ListenAndServe()
-			log.Debug("Profiling server has stopped listening", "error", err)
-		}()
-	}
-
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot get config")
@@ -199,6 +168,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		LeaseDuration:                 func() *time.Duration { d := 60 * time.Second; return &d }(),
 		RenewDeadline:                 func() *time.Duration { d := 50 * time.Second; return &d }(),
 
+		PprofBindAddress:       c.Profile,
 		HealthProbeBindAddress: ":8081",
 	})
 	if err != nil {
