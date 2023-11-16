@@ -217,7 +217,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 						conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
 					}
 					conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
-					conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetName()
+					conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
 					conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
 					conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](webhookPort)
 				}
