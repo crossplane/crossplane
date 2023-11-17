@@ -133,7 +133,7 @@ func getResourceChildrenRefs(r *Resource, getConnectionSecrets bool) []v1.Object
 		return nil
 	}
 
-	if obj.GetNamespace() != "" {
+	if xrcNamespace := obj.GetNamespace(); xrcNamespace != "" {
 		// This is an XRC, get the XR ref, we leave the connection secret
 		// handling to the XR
 		xrc := claim.Unstructured{Unstructured: obj}
@@ -144,6 +144,18 @@ func getResourceChildrenRefs(r *Resource, getConnectionSecrets bool) []v1.Object
 				Name:       ref.Name,
 				Namespace:  ref.Namespace,
 			})
+		}
+		if getConnectionSecrets {
+			xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
+			if xrcSecretRef != nil {
+				ref := v1.ObjectReference{
+					APIVersion: "v1",
+					Kind:       "Secret",
+					Name:       xrcSecretRef.Name,
+					Namespace:  xrcNamespace,
+				}
+				refs = append(refs, ref)
+			}
 		}
 		return refs
 	}
