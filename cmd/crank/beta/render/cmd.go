@@ -190,8 +190,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 	for i := range out.ComposedResources {
 		fmt.Fprintln(k.Stdout, "---")
 		if err := s.Encode(&out.ComposedResources[i], os.Stdout); err != nil {
-			// TODO(negz): Use composed name annotation instead.
-			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetName())
+			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetAnnotations()[AnnotationKeyCompositionResourceName])
 		}
 	}
 
