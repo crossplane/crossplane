@@ -41,20 +41,20 @@ func NewMetrics() *Metrics {
 			Subsystem: "composition",
 			Name:      "run_function_request_total",
 			Help:      "Total number of RunFunctionRequests sent.",
-		}, []string{"name", "package", "target"}),
+		}, []string{"function_name", "function_package", "grpc_target"}),
 
 		responses: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "composition",
 			Name:      "run_function_response_total",
 			Help:      "Total number of RunFunctionResponses received.",
-		}, []string{"name", "package", "target", "grpc_code", "severity"}),
+		}, []string{"function_name", "function_package", "grpc_target", "grpc_code", "result_severity"}),
 
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: "composition",
 			Name:      "run_function_seconds",
 			Help:      "Histogram of RunFunctionResponse latency (seconds).",
 			Buckets:   prometheus.DefBuckets,
-		}, []string{"name", "package", "target", "grpc_code", "severity"}),
+		}, []string{"function_name", "function_package", "grpc_target", "grpc_code", "result_severity"}),
 	}
 }
 
@@ -80,7 +80,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 // function. The supplied package (pkg) should be the package's OCI reference.
 func (m *Metrics) CreateInterceptor(name, pkg string) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		l := prometheus.Labels{"name": name, "package": pkg, "target": cc.Target()}
+		l := prometheus.Labels{"function_name": name, "function_package": pkg, "grpc_target": cc.Target()}
 
 		m.requests.With(l).Inc()
 
@@ -95,18 +95,18 @@ func (m *Metrics) CreateInterceptor(name, pkg string) grpc.UnaryClientIntercepto
 		// normal results, has severity "Normal". A response with warnings, but
 		// no fatal results, has severity "Warning". A response with fatal
 		// results has severity "Fatal".
-		l["severity"] = "Normal"
+		l["result_severity"] = "Normal"
 		if rsp, ok := reply.(*v1beta1.RunFunctionResponse); ok {
 			for _, r := range rsp.GetResults() {
 				// Keep iterating if we see a warning result - we might still
 				// see a fatal result.
 				if r.GetSeverity() == v1beta1.Severity_SEVERITY_WARNING {
-					l["severity"] = "Warning"
+					l["result_severity"] = "Warning"
 				}
 				// Break if we see a fatal result, to ensure we don't downgrade
 				// the severity to warning.
 				if r.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
-					l["severity"] = "Fatal"
+					l["result_severity"] = "Fatal"
 					break
 				}
 			}
