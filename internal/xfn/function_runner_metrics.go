@@ -88,7 +88,8 @@ func (m *Metrics) CreateInterceptor(name, pkg string) grpc.UnaryClientIntercepto
 		err := invoker(ctx, method, req, reply, cc, opts...)
 		duration := time.Since(start)
 
-		l["grpc_code"] = FromError(err).Code().String()
+		s, _ := status.FromError(err)
+		l["grpc_code"] = s.Code().String()
 
 		// We consider the 'severity' of the response to be that of the most
 		// severe result in the response. A response with no results, or only
@@ -117,15 +118,4 @@ func (m *Metrics) CreateInterceptor(name, pkg string) grpc.UnaryClientIntercepto
 
 		return err
 	}
-}
-
-// FromError returns a grpc status. If the error code is neither a valid grpc
-// status nor a context error, codes.Unknown will be set.
-func FromError(err error) *status.Status {
-	s, ok := status.FromError(err)
-	// Mirror what the grpc server itself does, i.e. also convert context errors to status
-	if !ok {
-		s = status.FromContextError(err)
-	}
-	return s
 }
