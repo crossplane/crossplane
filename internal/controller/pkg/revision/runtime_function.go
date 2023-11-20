@@ -145,11 +145,6 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 // Deactivate performs operations meant to happen before deactivating a revision.
 func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	sa := build.ServiceAccount()
-	// Delete the service account if it exists.
-	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteFunctionSA)
-	}
-
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "functionDeploymentOverrides()" here, because we're only interested
@@ -157,6 +152,13 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	if err := h.client.Delete(ctx, build.Deployment(sa.Name)); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
+
+	// NOTE(turkenh): We don't delete the service account here because it might
+	// be used by other package revisions, e.g. user might have specified a
+	// service account name in the runtime config. This should not be a problem
+	// because we add the owner reference to the service account when we create
+	// them, and they will be garbage collected when the package revision is
+	// deleted if they are not used by any other package revisions.
 
 	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
 	// we're not deleting them here.

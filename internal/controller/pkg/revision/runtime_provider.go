@@ -165,11 +165,6 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 // Deactivate performs operations meant to happen before deactivating a revision.
 func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	sa := build.ServiceAccount()
-	// Delete the service account if it exists.
-	if err := h.client.Delete(ctx, sa); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errDeleteProviderSA)
-	}
-
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the
 	// "providerDeploymentOverrides()" here, because we're only interested
@@ -184,6 +179,13 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderService)
 	}
+
+	// NOTE(turkenh): We don't delete the service account here because it might
+	// be used by other package revisions, e.g. user might have specified a
+	// service account name in the runtime config. This should not be a problem
+	// because we add the owner reference to the service account when we create
+	// them, and they will be garbage collected when the package revision is
+	// deleted if they are not used by any other package revisions.
 
 	// NOTE(phisco): Service and TLS secrets are created per package. Therefore,
 	// we're not deleting them here.
