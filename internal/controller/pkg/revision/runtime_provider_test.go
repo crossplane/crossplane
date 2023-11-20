@@ -568,24 +568,6 @@ func TestProviderDeactivateHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrDeleteSA": {
-			reason: "Should return error if we fail to delete service account.",
-			args: args{
-				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
-					},
-				},
-				client: &test.MockClient{
-					MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
-						return errBoom
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errDeleteProviderSA),
-			},
-		},
 		"ErrDeleteDeployment": {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
@@ -649,10 +631,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 					MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 						switch obj.(type) {
 						case *corev1.ServiceAccount:
-							if obj.GetName() != "some-sa" {
-								return errors.New("unexpected service account name")
-							}
-							return nil
+							return errors.New("service account should not be deleted during deactivation")
 						case *appsv1.Deployment:
 							if obj.GetName() != "some-deployment" {
 								return errors.New("unexpected deployment name")
