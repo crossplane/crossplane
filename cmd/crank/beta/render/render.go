@@ -19,6 +19,7 @@ package render
 import (
 	"context"
 	"encoding/json"
+	"sort"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -82,7 +83,7 @@ type Outputs struct {
 	// appear ready?
 }
 
-// Render the desired XR and composed resources given the supplied inputs.
+// Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
 func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
 	// Run our Functions.
 	conns := map[string]*grpc.ClientConn{}
@@ -215,6 +216,11 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 
 		desired = append(desired, *cd)
 	}
+
+	// Sort the resource names to ensure a deterministic ordering of returned composed resources.
+	sort.Slice(desired, func(i, j int) bool {
+		return desired[i].GetAnnotations()[AnnotationKeyCompositionResourceName] < desired[j].GetAnnotations()[AnnotationKeyCompositionResourceName]
+	})
 
 	xr := ucomposite.New()
 	if err := composite.FromStruct(xr, d.GetComposite().GetResource()); err != nil {

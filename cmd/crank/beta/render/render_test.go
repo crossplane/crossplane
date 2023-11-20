@@ -216,10 +216,19 @@ func TestRender(t *testing.T) {
 										}`),
 									},
 									Resources: map[string]*fnv1beta1.Resource{
-										"cool-resource": {
+										"b-cool-resource": {
 											Resource: MustStructJSON(`{
-												"apiVersion": "test.crossplane.io/v1",
-												"kind": "Composed",
+												"apiVersion": "atest.crossplane.io/v1",
+												"kind": "AComposed",
+												"spec": {
+													"widgets": 9003
+												}
+											}`),
+										},
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
 												"spec": {
 													"widgets": 9002
 												}
@@ -266,14 +275,14 @@ func TestRender(t *testing.T) {
 						{
 							Unstructured: unstructured.Unstructured{
 								Object: MustLoadJSON(`{
-									"apiVersion": "test.crossplane.io/v1",
+									"apiVersion": "btest.crossplane.io/v1",
 									"metadata": {
 										"generateName": "test-render-",
 										"labels": {
 											"crossplane.io/composite": "test-render"
 										},
 										"annotations": {
-											"crossplane.io/composition-resource-name": "cool-resource"
+											"crossplane.io/composition-resource-name": "a-cool-resource"
 										},
 										"ownerReferences": [{
 											"apiVersion": "nop.example.org/v1alpha1",
@@ -284,9 +293,37 @@ func TestRender(t *testing.T) {
 											"uid": ""
 										}]
 									},
-									"kind": "Composed",
+									"kind": "BComposed",
 									"spec": {
 										"widgets": 9002
+									}
+								}`),
+							},
+						},
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "atest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "b-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "AComposed",
+									"spec": {
+										"widgets": 9003
 									}
 								}`),
 							},
