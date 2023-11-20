@@ -422,7 +422,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 	}
 }
 
-func TestAPIEstablisherRelinquish(t *testing.T) {
+func TestAPIEstablisherReleaseObjects(t *testing.T) {
 	errBoom := errors.New("boom")
 	controls := true
 	noControl := false
@@ -499,7 +499,7 @@ func TestAPIEstablisherRelinquish(t *testing.T) {
 				err: nil,
 			},
 		},
-		"CannotGetUpdate": {
+		"CannotUpdate": {
 			reason: "Should return an error if we cannot update the owned object.",
 			args: args{
 				est: &APIEstablisher{
@@ -571,8 +571,58 @@ func TestAPIEstablisherRelinquish(t *testing.T) {
 				err: nil,
 			},
 		},
-		"SuccessfulRelinquish": {
-			reason: "ReleaseObjects should be successful if we can relinquish control of existing objects",
+		"AlreadyReleased": {
+			reason: "ReleaseObjects should make no updates if the object is already released.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							o := obj.(*unstructured.Unstructured)
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "Provider",
+									Name:       "provider-helm",
+									UID:        "some-other-uid-1234",
+									Controller: &noControl,
+								},
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "ProviderRevision",
+									Name:       "provider-helm-ce18dd03e6e4",
+									UID:        "some-unique-uid-2312",
+									Controller: &noControl,
+								},
+							})
+							return nil
+						},
+						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+							t.Errorf("should not have called update")
+							return nil
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+					Status: v1.PackageRevisionStatus{
+						ObjectRefs: []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "releases.helm.crossplane.io",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"SuccessfulRelease": {
+			reason: "ReleaseObjects should be successful if we can release control of existing objects",
 			args: args{
 				est: &APIEstablisher{
 					client: &test.MockClient{
