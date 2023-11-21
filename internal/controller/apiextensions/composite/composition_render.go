@@ -80,26 +80,19 @@ func RenderFromJSON(o resource.Object, data []byte) error {
 	return nil
 }
 
-// RenderFromCompositePatches renders the supplied composed resource by applying
-// all patches that are _from_ the supplied composite resource.
-func RenderFromCompositePatches(cd resource.Composed, xr resource.Composite, p []v1.Patch) error {
+// RenderFromCompositeAndEnvironmentPatches renders the supplied composed
+// resource by applying all patches that are _from_ the supplied composite
+// resource or are from or to the supplied environment.
+func RenderFromCompositeAndEnvironmentPatches(cd resource.Composed, xr resource.Composite, e *Environment, p []v1.Patch) error {
 	for i := range p {
 		if err := Apply(p[i], xr, cd, patchTypesFromXR()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
 		}
-	}
-	return nil
-}
 
-// RenderToAndFromEnvironmentPatches renders the supplied composed resource by
-// applying all patches that are from or to the supplied environment.
-func RenderToAndFromEnvironmentPatches(cd resource.Composed, e *Environment, p []v1.Patch) error {
-	if e == nil {
-		return nil
-	}
-	for i := range p {
-		if err := ApplyToObjects(p[i], e, cd, patchTypesFromToEnvironment()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
+		if e != nil {
+			if err := ApplyToObjects(p[i], e, cd, patchTypesFromToEnvironment()...); err != nil {
+				return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
+			}
 		}
 	}
 	return nil
