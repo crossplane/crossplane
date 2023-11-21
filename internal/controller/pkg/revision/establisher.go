@@ -128,7 +128,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 
 // ReleaseObjects removes control of owned resources in the API server for a
 // package revision.
-func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error {
+func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error { //nolint:gocyclo // complexity coming from parallelism.
 	// Note(turkenh): We rely on status.objectRefs to get the list of objects
 	// that are controlled by the package revision. Relying on the status is
 	// not ideal as it might get lost (e.g. if the status subresource is
@@ -137,39 +137,65 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 	// referenced resources available and rebuilding the status.
 	// In the next reconciliation loop, and we will be able to remove the
 	// control/ownership of the objects using the new status.
-	objRefs := parent.GetObjects()
-	// Stop controlling objects.
-	for _, ref := range objRefs {
-		u := unstructured.Unstructured{}
-		u.SetAPIVersion(ref.APIVersion)
-		u.SetKind(ref.Kind)
-		u.SetName(ref.Name)
-
-		if err := e.client.Get(ctx, types.NamespacedName{Name: u.GetName()}, &u); err != nil {
-			if kerrors.IsNotFound(err) {
-				// This is not expected, but still not an error for relinquishing.
-				continue
-			}
-			return errors.Wrapf(err, errFmtGetOwnedObject, u.GetKind(), u.GetName())
-		}
-		ors := u.GetOwnerReferences()
-		for i := range ors {
-			if ors[i].UID == parent.GetUID() {
-				ors[i].Controller = ptr.To(false)
-				break
-			}
-			// Note(turkenh): What if we cannot find our UID in the owner
-			// references? This is not expected unless another party stripped
-			// out ownerRefs. I believe this is a fairly unlikely scenario,
-			// and we can ignore it for now especially considering that if that
-			// happens active revision or the package itself will still take
-			// over the ownership of such resources.
-		}
-		u.SetOwnerReferences(ors)
-		if err := e.client.Update(ctx, &u); err != nil {
-			return errors.Wrapf(err, errFmtUpdateOwnedObject, u.GetKind(), u.GetName())
-		}
+	allObjs := parent.GetObjects()
+	if len(allObjs) == 0 {
+		return nil
 	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentEstablishers)
+	for _, ref := range allObjs {
+		ref := ref // Pin the loop variable.
+		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			u := unstructured.Unstructured{}
+			u.SetAPIVersion(ref.APIVersion)
+			u.SetKind(ref.Kind)
+			u.SetName(ref.Name)
+
+			if err := e.client.Get(ctx, types.NamespacedName{Name: u.GetName()}, &u); err != nil {
+				if kerrors.IsNotFound(err) {
+					// This is not expected, but still not an error for releasing objects.
+					return nil
+				}
+				return errors.Wrapf(err, errFmtGetOwnedObject, u.GetKind(), u.GetName())
+			}
+			ors := u.GetOwnerReferences()
+			changed := false
+			for i := range ors {
+				if ors[i].UID == parent.GetUID() {
+					if ors[i].Controller != nil && *ors[i].Controller {
+						ors[i].Controller = ptr.To(false)
+						changed = true
+					}
+					break
+				}
+				// Note(turkenh): What if we cannot find our UID in the owner
+				// references? This is not expected unless another party stripped
+				// out ownerRefs. I believe this is a fairly unlikely scenario,
+				// and we can ignore it for now especially considering that if that
+				// happens active revision or the package itself will still take
+				// over the ownership of such resources.
+			}
+			if changed {
+				u.SetOwnerReferences(ors)
+				if err := e.client.Update(ctx, &u); err != nil {
+					return errors.Wrapf(err, errFmtUpdateOwnedObject, u.GetKind(), u.GetName())
+				}
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
