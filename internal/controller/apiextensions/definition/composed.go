@@ -156,7 +156,7 @@ func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupV
 
 		u := kunstructured.Unstructured{}
 		u.SetGroupVersionKind(gvk)
-		inf, err := ca.GetInformer(ctx, &u)
+		inf, err := ca.GetInformer(ctx, &u, cache.BlockUntilSynced(false)) // don't block. We wait in the go routine below.
 		if err != nil {
 			cancelFn()
 			log.Debug("failed getting informer", "error", err)
