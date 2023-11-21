@@ -82,6 +82,7 @@ func TestMain(m *testing.M) {
 				"--set args={--debug}",
 				"--set image.repository="+strings.Split(imgcore, ":")[0],
 				"--set image.tag="+strings.Split(imgcore, ":")[1],
+				"--set metrics.enabled=true",
 			),
 		),
 		config.WithLabelsToSelect(features.Labels{

@@ -65,8 +65,9 @@ const (
 // active FunctionRevision. You must call GarbageCollectClientConnections in
 // order to ensure connections are properly closed.
 type PackagedFunctionRunner struct {
-	client client.Reader
-	creds  credentials.TransportCredentials
+	client       client.Reader
+	creds        credentials.TransportCredentials
+	interceptors []InterceptorCreator
 
 	connsMx sync.RWMutex
 	conns   map[string]*grpc.ClientConn
@@ -74,20 +75,36 @@ type PackagedFunctionRunner struct {
 	log logging.Logger
 }
 
+// An InterceptorCreator creates gRPC UnaryClientInterceptors for functions.
+type InterceptorCreator interface {
+	// CreateInterceptor creates an interceptor for the named function. It also
+	// accepts the function's package OCI reference, which may be used by the
+	// interceptor (e.g. to label metrics).
+	CreateInterceptor(name, pkg string) grpc.UnaryClientInterceptor
+}
+
 // A PackagedFunctionRunnerOption configures a PackagedFunctionRunner.
 type PackagedFunctionRunnerOption func(r *PackagedFunctionRunner)
 
-// WithLogger configures the logger the PackageFunctionRunner should use.
+// WithLogger configures the logger the PackagedFunctionRunner should use.
 func WithLogger(l logging.Logger) PackagedFunctionRunnerOption {
 	return func(r *PackagedFunctionRunner) {
 		r.log = l
 	}
 }
 
-// WithTLSConfig configures the client TLS the PackageFunctionRunner should use.
+// WithTLSConfig configures the client TLS the PackagedFunctionRunner should use.
 func WithTLSConfig(cfg *tls.Config) PackagedFunctionRunnerOption {
 	return func(r *PackagedFunctionRunner) {
 		r.creds = credentials.NewTLS(cfg)
+	}
+}
+
+// WithInterceptorCreators configures the interceptors the
+// PackagedFunctionRunner should create for each function.
+func WithInterceptorCreators(ics ...InterceptorCreator) PackagedFunctionRunnerOption {
+	return func(r *PackagedFunctionRunner) {
+		r.interceptors = ics
 	}
 }
 
@@ -191,9 +208,15 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 	ctx, cancel := context.WithTimeout(ctx, dialFunctionTimeout)
 	defer cancel()
 
+	is := make([]grpc.UnaryClientInterceptor, len(r.interceptors))
+	for i := range r.interceptors {
+		is[i] = r.interceptors[i].CreateInterceptor(name, active.Spec.Package)
+	}
+
 	conn, err := grpc.DialContext(ctx, active.Status.Endpoint,
 		grpc.WithTransportCredentials(r.creds),
-		grpc.WithDefaultServiceConfig(lbRoundRobin))
+		grpc.WithDefaultServiceConfig(lbRoundRobin),
+		grpc.WithChainUnaryInterceptor(is...))
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtDialFunction, active.Status.Endpoint, active.GetName())
 	}

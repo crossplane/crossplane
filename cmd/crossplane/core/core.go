@@ -52,6 +52,7 @@ import (
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
+	"github.com/crossplane/crossplane/internal/metrics"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/usage"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
@@ -196,19 +197,25 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableCompositionFunctions {
 		o.Features.Enable(features.EnableBetaCompositionFunctions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
+
 		clienttls, err := certificates.LoadMTLSConfig(
 			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
 			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
 			false)
-
 		if err != nil {
 			return errors.Wrap(err, "cannot load client TLS certificates")
 		}
+
+		m := xfn.NewMetrics()
+		metrics.Registry.MustRegister(m)
+
 		// We want all XR controllers to share the same gRPC clients.
 		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(),
 			xfn.WithLogger(log),
-			xfn.WithTLSConfig(clienttls))
+			xfn.WithTLSConfig(clienttls),
+			xfn.WithInterceptorCreators(m),
+		)
 
 		// Periodically remove clients for Functions that no longer exist.
 		ctx, cancel := context.WithCancel(context.Background())
