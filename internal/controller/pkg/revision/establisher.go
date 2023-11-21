@@ -192,11 +192,7 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 		})
 	}
 
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return g.Wait()
 }
 
 func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevision) error {
