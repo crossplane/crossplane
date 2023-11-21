@@ -147,6 +147,12 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 	for _, ref := range allObjs {
 		ref := ref // Pin the loop variable.
 		g.Go(func() error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
 			u := unstructured.Unstructured{}
 			u.SetAPIVersion(ref.APIVersion)
 			u.SetKind(ref.Kind)
@@ -182,12 +188,7 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 					return errors.Wrapf(err, errFmtUpdateOwnedObject, u.GetKind(), u.GetName())
 				}
 			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-				return nil
-			}
+			return nil
 		})
 	}
 
