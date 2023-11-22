@@ -179,6 +179,12 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			want: want{
 				refs: []v1.ObjectReference{
 					{
+						APIVersion: "v1",
+						Kind:       "Secret",
+						Namespace:  "ns-1",
+						Name:       "secret-1",
+					},
+					{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
 						Name:       "xr-1",
