@@ -48,15 +48,14 @@ const (
 	errFetchDetails  = "cannot fetch connection details"
 	errInline        = "cannot inline Composition patch sets"
 
-	errFmtPatchEnvironment             = "cannot apply environment patch at index %d"
-	errFmtParseBase                    = "cannot parse base template of composed resource %q"
-	errFmtRenderFromCompositePatches   = "cannot render FromComposite patches for composed resource %q"
-	errFmtRenderToCompositePatches     = "cannot render ToComposite patches for composed resource %q"
-	errFmtRenderFromEnvironmentPatches = "cannot render FromEnvironment patches for composed resource %q"
-	errFmtRenderMetadata               = "cannot render metadata for composed resource %q"
-	errFmtGenerateName                 = "cannot generate a name for composed resource %q"
-	errFmtExtractDetails               = "cannot extract composite resource connection details from composed resource %q"
-	errFmtCheckReadiness               = "cannot check whether composed resource %q is ready"
+	errFmtPatchEnvironment           = "cannot apply environment patch at index %d"
+	errFmtParseBase                  = "cannot parse base template of composed resource %q"
+	errFmtRenderFromCompositePatches = "cannot render FromComposite or environment patches for composed resource %q"
+	errFmtRenderToCompositePatches   = "cannot render ToComposite patches for composed resource %q"
+	errFmtRenderMetadata             = "cannot render metadata for composed resource %q"
+	errFmtGenerateName               = "cannot generate a name for composed resource %q"
+	errFmtExtractDetails             = "cannot extract composite resource connection details from composed resource %q"
+	errFmtCheckReadiness             = "cannot check whether composed resource %q is ready"
 )
 
 // TODO(negz): Move P&T Composition logic into its own package?
@@ -217,13 +216,8 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		// unblock it.
 
 		rendered := true
-		if err := RenderFromCompositePatches(r, xr, ta.Template.Patches); err != nil {
+		if err := RenderFromCompositeAndEnvironmentPatches(r, xr, req.Environment, ta.Template.Patches); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)))
-			rendered = false
-		}
-
-		if err = RenderToAndFromEnvironmentPatches(r, req.Environment, ta.Template.Patches); err != nil {
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromEnvironmentPatches, name)))
 			rendered = false
 		}
 
