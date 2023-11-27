@@ -1,13 +1,13 @@
 # Beta Composition Environment
 
 - Owner: Philippe Scorsolini (@phisco)
-- Reviewers: TBD
+- Reviewers: @turkenh 
 - Status: Draft
 
 # Background
 
 The "Composition Environment" concept was introduced in the original
-[one-pager](./one-pager-composition-environment.md) as a way "to patch from
+[one-pager](one-pager-composition-environment.md) as a way "to patch from
 environment-dependent data sources".
 
 To achieve that, a new resource was introduced, `EnvironmnentConfig`, a
@@ -80,25 +80,25 @@ e.g.:
 - Management Policies, see [here](https://github.com/crossplane/crossplane/pull/4421).
 - Usage API, see [here](https://github.com/crossplane/crossplane/pull/4215).
 
-We saw significant adoption for this feature, and, although in alpha, many
-people already rely on it and hope we won’t introduce significant breaking
-changes, or at least that we will provide a migration path of some kind. We
-should take it into account.
+We saw significant adoption of the Composition Environment feature, and,
+although in alpha, many people already rely on it and hope we won't introduce
+significant breaking changes, or at least that we will provide a migration path
+of some kind. We should take it into account.
 
 Early adopters were pretty vocal about this feature being hard to understand,
-we’ll get into more details below.
+and we'll get into more details below.
 
 # Current implementation
 
 ## Concepts
 
 Part of the confusion around this functionality is due to the overlapping terms,
-so let’s first try providing clear definitions given the current implementation:
+so let's first try providing clear definitions given the current implementation:
 
 - `EnvironmentConfig`: a cluster-scoped and structured, but still schema-less,
   `ConfigMap`-like resource.
 - `in-memory environment`: an in-memory object created and thrown away for each
-  Composite Resource’s reconciliation loop.
+  Composite Resource's reconciliation loop.
 
 ## Components
 
@@ -120,7 +120,7 @@ independent components:
         - to and from Composed Resources via `EnvironmentFieldPath` patches
           defined at `spec.resources[*].patches`
 
-## Beta Composition Functions’ Context
+## Beta Composition Functions' Context
 
 Beta Composition Functions added support for the Composition Environment by
 [introducing](https://github.com/crossplane/crossplane/pull/4632) the concept
@@ -169,7 +169,7 @@ We saw early adopters using this feature to:
 - share information across composite resources by creating `EnvironmentConfig`s
   from a first `Composition` and consuming them from another one.
 - use the `in-memory environment` to patch between composed resources without
-  setting up fields in the composite resource’s status.
+  setting up fields in the composite resource's status.
 - use the `in-memory environment` to temporarily hold data from different
   sources (the composite resource and/or different composed resources) to
   combine them in a subsequent patch.
@@ -178,7 +178,7 @@ We saw early adopters using this feature to:
 
 ### Issues
 
-Early adopters’ feedback clearly showed the following issues of the current
+Early adopters' feedback clearly showed the following issues of the current
 implementation:
 
 - naming is confusing:
@@ -203,8 +203,9 @@ implementation:
 ## Promotion to beta
 
 Given all the above, if we imagined splitting the functionality into its
-components and promoting them independently, we feel we would be comfortable
-promoting to beta the following parts of the `Composition Environment` :
+components and promoting them independently, we, the maintainers, would feel
+comfortable promoting to beta the following parts of the `Composition
+Environment` :
 
 - the `EnvironmentConfig` resource itself
 - the `in-memory environment` as an additional source and target for patches
@@ -214,19 +215,18 @@ promoting to beta the following parts of the `Composition Environment` :
       issues and could benefit some more thinking, also keeping into
       consideration these are ignored for function-based Compositions.
 
-While we don’t feel so comfortable promoting the EnvironmentConfig selection
+While we wouldn't feel so comfortable promoting the EnvironmentConfig selection
 part of the API at `spec.environment.environmentConfigs` in its current shape.
 
-Before promoting the feature to beta, it's essential to address the known
+Before promoting the entire feature to beta, it's essential to address the known
 issues and make the remaining parts of the Composition Environment more
 straightforward.
 
 ### Independent Managed Resource referencing
 
-Currently, a Composition author who wanted to address some information from an
-existing Managed Resource would have the following options (simplified a bit
-the diagram not taking into account what the author knows about the existing
-MR):
+Currently, a Composition author who wanted to address some information external
+to the Composite and Composed Resources would have to go through the following
+decision tree:
 
 ![beta-composition-environment-2][beta-composition-environment-2]
 
@@ -241,8 +241,8 @@ However, all options for existing MRs have some drawbacks:
   properly behave in case of multiple Composite resources using the same
   Composition, resulting in multiple EnvironmentConfigs being created.
 - D: needs to be actively supported by providers, and there is a will to drop
-  it one day to reduce the maintenance burden possibly; usually, they don’t
-  cross a single provider’s boundaries.
+  it one day to reduce the maintenance burden possibly; usually, they don't
+  cross a single provider's boundaries.
 
 For these reasons, a
 [discussion](https://github.com/crossplane/crossplane/issues/4583) has been
@@ -272,8 +272,10 @@ As we already saw, beta Composition Functions added support for the `in-memory
 environment` by wrapping it into a `Context` object at a well-known key,
 `apiextensions.crossplane.io/environment`.
 
-`spec.environment.environmentConfigs` feels
-[redundant](https://github.com/crossplane/crossplane/issues/4591).
+Referencing the `environment` twice in `spec.environment.environmentConfigs`
+feels [redundant](https://github.com/crossplane/crossplane/issues/4591),
+reinforcing the confusion between the `in-memory environment` and
+`EnvironmentConfigs`.
 
 ### Selecting and merging EnvironmentConfigs
 
@@ -283,12 +285,12 @@ uncomfortably complex. But at the same time, we are
 more complexity to it by adding generic Crossplane resource references to the
 `Composition Environment` in some way.
 
-At the best of our knowledge, mostly power users are selecting and merging
-multiple `EnvironmentConfig`s from a single Composition, potentially abusing
-the functionality at times, instead of using simpler approaches. However, we
-would still need the same knobs as long as we allow selecting by labels, which
-we know is a widely used functionality as it allows us to refer to dynamically
-created `EnvironmentConfig`s.
+To the best of our knowledge, it is mostly power users who are selecting and
+merging multiple `EnvironmentConfig`s from a single Composition, potentially
+abusing the functionality at times, instead of using simpler approaches.
+However, we would still need the same knobs as long as we allow selecting by
+labels, which we know is a widely used functionality as it allows us to refer to
+dynamically created `EnvironmentConfig`s.
 
 This could also be evaluated in light of the need to add arbitrary Crossplane
 resource referencing capabilities to the `Composition Environment`, as
@@ -332,9 +334,55 @@ the native P&T Compositions in the near future.
 
 ## Next steps
 
-TBD
+We currently believe https://github.com/crossplane/crossplane/issues/4739 would
+solve all the above issues:
+
+- Independent Managed Resource referencing:
+    - functions could request any Crossplane resource, so EnvironmentConfigs when it make sense to, or resources directly when it doesn't.
+- Naming Things:
+    - the concept of `in-memory environment` would just a convention between functions, relying on the [`apiextensions.crossplane.io/environment`](http://apiextensions.crossplane.io/environment) key in the context, as `function-patch-and-transform` already does.
+    - `--enable-environment-configs` would really mean only enabling `EnvironmentConfigs` as the rest of the `Composition Environment` would be taken care of by external functions, making the split between the two concepts clearer.
+- Selecting and merging EnvironmentConfigs:
+    - selection would be done by a dedicated function, e.g. `function-select-extra-resources`.
+    - merging into the environment would be done by another dedicated function, e.g. `function-set-environment` or a more generic `function-set-context`.
+    - **N.B.**: whether and how to preserve resolve policy `IfNotPresent` behavior would be left to the function implementation.
+- Debugging:
+    - visibility already addressed in the dedicated section above
+    - selection would be more visible too by allowing passing resources via `--extra-resources` to `crossplane beta render`.
+
+So the next steps would be to:
+- Focus on https://github.com/crossplane/crossplane/issues/4739 for 1.15.
+- Build the required functions on top of the above functionality to allow
+  migrating from the current "native" `Composition Environment` implementation
+  smoothly.
+- Redirect new functionalities development to the above Functions.
+
+But, what should we do regarding the "Composition Environment" feature promotion
+to beta?
+
+We could:
+- **Option 1**: promote it as is in 1.15.
+- **Option 2**: hold back promoting it to beta.
+
+**Option 1** would mean promoting to beta an API we know we are uncomfortable
+with. This could confuse users, and all the issues we discussed above
+would still apply, but in beta. On the other hand, we would be able to promote
+`EnvironmentConfigs` to beta, which we know is something we want to do. Then, in
+a future release, we could reconsider the choice and deprecate or modify the API
+as we see fit, when discussing its promotion to GA, respecting the deprecation
+policy and timeline.
+
+**Option 2** would mean that `EnvironmentConfigs` would not be promoted to beta
+which is something we know we want to do. The issues above would still
+apply, but at least not get promoted. We would postpone any decision to a future
+release, possibly Crossplane 2.0, when we'll have more context around the future
+of native patch and transform Compositions, and Composition Functions.
+
+In both scenarios, if Crossplane 2.0 was to be released in the meantime, we
+would maintain the current API in the 1.x releases, but could take the chance to
+introduce breaking changes just in 2.0.
 
 <!-- Images -->
-[beta-composition-environment-1]: images/beta-composition-environment-1.png
-[beta-composition-environment-2]: images/beta-composition-environment-2.png
-[beta-composition-environment-3]: images/beta-composition-environment-3.png
+[beta-composition-environment-1]: assets/one-pager-composition-environment-beta/beta-composition-environment-1.png
+[beta-composition-environment-2]: assets/one-pager-composition-environment-beta/beta-composition-environment-2.png
+[beta-composition-environment-3]: assets/one-pager-composition-environment-beta/beta-composition-environment-3.png
