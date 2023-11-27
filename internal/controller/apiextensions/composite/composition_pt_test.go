@@ -40,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/names"
 )
 
 func TestPTCompose(t *testing.T) {
@@ -122,7 +123,7 @@ func TestPTCompose(t *testing.T) {
 						}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -160,7 +161,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 				},
 			},
 			args: args{
@@ -192,7 +193,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 				},
 			},
 			args: args{
@@ -224,7 +225,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
@@ -259,7 +260,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -297,7 +298,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -368,7 +369,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -427,7 +428,7 @@ func TestPTCompose(t *testing.T) {
 						}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
 						if cd.GetObjectKind().GroupVersionKind().Kind == "BrokenResource" {
 							return errBoom
 						}

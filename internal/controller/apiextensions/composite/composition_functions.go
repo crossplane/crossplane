@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	"github.com/crossplane/crossplane/internal/names"
 )
 
 // Error strings.
@@ -99,7 +100,7 @@ type FunctionComposer struct {
 }
 
 type xr struct {
-	NameGenerator
+	names.NameGenerator
 	managed.ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
@@ -191,7 +192,7 @@ func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComp
 			ConnectionDetailsFetcher:         f,
 			ComposedResourceObserver:         NewExistingComposedResourceObserver(kube, f),
 			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(kube),
-			NameGenerator:                    NewAPINameGenerator(kube),
+			NameGenerator:                    names.NewNameGenerator(kube),
 		},
 
 		pipeline: r,

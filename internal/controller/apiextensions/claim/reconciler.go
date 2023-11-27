@@ -41,6 +41,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	"github.com/crossplane/crossplane/internal/names"
 )
 
 const (
@@ -210,7 +212,7 @@ type crComposite struct {
 
 func defaultCRComposite(c client.Client) crComposite {
 	return crComposite{
-		Configurator:         NewAPIDryRunCompositeConfigurator(c),
+		Configurator:         NewAPICompositeConfigurator(names.NewNameGenerator(c)),
 		ConnectionPropagator: NewAPIConnectionPropagator(c),
 	}
 }

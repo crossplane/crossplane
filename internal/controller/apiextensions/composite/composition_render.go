@@ -16,17 +16,11 @@ specific language governing permissions and limitations under the License.
 package composite
 
 import (
-	"context"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/apiserver/pkg/storage/names"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -36,7 +30,6 @@ import (
 const (
 	errUnmarshalJSON      = "cannot unmarshal JSON data"
 	errMarshalProtoStruct = "cannot marshal protobuf Struct to JSON"
-	errGenerateName       = "cannot generate a name for a composed resource"
 	errSetControllerRef   = "cannot set controller reference"
 
 	errFmtKindChanged     = "cannot change the kind of a composed resource from %s to %s (possible composed resource template mismatch)"
@@ -141,73 +134,3 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 
 // TODO(negz): It's simple enough that we should just inline it into the
 // PTComposer, which is now the only consumer.
-
-// A NameGenerator finds a name for a composed resource with a
-// metadata.generateName value. The name is temporary available, but might be
-// taken by the time the composed resource is created.
-type NameGenerator interface {
-	GenerateName(ctx context.Context, cd resource.Object) error
-}
-
-// A NameGeneratorFn is a function that satisfies NameGenerator.
-type NameGeneratorFn func(ctx context.Context, cd resource.Object) error
-
-// GenerateName generates a name using the same algorithm as the API server, and
-// verifies temporary name availability. It does not submit the composed
-// resource to the API server and hence it does not fall over validation errors.
-func (fn NameGeneratorFn) GenerateName(ctx context.Context, cd resource.Object) error {
-	return fn(ctx, cd)
-}
-
-// An APINameGenerator generates a name using the same algorithm as the API
-// server and verifies temporary name availability via the API.
-type APINameGenerator struct {
-	client client.Client
-	namer  names.NameGenerator
-}
-
-// NewAPINameGenerator returns a new NameGenerator against the API.
-func NewAPINameGenerator(c client.Client) *APINameGenerator {
-	return &APINameGenerator{client: c, namer: names.SimpleNameGenerator}
-}
-
-// GenerateName generates a name using the same algorithm as the API server, and
-// verifies temporary name availability. It does not submit the composed
-// resource to the API server and hence it does not fall over validation errors.
-func (r *APINameGenerator) GenerateName(ctx context.Context, cd resource.Object) error {
-	// Don't rename.
-	if cd.GetName() != "" || cd.GetGenerateName() == "" {
-		return nil
-	}
-
-	// We guess a random name and verify that it is available. Names can become
-	// unavailable shortly after. Also the client.Get call could be a cache
-	// miss. We accepts that very little risk of a name collision though:
-	// 1. with 8 million names, a collision against 10k names is 0.01%. We retry
-	//    name generation 10 times, to reduce the risks to 0.01%^10, which is
-	//    acceptable.
-	// 2. the risk that a name gets taken between the client.Get and the
-	//    client.Create is that of a name conflict between objects just created
-	//    in that short time-span. There are 8 million (minus 10k) free names.
-	//    And if there are 100 objects created in parallel, chance of conflict
-	//    is 0.06% (birthday paradoxon). This is the best we can do here
-	//    locally. To reduce that risk even further the caller must employ a
-	//    conflict recovery mechanism.
-	maxTries := 10
-	for i := 0; i < maxTries; i++ {
-		name := r.namer.GenerateName(cd.GetGenerateName())
-		obj := composite.Unstructured{}
-		obj.SetGroupVersionKind(cd.GetObjectKind().GroupVersionKind())
-		err := r.client.Get(ctx, client.ObjectKey{Name: name}, &obj)
-		if kerrors.IsNotFound(err) {
-			// The name is available.
-			cd.SetName(name)
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-	}
-
-	return errors.New(errGenerateName)
-}

@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -40,25 +41,21 @@ const (
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
 
-	errName                  = "cannot use dry-run create to name composite resource"
 	errBindCompositeConflict = "cannot bind composite resource that references a different claim"
 
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
 )
 
-// An APIDryRunCompositeConfigurator configures composite resources. It may
-// perform a dry-run create against an API server in order to name and validate
-// the configured resource.
-type APIDryRunCompositeConfigurator struct {
-	client client.Client
+type apiCompositeConfigurator struct {
+	names.NameGenerator
 }
 
-// NewAPIDryRunCompositeConfigurator returns a Configurator of composite
+// NewAPICompositeConfigurator returns a Configurator of composite
 // resources that may perform a dry-run create against an API server in order to
 // name and validate the configured resource.
-func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfigurator {
-	return &APIDryRunCompositeConfigurator{client: c}
+func NewAPICompositeConfigurator(ng names.NameGenerator) Configurator {
+	return &apiCompositeConfigurator{NameGenerator: ng}
 }
 
 // Configure the supplied composite resource by propagating configuration from
@@ -66,7 +63,7 @@ func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfi
 // composite may or may not have been created in the API server when passed to
 // this method. The configured composite may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
+func (c *apiCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -144,13 +141,15 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	ucp.SetClaimReference(proposed)
 
 	if !meta.WasCreated(cp) {
-		// The API server returns an available name derived from
-		// generateName when we perform a dry-run create. This name is
-		// likely (but not guaranteed) to be available when we create
-		// the composite resource. If the API server generates a name
-		// that is unavailable it will return a 500 ServerTimeout error.
 		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-		return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+
+		// Generated name is likely (but not guaranteed) to be available
+		// when we create the composite resource. If taken,
+		// then we are going to update an existing composite,
+		// hijacking it from another claim. Depending on context/environment
+		// the consequences could be more or less serious.
+		// TODO: decide if we must prevent it.
+		return c.GenerateName(ctx, cp)
 	}
 
 	return nil
