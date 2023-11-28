@@ -859,7 +859,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if pr.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
+	if pr.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
 		// NOTE(phisco): We don't want to spam the user with events if the
 		// package revision is already healthy.
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
