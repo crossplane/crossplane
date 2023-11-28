@@ -38,6 +38,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
+	"github.com/crossplane/crossplane/internal/names"
 )
 
 // Error strings
@@ -73,7 +74,7 @@ func WithTemplateAssociator(a CompositionTemplateAssociator) PTComposerOption {
 
 // WithComposedNameGenerator configures how the PTComposer should generate names
 // for unnamed composed resources.
-func WithComposedNameGenerator(r NameGenerator) PTComposerOption {
+func WithComposedNameGenerator(r names.NameGenerator) PTComposerOption {
 	return func(c *PTComposer) {
 		c.composed.NameGenerator = r
 	}
@@ -105,7 +106,7 @@ func WithComposedConnectionDetailsExtractor(e ConnectionDetailsExtractor) PTComp
 }
 
 type composedResource struct {
-	NameGenerator
+	names.NameGenerator
 	managed.ConnectionDetailsFetcher
 	ConnectionDetailsExtractor
 	ReadinessChecker
@@ -134,7 +135,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
-			NameGenerator:              NewAPINameGenerator(kube),
+			NameGenerator:              names.NewNameGenerator(kube),
 			ReadinessChecker:           ReadinessCheckerFn(IsReady),
 			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
 			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
