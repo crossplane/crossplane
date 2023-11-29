@@ -710,7 +710,6 @@ func TestReconcile(t *testing.T) {
 								},
 							}
 							want.SetName(obj.GetName())
-							want.SetGenerateName("c-")
 							want.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Composite"})
 							want.SetLabels(map[string]string{
 								xcrd.LabelKeyClaimName:      "c",
@@ -748,61 +747,6 @@ func TestReconcile(t *testing.T) {
 					}
 					return nil
 				},
-			},
-		},
-		"RecoverFromBindingToWrongComposite": {
-			reason: "previous loop generate existing composite name, claim got updated with the reference, but composite could not be created. We need to detect this, clean reference and requeue once again.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClient(&test.MockClient{
-						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-							if key.Namespace != "" || key.Name != "wrong-composite" {
-								return fmt.Errorf("Unexpect get request for composite %v", key)
-							}
-							obj.(*composite.Unstructured).Unstructured.Object["spec"] = map[string]any{
-								"claimRef": map[string]any{
-									"name":       "wrong-c",
-									"namespace":  "ns2",
-									"apiVersion": "foo.com/v1",
-									"kind":       "Claim",
-								},
-							}
-							obj.SetCreationTimestamp(metav1.NewTime(time.Now()))
-							return nil
-						},
-						MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-					}),
-					withClaimConfigurator(noOpConfigureClaim),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
-						return true, nil
-					})),
-				},
-				with: resource.CompositeKind{Group: "foo.com", Version: "v1", Kind: "Composite"},
-				of:   resource.CompositeClaimKind{Group: "foo.com", Version: "v1", Kind: "Claim"},
-				claim: withClaim(func(o *claim.Unstructured) {
-					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
-					o.Object["spec"] = map[string]interface{}{"foo": "bar"}
-					o.SetName("c")
-					o.SetNamespace("ns")
-					o.SetResourceReference(&corev1.ObjectReference{
-						Name:       "wrong-composite",
-						APIVersion: "foo.com/v1",
-						Kind:       "Composite",
-					})
-				}),
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-				claimPatch: withClaim(func(o *claim.Unstructured) {
-					o.SetFinalizers([]string{finalizer})
-					o.SetGroupVersionKind(schema.GroupVersionKind{Group: "foo.com", Version: "v1", Kind: "Claim"})
-					o.SetName("c")
-					o.SetNamespace("ns")
-				}),
 			},
 		},
 		"CompositeCreatedButNotInCacheByNextReconcile": {

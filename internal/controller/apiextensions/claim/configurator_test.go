@@ -161,8 +161,7 @@ func TestCompositeConfigure(t *testing.T) {
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]any{
 							"metadata": map[string]any{
-								"generateName": name + "-",
-								"name":         name + "-1",
+								"name": name + "-1",
 								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -747,8 +746,8 @@ func TestClaimConfigure(t *testing.T) {
 				err: errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimSpec),
 			},
 		},
-		"LateInitializeClaim": {
-			reason: "Empty fields in claim should be late initialized from the composite",
+		"PropagateCertainXRSpecFieldsToClaim": {
+			reason: "once set, XR spec fields compositionRef, compositionSelector, compositionUpdatePolicy, compositionRevisionSelector are propagated to claim",
 			args: args{
 				client: test.NewMockClient(),
 				cm: &claim.Unstructured{
@@ -780,13 +779,14 @@ func TestClaimConfigure(t *testing.T) {
 								},
 							},
 							"spec": map[string]any{
-								// This user-defined field should be propagated.
+								// This user-defined field should NOT be propagated.
 								"coolness": 23,
 
 								// These machinery fields should be propagated.
-								"compositionSelector":     "sel",
-								"compositionRef":          "ref",
-								"compositionUpdatePolicy": "pol",
+								"compositionSelector":         "sel",
+								"compositionRef":              "ref",
+								"compositionUpdatePolicy":     "pol",
+								"compositionRevisionSelector": "csel",
 
 								// These should be filtered out.
 								"resourceRefs": "ref",
@@ -807,10 +807,11 @@ func TestClaimConfigure(t *testing.T) {
 								},
 							},
 							"spec": map[string]any{
-								"resourceRef":             map[string]any{"name": "cool-12345"},
-								"compositionSelector":     "sel",
-								"compositionRef":          "ref",
-								"compositionUpdatePolicy": "pol",
+								"resourceRef":                 map[string]any{"name": "cool-12345"},
+								"compositionSelector":         "sel",
+								"compositionRef":              "ref",
+								"compositionUpdatePolicy":     "pol",
+								"compositionRevisionSelector": "csel",
 							},
 							"status": map[string]any{},
 						},

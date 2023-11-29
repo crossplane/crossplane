@@ -232,6 +232,7 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 				}),
 				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim-update.yaml", "status.coolerField", "I'm cool!"),
+				funcs.CompositeUnderTestMustNotChangeWithin(1*time.Minute),
 			)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),

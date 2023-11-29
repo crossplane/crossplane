@@ -59,16 +59,16 @@ type apiCompositeConfigurator struct {
 // Both create and update scenarios are supported; i.e. the
 // composite may or may not have been created in the API server
 // when passed to this method.
-func (c *apiCompositeConfigurator) Configure(ctx context.Context, cm *claim.Unstructured, cp, cpPatch *composite.Unstructured) error { //nolint:gocyclo // Only slightly over (12).
+func (c *apiCompositeConfigurator) Configure(ctx context.Context, cmObserved *claim.Unstructured, cpObserved, cpPatch *composite.Unstructured) error { //nolint:gocyclo // Only slightly over (12).
 
-	icmSpec := cm.Object["spec"]
+	icmSpec := cmObserved.Object["spec"]
 	spec, ok := icmSpec.(map[string]any)
 	if !ok {
 		return errors.New(errUnsupportedClaimSpec)
 	}
 
-	existing := cp.GetClaimReference()
-	proposed := cm.GetReference()
+	existing := cpObserved.GetClaimReference()
+	proposed := cmObserved.GetReference()
 	if existing != nil && !cmp.Equal(existing, proposed) {
 		return ErrBindCompositeConflict
 	}
@@ -76,7 +76,7 @@ func (c *apiCompositeConfigurator) Configure(ctx context.Context, cm *claim.Unst
 	// It's possible we're being asked to configure a statically provisioned
 	// composite resource in which case we should respect its existing name and
 	// external name.
-	en := meta.GetExternalName(cp)
+	en := meta.GetExternalName(cpObserved)
 
 	// Do not propagate *.kubernetes.io annotations/labels down to the composite
 	// For example: when a claim gets deployed using kubectl,
@@ -87,17 +87,19 @@ func (c *apiCompositeConfigurator) Configure(ctx context.Context, cm *claim.Unst
 	// * The content of the annotaton refers to the claim, not XR
 	// See https://kubernetes.io/docs/reference/labels-annotations-taints/
 	// for all annotations and their semantic
-	meta.AddAnnotations(cpPatch, withoutReservedK8sEntries(cm.GetAnnotations()))
-	meta.AddLabels(cpPatch, withoutReservedK8sEntries(cm.GetLabels()))
+	if ann := withoutReservedK8sEntries(cmObserved.GetAnnotations()); len(ann) > 0 {
+		meta.AddAnnotations(cpPatch, withoutReservedK8sEntries(cmObserved.GetAnnotations()))
+	}
+	meta.AddLabels(cpPatch, withoutReservedK8sEntries(cmObserved.GetLabels()))
 	meta.AddLabels(cpPatch, map[string]string{
-		xcrd.LabelKeyClaimName:      cm.GetName(),
-		xcrd.LabelKeyClaimNamespace: cm.GetNamespace(),
+		xcrd.LabelKeyClaimName:      cmObserved.GetName(),
+		xcrd.LabelKeyClaimNamespace: cmObserved.GetNamespace(),
 	})
 
 	// If our composite resource already exists we want to restore its
 	// original external name (if set) in order to ensure we don't try to
 	// rename anything after the fact.
-	if meta.WasCreated(cp) && en != "" {
+	if meta.WasCreated(cpObserved) && en != "" {
 		meta.SetExternalName(cpPatch, en)
 	}
 
@@ -116,20 +118,20 @@ func (c *apiCompositeConfigurator) Configure(ctx context.Context, cm *claim.Unst
 	// based on the Update policy. If the policy is `Manual`, we need to
 	// remove CompositionRevisionRef from wellKnownClaimFields, so it
 	// does not get filtered out and is set correctly in composite
-	if cp.GetCompositionUpdatePolicy() != nil && *cp.GetCompositionUpdatePolicy() == xpv1.UpdateManual {
+	if cpObserved.GetCompositionUpdatePolicy() != nil && *cpObserved.GetCompositionUpdatePolicy() == xpv1.UpdateManual {
 		delete(wellKnownClaimFields, xcrd.CompositionRevisionRef)
 	}
 
 	claimSpecFilter := xcrd.GetPropFields(wellKnownClaimFields)
-	cpPatch.Object["spec"] = filter(spec, claimSpecFilter...)
+	cpPatch.Object["spec"] = withoutKeys(spec, claimSpecFilter...)
 
 	// Note that we overwrite the entire composite spec above, so we wait
 	// until this point to set the claim reference. We compute the reference
 	// earlier so we can return early if it would not be allowed.
 	cpPatch.SetClaimReference(proposed)
 
-	if meta.WasCreated(cp) {
-		cpPatch.SetName(cp.GetName())
+	if meta.WasCreated(cpObserved) {
+		cpPatch.SetName(cpObserved.GetName())
 		return nil
 	}
 
@@ -146,20 +148,24 @@ func (c *apiCompositeConfigurator) Configure(ctx context.Context, cm *claim.Unst
 	//    the claim got bound in one of previous loop,
 	//    but something went wrong at composite creation and we requeued.
 	//    It is alright to try to use the very same name again.
-	if ref := cm.GetResourceReference(); ref != nil &&
-		ref.APIVersion == cp.GetAPIVersion() && ref.Kind == cp.GetKind() {
+	if ref := cmObserved.GetResourceReference(); ref != nil &&
+		ref.APIVersion == cpObserved.GetAPIVersion() && ref.Kind == cpObserved.GetKind() {
 		cpPatch.SetName(ref.Name)
 		return nil
 	}
 	// Otherwise, generate name with a random suffix, hoping it is not already taken
-	cpPatch.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+	cpObserved.SetGenerateName(fmt.Sprintf("%s-", cmObserved.GetName()))
 	// Generated name is likely (but not guaranteed) to be available
 	// when we create the composite resource. If taken,
 	// then we are going to update an existing composite,
 	// hijacking it from another claim. Depending on context/environment
 	// the consequences could be more or less serious.
 	// TODO: decide if we must prevent it.
-	return c.GenerateName(ctx, cpPatch)
+	if err := c.GenerateName(ctx, cpObserved); err != nil {
+		return err
+	}
+	cpPatch.SetName(cpObserved.GetName())
+	return nil
 }
 
 func withoutReservedK8sEntries(a map[string]string) map[string]string {
@@ -172,7 +178,7 @@ func withoutReservedK8sEntries(a map[string]string) map[string]string {
 	return a
 }
 
-func filter(in map[string]any, keys ...string) map[string]any {
+func withoutKeys(in map[string]any, keys ...string) map[string]any {
 	filter := map[string]bool{}
 	for _, k := range keys {
 		filter[k] = true
@@ -189,7 +195,7 @@ func filter(in map[string]any, keys ...string) map[string]any {
 	return out
 }
 
-func keep(in map[string]any, keys ...string) map[string]any {
+func onlyKeys(in map[string]any, keys ...string) map[string]any {
 	filter := map[string]bool{}
 	for _, k := range keys {
 		filter[k] = true
@@ -206,8 +212,8 @@ func keep(in map[string]any, keys ...string) map[string]any {
 
 // configure the supplied claim patch with fields from the composite.
 // This includes late-initializing spec values and updating status fields in claim.
-func configureClaim(_ context.Context, cm *claim.Unstructured, cmPatch *claim.Unstructured, cp *composite.Unstructured, cpPatch *composite.Unstructured) error { //nolint:gocyclo // Only slightly over (10)
-	existing := cm.GetResourceReference()
+func configureClaim(_ context.Context, cmObserved *claim.Unstructured, cmPatch *claim.Unstructured, cpObserved *composite.Unstructured, cpPatch *composite.Unstructured) error { //nolint:gocyclo // Only slightly over (10)
+	existing := cmObserved.GetResourceReference()
 	proposed := meta.ReferenceTo(cpPatch, cpPatch.GetObjectKind().GroupVersionKind())
 	equal := cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID"))
 
@@ -219,34 +225,37 @@ func configureClaim(_ context.Context, cm *claim.Unstructured, cmPatch *claim.Un
 
 	cmPatch.SetResourceReference(proposed)
 
+	cmPatch.Object["status"] = map[string]any{}
 	// If existing claim has the status set,
 	// copy the conditions to the patch
-	if s, ok := cm.Object["status"]; ok {
+	if s, ok := cmObserved.Object["status"]; ok {
 		fs, ok := s.(map[string]any)
 		if !ok {
 			return errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimStatus)
 		}
-		cmPatch.Object["status"] = keep(fs, "conditions")
-	} else {
-		cmPatch.Object["status"] = map[string]any{}
+		cmPatch.Object["status"] = onlyKeys(fs, "conditions")
 	}
 
 	// merge from the composite status everything
 	// except conditions and connectionDetails
-	if err := merge(cmPatch.Object["status"], cp.Object["status"],
-		// Status fields from composite overwrite non-empty fields in claim
-		withMergeOptions(mergo.WithOverride),
-		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)); err != nil {
-		return errors.Wrap(err, errMergeClaimStatus)
+	if v := cpObserved.Object["status"]; v != nil {
+		cpObservedStatus, ok := v.(map[string]any)
+		if !ok {
+			return errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimStatus)
+		}
+		if err := merge(cmPatch.Object["status"], withoutKeys(cpObservedStatus, xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...),
+			// Status fields from composite overwrite non-empty fields in claim
+			mergo.WithOverride); err != nil {
+			return errors.Wrap(err, errMergeClaimStatus)
+		}
 	}
-
 	// Propagate the actual external name back from the composite to the
 	// claim if it's set. The name we're propagating here will may be a name
 	// the XR must enforce (i.e. overriding any requested by the claim) but
 	// will often actually just be propagating back a name that was already
 	// propagated forward from the claim to the XR during the
 	// preceding configure phase.
-	if en := meta.GetExternalName(cp); en != "" {
+	if en := meta.GetExternalName(cpObserved); en != "" {
 		meta.SetExternalName(cmPatch, en)
 	}
 
@@ -254,9 +263,9 @@ func configureClaim(_ context.Context, cm *claim.Unstructured, cmPatch *claim.Un
 	// based on the Update policy. If the policy is `Automatic`, we need to
 	// overwrite the claim's value with the composite's which should be the
 	// `currentRevision`
-	if cp.GetCompositionUpdatePolicy() != nil &&
-		*cp.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic && cp.GetCompositionRevisionReference() != nil {
-		cmPatch.SetCompositionRevisionReference(cp.GetCompositionRevisionReference())
+	if cpObserved.GetCompositionUpdatePolicy() != nil &&
+		*cpObserved.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic && cpObserved.GetCompositionRevisionReference() != nil {
+		cmPatch.SetCompositionRevisionReference(cpObserved.GetCompositionRevisionReference())
 	}
 
 	// propagate to the claim only the following fields:
@@ -264,54 +273,25 @@ func configureClaim(_ context.Context, cm *claim.Unstructured, cmPatch *claim.Un
 	// - "compositionSelector"
 	// - "compositionUpdatePolicy"
 	// - "compositionRevisionSelector"
-	if err := merge(cmPatch.Object["spec"], cp.Object["spec"],
-		keepSrcKeys(),
-		withSrcFilter(xcrd.PropagateSpecProps...)); err != nil {
-		return errors.Wrap(err, errMergeClaimSpec)
+	if v := cpObserved.Object["spec"]; v != nil {
+		cpObservedSpec, ok := v.(map[string]any)
+		if !ok {
+			return errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimSpec)
+		}
+		if err := merge(cmPatch.Object["spec"], onlyKeys(cpObservedSpec, xcrd.PropagateSpecProps...)); err != nil {
+			return errors.Wrap(err, errMergeClaimSpec)
+		}
 	}
-
 	return nil
 }
 
-type mergeConfig struct {
-	mergeOptions []func(*mergo.Config)
-	srcfilter    []string
-	keep         bool
-}
-
-// withMergeOptions allows custom mergo.Config options
-func withMergeOptions(opts ...func(*mergo.Config)) func(*mergeConfig) {
-	return func(config *mergeConfig) {
-		config.mergeOptions = opts
-	}
-}
-
-func keepSrcKeys() func(*mergeConfig) {
-	return func(config *mergeConfig) {
-		config.keep = true
-	}
-}
-
-// withSrcFilter filters supplied keys from src map before merging
-func withSrcFilter(keys ...string) func(*mergeConfig) {
-	return func(config *mergeConfig) {
-		config.srcfilter = keys
-	}
-}
-
 // merge a src map into dst map
-func merge(dst, src any, opts ...func(*mergeConfig)) error {
+func merge(dst, src any, opts ...func(*mergo.Config)) error {
 	if dst == nil || src == nil {
 		// Nothing available to merge if dst or src are nil.
 		// This can occur early on in reconciliation when the
 		// status subresource has not been set yet.
 		return nil
-	}
-
-	config := &mergeConfig{}
-
-	for _, opt := range opts {
-		opt(config)
 	}
 
 	dstMap, ok := dst.(map[string]any)
@@ -324,9 +304,5 @@ func merge(dst, src any, opts ...func(*mergeConfig)) error {
 		return errors.New(errUnsupportedSrcObject)
 	}
 
-	if config.keep {
-		return mergo.Merge(&dstMap, keep(srcMap, config.srcfilter...), config.mergeOptions...)
-	}
-	return mergo.Merge(&dstMap, filter(srcMap, config.srcfilter...), config.mergeOptions...)
-
+	return mergo.Merge(&dstMap, srcMap, opts...)
 }

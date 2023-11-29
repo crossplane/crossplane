@@ -577,11 +577,54 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
 			} else {
-				t.Errorf("Error while observing composite %s: %v", identifier(cm), err)
+				t.Errorf("Error while observing claim %s: %v", identifier(cm), err)
 			}
 			return ctx
 		}
 		t.Errorf("Claim %s got changed, but it should not", identifier(cm))
+		return ctx
+	}
+}
+
+// CompositeUnderTestMustNotChangeWithin asserts that the claim available in
+// the test context does not change within the given time
+func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm, ok := ctx.Value(claimCtxKey{}).(*claim.Unstructured)
+		if !ok {
+			t.Fatalf("claim not available in the context")
+			return ctx
+		}
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("Error while getting claim: %v", err)
+			return ctx
+		}
+		cp := &composite.Unstructured{}
+		cp.SetName(cm.GetResourceReference().Name)
+		cp.SetGroupVersionKind(cm.GetResourceReference().GroupVersionKind())
+
+		if err := c.Client().Resources().Get(ctx, cp.GetName(), cp.GetNamespace(), cp); err != nil {
+			t.Errorf("Error while getting composite: %v", err)
+			return ctx
+		}
+		list := &unstructured.UnstructuredList{}
+		ucp := unstructured.Unstructured{}
+		ucp.SetName(cp.GetName())
+		ucp.SetGroupVersionKind(cp.GroupVersionKind())
+		list.Items = append(list.Items, ucp)
+
+		m := func(o k8s.Object) bool {
+			return o.GetResourceVersion() != cp.GetResourceVersion()
+		}
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
+			if deadlineExceed(err) {
+				t.Logf("Composite %s did not change within %s", identifier(cp), d.String())
+			} else {
+				t.Errorf("Error while observing composite %s: %v", identifier(cp), err)
+			}
+			return ctx
+		}
+		t.Errorf("Composite %s got changed, but it should not", identifier(cp))
 		return ctx
 	}
 }
