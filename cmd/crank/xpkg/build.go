@@ -97,7 +97,7 @@ type buildCmd struct {
 	EmbedRuntimeImage        string   `placeholder:"NAME" help:"An OCI image to embed in the package as its runtime." xor:"runtime-image"`
 	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"An OCI image tarball to embed in the package as its runtime." xor:"runtime-image"`
 	ExamplesRoot             string   `short:"e" type:"path" help:"A directory of example YAML files to include in the package." default:"./examples"`
-	Ignore                   []string `placeholder:"PATH" help:"Comma-separated paths, specified relative to --package-root, to exclude from the package."`
+	Ignore                   []string `placeholder:"PATH" help:"Comma-separated file paths, specified relative to --package-root, to exclude from the package. Wildcards are supported. Directories cannot be excluded."`
 	PackageFile              string   `short:"o" type:"path" placeholder:"PATH" help:"The file to write the package to. Defaults to a generated filename in --package-root."`
 	PackageRoot              string   `short:"f" type:"existingdir" help:"The directory that contains the package's crossplane.yaml file." default:"."`
 
