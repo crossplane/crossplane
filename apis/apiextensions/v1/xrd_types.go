@@ -151,6 +151,7 @@ type CompositeResourceDefinitionVersion struct {
 	// DeprecationWarning specifies the message that should be shown to the user
 	// when using this version.
 	// +optional
+	// +kubebuilder:validation:MaxLength=256
 	DeprecationWarning *string `json:"deprecationWarning,omitempty"`
 
 	// Schema describes the schema used for validation, pruning, and defaulting
