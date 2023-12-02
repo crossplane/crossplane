@@ -17,7 +17,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.1.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.16.1
-	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2
+	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20231202142526-55ffb0092afd
 	github.com/jmattheis/goverter v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
