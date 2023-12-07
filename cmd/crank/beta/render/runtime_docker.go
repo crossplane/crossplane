@@ -22,13 +22,13 @@ import (
 	"io"
 	"net"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/joho/godotenv"
 
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -43,6 +43,9 @@ const (
 	// used to run the Function. By default render assumes the Function package
 	// (i.e. spec.package) can be used to run the Function.
 	AnnotationKeyRuntimeDockerImage = "render.crossplane.io/runtime-docker-image"
+
+	// AnnotationKeyRuntimeDockerEnvFile configures the dotenv file to load into the containers environment.
+	AnnotationKeyRuntimeDockerEnvFile = "docker.render.crossplane.io/env-file"
 )
 
 // DockerCleanup specifies what Docker should do with a Function container after
@@ -94,6 +97,9 @@ type RuntimeDocker struct {
 
 	// PullPolicy controls how the runtime image is pulled.
 	PullPolicy DockerPullPolicy
+
+	// EnvFile specifies the path to a dotenv file used to inject environment variables into the container.
+	EnvFile string
 }
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
@@ -143,6 +149,9 @@ func GetRuntimeDocker(fn pkgv1beta1.Function) (*RuntimeDocker, error) {
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
 		r.Image = i
 	}
+	if f := fn.GetAnnotations()[AnnotationKeyRuntimeDockerEnvFile]; f != "" {
+		r.EnvFile = f
+	}
 	return r, nil
 }
 
@@ -184,6 +193,14 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //n
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
+	}
+
+	if r.EnvFile != "" {
+		envs, err := parseEnvFile(r.EnvFile)
+		if err != nil {
+			return RuntimeContext{}, errors.Wrapf(err, "cannot parse dotenv file %q", r.EnvFile)
+		}
+		cfg.Env = envs
 	}
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
@@ -242,4 +259,21 @@ func PullImage(ctx context.Context, p pullClient, image string) error {
 	// the image is actually pulled before we try to run it.
 	_, err = io.Copy(io.Discard, out)
 	return err
+}
+
+// parseEnvFile loads the dotenv file referred f into memory and returns it as a []string
+func parseEnvFile(f string) ([]string, error) {
+	// Load environment variables from dotenv file
+	containerEnvs, err := godotenv.Read(f)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot parse env file: %s", f)
+	}
+
+	// Convert map of env vars to a list of strings that Docker Run expects
+	envs := []string{}
+	for key, val := range containerEnvs {
+		envs = append(envs, fmt.Sprintf(`%s=%s`, key, val))
+	}
+
+	return envs, nil
 }
