@@ -14,7 +14,7 @@ RPC.
 
 Currently, a Composition author who needs to access information from a resource
 external to their Composition has the following options:
-- [**ALPHA**] Create an `ObserveOnly` resource from their Composition and
+- [**BETA**] Create an `ObserveOnly` resource from their Composition and
   reading the required information from its `status`.
 - [**ALPHA**] Create an `EnvironmentConfig`, either manually or from another
   Composition, with the required information and reference it from their
@@ -25,12 +25,12 @@ external to their Composition has the following options:
 Each of these strategies has its drawbacks:
 - The creation of `ObserveOnly` resources could result in a significant number
   of resources being created.
-- The use `EnvironmentConfigs` requires the Composition author to create and
+- The use of `EnvironmentConfigs` requires the Composition author to create and
   maintain a separate resource, which can be cumbersome and error-prone.
-  However, has to be said that there is value in the clean separation of concerns
+  However, it has to be said that there is value in the clean separation of concerns
   between the `EnvironmentConfig`'s producer and consumer(s).
 - Using MR-level referencing is not always possible, as it requires explicit
-  provider support, and hardly ever crosses a single provider (family) boundaries.
+  provider support, and hardly ever crosses a single provider's (family) boundaries.
 
 As per the Composition Functions' [specification]:
 ```text
@@ -43,12 +43,324 @@ returning a Fatal result.
 ```
 
 A clear consequence of the above assumptions is that a Function should not
-assume access to the Kubernetes API. Which means, that letting Functions fetch
-external resources on their own is not an option, Crossplane needs to provide
+assume access to the Kubernetes API. Which means that letting Functions fetch
+external resources on their own is not an option, so Crossplane needs to provide
 them.
 
 With this proposal we aim to provide Functions a way to request additional
 existing Crossplane resources.
+
+## Proposal
+
+We propose to allow Functions to request extra resources through the
+`RunFunctionResponse`.
+
+The `RunFunctionResponse` and `RunFunctionRequest` protobuf messages have to be
+updated as follows:
+```protobuf
+syntax = "proto3";
+
+message RunFunctionResponse {
+  // Existing fields omitted for brevity
+
+  // Requirements that must be satisfied for this Function to run successfully.
+  Requirements requirements = 5;
+}
+
+message Requirements {
+  // Extra resources that this Function requires.
+  // The map key uniquely identifies the group of resources.
+  map<string, ResourceSelector> extra_resources = 1;
+}
+
+message ResourceRef {
+  string api_version = 1;
+  string kind = 2;
+  string name = 3;
+}
+
+message ResourceSelector {
+  string api_version = 1;
+  string kind = 2;
+
+  // here we would actually want to use a oneof, but due to the need of wrapping
+  // messages, the syntax would become a bit cumbersome, so we'll see how to handle
+  // that at implementation time.
+  optional string match_name = 3;
+  map<string, string> match_labels = 4;
+}
+
+message RunFunctionRequest {
+  // Existing fields omitted for brevity
+
+  // Note that extra resources is a map to Resources, plural.
+  // The map key corresponds to the key in a RunFunctionResponse's
+  // extra_resources field. If a Function requests extra resources that
+  // don't exist Crossplane sets the map key to an empty Resources
+  // message to indicate that it attempted to satisfy the request.
+  map<string, Resources> extra_resources = 3;
+}
+
+// Resources just exists because you can't have map<string, repeated google.protobuf.Struct>.
+message Resources {
+  repeated google.protobuf.Struct items = 1;
+}
+```
+
+And the logic according to which Crossplane will run the pipeline would be as
+follows:
+```golang
+// The following code should not be considered as a final implementation, but
+// rather as a pseudo-code to show the intended logic.
+
+const (
+  // maxIterations is the maximum number of times a Function should be called,
+  // limiting the number of times it can request for extra resources, capped for
+  // safety. We might allow Composition authors customize this value in the future.
+    maxIterations = 3
+)
+
+
+// Compose resources using the Functions pipeline.
+func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
+	// Existing code omitted for brevity...
+
+	// Run any Composition Functions in the pipeline.
+	for _, fn := range req.Revision.Spec.Pipeline {
+		// used to store the resources fetched at the previous iteration 
+		var extraResources map[string]v1beta1.Resources
+		// used to store the requirements returned at the previous iteration 
+		var requirements map[string]v1beta1.ResourceSelector
+		
+		for i := int64(0); i < maxIterations; i++ {
+			req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx, extraResources: extraResources}
+
+			// Run the Composition Function and get the response.
+			rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
+			if err != nil {
+				return CompositionResult{}, errors.Wrapf(err, /* ... */)
+			}
+
+			// Pass the desired state and context returned by this Function to the next iteration.
+			d = rsp.GetDesired()
+			fctx = rsp.GetContext()
+			
+			rs := rsp.GetRequirements()
+			if rs.Equal(requirements) {
+				// the requirements stabilized, the function is done
+				break
+			}
+
+			// if we reached the maximum number of iterations we need to return an error
+			if i == maxIterations - 1 {
+				return CompositionResult{}, errors.Wrapf(err, /* ... */)
+			}
+			
+			// store the requirements for the next iteration 
+			requirements = rs
+
+			extraResourcesRequirements := rs.GetExtraResources()
+
+			// Cleanup the extra resources from the previous iteration to store the new ones
+			extraResources = make(map[string]v1beta1.Resources)
+			
+			// Fetch the requested resources and add them to the desired state.
+			for name, selector := range extraResourcesRequirements {
+				// Fetch the requested resources and add them to the desired state.
+				resources, err := fetchResources(ctx, c.client, selector)
+				if err != nil {
+					return CompositionResult{}, errors.Wrapf(err, /* ... */)
+				}
+				
+				// resources would be nil in case of not found resources
+				extraResources[name] = resources
+			}
+
+		}
+		
+		// Existing code omitted for brevity...
+	}
+	
+	// Existing code omitted for brevity...
+}
+
+// fetchResources fetches resources that match the given selector.
+func fetchResources(ctx context.Context, client client.Reader, selector *v1beta1.ResourceSelector) ([]*unstructured.Unstructured, error) {
+	// Fetch resources by name or label selector...
+	// return nil on not found error
+}
+
+```
+
+With the above proposal what currently can be implemented as follows:
+```yaml
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: nop.sqlinstances.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XSQLInstance
+  environment:
+    environmentConfigs:
+      - ref:
+          name: example-environment-1
+      - type: Selector
+        selector:
+          mode: Multiple
+          sortByFieldPath: data.priority
+          matchLabels:
+            - type: FromCompositeFieldPath
+              key: stage
+              valueFromFieldPath: metadata.labels[stage]
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "False"
+                time: 0s
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: 1s
+      patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: complex.c.f
+          toFieldPath: metadata.annotations[valueFromEnv]
+```
+
+Could be rewritten as follows, assuming we implemented a Function (e.g.
+`function-environment-configs` or a more generic `function-extra-resources`)
+that can request `EnvironmentConfigs` as extra resources, merge them according
+to its logic and set the result as in the `Context`, at the key
+`function-patch-and-transform` conventionally expects it,
+`apiextensions.crossplane.io/environment`:
+```yaml
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: nop.sqlinstances.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XSQLInstance
+  mode: Pipeline
+  pipeline:
+  - name: envconfigs
+    functionRef:
+      name: function-environment-configs
+    input:
+      apiVersion: extra.fn.crossplane.io/v1beta1
+      kind: ExtraResourceSelectors
+      extraResourceSelectors:
+        environmentConfigs:
+        - ref:
+            name: example-environment-1
+        - type: Selector
+          selector:
+            mode: Multiple
+            sortByFieldPath: data.priority
+            matchLabels:
+              - type: FromCompositeFieldPath
+                key: stage
+                valueFromFieldPath: metadata.labels[stage]
+  - name: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+        - name: nop
+          base:
+            apiVersion: nop.crossplane.io/v1alpha1
+            kind: NopResource
+            spec:
+              forProvider:
+                conditionAfter:
+                  - conditionType: Ready
+                    conditionStatus: "False"
+                    time: 0s
+                  - conditionType: Ready
+                    conditionStatus: "True"
+                    time: 1s
+          patches:
+            - type: FromEnvironmentFieldPath
+              fromFieldPath: complex.c.f
+              toFieldPath: metadata.annotations[valueFromEnv]
+```
+
+Or, we could think of adding such capabilities directly to
+`function-patch-and-transform` directly, which however would make it a little
+harder to debug given that the whole logic would be in a single Function:
+```yaml
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: nop.sqlinstances.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XSQLInstance
+  mode: Pipeline
+  pipeline:
+  - name: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      environment:
+        environmentConfigs:
+        - ref:
+            name: example-environment-1
+        - type: Selector
+          selector:
+            mode: Multiple
+            sortByFieldPath: data.priority
+            matchLabels:
+              - type: FromCompositeFieldPath
+                key: stage
+                valueFromFieldPath: metadata.labels[stage]
+      resources:
+        - name: nop
+          base:
+            apiVersion: nop.crossplane.io/v1alpha1
+            kind: NopResource
+            spec:
+              forProvider:
+                conditionAfter:
+                  - conditionType: Ready
+                    conditionStatus: "False"
+                    time: 0s
+                  - conditionType: Ready
+                    conditionStatus: "True"
+                    time: 1s
+          patches:
+            - type: FromEnvironmentFieldPath
+              fromFieldPath: complex.c.f
+              toFieldPath: metadata.annotations[valueFromEnv]
+```
+
+### Future Work
+
+We left to decide and possibly develop in the future the following
+functionalities:
+- allowing Composition authors to customize the maximum number of iterations.
+- allowing Composition authors to specify what resources Functions can request.
+- allowing Functions to specify what resources should be watched.
+- caching requirements between reconciliation loops.
+
+See the dedicated section below for a more detailed discussion and the current
+thinking around these topics.
 
 ## Options Considered
 
@@ -59,31 +371,55 @@ We established the feature design space by addressing these questions:
 - **Q2**: Which steps in the pipeline should have access to the requested resources?
 - **Q3**: Should Functions be able to request additional resources incrementally?
 - **Q4**: How should Functions specify what resources they want?
-- **Q5**: How can Composition authors specify what resources a Function can
-  request?
-- **Q6**: What about Resolve and Resolution Policies?
-- **Q7**: How can we support "Realtime Compositions"?
+
+### TL;DR: Decisions taken
+
+Here is a summary of the choices made, read the following sections for the
+rationale behind them:
+
+- **Q0**: Should Functions be able to request additional resources?
+  - **Option 1**: Yes, Composition authors should rely on Functions to request
+	additional resources.
+- **Q1**: How should Functions request additional resources?
+  - **Option 1**: Functions request additional resources through the
+	`RunFunctionResponse`.
+- **Q2**: Which steps in the pipeline should have access to the requested resources?
+  - **Option 1**: Only the Function that requested the resources should have
+	access to them.
+- **Q3**: Should Functions be able to request additional resources incrementally?
+  - **Option 1**: Functions can request additional resources incrementally.
+  - **Q3.1**: What should Crossplane send over at the `N`-th iteration?
+	- **Option 2 (Q3.1)**: Only the resources requested at the previous iteration, `N-1`.
+- **Q4**: How should Functions specify what resources they want?
+  - **Option 3**: both by name and via label selector.
+  - **Q4.1**: How should Functions signal they are done requesting resources?
+    - **Option 2 (Q4.1)**: by returning the same list of extra resource requests as the
+      previous iteration.
+- **Q5**: What about Resolve and Resolution Policies?
+  - Decided not to allow configuring it, defaulting to `resolve` policy `Always` and
+    `resolution` policy left to Functions to implement.
+
 
 ### Q0: Should Functions be able to request additional resources?
 
 Clearly this is a yes or no question, but we need to do a step back. What we
 actually care about is to have a way to allow **Composition authors** to specify
-additional resources Functions should have access to. So, the options we have
-are actually:
+additional resources that Functions should have access to. So, the options we
+have are actually:
 - **Option 1**: Yes, Composition authors should rely on Functions to request
   additional resources.
 - **Option 2**: No, Composition authors should not need Functions at all to
   request additional resources, it should be part of the Composition API.
 
 **Option 2** would feel more "native", everything would be handled by
-Crossplane, and we could design an API up to our standards. Ignoring native
-patch-and-transform Compositions for now, which would present their own set of
-issues around handling multiple results, due to the limited expressiveness of
-the downstream language (P&T). Even if we decided to make it only available for
-Functions based compositions, the API would need to be pretty expressive to
-allow Composition authors to specify what resources they want, e.g. by name, by
-label selector, based on fields from the Composite Resource, or even
-another Composed resource someday... The API would need to be at least as
+Crossplane, and we could design an API according to our standards. Ignoring
+native patch-and-transform Compositions for now, which would present their own
+set of issues around handling multiple results, due to the limited
+expressiveness of the downstream language (P&T). Even if we decided to make it
+only available for Functions based compositions, the API would need to be pretty
+expressive to allow Composition authors to specify what resources they want,
+e.g. by name, by label selector, based on fields from the Composite Resource, or
+even another Composed resource some day... The API would need to be at least as
 expressive, and therefore complex, as what we have today for
 `EnvironmentConfigs` at `spec.environment.environmentConfigs`, or even as that
 of [Kyverno][kyverno-context].
@@ -163,7 +499,7 @@ too, and so on. However, implementing it would require us to answer the
 following questions:
 - **Q3.1**: What should Crossplane send over at the `N`-th iteration?
    - **Option 1 (Q3.1)**: All the resources requested at all the previous
-     iterations, `[0..N-1]`.
+	 iterations, `[0..N-1]`.
    - **Option 2 (Q3.1)**: Only the resources requested at the previous iteration, `N-1`.
 
 **Option 2 (Q3.1)** is more efficient with respect to both network and memory
@@ -196,12 +532,17 @@ type PipelineStep struct {
 	// Other fields omitted for brevity ...
 
 	// MaxIterations is the maximum number of iterations this step should
-    // execute. Set it to -1 to execute it indefinitely.
+	// execute. Set it to -1 to execute it indefinitely.
 	// +kubebuilder:default=1
-    // +optional
+	// +optional
 	MaxIterations *int64 `json:"maxIterations,omitempty"`
 }
 ```
+
+> [!NOTE]
+> ** WE DECIDED NOT TO EXPOSE THIS FIELD FOR NOW ** and only set a hardcoded
+> maximum number of iterations just for safety, e.g. `10`. We can always revisit
+> this decision at a later stage if needed.
 
 We can now go back to **Q2** and evaluate the options we left open, in
 conjunction with the decision we've now taken. 
@@ -250,11 +591,11 @@ syntax = "proto3";
 message RunFunctionResponse {
   // Existing fields omitted for brevity
 
-  // Requests that must be satisfied for this Function to run successfully.
-  Requests requests = 5;
+  // Requirements that must be satisfied for this Function to run successfully.
+  Requirements requirements = 5;
 }
 
-message Requests {
+message Requirements {
   // Extra resources that this Function requires.
   // The map key uniquely identifies the group of resources.
   map<string, ResourceSelector> extra_resources = 1;
@@ -301,151 +642,22 @@ Another option would have been to split the observed and desired state into two
 separate messages, however, this would be a breaking change for the existing
 API, we could reconsider this choice for `v1beta2`, or `v1`.
 
-### Q5: How can Composition authors specify what resources Functions can request?
+Another related question we need to answer is **Q4.1**: How should Functions
+signal they are done requesting resources?
 
-To answer this question, we need to answer the following questions first,
-**Q5.1**: **WHEN** should the policy be evaluated?
-- **Option 1 (Q5.1)**: Before gathering the requested extra resources.
-- **Option 2 (Q5.1)**: After having gathered the requested extra resources.
+We considered the following options:
+- **Option 1**: by returning an empty list of extra resource requests.
+- **Option 2**: by returning the same list of extra resource requests as the
+  previous iteration.
 
-**Option 1 (Q5.1)** would be more efficient, as we would not request any
-resource in case of an invalid request. However, it would be less flexible and
-more coarse-grained, as the policy would only have to take into account the
-information provided in the request, so as per the decision taken above for
-**Q4**, only names and labels. While with **Option 2 (Q5.1)** the policy would
-have the whole resources available and could therefore be much more expressive.
+We decided to go with **Option 2**, as it felt more symmetrical w.r.t. the way
+Functions already request desired state and avoided the need for Functions to
+implement additional logic to decide when to stop requesting resources. This
+also allows to define "stability" for requirements which might be useful down
+the line if we want to implement caching of requirements between reconciliation
+loops.
 
-We decided to only consider **Option 1 (Q5.1)**, as we deemed unnecessary to
-have the extra flexibility of **Option 2 (Q5.1)**, and we could always add that
-later, if needed, but there would still be value in having a simpler API to
-cover the majority of the use cases.
-
-So, decided that the policy should be evaluated before actually gathering the
-requested extra we can answer **Q5.2**: What should be the policy's input?
-- **Option 1 (Q5.2)**: The request only.
-- **Option 2 (Q5.2)**: Also the observed state.
-
-**Option 1 (Q5.2)** would require a less expressive policy language that could
-exactly mirror the extra resources requests language, e.g. only names and
-labels, and therefore would be extremely simple to validate against the request.
-
-Note that while Functions could still implement label selectors based on the
-current observed state, e.g. a label having a key or value based on a field in
-the Composite Resource, a policy language having as input only the request
-without any other input would have to be coarser-grained.
-
-**Option 2 (Q5.2)** would allow for a much more expressive policy language, as
-it would have access to the current observed state, and as long as it "rendered"
-to something easily comparable to the requests language, it would be easy to
-implement too, e.g. JSONPath expressions, Crossplane-flavored fieldpaths or
-regexes.
-
-Kubernetes users are already used to RBAC policies being evaluated only against
-the request. So, we deemed sufficient, at least as a first implementation, to
-choose **Option 1 (Q5.2)**. We can always revisit this decision at a later stage
-if needed, but a coarser-grained and simpler policy language would still be
-useful.
-
-Note: we could reconsider **Option 2 (Q5.1)** at a later stage and add a more
-expressive policy language to be evaluated after having gathered the requested
-extra resources, for example using a full-fledged policy language such as
-[rego](https://www.openpolicyagent.org/docs/latest/policy-language/), or a
-similar syntax as the one used by [Kyverno](https://kyverno.io/), or a list of
-[Common Expression Language](https://github.com/google/cel-go) (CEL)
-expressions, which would allow the Composition author to specify much more
-complex policies.
-
-Given the above choices, the answer to **Q5** is already decided. The policy
-language will have to mirror the request language. To make this a bit more
-flexible, we could allow specifying regexes for the names and labels.
-
-An example Composition could look like the following:
-```yaml
-apiVersion: apiextensions.crossplane.io/v1
-kind: Composition
-metadata:
-  name: example
-spec:
-  mode: Pipeline
-  pipeline:
-    - step: get-extra-resources
-      functionRef:
-        name: function-extra-resources
-      allowedExtraResources:
-          # all Something.example.test.com/v1 resources
-        - apiVersion: example.test.com/v1
-          kind: Something
-          # both name and matchLabels to nil
-          
-          # all SomethingElse.example.test.com/v1 resources named according to the provided regex
-        - apiVersion: example.test.com/v1
-          kind: SomethingElse
-          name: "something-else-.*"
-          
-          # all EnvironmentConfigs with label environment=dev, prod or qa
-        - apiVersion: apiextensions.crossplane.io/v1alpha1
-          kind: EnvironmentConfig
-          matchLabels:
-            environment: "(dev|prod|qa)" # "*" would match any label value
-        
-      input:
-        apiVersion: extra.fn.crossplane.io/v1beta1
-        kind: ExtraResourceSelectors
-        # a list of resources by name or label selector
-```
-
-By default, the policy should be to deny all requests, so the Composition author
-would have to explicitly allow the requests they want to allow.
-
-The PipelineStep struct would look like the following:
-```golang
-// A PipelineStep in a Composition Function pipeline.
-type PipelineStep struct {
-	// Step name. Must be unique within its Pipeline.
-	Step string `json:"step"`
-
-	// FunctionRef is a reference to the Composition Function this step should
-	// execute.
-	FunctionRef FunctionReference `json:"functionRef"`
-
-	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
-	// with an apiVersion and kind) that will be passed to the Composition
-	// Function as the 'input' of its RunFunctionRequest.
-	// +optional
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +kubebuilder:validation:EmbeddedResource
-	Input *runtime.RawExtension `json:"input,omitempty"`
-
-	// AllowedExtraResources is a list of resources by name or label selector
-	// that this Function is allowed to request.
-	// +optional
-    AllowedExtraResources []ResourceSelector `json:"allowedExtraResources,omitempty"`
-}
-
-// ResourceSelector is a selector for resources.
-// Both name and matchLabels are optional, if both are nil, all resources of the
-// specified kind and apiVersion can be requested.
-type ResourceSelector struct {
-    APIVersion string `json:"apiVersion"`
-    Kind string `json:"kind"`
-	
-	// MatchName is a regex that the name of the resource must match.
-	// Only one of MatchName or MatchLabels can be specified.
-    // +optional
-    MatchName *string `json:"matchName,omitempty"`
-	
-	// MatchLabels is a map of labels that the resource must match.
-	// Values are regular expressions.
-    // Only one of MatchName or MatchLabels can be specified.
-    // +optional
-    MatchLabels map[string]string `json:"matchLabels,omitempty"`
-}
-```
-
-The above policy could be easily validated against the request by Crossplane
-by going through in `O(n^2)` with a naive implementation.
-
-### Q6: What about Resolve and Resolution Policies?
+### Q5: What about Resolve and Resolution Policies?
 
 Currently, the following policies can be configured for both MR-level references
 and `EnvironmentConfigs`:
@@ -473,7 +685,7 @@ type Policy struct {
 
 Originally, references were only resolved once, which is equivalent to the
 current default, `IfNotPresent`, and resolution was `Required` only. Other
-options were added [later][resolve-resolution-policy] to allow more flexibility,
+options were added [later][resolve-resolution-policies] to allow more flexibility,
 see [this discussion][resolve-resolution-policy-discussion] for more details.
 
 Both for EnvironmentConfigs and MR-level references, the resolve policy
@@ -506,7 +718,7 @@ get a response back, requesting an `EnvironmentConfig` named `foo` and all
 `EnvironmentConfigs` with label `env` set to `bar`. Crossplane then fetches
 the requested resources and send them back to the Function, which returns a
 response with no additional resources requested signaling that it has finished
-requesting extra resources. 
+requesting extra resources.
 
 Crossplane would need to "save" somewhere references to the resources requested
 during the first reconciliation loop, and only fetch and return those on
@@ -528,9 +740,192 @@ satisfy the constraint, then, a Function could easily implement the `resolution`
 policy `Required` or `Optional` by respectively returning a fatal error or just
 ignoring the missing resource.
 
+##  Potential Future Improvements
+We decided to leave the following questions open for future work:
+- **Q6**: How can Composition authors specify what resources a Function can
+  request?
+- **Q7**: How can we support "Realtime Compositions"?
+
+### TL;DR: Possible decisions
+- **Q6**: How can Composition authors specify what resources Functions can
+  request? ** WE DECIDED NOT TO IMPLEMENT THIS **, see
+  [comment][decision-no-policy].
+  - **Q6.1**: When should the policy be evaluated?
+    - **Option 1 (Q6.1)**: Before gathering the requested extra resources.
+  - **Q6.2**: What should be the policy's input?
+    - **Option 1 (Q6.2)**: The request only.
+- **Q7**: How can we support "Realtime Compositions"? ** WE DECIDED NOT TO
+  IMPLEMENT THIS **, see [comment][decision-no-realtime].
+  - **Q7.1**: How should Functions specify what resources should be watched?
+    - **Option 2 (Q7.1)**: Let Functions specify which resources should be watched.
+  - **Q7.2**:  How should Functions specify what resources should be watched?
+    - **Option 2 (Q7.2)**: Functions request to watch specific resources separately
+      and only by name.
+  - **Q7.3**: Where should Crossplane store the references to the extra resources
+    requested by Functions?
+    - **Option 3 (Q7.3)**: In the XR's `status`, in a new dedicated field.
+  - **Q7.4**: What resources should Functions be able to watch?
+    - **Option 2 (Q7.4)**: Only resources requested in previous iterations.
+
+### Q6: How can Composition authors specify what resources Functions can request?
+
+> [!NOTE]
+> ** WE DECIDED NOT TO IMPLEMENT THIS **: we'll allow all resources by default
+> and we'll revisit this decision at a later stage if needed, see
+> [here][decision-no-policy] for more details. We'll add a flag to allow
+> disabling this functionality > altogether if really needed by Cluster
+> operators.
+
+To answer this question, we need to answer the following questions first,
+**Q6.1**: **WHEN** should the policy be evaluated?
+- **Option 1 (Q6.1)**: Before gathering the requested extra resources.
+- **Option 2 (Q6.1)**: After having gathered the requested extra resources.
+
+**Option 1 (Q6.1)** would be more efficient, as we would not request any
+resource in case of an invalid request. However, it would be less flexible and
+more coarse-grained, as the policy would only have to take into account the
+information provided in the request, so as per the decision taken above for
+**Q4**, only names and labels. While with **Option 2 (Q6.1)** the policy would
+have the whole resources available and could therefore be much more expressive.
+
+We decided to only consider **Option 1 (Q6.1)**, as we deemed unnecessary to
+have the extra flexibility of **Option 2 (Q6.1)**, and we could always add that
+later, if needed, but there would still be value in having a simpler API to
+cover the majority of the use cases.
+
+So, decided that the policy should be evaluated before actually gathering the
+requested extra we can answer **Q6.2**: What should be the policy's input?
+- **Option 1 (Q6.2)**: The request only.
+- **Option 2 (Q6.2)**: Also the observed state.
+
+**Option 1 (Q6.2)** would require a less expressive policy language that could
+exactly mirror the extra resources requests language, e.g. only names and
+labels, and therefore would be extremely simple to validate against the request.
+
+Note that while Functions could still implement label selectors based on the
+current observed state, e.g. a label having a key or value based on a field in
+the Composite Resource, a policy language having as input only the request
+without any other input would have to be coarser-grained.
+
+**Option 2 (Q6.2)** would allow for a much more expressive policy language, as
+it would have access to the current observed state, and as long as it "rendered"
+to something easily comparable to the requests language, it would be easy to
+implement too, e.g. JSONPath expressions, Crossplane-flavored fieldpaths or
+regexes.
+
+Kubernetes users are already used to RBAC policies being evaluated only against
+the request. So, we deemed sufficient, at least as a first implementation, to
+choose **Option 1 (Q6.2)**. We can always revisit this decision at a later stage
+if needed, but a coarser-grained and simpler policy language would still be
+useful.
+
+Note: we could reconsider **Option 2 (Q6.1)** at a later stage and add a more
+expressive policy language to be evaluated after having gathered the requested
+extra resources, for example using a full-fledged policy language such as
+[rego](https://www.openpolicyagent.org/docs/latest/policy-language/), or a
+similar syntax as the one used by [Kyverno](https://kyverno.io/), or a list of
+[Common Expression Language](https://github.com/google/cel-go) (CEL)
+expressions, which would allow the Composition author to specify much more
+complex policies.
+
+Given the above choices, the answer to **Q6** is already decided. The policy
+language will have to mirror the request language. To make this a bit more
+flexible, we could allow specifying regexes for the names and labels.
+
+An example Composition could look like the following:
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: example
+spec:
+  mode: Pipeline
+  pipeline:
+    - step: get-extra-resources
+      functionRef:
+        name: function-extra-resources
+      allowedExtraResources:
+          # all Something.example.test.com/v1 resources
+        - apiVersion: example.test.com/v1
+          kind: Something
+          # both name and matchLabels to nil
+
+          # all SomethingElse.example.test.com/v1 resources named according to the provided regex
+        - apiVersion: example.test.com/v1
+          kind: SomethingElse
+          name: "something-else-.*"
+
+          # all EnvironmentConfigs with label environment=dev, prod or qa
+        - apiVersion: apiextensions.crossplane.io/v1alpha1
+          kind: EnvironmentConfig
+          matchLabels:
+            environment: "(dev|prod|qa)" # "*" would match any label value
+
+      input:
+        apiVersion: extra.fn.crossplane.io/v1beta1
+        kind: ExtraResourceSelectors
+        # a list of resources by name or label selector
+```
+
+By default, the policy should be to deny all requests, so the Composition author
+would have to explicitly allow the requests they want to allow.
+
+The PipelineStep struct would look like the following:
+```golang
+// A PipelineStep in a Composition Function pipeline.
+type PipelineStep struct {
+	// Step name. Must be unique within its Pipeline.
+	Step string `json:"step"`
+
+	// FunctionRef is a reference to the Composition Function this step should
+	// execute.
+	FunctionRef FunctionReference `json:"functionRef"`
+
+	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
+	// with an apiVersion and kind) that will be passed to the Composition
+	// Function as the 'input' of its RunFunctionRequest.
+	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:EmbeddedResource
+	Input *runtime.RawExtension `json:"input,omitempty"`
+
+	// AllowedExtraResources is a list of resources by name or label selector
+	// that this pipeline step is allowed to request.
+	// +optional
+	AllowedExtraResources []ResourceSelector `json:"allowedExtraResources,omitempty"`
+}
+
+// ResourceSelector is a selector for resources.
+// Both name and matchLabels are optional, if both are nil, all resources of the
+// specified kind and apiVersion can be requested.
+type ResourceSelector struct {
+	APIVersion string `json:"apiVersion"`
+	Kind string `json:"kind"`
+	
+	// MatchName is a regex that the name of the resource must match.
+	// Only one of MatchName or MatchLabels can be specified.
+	// +optional
+	MatchName *string `json:"matchName,omitempty"`
+	
+	// MatchLabels is a map of labels that the resource must match.
+	// Values are regular expressions.
+	// Only one of MatchName or MatchLabels can be specified.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}
+```
+
+The above policy could be easily validated against the request by Crossplane
+by going through in `O(n^2)` with a naive implementation.
+
 ### Q7: How can we support "Realtime Compositions"?
 
-With [Realtime Compositions][realtime-compositions] enabled, a reconciliation
+> [!NOTE]
+> ** WE DECIDED NOT TO IMPLEMENT THIS **: "Realtime Compositions" are an Alpha
+> feature and we'll revisit this decision at a later stage. See
+> [here][decision-no-realtime] for more details.
+
+With [Realtime Compositions][pr-realtime-compositions] enabled, a reconciliation
 loop for the right XR is triggered for any change to any of the Composed
 Resources.
 
@@ -667,11 +1062,11 @@ syntax = "proto3";
 message RunFunctionResponse {
   // Existing fields omitted for brevity
 
-  // Requests that must be satisfied for this Function to run successfully.
-  Requests requests = 5;
+  // Requirements that must be satisfied for this Function to run successfully.
+  Requirements requirements = 5;
 }
 
-message Requests {
+message Requirements {
   // Other fields omitted for brevity
   
   // Resources that should be watched by Crossplane.
@@ -688,7 +1083,7 @@ message ResourceRef {
 For security reasons, we definitely want Composition authors to be able to
 constraint the resources a Function should be able to watch, and it would be
 cumbersome to have to specify a separate list of policies with respect to the
-one we already have defined in **Q5**. So we'll have to answer the following
+one we already have defined in **Q6**. So we'll have to answer the following
 question too, **Q7.4**: What resources should Functions be able to watch?
 
 The options we considered are the following:
@@ -706,7 +1101,7 @@ can finally its job. The Function wants Crossplane to watch both `foo` and
 
 **Option 1 (Q7.4)** would be the simplest to implement, and in our scenario, it
 would obviously allow the function to specify that it wants to watch both `foo`
-and `bar`. However, given that the policy language we defined in **Q5** is
+and `bar`. However, given that the policy language we defined in **Q6** is
 also able to specify resources by labels, Crossplane would need to actually
 fetch the resources to be able to evaluate the policy, as, although we know we
 already have fetched them previously, there would be no guarantee that these are
@@ -723,465 +1118,8 @@ flexible, without any major complexity increase, we decided to only consider
 This way, by simply keeping track of the references to the resources requested
 through all iterations Crossplane will be able to validate that all resources
 the Function wants to watch are actually valid according to the policy defined
-in **Q5**, given that these would always be a subset of the already validated
+in **Q6**, given that these would always be a subset of the already validated
 resources requested by the Function.
-
-Given that `Realtime Compositions` are still in Alpha, we could consider
-implementing this at a later stage. However, just to illustrate the whole
-algorithm, the pseudo-code below will assume we are going to properly set
-`status.watchResourceRefs`, which will be ignored in case `Realtime
-Compositions` is not enabled.
-
-### Summary
-
-To sum up the above decisions:
-
-- **Q0**: Should Functions be able to request additional resources?
-  - **Option 1**: Yes, Composition authors should rely on Functions to request
-    additional resources.
-- **Q1**: How should Functions request additional resources?
-  - **Option 1**: Functions request additional resources through the
-    `RunFunctionResponse`.
-- **Q2**: Which steps in the pipeline should have access to the requested resources?
-  - **Option 1**: Only the Function that requested the resources should have
-    access to them.
-- **Q3**: Should Functions be able to request additional resources incrementally?
-  - **Option 1**: Functions can request additional resources incrementally.
-  - **Q3.1**: What should Crossplane send over at the `N`-th iteration?
-    - **Option 2 (Q3.1)**: Only the resources requested at the previous iteration, `N-1`.
-- **Q4**: How should Functions specify what resources they want?
-  - **Option 3**: both by name and via label selector.
-- **Q5**: How can Composition authors specify what resources Functions can
-  request?
-  - **Q5.1**: When should the policy be evaluated?
-    - **Option 1 (Q5.1)**: Before gathering the requested extra resources.
-  - **Q5.2**: What should be the policy's input?
-    - **Option 1 (Q5.2)**: The request only.
-- **Q6**: What about Resolve and Resolution Policies?
-  - Decided not to allow configuring it, defaulting to `resolve` policy `Always` and
-    `resolution` policy left to Functions to implement.
-- **Q7**: How can we support "Realtime Compositions"?
-  - **Q7.1**: How should Functions specify what resources should be watched?
-    - **Option 2 (Q7.1)**: Let Functions specify which resources should be watched.
-  - **Q7.2**:  How should Functions specify what resources should be watched?
-    - **Option 2 (Q7.2)**: Functions request to watch specific resources separately
-      and only by name.
-  - **Q7.3**: Where should Crossplane store the references to the extra resources
-    requested by Functions?
-    - **Option 3 (Q7.3)**: In the XR's `status`, in a new dedicated field.
-  - **Q7.4**: What resources should Functions be able to watch?
-    - **Option 2 (Q7.4)**: Only resources requested in previous iterations.
-    
-## Proposal
-
-Putting all the above together, we propose to allow Functions to request extra
-resources through the `RunFunctionResponse` and to allow Composition authors to
-specify what resources a Function is authorized to request through the
-`PipelineStep` struct.
-
-The `PipelineStep` struct would need to be updated as follows:
-```golang
-// A PipelineStep in a Composition Function pipeline.
-type PipelineStep struct {
-	// Step name. Must be unique within its Pipeline.
-	Step string `json:"step"`
-
-	// FunctionRef is a reference to the Composition Function this step should
-	// execute.
-	FunctionRef FunctionReference `json:"functionRef"`
-
-	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
-	// with an apiVersion and kind) that will be passed to the Composition
-	// Function as the 'input' of its RunFunctionRequest.
-	// +optional
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +kubebuilder:validation:EmbeddedResource
-	Input *runtime.RawExtension `json:"input,omitempty"`
-
-	// AllowedExtraResources is a list of resources by name or label selector
-	// that this Function is allowed to request.
-	// +optional
-    AllowedExtraResources []ResourceSelector `json:"allowedExtraResources,omitempty"`
-
-    // MaxIterations is the maximum number of iterations this step should
-    // execute. Set it to -1 to execute it indefinitely.
-    // +kubebuilder:default=1
-    // +optional
-    MaxIterations *int64 `json:"maxIterations,omitempty"`
-}
-
-// ResourceSelector is a selector for resources.
-// Both name and matchLabels are optional, if both are nil, all resources of the
-// specified kind and apiVersion can be requested.
-type ResourceSelector struct {
-    APIVersion string `json:"apiVersion"`
-    Kind string `json:"kind"`
-
-    // MatchName is a regex that the name of the resource must match.
-    // Only one of MatchName or MatchLabels can be specified.
-    // +optional
-    MatchName *string `json:"matchName,omitempty"`
-	
-	// MatchLabels is a map of labels that the resource must match.
-	// Values are regular expressions.
-    // Only one of MatchName or MatchLabels can be specified.
-    // +optional
-    MatchLabels map[string]string `json:"matchLabels,omitempty"`
-}
-```
-
-The `RunFunctionResponse` and `RunFunctionRequest` protobuf messages have to be
-updated as follows:
-```protobuf
-syntax = "proto3";
-
-message RunFunctionResponse {
-  // Existing fields omitted for brevity
-
-  // Requests that must be satisfied for this Function to run successfully.
-  Requests requests = 5;
-}
-
-message Requests {
-  // Extra resources that this Function requires.
-  // The map key uniquely identifies the group of resources.
-  map<string, ResourceSelector> extra_resources = 1;
-  
-  // Resources that should be watched by Crossplane.
-  repeated ResourceRef watch_resources = 2;
-}
-
-message ResourceRef {
-  string api_version = 1;
-  string kind = 2;
-  string name = 3;
-}
-
-message ResourceSelector {
-  string api_version = 1;
-  string kind = 2;
-
-  // here we would actually want to use a oneof, but due to the need of wrapping
-  // messages, the syntax would become a bit cumbersome, so we'll see how to handle
-  // that at implementation time.
-  optional string match_name = 3;
-  map<string, string> match_labels = 4;
-}
-
-message RunFunctionRequest {
-  // Existing fields omitted for brevity
-
-  // Note that extra resources is a map to Resources, plural.
-  // The map key corresponds to the key in a RunFunctionResponse's
-  // extra_resources field. If a Function requests extra resources that
-  // don't exist Crossplane sets the map key to an empty Resources
-  // message to indicate that it attempted to satisfy the request.
-  map<string, Resources> extra_resources = 3;
-}
-
-// Resources just exists because you can't have map<string, repeated Resource>.
-message Resources {
-  repeated Resource resources = 1;
-}
-```
-
-And the logic according to which Crossplane will run the pipeline would be as
-follows:
-```golang
-// The following code should not be considered as a final implementation, but
-// rather as a pseudo-code to show the intended logic.
-
-// Compose resources using the Functions pipeline.
-func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
-	// Existing code omitted for brevity...
-
-	// the set of watched resources, will be stored in `status.watchedResourceRefs`,
-	// will need to be converted in a sorted list before storing it
-	var resourcesToWatch map[string]v1beta1.ResourceRef
-
-	// Run any Composition Functions in the pipeline.
-	for _, fn := range req.Revision.Spec.Pipeline {
-		
-		// requestedResources is a map of allowed extra resources by name
-		// will be populated with the fetched resources and used to validate
-		// the watch requests
-		var requestedResources map[string]bool
-		
-		// used to store the resources fetched at the previous iteration
-        var extraResources map[string]v1beta1.Resources
-		
-		for i := int64(0); i < *fn.MaxIterations; i++ {
-			req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx, extraResources: extraResources}
-
-			// Run the Composition Function and get the response.
-			rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
-			if err != nil {
-				return CompositionResult{}, errors.Wrapf(err, /* ... */)
-			}
-
-			// Pass the desired state and context returned by this Function to the next iteration.
-			d = rsp.GetDesired()
-			fctx = rsp.GetContext()
-
-			rs := rsp.GetRequests()
-			// nothing to do if there are no requests to be satisfied
-			if rs == nil {
-				break
-			}
-
-			extraResourcesRequests := rs.GetExtraResources()
-
-			// if there are still extra resources getting requested on the last iteration, error out
-			if len(extraResourcesRequests) > 0 && i == *fn.MaxIterations-1 {
-				return CompositionResult{}, errors.Errorf( /* ... */ )
-			}
-
-			// check the references are in the observed state we just sent to the Function
-			// if not, error out
-			// otherwise add them to resourcesToWatch
-            ws := rs.GetWatchResources()
-			if err := checkAllowedWatchedResources(requestedResources, ws); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, /* ... */)
-			}
-			
-			// All good, we can add them to the set of resources to watch
-            for _, ref := range ws {
-				// add them to the set of resourcesToWatch
-				resourcesToWatch[fmt.Sprintf("%s.%s.%s", ref.GetApiVersion(), ref.GetKind(), ref.GetName())] = ref
-            }
-			
-			// Validate the extra resources requested by the Function and fetch them
-			// if allowed.
-			if err := checkAllowedExtraResources(fn.AllowedExtraResources, extraResourcesRequests); err != nil {
-                return CompositionResult{}, errors.Wrapf(err, /* ... */)
-            }
-
-            // Cleanup the extra resources from the previous iteration to store the new ones
-			extraResources = make(map[string]v1beta1.Resources)
-			
-			// Fetch the requested resources and add them to the desired state.
-			for name, selector := range extraResourcesRequests {
-				// Fetch the requested resources and add them to the desired state.
-				resources, err := fetchResources(ctx, c.client, selector)
-				if err != nil {
-					return CompositionResult{}, errors.Wrapf(err, /* ... */)
-				}
-				
-                // resources would be nil in case of not found resources
-				extraResources[name] = resources
-
-				// add them to the set of previously requested resources
-				for _, r := range resources {
-                    requestedResources[fmt.Sprintf("%s.%s.%s", r.GetApiVersion(), r.GetKind(), r.GetName())] = true
-                }
-			}
-
-
-		}
-		
-		// Existing code omitted for brevity...
-	}
-	// replace the XR's `status.watchedResourceRefs` with the set of resources to watch
-    // making sure to sort them to avoid flapping
-	for _, ref := range resourcesToWatch {
-		// ...
-    }
-	// ...
-
-	// Existing code omitted for brevity...
-}
-
-// isAllowed checks if a resource request is allowed according to the Composition's policy.
-func checkAllowedResources(allowed []ResourceSelector, request []v1beta1.ResourceSelector) bool {
-	// Check if the request matches any of the allowed resource selectors.
-	for _, allow := range allowed {
-		if allow.APIVersion == request.GetApiVersion() && allow.Kind == request.GetKind() && /* match name or labels if specified */ {
-			return true
-		}
-	}
-	return false
-}
-
-// fetchResources fetches resources that match the given selector.
-func fetchResources(ctx context.Context, client client.Reader, selector *v1beta1.ResourceSelector) ([]*unstructured.Unstructured, error) {
-	// Fetch resources by name or label selector...
-	// return nil on not found error
-}
-
-// Check if the references are in the observed state of the request.
-func checkAllowedWatchedResources(alreadyRequestedResources map[string]bool, refs map[string]v1beta1.ResourceRef) error {
-	for name, ref := range refs {
-		if !alreadyRequestedResources[name] {
-            return errors.Errorf( /* ... */ )
-        }
-	}
-	return nil
-}
-```
-
-With the above proposal what currently can be implemented as follows:
-```yaml
----
-apiVersion: apiextensions.crossplane.io/v1
-kind: Composition
-metadata:
-  name: nop.sqlinstances.example.org
-spec:
-  compositeTypeRef:
-    apiVersion: example.org/v1alpha1
-    kind: XSQLInstance
-  environment:
-    environmentConfigs:
-      - ref:
-          name: example-environment-1
-      - type: Selector
-        selector:
-          mode: Multiple
-          sortByFieldPath: data.priority
-          matchLabels:
-            - type: FromCompositeFieldPath
-              key: stage
-              valueFromFieldPath: metadata.labels[stage]
-  resources:
-    - name: nop
-      base:
-        apiVersion: nop.crossplane.io/v1alpha1
-        kind: NopResource
-        spec:
-          forProvider:
-            conditionAfter:
-              - conditionType: Ready
-                conditionStatus: "False"
-                time: 0s
-              - conditionType: Ready
-                conditionStatus: "True"
-                time: 1s
-      patches:
-        - type: FromEnvironmentFieldPath
-          fromFieldPath: complex.c.f
-          toFieldPath: metadata.annotations[valueFromEnv]
-```
-
-Could be rewritten as follows, assuming we implemented a Function (e.g.
-`function-environment-configs` or a more generic `function-extra-resources`)
-that can request `EnvironmentConfigs` as extra resources, merge them according
-to its logic and set the result as in the `Context`, at the key
-`function-patch-and-transform` conventionally expects it,
-`apiextensions.crossplane.io/environment`:
-```yaml
----
-apiVersion: apiextensions.crossplane.io/v1
-kind: Composition
-metadata:
-  name: nop.sqlinstances.example.org
-spec:
-  compositeTypeRef:
-    apiVersion: example.org/v1alpha1
-    kind: XSQLInstance
-  mode: Pipeline
-  pipeline:
-  - name: envconfigs
-    functionRef:
-      name: function-environment-configs
-    allowedExtraResources:
-    - apiVersion: apiextensions.crossplane.io/v1alpha1
-      kind: EnvironmentConfig
-    input:
-      apiVersion: extra.fn.crossplane.io/v1beta1
-      kind: ExtraResourceSelectors
-      extraResourceSelectors:
-        environmentConfigs:
-        - ref:
-            name: example-environment-1
-        - type: Selector
-          selector:
-            mode: Multiple
-            sortByFieldPath: data.priority
-            matchLabels:
-              - type: FromCompositeFieldPath
-                key: stage
-                valueFromFieldPath: metadata.labels[stage]
-  - name: patch-and-transform
-    functionRef:
-      name: function-patch-and-transform
-    input:
-      apiVersion: pt.fn.crossplane.io/v1beta1
-      kind: Resources
-      resources:
-        - name: nop
-          base:
-            apiVersion: nop.crossplane.io/v1alpha1
-            kind: NopResource
-            spec:
-              forProvider:
-                conditionAfter:
-                  - conditionType: Ready
-                    conditionStatus: "False"
-                    time: 0s
-                  - conditionType: Ready
-                    conditionStatus: "True"
-                    time: 1s
-          patches:
-            - type: FromEnvironmentFieldPath
-              fromFieldPath: complex.c.f
-              toFieldPath: metadata.annotations[valueFromEnv]
-```
-
-Or, we could think of adding such capabilities directly to
-`function-patch-and-transform` directly, which however would make it a little
-harder to debug given that the whole logic would be in a single Function:
-```yaml
----
-apiVersion: apiextensions.crossplane.io/v1
-kind: Composition
-metadata:
-  name: nop.sqlinstances.example.org
-spec:
-  compositeTypeRef:
-    apiVersion: example.org/v1alpha1
-    kind: XSQLInstance
-  mode: Pipeline
-  pipeline:
-  - name: patch-and-transform
-    functionRef:
-      name: function-patch-and-transform
-    allowedExtraResources:
-    - apiVersion: apiextensions.crossplane.io/v1alpha1
-      kind: EnvironmentConfig
-    input:
-      apiVersion: pt.fn.crossplane.io/v1beta1
-      kind: Resources
-      environment:
-        environmentConfigs:
-        - ref:
-            name: example-environment-1
-        - type: Selector
-          selector:
-            mode: Multiple
-            sortByFieldPath: data.priority
-            matchLabels:
-              - type: FromCompositeFieldPath
-                key: stage
-                valueFromFieldPath: metadata.labels[stage]
-      resources:
-        - name: nop
-          base:
-            apiVersion: nop.crossplane.io/v1alpha1
-            kind: NopResource
-            spec:
-              forProvider:
-                conditionAfter:
-                  - conditionType: Ready
-                    conditionStatus: "False"
-                    time: 0s
-                  - conditionType: Ready
-                    conditionStatus: "True"
-                    time: 1s
-          patches:
-            - type: FromEnvironmentFieldPath
-              fromFieldPath: complex.c.f
-              toFieldPath: metadata.annotations[valueFromEnv]
-```
 
 [specification]: ../contributing/specifications/functions.md
 [design-doc]: ./design-doc-composition-functions.md
@@ -1194,3 +1132,5 @@ spec:
 [kyverno-context]: https://kyverno.io/docs/writing-policies/external-data-sources/
 [Kubernetes API Conventions]: https://github.com/zecke/Kubernetes/blob/master/docs/devel/api-conventions.md#spec-and-status
 [pr-realtime-compositions]: https://github.com/crossplane/crossplane/pull/4637/files
+[decision-no-policy]: https://github.com/crossplane/crossplane/pull/5099#discussion_r1439894828
+[decision-no-realtime]: https://github.com/crossplane/crossplane/pull/5099#issuecomment-1889866515
