@@ -431,6 +431,11 @@ func (in *EnvironmentSourceSelector) DeepCopyInto(out *EnvironmentSourceSelector
 		*out = new(uint64)
 		**out = **in
 	}
+	if in.MinMatch != nil {
+		in, out := &in.MinMatch, &out.MinMatch
+		*out = new(uint64)
+		**out = **in
+	}
 	if in.MatchLabels != nil {
 		in, out := &in.MatchLabels, &out.MatchLabels
 		*out = make([]EnvironmentSourceSelectorLabelMatcher, len(*in))

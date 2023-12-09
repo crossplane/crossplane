@@ -158,6 +158,11 @@ spec:
                                 if nil.
                               format: int64
                               type: integer
+                            minMatch:
+                              description: MinMatch specifies the required minimum
+                                of extracted EnvironmentConfigs in Multiple mode.
+                              format: int64
+                              type: integer
                             mode:
                               default: Single
                               description: 'Mode specifies retrieval strategy: "Single"
@@ -1610,6 +1615,11 @@ spec:
                               description: MaxMatch specifies the number of extracted
                                 EnvironmentConfigs in Multiple mode, extracts all
                                 if nil.
+                              format: int64
+                              type: integer
+                            minMatch:
+                              description: MinMatch specifies the required minimum
+                                of extracted EnvironmentConfigs in Multiple mode.
                               format: int64
                               type: integer
                             mode:

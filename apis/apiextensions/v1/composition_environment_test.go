@@ -160,3 +160,53 @@ func TestEnvironmentShouldResolve(t *testing.T) {
 		})
 	}
 }
+
+func TestEnvironmentSourceSelectorValidate(t *testing.T) {
+
+	type args struct {
+		e *EnvironmentSourceSelector
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   *field.Error
+	}{
+		"ErrorModeSingleWithMaxMatch": {
+			reason: "Should not resolve when composite has refs",
+			args: args{
+				e: &EnvironmentSourceSelector{
+					Mode:     EnvironmentSourceSelectorSingleMode,
+					MaxMatch: ptr.To[uint64](1),
+				},
+			},
+			want: &field.Error{
+				Type:  field.ErrorTypeForbidden,
+				Field: "maxMatch",
+			},
+		},
+		"ErrorModeSingleWithMinMatch": {
+			reason: "Should not resolve when composite has refs",
+			args: args{
+				e: &EnvironmentSourceSelector{
+					Mode:     EnvironmentSourceSelectorSingleMode,
+					MinMatch: ptr.To[uint64](0),
+				},
+			},
+			want: &field.Error{
+				Type:  field.ErrorTypeForbidden,
+				Field: "minMatch",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+
+		t.Run(name, func(t *testing.T) {
+			got := tc.args.e.Validate()
+			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+				t.Errorf("%s\nValidate(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
