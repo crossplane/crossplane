@@ -13,7 +13,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/emicklei/dot v1.6.0
 	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.10.0
+	github.com/go-git/go-git/v5 v5.11.0
 	github.com/golang-jwt/jwt/v5 v5.1.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-containerregistry v0.16.1
@@ -50,7 +50,6 @@ require (
 	connectrpc.com/otelconnect v0.6.0 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
-	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/bufbuild/protovalidate-go v0.4.1 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
@@ -76,7 +75,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
-	github.com/skeema/knownhosts v1.2.0 // indirect
+	github.com/skeema/knownhosts v1.2.1 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
