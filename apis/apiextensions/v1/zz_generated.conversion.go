@@ -188,6 +188,12 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceSelectorToPV1Enviro
 			pUint64 = &xuint64
 		}
 		v1EnvironmentSourceSelector.MaxMatch = pUint64
+		var pUint642 *uint64
+		if (*source).MinMatch != nil {
+			xuint642 := *(*source).MinMatch
+			pUint642 = &xuint642
+		}
+		v1EnvironmentSourceSelector.MinMatch = pUint642
 		v1EnvironmentSourceSelector.SortByFieldPath = (*source).SortByFieldPath
 		var v1EnvironmentSourceSelectorLabelMatcherList []EnvironmentSourceSelectorLabelMatcher
 		if (*source).MatchLabels != nil {
