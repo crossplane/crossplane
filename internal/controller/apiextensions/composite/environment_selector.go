@@ -38,6 +38,7 @@ const (
 	errFmtReferenceEnvironmentConfig   = "failed to build reference at index %d"
 	errFmtResolveLabelValue            = "failed to resolve value for label at index %d"
 	errListEnvironmentConfigs          = "failed to list environments"
+	errFmtSelectorNotEnoughResults     = "expected at least %d EnvironmentConfig(s) with matching labels, found: %d"
 	errFmtInvalidEnvironmentSourceType = "invalid source type '%s'"
 	errFmtInvalidLabelMatcherType      = "invalid label matcher type '%s'"
 	errFmtUnknownSelectorMode          = "unknown mode '%s'"
@@ -137,7 +138,7 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
 	ec := make([]v1alpha1.EnvironmentConfig, 0)
 
-	if cl == nil || len(cl.Items) == 0 {
+	if cl == nil {
 		return []corev1.ObjectReference{}, nil
 	}
 
@@ -150,6 +151,11 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 			return nil, errors.Errorf(errFmtFoundMultipleInSingleMode, len(cl.Items))
 		}
 	case v1.EnvironmentSourceSelectorMultiMode:
+
+		if selector.MinMatch != nil && len(cl.Items) < int(*selector.MinMatch) {
+			return nil, errors.Errorf(errFmtSelectorNotEnoughResults, *selector.MinMatch, len(cl.Items))
+		}
+
 		err := sortConfigs(cl.Items, selector.SortByFieldPath)
 		if err != nil {
 			return nil, err
