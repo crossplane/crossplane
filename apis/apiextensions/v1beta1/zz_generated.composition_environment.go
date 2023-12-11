@@ -196,6 +196,9 @@ type EnvironmentSourceSelector struct {
 	// MaxMatch specifies the number of extracted EnvironmentConfigs in Multiple mode, extracts all if nil.
 	MaxMatch *uint64 `json:"maxMatch,omitempty"`
 
+	// MinMatch specifies the required minimum of extracted EnvironmentConfigs in Multiple mode.
+	MinMatch *uint64 `json:"minMatch,omitempty"`
+
 	// SortByFieldPath is the path to the field based on which list of EnvironmentConfigs is alphabetically sorted.
 	// +kubebuilder:default="metadata.name"
 	SortByFieldPath string `json:"sortByFieldPath,omitempty"`
@@ -209,6 +212,10 @@ func (e *EnvironmentSourceSelector) Validate() *field.Error {
 
 	if e.Mode == EnvironmentSourceSelectorSingleMode && e.MaxMatch != nil {
 		return field.Forbidden(field.NewPath("maxMatch"), "maxMatch is not supported in Single mode")
+	}
+
+	if e.Mode == EnvironmentSourceSelectorSingleMode && e.MinMatch != nil {
+		return field.Forbidden(field.NewPath("minMatch"), "minMatch is not supported in Single mode")
 	}
 
 	for i, m := range e.MatchLabels {
