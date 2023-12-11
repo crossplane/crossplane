@@ -173,7 +173,7 @@ func TestEnvironmentSourceSelectorValidate(t *testing.T) {
 		want   *field.Error
 	}{
 		"ErrorModeSingleWithMaxMatch": {
-			reason: "Should not resolve when composite has refs",
+			reason: "Should error out when maxMatch is specified, but mode is Single",
 			args: args{
 				e: &EnvironmentSourceSelector{
 					Mode:     EnvironmentSourceSelectorSingleMode,
@@ -186,7 +186,7 @@ func TestEnvironmentSourceSelectorValidate(t *testing.T) {
 			},
 		},
 		"ErrorModeSingleWithMinMatch": {
-			reason: "Should not resolve when composite has refs",
+			reason: "Should error out when minMatch is specified, but mode is Single",
 			args: args{
 				e: &EnvironmentSourceSelector{
 					Mode:     EnvironmentSourceSelectorSingleMode,
