@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
+    "config:recommended",
     "helpers:pinGitHubActionDigests",
     ":semanticCommits"
   ],
@@ -17,8 +17,9 @@
   "postUpdateOptions": ["gomodTidy"],
 // All PRs should have a label
   "labels": ["automated"],
-  "regexManagers": [
+  "customManagers": [
     {
+      "customType": "regex",
       "description": "Bump Go version used in workflows",
       "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
       "matchStrings": [
@@ -27,6 +28,7 @@
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
     }, {
+      "customType": "regex",
       "description": "Bump golangci-lint version in workflows and the Makefile",
       "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$","^Makefile$"],
       "matchStrings": [
@@ -37,6 +39,7 @@
       "depNameTemplate": "golangci/golangci-lint",
       "extractVersionTemplate": "^v(?<version>.*)$"
     }, {
+      "customType": "regex",
       "description": "Bump helm version in the Makefile",
       "fileMatch": ["^Makefile$"],
       "matchStrings": [
@@ -45,6 +48,7 @@
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "helm/helm",
     }, {
+      "customType": "regex",
       "description": "Bump kind version in the Makefile",
       "fileMatch": ["^Makefile$"],
       "matchStrings": [
