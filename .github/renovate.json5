@@ -54,6 +54,9 @@
       "depNameTemplate": "kubernetes-sigs/kind",
     }
   ],
+  "crossplane": {
+    "fileMatch": ["(^|/)test/e2e/.*\\.ya?ml$"]
+  },
 // PackageRules disabled below should be enabled in case of vulnerabilities
   "vulnerabilityAlerts": {
     "enabled": true
@@ -63,6 +66,10 @@
 // be at the beginning, high priority at the end
   "packageRules": [
     {
+      "matchManagers": ["crossplane"],
+      "matchFileNames": ["test/e2e/**"],
+      "groupName": "e2e-manifests",
+    }, {
       "description": "Ignore non-security related updates to release branches",
       matchBaseBranches: [ "/^release-.*/"],
       enabled: false,
