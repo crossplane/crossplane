@@ -173,6 +173,11 @@ func TestRenderClusterRoles(t *testing.T) {
 							Resources: []string{pluralXRC, pluralXRC + suffixStatus},
 							Verbs:     verbsEdit,
 						},
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXRC + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
 					},
 				},
 				{
