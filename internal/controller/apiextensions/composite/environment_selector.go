@@ -135,7 +135,7 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 	return res, nil
 }
 
-func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
+func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) { //nolint:gocyclo // TODO: refactor
 	ec := make([]v1alpha1.EnvironmentConfig, 0)
 
 	if cl == nil {
@@ -161,7 +161,7 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 			return nil, err
 		}
 
-		if selector.MaxMatch != nil {
+		if selector.MaxMatch != nil && len(cl.Items) > int(*selector.MaxMatch) {
 			ec = append(ec, cl.Items[:*selector.MaxMatch]...)
 			break
 		}
