@@ -1,0 +1,26 @@
+apiVersion: nop.example.org/v1alpha1
+kind: NopResource
+metadata:
+  labels:
+    foo: "1"
+    # bar label got removed
+    foo2: "3"
+  annotations:
+    test/foo: "1"
+    # test/bar label got removed
+    test/foo2: "4"
+  namespace: default
+  name: propagate-fields-removals
+spec:
+  coolField: "I'm cool!"
+  numbers:
+    - "one"
+    # three got removed
+    - "five"
+  parameters:
+    tags:
+      tag: "v1"
+      # newtag got removed
+  # This is necessary to ensure the claim's MRs are actually gone before we
+  # delete the Provider - https://github.com/crossplane/crossplane/issues/4251
+  compositeDeletePolicy: Foreground

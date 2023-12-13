@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  resources:
+  - name: nop-resource-1
+    base:
+     apiVersion: nop.crossplane.io/v1alpha1
+     kind: NopResource
+     spec:
+      forProvider:
+        conditionAfter:
+        - conditionType: Ready
+          conditionStatus: "True"
+          time: 0s
+    patches:
+      - type: FromCompositeFieldPath
+        fromFieldPath: spec.coolField
+        toFieldPath: metadata.annotations["cf"]
+      - type: ToCompositeFieldPath
+        fromFieldPath: metadata.annotations["cf"]
+        toFieldPath: status.coolerField
