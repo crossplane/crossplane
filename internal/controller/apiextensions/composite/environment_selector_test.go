@@ -36,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 func TestSelect(t *testing.T) {
@@ -959,7 +959,7 @@ func TestSelect(t *testing.T) {
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
-										MaxMatch:        ptr.To[uint64](3),
+										MaxMatch:        ptr.To[uint64](4),
 										SortByFieldPath: "data[int/weight]",
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
