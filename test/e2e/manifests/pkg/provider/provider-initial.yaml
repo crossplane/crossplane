@@ -4,5 +4,5 @@ metadata:
   name: provider-nop
 spec:
   # We only started pushing to xpkg.upbound.io/crossplane-contrib with v0.2.0
-  package: crossplanecontrib/provider-nop:v0.1.1
+  package: crossplanecontrib/provider-nop:v0.2.0
   ignoreCrossplaneConstraints: true
