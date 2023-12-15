@@ -124,7 +124,7 @@ jobs:
           retention-days: 3
 
       - name: Upload Trivy Scan Results To GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@c0d1daa7f7e14667747d73a7dbbe8c074bc8bfe2 # v2
+        uses: github/codeql-action/upload-sarif@03e7845b7bfcd5e7fb63d1ae8c61b0e791134fab # v2
         with:
           sarif_file: 'trivy-results.sarif'
           category: ${{ matrix.image }}:${{ env.tag }}
