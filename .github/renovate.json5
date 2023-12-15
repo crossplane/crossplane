@@ -73,6 +73,7 @@
       "matchManagers": ["crossplane"],
       "matchFileNames": ["test/e2e/**"],
       "groupName": "e2e-manifests",
+      "ignorePaths": ["test/e2e/manifests/pkg/provider/provider-initial.yaml"],
     }, {
       "description": "Ignore non-security related updates to release branches",
       matchBaseBranches: [ "/^release-.*/"],
