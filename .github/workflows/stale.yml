@@ -15,7 +15,7 @@ jobs:
   stale:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/stale@1160a2240286f5da8ec72b1c0816ce2481aabf84 # v8
+    - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e # v9
       with:
         # This action uses ~2 operations per stale issue per run to determine
         # whether it's still stale. It also uses 2-3 operations to mark an issue
