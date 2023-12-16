@@ -50,6 +50,7 @@ import (
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/pkg/controller/predicate"
 )
 
 const (
@@ -439,8 +440,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cp.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
 	if err := r.claim.Start(claim.ControllerName(d.GetName()), ko,
-		controller.For(cm, &handler.EnqueueRequestForObject{}),
-		controller.For(cp, &EnqueueRequestForClaim{}),
+		controller.For(cm, &handler.EnqueueRequestForObject{}, predicate.IgnoreStatusChanges()),
+		controller.For(cp, &EnqueueRequestForClaim{}, predicate.IgnoreMetadataChanges()),
 	); err != nil {
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))

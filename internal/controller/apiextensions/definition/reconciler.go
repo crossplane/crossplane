@@ -59,6 +59,7 @@ import (
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/pkg/controller/predicate"
 )
 
 const (
@@ -462,7 +463,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	name := composite.ControllerName(d.GetName())
 	var ca cache.Cache
 	watches := []controller.Watch{
-		controller.For(u, &handler.EnqueueRequestForObject{}),
+		controller.For(u, &handler.EnqueueRequestForObject{}, predicate.IgnoreStatusChanges()),
 		// enqueue composites whenever a matching CompositionRevision is created
 		controller.TriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
 			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
