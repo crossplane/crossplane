@@ -19,6 +19,7 @@ package offered
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ import (
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/pkg/controller/interceptor"
 )
 
 const (
@@ -392,9 +394,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, nil
 	}
 
+	cn := claim.ControllerName(fmt.Sprintf("%s.%s", d.Spec.ClaimNames.Plural, d.Spec.Group))
+	clog := r.options.Logger.WithValues("controller", cn)
 	o := []claim.ReconcilerOption{
-		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
-		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
+		claim.WithLogger(clog),
+		claim.WithRecorder(r.record.WithAnnotations("controller", cn)),
 		claim.WithPollInterval(r.options.PollInterval),
 	}
 
@@ -417,7 +421,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)
 
 	ko := r.options.ForControllerRuntime()
-	ko.Reconciler = ratelimiter.NewReconciler(claim.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
+	ko.Reconciler = ratelimiter.NewReconciler(claim.ControllerName(d.GetName()), interceptor.LoggingInterceptor(clog, errors.WithSilentRequeueOnConflict(cr)), r.options.GlobalRateLimiter)
 
 	if err := r.claim.Err(claim.ControllerName(d.GetName())); err != nil {
 		log.Debug("Composite resource controller encountered an error", "error", err)

@@ -532,7 +532,15 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								xrd, ok := obj.(*v1.CompositeResourceDefinition)
+								if !ok {
+									return errors.New("Expected CompositeResourceDefinition instance")
+								}
+								xrd.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{Plural: "foos"}
+								xrd.Spec.Group = "test.org"
+								return nil
+							}),
 						},
 						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
@@ -567,11 +575,21 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								xrd, ok := obj.(*v1.CompositeResourceDefinition)
+								if !ok {
+									return errors.New("Expected CompositeResourceDefinition instance")
+								}
+								xrd.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{Plural: "foos"}
+								xrd.Spec.Group = "test.org"
+								return nil
+							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.CompositeResourceDefinition{}
 								want.Status.SetConditions(v1.WatchingClaim())
-
+								want.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{Plural: "foos"}
+								want.Spec.Group = "test.org"
+								want.Status.Controllers.CompositeResourceClaimTypeRef.APIVersion = "test.org/"
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
