@@ -1016,11 +1016,44 @@ func TestIsValidInputForTransform(t *testing.T) {
 				err: true,
 			},
 		},
+		"ValidStringTransformInputArrayJoin": {
+			reason: "Valid String transformType should not return an error with input array if join",
+			args: args{
+				fromType: v1.TransformIOTypeArray,
+				t: &v1.Transform{
+					Type: v1.TransformTypeString,
+					String: &v1.StringTransform{
+						Type: v1.StringTransformTypeJoin,
+						Join: &v1.StringTransformJoin{
+							Separator: ",",
+						},
+					},
+				},
+			},
+		},
+		"InvalidStringTransformInputArrayJoin": {
+			reason: "Valid String transformType should return an error with input object if join",
+			args: args{
+				fromType: v1.TransformIOTypeObject,
+				t: &v1.Transform{
+					Type: v1.TransformTypeString,
+					String: &v1.StringTransform{
+						Type: v1.StringTransformTypeJoin,
+						Join: &v1.StringTransformJoin{
+							Separator: ",",
+						},
+					},
+				},
+			},
+			want: want{
+				err: true,
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			err := IsValidInputForTransform(tc.args.t, tc.args.fromType)
-			if tc.want.err && err == nil {
+			if tc.want.err != (err != nil) {
 				t.Errorf("\n%s\nIsValidInputForTransform(...): -want error, +got error: \n%s", tc.reason, err)
 				return
 			}

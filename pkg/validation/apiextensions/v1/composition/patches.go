@@ -500,6 +500,10 @@ func IsValidInputForTransform(t *v1.Transform, fromType v1.TransformIOType) erro
 			default:
 				return errors.Errorf("unknown string conversion type %s", *t.String.Convert)
 			}
+		case v1.StringTransformTypeJoin:
+			if fromType != v1.TransformIOTypeArray {
+				return errors.Errorf("string transform join type can only be used with arrays as input, got %s", fromType)
+			}
 		default:
 			return errors.Errorf("unknown string transform type %s", t.String.Type)
 		}
