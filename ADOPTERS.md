@@ -57,3 +57,4 @@ This list is sorted in the order that organizations were added to it.
 | [Continental](https://continental.com/) | @yogeek | Used to manage cloud infrastructure components and to provide self-service ephemeral K8S VCluster to development teams. |
 | [Luminar](https://www.luminartech.com/) | @satishweb | Manage our cloud infrastructure and provide a self-service framework for engineer's application resource needs |
 | [Transfix](https://transfix.io/) | @transfixio @amanfredi | We are using Crossplane to deploy new AWS infrastructure and modify existing cloud resources. |
+| [Skyscrapers](https://skyscrapers.eu/) | [hello@skyscrapers.eu](mailto:hello@skyscrapers.eu) | We use Crossplane in our control plane to manage our Kubernetes clusters on EKS for our DevOps-as-a-Service offering |
