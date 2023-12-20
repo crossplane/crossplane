@@ -20,18 +20,28 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
+	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	pkgname "github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
@@ -41,6 +51,8 @@ const (
 // Client to get a Resource with all its children.
 type Client struct {
 	getConnectionSecrets bool
+	dependencyOutput     DependencyOutput
+	revisionOutput       RevisionOutput
 
 	client  client.Client
 	rmapper meta.RESTMapper
@@ -53,6 +65,18 @@ type ClientOption func(*Client)
 func WithConnectionSecrets(v bool) ClientOption {
 	return func(c *Client) {
 		c.getConnectionSecrets = v
+	}
+}
+
+func WithDependencyOutput(do DependencyOutput) ClientOption {
+	return func(c *Client) {
+		c.dependencyOutput = do
+	}
+}
+
+func WithRevisionOutput(ro RevisionOutput) ClientOption {
+	return func(c *Client) {
+		c.revisionOutput = ro
 	}
 }
 
@@ -80,6 +104,16 @@ func (kc *Client) GetResourceTree(ctx context.Context, rootRef *v1.ObjectReferen
 		return nil, err
 	}
 
+	if IsPackageType(root.Unstructured.GroupVersionKind().GroupKind()) {
+		// the root is a package type, get the lock file now
+		lock := &v1beta1.Lock{}
+		if err := kc.client.Get(ctx, types.NamespacedName{Name: "lock"}, lock); err != nil {
+			return nil, err
+		}
+
+		return kc.getPackageTree(ctx, root, lock, map[string]struct{}{})
+	}
+
 	// Set up a FIFO queue to traverse the resource tree breadth first.
 	queue := []*Resource{root}
 
@@ -99,6 +133,160 @@ func (kc *Client) GetResourceTree(ctx context.Context, rootRef *v1.ObjectReferen
 	}
 
 	return root, nil
+}
+
+func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
+	nodeGK := node.Unstructured.GroupVersionKind().GroupKind()
+	var prl pkgv1.PackageRevisionList
+
+	switch nodeGK {
+	case pkgv1.ProviderGroupVersionKind.GroupKind():
+		prl = &pkgv1.ProviderRevisionList{}
+	case pkgv1.ConfigurationGroupVersionKind.GroupKind():
+		prl = &pkgv1.ConfigurationRevisionList{}
+	case pkgv1beta1.FunctionGroupVersionKind.GroupKind():
+		prl = &pkgv1beta1.FunctionRevisionList{}
+	default:
+		return nil, errors.New(fmt.Sprintf("unknown package type %s", nodeGK))
+	}
+
+	if kc.revisionOutput != RevisionOutputNone {
+		// retrieve revisions for this package to add them as children of the current node
+		if err := kc.client.List(ctx, prl, client.MatchingLabels(map[string]string{pkgv1.LabelParentPackage: node.Unstructured.GetName()})); xpresource.IgnoreNotFound(err) != nil {
+			return nil, err
+		}
+		prs := prl.GetRevisions()
+		for i := range prs {
+			pr := prs[i]
+			childRevision := kc.getResource(ctx, xpmeta.ReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))
+
+			// add the current revision as a child of the current node if the revision output says we should
+			state, _ := fieldpath.Pave(childRevision.Unstructured.Object).GetString("spec.desiredState")
+			isActive := pkgv1.PackageRevisionDesiredState(state) == pkgv1.PackageRevisionActive
+			if kc.revisionOutput == RevisionOutputAll || (kc.revisionOutput == RevisionOutputActive && isActive) {
+				node.Children = append(node.Children, childRevision)
+			}
+		}
+	}
+
+	if kc.dependencyOutput == DependencyOutputNone {
+		// we're not supposed to show any dependencies, we can return now
+		return node, nil
+	}
+
+	cr, err := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
+	if err != nil || cr == "" {
+		// we don't have a current package revision, so just return what we've found so far
+		return node, nil
+	}
+
+	// find the lock file entry for the current revision
+	var lp *pkgv1beta1.LockPackage
+	for i := range lock.Packages {
+		if cr == lock.Packages[i].Name {
+			lp = &lock.Packages[i]
+			break
+		}
+	}
+
+	if lp == nil {
+		// the current revision for this package isn't in the lock file yet,
+		// just return what we've found so far
+		return node, nil
+	}
+
+	// iterate over all dependencies of the package to get full references to them
+	var depRefs []v1.ObjectReference
+	for _, d := range lp.Dependencies {
+		if kc.dependencyOutput == DependencyOutputUnique {
+			if _, ok := uniqueDeps[d.Package]; ok {
+				// we are supposed to only show unique dependencies, and we've seen this one already in the tree, skip it
+				continue
+			}
+		}
+
+		var name string
+		var apiVersion string
+		var pkgKind string
+		var revision pkgv1.PackageRevision
+
+		// figure out if the current dependency is a providers, configuration, or function
+		switch d.Type {
+		case pkgv1beta1.ProviderPackageType:
+			pkgKind = pkgv1.ProviderKind
+			apiVersion = pkgv1.ProviderGroupVersionKind.GroupVersion().String()
+			revision = &pkgv1.ProviderRevision{}
+		case pkgv1beta1.ConfigurationPackageType:
+			pkgKind = pkgv1.ConfigurationKind
+			apiVersion = pkgv1.ConfigurationGroupVersionKind.GroupVersion().String()
+			revision = &pkgv1.ConfigurationRevision{}
+		case pkgv1beta1.FunctionPackageType:
+			pkgKind = pkgv1beta1.FunctionKind
+			apiVersion = pkgv1beta1.FunctionGroupVersionKind.GroupVersion().String()
+			revision = &pkgv1beta1.FunctionRevision{}
+		default:
+			return nil, errors.New(fmt.Sprintf("unknown package dependency type %s", d.Type))
+		}
+
+		// NOTE: everything in the lock file is basically a package revision
+		// - pkgrev A
+		//   - dependency: pkgrev B
+		//   - dependency: pkgrev C
+		// - pkgrev B
+		// - pkgrev C
+
+		// find the current dependency from all the packages in the lock file
+		for _, p := range lock.Packages {
+			if p.Source == d.Package {
+				// current package source matches the package of the dependency, let's get the full object
+				if err := kc.client.Get(ctx, types.NamespacedName{Name: p.Name}, revision); xpresource.IgnoreNotFound(err) != nil {
+					return nil, err
+				}
+
+				// look for the owner of this package revision, that's its parent package
+				for _, or := range revision.GetOwnerReferences() {
+					if or.Kind == pkgKind && or.Controller != nil && *or.Controller {
+						name = or.Name
+						break
+					}
+				}
+				break
+			}
+		}
+
+		if name == "" {
+			// we didn't find a package to match the current dependency, which
+			// can happen during initial installation when dependencies are
+			// being discovered and fetched. We'd still like to show something
+			// though, so try to make the package name pretty
+			if pkgref, err := pkgname.ParseReference(d.Package); err == nil {
+				name = xpkg.ToDNSLabel(pkgref.Context().RepositoryStr())
+			} else {
+				name = xpkg.ToDNSLabel(d.Package)
+			}
+		}
+
+		depRefs = append(depRefs, v1.ObjectReference{
+			APIVersion: apiVersion,
+			Kind:       pkgKind,
+			Name:       name,
+		})
+
+		// track this dependency in the unique dependency map
+		uniqueDeps[d.Package] = struct{}{}
+	}
+
+	// traverse all the references to dependencies that we found to build the tree out with them too
+	for i := range depRefs {
+		child := kc.getResource(ctx, &depRefs[i])
+		node.Children = append(node.Children, child)
+
+		if _, err := kc.getPackageTree(ctx, child, lock, uniqueDeps); err != nil {
+			return nil, err
+		}
+	}
+
+	return node, nil
 }
 
 // getResource returns the requested Resource, setting any error as Resource.Error.

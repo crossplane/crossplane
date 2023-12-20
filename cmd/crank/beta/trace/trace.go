@@ -34,6 +34,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/apis/pkg"
+
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
@@ -62,6 +64,8 @@ type Cmd struct {
 	Namespace             string `short:"n" name:"namespace" help:"Namespace of the resource." default:"default"`
 	Output                string `short:"o" name:"output" help:"Output format. One of: default, wide, json, dot." enum:"default,wide,json,dot" default:"default"`
 	ShowConnectionSecrets bool   `short:"s" name:"show-connection-secrets" help:"Show connection secrets in the output."`
+	ShowDependencies      string `name:"show-dependencies" help:"Show package dependencies in the output. One of: unique, all, none." enum:"unique,all,none" default:"unique"`
+	ShowRevisions         string `name:"show-revisions" help:"Show package revisions in the output. One of: active, all, none." enum:"active,all,none" default:"active"`
 }
 
 // Help returns help message for the trace command.
@@ -118,6 +122,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	if err != nil {
 		return errors.Wrap(err, errInitKubeClient)
 	}
+	pkg.AddToScheme(client.Scheme())
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 	if err != nil {
@@ -130,7 +135,9 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d)
 
 	// Get client for k8s package
-	resClient, err := resource.NewClient(client, rmapper, resource.WithConnectionSecrets(c.ShowConnectionSecrets))
+	resClient, err := resource.NewClient(client, rmapper, resource.WithConnectionSecrets(c.ShowConnectionSecrets),
+		resource.WithDependencyOutput(resource.DependencyOutput(c.ShowDependencies)),
+		resource.WithRevisionOutput(resource.RevisionOutput(c.ShowRevisions)))
 	if err != nil {
 		return errors.Wrap(err, errInitKubeClient)
 	}
