@@ -142,7 +142,7 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 	}
 
 	if c.RuntimeConfig != "" {
-		rpkg, ok := pkg.(v1.PackageRevisionWithRuntime)
+		rpkg, ok := pkg.(v1.PackageWithRuntime)
 		if !ok {
 			return errors.Errorf("package kind %T does not support runtime configuration", pkg)
 		}
