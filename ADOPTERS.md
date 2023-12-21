@@ -61,3 +61,4 @@ This list is sorted in the order that organizations were added to it.
 | [Scaleway](https://scaleway.com/) | @yfodil | We created a Crossplane Provider for Scaleway infrastructures. |
 | [Skyscrapers](https://skyscrapers.eu/) | [hello@skyscrapers.eu](mailto:hello@skyscrapers.eu) | We use Crossplane in our control plane to manage our Kubernetes clusters on EKS for our DevOps-as-a-Service offering |
 | [HiredScore](https://hiredscore.com) | [ops@hiredscore.com](mailto:ops@hiredscore.com) | We use Crossplane to deploy Kubernetes related cloud resources. |
+| [IBM](https://www.ibm.com/) | @morningspace | We created a Crossplane Provider for IBM Cloud. Also used Crossplane for a service mapping framework layer which provides the portability / transparency of the underlying services internally. |
