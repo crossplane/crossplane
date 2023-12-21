@@ -33,6 +33,9 @@
 /ROADMAP.md                          @crossplane/steering-committee
 /LICENSE                             @crossplane/steering-committee
 
+# Adopters list - steering committee and maintainers
+/ADOPTERS.md                         @crossplane/steering-committee @crossplane/crossplane-maintainers
+
 # Design documents
 /design/                             @crossplane/crossplane-maintainers @negz
 
