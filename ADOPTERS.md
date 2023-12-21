@@ -60,3 +60,4 @@ This list is sorted in the order that organizations were added to it.
 | [Jellysmack](https://jellysmack.com/) | @mickaelcanevet | Used to deploy hundreds of AWS IAM Role and patch the ServiceAccount annotation for IRSA. |
 | [Scaleway](https://scaleway.com/) | @yfodil | We created a Crossplane Provider for Scaleway infrastructures. |
 | [Skyscrapers](https://skyscrapers.eu/) | [hello@skyscrapers.eu](mailto:hello@skyscrapers.eu) | We use Crossplane in our control plane to manage our Kubernetes clusters on EKS for our DevOps-as-a-Service offering |
+| [HiredScore](https://hiredscore.com) | [ops@hiredscore.com](mailto:ops@hiredscore.com) | We use Crossplane to deploy Kubernetes related cloud resources. |
