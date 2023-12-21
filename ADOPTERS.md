@@ -54,11 +54,13 @@ This list is sorted in the order that organizations were added to it.
 | [SAP](https://sap.com/) | [d.small@sap.com](mailto:d.small@sap.com)| [SAP](https://sap.com) uses Crossplane as part of a solution that gives teams owning micro-services the ability to provision hyper-scaler hosted backing services such as Redis on demand. |
 | [Airnity](https://airnity.com/) | [hello@airnity.com](mailto:hello@airnity.com) | [Airnity](https://airnity.com/) uses Crossplane to deploy a worldwide cellular connectivity platform for the automotive industry. |
 | [Intility](https://intility.com/) | @daniwk @JonasKs | We orchestrate our metacloud's infrastructure using Crossplane. |
+| [codecentric](https://www.codecentric.de/) | @jonashackt | Software engineering & Infrastructure automation/GitOps consulting, where the Kubernetes ecosystem is continuously evaluated for best suited tooling for our clients - and Crossplane is a definitive shooting star, which will for sure kick off a broad adoption soon. Currently we're in the process of evaluating and showcasing crossplane to our customers. |
 | [Continental](https://continental.com/) | @yogeek | Used to manage cloud infrastructure components and to provide self-service ephemeral K8S VCluster to development teams. |
 | [Luminar](https://www.luminartech.com/) | @satishweb | Manage our cloud infrastructure and provide a self-service framework for engineer's application resource needs |
 | [Transfix](https://transfix.io/) | @transfixio @amanfredi | We are using Crossplane to deploy new AWS infrastructure and modify existing cloud resources. |
 | [Jellysmack](https://jellysmack.com/) | @mickaelcanevet | Used to deploy hundreds of AWS IAM Role and patch the ServiceAccount annotation for IRSA. |
 | [Scaleway](https://scaleway.com/) | @yfodil | We created a Crossplane Provider for Scaleway infrastructures. |
+| [IntentHQ](https://intenthq.com/) | @driosalido | Build an internal developer platform and to manage our cloud infrastructure (replace Terraform). |
 | [Skyscrapers](https://skyscrapers.eu/) | [hello@skyscrapers.eu](mailto:hello@skyscrapers.eu) | We use Crossplane in our control plane to manage our Kubernetes clusters on EKS for our DevOps-as-a-Service offering |
 | [HiredScore](https://hiredscore.com) | [ops@hiredscore.com](mailto:ops@hiredscore.com) | We use Crossplane to deploy Kubernetes related cloud resources. |
 | [IBM](https://www.ibm.com/) | @morningspace | We created a Crossplane Provider for IBM Cloud. Also used Crossplane for a service mapping framework layer which provides the portability / transparency of the underlying services internally. |
