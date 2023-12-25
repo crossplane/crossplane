@@ -51,6 +51,7 @@ const (
 	errGet             = "cannot get Composition"
 	errListRevs        = "cannot list CompositionRevisions"
 	errCreateRev       = "cannot create CompositionRevision"
+	errOwnRev          = "cannot own CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
 	errUpdateRevSpec   = "cannot update CompositionRevision spec"
 )
@@ -163,8 +164,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	for i := range rl.Items {
 		rev := &rl.Items[i]
+
 		if !metav1.IsControlledBy(rev, comp) {
-			continue
+			// We already listed revisions with Composition name label pointing
+			// to this Composition. Let's make sure they are controlled by it.
+			// Note(turkenh): Owner references are stripped out when a resource
+			// is moved from one cluster to another (i.e. backup/restore) since
+			// the UID of the owner is not preserved. We need to make sure to
+			// re-add the owner reference to all revisions of this Composition.
+			if err := meta.AddControllerReference(rev, meta.AsController(meta.TypedReferenceTo(comp, v1.CompositionGroupVersionKind))); err != nil {
+				log.Debug(errOwnRev, "error", err)
+				r.record.Event(comp, event.Warning(reasonUpdateRev, err))
+				return reconcile.Result{}, errors.Wrap(err, errOwnRev)
+			}
+			if err := r.client.Update(ctx, rev); err != nil {
+				log.Debug(errOwnRev, "error", err)
+				r.record.Event(comp, event.Warning(reasonUpdateRev, err))
+				return reconcile.Result{}, errors.Wrap(err, errOwnRev)
+			}
 		}
 
 		// This revision does not match our current Composition.
