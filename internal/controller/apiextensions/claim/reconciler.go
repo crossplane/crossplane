@@ -554,7 +554,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm, client.FieldOwner(fieldOwnerName)), errUpdateClaimStatus)
 	}
 
-	record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
+	record.Event(cm, event.Normal(reasonBind, "Composite resource is ready"))
 
 	propagated, err := r.composite.PropagateConnection(ctx, cm, cp)
 	if err != nil {
