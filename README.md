@@ -21,14 +21,14 @@ Currently maintained releases, as well as the next few upcoming releases are
 listed below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release | Release Date |   EOL    |
-|:-------:|:------------:|:--------:|
-|  v1.12  | Apr 25, 2023 | Jan 2024 |
-|  v1.13  | Jul 27, 2023 | Apr 2024 |
-|  v1.14  | Nov 1, 2023  | Jul 2024 |
-|  v1.15  | Late Jan '24 | Oct 2024 |
-|  v1.16  | Late Apr '24 | Jan 2025 |
-|  v1.17  | Late Jul '24 | Apr 2025 |
+| Release | Release Date  |   EOL    |
+|:-------:|:-------------:|:--------:|
+|  v1.12  | Apr 25, 2023  | Feb 2024 |
+|  v1.13  | Jul 27, 2023  | May 2024 |
+|  v1.14  | Nov 1, 2023   | Aug 2024 |
+|  v1.15  | Early Feb '24 | Nov 2024 |
+|  v1.16  | Early May '24 | Feb 2025 |
+|  v1.17  | Early Aug '24 | May 2025 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
