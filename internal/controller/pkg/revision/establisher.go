@@ -215,19 +215,12 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 	return nil
 }
 
-func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) (allObjs []currentDesired, err error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
-	if parentWithRuntime, ok := parent.(v1.PackageRevisionWithRuntime); ok {
-		if tlsServerSecretName := parentWithRuntime.GetTLSServerSecretName(); tlsServerSecretName != nil {
-			s := &corev1.Secret{}
-			nn := types.NamespacedName{Name: *tlsServerSecretName, Namespace: e.namespace}
-			if err := e.client.Get(ctx, nn, s); err != nil {
-				return nil, errors.Wrap(err, errGetWebhookTLSSecret)
-			}
-			if len(s.Data["tls.crt"]) == 0 {
-				return nil, errors.New(errWebhookSecretWithoutCABundle)
-			}
-			webhookTLSCert = s.Data["tls.crt"]
+	if parentWithRuntime, ok := parent.(v1.PackageRevisionWithRuntime); ok && control {
+		webhookTLSCert, err = e.getWebhookTLSCert(ctx, parentWithRuntime)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -244,63 +237,9 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				return errors.New(errAssertResourceObj)
 			}
 
-			// The generated webhook configurations have a static hard-coded name
-			// that the developers of the providers can't affect. Here, we make sure
-			// to distinguish one from the other by setting the name to the parent
-			// since there is always a single ValidatingWebhookConfiguration and/or
-			// single MutatingWebhookConfiguration object in a provider package.
-			// See https://github.com/kubernetes-sigs/controller-tools/issues/658
-			switch conf := res.(type) {
-			case *admv1.ValidatingWebhookConfiguration:
-				if len(webhookTLSCert) == 0 {
-					return nil
-				}
-				if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-					conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
-				}
-				for i := range conf.Webhooks {
-					conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
-					if conf.Webhooks[i].ClientConfig.Service == nil {
-						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
-					}
-					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
-					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-					conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](servicePort)
-				}
-			case *admv1.MutatingWebhookConfiguration:
-				if len(webhookTLSCert) == 0 {
-					return nil
-				}
-				if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-					conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
-				}
-				for i := range conf.Webhooks {
-					conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
-					if conf.Webhooks[i].ClientConfig.Service == nil {
-						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
-					}
-					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
-					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-					conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](servicePort)
-				}
-			case *extv1.CustomResourceDefinition:
-				if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
-					if len(webhookTLSCert) == 0 {
-						return errors.New(errConversionWithNoWebhookCA)
-					}
-					if conf.Spec.Conversion.Webhook == nil {
-						conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
-					}
-					if conf.Spec.Conversion.Webhook.ClientConfig == nil {
-						conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
-					}
-					if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
-						conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
-					}
-					conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
-					conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
-					conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
-					conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](servicePort)
+			if control {
+				if err := e.enrichControlledResource(res, webhookTLSCert, parent); err != nil {
+					return err
 				}
 			}
 
@@ -353,11 +292,94 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	}
 
 	close(out)
-	allObjs := []currentDesired{}
 	for obj := range out {
 		allObjs = append(allObjs, obj)
 	}
 	return allObjs, nil
+}
+
+func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLSCert []byte, parent v1.PackageRevision) error { //nolint:gocyclo // just a switch
+	// The generated webhook configurations have a static hard-coded name
+	// that the developers of the providers can't affect. Here, we make sure
+	// to distinguish one from the other by setting the name to the parent
+	// since there is always a single ValidatingWebhookConfiguration and/or
+	// single MutatingWebhookConfiguration object in a provider package.
+	// See https://github.com/kubernetes-sigs/controller-tools/issues/658
+	switch conf := res.(type) {
+	case *admv1.ValidatingWebhookConfiguration:
+		if len(webhookTLSCert) == 0 {
+			return nil
+		}
+		if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+			conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+		}
+		for i := range conf.Webhooks {
+			conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+			if conf.Webhooks[i].ClientConfig.Service == nil {
+				conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+			}
+			conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
+			conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](servicePort)
+		}
+	case *admv1.MutatingWebhookConfiguration:
+		if len(webhookTLSCert) == 0 {
+			return nil
+		}
+		if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+			conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+		}
+		for i := range conf.Webhooks {
+			conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+			if conf.Webhooks[i].ClientConfig.Service == nil {
+				conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+			}
+			conf.Webhooks[i].ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
+			conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+			conf.Webhooks[i].ClientConfig.Service.Port = ptr.To[int32](servicePort)
+		}
+	case *extv1.CustomResourceDefinition:
+		if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+			if len(webhookTLSCert) == 0 {
+				return errors.New(errConversionWithNoWebhookCA)
+			}
+			if conf.Spec.Conversion.Webhook == nil {
+				conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+			}
+			if conf.Spec.Conversion.Webhook.ClientConfig == nil {
+				conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+			}
+			if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
+				conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+			}
+			conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetLabels()[v1.LabelParentPackage]
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
+			conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = ptr.To[int32](servicePort)
+		}
+	}
+	return nil
+}
+
+// getWebhookTLSCert returns the TLS certificate of the webhook server if the
+// revision has a TLS server secret name.
+func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntime v1.PackageRevisionWithRuntime) (webhookTLSCert []byte, err error) {
+	tlsServerSecretName := parentWithRuntime.GetTLSServerSecretName()
+	if tlsServerSecretName == nil {
+		return nil, nil
+	}
+	s := &corev1.Secret{}
+	nn := types.NamespacedName{Name: *tlsServerSecretName, Namespace: e.namespace}
+	err = e.client.Get(ctx, nn, s)
+	if err != nil {
+		return nil, errors.Wrap(err, errGetWebhookTLSSecret)
+	}
+
+	if len(s.Data["tls.crt"]) == 0 {
+		return nil, errors.New(errWebhookSecretWithoutCABundle)
+	}
+	webhookTLSCert = s.Data["tls.crt"]
+	return webhookTLSCert, nil
 }
 
 func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) { //nolint:gocyclo // Only slightly over (12).
