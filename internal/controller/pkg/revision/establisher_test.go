@@ -135,7 +135,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
-		"SuccessfulNotExistsEstablishControlWebhookEnabled": {
+		"SuccessfulNotExistsEstablishControlWebhookEnabledActiveRevision": {
 			reason: "Establishment should be successful if we can establish control for a parent of new objects in case webhooks are enabled.",
 			args: args{
 				est: &APIEstablisher{
@@ -305,8 +305,8 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				err: errors.New(errConversionWithNoWebhookCA),
 			},
 		},
-		"FailedGettingWebhookTLSSecret": {
-			reason: "Establishment should fail if a webhook TLS secret is given but cannot be fetched",
+		"FailedGettingWebhookTLSSecretControl": {
+			reason: "Establishment of a controlling revision should fail if a webhook TLS secret is given but cannot be fetched",
 			args: args{
 				est: &APIEstablisher{
 					client: &test.MockClient{
@@ -320,13 +320,35 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
+				control: true,
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetWebhookTLSSecret),
 			},
 		},
-		"FailedEmptyWebhookTLSSecret": {
-			reason: "Establishment should fail if a webhook TLS secret is given but empty",
+		"NoErrGettingWebhookTLSSecretNoControl": {
+			reason: "Establishment of a revision should not fail if a webhook TLS secret is given but cannot be fetched if we don't want to control resources",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(errBoom),
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: false,
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"FailedEmptyWebhookTLSSecretControl": {
+			reason: "Establishment should fail for a controlling revision if a webhook TLS secret is given but empty if we want to control resources",
 			args: args{
 				est: &APIEstablisher{
 					client: &test.MockClient{
@@ -344,9 +366,35 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
+				control: true,
 			},
 			want: want{
 				err: errors.New(errWebhookSecretWithoutCABundle),
+			},
+		},
+		"NoErrEmptyWebhookTLSSecretNoControl": {
+			reason: "Establishment should not fail for an revision if a webhook TLS secret is given but empty if we don't want to control resources",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							s := &corev1.Secret{}
+							s.DeepCopyInto(obj.(*corev1.Secret))
+							return nil
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: &tlsServerSecretName,
+						},
+					},
+				},
+				control: false,
+			},
+			want: want{
+				err: nil,
 			},
 		},
 		"FailedCreate": {
