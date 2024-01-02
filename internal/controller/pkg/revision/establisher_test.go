@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/smithy-go/ptr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -651,6 +652,67 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 					},
 				},
 				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "some-unique-uid-2312",
+					},
+					Status: v1.PackageRevisionStatus{
+						ObjectRefs: []xpv1.TypedReference{
+							{
+								APIVersion: "apiextensions.k8s.io/v1",
+								Kind:       "CustomResourceDefinition",
+								Name:       "releases.helm.crossplane.io",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"OwnedIfNotAlready": {
+			reason: "ReleaseObjects should put owner reference back if we are not already the owner.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							o := obj.(*unstructured.Unstructured)
+							o.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: "pkg.crossplane.io/v1",
+									Kind:       "Provider",
+									Name:       "provider-helm",
+									UID:        "some-other-uid-1234",
+									Controller: &noControl,
+								},
+							})
+							return nil
+						},
+						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+							o := obj.(*unstructured.Unstructured)
+							if len(o.GetOwnerReferences()) != 2 {
+								t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
+							}
+							found := false
+							for _, ref := range o.GetOwnerReferences() {
+								if ref.Kind == "ProviderRevision" && ref.UID == "some-unique-uid-2312" {
+									found = true
+									if ptr.ToBool(ref.Controller) {
+										t.Errorf("expected controller to be false, got %t", *ref.Controller)
+									}
+								}
+							}
+							if !found {
+								t.Errorf("expected to find owner reference for revision with uid some-unique-uid-2312")
+							}
+							return nil
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					TypeMeta: metav1.TypeMeta{
+						Kind: "ProviderRevision",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
 					},
