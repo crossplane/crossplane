@@ -5,3 +5,6 @@ contact_links:
 - name: Documentation Issues
   url: https://github.com/crossplane/docs/issues
   about: Report a documentation bug, or suggest an improvement.
+- name: Request a New Extension
+  url: https://github.com/crossplane/crossplane/discussions/5194
+  about: Request a new Crossplane provider, function, etc.
