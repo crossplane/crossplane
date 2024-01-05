@@ -51,6 +51,8 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
+	github.com/asaskevich/govalidator v0.0.0-20190424111038-f61b66f89f4a // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bufbuild/protovalidate-go v0.4.1 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
