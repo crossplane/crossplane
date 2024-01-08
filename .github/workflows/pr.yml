@@ -9,7 +9,7 @@ jobs:
     if: github.actor != 'renovate[bot]'
     runs-on: ubuntu-22.04
     steps:
-      - uses: mheap/require-checklist-action@1baf7cfc5be24da7bb1939c4034eecf928a56492 # v2
+      - uses: mheap/require-checklist-action@01fe24747f8630a056d9ca79dfbbb755579850ab # v2
         with:
           # The checklist must _exist_ and be filled out.
           requireChecklist: true
