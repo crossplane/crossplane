@@ -55,8 +55,8 @@ limitations under the License.
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 output:artifacts:config=../cluster/webhookconfigurations
 
 // Generate conversion code
-//go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen ./apiextensions/v1
-//go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen ./pkg/meta/v1alpha1
+//go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./apiextensions/v1
+//go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./pkg/meta/v1alpha1
 
 // Generate gRPC types and stubs.
 //
