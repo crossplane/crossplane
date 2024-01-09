@@ -62,7 +62,7 @@ type installCmd struct {
 	ManualActivation     bool          `short:"m" help:"Require the new package's first revision to be manually activated."`
 	PackagePullSecrets   []string      `placeholder:"NAME" help:"A comma-separated list of secrets the package manager should use to pull the package from the registry."`
 	RevisionHistoryLimit int64         `short:"r" placeholder:"LIMIT" help:"How many package revisions may exist before the oldest revisions are deleted."`
-	Wait                 time.Duration `short:"w" default:"0s" help:"How long to wait for the package to install before returning. The command does not wait by default. Errors out if the timeout is exceeded."`
+	Wait                 time.Duration `short:"w" default:"0s" help:"How long to wait for the package to install before returning. The command does not wait by default. Returns an error if the timeout is exceeded."`
 }
 
 func (c *installCmd) Help() string {
