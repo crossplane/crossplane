@@ -13,7 +13,11 @@
 // The branches renovate should target
 // PLEASE UPDATE THIS WHEN RELEASING.
   "baseBranches": ["master","release-1.12","release-1.13","release-1.14"],
-  "ignorePaths": ["design/**"],
+  "ignorePaths": [
+    "design/**",
+    // We test upgrades, so leave it on an older version on purpose.
+    "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+  ],
   "postUpdateOptions": ["gomodTidy"],
 // All PRs should have a label
   "labels": ["automated"],
@@ -73,7 +77,6 @@
       "matchManagers": ["crossplane"],
       "matchFileNames": ["test/e2e/**"],
       "groupName": "e2e-manifests",
-      "ignorePaths": ["test/e2e/manifests/pkg/provider/provider-initial.yaml"],
     }, {
       "description": "Ignore non-security related updates to release branches",
       matchBaseBranches: [ "/^release-.*/"],
