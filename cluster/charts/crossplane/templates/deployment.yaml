@@ -149,11 +149,13 @@ spec:
               resourceFieldRef:
                 containerName: {{ .Chart.Name }}
                 resource: limits.cpu
+                divisor: "1"
           - name: GOMEMLIMIT
             valueFrom:
               resourceFieldRef:
                 containerName: {{ .Chart.Name }}
                 resource: limits.memory
+                divisor: "1"
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
