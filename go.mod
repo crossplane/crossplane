@@ -114,7 +114,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.12.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.19.0 // indirect
-	github.com/aws/smithy-go v1.13.5
+	github.com/aws/smithy-go v1.19.0
 	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20230510185313-f5e39e5f34c7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bufbuild/protocompile v0.6.1-0.20231108163138-146b831231f7 // indirect
