@@ -21,7 +21,7 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.21.5'
+  GO_VERSION: '1.21.6'
 
   # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
   # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
