@@ -100,6 +100,14 @@ var (
 				"storageGB": {
 					"type": "integer",
 					"description": "Pretend this is useful."
+				},
+				"someField": {
+					"type": "string",
+					"description": "Pretend this is useful."
+				},
+				"someOtherField": {
+					"type": "string",
+					"description": "Pretend this is useful."
 				}
 			},
 			"x-kubernetes-validations": [
@@ -108,11 +116,22 @@ var (
 					"rule": "self.engineVersion == oldSelf.engineVersion"
 				}
 			],
-			"type": "object"
+			"type": "object",
+			"oneOf": [
+				{
+					"required": ["someField"]
+				},
+				{
+					"required": ["someOtherField"]
+				}
+			]
 		},
 		"status": {
 			"properties": {
 				"phase": {
+					"type": "string"
+				},
+				"something": {
 					"type": "string"
 				}
 			},
@@ -121,6 +140,10 @@ var (
 					"message": "Phase is required once set",
 					"rule": "!has(oldSelf.phase) || has(self.phase)"
 				}
+			],
+			"oneOf": [
+				{ "required": ["phase"] },
+				{ "required": ["something"] }
 			],
 			"type": "object",
 			"description": "Status of the resource."
@@ -268,6 +291,8 @@ func TestForCompositeResource(t *testing.T) {
 														{Raw: []byte(`"5.7"`)},
 													},
 												},
+												"someField":      {Type: "string", Description: "Pretend this is useful."},
+												"someOtherField": {Type: "string", Description: "Pretend this is useful."},
 
 												// From CompositeResourceSpecProps()
 												"compositionRef": {
@@ -409,12 +434,17 @@ func TestForCompositeResource(t *testing.T) {
 													Rule:    "self.engineVersion == oldSelf.engineVersion",
 												},
 											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"someField"}},
+												{Required: []string{"someOtherField"}},
+											},
 										},
 										"status": {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase": {Type: "string"},
+												"phase":     {Type: "string"},
+												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
 												"conditions": {
@@ -448,6 +478,10 @@ func TestForCompositeResource(t *testing.T) {
 													Message: "Phase is required once set",
 													Rule:    "!has(oldSelf.phase) || has(self.phase)",
 												},
+											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"phase"}},
+												{Required: []string{"something"}},
 											},
 										},
 									},
@@ -573,6 +607,8 @@ func TestForCompositeResource(t *testing.T) {
 														{Raw: []byte(`"5.7"`)},
 													},
 												},
+												"someField":      {Type: "string", Description: "Pretend this is useful."},
+												"someOtherField": {Type: "string", Description: "Pretend this is useful."},
 
 												// From CompositeResourceSpecProps()
 												"compositionRef": {
@@ -715,12 +751,17 @@ func TestForCompositeResource(t *testing.T) {
 													Rule:    "self.engineVersion == oldSelf.engineVersion",
 												},
 											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"someField"}},
+												{Required: []string{"someOtherField"}},
+											},
 										},
 										"status": {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase": {Type: "string"},
+												"phase":     {Type: "string"},
+												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
 												"conditions": {
@@ -754,6 +795,10 @@ func TestForCompositeResource(t *testing.T) {
 													Message: "Phase is required once set",
 													Rule:    "!has(oldSelf.phase) || has(self.phase)",
 												},
+											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"phase"}},
+												{Required: []string{"something"}},
 											},
 										},
 									},
@@ -1114,6 +1159,8 @@ func TestForCompositeResource(t *testing.T) {
 														{Raw: []byte(`"5.7"`)},
 													},
 												},
+												"someField":      {Type: "string", Description: "Pretend this is useful."},
+												"someOtherField": {Type: "string", Description: "Pretend this is useful."},
 
 												// From CompositeResourceSpecProps()
 												"compositionRef": {
@@ -1255,12 +1302,17 @@ func TestForCompositeResource(t *testing.T) {
 													Rule:    "self.engineVersion == oldSelf.engineVersion",
 												},
 											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"someField"}},
+												{Required: []string{"someOtherField"}},
+											},
 										},
 										"status": {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase": {Type: "string"},
+												"phase":     {Type: "string"},
+												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
 												"conditions": {
@@ -1294,6 +1346,10 @@ func TestForCompositeResource(t *testing.T) {
 													Message: "Phase is required once set",
 													Rule:    "!has(oldSelf.phase) || has(self.phase)",
 												},
+											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"phase"}},
+												{Required: []string{"something"}},
 											},
 										},
 									},
@@ -1396,6 +1452,8 @@ func TestForCompositeResource(t *testing.T) {
 														{Raw: []byte(`"5.7"`)},
 													},
 												},
+												"someField":      {Type: "string", Description: "Pretend this is useful."},
+												"someOtherField": {Type: "string", Description: "Pretend this is useful."},
 
 												// From CompositeResourceSpecProps()
 												"compositionRef": {
@@ -1537,12 +1595,17 @@ func TestForCompositeResource(t *testing.T) {
 													Rule:    "self.engineVersion == oldSelf.engineVersion",
 												},
 											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"someField"}},
+												{Required: []string{"someOtherField"}},
+											},
 										},
 										"status": {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase": {Type: "string"},
+												"phase":     {Type: "string"},
+												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
 												"conditions": {
@@ -1576,6 +1639,10 @@ func TestForCompositeResource(t *testing.T) {
 													Message: "Phase is required once set",
 													Rule:    "!has(oldSelf.phase) || has(self.phase)",
 												},
+											},
+											OneOf: []extv1.JSONSchemaProps{
+												{Required: []string{"phase"}},
+												{Required: []string{"something"}},
 											},
 										},
 									},
