@@ -382,12 +382,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	v := xr.GetAPIVersion()
 	k := xr.GetKind()
 	n := xr.GetName()
+	u := xr.GetUID()
 	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
 	xr.SetAPIVersion(v)
 	xr.SetKind(k)
 	xr.SetName(n)
+	xr.SetUID(u)
 
 	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
