@@ -81,6 +81,14 @@ func TestReconcile(t *testing.T) {
 	rev1 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: compDev.GetName() + "-1",
+			OwnerReferences: []metav1.OwnerReference{{
+				UID:                "some-other-uid",
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
+			}},
+			Labels: map[string]string{
+				v1.LabelCompositionName: compDev.Name,
+			},
 		},
 		Spec: v1.CompositionRevisionSpec{Revision: 1},
 	}
@@ -119,6 +127,18 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		Spec: v1.CompositionRevisionSpec{Revision: 3},
+	}
+
+	// Should be owned by the above composition, but ownership was stripped out.
+	rev4 := &v1.CompositionRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: compDev.GetName() + "-4",
+			Labels: map[string]string{
+				v1.LabelCompositionHash: "some-other-hash",
+				v1.LabelCompositionName: compDev.Name,
+			},
+		},
+		Spec: v1.CompositionRevisionSpec{Revision: 2},
 	}
 
 	type args struct {
@@ -205,9 +225,6 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
 								Items: []v1.CompositionRevision{
-									// Not controlled by the above composition.
-									*rev1,
-
 									// Controlled by the above composition with a current hash.
 									// This indicates we don't need to create a new revision.
 									*rev3,
@@ -221,6 +238,81 @@ func TestReconcile(t *testing.T) {
 			want: want{
 				r:   reconcile.Result{},
 				err: nil,
+			},
+		},
+		"SuccessfulOwnershipUpdate": {
+			reason: "We should control existing composition revisions if ownership was stripped out.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: func(ctx context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+							if len(opts) < 1 || opts[0].(client.MatchingLabels)[v1.LabelCompositionName] != compDev.Name {
+								t.Errorf("unexpected list options: %v", opts)
+							}
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
+									// Controlled by the above composition, but with an older annotation
+									*rev3,
+
+									// Should be controlled by the above composition, but ownership was stripped out.
+									*rev4,
+								},
+							}
+							return nil
+						},
+						MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							if owners := obj.GetOwnerReferences(); len(owners) < 1 || owners[0].UID != compDev.GetUID() {
+								t.Errorf("unexpected owner reference: %v, ", obj.GetOwnerReferences()[0])
+							}
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"AlreadyControlledByAnotherUID": {
+			reason: "We should return an error when a composition revision has matching composition name but another controller ref.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDev
+							return nil
+						}),
+						MockList: func(ctx context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+							if len(opts) < 1 || opts[0].(client.MatchingLabels)[v1.LabelCompositionName] != compDev.Name {
+								t.Errorf("unexpected list options: %v", opts)
+							}
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
+									// Controlled by other composition
+									*rev1,
+
+									// Controlled by the above composition, but with an older annotation
+									*rev3,
+								},
+							}
+							return nil
+						},
+						MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							if owners := obj.GetOwnerReferences(); len(owners) < 1 || owners[0].UID != compDev.GetUID() {
+								t.Errorf("unexpected owner reference: %v, ", obj.GetOwnerReferences()[0])
+							}
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Errorf("%s is already controlled by   (UID some-other-uid)", rev1.GetName()), errOwnRev),
 			},
 		},
 		"CreateCompositionRevisionError": {
@@ -250,9 +342,6 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
 								Items: []v1.CompositionRevision{
-									// Not controlled by the above composition.
-									*rev1,
-
 									// Controlled by the above composition, but with an older hash.
 									// This indicates we need to create a new composition.
 									*rev2,
@@ -289,9 +378,6 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
 								Items: []v1.CompositionRevision{
-									// Not controlled by the above composition.
-									*rev1,
-
 									// Controlled by the above composition with previous label
 									*rev3,
 								},
@@ -327,9 +413,6 @@ func TestReconcile(t *testing.T) {
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
 								Items: []v1.CompositionRevision{
-									// Not controlled by the above composition.
-									*rev1,
-
 									// Controlled by the above composition, but with an older annotation
 									*rev3,
 								},
