@@ -73,7 +73,8 @@ func (c *pushCmd) Help() string {
 	return `
 Packages can be pushed to any OCI registry. Packages are pushed to the
 xpkg.upbound.io registry by default. A package's OCI tag must be a semantic
-version.
+version. Credentials for the registry are automatically retrieved from xpkg login 
+and dockers configuration as fallback.
 
 Examples:
 
