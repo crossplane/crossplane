@@ -54,7 +54,8 @@ against Crossplane] or the relevant provider. Refer to our [contributing guide]
 for more information on how you can help.
 
 * Discuss Crossplane on [Slack] or our [developer mailing list].
-* Follow us on [Twitter], or contact us via [Email].
+* Follow us on [Twitter] or [LinkedIn], or subscribe to our [newsletter].
+* Contact us via [Email].
 * Join our regular community meetings.
 * Provide feedback on our [roadmap and releases board].
 
@@ -102,6 +103,8 @@ Crossplane is under the Apache 2.0 license.
 [Slack]: https://slack.crossplane.io
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
 [Twitter]: https://twitter.com/crossplane_io
+[LinkedIn]: https://www.linkedin.com/company/crossplane/
+[newsletter]: https://eepurl.com/ivy4v-/
 [Email]: mailto:info@crossplane.io
 [issue against Crossplane]: https://github.com/crossplane/crossplane/issues
 [contributing guide]: contributing/README.md
