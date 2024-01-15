@@ -312,6 +312,89 @@ func TestLoadObservedResources(t *testing.T) {
 	}
 }
 
+func TestLoadExtraResources(t *testing.T) {
+	fs := afero.FromIOFS{FS: testdatafs}
+
+	type args struct {
+		file string
+		fs   afero.Fs
+	}
+	type want struct {
+		out []unstructured.Unstructured
+		err error
+	}
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"Success": {
+			args: args{
+				file: "testdata/extra-resources.yaml",
+				fs:   fs,
+			},
+			want: want{
+				out: []unstructured.Unstructured{
+					{
+						Object: MustLoadJSON(`{
+							"apiVersion": "example.org/v1alpha1",
+							"kind": "ExtraResourceA",
+							"metadata": {
+								"name": "test-extra-a",
+								"annotations": {
+									"some-annotation": "some-value"
+								}
+							},
+							"spec": {
+								"coolField": "I'm cool!"
+							}
+						}`),
+					},
+					{
+						Object: MustLoadJSON(`{
+							"apiVersion": "example.org/v1",
+							"kind": "ExtraResourceB",
+							"metadata": {
+								"name": "test-extra-b",
+								"annotations": {
+									"some-other-annotation": "some-other-value"
+								},
+								"labels": {
+									"some-label": "another-value"
+								}
+							},
+							"spec": {
+								"coolerField": "I'm cooler!"
+							}
+						}`),
+					},
+				},
+			},
+		},
+		"NoSuchFile": {
+			args: args{
+				file: "testdata/nonexist.yaml",
+				fs:   fs,
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f, err := LoadExtraResources(tc.args.fs, tc.args.file)
+
+			if diff := cmp.Diff(tc.want.out, f, test.EquateConditions()); diff != "" {
+				t.Errorf("LoadExtraResources(..), -want, +got:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("LoadExtraResources(..), -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestLoadYAMLStream(t *testing.T) {
 	type args struct {
 		file string

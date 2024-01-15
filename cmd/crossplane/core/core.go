@@ -110,6 +110,7 @@ type startCommand struct {
 	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 
 	EnableCompositionFunctions               bool `group:"Beta Features:" default:"true" help:"Enable support for Composition Functions."`
+	EnableCompositionFunctionsExtraResources bool `group:"Beta Features:" default:"true" help:"Enable support for Composition Functions Extra Resources. Only respected if --enable-composition-functions is set to true."`
 	EnableCompositionWebhookSchemaValidation bool `group:"Beta Features:" default:"true" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `group:"Beta Features:" default:"true" help:"Enable support for Deployment Runtime Configs."`
 
@@ -196,6 +197,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableCompositionFunctions {
 		o.Features.Enable(features.EnableBetaCompositionFunctions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
+
+		if c.EnableCompositionFunctionsExtraResources {
+			o.Features.Enable(features.EnableBetaCompositionFunctionsExtraResources)
+			log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctionsExtraResources)
+		}
 
 		clienttls, err := certificates.LoadMTLSConfig(
 			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),

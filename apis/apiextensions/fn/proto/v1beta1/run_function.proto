@@ -60,6 +60,19 @@ message RunFunctionRequest {
   // and that context will be passed to subsequent Functions. Crossplane
   // discards all context returned by the last Function in the pipeline.
   optional google.protobuf.Struct context = 5;
+
+  // Optional extra resources that the Function required.
+  // Note that extra resources is a map to Resources, plural.
+  // The map key corresponds to the key in a RunFunctionResponse's
+  // extra_resources field. If a Function requested extra resources that
+  // did not exist, Crossplane sets the map key to an empty Resources message to
+  // indicate that it attempted to satisfy the request.
+  map<string, Resources> extra_resources = 6;
+}
+
+// Resources represents the state of several Crossplane resources.
+message Resources {
+  repeated Resource items = 1;
 }
 
 // A RunFunctionResponse contains the result of a Composition Function run.
@@ -87,6 +100,9 @@ message RunFunctionResponse {
   // Optional context to be passed to the next Function in the pipeline as part
   // of the RunFunctionRequest. Dropped on the last function in the pipeline.
   optional google.protobuf.Struct context = 4;
+
+  // Requirements that must be satisfied for this Function to run successfully.
+  Requirements requirements = 5;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
@@ -94,6 +110,22 @@ message RequestMeta {
   // An opaque string identifying the content of the request. Two identical
   // requests should have the same tag.
   string tag = 1;
+}
+
+// Requirements that must be satisfied for a Function to run successfully.
+message Requirements {
+  // Extra resources that this Function requires.
+  // The map key uniquely identifies the group of resources.
+  map<string, ResourceSelector> extra_resources = 1;
+}
+
+// ResourceSelector selects a group of resources, either by name or by label.
+message ResourceSelector {
+  string api_version = 1;
+  string kind = 2;
+
+  optional string match_name = 3;
+  map<string, string> match_labels = 4;
 }
 
 // ResponseMeta contains metadata pertaining to a RunFunctionResponse.

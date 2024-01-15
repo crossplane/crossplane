@@ -581,10 +581,16 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
 		ptc := composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))
 
-		fc := composite.NewFunctionComposer(c, co.FunctionRunner,
+		fcopts := []composite.FunctionComposerOption{
 			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
 			composite.WithCompositeConnectionDetailsFetcher(fetcher),
-		)
+		}
+
+		if co.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
+			fcopts = append(fcopts, composite.WithExtraResourcesGetter(composite.NewExistingExtraResourcesGetter(c)))
+		}
+
+		fc := composite.NewFunctionComposer(c, co.FunctionRunner, fcopts...)
 
 		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/afero"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -89,6 +90,25 @@ func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1beta1.Function, error)
 	}
 
 	return functions, nil
+}
+
+// LoadExtraResources from a stream of YAML manifests.
+func LoadExtraResources(fs afero.Fs, file string) ([]unstructured.Unstructured, error) {
+	stream, err := LoadYAMLStream(fs, file)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot load YAML stream from file")
+	}
+
+	resources := make([]unstructured.Unstructured, 0, len(stream))
+	for _, y := range stream {
+		r := &unstructured.Unstructured{}
+		if err := yaml.Unmarshal(y, r); err != nil {
+			return nil, errors.Wrap(err, "cannot parse YAML resource manifest")
+		}
+		resources = append(resources, *r)
+	}
+
+	return resources, nil
 }
 
 // LoadObservedResources from a stream of YAML manifests.

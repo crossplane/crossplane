@@ -1,0 +1,20 @@
+---
+apiVersion: example.org/v1alpha1
+kind: ExtraResourceA
+metadata:
+  name: test-extra-a
+  annotations:
+    some-annotation: "some-value"
+spec:
+  coolField: "I'm cool!"
+---
+apiVersion: example.org/v1
+kind: ExtraResourceB
+metadata:
+  name: test-extra-b
+  annotations:
+    some-other-annotation: "some-other-value"
+  labels:
+    some-label: "another-value"
+spec:
+  coolerField: "I'm cooler!"
