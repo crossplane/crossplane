@@ -4,6 +4,15 @@
 - Reviewers: @turkenh 
 - Status: Draft
 
+# Proposal
+
+This document proposes not promoting the Composition Environment feature to beta
+in v1.15, nor setting a timeline for its promotion to beta, investing in
+[enabling][xfn-extra-resources] Composition Functions to request extra resources
+allowing them to reimplement the same functionality while exploring other
+possible approaches. Read below for more details about the issues with the
+current implementation and the proposed next steps.
+
 # Background
 
 The "Composition Environment" concept was introduced in the original
@@ -382,7 +391,13 @@ In both scenarios, if Crossplane 2.0 was to be released in the meantime, we
 would maintain the current API in the 1.x releases, but could take the chance to
 introduce breaking changes just in 2.0.
 
+We decided to proceed with **Option 2** and therefore not to promote this
+feature in v1.15, nor setting a timeline for its promotion to beta, investing in
+[Composition Functions requesting extra resources][xfn-extra-resources] while exploring other
+possible approaches.
+
 <!-- Images -->
 [beta-composition-environment-1]: assets/one-pager-composition-environment-beta/beta-composition-environment-1.png
 [beta-composition-environment-2]: assets/one-pager-composition-environment-beta/beta-composition-environment-2.png
 [beta-composition-environment-3]: assets/one-pager-composition-environment-beta/beta-composition-environment-3.png
+[xfn-extra-resources]: https://github.com/crossplane/crossplane/issues/4739
