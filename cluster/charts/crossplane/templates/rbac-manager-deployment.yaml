@@ -8,6 +8,9 @@ metadata:
     app: {{ template "crossplane.name" . }}-rbac-manager
     release: {{ .Release.Name }}
     {{- include "crossplane.labels" . | indent 4 }}
+  {{- with .Values.customAnnotations }}
+  annotations: {{ toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ .Values.rbacManager.replicas }}
   selector:
