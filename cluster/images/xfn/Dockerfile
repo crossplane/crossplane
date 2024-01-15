@@ -1,5 +1,5 @@
 # This is debian:bookworm-slim (i.e. Debian 12, testing)
-FROM debian:bookworm-slim@sha256:6cc67f78e0e8295b4fbe055eba0356648f149daf15db9179aa51fcfa9cc131cd
+FROM debian:bookworm-slim@sha256:f4a83aa865a2b4a064ff142aa91c713180df9fcb86ce676b5de2981029379c37
 
 ARG TARGETOS
 ARG TARGETARCH
