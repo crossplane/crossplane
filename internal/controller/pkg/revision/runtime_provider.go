@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,20 +47,23 @@ const (
 	errApplyProviderService                   = "cannot apply provider package service"
 	errFmtUnavailableProviderDeployment       = "provider package deployment is unavailable with message: %s"
 	errNoAvailableConditionProviderDeployment = "provider package deployment has no condition of type \"Available\" yet"
+	errParseProviderImage                     = "cannot parse provider package image"
 )
 
 // ProviderHooks performs runtime operations for provider packages.
 type ProviderHooks struct {
-	client resource.ClientApplicator
+	client          resource.ClientApplicator
+	defaultRegistry string
 }
 
 // NewProviderHooks returns a new ProviderHooks.
-func NewProviderHooks(client client.Client) *ProviderHooks {
+func NewProviderHooks(client client.Client, defaultRegistry string) *ProviderHooks {
 	return &ProviderHooks{
 		client: resource.ClientApplicator{
 			Client:     client,
 			Applicator: resource.NewAPIPatchingApplicator(client),
 		},
+		defaultRegistry: defaultRegistry,
 	}
 }
 
@@ -136,7 +140,14 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 
 	sa := build.ServiceAccount()
-	d := build.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr)...)
+
+	// Determine the provider's image, taking into account the default registry.
+	image, err := getProviderImage(providerMeta, pr, h.defaultRegistry)
+	if err != nil {
+		return errors.Wrap(err, errParseProviderImage)
+	}
+
+	d := build.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr, image)...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is not used by the deployment when
 	// the SA is managed externally by the user and configured by setting
@@ -192,7 +203,7 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	return nil
 }
 
-func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) []DeploymentOverride {
+func providerDeploymentOverrides(pm *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
 	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			{
@@ -217,13 +228,9 @@ func providerDeploymentOverrides(providerMeta *pkgmetav1.Provider, pr v1.Package
 		// the old selector for backward compatibility with existing providers
 		// and plan to remove this after implementing a migration in a future
 		// release.
-		DeploymentWithSelectors(providerSelectors(providerMeta, pr)),
+		DeploymentWithSelectors(providerSelectors(pm, pr)),
 	}
 
-	image := pr.GetSource()
-	if providerMeta.Spec.Controller.Image != nil {
-		image = *providerMeta.Spec.Controller.Image
-	}
 	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
 	if pr.GetTLSClientSecretName() != nil {
@@ -263,4 +270,20 @@ func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWi
 		"pkg.crossplane.io/revision": pr.GetName(),
 		"pkg.crossplane.io/provider": providerMeta.GetName(),
 	}
+}
+
+// getProviderImage determines a complete provider image, taking into account a
+// default registry. If the provider meta specifies an image, we have a
+// preference for that image over what is specified in the package revision.
+func getProviderImage(pm *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
+	image := pr.GetSource()
+	if pm.Spec.Controller.Image != nil {
+		image = *pm.Spec.Controller.Image
+	}
+	ref, err := name.ParseReference(image, name.WithDefaultRegistry(defaultRegistry))
+	if err != nil {
+		return "", errors.Wrap(err, errParseProviderImage)
+	}
+
+	return ref.Name(), nil
 }

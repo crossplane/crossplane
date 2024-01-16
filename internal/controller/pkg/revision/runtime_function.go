@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,20 +48,23 @@ const (
 	errApplyFunctionService                   = "cannot apply function package service"
 	errFmtUnavailableFunctionDeployment       = "function package deployment is unavailable with message: %s"
 	errNoAvailableConditionFunctionDeployment = "function package deployment has no condition of type \"Available\" yet"
+	errParseFunctionImage                     = "cannot parse function package image"
 )
 
 // FunctionHooks performs runtime operations for function packages.
 type FunctionHooks struct {
-	client resource.ClientApplicator
+	client          resource.ClientApplicator
+	defaultRegistry string
 }
 
 // NewFunctionHooks returns a new FunctionHooks.
-func NewFunctionHooks(client client.Client) *FunctionHooks {
+func NewFunctionHooks(client client.Client, defaultRegistry string) *FunctionHooks {
 	return &FunctionHooks{
 		client: resource.ClientApplicator{
 			Client:     client,
 			Applicator: resource.NewAPIPatchingApplicator(client),
 		},
+		defaultRegistry: defaultRegistry,
 	}
 }
 
@@ -116,7 +120,14 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 
 	sa := build.ServiceAccount()
-	d := build.Deployment(sa.Name, functionDeploymentOverrides(functionMeta, pr)...)
+
+	// Determine the function's image, taking into account the default registry.
+	image, err := getFunctionImage(functionMeta, pr, h.defaultRegistry)
+	if err != nil {
+		return errors.Wrap(err, errParseFunctionImage)
+	}
+
+	d := build.Deployment(sa.Name, functionDeploymentOverrides(image)...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is NOT used by the deployment when
 	// the SA is managed externally by the user and configured by setting
@@ -165,7 +176,7 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	return nil
 }
 
-func functionDeploymentOverrides(functionMeta *pkgmetav1beta1.Function, pr v1.PackageRevisionWithRuntime) []DeploymentOverride {
+func functionDeploymentOverrides(image string) []DeploymentOverride {
 	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
@@ -175,10 +186,6 @@ func functionDeploymentOverrides(functionMeta *pkgmetav1beta1.Function, pr v1.Pa
 		}),
 	}
 
-	image := pr.GetSource()
-	if functionMeta.Spec.Image != nil {
-		image = *functionMeta.Spec.Image
-	}
 	do = append(do, DeploymentRuntimeWithOptionalImage(image))
 
 	return do
@@ -191,4 +198,20 @@ func functionServiceOverrides() []ServiceOverride {
 		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
 		ServiceWithClusterIP(corev1.ClusterIPNone),
 	}
+}
+
+// getFunctionImage determines a complete function image, taking into account a
+// default registry. If the function meta specifies an image, we have a
+// preference for that image over what is specified in the package revision.
+func getFunctionImage(fm *pkgmetav1beta1.Function, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
+	image := pr.GetSource()
+	if fm.Spec.Image != nil {
+		image = *fm.Spec.Image
+	}
+	ref, err := name.ParseReference(image, name.WithDefaultRegistry(defaultRegistry))
+	if err != nil {
+		return "", errors.Wrap(err, errParseFunctionImage)
+	}
+
+	return ref.Name(), nil
 }

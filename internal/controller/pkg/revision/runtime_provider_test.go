@@ -35,6 +35,7 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
@@ -188,7 +189,7 @@ func TestProviderPreHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client)
+			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Pre(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -254,6 +255,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -279,6 +281,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -293,6 +296,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -321,6 +325,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -335,6 +340,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -360,6 +366,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -374,6 +381,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -407,6 +415,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -421,6 +430,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -453,6 +463,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -466,6 +477,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -528,6 +540,7 @@ func TestProviderPostHook(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -538,7 +551,7 @@ func TestProviderPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client)
+			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Post(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -660,7 +673,7 @@ func TestProviderDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewProviderHooks(tc.args.client)
+			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -668,6 +681,111 @@ func TestProviderDeactivateHook(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetProviderImage(t *testing.T) {
+	type args struct {
+		providerMeta     *pkgmetav1.Provider
+		providerRevision *v1.ProviderRevision
+		defaultRegistry  string
+	}
+
+	type want struct {
+		err   error
+		image string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoOverrideFromMeta": {
+			reason: "Should use the image from the package revision and add default registry when no override is present.",
+			args: args{
+				providerMeta: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						Controller: pkgmetav1.ControllerSpec{
+							Image: nil,
+						},
+					},
+				},
+				providerRevision: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "crossplane/provider-bar:v1.2.3",
+						},
+					},
+				},
+				defaultRegistry: "registry.default.io",
+			},
+			want: want{
+				err:   nil,
+				image: "registry.default.io/crossplane/provider-bar:v1.2.3",
+			},
+		},
+		"WithOverrideFromMeta": {
+			reason: "Should use the override from the function meta when present and add default registry.",
+			args: args{
+				providerMeta: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						Controller: pkgmetav1.ControllerSpec{
+							Image: ptr.To("crossplane/provider-bar-controller:v1.2.3"),
+						},
+					},
+				},
+				providerRevision: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "crossplane/provider-bar:v1.2.3",
+						},
+					},
+				},
+				defaultRegistry: "registry.default.io",
+			},
+			want: want{
+				err:   nil,
+				image: "registry.default.io/crossplane/provider-bar-controller:v1.2.3",
+			},
+		},
+		"RegistrySpecified": {
+			reason: "Should honor the registry as specified on the package, even if its different than the default registry.",
+			args: args{
+				providerMeta: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						Controller: pkgmetav1.ControllerSpec{
+							Image: nil,
+						},
+					},
+				},
+				providerRevision: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
+						},
+					},
+				},
+				defaultRegistry: "registry.default.io",
+			},
+			want: want{
+				err:   nil,
+				image: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			image, err := getProviderImage(tc.args.providerMeta, tc.args.providerRevision, tc.args.defaultRegistry)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ngetFunctionImage(): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.image, image, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ngetFunctionImage(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

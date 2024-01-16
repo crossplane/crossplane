@@ -321,7 +321,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
-		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient())))
+		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.DefaultRegistry)))
 
 		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
 			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
@@ -429,7 +429,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	if o.PackageRuntime == controller.PackageRuntimeDeployment {
-		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient())))
+		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.DefaultRegistry)))
 
 		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
 			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{

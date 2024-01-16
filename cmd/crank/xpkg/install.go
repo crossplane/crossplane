@@ -87,7 +87,7 @@ Examples:
 func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	pkgName := c.Name
 	if pkgName == "" {
-		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(DefaultRegistry))
+		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
 		if err != nil {
 			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)

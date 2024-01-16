@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -70,7 +69,7 @@ type Command struct {
 // KongVars represent the kong variables associated with the CLI parser
 // required for the Registry default variable interpolation.
 var KongVars = kong.Vars{
-	"default_registry":   name.DefaultRegistry,
+	"default_registry":   xpkg.DefaultRegistry,
 	"default_user_agent": transport.DefaultUserAgent,
 }
 
@@ -264,7 +263,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Options:        o,
 		Namespace:      c.Namespace,
 		ServiceAccount: c.ServiceAccount,
-		Registry:       c.Registry,
 		FunctionRunner: functionRunner,
 	}
 

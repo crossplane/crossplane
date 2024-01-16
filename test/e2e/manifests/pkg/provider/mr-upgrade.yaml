@@ -5,10 +5,6 @@ metadata:
 spec:
  forProvider:
    conditionAfter:
-   # In provider-nop v0.1.x there was no conditionReason field. Every condition
-   # was hardwired to have reason: Available, even when that didn't make sense.
-   # Therefore we simulate an upgrade by first applying this manifest, then
-   # specifying the new (optional) reason field after we update to 0.2.x.
    - conditionType: Ready
      conditionStatus: "False"
      conditionReason: "Creating"

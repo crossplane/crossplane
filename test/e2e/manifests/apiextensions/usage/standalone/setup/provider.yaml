@@ -3,5 +3,5 @@ kind: Provider
 metadata:
   name: provider-nop
 spec:
-  package: crossplane/provider-nop:v0.1.1
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1
   ignoreCrossplaneConstraints: true

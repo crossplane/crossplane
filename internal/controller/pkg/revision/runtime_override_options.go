@@ -144,8 +144,9 @@ func DeploymentWithImagePullSecrets(secrets []corev1.LocalObjectReference) Deplo
 	}
 }
 
-// DeploymentRuntimeWithOptionalImage set the image for the runtime container
-// if it is unset, e.g. not specified in the DeploymentRuntimeConfig.
+// DeploymentRuntimeWithOptionalImage set the image for the runtime container if
+// it is unset, e.g. not specified in the DeploymentRuntimeConfig. Note that if
+// the image was already set, we use it exactly as is (i.e., no default registry).
 func DeploymentRuntimeWithOptionalImage(image string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		if d.Spec.Template.Spec.Containers[0].Image == "" {

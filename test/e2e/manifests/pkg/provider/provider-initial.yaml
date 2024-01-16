@@ -3,8 +3,7 @@ kind: Provider
 metadata:
   name: provider-nop
 spec:
-  # We only started pushing to xpkg.upbound.io/crossplane-contrib with v0.2.0
   # This should not be updated by renovate as we need this to be not on the
   # latest version, ignored explicitly in renovate's configuration
-  package: crossplanecontrib/provider-nop:v0.1.1
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.0
   ignoreCrossplaneConstraints: true

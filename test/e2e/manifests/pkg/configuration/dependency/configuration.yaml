@@ -1,6 +1,10 @@
+# This package does not specify a registry, so the default registry will be used
+# during installation. The package expresses a dependency on provider-nop, also
+# without specifying a registry, so the default registry path is exercised
+# heavily in this test.
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
   name: depends-on-provider-nop
 spec:
-  package: crossplane/e2e-depends-on-provider-nop:v0.1.0
+  package: crossplane/e2e-depends-on-provider-nop:v0.2.0

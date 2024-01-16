@@ -4,14 +4,12 @@ metadata:
   name: pkg-provider-upgrade
 spec:
  forProvider:
-   # In provider-nop v0.1.x there was no conditionReason field. Every condition
-   # was hardwired to have reason: Available, even when that didn't make sense.
-   # Therefore we simulate an upgrade by first applying this manifest, then
-   # specifying the new (optional) reason field after we update to 0.2.x.
    conditionAfter:
    - conditionType: Ready
      conditionStatus: "False"
+     conditionReason: "Creating"
      time: 0s
    - conditionType: Ready
      conditionStatus: "True"
+     conditionReason: "Available"
      time: 1s

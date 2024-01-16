@@ -36,6 +36,7 @@ import (
 	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 func TestFunctionPreHook(t *testing.T) {
@@ -116,7 +117,7 @@ func TestFunctionPreHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Pre(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -182,6 +183,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -207,6 +209,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -221,6 +224,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -249,6 +253,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -263,6 +268,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -288,6 +294,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -302,6 +309,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -335,6 +343,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -349,6 +358,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -381,6 +391,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -394,6 +405,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -444,6 +456,7 @@ func TestFunctionPostHook(t *testing.T) {
 				rev: &v1beta1.FunctionRevision{
 					Spec: v1beta1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
@@ -454,7 +467,7 @@ func TestFunctionPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Post(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -558,7 +571,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client)
+			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -566,6 +579,105 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetFunctionImage(t *testing.T) {
+	type args struct {
+		functionMeta     *pkgmetav1beta1.Function
+		functionRevision *v1beta1.FunctionRevision
+		defaultRegistry  string
+	}
+
+	type want struct {
+		err   error
+		image string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoOverrideFromMeta": {
+			reason: "Should use the image from the package revision and add default registry when no override is present.",
+			args: args{
+				functionMeta: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						Image: nil,
+					},
+				},
+				functionRevision: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "crossplane/func-bar:v1.2.3",
+						},
+					},
+				},
+				defaultRegistry: "registry.default.io",
+			},
+			want: want{
+				err:   nil,
+				image: "registry.default.io/crossplane/func-bar:v1.2.3",
+			},
+		},
+		"WithOverrideFromMeta": {
+			reason: "Should use the override from the function meta when present and add default registry.",
+			args: args{
+				functionMeta: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						Image: ptr.To("crossplane/func-bar-server:v1.2.3"),
+					},
+				},
+				functionRevision: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "crossplane/func-bar:v1.2.3",
+						},
+					},
+				},
+				defaultRegistry: "registry.default.io",
+			},
+			want: want{
+				err:   nil,
+				image: "registry.default.io/crossplane/func-bar-server:v1.2.3",
+			},
+		},
+		"RegistrySpecified": {
+			reason: "Should honor the registry as specified on the package, even if its different than the default registry.",
+			args: args{
+				functionMeta: &pkgmetav1beta1.Function{
+					Spec: pkgmetav1beta1.FunctionSpec{
+						Image: nil,
+					},
+				},
+				functionRevision: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
+						},
+					},
+				},
+				defaultRegistry: "registry.default.io",
+			},
+			want: want{
+				err:   nil,
+				image: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			image, err := getFunctionImage(tc.args.functionMeta, tc.args.functionRevision, tc.args.defaultRegistry)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ngetFunctionImage(): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.image, image, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\ngetFunctionImage(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
