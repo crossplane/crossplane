@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	testCRD = extv1.CustomResourceDefinition{
+	testCRD = &extv1.CustomResourceDefinition{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1",
 			Kind:       "CustomResourceDefinition",
@@ -78,11 +78,11 @@ var (
 
 func Test_convertToCRDs(t *testing.T) {
 	type args struct {
-		schemas []unstructured.Unstructured
+		schemas []*unstructured.Unstructured
 	}
 
 	type want struct {
-		crd []extv1.CustomResourceDefinition
+		crd []*extv1.CustomResourceDefinition
 		err error
 	}
 	cases := map[string]struct {
@@ -93,7 +93,7 @@ func Test_convertToCRDs(t *testing.T) {
 		"UnstructuredCRD": {
 			reason: "Should convert an unstructured CRD to a CustomResourceDefinition",
 			args: args{
-				schemas: []unstructured.Unstructured{
+				schemas: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "apiextensions.k8s.io/v1",
@@ -141,7 +141,7 @@ func Test_convertToCRDs(t *testing.T) {
 				},
 			},
 			want: want{
-				crd: []extv1.CustomResourceDefinition{
+				crd: []*extv1.CustomResourceDefinition{
 					testCRD,
 				},
 			},
@@ -149,7 +149,7 @@ func Test_convertToCRDs(t *testing.T) {
 		"UnstructuredXRD": {
 			reason: "Should convert an unstructured XRD to a CustomResourceDefinition",
 			args: args{
-				schemas: []unstructured.Unstructured{
+				schemas: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "apiextensions.crossplane.io/v1alpha1",
@@ -201,7 +201,7 @@ func Test_convertToCRDs(t *testing.T) {
 				},
 			},
 			want: want{
-				crd: []extv1.CustomResourceDefinition{
+				crd: []*extv1.CustomResourceDefinition{
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test",
@@ -485,10 +485,597 @@ func Test_convertToCRDs(t *testing.T) {
 				},
 			},
 		},
+		"UnstructuredXRDWithClaim": {
+			reason: "Should convert an unstructured XRD to a CustomResourceDefinition",
+			args: args{
+				schemas: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1alpha1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"claimNames": map[string]interface{}{
+									"kind":   "TestClaim",
+									"plural": "testclaims",
+								},
+								"group": "test.org",
+								"names": map[string]interface{}{
+									"kind":     "Test",
+									"listKind": "TestList",
+									"plural":   "tests",
+									"singular": "test",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1alpha1",
+										"served":  true,
+										"storage": true,
+										"schema": map[string]interface{}{
+											"openAPIV3Schema": map[string]interface{}{
+												"type": "object",
+												"properties": map[string]interface{}{
+													"spec": map[string]interface{}{
+														"type": "object",
+														"properties": map[string]interface{}{
+															"replicas": map[string]interface{}{
+																"type": "integer",
+															},
+														},
+													},
+													"status": map[string]interface{}{
+														"type": "object",
+														"properties": map[string]interface{}{
+															"replicas": map[string]interface{}{
+																"type": "integer",
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				crd: []*extv1.CustomResourceDefinition{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test",
+							OwnerReferences: []metav1.OwnerReference{
+								{
+									APIVersion:         "apiextensions.crossplane.io/v1",
+									Kind:               "CompositeResourceDefinition",
+									Name:               "test",
+									Controller:         ptr.To[bool](true),
+									BlockOwnerDeletion: ptr.To[bool](true),
+								},
+							},
+						},
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Group: "test.org",
+							Names: extv1.CustomResourceDefinitionNames{
+								Kind:     "Test",
+								ListKind: "TestList",
+								Plural:   "tests",
+								Singular: "test",
+								Categories: []string{
+									"composite",
+								},
+							},
+							Scope: "Cluster",
+							Versions: []extv1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1alpha1",
+									Served:  true,
+									Storage: false,
+									Subresources: &extv1.CustomResourceSubresources{
+										Status: &extv1.CustomResourceSubresourceStatus{},
+									},
+									AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+										{
+											Name:     "SYNCED",
+											Type:     "string",
+											JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+										},
+										{
+											Name:     "READY",
+											Type:     "string",
+											JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+										},
+										{
+											Name:     "COMPOSITION",
+											Type:     "string",
+											JSONPath: ".spec.compositionRef.name",
+										},
+										{
+											Name:     "AGE",
+											Type:     "date",
+											JSONPath: ".metadata.creationTimestamp",
+										},
+									},
+
+									Schema: &extv1.CustomResourceValidation{
+										OpenAPIV3Schema: &extv1.JSONSchemaProps{
+											Type: "object",
+											Required: []string{
+												"spec",
+											},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"apiVersion": {
+													Type: "string",
+												},
+												"kind": {
+													Type: "string",
+												},
+												"metadata": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {
+															Type:      "string",
+															MaxLength: ptr.To[int64](63),
+														},
+													},
+												},
+												"spec": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"replicas": {
+															Type: "integer",
+														},
+														"claimRef": {
+															Type: "object",
+															Required: []string{
+																"apiVersion", "kind", "namespace", "name",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"apiVersion": {
+																	Type: "string",
+																},
+																"kind": {
+																	Type: "string",
+																},
+																"name": {
+																	Type: "string",
+																},
+																"namespace": {
+																	Type: "string",
+																},
+															},
+														},
+														"compositionRef": {
+															Type: "object",
+															Required: []string{
+																"name",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {
+																	Type: "string",
+																},
+															},
+														},
+														"compositionRevisionRef": {
+															Type: "object",
+															Required: []string{
+																"name",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {
+																	Type: "string",
+																},
+															},
+														},
+														"compositionRevisionSelector": {
+															Type: "object",
+															Required: []string{
+																"matchLabels",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"matchLabels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{
+																			Type: "string",
+																		},
+																	},
+																},
+															},
+														},
+														"compositionSelector": {
+															Type:     "object",
+															Required: []string{"matchLabels"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"matchLabels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+															},
+														},
+														"compositionUpdatePolicy": {
+															Type: "string",
+															Enum: []extv1.JSON{
+																{Raw: []byte(`"Automatic"`)},
+																{Raw: []byte(`"Manual"`)},
+															},
+														},
+														"environmentConfigRefs": {
+															Type: "array",
+															Items: &extv1.JSONSchemaPropsOrArray{
+																Schema: &extv1.JSONSchemaProps{
+																	Type: "object",
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"apiVersion": {Type: "string"},
+																		"name":       {Type: "string"},
+																		"kind":       {Type: "string"},
+																	},
+																	Required: []string{"apiVersion", "kind"},
+																},
+															},
+														},
+														"publishConnectionDetailsTo": {
+															Type:     "object",
+															Required: []string{"name"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {Type: "string"},
+																"configRef": {
+																	Type:    "object",
+																	Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"name": {
+																			Type: "string",
+																		},
+																	},
+																},
+																"metadata": {
+																	Type: "object",
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"labels": {
+																			Type: "object",
+																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																				Allows: true,
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
+																		"annotations": {
+																			Type: "object",
+																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																				Allows: true,
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
+																		"type": {
+																			Type: "string",
+																		},
+																	},
+																},
+															},
+														},
+														"resourceRefs": {
+															Type: "array",
+															Items: &extv1.JSONSchemaPropsOrArray{
+																Schema: &extv1.JSONSchemaProps{
+																	Type: "object",
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"apiVersion": {Type: "string"},
+																		"name":       {Type: "string"},
+																		"kind":       {Type: "string"},
+																	},
+																	Required: []string{"apiVersion", "kind"},
+																},
+															},
+															XListType: ptr.To("atomic"),
+														},
+														"writeConnectionSecretToRef": {
+															Type:     "object",
+															Required: []string{"name", "namespace"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name":      {Type: "string"},
+																"namespace": {Type: "string"},
+															},
+														},
+													},
+												},
+												"status": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"replicas": {
+															Type: "integer",
+														},
+														"conditions": {
+															Description:  "Conditions of the resource.",
+															Type:         "array",
+															XListType:    ptr.To("map"),
+															XListMapKeys: []string{"type"},
+															Items: &extv1.JSONSchemaPropsOrArray{
+																Schema: &extv1.JSONSchemaProps{
+																	Type:     "object",
+																	Required: []string{"lastTransitionTime", "reason", "status", "type"},
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"lastTransitionTime": {Type: "string", Format: "date-time"},
+																		"message":            {Type: "string"},
+																		"reason":             {Type: "string"},
+																		"status":             {Type: "string"},
+																		"type":               {Type: "string"},
+																	},
+																},
+															},
+														},
+														"connectionDetails": {
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"lastPublishedTime": {Type: "string", Format: "date-time"},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "testclaims.test.org",
+							OwnerReferences: []metav1.OwnerReference{
+								{
+									APIVersion:         "apiextensions.crossplane.io/v1",
+									Kind:               "CompositeResourceDefinition",
+									Name:               "test",
+									Controller:         ptr.To[bool](true),
+									BlockOwnerDeletion: ptr.To[bool](true),
+								},
+							},
+						},
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Group: "test.org",
+							Names: extv1.CustomResourceDefinitionNames{
+								Kind:   "TestClaim",
+								Plural: "testclaims",
+								Categories: []string{
+									"claim",
+								},
+							},
+							Scope: "Namespaced",
+							Versions: []extv1.CustomResourceDefinitionVersion{
+								{
+									Name:    "v1alpha1",
+									Served:  true,
+									Storage: false,
+									Subresources: &extv1.CustomResourceSubresources{
+										Status: &extv1.CustomResourceSubresourceStatus{},
+									},
+									AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+										{
+											Name:     "SYNCED",
+											Type:     "string",
+											JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+										},
+										{
+											Name:     "READY",
+											Type:     "string",
+											JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+										},
+										{
+											Name:     "CONNECTION-SECRET",
+											Type:     "string",
+											JSONPath: ".spec.writeConnectionSecretToRef.name",
+										},
+										{
+											Name:     "AGE",
+											Type:     "date",
+											JSONPath: ".metadata.creationTimestamp",
+										},
+									},
+
+									Schema: &extv1.CustomResourceValidation{
+										OpenAPIV3Schema: &extv1.JSONSchemaProps{
+											Type: "object",
+											Required: []string{
+												"spec",
+											},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"apiVersion": {
+													Type: "string",
+												},
+												"kind": {
+													Type: "string",
+												},
+												"metadata": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"name": {
+															Type:      "string",
+															MaxLength: ptr.To[int64](63),
+														},
+													},
+												},
+												"spec": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"replicas": {
+															Type: "integer",
+														},
+														"compositeDeletePolicy": {
+															Type: "string",
+															Enum: []extv1.JSON{
+																{Raw: []byte(`"Background"`)},
+																{Raw: []byte(`"Foreground"`)},
+															},
+														},
+														"compositionRef": {
+															Type: "object",
+															Required: []string{
+																"name",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {
+																	Type: "string",
+																},
+															},
+														},
+														"compositionRevisionRef": {
+															Type: "object",
+															Required: []string{
+																"name",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {
+																	Type: "string",
+																},
+															},
+														},
+														"compositionRevisionSelector": {
+															Type: "object",
+															Required: []string{
+																"matchLabels",
+															},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"matchLabels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{
+																			Type: "string",
+																		},
+																	},
+																},
+															},
+														},
+														"compositionSelector": {
+															Type:     "object",
+															Required: []string{"matchLabels"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"matchLabels": {
+																	Type: "object",
+																	AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																		Allows: true,
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
+															},
+														},
+														"compositionUpdatePolicy": {
+															Type: "string",
+															Enum: []extv1.JSON{
+																{Raw: []byte(`"Automatic"`)},
+																{Raw: []byte(`"Manual"`)},
+															},
+														},
+														"publishConnectionDetailsTo": {
+															Type:     "object",
+															Required: []string{"name"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {Type: "string"},
+																"configRef": {
+																	Type:    "object",
+																	Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"name": {
+																			Type: "string",
+																		},
+																	},
+																},
+																"metadata": {
+																	Type: "object",
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"labels": {
+																			Type: "object",
+																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																				Allows: true,
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
+																		"annotations": {
+																			Type: "object",
+																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+																				Allows: true,
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
+																		"type": {
+																			Type: "string",
+																		},
+																	},
+																},
+															},
+														},
+														"resourceRef": {
+															Type:     "object",
+															Required: []string{"apiVersion", "kind", "name"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"apiVersion": {Type: "string"},
+																"name":       {Type: "string"},
+																"kind":       {Type: "string"},
+															},
+														},
+														"writeConnectionSecretToRef": {
+															Type:     "object",
+															Required: []string{"name"},
+															Properties: map[string]extv1.JSONSchemaProps{
+																"name": {Type: "string"},
+															},
+														},
+													},
+												},
+												"status": {
+													Type: "object",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"replicas": {
+															Type: "integer",
+														},
+														"conditions": {
+															Description:  "Conditions of the resource.",
+															Type:         "array",
+															XListType:    ptr.To("map"),
+															XListMapKeys: []string{"type"},
+															Items: &extv1.JSONSchemaPropsOrArray{
+																Schema: &extv1.JSONSchemaProps{
+																	Type:     "object",
+																	Required: []string{"lastTransitionTime", "reason", "status", "type"},
+																	Properties: map[string]extv1.JSONSchemaProps{
+																		"lastTransitionTime": {Type: "string", Format: "date-time"},
+																		"message":            {Type: "string"},
+																		"reason":             {Type: "string"},
+																		"status":             {Type: "string"},
+																		"type":               {Type: "string"},
+																	},
+																},
+															},
+														},
+														"connectionDetails": {
+															Type: "object",
+															Properties: map[string]extv1.JSONSchemaProps{
+																"lastPublishedTime": {Type: "string", Format: "date-time"},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		"WrongKind": {
 			reason: "Should skip an unstructured object that is not a CRD or XRD",
 			args: args{
-				schemas: []unstructured.Unstructured{
+				schemas: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "apiextensions.k8s.io/v1",
@@ -501,7 +1088,7 @@ func Test_convertToCRDs(t *testing.T) {
 				},
 			},
 			want: want{
-				crd: []extv1.CustomResourceDefinition{},
+				crd: []*extv1.CustomResourceDefinition{},
 			},
 		},
 	}
@@ -521,8 +1108,8 @@ func Test_convertToCRDs(t *testing.T) {
 
 func Test_validateResources(t *testing.T) {
 	type args struct {
-		resources []unstructured.Unstructured
-		crds      []extv1.CustomResourceDefinition
+		resources []*unstructured.Unstructured
+		crds      []*extv1.CustomResourceDefinition
 	}
 	type want struct {
 		err error
@@ -535,7 +1122,7 @@ func Test_validateResources(t *testing.T) {
 		"Valid": {
 			reason: "Should not return an error if the resources are valid",
 			args: args{
-				resources: []unstructured.Unstructured{
+				resources: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "test.org/v1alpha1",
@@ -549,7 +1136,7 @@ func Test_validateResources(t *testing.T) {
 						},
 					},
 				},
-				crds: []extv1.CustomResourceDefinition{
+				crds: []*extv1.CustomResourceDefinition{
 					testCRD,
 				},
 			},
@@ -557,7 +1144,7 @@ func Test_validateResources(t *testing.T) {
 		"Invalid": {
 			reason: "Should return an error if the resources are invalid",
 			args: args{
-				resources: []unstructured.Unstructured{
+				resources: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "test.org/v1alpha1",
@@ -571,7 +1158,7 @@ func Test_validateResources(t *testing.T) {
 						},
 					},
 				},
-				crds: []extv1.CustomResourceDefinition{
+				crds: []*extv1.CustomResourceDefinition{
 					testCRD,
 				},
 			},
@@ -582,7 +1169,7 @@ func Test_validateResources(t *testing.T) {
 		"MissingCRD": {
 			reason: "Should not return an error if the CRD/XRD is missing",
 			args: args{
-				resources: []unstructured.Unstructured{
+				resources: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "test.org/v1alpha1",
@@ -596,7 +1183,7 @@ func Test_validateResources(t *testing.T) {
 						},
 					},
 				},
-				crds: []extv1.CustomResourceDefinition{},
+				crds: []*extv1.CustomResourceDefinition{},
 			},
 		},
 	}

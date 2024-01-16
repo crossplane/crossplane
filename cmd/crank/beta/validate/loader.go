@@ -30,7 +30,7 @@ import (
 
 // Loader interface defines the contract for different input sources
 type Loader interface {
-	Load() ([]unstructured.Unstructured, error)
+	Load() ([]*unstructured.Unstructured, error)
 }
 
 // NewLoader returns a Loader based on the input source
@@ -55,7 +55,7 @@ func NewLoader(input string) (Loader, error) {
 type StdinLoader struct{}
 
 // Load reads the contents from stdin
-func (s *StdinLoader) Load() ([]unstructured.Unstructured, error) {
+func (s *StdinLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := load(os.Stdin)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from stdin")
@@ -70,7 +70,7 @@ type FileLoader struct {
 }
 
 // Load reads the contents from a file
-func (f *FileLoader) Load() ([]unstructured.Unstructured, error) {
+func (f *FileLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := readFile(f.path)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read file")
@@ -85,7 +85,7 @@ type FolderLoader struct {
 }
 
 // Load reads the contents from all files in a folder
-func (f *FolderLoader) Load() ([]unstructured.Unstructured, error) {
+func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 	var stream [][]byte
 	err := filepath.Walk(f.path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -141,15 +141,15 @@ func load(r io.Reader) ([][]byte, error) {
 	return stream, nil
 }
 
-func streamToUnstructured(stream [][]byte) ([]unstructured.Unstructured, error) {
-	manifests := make([]unstructured.Unstructured, 0, len(stream))
+func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error) {
+	manifests := make([]*unstructured.Unstructured, 0, len(stream))
 
 	for _, y := range stream {
 		u := &unstructured.Unstructured{}
 		if err := yaml.Unmarshal(y, u); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML manifest")
 		}
-		manifests = append(manifests, *u)
+		manifests = append(manifests, u)
 	}
 
 	return manifests, nil

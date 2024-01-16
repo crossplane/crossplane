@@ -33,8 +33,8 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceDefinition, error) { //nolint:gocyclo // Not a complex function, just switch/case statements
-	crds := make([]extv1.CustomResourceDefinition, 0, len(schemas))
+func convertToCRDs(schemas []*unstructured.Unstructured) ([]*extv1.CustomResourceDefinition, error) { //nolint:gocyclo // Not a complex function, just switch/case statements
+	crds := make([]*extv1.CustomResourceDefinition, 0, len(schemas))
 	for _, s := range schemas {
 		switch s.GroupVersionKind().GroupKind() {
 		case schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}:
@@ -48,7 +48,7 @@ func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceD
 				return nil, errors.Wrap(err, "cannot unmarshal CRD YAML")
 			}
 
-			crds = append(crds, *crd)
+			crds = append(crds, crd)
 
 		case schema.GroupKind{Group: "apiextensions.crossplane.io", Kind: "CompositeResourceDefinition"}:
 			xrd := &v1.CompositeResourceDefinition{}
@@ -63,16 +63,23 @@ func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceD
 
 			crd, err := xcrd.ForCompositeResource(xrd)
 			if err != nil {
-				return nil, errors.Wrapf(err, "cannot derive CRD from XRD %q", xrd.GetName())
+				return nil, errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
 			}
+			crds = append(crds, crd)
 
-			crds = append(crds, *crd)
+			if xrd.Spec.ClaimNames != nil {
+				claimCrd, err := xcrd.ForCompositeResourceClaim(xrd)
+				if err != nil {
+					return nil, errors.Wrapf(err, "cannot derive claim CRD from XRD %q", xrd.GetName())
+				}
+				crds = append(crds, claimCrd)
+			}
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Provider"}:
 			fmt.Println("Provider extension is not supported yet")
 			continue
 
-		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
+		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Configuration"}:
 			fmt.Println("Configuration extension is not supported yet")
 			continue
 
@@ -84,12 +91,12 @@ func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceD
 	return crds, nil
 }
 
-func newValidators(crds []extv1.CustomResourceDefinition) (map[schema.GroupVersionKind]validation.SchemaValidator, error) {
+func newValidators(crds []*extv1.CustomResourceDefinition) (map[schema.GroupVersionKind]validation.SchemaValidator, error) {
 	validators := map[schema.GroupVersionKind]validation.SchemaValidator{}
 
 	for i := range crds {
 		internal := &ext.CustomResourceDefinition{}
-		if err := extv1.Convert_v1_CustomResourceDefinition_To_apiextensions_CustomResourceDefinition(&crds[i], internal, nil); err != nil {
+		if err := extv1.Convert_v1_CustomResourceDefinition_To_apiextensions_CustomResourceDefinition(crds[i], internal, nil); err != nil {
 			return nil, err
 		}
 
@@ -122,7 +129,7 @@ func newValidators(crds []extv1.CustomResourceDefinition) (map[schema.GroupVersi
 	return validators, nil
 }
 
-func validateResources(resources []unstructured.Unstructured, crds []extv1.CustomResourceDefinition, skipSuccessLogs bool) error {
+func validateResources(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, skipSuccessLogs bool) error {
 	validators, err := newValidators(crds)
 	if err != nil {
 		return errors.Wrap(err, "cannot create validators")

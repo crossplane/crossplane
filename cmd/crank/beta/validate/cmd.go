@@ -57,7 +57,7 @@ Examples:
 `
 }
 
-// Run render.
+// Run validate.
 func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error {
 	// Load all extensions
 	extensionLoader, err := NewLoader(c.Extensions)

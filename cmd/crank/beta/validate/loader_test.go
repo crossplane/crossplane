@@ -58,7 +58,7 @@ func TestFileLoader_Load(t *testing.T) {
 		Path string
 	}
 	type want struct {
-		resources []unstructured.Unstructured
+		resources []*unstructured.Unstructured
 		err       error
 	}
 	cases := map[string]struct {
@@ -72,7 +72,7 @@ func TestFileLoader_Load(t *testing.T) {
 				Path: "testdata/resources.yaml",
 			},
 			want: want{
-				resources: []unstructured.Unstructured{
+				resources: []*unstructured.Unstructured{
 					{
 						Object: coolResource,
 					},
@@ -115,7 +115,7 @@ func TestFolderLoader_Load(t *testing.T) {
 		Path string
 	}
 	type want struct {
-		resources []unstructured.Unstructured
+		resources []*unstructured.Unstructured
 		err       error
 	}
 	cases := map[string]struct {
@@ -129,7 +129,7 @@ func TestFolderLoader_Load(t *testing.T) {
 				Path: "testdata/folder",
 			},
 			want: want{
-				resources: []unstructured.Unstructured{
+				resources: []*unstructured.Unstructured{
 					{
 						Object: coolResource,
 					},
@@ -172,7 +172,7 @@ func Test_streamToUnstructured(t *testing.T) {
 		stream [][]byte
 	}
 	type want struct {
-		resources []unstructured.Unstructured
+		resources []*unstructured.Unstructured
 		err       error
 	}
 	cases := map[string]struct {
@@ -188,7 +188,7 @@ func Test_streamToUnstructured(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []unstructured.Unstructured{
+				resources: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "v1",
