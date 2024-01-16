@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package validate implements schema validation of Crossplane resources.
+// Package validate implements offline schema validation of Crossplane resources.
 package validate
 
 import (
@@ -27,8 +27,8 @@ import (
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
 	// Arguments.
-	Schemas   string `arg:"" help:"A YAML file with XRD and CRD schemas."`
-	Resources string `arg:"" help:"A YAML file with Crossplane resources to validate."`
+	Extensions string `arg:"" help:"Extensions source which can be a file, directory, or '-' for standard input."`
+	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
 	SkipSuccessLogs bool `help:"Skip printing success logs."`
@@ -37,36 +37,37 @@ type Cmd struct {
 // Help prints out the help for the render command.
 func (c *Cmd) Help() string {
 	return `
-This command validates Crossplane resources based on the schemas provided in offline mode.
-It can be piped after the "crossplane beta render" command to improve composition authoring.
-It doesn't talk to Crossplane or any Control Plane. Instead it uses Kubernetes API server's 
-validation library to provide offline schema validation.
+This command validates Crossplane resources based on the extensions (e.g., XRDs, CRDs, providers, or configurations)
+provided. Currently, it does not support Crossplane packages like providers, or configurations. 
+It can be piped after the "crossplane beta render" command to improve composition authoring. It doesn't talk 
+to Crossplane or any control plane. Instead it uses Kubernetes API server's validation library to provide offline schema
+validation.
 
 Examples:
 
-  # Validate all resources in the resources.yaml file against the schemas in the schemas.yaml file
-  crossplane beta validate schemas.yaml resources.yaml
+  # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file
+  crossplane beta validate extensions.yaml resources.yaml
 
-  # Validate all resources in the resourceDir folder against the schemas in the schemasDir folder and skip 
+  # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder and skip 
   # success logs
-  crossplane beta validate schemasDir/ resourceDir/ --skip-success-logs
+  crossplane beta validate extensionsDir/ resourceDir/ --skip-success-logs
  
-  # Validate the output of the render command against the schemas in the schemasDir folder
-  crossplane beta render xr.yaml composition.yaml func.yaml | crossplane beta validate schemasDir/ -
+  # Validate the output of the render command against the extensions in the extensionsDir folder
+  crossplane beta render xr.yaml composition.yaml func.yaml | crossplane beta validate extensionsDir/ -
 `
 }
 
 // Run render.
 func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error {
-	// Load all schemas
-	schemaLoader, err := NewLoader(c.Schemas)
+	// Load all extensions
+	extensionLoader, err := NewLoader(c.Extensions)
 	if err != nil {
-		return errors.Wrapf(err, "cannot load schemas from %q", c.Schemas)
+		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
 
-	schemas, err := schemaLoader.Load()
+	extensions, err := extensionLoader.Load()
 	if err != nil {
-		return errors.Wrapf(err, "cannot load schemas from %q", c.Schemas)
+		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
 
 	// Load all resources
@@ -81,7 +82,7 @@ func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error {
 	}
 
 	// Convert all XRDs to CRDs if exist
-	crds, err := convertToCRDs(schemas)
+	crds, err := convertToCRDs(extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot convert XRDs to CRDs")
 	}

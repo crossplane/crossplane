@@ -33,11 +33,11 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceDefinition, error) {
+func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceDefinition, error) { //nolint:gocyclo // Not a complex function, just switch/case statements
 	crds := make([]extv1.CustomResourceDefinition, 0, len(schemas))
 	for _, s := range schemas {
-		switch s.GetKind() {
-		case "CustomResourceDefinition":
+		switch s.GroupVersionKind().GroupKind() {
+		case schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}:
 			crd := &extv1.CustomResourceDefinition{}
 			bytes, err := s.MarshalJSON()
 			if err != nil {
@@ -50,7 +50,7 @@ func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceD
 
 			crds = append(crds, *crd)
 
-		case "CompositeResourceDefinition":
+		case schema.GroupKind{Group: "apiextensions.crossplane.io", Kind: "CompositeResourceDefinition"}:
 			xrd := &v1.CompositeResourceDefinition{}
 			bytes, err := s.MarshalJSON()
 			if err != nil {
@@ -65,7 +65,17 @@ func convertToCRDs(schemas []unstructured.Unstructured) ([]extv1.CustomResourceD
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot derive CRD from XRD %q", xrd.GetName())
 			}
+
 			crds = append(crds, *crd)
+
+		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Provider"}:
+			fmt.Println("Provider extension is not supported yet")
+			continue
+
+		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
+			fmt.Println("Configuration extension is not supported yet")
+			continue
+
 		default:
 			continue
 		}
