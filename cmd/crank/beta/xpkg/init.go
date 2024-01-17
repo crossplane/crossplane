@@ -35,9 +35,10 @@ import (
 // WellKnownTemplates are short aliases for template repositories.
 func WellKnownTemplates() map[string]string {
 	return map[string]string{
-		"provider-template":       "https://github.com/crossplane/provider-template",
-		"provider-template-upjet": "https://github.com/upbound/upjet-provider-template",
-		"function-template-go":    "https://github.com/crossplane/function-template-go",
+		"provider-template":        "https://github.com/crossplane/provider-template",
+		"provider-template-upjet":  "https://github.com/upbound/upjet-provider-template",
+		"function-template-go":     "https://github.com/crossplane/function-template-go",
+		"function-template-python": "https://github.com/crossplane/function-template-python",
 	}
 }
 
