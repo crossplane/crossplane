@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 The Crossplane Authors <https://crossplane.io>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Package schema defines helpers for working with JSON schema.
 // As defined by https://datatracker.ietf.org/doc/html/draft-zyp-json-schema-04
 package schema

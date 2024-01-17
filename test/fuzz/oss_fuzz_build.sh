@@ -1,4 +1,9 @@
 #!/bin/bash -eu
+
+# SPDX-FileCopyrightText: 2024 The Crossplane Authors <https://crossplane.io>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 #
 # DO NOT DELETE: this script is used from oss-fuzz. You can find more details
 # in the official documentation:

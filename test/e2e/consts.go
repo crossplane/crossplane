@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 The Crossplane Authors <https://crossplane.io>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package e2e
 
 // LabelArea represents the 'area' of a feature. For example 'apiextensions',

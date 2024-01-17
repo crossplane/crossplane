@@ -3,8 +3,17 @@ Upstream-Name: Crossplane
 Upstream-Contact: Jared Watts <jared@upbound.io>
 Source: https://crossplane.io
 
-# Sample paragraph, commented out:
-#
-# Files: src/*
-# Copyright: $YEAR $NAME <$CONTACT>
-# License: ...
+# Default Apache-2.0 licensed code
+Files: *
+Copyright: 2024 The Crossplane Authors <https://crossplane.io>
+License: Apache-2.0
+
+# CC-BY-4.0
+Files: security/ADA-fuzzing-audit-22.pdf
+Copyright: 2022 Ada Logics <https://adalogics.com>
+License: CC-BY-4.0
+
+Files: security/ADA-security-audit-23.pdf
+Copyright: 2023 Ada Logics <https://adalogics.com>
+License: CC-BY-4.0
+
