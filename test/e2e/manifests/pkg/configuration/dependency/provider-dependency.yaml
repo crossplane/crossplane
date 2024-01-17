@@ -1,9 +1,6 @@
-# SPDX-FileCopyrightText: 2024 The Crossplane Authors <https://crossplane.io>
-#
-# SPDX-License-Identifier: Apache-2.0
-
 # Note that we don't directly create this manifest, we just use it to check
 # whether the Provider was installed.
+
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
