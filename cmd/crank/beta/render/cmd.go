@@ -46,7 +46,7 @@ type Cmd struct {
 	ContextFiles           map[string]string `mapsep:"," help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."`
 	ContextValues          map[string]string `mapsep:"," help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files."`
 	IncludeFunctionResults bool              `short:"r" help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."`
-	IncludeXRSpec          bool              `short:"x" help:"Include the XR spec to the rendered output."`
+	IncludeFullXR          bool              `short:"x" help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."`
 	ObservedResources      string            `short:"o" placeholder:"PATH" type:"path" help:"A YAML file or directory of YAML files specifying the observed state of composed resources."`
 	Timeout                time.Duration     `help:"How long to run before timing out." default:"1m"`
 
@@ -184,7 +184,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 
 	s := json.NewSerializerWithOptions(json.DefaultMetaFactory, nil, nil, json.SerializerOptions{Yaml: true})
 
-	if c.IncludeXRSpec {
+	if c.IncludeFullXR {
 		xrSpec, err := fieldpath.Pave(xr.Object).GetValue("spec")
 		if err != nil {
 			return errors.Wrapf(err, "cannot get composite resource spec")
@@ -192,6 +192,15 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 
 		if err := fieldpath.Pave(out.CompositeResource.Object).SetValue("spec", xrSpec); err != nil {
 			return errors.Wrapf(err, "cannot set composite resource spec")
+		}
+
+		xrMeta, err := fieldpath.Pave(xr.Object).GetValue("metadata")
+		if err != nil {
+			return errors.Wrapf(err, "cannot get composite resource metadata")
+		}
+
+		if err := fieldpath.Pave(out.CompositeResource.Object).SetValue("metadata", xrMeta); err != nil {
+			return errors.Wrapf(err, "cannot set composite resource metadata")
 		}
 	}
 
