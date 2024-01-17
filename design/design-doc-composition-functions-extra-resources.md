@@ -1,8 +1,8 @@
 # Composition Functions - Extra Resources
 
 * Owner: Philippe Scorsolini (@phisco)
-* Reviewers: TBD
-* Status: Draft
+* Reviewers: Nic Cope (@negz)
+* Status: Accepted
 
 ## Background
 
