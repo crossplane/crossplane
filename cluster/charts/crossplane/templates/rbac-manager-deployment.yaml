@@ -74,9 +74,6 @@ spec:
         args:
         - rbac
         - start
-        {{- if .Values.rbacManager.managementPolicy }}
-        - --manage={{ .Values.rbacManager.managementPolicy }}
-        {{- end }}
         {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
