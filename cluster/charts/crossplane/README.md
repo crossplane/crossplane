@@ -96,7 +96,6 @@ and their default values.
 | `rbacManager.args` | Add custom arguments to the RBAC Manager pod. | `[]` |
 | `rbacManager.deploy` | Deploy the RBAC Manager pod and its required roles. | `true` |
 | `rbacManager.leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the RBAC Manager pod. | `true` |
-| `rbacManager.managementPolicy` | Defines the Roles and ClusterRoles the RBAC Manager creates and manages. - A policy of `Basic` creates and binds Roles only for the Crossplane ServiceAccount, Provider ServiceAccounts and creates Crossplane ClusterRoles. - A policy of `All` includes all the `Basic` settings and also creates Crossplane Roles in all namespaces. - Read the Crossplane docs for more information on the [RBAC Roles and ClusterRoles](https://docs.crossplane.io/latest/concepts/pods/#crossplane-clusterroles) | `"Basic"` |
 | `rbacManager.nodeSelector` | Add `nodeSelectors` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.replicas` | The number of RBAC Manager pod `replicas` to deploy. | `1` |
 | `rbacManager.skipAggregatedClusterRoles` | Don't install aggregated Crossplane ClusterRoles. | `false` |
