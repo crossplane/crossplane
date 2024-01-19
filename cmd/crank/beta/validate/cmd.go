@@ -31,17 +31,18 @@ type Cmd struct {
 	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
-	SkipSuccessLogs bool `help:"Skip printing success logs."`
+	SkipSuccessResults bool `help:"Skip printing success results."`
 }
 
 // Help prints out the help for the render command.
 func (c *Cmd) Help() string {
 	return `
-This command validates Crossplane resources based on the extensions (e.g., XRDs, CRDs, providers, or configurations)
-provided. Currently, it does not support Crossplane packages like providers, or configurations. 
-It can be piped after the "crossplane beta render" command to improve composition authoring. It doesn't talk 
-to Crossplane or any control plane. Instead it uses Kubernetes API server's validation library to provide offline schema
-validation.
+This command validates the provided Crossplane resources against the schemas of the provided extensions (e.g., XRDs and 
+CRDs, as well as Providers and Configurations coming soon). The output of the "crossplane beta render" command can be 
+piped to this validate command in order to rapidly validate on the outputs of the composition development experience.
+
+All validation is performed offline locally using the Kubernetes API server's validation library, so it does not require 
+any Crossplane instance or control plane to be running or configured.
 
 Examples:
 
@@ -81,14 +82,14 @@ func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error {
 		return errors.Wrapf(err, "cannot load resources from %q", c.Resources)
 	}
 
-	// Convert all XRDs to CRDs if exist
-	crds, err := convertToCRDs(extensions)
+	// Convert all extensions to CRDs to extract their OpenAPI schema validators
+	crds, err := convertExtensionsToCRDs(extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot convert XRDs to CRDs")
 	}
 
 	// Validate all resources against their CRDs and XRDs
-	if err := validateResources(resources, crds, c.SkipSuccessLogs); err != nil {
+	if err := validateResources(resources, crds, c.SkipSuccessResults); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 

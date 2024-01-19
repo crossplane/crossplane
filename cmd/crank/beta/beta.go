@@ -35,7 +35,7 @@ type Cmd struct {
 	Render   render.Cmd   `cmd:"" help:"Render a composite resource (XR)."`
 	Trace    trace.Cmd    `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
 	XPKG     xpkg.Cmd     `cmd:"" help:"Manage Crossplane packages."`
-	Validate validate.Cmd `cmd:"" help:"Validate Crossplane packages."`
+	Validate validate.Cmd `cmd:"" help:"Validate Crossplane resources."`
 }
 
 // Help output for crossplane beta.

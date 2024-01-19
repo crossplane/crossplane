@@ -76,7 +76,7 @@ var (
 	}
 )
 
-func Test_convertToCRDs(t *testing.T) {
+func TestConvertToCRDs(t *testing.T) {
 	type args struct {
 		schemas []*unstructured.Unstructured
 	}
@@ -1095,7 +1095,7 @@ func Test_convertToCRDs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := convertToCRDs(tc.args.schemas)
+			got, err := convertExtensionsToCRDs(tc.args.schemas)
 			if diff := cmp.Diff(tc.want.crd, got); diff != "" {
 				t.Errorf("%s\nconvertToCRDs(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -1106,7 +1106,7 @@ func Test_convertToCRDs(t *testing.T) {
 	}
 }
 
-func Test_validateResources(t *testing.T) {
+func TestValidateResources(t *testing.T) {
 	type args struct {
 		resources []*unstructured.Unstructured
 		crds      []*extv1.CustomResourceDefinition

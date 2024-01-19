@@ -53,7 +53,7 @@ var (
 	}
 )
 
-func TestFileLoader_Load(t *testing.T) {
+func TestFileLoaderLoad(t *testing.T) {
 	type args struct {
 		Path string
 	}
@@ -110,7 +110,7 @@ func TestFileLoader_Load(t *testing.T) {
 	}
 }
 
-func TestFolderLoader_Load(t *testing.T) {
+func TestFolderLoaderLoad(t *testing.T) {
 	type args struct {
 		Path string
 	}
@@ -167,7 +167,7 @@ func TestFolderLoader_Load(t *testing.T) {
 	}
 }
 
-func Test_streamToUnstructured(t *testing.T) {
+func TestStreamToUnstructured(t *testing.T) {
 	type args struct {
 		stream [][]byte
 	}

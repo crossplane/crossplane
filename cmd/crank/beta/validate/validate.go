@@ -33,7 +33,8 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-func convertToCRDs(schemas []*unstructured.Unstructured) ([]*extv1.CustomResourceDefinition, error) { //nolint:gocyclo // Not a complex function, just switch/case statements
+// This function gets unstructured extension resources and converts them to CRDs to extract their OpenAPI schema validators.
+func convertExtensionsToCRDs(schemas []*unstructured.Unstructured) ([]*extv1.CustomResourceDefinition, error) { //nolint:gocyclo // Not a complex function, just switch/case statements
 	crds := make([]*extv1.CustomResourceDefinition, 0, len(schemas))
 	for _, s := range schemas {
 		switch s.GroupVersionKind().GroupKind() {
@@ -91,8 +92,8 @@ func convertToCRDs(schemas []*unstructured.Unstructured) ([]*extv1.CustomResourc
 	return crds, nil
 }
 
-func newValidators(crds []*extv1.CustomResourceDefinition) (map[schema.GroupVersionKind]validation.SchemaValidator, error) {
-	validators := map[schema.GroupVersionKind]validation.SchemaValidator{}
+func newValidators(crds []*extv1.CustomResourceDefinition) (map[schema.GroupVersionKind][]validation.SchemaValidator, error) {
+	validators := map[schema.GroupVersionKind][]validation.SchemaValidator{}
 
 	for i := range crds {
 		internal := &ext.CustomResourceDefinition{}
@@ -100,29 +101,46 @@ func newValidators(crds []*extv1.CustomResourceDefinition) (map[schema.GroupVers
 			return nil, err
 		}
 
+		// Top-level and per-version schemas are mutually exclusive. Therefore, we will use both if they are present.
 		for _, ver := range internal.Spec.Versions {
 			var sv validation.SchemaValidator
 			var err error
 
+			// Version specific validation rules
 			if ver.Schema != nil && ver.Schema.OpenAPIV3Schema != nil {
 				sv, _, err = validation.NewSchemaValidator(ver.Schema.OpenAPIV3Schema)
 				if err != nil {
 					return nil, err
 				}
+
+				validators[schema.GroupVersionKind{
+					Group:   internal.Spec.Group,
+					Version: ver.Name,
+					Kind:    internal.Spec.Names.Kind,
+				}] = append(validators[schema.GroupVersionKind{
+					Group:   internal.Spec.Group,
+					Version: ver.Name,
+					Kind:    internal.Spec.Names.Kind,
+				}], sv)
 			}
 
+			// Top level validation rules
 			if internal.Spec.Validation != nil {
 				sv, _, err = validation.NewSchemaValidator(internal.Spec.Validation.OpenAPIV3Schema)
 				if err != nil {
 					return nil, err
 				}
-			}
 
-			validators[schema.GroupVersionKind{
-				Group:   internal.Spec.Group,
-				Version: ver.Name,
-				Kind:    internal.Spec.Names.Kind,
-			}] = sv
+				validators[schema.GroupVersionKind{
+					Group:   internal.Spec.Group,
+					Version: ver.Name,
+					Kind:    internal.Spec.Names.Kind,
+				}] = append(validators[schema.GroupVersionKind{
+					Group:   internal.Spec.Group,
+					Version: ver.Name,
+					Kind:    internal.Spec.Names.Kind,
+				}], sv)
+			}
 		}
 	}
 
@@ -130,33 +148,38 @@ func newValidators(crds []*extv1.CustomResourceDefinition) (map[schema.GroupVers
 }
 
 func validateResources(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, skipSuccessLogs bool) error {
-	validators, err := newValidators(crds)
+	schemaValidators, err := newValidators(crds)
 	if err != nil {
-		return errors.Wrap(err, "cannot create validators")
+		return errors.Wrap(err, "cannot create schema validators")
 	}
 
 	failure, warning := 0, 0
 
 	for i, r := range resources {
-		v, ok := validators[r.GetObjectKind().GroupVersionKind()]
+		resourceValidators, ok := schemaValidators[r.GetObjectKind().GroupVersionKind()]
 		if !ok {
 			warning++
 			fmt.Println("[!] could not find CRD/XRD for: " + r.GroupVersionKind().String())
 			continue
 		}
 
-		re := v.Validate(&resources[i])
-		for _, e := range re.Errors {
-			failure++
-			fmt.Printf("[x] validation error %s - %s : %s\n", r.GroupVersionKind().String(), r.GetAnnotations()[composite.AnnotationKeyCompositionResourceName], e.Error())
+		rf := 0
+		for _, v := range resourceValidators {
+			re := v.Validate(&resources[i])
+			for _, e := range re.Errors {
+				rf++
+				fmt.Printf("[x] validation error %s, %s : %s\n", r.GroupVersionKind().String(), r.GetAnnotations()[composite.AnnotationKeyCompositionResourceName], e.Error())
+			}
 		}
 
-		if len(re.Errors) == 0 && !skipSuccessLogs {
-			fmt.Printf("[✓] %s - %s validated successfully\n", r.GroupVersionKind().String(), r.GetAnnotations()[composite.AnnotationKeyCompositionResourceName])
+		if rf == 0 && !skipSuccessLogs {
+			fmt.Printf("[✓] %s, %s validated successfully\n", r.GroupVersionKind().String(), r.GetAnnotations()[composite.AnnotationKeyCompositionResourceName])
+		} else {
+			failure++
 		}
 	}
 
-	fmt.Printf("Validation complete with %d error, %d warning, %d success cases\n", failure, warning, len(resources)-failure-warning)
+	fmt.Printf("%d error, %d warning, %d success cases\n", failure, warning, len(resources)-failure-warning)
 
 	if failure > 0 {
 		return errors.New("could not validate all resources")
