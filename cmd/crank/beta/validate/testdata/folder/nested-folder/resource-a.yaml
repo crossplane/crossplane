@@ -2,7 +2,7 @@
 apiVersion: example.org/v1alpha1
 kind: ComposedResource
 metadata:
-  name: test-render-a
+  name: test-validate-a
   annotations:
     crossplane.io/composition-resource-name: resource-a
 spec:

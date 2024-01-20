@@ -1095,8 +1095,10 @@ func TestConvertToCRDs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := convertExtensionsToCRDs(tc.args.schemas)
-			if diff := cmp.Diff(tc.want.crd, got); diff != "" {
+			m := NewManager("", nil)
+			err := m.PrepExtensions(tc.args.schemas)
+
+			if diff := cmp.Diff(tc.want.crd, m.crds); diff != "" {
 				t.Errorf("%s\nconvertToCRDs(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1189,7 +1191,8 @@ func TestValidateResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := validateResources(tc.args.resources, tc.args.crds, false)
+			got := SchemaValidation(tc.args.resources, tc.args.crds, false)
+
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

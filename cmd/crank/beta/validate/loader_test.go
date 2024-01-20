@@ -32,7 +32,7 @@ var (
 			"annotations": map[string]interface{}{
 				"crossplane.io/composition-resource-name": "resource-a",
 			},
-			"name": "test-render-a",
+			"name": "test-validate-a",
 		},
 		"spec": map[string]interface{}{
 			"coolField": "I'm cool!",
@@ -45,7 +45,7 @@ var (
 			"annotations": map[string]interface{}{
 				"crossplane.io/composition-resource-name": "resource-b",
 			},
-			"name": "test-render-b",
+			"name": "test-validate-b",
 		},
 		"spec": map[string]interface{}{
 			"coolerField": "I'm cooler!",
