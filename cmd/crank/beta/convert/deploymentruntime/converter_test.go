@@ -1,3 +1,19 @@
+/*
+Copyright 2024 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package deploymentruntime
 
 import (
@@ -5,14 +21,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 func TestNewDeploymentTemplateFromControllerConfig(t *testing.T) {
@@ -160,10 +179,10 @@ func TestNewDeploymentTemplateFromControllerConfig(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			dt := NewDeploymentTemplateFromControllerConfig(tc.args.cc)
+			dt := deploymentTemplateFromControllerConfig(tc.args.cc)
 
 			if diff := cmp.Diff(tc.want.dt, dt, cmpopts.EquateApproxTime(time.Second*2)); diff != "" {
-				t.Errorf("%s\nControllerConfigToRuntimeDeploymentConfig(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\ndeploymentTemplateFromControllerConfig(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -191,10 +210,10 @@ func TestControllerConfigToRuntimeDeploymentConfig(t *testing.T) {
 			},
 			want: want{
 				dr:  nil,
-				err: errors.New(ErrNilControllerConfig),
+				err: errors.New(errNilControllerConfig),
 			},
 		},
-		"WithName": {
+		"withName": {
 			reason: "Name is correctly set",
 			args: args{
 				cc: &v1alpha1.ControllerConfig{
@@ -276,12 +295,12 @@ func TestControllerConfigToRuntimeDeploymentConfig(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			dr, err := ControllerConfigToDeploymentRuntimeConfig(tc.args.cc)
+			dr, err := controllerConfigToDeploymentRuntimeConfig(tc.args.cc)
 			if diff := cmp.Diff(tc.want.dr, dr, cmpopts.EquateApproxTime(time.Second*2)); diff != "" {
-				t.Errorf("%s\nControllerConfigToRuntimeDeploymentConfig(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\ncontrollerConfigToDeploymentRuntimeConfig(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.err, err, EquateErrors()); diff != "" {
-				t.Errorf("%s\nControllerConfigToRuntimeDeploymentConfig(...): -want err, +got err:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\ncontrollerConfigToDeploymentRuntimeConfig(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -339,7 +358,7 @@ func TestNewContainerFromControllerConfig(t *testing.T) {
 			},
 			want: want{
 				c: &corev1.Container{
-					Name:            "package-runtime",
+					Name:            runtimeContainerName,
 					Args:            []string{"- -d", "- --enable-management-policies"},
 					Env:             []corev1.EnvVar{{Name: "ENV", Value: "unit-test"}, {Name: "X", Value: "y"}},
 					EnvFrom:         []corev1.EnvFromSource{{Prefix: "XP_"}},
@@ -355,20 +374,11 @@ func TestNewContainerFromControllerConfig(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewContainerFromControllerConfig(tc.args.cc)
+			c := containerFromControllerConfig(tc.args.cc)
 			if diff := cmp.Diff(tc.want.c, c, cmpopts.EquateApproxTime(time.Second*2)); diff != "" {
-				t.Errorf("%s\nNewContainerFromControllerConfig(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\ncontainerFromControllerConfig(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 
 		})
 	}
-}
-
-func EquateErrors() cmp.Option {
-	return cmp.Comparer(func(a, b error) bool {
-		if a == nil || b == nil {
-			return a == nil && b == nil
-		}
-		return a.Error() == b.Error()
-	})
 }

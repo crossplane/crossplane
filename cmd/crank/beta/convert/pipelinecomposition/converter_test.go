@@ -1,3 +1,19 @@
+/*
+Copyright 2024 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package pipelinecomposition
 
 import (
@@ -5,13 +21,16 @@ import (
 	"testing"
 	"time"
 
-	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 func TestSetMissingConnectionDetailFields(t *testing.T) {
@@ -82,22 +101,22 @@ func TestSetMissingConnectionDetailFields(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			sk := SetMissingConnectionDetailFields(tc.args.sk)
+			sk := setMissingConnectionDetailFields(tc.args.sk)
 			if diff := cmp.Diff(tc.want.sk, sk); diff != "" {
-				t.Errorf("%s\nPopulateConnectionSecret(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\nsetMissingConnectionDetailFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 
 		})
 	}
 }
 
-func TestNewPipelineCompositionFromExisting(t *testing.T) {
+func TestConvertPnTToPipeline(t *testing.T) {
 	timeNow := metav1.NewTime(time.Now())
 	pipelineMode := v1.CompositionModePipeline
 	alwaysResolve := commonv1.ResolvePolicyAlways
 	typeFromCompositeFieldPath := v1.PatchTypeFromCompositeFieldPath
 	fieldPath := "spec.test"
-	stringFmt := "test-%s"
+	stringFmt := "test1-%s"
 	intp := int64(1010)
 	type args struct {
 		c               *v1.Composition
@@ -116,7 +135,7 @@ func TestNewPipelineCompositionFromExisting(t *testing.T) {
 			reason: "Nil Input should return an error",
 			args:   args{},
 			want: want{
-				err: errors.New(ErrNilComposition),
+				err: errors.New(errNilComposition),
 			},
 		},
 		"WithExistingPipeline": {
@@ -187,6 +206,25 @@ func TestNewPipelineCompositionFromExisting(t *testing.T) {
 									FromFieldPath: &fieldPath,
 									ToFieldPath:   &fieldPath,
 								},
+								{
+									Type:          typeFromCompositeFieldPath,
+									FromFieldPath: &fieldPath,
+									ToFieldPath:   &fieldPath,
+									Transforms: []v1.Transform{
+										{
+											Type: v1.TransformTypeString,
+											String: &v1.StringTransform{
+												Format: &stringFmt,
+											},
+										},
+										{
+											Type: v1.TransformTypeMath,
+											Math: &v1.MathTransform{
+												Multiply: &intp,
+											},
+										},
+									},
+								},
 							},
 							Policy: &commonv1.Policy{
 								Resolve: &alwaysResolve,
@@ -230,6 +268,27 @@ func TestNewPipelineCompositionFromExisting(t *testing.T) {
 														Type:          typeFromCompositeFieldPath,
 														FromFieldPath: &fieldPath,
 														ToFieldPath:   &fieldPath,
+													},
+													{
+														Type:          typeFromCompositeFieldPath,
+														FromFieldPath: &fieldPath,
+														ToFieldPath:   &fieldPath,
+														Transforms: []v1.Transform{
+															{
+																Type: v1.TransformTypeString,
+																String: &v1.StringTransform{
+																	Format: &stringFmt,
+																	Type:   v1.StringTransformTypeFormat,
+																},
+															},
+															{
+																Type: v1.TransformTypeMath,
+																Math: &v1.MathTransform{
+																	Multiply: &intp,
+																	Type:     v1.MathTransformTypeMultiply,
+																},
+															},
+														},
 													},
 												},
 											},
@@ -280,20 +339,20 @@ func TestNewPipelineCompositionFromExisting(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := NewPipelineCompositionFromExisting(tc.args.c, tc.args.functionRefName)
+			got, err := convertPnTToPipeline(tc.args.c, tc.args.functionRefName)
 			if diff := cmp.Diff(tc.want.c, got, cmpopts.EquateApproxTime(time.Second*2)); diff != "" {
-				t.Errorf("%s\nNewPipelineCompositionFromExisting(...): -want err, +got err:\n%s", tc.reason, diff)
+				t.Errorf("%s\nconvertPnTToPipeline(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.err, err, EquateErrors()); diff != "" {
-				t.Errorf("%s\nNewPipelineCompositionFromExisting(...): -want err, +got err:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\nconvertPnTToPipeline(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
 
 func TestSetTransformTypeRequiredFields(t *testing.T) {
-	group := int(1)
+	group := 1
 	mult := int64(1024)
 	tobase64 := v1.StringConversionTypeToBase64
 	type args struct {
@@ -404,28 +463,19 @@ func TestSetTransformTypeRequiredFields(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tt := SetTransformTypeRequiredFields(tc.args.tt)
+			tt := setTransformTypeRequiredFields(tc.args.tt)
 			if diff := cmp.Diff(tc.want.tt, tt); diff != "" {
-				t.Errorf("%s\nPopulateTransformType(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\nsetTransformTypeRequiredFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 
 		})
 	}
 }
 
-func EquateErrors() cmp.Option {
-	return cmp.Comparer(func(a, b error) bool {
-		if a == nil || b == nil {
-			return a == nil && b == nil
-		}
-		return a.Error() == b.Error()
-	})
-}
-
-func TestNewPatchAndTransformFunctionInput(t *testing.T) {
+func TestProcessFunctionInput(t *testing.T) {
 	typeFromCompositeFieldPath := v1.PatchTypeFromCompositeFieldPath
 	fieldPath := "spec.test"
-	stringFmt := "test-%s"
+	stringFmt := "test2-%s"
 	intp := int64(1010)
 	type args struct {
 		input *Input
@@ -443,8 +493,8 @@ func TestNewPatchAndTransformFunctionInput(t *testing.T) {
 			want: &runtime.RawExtension{
 				Object: &unstructured.Unstructured{
 					Object: map[string]any{
-						"apiVersion":  string("pt.fn.crossplane.io/v1beta1"),
-						"kind":        string("Resources"),
+						"apiVersion":  "pt.fn.crossplane.io/v1beta1",
+						"kind":        "Resources",
 						"environment": (*v1.EnvironmentConfiguration)(nil),
 						"patchSets":   []v1.PatchSet{},
 						"resources":   []v1.ComposedTemplate{},
@@ -500,8 +550,8 @@ func TestNewPatchAndTransformFunctionInput(t *testing.T) {
 			want: &runtime.RawExtension{
 				Object: &unstructured.Unstructured{
 					Object: map[string]any{
-						"apiVersion": string("pt.fn.crossplane.io/v1beta1"),
-						"kind":       string("Resources"),
+						"apiVersion": "pt.fn.crossplane.io/v1beta1",
+						"kind":       "Resources",
 						"environment": &v1.EnvironmentConfiguration{
 							Patches: []v1.EnvironmentPatch{
 								{
@@ -552,9 +602,9 @@ func TestNewPatchAndTransformFunctionInput(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := NewPatchAndTransformFunctionInput(tc.args.input)
+			got := processFunctionInput(tc.args.input)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("%s\nNewPatchAndTransformFunctionInput(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\nprocessFunctionInput(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -562,7 +612,7 @@ func TestNewPatchAndTransformFunctionInput(t *testing.T) {
 
 func TestSetMissingPatchSetFields(t *testing.T) {
 	fieldPath := "spec.id"
-	stringFmt := "test-%s"
+	stringFmt := "test3-%s"
 	intp := int64(1010)
 	type args struct {
 		patchSet v1.PatchSet
@@ -638,18 +688,109 @@ func TestSetMissingPatchSetFields(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := SetMissingPatchSetFields(tc.args.patchSet)
+			got := setMissingPatchSetFields(tc.args.patchSet)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("%s\nNewSetMissingPatchFields(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\nsetMissingPatchSetFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 
 		})
 	}
 }
 
+func TestSetMissingEnvironmentPatchFields(t *testing.T) {
+	fieldPath := "spec.id"
+	stringFmt := "test4-%s"
+	intp := int64(1010)
+	type args struct {
+		patch v1.EnvironmentPatch
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   v1.EnvironmentPatch
+	}{
+		"PatchWithoutTransforms": {
+			args: args{
+				v1.EnvironmentPatch{
+					Type:          v1.PatchTypeCombineFromComposite,
+					FromFieldPath: &fieldPath,
+					ToFieldPath:   &fieldPath,
+				},
+			},
+			want: v1.EnvironmentPatch{
+				Type:          v1.PatchTypeCombineFromComposite,
+				FromFieldPath: &fieldPath,
+				ToFieldPath:   &fieldPath,
+			}},
+		"TransformArrayMissingFields": {
+			reason: "Nested missing Types are filled in for a transform array",
+			args: args{
+				v1.EnvironmentPatch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
+					FromFieldPath: &fieldPath,
+					ToFieldPath:   &fieldPath,
+					Transforms: []v1.Transform{
+						{
+							String: &v1.StringTransform{
+								Format: &stringFmt,
+							},
+						},
+						{
+							Math: &v1.MathTransform{
+								Multiply: &intp,
+							},
+						},
+					},
+				},
+			},
+			want: v1.EnvironmentPatch{
+				Type:          v1.PatchTypeFromCompositeFieldPath,
+				FromFieldPath: &fieldPath,
+				ToFieldPath:   &fieldPath,
+				Transforms: []v1.Transform{
+					{
+						Type: v1.TransformTypeString,
+						String: &v1.StringTransform{
+							Type:   v1.StringTransformTypeFormat,
+							Format: &stringFmt,
+						},
+					},
+					{
+						Type: v1.TransformTypeMath,
+						Math: &v1.MathTransform{
+							Type:     v1.MathTransformTypeMultiply,
+							Multiply: &intp,
+						},
+					},
+				},
+			},
+		},
+		"PatchWithoutType": {
+			args: args{
+				v1.EnvironmentPatch{
+					FromFieldPath: &fieldPath,
+					ToFieldPath:   &fieldPath,
+				},
+			},
+			want: v1.EnvironmentPatch{
+				Type:          v1.PatchTypeFromCompositeFieldPath,
+				FromFieldPath: &fieldPath,
+				ToFieldPath:   &fieldPath,
+			}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := setMissingEnvironmentPatchFields(tc.args.patch)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("%s\nsetMissingEnvironmentPatchFields(...): -want i, +got i:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestSetMissingPatchFields(t *testing.T) {
 	fieldPath := "spec.id"
-	stringFmt := "test-%s"
+	stringFmt := "test5-%s"
 	intp := int64(1010)
 	type args struct {
 		patch v1.Patch
@@ -730,52 +871,16 @@ func TestSetMissingPatchFields(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := SetMissingPatchFields(tc.args.patch)
+			got := setMissingPatchFields(tc.args.patch)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("%s\nNewSetMissingPatchFields(...): -want i, +got i:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func Test_emptyString(t *testing.T) {
-	empty := ""
-	nonEmpty := "xp"
-	type args struct {
-		s *string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "nil string",
-			args: args{},
-			want: true,
-		},
-		{
-			name: "empty string",
-			args: args{s: &empty},
-			want: true,
-		},
-		{
-			name: "nonEmpty string",
-			args: args{s: &nonEmpty},
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := emptyString(tt.args.s); got != tt.want {
-				t.Errorf("emptyString() = %v, want %v", got, tt.want)
+				t.Errorf("%s\nsetMissingPatchFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
 
 func TestSetMissingResourceFields(t *testing.T) {
-	name := "testresource-0"
+	name := "resource-0"
 	empty := ""
 	str := "crossplane"
 	fcsk := v1.ConnectionDetailTypeFromConnectionSecretKey
@@ -868,9 +973,9 @@ func TestSetMissingResourceFields(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := SetMissingResourceFields(tc.args.idx, tc.args.rs)
+			got := setMissingResourceFields(tc.args.idx, tc.args.rs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("%s\nSetMissingResourceFields(...): -want i, +got i:\n%s", tc.reason, diff)
+				t.Errorf("%s\nsetMissingResourceFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -1,3 +1,19 @@
+/*
+Copyright 2024 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package deploymentruntime
 
 import (
@@ -14,28 +30,35 @@ import (
 )
 
 const (
-	ErrNilControllerConfig = "ControllerConfig is nil"
+	// default container name that XP uses
+	runtimeContainerName = "package-runtime"
+
+	errNilControllerConfig = "ControllerConfig is nil"
 )
 
 var timeNow = time.Now()
 
-func ControllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*v1beta1.DeploymentRuntimeConfig, error) {
+// controllerConfigToDeploymentRuntimeConfig converts a ControllerConfig to
+// a DeploymentRuntimeConfig
+func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*v1beta1.DeploymentRuntimeConfig, error) {
 	if cc == nil {
-		return nil, errors.New(ErrNilControllerConfig)
+		return nil, errors.New(errNilControllerConfig)
 	}
-	dt := NewDeploymentTemplateFromControllerConfig(cc)
-	drc := NewDeploymentRuntimeConfig(
-		WithName(cc.Name),
-		WithCreationTimestamp(metav1.NewTime(timeNow)),
-		WithServiceAccountTemplate(cc),
-		WithServiceTemplate(cc),
-		WithDeploymentTemplate(dt),
+	dt := deploymentTemplateFromControllerConfig(cc)
+	drc := newDeploymentRuntimeConfig(
+		withName(cc.Name),
+		// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
+		// to be removed when fixed. k8s apply ignores this field
+		withCreationTimestamp(metav1.NewTime(timeNow)),
+		withServiceAccountTemplate(cc),
+		withServiceTemplate(cc),
+		withDeploymentTemplate(dt),
 	)
 	return drc, nil
 }
 
-func NewDeploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1beta1.DeploymentTemplate {
-	if cc == nil || !CreateDeploymentTemplate(cc) {
+func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1beta1.DeploymentTemplate { //nolint:gocyclo // Just a lot of if, then set field
+	if cc == nil || !shouldCreateDeploymentTemplate(cc) {
 		return nil
 	}
 
@@ -54,6 +77,8 @@ func NewDeploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v
 		}
 	}
 
+	// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
+	// to be removed when fixed. k8s apply ignores this field
 	if cc.CreationTimestamp.IsZero() || dt.Spec.Template.ObjectMeta.CreationTimestamp.IsZero() {
 		dt.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(timeNow)
 	}
@@ -102,20 +127,20 @@ func NewDeploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v
 	}
 	dt.Spec.Template.Labels = templateLabels
 
-	if CreateDeploymentTemplateContainer(cc) {
-		c := NewContainerFromControllerConfig(cc)
+	if shouldCreateDeploymentTemplateContainer(cc) {
+		c := containerFromControllerConfig(cc)
 		dt.Spec.Template.Spec.Containers = append(dt.Spec.Template.Spec.Containers, *c)
 	}
 
 	return dt
 }
 
-func NewContainerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Container {
-	if cc == nil || !CreateDeploymentTemplateContainer(cc) {
+func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Container { //nolint:gocyclo // Just a lot of if, then set field
+	if cc == nil || !shouldCreateDeploymentTemplateContainer(cc) {
 		return nil
 	}
 	c := &corev1.Container{
-		Name: "package-runtime", // Default container name that XP uses
+		Name: runtimeContainerName,
 	}
 
 	if cc.Spec.Image != nil {
@@ -149,7 +174,7 @@ func NewContainerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Con
 	return c
 }
 
-func NewDeploymentRuntimeConfig(options ...func(*v1beta1.DeploymentRuntimeConfig)) *v1beta1.DeploymentRuntimeConfig {
+func newDeploymentRuntimeConfig(options ...func(*v1beta1.DeploymentRuntimeConfig)) *v1beta1.DeploymentRuntimeConfig {
 	drc := &v1beta1.DeploymentRuntimeConfig{}
 	drc.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   v1beta1.Group,
@@ -162,31 +187,33 @@ func NewDeploymentRuntimeConfig(options ...func(*v1beta1.DeploymentRuntimeConfig
 	return drc
 }
 
-func WithName(name string) func(*v1beta1.DeploymentRuntimeConfig) {
+func withName(name string) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
 		drc.ObjectMeta.Name = name
 	}
 }
 
-func WithCreationTimestamp(time metav1.Time) func(*v1beta1.DeploymentRuntimeConfig) {
+func withCreationTimestamp(time metav1.Time) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
 		drc.ObjectMeta.CreationTimestamp = time
 	}
 }
-func WithServiceAccountTemplate(cc *v1alpha1.ControllerConfig) func(*v1beta1.DeploymentRuntimeConfig) {
+
+func withServiceAccountTemplate(cc *v1alpha1.ControllerConfig) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
-		if cc != nil && (len(cc.Labels) > 0 || len(cc.Annotations) > 0) {
+		if cc != nil && (len(cc.Labels) > 0 || len(cc.Annotations) > 0 || cc.Spec.ServiceAccountName != nil) {
 			drc.Spec.ServiceAccountTemplate = &v1beta1.ServiceAccountTemplate{
 				Metadata: &v1beta1.ObjectMeta{
 					Annotations: cc.Annotations,
 					Labels:      cc.Labels,
+					Name:        cc.Spec.ServiceAccountName,
 				},
 			}
 		}
 	}
 }
 
-func WithServiceTemplate(cc *v1alpha1.ControllerConfig) func(*v1beta1.DeploymentRuntimeConfig) {
+func withServiceTemplate(cc *v1alpha1.ControllerConfig) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
 		if cc != nil && (len(cc.Labels) > 0 || len(cc.Annotations) > 0) {
 			drc.Spec.ServiceTemplate = &v1beta1.ServiceTemplate{
@@ -199,7 +226,7 @@ func WithServiceTemplate(cc *v1alpha1.ControllerConfig) func(*v1beta1.Deployment
 	}
 }
 
-func WithDeploymentTemplate(dt *v1beta1.DeploymentTemplate) func(*v1beta1.DeploymentRuntimeConfig) {
+func withDeploymentTemplate(dt *v1beta1.DeploymentTemplate) func(*v1beta1.DeploymentRuntimeConfig) {
 	return func(drc *v1beta1.DeploymentRuntimeConfig) {
 		if dt != nil {
 			drc.Spec.DeploymentTemplate = dt
@@ -207,17 +234,9 @@ func WithDeploymentTemplate(dt *v1beta1.DeploymentTemplate) func(*v1beta1.Deploy
 	}
 }
 
-func NewDeploymentTemplate(options ...func(*v1beta1.DeploymentTemplate)) *v1beta1.DeploymentTemplate {
-	d := &v1beta1.DeploymentTemplate{}
-	for _, o := range options {
-		o(d)
-	}
-	return d
-}
-
-// CreateDeploymentTemplate determines whether we should create a deployment
+// shouldCreateDeploymentTemplate determines whether we should create a deployment
 // template in the DeploymentRuntimeConfig
-func CreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool {
+func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool { //nolint:gocyclo // There are a lot of triggers for this, but it's not complex
 	return len(cc.Labels) > 0 ||
 		len(cc.Annotations) > 0 ||
 		cc.Spec.Metadata != nil ||
@@ -232,12 +251,12 @@ func CreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool {
 		cc.Spec.PriorityClassName != nil ||
 		cc.Spec.RuntimeClassName != nil ||
 		len(cc.Spec.Volumes) > 0 ||
-		CreateDeploymentTemplateContainer(cc)
+		shouldCreateDeploymentTemplateContainer(cc)
 }
 
-// CreateDeploymentTemplateContainer determines whether we should create a container
+// shouldCreateDeploymentTemplateContainer determines whether we should create a container
 // entry in the DeploymentRuntimeConfig
-func CreateDeploymentTemplateContainer(cc *v1alpha1.ControllerConfig) bool {
+func shouldCreateDeploymentTemplateContainer(cc *v1alpha1.ControllerConfig) bool {
 	return cc.Spec.Image != nil ||
 		cc.Spec.ImagePullPolicy != nil ||
 		len(cc.Spec.Ports) > 0 ||
@@ -247,5 +266,4 @@ func CreateDeploymentTemplateContainer(cc *v1alpha1.ControllerConfig) bool {
 		len(cc.Spec.EnvFrom) > 0 ||
 		len(cc.Spec.Env) > 0 ||
 		len(cc.Spec.VolumeMounts) > 0
-
 }
