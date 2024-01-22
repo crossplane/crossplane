@@ -587,7 +587,7 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 		}
 
 		if co.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
-			fcopts = append(fcopts, composite.WithExtraResourcesGetter(composite.NewExistingExtraResourcesGetter(c)))
+			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(c)))
 		}
 
 		fc := composite.NewFunctionComposer(c, co.FunctionRunner, fcopts...)

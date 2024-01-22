@@ -31,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -372,7 +371,9 @@ func TestRender(t *testing.T) {
 												"extra-resource-by-name": {
 													ApiVersion: "test.crossplane.io/v1",
 													Kind:       "Foo",
-													MatchName:  ptr.To("extra-resource"),
+													Match: &fnv1beta1.ResourceSelector_MatchName{
+														MatchName: "extra-resource",
+													},
 												},
 											},
 										},
@@ -392,7 +393,9 @@ func TestRender(t *testing.T) {
 												"extra-resource-by-name": {
 													ApiVersion: "test.crossplane.io/v1",
 													Kind:       "Foo",
-													MatchName:  ptr.To("extra-resource"),
+													Match: &fnv1beta1.ResourceSelector_MatchName{
+														MatchName: "extra-resource",
+													},
 												},
 											},
 										},
@@ -624,7 +627,9 @@ func TestFilterExtraResources(t *testing.T) {
 				selector: &fnv1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					MatchName:  ptr.To("extra-resource"),
+					Match: &fnv1beta1.ResourceSelector_MatchName{
+						MatchName: "extra-resource",
+					},
 				},
 			},
 			want: want{
@@ -688,7 +693,9 @@ func TestFilterExtraResources(t *testing.T) {
 				selector: &fnv1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Bar",
-					MatchName:  ptr.To("extra-resource-right"),
+					Match: &fnv1beta1.ResourceSelector_MatchName{
+						MatchName: "extra-resource-right",
+					},
 				},
 			},
 			want: want{
@@ -773,8 +780,12 @@ func TestFilterExtraResources(t *testing.T) {
 				selector: &fnv1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Bar",
-					MatchLabels: map[string]string{
-						"right": "true",
+					Match: &fnv1beta1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1beta1.MatchLabels{
+							Labels: map[string]string{
+								"right": "true",
+							},
+						},
 					},
 				},
 			},

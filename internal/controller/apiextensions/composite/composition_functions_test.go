@@ -658,12 +658,16 @@ func TestFunctionCompose(t *testing.T) {
 								"existing": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "Foo",
-									MatchName:  ptr.To("existing"),
+									Match: &v1beta1.ResourceSelector_MatchName{
+										MatchName: "existing",
+									},
 								},
 								"missing": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "Bar",
-									MatchName:  ptr.To("missing"),
+									Match: &v1beta1.ResourceSelector_MatchName{
+										MatchName: "missing",
+									},
 								},
 							},
 						}
@@ -752,8 +756,8 @@ func TestFunctionCompose(t *testing.T) {
 					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
-					WithExtraResourcesGetter(ExtraResourcesGetterFn(func(ctx context.Context, selector *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
-						if selector.GetMatchName() == "existing" {
+					WithExtraResourcesFetcher(ExtraResourcesFetcherFn(func(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
+						if rs.GetMatchName() == "existing" {
 							return &v1beta1.Resources{
 								Items: []*v1beta1.Resource{
 									{
@@ -1400,12 +1404,12 @@ func TestUpdateResourceRefs(t *testing.T) {
 	}
 }
 
-func TestExistingExtraResourcesGetterGet(t *testing.T) {
+func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
-		selector *v1beta1.ResourceSelector
-		c        client.Reader
+		rs *v1beta1.ResourceSelector
+		c  client.Reader
 	}
 	type want struct {
 		res *v1beta1.Resources
@@ -1419,10 +1423,12 @@ func TestExistingExtraResourcesGetterGet(t *testing.T) {
 		"SuccessMatchName": {
 			reason: "We should return a valid Resources when a resource is found by name",
 			args: args{
-				selector: &v1beta1.ResourceSelector{
+				rs: &v1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					MatchName:  ptr.To("cool-resource"),
+					Match: &v1beta1.ResourceSelector_MatchName{
+						MatchName: "cool-resource",
+					},
 				},
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
@@ -1450,11 +1456,15 @@ func TestExistingExtraResourcesGetterGet(t *testing.T) {
 		"SuccessMatchLabels": {
 			reason: "We should return a valid Resources when a resource is found by labels",
 			args: args{
-				selector: &v1beta1.ResourceSelector{
+				rs: &v1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					MatchLabels: map[string]string{
-						"cool": "resource",
+					Match: &v1beta1.ResourceSelector_MatchLabels{
+						MatchLabels: &v1beta1.MatchLabels{
+							Labels: map[string]string{
+								"cool": "resource",
+							},
+						},
 					},
 				},
 				c: &test.MockClient{
@@ -1523,10 +1533,12 @@ func TestExistingExtraResourcesGetterGet(t *testing.T) {
 		"NotFoundMatchName": {
 			reason: "We should return no error when a resource is not found by name",
 			args: args{
-				selector: &v1beta1.ResourceSelector{
+				rs: &v1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					MatchName:  ptr.To("cool-resource"),
+					Match: &v1beta1.ResourceSelector_MatchName{
+						MatchName: "cool-resource",
+					},
 				},
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "Foo"}, "cool-resource")),
@@ -1541,10 +1553,12 @@ func TestExistingExtraResourcesGetterGet(t *testing.T) {
 		"ErrorMatchName": {
 			reason: "We should return any other error encountered when getting a resource by name",
 			args: args{
-				selector: &v1beta1.ResourceSelector{
+				rs: &v1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					MatchName:  ptr.To("cool-resource"),
+					Match: &v1beta1.ResourceSelector_MatchName{
+						MatchName: "cool-resource",
+					},
 				},
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
@@ -1558,11 +1572,15 @@ func TestExistingExtraResourcesGetterGet(t *testing.T) {
 		"ErrorMatchLabels": {
 			reason: "We should return any other error encountered when listing resources by labels",
 			args: args{
-				selector: &v1beta1.ResourceSelector{
+				rs: &v1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					MatchLabels: map[string]string{
-						"cool": "resource",
+					Match: &v1beta1.ResourceSelector_MatchLabels{
+						MatchLabels: &v1beta1.MatchLabels{
+							Labels: map[string]string{
+								"cool": "resource",
+							},
+						},
 					},
 				},
 				c: &test.MockClient{
@@ -1577,8 +1595,8 @@ func TestExistingExtraResourcesGetterGet(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			g := NewExistingExtraResourcesGetter(tc.args.c)
-			res, err := g.Get(context.Background(), tc.args.selector)
+			g := NewExistingExtraResourcesFetcher(tc.args.c)
+			res, err := g.Fetch(context.Background(), tc.args.rs)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGet(...): -want, +got:\n%s", tc.reason, diff)
 			}

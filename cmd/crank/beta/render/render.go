@@ -161,7 +161,7 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 
 		fClient := fnv1beta1.NewFunctionRunnerServiceClient(conn)
 
-		// the request to send to the function, will be updated at each iteration if needed
+		// The request to send to the function, will be updated at each iteration if needed.
 		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
 		if fn.Input != nil {
@@ -172,14 +172,14 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 			req.Input = in
 		}
 
-		// used to store the requirements returned at the previous iteration
+		// Used to store the requirements returned at the previous iteration.
 		var requirements *fnv1beta1.Requirements
-		// used to store the response of the function at the previous iteration
+		// Used to store the response of the function at the previous iteration.
 		var rsp *fnv1beta1.RunFunctionResponse
 
 		for i := int64(0); i <= composite.MaxRequirementsIterations; i++ {
-			// if we reached the maximum number of iterations we need to return an error
 			if i == composite.MaxRequirementsIterations {
+				// The requirements didn't stabilize after the maximum number of iterations.
 				return Outputs{}, errors.Errorf("requirements didn't stabilize after the maximum number of iterations (%d)", composite.MaxRequirementsIterations)
 			}
 
@@ -190,11 +190,11 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 
 			newRequirements := rsp.GetRequirements()
 			if reflect.DeepEqual(newRequirements, requirements) {
-				// the requirements are stable, the function is done
+				// The requirements are stable, the function is done.
 				break
 			}
 
-			// store the requirements for the next iteration
+			// Store the requirements for the next iteration.
 			requirements = newRequirements
 
 			// Cleanup the extra resources from the previous iteration to store the new ones
@@ -204,14 +204,14 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 			for name, selector := range newRequirements.GetExtraResources() {
 				newExtraResources, err := filterExtraResources(in.ExtraResources, selector)
 				if err != nil {
-					return Outputs{}, errors.Wrapf(err /* TODO: */, "fetching resources for %s", name)
+					return Outputs{}, errors.Wrapf(err, "cannot filter extra resources for pipeline step %q", fn.Step)
 				}
 
-				// resources would be nil in case of not found resources
+				// Resources would be nil in case of not found resources.
 				req.ExtraResources[name] = newExtraResources
 			}
 
-			// pass down the updated context across iterations
+			// Pass down the updated context across iterations.
 			req.Context = rsp.GetContext()
 		}
 
@@ -311,7 +311,7 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.Composite, name
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) { //nolint:gocyclo // TODO(phisco): refactor
+func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) { //nolint:gocyclo // There is not much to simplify here.
 	if len(ers) == 0 || selector == nil {
 		return nil, nil
 	}
@@ -333,7 +333,7 @@ func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.R
 			return out, nil
 		}
 		if selector.GetMatchLabels() != nil {
-			if labels.SelectorFromSet(selector.GetMatchLabels()).Matches(labels.Set(er.GetLabels())) {
+			if labels.SelectorFromSet(selector.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
 				o, err := composite.AsStruct(&er)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())

@@ -59,8 +59,9 @@ const (
 	errEnvAsStruct              = "cannot encode environment to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
 	errGetExtraResourceByName   = "cannot get extra resource by name"
-	errNilResourceSelector      = "cannot get extra resource by name: resource selector is nil"
+	errNilResourceSelector      = "resource selector should not be nil"
 	errExtraResourceAsStruct    = "cannot encode extra resource to protocol buffer Struct well-known type"
+	errUnknownResourceSelector  = "cannot get extra resource by name: unknown resource selector type"
 	errListExtraResources       = "cannot list extra resources"
 
 	errFmtApplyCD                    = "cannot apply composed resource %q"
@@ -71,7 +72,7 @@ const (
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
-	errFmtFunctionMaxIterations      = "pipeline step %q reached the maximum number of iterations (%d)"
+	errFmtFunctionMaxIterations      = "step %q requirements didn't stabilize after the maximum number of iterations (%d)"
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -100,7 +101,7 @@ const (
 const (
 	// MaxRequirementsIterations is the maximum number of times a Function should be called,
 	// limiting the number of times it can request for extra resources, capped for
-	// safety. We might allow Composition authors customize this value in the future.
+	// safety.
 	MaxRequirementsIterations = 5
 )
 
@@ -117,7 +118,7 @@ type xr struct {
 	managed.ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
-	ExtraResourcesGetter
+	ExtraResourcesFetcher
 }
 
 // A FunctionRunner runs a single Composition Function.
@@ -147,17 +148,17 @@ func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Contex
 	return fn(ctx, xr)
 }
 
-// A ExtraResourcesGetter gets extra resources matching a selector.
-type ExtraResourcesGetter interface {
-	Get(ctx context.Context, selector *v1beta1.ResourceSelector) (*v1beta1.Resources, error)
+// A ExtraResourcesFetcher gets extra resources matching a selector.
+type ExtraResourcesFetcher interface {
+	Fetch(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error)
 }
 
-// An ExtraResourcesGetterFn gets extra resources matching the selector.
-type ExtraResourcesGetterFn func(ctx context.Context, selector *v1beta1.ResourceSelector) (*v1beta1.Resources, error)
+// An ExtraResourcesFetcherFn gets extra resources matching the selector.
+type ExtraResourcesFetcherFn func(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error)
 
-// Get gets extra resources matching the selector.
-func (fn ExtraResourcesGetterFn) Get(ctx context.Context, selector *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
-	return fn(ctx, selector)
+// Fetch gets extra resources matching the selector.
+func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
+	return fn(ctx, rs)
 }
 
 // A ComposedResourceGarbageCollector deletes observed composed resources that
@@ -195,11 +196,11 @@ func WithComposedResourceObserver(g ComposedResourceObserver) FunctionComposerOp
 	}
 }
 
-// WithExtraResourcesGetter configures how the FunctionComposer should fetch extra
+// WithExtraResourcesFetcher configures how the FunctionComposer should fetch extra
 // resources requested by functions.
-func WithExtraResourcesGetter(f ExtraResourcesGetter) FunctionComposerOption {
+func WithExtraResourcesFetcher(f ExtraResourcesFetcher) FunctionComposerOption {
 	return func(p *FunctionComposer) {
-		p.composite.ExtraResourcesGetter = f
+		p.composite.ExtraResourcesFetcher = f
 	}
 }
 
@@ -299,14 +300,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			req.Input = in
 		}
 
-		// used to store the requirements returned at the previous iteration
+		// Used to store the requirements returned at the previous iteration.
 		var requirements *v1beta1.Requirements
-		// used to store the response of the function at the previous iteration
+		// Used to store the response of the function at the previous iteration.
 		var rsp *v1beta1.RunFunctionResponse
 
 		for i := int64(0); i <= MaxRequirementsIterations; i++ {
-			// if we reached the maximum number of iterations we need to return an error
 			if i == MaxRequirementsIterations {
+				// The requirements didn't stabilize after the maximum number of iterations.
 				return CompositionResult{}, errors.Errorf(errFmtFunctionMaxIterations, fn.Step, MaxRequirementsIterations)
 			}
 
@@ -317,7 +318,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 			}
 
-			if c.composite.ExtraResourcesGetter == nil {
+			if c.composite.ExtraResourcesFetcher == nil {
 				// If we don't have an extra resources getter, we don't need to
 				// iterate to satisfy the requirements.
 				break
@@ -325,11 +326,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			newRequirements := rsp.GetRequirements()
 			if reflect.DeepEqual(newRequirements, requirements) {
-				// the requirements stabilized, the function is done
+				// The requirements stabilized, the function is done.
 				break
 			}
 
-			// store the requirements for the next iteration
+			// Store the requirements for the next iteration.
 			requirements = newRequirements
 
 			// Cleanup the extra resources from the previous iteration to store the new ones
@@ -337,17 +338,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			// Fetch the requested resources and add them to the desired state.
 			for name, selector := range newRequirements.GetExtraResources() {
-				// Fetch the requested resources and add them to the desired state.
-				resources, err := c.composite.ExtraResourcesGetter.Get(ctx, selector)
+				resources, err := c.composite.ExtraResourcesFetcher.Fetch(ctx, selector)
 				if err != nil {
 					return CompositionResult{}, errors.Wrapf(err, "fetching resources for %s", name)
 				}
 
-				// resources would be nil in case of not found resources
+				// Resources would be nil in case of not found resources.
 				req.ExtraResources[name] = resources
 			}
 
-			// pass down the updated context across iterations
+			// Pass down the updated context across iterations.
 			req.Context = rsp.GetContext()
 		}
 
@@ -498,32 +498,33 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events}, nil
 }
 
-// ExistingExtraResourcesGetter fetches extra resources requested by
+// ExistingExtraResourcesFetcher fetches extra resources requested by
 // functions using the provided client.Reader.
-type ExistingExtraResourcesGetter struct {
+type ExistingExtraResourcesFetcher struct {
 	client client.Reader
 }
 
-// NewExistingExtraResourcesGetter returns a new ExistingExtraResourcesGetter.
-func NewExistingExtraResourcesGetter(c client.Reader) *ExistingExtraResourcesGetter {
-	return &ExistingExtraResourcesGetter{client: c}
+// NewExistingExtraResourcesFetcher returns a new ExistingExtraResourcesFetcher.
+func NewExistingExtraResourcesFetcher(c client.Reader) *ExistingExtraResourcesFetcher {
+	return &ExistingExtraResourcesFetcher{client: c}
 }
 
-// Get fetches resources requested by functions using the provided client.Reader.
-func (e *ExistingExtraResourcesGetter) Get(ctx context.Context, selector *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
-	if selector == nil {
+// Fetch fetches resources requested by functions using the provided client.Reader.
+func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
+	if rs == nil {
 		return nil, errors.New(errNilResourceSelector)
 	}
-	if selector.GetMatchName() != "" {
+	switch match := rs.GetMatch().(type) {
+	case *v1beta1.ResourceSelector_MatchName:
 		// Fetch a single resource.
 		r := &kunstructured.Unstructured{}
-		r.SetAPIVersion(selector.GetApiVersion())
-		r.SetKind(selector.GetKind())
-		nn := types.NamespacedName{Name: selector.GetMatchName()}
+		r.SetAPIVersion(rs.GetApiVersion())
+		r.SetKind(rs.GetKind())
+		nn := types.NamespacedName{Name: rs.GetMatchName()}
 		err := e.client.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
 			// The resource doesn't exist. We'll return nil, which the Functions
-			// know it means that the resource was not found.
+			// know means that the resource was not found.
 			return nil, nil
 		}
 		if err != nil {
@@ -534,28 +535,29 @@ func (e *ExistingExtraResourcesGetter) Get(ctx context.Context, selector *v1beta
 			return nil, errors.Wrap(err, errExtraResourceAsStruct)
 		}
 		return &v1beta1.Resources{Items: []*v1beta1.Resource{{Resource: o}}}, nil
-	}
+	case *v1beta1.ResourceSelector_MatchLabels:
+		// Fetch a list of resources.
+		list := &kunstructured.UnstructuredList{}
+		list.SetAPIVersion(rs.GetApiVersion())
+		list.SetKind(rs.GetKind())
 
-	// Fetch a list of resources.
-	list := &kunstructured.UnstructuredList{}
-	list.SetAPIVersion(selector.GetApiVersion())
-	list.SetKind(selector.GetKind())
-
-	if err := e.client.List(ctx, list, client.MatchingLabels(selector.GetMatchLabels())); err != nil {
-		return nil, errors.Wrap(err, errListExtraResources)
-	}
-
-	resources := make([]*v1beta1.Resource, len(list.Items))
-	for i, r := range list.Items {
-		r := r
-		o, err := AsStruct(&r)
-		if err != nil {
-			return nil, errors.Wrap(err, errExtraResourceAsStruct)
+		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels())); err != nil {
+			return nil, errors.Wrap(err, errListExtraResources)
 		}
-		resources[i] = &v1beta1.Resource{Resource: o}
-	}
 
-	return &v1beta1.Resources{Items: resources}, nil
+		resources := make([]*v1beta1.Resource, len(list.Items))
+		for i, r := range list.Items {
+			r := r
+			o, err := AsStruct(&r)
+			if err != nil {
+				return nil, errors.Wrap(err, errExtraResourceAsStruct)
+			}
+			resources[i] = &v1beta1.Resource{Resource: o}
+		}
+
+		return &v1beta1.Resources{Items: resources}, nil
+	}
+	return nil, errors.New(errUnknownResourceSelector)
 }
 
 // An ExistingComposedResourceObserver uses an XR's resource references to load

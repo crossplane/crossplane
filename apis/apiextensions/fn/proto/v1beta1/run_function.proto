@@ -124,8 +124,15 @@ message ResourceSelector {
   string api_version = 1;
   string kind = 2;
 
-  optional string match_name = 3;
-  map<string, string> match_labels = 4;
+  oneof match {
+    string match_name = 3;
+    MatchLabels match_labels = 4;
+  }
+}
+
+// MatchLabels defines a set of labels to match resources against.
+message MatchLabels {
+  map<string, string> labels = 1;
 }
 
 // ResponseMeta contains metadata pertaining to a RunFunctionResponse.
