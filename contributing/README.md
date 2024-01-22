@@ -141,6 +141,22 @@ git commit --amend -s
 
 We use a [DCO bot] to enforce the DCO on all commits in every pull request.
 
+## Copyright and licenses
+Crossplane uses [REUSE](https://reuse.software/) to ensure compliance around
+license and copyright notices. By default all code and files added to the repo
+will be licensed as APACHE-2.0 and a copyright of '2024 The Crossplane Authors
+<https://crossplane.io>'. 
+
+You only need to specify a different license and copyright notice if the file
+you are adding to the repo requires it.
+
+To specify a different license you can:
+1. Add an override in the `.reuse/dep5` file. 
+2. Add an override in the source file you are adding.
+
+Every PR runs a compliance check job that verifies that the project stays
+compliant.
+
 ## Code Review Process
 
 All Pull Requests (PR), whether written by a Crossplane maintainer or a

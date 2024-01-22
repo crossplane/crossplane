@@ -1,4 +1,3 @@
----
 apiVersion: example.org/v1alpha1
 kind: SQLInstance
 metadata:
