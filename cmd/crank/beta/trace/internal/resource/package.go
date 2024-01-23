@@ -25,28 +25,39 @@ import (
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
+// DependencyOutput defines the output of the dependency tree.
 type DependencyOutput string
 
 const (
+	// DependencyOutputUnique outputs only unique dependencies.
 	DependencyOutputUnique DependencyOutput = "unique"
-	DependencyOutputAll    DependencyOutput = "all"
-	DependencyOutputNone   DependencyOutput = "none"
+	// DependencyOutputAll outputs all dependencies.
+	DependencyOutputAll DependencyOutput = "all"
+	// DependencyOutputNone outputs no dependencies.
+	DependencyOutputNone DependencyOutput = "none"
 )
 
+// RevisionOutput defines the output of the revision tree.
 type RevisionOutput string
 
 const (
+	// RevisionOutputActive outputs only active revisions.
 	RevisionOutputActive RevisionOutput = "active"
-	RevisionOutputAll    RevisionOutput = "all"
-	RevisionOutputNone   RevisionOutput = "none"
+	// RevisionOutputAll outputs all revisions.
+	RevisionOutputAll RevisionOutput = "all"
+	// RevisionOutputNone outputs no revisions.
+	RevisionOutputNone RevisionOutput = "none"
 )
 
+// IsPackageType returns true if the GroupKind is a Crossplane package type.
 func IsPackageType(gk schema.GroupKind) bool {
 	return gk == pkgv1.ProviderGroupVersionKind.GroupKind() ||
 		gk == pkgv1.ConfigurationGroupVersionKind.GroupKind() ||
 		gk == pkgv1beta1.FunctionGroupVersionKind.GroupKind()
 }
 
+// IsPackageRevisionType returns true if the GroupKind is a Crossplane package
+// revision type.
 func IsPackageRevisionType(gk schema.GroupKind) bool {
 	return gk == pkgv1.ConfigurationRevisionGroupVersionKind.GroupKind() ||
 		gk == pkgv1.ProviderRevisionGroupVersionKind.GroupKind() ||

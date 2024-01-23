@@ -35,7 +35,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/apis/pkg"
-
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
@@ -122,7 +121,9 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	if err != nil {
 		return errors.Wrap(err, errInitKubeClient)
 	}
-	pkg.AddToScheme(client.Scheme())
+
+	// add package scheme
+	_ = pkg.AddToScheme(client.Scheme())
 
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 	if err != nil {

@@ -237,7 +237,8 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) string {
 		m = r.Error.Error()
 	} else {
 		gk := r.Unstructured.GroupVersionKind().GroupKind()
-		if resource.IsPackageType(gk) {
+		switch {
+		case resource.IsPackageType(gk):
 			switch {
 			case healthyCond.Status == corev1.ConditionTrue && installedCond.Status == corev1.ConditionTrue:
 				// if both are true we want to show the healthy reason only
@@ -256,7 +257,7 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) string {
 				status = string(installedCond.Reason)
 				m = installedCond.Message
 			}
-		} else if resource.IsPackageRevisionType(gk) {
+		case resource.IsPackageRevisionType(gk):
 			// get the state (active vs. inactive) of this package revision
 			if s, err := fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState"); err == nil {
 				state = s
@@ -267,7 +268,7 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) string {
 			// package revisions only have the healthy condition, so use that
 			status = string(healthyCond.Reason)
 			m = healthyCond.Message
-		} else {
+		default:
 			status = "Unknown package type"
 		}
 	}

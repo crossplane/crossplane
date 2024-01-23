@@ -20,8 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
-
+	pkgname "github.com/google/go-containerregistry/pkg/name"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,13 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	pkgname "github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -68,12 +67,14 @@ func WithConnectionSecrets(v bool) ClientOption {
 	}
 }
 
+// WithDependencyOutput is a functional option that configures how the client should output dependencies.
 func WithDependencyOutput(do DependencyOutput) ClientOption {
 	return func(c *Client) {
 		c.dependencyOutput = do
 	}
 }
 
+// WithRevisionOutput is a functional option that configures how the client should output revisions.
 func WithRevisionOutput(ro RevisionOutput) ClientOption {
 	return func(c *Client) {
 		c.revisionOutput = ro
@@ -147,7 +148,7 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 	case pkgv1beta1.FunctionGroupVersionKind.GroupKind():
 		prl = &pkgv1beta1.FunctionRevisionList{}
 	default:
-		return nil, errors.New(fmt.Sprintf("unknown package type %s", nodeGK))
+		return nil, errors.Errorf("unknown package type %s", nodeGK)
 	}
 
 	if kc.revisionOutput != RevisionOutputNone {
@@ -177,7 +178,7 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 	cr, err := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
 	if err != nil || cr == "" {
 		// we don't have a current package revision, so just return what we've found so far
-		return node, nil
+		return node, nil //nolint:nilerr // we don't want to return an error here
 	}
 
 	// find the lock file entry for the current revision
@@ -225,7 +226,7 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 			apiVersion = pkgv1beta1.FunctionGroupVersionKind.GroupVersion().String()
 			revision = &pkgv1beta1.FunctionRevision{}
 		default:
-			return nil, errors.New(fmt.Sprintf("unknown package dependency type %s", d.Type))
+			return nil, errors.Errorf("unknown package dependency type %s", d.Type)
 		}
 
 		// NOTE: everything in the lock file is basically a package revision
