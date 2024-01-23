@@ -977,14 +977,14 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 					obj1.SetCompositionUpdatePolicy(&automatic)
 					obj1.SetCompositionReference(&corev1.ObjectReference{Name: "dachshund"})
 
-					obj2 := composite.Unstructured{Unstructured: *obj1.DeepCopy()}
+					obj2 := obj1.DeepCopy()
 					obj2.SetName("obj2")
 
-					obj3 := composite.Unstructured{Unstructured: *obj1.DeepCopy()}
+					obj3 := obj1.DeepCopy()
 					obj3.SetName("obj3")
 					obj3.SetCompositionReference(&corev1.ObjectReference{Name: "bernese"})
 
-					obj4 := composite.Unstructured{Unstructured: *obj1.DeepCopy()}
+					obj4 := obj1.DeepCopy()
 					obj4.SetName("obj4")
 					manual := xpv1.UpdateManual
 					obj4.SetCompositionUpdatePolicy(&manual)

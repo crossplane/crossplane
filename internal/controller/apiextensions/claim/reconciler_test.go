@@ -811,7 +811,7 @@ func TestReconcile(t *testing.T) {
 					var customPatch test.MockPatchFn
 					mockGet := func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
-							tc.args.claim.DeepCopyInto(&o.Unstructured)
+							tc.args.claim.DeepCopyInto(o)
 							return nil
 						}
 						if customGet != nil {
@@ -822,7 +822,7 @@ func TestReconcile(t *testing.T) {
 
 					mockStatusUpdate := func(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
-							o.DeepCopyInto(&tc.args.claim.Unstructured)
+							o.DeepCopyInto(tc.args.claim)
 						}
 						if customStatusUpdate != nil {
 							return customStatusUpdate(ctx, obj, opts...)
@@ -832,7 +832,7 @@ func TestReconcile(t *testing.T) {
 
 					mockUpdate := func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
-							o.DeepCopyInto(&tc.args.claim.Unstructured)
+							o.DeepCopyInto(tc.args.claim)
 						}
 						if customStatusUpdate != nil {
 							return customUpdate(ctx, obj, opts...)
