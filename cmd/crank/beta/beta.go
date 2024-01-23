@@ -20,6 +20,7 @@ limitations under the License.
 package beta
 
 import (
+	"github.com/crossplane/crossplane/cmd/crank/beta/convert"
 	"github.com/crossplane/crossplane/cmd/crank/beta/render"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace"
 	"github.com/crossplane/crossplane/cmd/crank/beta/xpkg"
@@ -29,9 +30,10 @@ import (
 type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
-	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
-	Trace  trace.Cmd  `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
-	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
+	Convert convert.Cmd `cmd:"" help:"Convert a Crossplane resource to a newer version or kind."`
+	Render  render.Cmd  `cmd:"" help:"Render a composite resource (XR)."`
+	Trace   trace.Cmd   `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
+	XPKG    xpkg.Cmd    `cmd:"" help:"Manage Crossplane packages."`
 }
 
 // Help output for crossplane beta.
