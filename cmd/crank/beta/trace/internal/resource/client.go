@@ -136,7 +136,34 @@ func (kc *Client) GetResourceTree(ctx context.Context, rootRef *v1.ObjectReferen
 	return root, nil
 }
 
-func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
+func (kc *Client) setPackageChildren(ctx context.Context, node *Resource) error {
+	revisions, err := kc.getRevisions(ctx, node)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get revisions for package %s", node.Unstructured.GetName())
+	}
+
+	for _, r := range revisions {
+		// add the current revision as a child of the current node if the revision output says we should
+		state, _ := fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState")
+		isActive := pkgv1.PackageRevisionDesiredState(state) == pkgv1.PackageRevisionActive
+		if kc.revisionOutput == RevisionOutputAll || (kc.revisionOutput == RevisionOutputActive && isActive) {
+			node.Children = append(node.Children, r)
+		}
+	}
+	return nil
+}
+
+func getLockPackageForRevision(lock *v1beta1.Lock, revision string) *v1beta1.LockPackage {
+	for i := range lock.Packages {
+		if lock.Packages[i].Name == revision {
+			return &lock.Packages[i]
+		}
+	}
+	return nil
+}
+
+// getRevisions gets the revisions for the given package.
+func (kc *Client) getRevisions(ctx context.Context, node *Resource) ([]*Resource, error) {
 	nodeGK := node.Unstructured.GroupVersionKind().GroupKind()
 	var prl pkgv1.PackageRevisionList
 
@@ -151,22 +178,93 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 		return nil, errors.Errorf("unknown package type %s", nodeGK)
 	}
 
-	if kc.revisionOutput != RevisionOutputNone {
-		// retrieve revisions for this package to add them as children of the current node
-		if err := kc.client.List(ctx, prl, client.MatchingLabels(map[string]string{pkgv1.LabelParentPackage: node.Unstructured.GetName()})); xpresource.IgnoreNotFound(err) != nil {
-			return nil, err
-		}
-		prs := prl.GetRevisions()
-		for i := range prs {
-			pr := prs[i]
-			childRevision := kc.getResource(ctx, xpmeta.ReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))
+	if err := kc.client.List(ctx, prl, client.MatchingLabels(map[string]string{pkgv1.LabelParentPackage: node.Unstructured.GetName()})); xpresource.IgnoreNotFound(err) != nil {
+		return nil, err
+	}
+	prs := prl.GetRevisions()
+	resources := make([]*Resource, 0, len(prs))
+	for i := range prs {
+		pr := prs[i]
+		childRevision := kc.getResource(ctx, xpmeta.ReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))
+		resources = append(resources, childRevision)
+	}
+	return resources, nil
+}
 
-			// add the current revision as a child of the current node if the revision output says we should
-			state, _ := fieldpath.Pave(childRevision.Unstructured.Object).GetString("spec.desiredState")
-			isActive := pkgv1.PackageRevisionDesiredState(state) == pkgv1.PackageRevisionActive
-			if kc.revisionOutput == RevisionOutputAll || (kc.revisionOutput == RevisionOutputActive && isActive) {
-				node.Children = append(node.Children, childRevision)
+// getPackageDetails returns the package details for the given package type.
+func getPackageDetails(t pkgv1beta1.PackageType) (string, string, pkgv1.PackageRevision, error) {
+	switch t {
+	case pkgv1beta1.ProviderPackageType:
+		return pkgv1.ProviderKind, pkgv1.ProviderGroupVersionKind.GroupVersion().String(), &pkgv1.ProviderRevision{}, nil
+	case pkgv1beta1.ConfigurationPackageType:
+		return pkgv1.ConfigurationKind, pkgv1.ConfigurationGroupVersionKind.GroupVersion().String(), &pkgv1.ConfigurationRevision{}, nil
+	case pkgv1beta1.FunctionPackageType:
+		return pkgv1beta1.FunctionKind, pkgv1beta1.FunctionGroupVersionKind.GroupVersion().String(), &pkgv1beta1.FunctionRevision{}, nil
+	default:
+		return "", "", nil, errors.Errorf("unknown package dependency type %s", t)
+	}
+}
+
+// getDependencyRef returns the dependency reference for the given package,
+// based on the lock file.
+func (kc *Client) getDependencyRef(ctx context.Context, lock *pkgv1beta1.Lock, pkgType pkgv1beta1.PackageType, pkg string) (*v1.ObjectReference, error) {
+	var name string
+	pkgKind, apiVersion, revision, err := getPackageDetails(pkgType)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get package details for dependency %s", pkg)
+	}
+
+	// NOTE: everything in the lock file is basically a package revision
+	// - pkgrev A
+	//   - dependency: pkgrev B
+	//   - dependency: pkgrev C
+	// - pkgrev B
+	// - pkgrev C
+
+	// find the current dependency from all the packages in the lock file
+	for _, p := range lock.Packages {
+		if p.Source == pkg {
+			// current package source matches the package of the dependency, let's get the full object
+			if err = kc.client.Get(ctx, types.NamespacedName{Name: p.Name}, revision); xpresource.IgnoreNotFound(err) != nil {
+				return nil, err
 			}
+
+			// look for the owner of this package revision, that's its parent package
+			for _, or := range revision.GetOwnerReferences() {
+				if or.Kind == pkgKind && or.Controller != nil && *or.Controller {
+					name = or.Name
+					break
+				}
+			}
+			break
+		}
+	}
+
+	if name == "" {
+		// we didn't find a package to match the current dependency, which
+		// can happen during initial installation when dependencies are
+		// being discovered and fetched. We'd still like to show something
+		// though, so try to make the package name pretty
+		if pkgref, err := pkgname.ParseReference(pkg); err == nil {
+			name = xpkg.ToDNSLabel(pkgref.Context().RepositoryStr())
+		} else {
+			name = xpkg.ToDNSLabel(pkg)
+		}
+	}
+
+	return &v1.ObjectReference{
+		APIVersion: apiVersion,
+		Kind:       pkgKind,
+		Name:       name,
+	}, nil
+}
+
+func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
+	// get the revisions for the current package and add them as children
+	if kc.revisionOutput != RevisionOutputNone {
+		err := kc.setPackageChildren(ctx, node)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to set package children for package %s", node.Unstructured.GetName())
 		}
 	}
 
@@ -175,21 +273,14 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 		return node, nil
 	}
 
-	cr, err := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
-	if err != nil || cr == "" {
+	cr, _ := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
+	if cr == "" {
 		// we don't have a current package revision, so just return what we've found so far
-		return node, nil //nolint:nilerr // we don't want to return an error here
+		return node, nil
 	}
 
 	// find the lock file entry for the current revision
-	var lp *pkgv1beta1.LockPackage
-	for i := range lock.Packages {
-		if cr == lock.Packages[i].Name {
-			lp = &lock.Packages[i]
-			break
-		}
-	}
-
+	lp := getLockPackageForRevision(lock, cr)
 	if lp == nil {
 		// the current revision for this package isn't in the lock file yet,
 		// just return what we've found so far
@@ -206,72 +297,11 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 			}
 		}
 
-		var name string
-		var apiVersion string
-		var pkgKind string
-		var revision pkgv1.PackageRevision
-
-		// figure out if the current dependency is a providers, configuration, or function
-		switch d.Type {
-		case pkgv1beta1.ProviderPackageType:
-			pkgKind = pkgv1.ProviderKind
-			apiVersion = pkgv1.ProviderGroupVersionKind.GroupVersion().String()
-			revision = &pkgv1.ProviderRevision{}
-		case pkgv1beta1.ConfigurationPackageType:
-			pkgKind = pkgv1.ConfigurationKind
-			apiVersion = pkgv1.ConfigurationGroupVersionKind.GroupVersion().String()
-			revision = &pkgv1.ConfigurationRevision{}
-		case pkgv1beta1.FunctionPackageType:
-			pkgKind = pkgv1beta1.FunctionKind
-			apiVersion = pkgv1beta1.FunctionGroupVersionKind.GroupVersion().String()
-			revision = &pkgv1beta1.FunctionRevision{}
-		default:
-			return nil, errors.Errorf("unknown package dependency type %s", d.Type)
+		dep, err := kc.getDependencyRef(ctx, lock, d.Type, d.Package)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get dependency ref %s", d.Package)
 		}
-
-		// NOTE: everything in the lock file is basically a package revision
-		// - pkgrev A
-		//   - dependency: pkgrev B
-		//   - dependency: pkgrev C
-		// - pkgrev B
-		// - pkgrev C
-
-		// find the current dependency from all the packages in the lock file
-		for _, p := range lock.Packages {
-			if p.Source == d.Package {
-				// current package source matches the package of the dependency, let's get the full object
-				if err := kc.client.Get(ctx, types.NamespacedName{Name: p.Name}, revision); xpresource.IgnoreNotFound(err) != nil {
-					return nil, err
-				}
-
-				// look for the owner of this package revision, that's its parent package
-				for _, or := range revision.GetOwnerReferences() {
-					if or.Kind == pkgKind && or.Controller != nil && *or.Controller {
-						name = or.Name
-						break
-					}
-				}
-				break
-			}
-		}
-
-		if name == "" {
-			// we didn't find a package to match the current dependency, which
-			// can happen during initial installation when dependencies are
-			// being discovered and fetched. We'd still like to show something
-			// though, so try to make the package name pretty
-			if pkgref, err := pkgname.ParseReference(d.Package); err == nil {
-				name = xpkg.ToDNSLabel(pkgref.Context().RepositoryStr())
-			} else {
-				name = xpkg.ToDNSLabel(d.Package)
-			}
-		}
-
-		depRefs = append(depRefs, v1.ObjectReference{
-			APIVersion: apiVersion,
-			Kind:       pkgKind,
-			Name:       name,
-		})
+		depRefs = append(depRefs, *dep)
 
 		// track this dependency in the unique dependency map
 		uniqueDeps[d.Package] = struct{}{}
