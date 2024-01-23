@@ -27,7 +27,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
@@ -116,34 +115,10 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					namespace: namespace,
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerMetaName,
-					"pkg.crossplane.io/revision": providerRevisionName,
-				})),
-			},
-		},
-		"ProviderDeploymentWithImageOverride": {
-			reason: "Image should be overridden if specified in the function spec",
-			args: args{
-				builder: &RuntimeManifestBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
-				},
-				serviceAccountName: providerRevisionName,
-				overrides: providerDeploymentOverrides(&pkgmetav1.Provider{
-					ObjectMeta: metav1.ObjectMeta{Name: providerMetaName},
-					Spec: pkgmetav1.ProviderSpec{
-						Controller: pkgmetav1.ControllerSpec{
-							Image: ptr.To("crossplane/provider-foo-controller:v1.2.3"),
-						},
-					},
-				}, providerRevision),
-			},
-			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, "crossplane/provider-foo-controller:v1.2.3", DeploymentWithSelectors(map[string]string{
 					"pkg.crossplane.io/provider": providerMetaName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				})),
@@ -176,7 +151,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
@@ -231,7 +206,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
@@ -309,7 +284,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
@@ -353,28 +328,10 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					namespace: namespace,
 				},
 				serviceAccountName: functionRevisionName,
-				overrides:          functionDeploymentOverrides(&pkgmetav1beta1.Function{}, functionRevision),
+				overrides:          functionDeploymentOverrides(functionImage),
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage),
-			},
-		},
-		"FunctionDeploymentWithImageOverride": {
-			reason: "Image should be overridden if specified in the function spec",
-			args: args{
-				builder: &RuntimeManifestBuilder{
-					revision:  functionRevision,
-					namespace: namespace,
-				},
-				serviceAccountName: functionRevisionName,
-				overrides: functionDeploymentOverrides(&pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
-						Image: ptr.To("crossplane/function-foo-server:v1.2.3"),
-					},
-				}, functionRevision),
-			},
-			want: want{
-				want: deploymentFunction(functionName, functionRevisionName, "crossplane/function-foo-server:v1.2.3"),
 			},
 		},
 		"FunctionDeploymentWithControllerConfig": {
@@ -390,7 +347,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: functionRevisionName,
-				overrides:          functionDeploymentOverrides(&pkgmetav1beta1.Function{}, functionRevision),
+				overrides:          functionDeploymentOverrides(functionImage),
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage, func(deployment *appsv1.Deployment) {

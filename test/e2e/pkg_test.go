@@ -110,12 +110,6 @@ func TestProviderUpgrade(t *testing.T) {
 			)).
 			Assess("UpgradeProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml"),
-				// Note(turkenh): There is a tiny instant after the upgrade where
-				// the provider was still reporting Installed/Healthy but the
-				// new version was not yet installed. This causes flakes in the
-				// test as ".spec.forProvider.conditionAfter[0].conditionReason: field not declared in schema" error.
-				// The following check is to avoid that.
-				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider-upgrade.yaml", "status.currentIdentifier", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.0"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-upgrade.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("UpgradeManagedResource", funcs.AllOf(

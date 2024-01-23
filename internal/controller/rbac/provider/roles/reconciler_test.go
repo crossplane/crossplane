@@ -458,6 +458,12 @@ func TestOrgDiffer(t *testing.T) {
 			b:        "index.docker.io/cool/other-provider:v1.0.0",
 			want:     true,
 		},
+		"DifferentRegistriesWithDefaulting": {
+			registry: "xpkg.example.org",
+			a:        "index.docker.io/cool/provider:v1.0.0",
+			b:        "cool/other-provider:v1.0.0",
+			want:     true,
+		},
 	}
 
 	for name, tc := range cases {

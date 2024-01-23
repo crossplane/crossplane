@@ -31,9 +31,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -515,41 +512,6 @@ func DeleteResources(dir, pattern string) features.Func {
 
 		files, _ := fs.Glob(dfs, pattern)
 		t.Logf("Deleted resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
-		return ctx
-	}
-}
-
-// CopyImageToRegistry tries to copy the supplied image to the supplied registry within the timeout
-func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Duration) features.Func {
-	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		reg, err := ServiceIngressEndPoint(ctx, c, clusterName, ns, sName)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		t.Logf("registry endpoint %s", reg)
-		srcRef, err := name.ParseReference(image)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		src, err := daemon.Image(srcRef)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		i := strings.Split(srcRef.String(), "/")
-		err = wait.For(func(_ context.Context) (done bool, err error) {
-			err = crane.Push(src, fmt.Sprintf("%s/%s", reg, i[1]), crane.Insecure)
-			if err != nil {
-				return false, nil //nolint:nilerr // we want to retry and to throw error
-			}
-			return true, nil
-		}, wait.WithTimeout(timeout), wait.WithInterval(DefaultPollInterval))
-		if err != nil {
-			t.Fatalf("copying image `%s` to registry `%s` not successful: %v", image, reg, err)
-		}
-
 		return ctx
 	}
 }

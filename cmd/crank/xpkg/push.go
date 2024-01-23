@@ -54,9 +54,6 @@ const (
 	errFmtWriteIndex    = "failed to push an OCI image index of %d packages"
 )
 
-// DefaultRegistry for pushing Crossplane packages.
-const DefaultRegistry = "xpkg.upbound.io"
-
 // pushCmd pushes a package.
 type pushCmd struct {
 	// Arguments.
@@ -94,7 +91,7 @@ func (c *pushCmd) AfterApply() error {
 
 // Run runs the push cmd.
 func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This feels easier to read as-is.
-	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(DefaultRegistry))
+	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
 	if err != nil {
 		return errors.Wrapf(err, errFmtNewTag, c.Package)
 	}
@@ -159,7 +156,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 				return errors.Wrapf(err, errFmtGetDigest, file)
 			}
 			n := fmt.Sprintf("%s@%s", tag.Repository.Name(), d.String())
-			ref, err := name.NewDigest(n, name.WithDefaultRegistry(DefaultRegistry))
+			ref, err := name.NewDigest(n, name.WithDefaultRegistry(xpkg.DefaultRegistry))
 			if err != nil {
 				return errors.Wrapf(err, errFmtNewDigest, n, file)
 			}

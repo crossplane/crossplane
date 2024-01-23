@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/google/go-containerregistry/pkg/name"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -35,6 +34,7 @@ import (
 
 	"github.com/crossplane/crossplane/internal/controller/rbac"
 	rbaccontroller "github.com/crossplane/crossplane/internal/controller/rbac/controller"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 // Available RBAC management policies.
@@ -53,7 +53,7 @@ var KongVars = kong.Vars{
 			ManagementPolicyBasic,
 		},
 		", "),
-	"default_registry": name.DefaultRegistry,
+	"rbac_default_registry": xpkg.DefaultRegistry,
 }
 
 // Command runs the crossplane RBAC controllers
@@ -74,7 +74,7 @@ type startCommand struct {
 
 	ProviderClusterRole string `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
 	LeaderElection      bool   `name:"leader-election" short:"l" help:"Use leader election for the controller manager." env:"LEADER_ELECTION"`
-	Registry            string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
+	Registry            string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${rbac_default_registry}" env:"REGISTRY"`
 
 	ManagementPolicy           string `name:"manage" short:"m" hidden:""`
 	DeprecatedManagementPolicy string `name:"deprecated-manage" hidden:"" default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`

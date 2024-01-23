@@ -35,10 +35,6 @@ type Options struct {
 	// private registry authentication when pulling Composition Functions.
 	ServiceAccount string
 
-	// Registry is the default registry to use when pulling containers for
-	// Composition Functions
-	Registry string
-
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner *xfn.PackagedFunctionRunner
 }

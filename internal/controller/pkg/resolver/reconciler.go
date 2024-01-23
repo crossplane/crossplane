@@ -100,13 +100,21 @@ func WithFetcher(f xpkg.Fetcher) ReconcilerOption {
 	}
 }
 
+// WithDefaultRegistry sets the default registry to use.
+func WithDefaultRegistry(registry string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.registry = registry
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client  client.Client
-	log     logging.Logger
-	lock    resource.Finalizer
-	newDag  dag.NewDAGFn
-	fetcher xpkg.Fetcher
+	client   client.Client
+	log      logging.Logger
+	lock     resource.Finalizer
+	newDag   dag.NewDAGFn
+	fetcher  xpkg.Fetcher
+	registry string
 }
 
 // Setup adds a controller that reconciles the Lock.
@@ -125,6 +133,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithFetcher(f),
+		WithDefaultRegistry(o.DefaultRegistry),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -231,7 +240,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errInvalidConstraint, "error", err)
 		return reconcile.Result{Requeue: false}, nil
 	}
-	ref, err := name.ParseReference(dep.Package)
+	ref, err := name.ParseReference(dep.Package, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
 		return reconcile.Result{Requeue: false}, nil
