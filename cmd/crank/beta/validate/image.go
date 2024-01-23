@@ -37,6 +37,10 @@ type Fetcher struct{}
 
 // FetchBaseLayer fetches the base layer of the image which contains the 'package.yaml' file
 func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
+	if strings.Contains(image, "sha") { // Strip the digest before fetching the image
+		image = strings.Split(image, "@")[0]
+	}
+
 	cBytes, err := crane.Config(image)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get config")
@@ -47,6 +51,7 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 		return nil, errors.Wrapf(err, "cannot unmarshal image config")
 	}
 
+	// TODO(ezgidemirel): consider using the annotations instead of labels to find out the base layer like package managed
 	if cfg.Config.Labels == nil {
 		return nil, errors.New("cannot get image labels")
 	}
