@@ -214,22 +214,24 @@ func (m *Manager) cacheDependencies() error {
 			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
 		}
 
-		if path != "" {
-			fmt.Printf("package schemas does not exist, downloading: %s\n", image)
+		if path == "" {
+			continue
+		}
 
-			layer, err := m.fetcher.FetchBaseLayer(image)
-			if err != nil {
-				return errors.Wrapf(err, "cannot download package %s", image)
-			}
+		fmt.Printf("package schemas does not exist, downloading: %s\n", image)
 
-			schemas, _, err := extractPackageContent(*layer)
-			if err != nil {
-				return errors.Wrapf(err, "cannot extract package file and meta")
-			}
+		layer, err := m.fetcher.FetchBaseLayer(image)
+		if err != nil {
+			return errors.Wrapf(err, "cannot download package %s", image)
+		}
 
-			if err := m.cache.Store(schemas, path); err != nil {
-				return errors.Wrapf(err, "cannot store base layer")
-			}
+		schemas, _, err := extractPackageContent(*layer)
+		if err != nil {
+			return errors.Wrapf(err, "cannot extract package file and meta")
+		}
+
+		if err := m.cache.Store(schemas, path); err != nil {
+			return errors.Wrapf(err, "cannot store base layer")
 		}
 	}
 

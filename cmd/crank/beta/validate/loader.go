@@ -91,7 +91,7 @@ func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() {
+		if isYamlFile(info) {
 			s, err := readFile(path)
 			if err != nil {
 				return err
@@ -106,6 +106,10 @@ func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 	}
 
 	return streamToUnstructured(stream)
+}
+
+func isYamlFile(info os.FileInfo) bool {
+	return !info.IsDir() && (filepath.Ext(info.Name()) == ".yaml" || filepath.Ext(info.Name()) == ".yml")
 }
 
 func readFile(path string) ([][]byte, error) {
