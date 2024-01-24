@@ -24,7 +24,7 @@ require (
 	github.com/spf13/afero v1.11.0
 	github.com/upbound/up-sdk-go v0.1.1-0.20230405182644-366f20e6aa5f
 	golang.org/x/sync v0.6.0
-	google.golang.org/grpc v1.60.1
+	google.golang.org/grpc v1.61.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.32.0
 	k8s.io/api v0.28.4
