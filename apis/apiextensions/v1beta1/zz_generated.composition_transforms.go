@@ -341,6 +341,7 @@ const (
 	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
 	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
 	StringTransformTypeRegexp     StringTransformType = "Regexp"
+	StringTransformTypeJoin       StringTransformType = "Join"
 )
 
 // StringConversionType converts a string.
@@ -364,7 +365,7 @@ type StringTransform struct {
 
 	// Type of the string transform to be run.
 	// +optional
-	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix;Regexp
+	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix;Regexp;Join
 	// +kubebuilder:default=Format
 	Type StringTransformType `json:"type,omitempty"`
 
@@ -390,6 +391,10 @@ type StringTransform struct {
 	// Extract a match from the input using a regular expression.
 	// +optional
 	Regexp *StringTransformRegexp `json:"regexp,omitempty"`
+
+	// Join defines parameters to join a slice of values to a string.
+	// +optional
+	Join *StringTransformJoin `json:"join,omitempty"`
 }
 
 // Validate checks this StringTransform is valid.
@@ -418,6 +423,10 @@ func (s *StringTransform) Validate() *field.Error {
 		}
 		if _, err := regexp.Compile(s.Regexp.Match); err != nil {
 			return field.Invalid(field.NewPath("regexp", "match"), s.Regexp.Match, "invalid regexp")
+		}
+	case StringTransformTypeJoin:
+		if s.Join == nil {
+			return field.Required(field.NewPath("join"), "join transform requires a join")
 		}
 	default:
 		return field.Invalid(field.NewPath("type"), s.Type, "unknown string transform type")
@@ -480,6 +489,13 @@ func (c ConvertTransformFormat) IsValid() bool {
 		return true
 	}
 	return false
+}
+
+// StringTransformJoin defines parameters to join a slice of values to a string.
+type StringTransformJoin struct {
+	// Separator defines the character that should separate the values from each
+	// other in the joined string.
+	Separator string `json:"separator"`
 }
 
 // A ConvertTransform converts the input into a new object whose type is supplied.

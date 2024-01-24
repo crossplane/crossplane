@@ -66,6 +66,8 @@ const (
 	errStringTransformTypeConvert       = "string transform of type %s convert is not set"
 	errStringTransformTypeTrim          = "string transform of type %s trim is not set"
 	errStringTransformTypeRegexp        = "string transform of type %s regexp is not set"
+	errStringTransformTypeJoin          = "string transform of type %s join is not set"
+	errStringTransformTypeJoinFailed    = "cannot join non-array values"
 	errStringTransformTypeRegexpFailed  = "could not compile regexp"
 	errStringTransformTypeRegexpNoMatch = "regexp %q had no matches for group %d"
 	errStringConvertTypeFailed          = "type %s is not supported for string convert"
@@ -281,7 +283,7 @@ func unmarshalJSON(j extv1.JSON, output *any) error {
 }
 
 // ResolveString resolves a String transform.
-func ResolveString(t v1.StringTransform, input any) (string, error) {
+func ResolveString(t v1.StringTransform, input any) (string, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
 	switch t.Type {
 	case v1.StringTransformTypeFormat:
 		if t.Format == nil {
@@ -303,6 +305,11 @@ func ResolveString(t v1.StringTransform, input any) (string, error) {
 			return "", errors.Errorf(errStringTransformTypeRegexp, string(t.Type))
 		}
 		return stringRegexpTransform(input, *t.Regexp)
+	case v1.StringTransformTypeJoin:
+		if t.Join == nil {
+			return "", errors.Errorf(errStringTransformTypeJoin, string(t.Type))
+		}
+		return stringJoinTransform(input, *t.Join)
 	default:
 		return "", errors.Errorf(errStringTransformTypeFailed, string(t.Type))
 	}
@@ -382,6 +389,19 @@ func stringRegexpTransform(input any, r v1.StringTransformRegexp) (string, error
 	}
 
 	return groups[g], nil
+}
+
+func stringJoinTransform(input any, r v1.StringTransformJoin) (string, error) {
+	inputList, ok := input.([]any)
+	if !ok {
+		return "", errors.New(errStringTransformTypeJoinFailed)
+	}
+	stringList := make([]string, len(inputList))
+	for i, val := range inputList {
+		strVal := fmt.Sprintf("%v", val)
+		stringList[i] = strVal
+	}
+	return strings.Join(stringList, r.Separator), nil
 }
 
 // ResolveConvert resolves a Convert transform by looking up the appropriate

@@ -349,6 +349,15 @@ func (c *GeneratedRevisionSpecConverter) pV1StringCombineToPV1StringCombine(sour
 	}
 	return pV1StringCombine
 }
+func (c *GeneratedRevisionSpecConverter) pV1StringTransformJoinToPV1StringTransformJoin(source *StringTransformJoin) *StringTransformJoin {
+	var pV1StringTransformJoin *StringTransformJoin
+	if source != nil {
+		var v1StringTransformJoin StringTransformJoin
+		v1StringTransformJoin.Separator = (*source).Separator
+		pV1StringTransformJoin = &v1StringTransformJoin
+	}
+	return pV1StringTransformJoin
+}
 func (c *GeneratedRevisionSpecConverter) pV1StringTransformRegexpToPV1StringTransformRegexp(source *StringTransformRegexp) *StringTransformRegexp {
 	var pV1StringTransformRegexp *StringTransformRegexp
 	if source != nil {
@@ -388,6 +397,7 @@ func (c *GeneratedRevisionSpecConverter) pV1StringTransformToPV1StringTransform(
 		}
 		v1StringTransform.Trim = pString2
 		v1StringTransform.Regexp = c.pV1StringTransformRegexpToPV1StringTransformRegexp((*source).Regexp)
+		v1StringTransform.Join = c.pV1StringTransformJoinToPV1StringTransformJoin((*source).Join)
 		pV1StringTransform = &v1StringTransform
 	}
 	return pV1StringTransform

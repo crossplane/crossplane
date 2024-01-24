@@ -653,6 +653,7 @@ func TestStringResolve(t *testing.T) {
 		convert *v1.StringConversionType
 		trim    *string
 		regexp  *v1.StringTransformRegexp
+		join    *v1.StringTransformJoin
 		i       any
 	}
 	type want struct {
@@ -992,6 +993,42 @@ func TestStringResolve(t *testing.T) {
 				err: errors.Errorf(errStringTransformTypeRegexpNoMatch, "my-([0-9]+)-string", 2),
 			},
 		},
+		"JoinStrings": {
+			args: args{
+				stype: v1.StringTransformTypeJoin,
+				join: &v1.StringTransformJoin{
+					Separator: ",",
+				},
+				i: []any{"a", "b", "c"},
+			},
+			want: want{
+				o: "a,b,c",
+			},
+		},
+		"JoinNumbers": {
+			args: args{
+				stype: v1.StringTransformTypeJoin,
+				join: &v1.StringTransformJoin{
+					Separator: ",",
+				},
+				i: []any{0.0, 1.0, 1.5},
+			},
+			want: want{
+				o: "0,1,1.5",
+			},
+		},
+		"JoinFailedOnNonArray": {
+			args: args{
+				stype: v1.StringTransformTypeJoin,
+				join: &v1.StringTransformJoin{
+					Separator: ",",
+				},
+				i: "wrong-type",
+			},
+			want: want{
+				err: errors.New(errStringTransformTypeJoinFailed),
+			},
+		},
 		"ConvertToJSONSuccess": {
 			args: args{
 				stype:   v1.StringTransformTypeConvert,
@@ -1026,6 +1063,7 @@ func TestStringResolve(t *testing.T) {
 				Convert: tc.convert,
 				Trim:    tc.trim,
 				Regexp:  tc.regexp,
+				Join:    tc.join,
 			}
 
 			got, err := ResolveString(tr, tc.i)
