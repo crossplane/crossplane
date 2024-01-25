@@ -274,7 +274,7 @@ func (kc *Client) getDependencies(ctx context.Context, node *Resource, lock *pkg
 	}
 
 	// iterate over all dependencies of the package to get full references to them
-	var depRefs []v1.ObjectReference
+	depRefs := make([]v1.ObjectReference, 0)
 	for _, d := range lp.Dependencies {
 		if kc.dependencyOutput == DependencyOutputUnique {
 			if _, ok := uniqueDeps[d.Package]; ok {
