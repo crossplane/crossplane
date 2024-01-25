@@ -136,7 +136,7 @@ func (kc *Client) GetResourceTree(ctx context.Context, rootRef *v1.ObjectReferen
 	return root, nil
 }
 
-func (kc *Client) setPackageChildren(ctx context.Context, node *Resource) error {
+func (kc *Client) setPackageRevisionChildren(ctx context.Context, node *Resource) error {
 	revisions, err := kc.getRevisions(ctx, node)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get revisions for package %s", node.Unstructured.GetName())
@@ -295,23 +295,12 @@ func (kc *Client) getDependencies(ctx context.Context, node *Resource, lock *pkg
 	return depRefs, nil
 }
 
-func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
-	// get the revisions for the current package and add them as children
-	if kc.revisionOutput != RevisionOutputNone {
-		err := kc.setPackageChildren(ctx, node)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to set package children for package %s", node.Unstructured.GetName())
-		}
-	}
-
-	if kc.dependencyOutput == DependencyOutputNone {
-		// we're not supposed to show any dependencies, we can return now
-		return node, nil
-	}
-
+// setDependencyChildren gets and sets the dependencies for the given package
+// as its children
+func (kc *Client) setDependencyChildren(ctx context.Context, node *Resource, lock *pkgv1beta1.Lock, uniqueDeps map[string]struct{}) error {
 	depRefs, err := kc.getDependencies(ctx, node, lock, uniqueDeps)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get dependencies for package %s", node.Unstructured.GetName())
+		return errors.Wrapf(err, "failed to get dependencies for package %s", node.Unstructured.GetName())
 	}
 
 	// traverse all the references to dependencies that we found to build the tree out with them too
@@ -320,7 +309,27 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 		node.Children = append(node.Children, child)
 
 		if _, err := kc.getPackageTree(ctx, child, lock, uniqueDeps); err != nil {
-			return nil, err
+			return errors.Wrapf(err, "failed to get package tree for dependency %s", child.Unstructured.GetName())
+		}
+	}
+	return nil
+}
+
+// getPackageTree constructs the package resource tree for the given package.
+func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
+	// get the revisions for the current package and add them as children
+	if kc.revisionOutput != RevisionOutputNone {
+		err := kc.setPackageRevisionChildren(ctx, node)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to set package revision children for package %s", node.Unstructured.GetName())
+		}
+	}
+
+	// get the dependencies for the current package and add them as children
+	if kc.dependencyOutput != DependencyOutputNone {
+		err := kc.setDependencyChildren(ctx, node, lock, uniqueDeps)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to set package dependency children for package %s", node.Unstructured.GetName())
 		}
 	}
 
