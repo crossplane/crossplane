@@ -37,6 +37,8 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
 )
 
 const (
@@ -100,6 +102,7 @@ Examples:
 
 // Run runs the trace command.
 func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(phisco): refactor
+	ctx := context.Background()
 	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
 
 	// Init new printer
@@ -135,21 +138,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	d := memory.NewMemCacheClient(discoveryClient)
 	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d)
 
-	// Get client for k8s package
-	resClient, err := resource.NewClient(client, rmapper, resource.WithConnectionSecrets(c.ShowConnectionSecrets),
-		resource.WithDependencyOutput(resource.DependencyOutput(c.ShowPackageDependencies)),
-		resource.WithRevisionOutput(resource.RevisionOutput(c.ShowPackageRevisions)))
-	if err != nil {
-		return errors.Wrap(err, errInitKubeClient)
-	}
-	logger.Debug("Built client")
-
-	resource, name, err := c.getResourceAndName()
+	res, name, err := c.getResourceAndName()
 	if err != nil {
 		return errors.Wrap(err, errInvalidResourceAndName)
 	}
 
-	mapping, err := resClient.MappingFor(resource)
+	mapping, err := resource.MappingFor(rmapper, res)
 	if err != nil {
 		return errors.Wrap(err, errGetMapping)
 	}
@@ -165,7 +159,33 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 		rootRef.Namespace = c.Namespace
 	}
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
-	root, err := resClient.GetResourceTree(context.Background(), rootRef)
+	// Get client for k8s package
+	root := xrm.GetResource(ctx, client, rootRef)
+	// We should just surface any error getting the root resource immediately.
+	if err := root.Error; err != nil {
+		return errors.Wrap(err, errGetResource)
+	}
+
+	var treeClient resource.TreeClient
+	switch {
+	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
+		logger.Debug("Requested resource is an Package")
+		treeClient, err = xpkg.NewClient(client,
+			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
+			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+		if err != nil {
+			return errors.Wrap(err, errInitKubeClient)
+		}
+	default:
+		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
+		treeClient, err = xrm.NewClient(client, xrm.WithConnectionSecrets(c.ShowConnectionSecrets))
+		if err != nil {
+			return errors.Wrap(err, errInitKubeClient)
+		}
+	}
+	logger.Debug("Built client")
+
+	root, err = treeClient.GetResourceTree(ctx, root)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)

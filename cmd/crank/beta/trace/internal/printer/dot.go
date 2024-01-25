@@ -13,6 +13,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
 )
 
 // DotPrinter defines the DotPrinter configuration
@@ -115,7 +116,7 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 		var label fmt.Stringer
 		gk := item.resource.Unstructured.GroupVersionKind().GroupKind()
 		switch {
-		case resource.IsPackageType(gk):
+		case xpkg.IsPackageType(gk):
 			pkg, err := fieldpath.Pave(item.resource.Unstructured.Object).GetString("spec.package")
 			l := &dotPackageLabel{
 				apiVersion: item.resource.Unstructured.GroupVersionKind().GroupVersion().String(),
@@ -128,7 +129,7 @@ func (p *DotPrinter) Print(w io.Writer, root *resource.Resource) error {
 				l.error = err.Error()
 			}
 			label = l
-		case resource.IsPackageRevisionType(gk):
+		case xpkg.IsPackageRevisionType(gk):
 			pkg, err := fieldpath.Pave(item.resource.Unstructured.Object).GetString("spec.image")
 			l := &dotPackageLabel{
 				apiVersion: item.resource.Unstructured.GroupVersionKind().GroupVersion().String(),

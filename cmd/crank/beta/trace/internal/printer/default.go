@@ -32,6 +32,7 @@ import (
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
 )
 
 const (
@@ -95,7 +96,7 @@ func (r *defaultPkgPrinterRow) String() string {
 }
 
 func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackageOrPackageRevision bool) {
-	if resource.IsPackageType(gk) || resource.IsPackageRevisionType(gk) {
+	if xpkg.IsPackageType(gk) || xpkg.IsPackageRevisionType(gk) {
 		return &defaultPkgPrinterRow{
 			wide: wide,
 
@@ -258,7 +259,7 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 		// resource is and what conditions it has
 		status = "Error"
 		m = r.Error.Error()
-	case resource.IsPackageType(gk):
+	case xpkg.IsPackageType(gk):
 		switch {
 		case healthyCond.Status == corev1.ConditionTrue && installedCond.Status == corev1.ConditionTrue:
 			// if both are true we want to show the healthy reason only
@@ -281,7 +282,7 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 		if packageImg, err = fieldpath.Pave(r.Unstructured.Object).GetString("spec.package"); err != nil {
 			state = err.Error()
 		}
-	case resource.IsPackageRevisionType(gk):
+	case xpkg.IsPackageRevisionType(gk):
 		// package revisions only have the healthy condition, so use that
 		status = string(healthyCond.Reason)
 		m = healthyCond.Message

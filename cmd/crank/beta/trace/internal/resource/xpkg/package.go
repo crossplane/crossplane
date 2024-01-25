@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package resource contains the definition of the Resource used by all trace
-// printers, and the client used to get a Resource and its children.
-package resource
+// Package xpkg contains the client to get a Crossplane package with all its
+// dependencies as a tree of Resource.
+package xpkg
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
