@@ -62,11 +62,12 @@ type Cmd struct {
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
-	Namespace               string `short:"n" name:"namespace" help:"Namespace of the resource." default:"default"`
-	Output                  string `short:"o" name:"output" help:"Output format. One of: default, wide, json, dot." enum:"default,wide,json,dot" default:"default"`
-	ShowConnectionSecrets   bool   `short:"s" name:"show-connection-secrets" help:"Show connection secrets in the output."`
-	ShowPackageDependencies string `name:"show-package-dependencies" help:"Show package dependencies in the output. One of: unique, all, none." enum:"unique,all,none" default:"unique"`
-	ShowPackageRevisions    string `name:"show-package-revisions" help:"Show package revisions in the output. One of: active, all, none." enum:"active,all,none" default:"active"`
+	Namespace                 string `short:"n" name:"namespace" help:"Namespace of the resource." default:"default"`
+	Output                    string `short:"o" name:"output" help:"Output format. One of: default, wide, json, dot." enum:"default,wide,json,dot" default:"default"`
+	ShowConnectionSecrets     bool   `short:"s" name:"show-connection-secrets" help:"Show connection secrets in the output."`
+	ShowPackageDependencies   string `name:"show-package-dependencies" help:"Show package dependencies in the output. One of: unique, all, none." enum:"unique,all,none" default:"unique"`
+	ShowPackageRevisions      string `name:"show-package-revisions" help:"Show package revisions in the output. One of: active, all, none." enum:"active,all,none" default:"active"`
+	ShowPackageRuntimeConfigs bool   `name:"show-package-runtime-configs" help:"Show package runtime configs in the output." default:"false"`
 }
 
 // Help returns help message for the trace command.
@@ -172,6 +173,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 		logger.Debug("Requested resource is an Package")
 		treeClient, err = xpkg.NewClient(client,
 			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
+			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
 			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
 		if err != nil {
 			return errors.Wrap(err, errInitKubeClient)

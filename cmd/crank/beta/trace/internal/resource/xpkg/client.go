@@ -32,6 +32,7 @@ import (
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -39,8 +40,9 @@ import (
 
 // Client to get a Package with all its dependencies.
 type Client struct {
-	dependencyOutput DependencyOutput
-	revisionOutput   RevisionOutput
+	dependencyOutput            DependencyOutput
+	revisionOutput              RevisionOutput
+	includePackageRuntimeConfig bool
 
 	client client.Client
 }
@@ -59,6 +61,14 @@ func WithDependencyOutput(do DependencyOutput) ClientOption {
 func WithRevisionOutput(ro RevisionOutput) ClientOption {
 	return func(c *Client) {
 		c.revisionOutput = ro
+	}
+}
+
+// WithPackageRuntimeConfigs is a functional option that configures if the client
+// should include the package runtime config as a child.
+func WithPackageRuntimeConfigs(v bool) ClientOption {
+	return func(c *Client) {
+		c.includePackageRuntimeConfig = v
 	}
 }
 
@@ -104,6 +114,9 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 			return nil, errors.Errorf("resource %s is not a package: %s", res.Unstructured.GetName(), res.Unstructured.GroupVersionKind().GroupKind())
 		}
 
+		// Set the package runtime config as a child if we want to show it
+		kc.setPackageRuntimeConfigChild(ctx, res)
+
 		// Set the revisions for the current package and add them as children
 		if err := kc.setChildrenRevisions(ctx, res); err != nil {
 			return nil, errors.Wrapf(err, "failed to set package revision children for package %s", res.Unstructured.GetName())
@@ -127,6 +140,30 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 	}
 
 	return root, nil
+}
+
+func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resource.Resource) {
+	if !kc.includePackageRuntimeConfig {
+		return
+	}
+	runtimeConfigRef := pkgv1.RuntimeConfigReference{}
+	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.runtimeConfigRef", &runtimeConfigRef); err == nil {
+		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
+			APIVersion: *runtimeConfigRef.APIVersion,
+			Kind:       *runtimeConfigRef.Kind,
+			Name:       runtimeConfigRef.Name,
+		}))
+	}
+	// We try loading both as currently both are supported and if both are present they are merged.
+	controllerConfigRef := pkgv1.ControllerConfigReference{}
+	apiVersion, kind := v1alpha1.ControllerConfigGroupVersionKind.ToAPIVersionAndKind()
+	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.controllerConfigRef", &runtimeConfigRef); err == nil {
+		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
+			APIVersion: apiVersion,
+			Kind:       kind,
+			Name:       controllerConfigRef.Name,
+		}))
+	}
 }
 
 func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resource) (err error) {

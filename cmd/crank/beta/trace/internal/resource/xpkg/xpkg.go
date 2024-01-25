@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -62,4 +63,11 @@ func IsPackageRevisionType(gk schema.GroupKind) bool {
 	return gk == pkgv1.ConfigurationRevisionGroupVersionKind.GroupKind() ||
 		gk == pkgv1.ProviderRevisionGroupVersionKind.GroupKind() ||
 		gk == pkgv1beta1.FunctionRevisionGroupVersionKind.GroupKind()
+}
+
+// IsPackageRuntimeConfigType returns true if the GroupKind is a Crossplane runtime
+// config type.
+func IsPackageRuntimeConfigType(gk schema.GroupKind) bool {
+	return gk == pkgv1beta1.DeploymentRuntimeConfigGroupVersionKind.GroupKind() ||
+		gk == v1alpha1.ControllerConfigGroupVersionKind.GroupKind()
 }

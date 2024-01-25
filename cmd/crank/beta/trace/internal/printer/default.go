@@ -297,6 +297,8 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 		if packageImg, err = fieldpath.Pave(r.Unstructured.Object).GetString("spec.image"); err != nil {
 			state = err.Error()
 		}
+	case xpkg.IsPackageRuntimeConfigType(gk):
+		// nothing to do here
 	default:
 		status = "Unknown package type"
 	}
