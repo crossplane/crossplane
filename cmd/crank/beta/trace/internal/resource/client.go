@@ -214,6 +214,16 @@ func (kc *Client) getDependencyRef(ctx context.Context, lock *pkgv1beta1.Lock, p
 		return nil, errors.Wrapf(err, "failed to get package details for dependency %s", pkg)
 	}
 
+	// if we don't find a package to match the current dependency, which
+	// can happen during initial installation when dependencies are
+	// being discovered and fetched. We'd still like to show something
+	// though, so try to make the package name pretty
+	if pkgref, err := pkgname.ParseReference(pkg); err == nil {
+		name = xpkg.ToDNSLabel(pkgref.Context().RepositoryStr())
+	} else {
+		name = xpkg.ToDNSLabel(pkg)
+	}
+
 	// NOTE: everything in the lock file is basically a package revision
 	// - pkgrev A
 	//   - dependency: pkgrev B
@@ -240,18 +250,6 @@ func (kc *Client) getDependencyRef(ctx context.Context, lock *pkgv1beta1.Lock, p
 		}
 	}
 
-	if name == "" {
-		// we didn't find a package to match the current dependency, which
-		// can happen during initial installation when dependencies are
-		// being discovered and fetched. We'd still like to show something
-		// though, so try to make the package name pretty
-		if pkgref, err := pkgname.ParseReference(pkg); err == nil {
-			name = xpkg.ToDNSLabel(pkgref.Context().RepositoryStr())
-		} else {
-			name = xpkg.ToDNSLabel(pkg)
-		}
-	}
-
 	return &v1.ObjectReference{
 		APIVersion: apiVersion,
 		Kind:       pkgKind,
@@ -259,32 +257,20 @@ func (kc *Client) getDependencyRef(ctx context.Context, lock *pkgv1beta1.Lock, p
 	}, nil
 }
 
-func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
-	// get the revisions for the current package and add them as children
-	if kc.revisionOutput != RevisionOutputNone {
-		err := kc.setPackageChildren(ctx, node)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to set package children for package %s", node.Unstructured.GetName())
-		}
-	}
-
-	if kc.dependencyOutput == DependencyOutputNone {
-		// we're not supposed to show any dependencies, we can return now
-		return node, nil
-	}
-
+// getDependencies returns the dependencies for the given package resource.
+func (kc *Client) getDependencies(ctx context.Context, node *Resource, lock *pkgv1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
 	cr, _ := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
 	if cr == "" {
-		// we don't have a current package revision, so just return what we've found so far
-		return node, nil
+		// we don't have a current package revision, so just return empty deps
+		return nil, nil
 	}
 
 	// find the lock file entry for the current revision
 	lp := getLockPackageForRevision(lock, cr)
 	if lp == nil {
 		// the current revision for this package isn't in the lock file yet,
-		// just return what we've found so far
-		return node, nil
+		// so just return empty deps
+		return nil, nil
 	}
 
 	// iterate over all dependencies of the package to get full references to them
@@ -305,6 +291,27 @@ func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1be
 
 		// track this dependency in the unique dependency map
 		uniqueDeps[d.Package] = struct{}{}
+	}
+	return depRefs, nil
+}
+
+func (kc *Client) getPackageTree(ctx context.Context, node *Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*Resource, error) {
+	// get the revisions for the current package and add them as children
+	if kc.revisionOutput != RevisionOutputNone {
+		err := kc.setPackageChildren(ctx, node)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to set package children for package %s", node.Unstructured.GetName())
+		}
+	}
+
+	if kc.dependencyOutput == DependencyOutputNone {
+		// we're not supposed to show any dependencies, we can return now
+		return node, nil
+	}
+
+	depRefs, err := kc.getDependencies(ctx, node, lock, uniqueDeps)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get dependencies for package %s", node.Unstructured.GetName())
 	}
 
 	// traverse all the references to dependencies that we found to build the tree out with them too
