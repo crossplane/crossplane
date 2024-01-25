@@ -13,7 +13,7 @@ import (
 )
 
 // TODO add more cases, fake client
-// Consider testing getDependencies instead to cover more
+// Consider testing getPackageDeps instead to cover more
 func TestGetDependencyRef(t *testing.T) {
 	type args struct {
 		pkgType v1beta1.PackageType

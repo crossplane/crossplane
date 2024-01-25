@@ -160,7 +160,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	}
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
 	// Get client for k8s package
-	root := xrm.GetResource(ctx, client, rootRef)
+	root := resource.GetResource(ctx, client, rootRef)
 	// We should just surface any error getting the root resource immediately.
 	if err := root.Error; err != nil {
 		return errors.Wrap(err, errGetResource)

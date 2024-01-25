@@ -22,11 +22,9 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -67,7 +65,7 @@ func NewClient(in client.Client, opts ...ResourceClientOption) (*Client, error) 
 	return c, nil
 }
 
-// GetResourceTree returns the requested Resource and all its children.
+// GetResourceTree returns the requested Crossplane Resource and all its children.
 func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
 	// Set up a FIFO queue to traverse the resource tree breadth first.
 	queue := []*resource.Resource{root}
@@ -80,7 +78,7 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 		refs := getResourceChildrenRefs(res, kc.getConnectionSecrets)
 
 		for i := range refs {
-			child := GetResource(ctx, kc.client, &refs[i])
+			child := resource.GetResource(ctx, kc.client, &refs[i])
 
 			res.Children = append(res.Children, child)
 			queue = append(queue, child)
@@ -88,23 +86,6 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 	}
 
 	return root, nil
-}
-
-// GetResource returns the requested Resource, setting any error as Resource.Error.
-func GetResource(ctx context.Context, client client.Client, ref *v1.ObjectReference) *resource.Resource {
-	result := unstructured.Unstructured{}
-	result.SetGroupVersionKind(ref.GroupVersionKind())
-
-	err := client.Get(ctx, xpmeta.NamespacedNameOf(ref), &result)
-
-	if err != nil {
-		// If the resource is not found, we still want to return a Resource
-		// object with the name and namespace set, so that the caller can
-		// still use it.
-		result.SetName(ref.Name)
-		result.SetNamespace(ref.Namespace)
-	}
-	return &resource.Resource{Unstructured: result, Error: err}
 }
 
 // getResourceChildrenRefs returns the references to the children for the given

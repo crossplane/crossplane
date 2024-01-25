@@ -20,8 +20,13 @@ import (
 	"context"
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
 const (
@@ -72,4 +77,21 @@ func MappingFor(rmapper meta.RESTMapper, resourceOrKindArg string) (*meta.RESTMa
 		return nil, err
 	}
 	return mapping, nil
+}
+
+// GetResource returns the requested Resource, setting any error as Resource.Error.
+func GetResource(ctx context.Context, client client.Client, ref *v1.ObjectReference) *Resource {
+	result := unstructured.Unstructured{}
+	result.SetGroupVersionKind(ref.GroupVersionKind())
+
+	err := client.Get(ctx, xpmeta.NamespacedNameOf(ref), &result)
+
+	if err != nil {
+		// If the resource is not found, we still want to return a Resource
+		// object with the name and namespace set, so that the caller can
+		// still use it.
+		result.SetName(ref.Name)
+		result.SetNamespace(ref.Namespace)
+	}
+	return &Resource{Unstructured: result, Error: err}
 }

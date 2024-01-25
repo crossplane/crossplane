@@ -18,22 +18,22 @@ package xpkg
 
 import (
 	"context"
+	"slices"
 
 	pkgname "github.com/google/go-containerregistry/pkg/name"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -77,8 +77,9 @@ func NewClient(in client.Client, opts ...ClientOption) (*Client, error) {
 	return c, nil
 }
 
-// GetResourceTree returns the requested Resource and all its children.
+// GetResourceTree returns the requested package Resource and all its children.
 func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
+	var err error
 	if !IsPackageType(root.Unstructured.GroupVersionKind().GroupKind()) {
 		return nil, errors.Errorf("resource %s is not a package", root.Unstructured.GetName())
 	}
@@ -89,60 +90,95 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 		return nil, err
 	}
 
-	return kc.getPackageTree(ctx, root, lock, map[string]struct{}{})
-}
+	// Set up a FIFO queue to traverse the resource tree breadth first.
+	queue := []*resource.Resource{root}
 
-func (kc *Client) setPackageRevisionChildren(ctx context.Context, node *resource.Resource) error {
-	revisions, err := kc.getRevisions(ctx, node)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get revisions for package %s", node.Unstructured.GetName())
-	}
+	uniqueDeps := map[string]struct{}{}
 
-	for _, r := range revisions {
-		// add the current revision as a child of the current node if the revision output says we should
-		state, _ := fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState")
-		isActive := pkgv1.PackageRevisionDesiredState(state) == pkgv1.PackageRevisionActive
-		if kc.revisionOutput == RevisionOutputAll || (kc.revisionOutput == RevisionOutputActive && isActive) {
-			node.Children = append(node.Children, r)
+	for len(queue) > 0 {
+		// Pop the first element from the queue.
+		res := queue[0]
+		queue = queue[1:]
+
+		if !IsPackageType(res.Unstructured.GroupVersionKind().GroupKind()) {
+			return nil, errors.Errorf("resource %s is not a package: %s", res.Unstructured.GetName(), res.Unstructured.GroupVersionKind().GroupKind())
+		}
+
+		// Set the revisions for the current package and add them as children
+		if err := kc.setChildrenRevisions(ctx, res); err != nil {
+			return nil, errors.Wrapf(err, "failed to set package revision children for package %s", res.Unstructured.GetName())
+		}
+
+		refs := make([]v1.ObjectReference, 0)
+
+		if kc.dependencyOutput != DependencyOutputNone {
+			refs, err = kc.getPackageDeps(ctx, res, lock, uniqueDeps)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get dependencies for package %s", res.Unstructured.GetName())
+			}
+		}
+
+		for i := range refs {
+			child := resource.GetResource(ctx, kc.client, &refs[i])
+
+			res.Children = append(res.Children, child)
+			queue = append(queue, child)
 		}
 	}
-	return nil
+
+	return root, nil
 }
 
-func getLockPackageForRevision(lock *v1beta1.Lock, revision string) *v1beta1.LockPackage {
-	for i := range lock.Packages {
-		if lock.Packages[i].Name == revision {
-			return &lock.Packages[i]
+func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resource) (err error) {
+	// Nothing to do if we don't want to show revisions
+	if kc.revisionOutput == RevisionOutputNone {
+		return nil
+	}
+	revisions, err := kc.getRevisions(ctx, res)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get revisions for package %s", res.Unstructured.GetName())
+	}
+
+	// add the current revision as a child of the current node if the revision output says we should
+	for _, r := range revisions {
+		state, _ := fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState")
+		switch pkgv1.PackageRevisionDesiredState(state) {
+		case pkgv1.PackageRevisionActive:
+			res.Children = append(res.Children, r)
+		case pkgv1.PackageRevisionInactive:
+			if kc.revisionOutput == RevisionOutputAll {
+				res.Children = append(res.Children, r)
+			}
 		}
 	}
 	return nil
 }
 
 // getRevisions gets the revisions for the given package.
-func (kc *Client) getRevisions(ctx context.Context, node *resource.Resource) ([]*resource.Resource, error) {
-	nodeGK := node.Unstructured.GroupVersionKind().GroupKind()
-	var prl pkgv1.PackageRevisionList
-
-	switch nodeGK {
+func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]*resource.Resource, error) {
+	revisions := &unstructured.UnstructuredList{}
+	switch gvk := xpkg.Unstructured.GroupVersionKind(); gvk.GroupKind() {
 	case pkgv1.ProviderGroupVersionKind.GroupKind():
-		prl = &pkgv1.ProviderRevisionList{}
+		revisions.SetGroupVersionKind(pkgv1.ProviderRevisionGroupVersionKind)
 	case pkgv1.ConfigurationGroupVersionKind.GroupKind():
-		prl = &pkgv1.ConfigurationRevisionList{}
+		revisions.SetGroupVersionKind(pkgv1.ConfigurationRevisionGroupVersionKind)
 	case v1beta1.FunctionGroupVersionKind.GroupKind():
-		prl = &v1beta1.FunctionRevisionList{}
+		revisions.SetGroupVersionKind(v1beta1.FunctionRevisionGroupVersionKind)
 	default:
-		return nil, errors.Errorf("unknown package type %s", nodeGK)
+		// If we didn't match any of the know types, we try to guess
+		revisions.SetGroupVersionKind(gvk.GroupVersion().WithKind(gvk.Kind + "RevisionList"))
 	}
 
-	if err := kc.client.List(ctx, prl, client.MatchingLabels(map[string]string{pkgv1.LabelParentPackage: node.Unstructured.GetName()})); xpresource.IgnoreNotFound(err) != nil {
+	if err := kc.client.List(ctx, revisions, client.MatchingLabels(map[string]string{pkgv1.LabelParentPackage: xpkg.Unstructured.GetName()})); xpresource.IgnoreNotFound(err) != nil {
 		return nil, err
 	}
-	prs := prl.GetRevisions()
-	resources := make([]*resource.Resource, 0, len(prs))
-	for i := range prs {
-		pr := prs[i]
-		childRevision := xrm.GetResource(ctx, kc.client, xpmeta.ReferenceTo(pr, pr.GetObjectKind().GroupVersionKind()))
-		resources = append(resources, childRevision)
+	// Sort the revisions by creation timestamp to have a stable output
+	slices.SortFunc(revisions.Items, func(i, j unstructured.Unstructured) int {
+		return i.GetCreationTimestamp().Compare(j.GetCreationTimestamp().Time)
+	})
+	resources := make([]*resource.Resource, 0, len(revisions.Items))
+	for i := range revisions.Items {
+		resources = append(resources, &resource.Resource{Unstructured: revisions.Items[i]})
 	}
 	return resources, nil
 }
@@ -213,8 +249,8 @@ func (kc *Client) getDependencyRef(ctx context.Context, lock *v1beta1.Lock, pkgT
 	}, nil
 }
 
-// getDependencies returns the dependencies for the given package resource.
-func (kc *Client) getDependencies(ctx context.Context, node *resource.Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
+// getPackageDeps returns the dependencies for the given package resource.
+func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
 	cr, _ := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
 	if cr == "" {
 		// we don't have a current package revision, so just return empty deps
@@ -222,7 +258,13 @@ func (kc *Client) getDependencies(ctx context.Context, node *resource.Resource, 
 	}
 
 	// find the lock file entry for the current revision
-	lp := getLockPackageForRevision(lock, cr)
+	var lp *v1beta1.LockPackage
+	for i := range lock.Packages {
+		if lock.Packages[i].Name == cr {
+			lp = &lock.Packages[i]
+			break
+		}
+	}
 	if lp == nil {
 		// the current revision for this package isn't in the lock file yet,
 		// so just return empty deps
@@ -249,45 +291,4 @@ func (kc *Client) getDependencies(ctx context.Context, node *resource.Resource, 
 		uniqueDeps[d.Package] = struct{}{}
 	}
 	return depRefs, nil
-}
-
-// setDependencyChildren gets and sets the dependencies for the given package
-// as its children
-func (kc *Client) setDependencyChildren(ctx context.Context, node *resource.Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) error {
-	depRefs, err := kc.getDependencies(ctx, node, lock, uniqueDeps)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get dependencies for package %s", node.Unstructured.GetName())
-	}
-
-	// traverse all the references to dependencies that we found to build the tree out with them too
-	for i := range depRefs {
-		child := xrm.GetResource(ctx, kc.client, &depRefs[i])
-		node.Children = append(node.Children, child)
-
-		if _, err := kc.getPackageTree(ctx, child, lock, uniqueDeps); err != nil {
-			return errors.Wrapf(err, "failed to get package tree for dependency %s", child.Unstructured.GetName())
-		}
-	}
-	return nil
-}
-
-// getPackageTree constructs the package resource tree for the given package.
-func (kc *Client) getPackageTree(ctx context.Context, node *resource.Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) (*resource.Resource, error) {
-	// get the revisions for the current package and add them as children
-	if kc.revisionOutput != RevisionOutputNone {
-		err := kc.setPackageRevisionChildren(ctx, node)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to set package revision children for package %s", node.Unstructured.GetName())
-		}
-	}
-
-	// get the dependencies for the current package and add them as children
-	if kc.dependencyOutput != DependencyOutputNone {
-		err := kc.setDependencyChildren(ctx, node, lock, uniqueDeps)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to set package dependency children for package %s", node.Unstructured.GetName())
-		}
-	}
-
-	return node, nil
 }
