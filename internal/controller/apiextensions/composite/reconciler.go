@@ -71,6 +71,7 @@ const (
 	errFetchEnvironment       = "cannot fetch environment"
 	errSelectEnvironment      = "cannot select environment"
 	errCompose                = "cannot compose resources"
+	errInvalidResources       = "some resources were invalid, check events"
 	errRenderCD               = "cannot render composed resource"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
@@ -595,6 +596,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errCompose)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
+		if kerrors.IsInvalid(err) {
+			// API Server's invalid errors may be unstable due to pointers in
+			// the string representation of invalid structs (%v), among other
+			// reasons. Setting these errors in conditions could cause the
+			// resource version to increment continuously, leading to endless
+			// reconciliation of the resource. To avoid this, we only log these
+			// errors and emit an event. The conditions' message will then just
+			// point to the event.
+			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
+		}
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}

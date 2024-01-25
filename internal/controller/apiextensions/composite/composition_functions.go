@@ -17,6 +17,7 @@ package composite
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"reflect"
 	"sort"
@@ -87,9 +88,9 @@ const (
 	// resources (XR).
 	FieldOwnerXR = "apiextensions.crossplane.io/composite"
 
-	// FieldOwnerComposed owns the fields this controller mutates on composed
+	// FieldOwnerComposedPrefix owns the fields this controller mutates on composed
 	// resources.
-	FieldOwnerComposed = "apiextensions.crossplane.io/composed"
+	FieldOwnerComposedPrefix = "apiextensions.crossplane.io/composed"
 )
 
 const (
@@ -471,6 +472,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	xr.SetName(n)
 	xr.SetUID(u)
 
+	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
+	// no risk of conflict between different XRs.
 	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
@@ -488,7 +491,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Specifically it will merge rather than replace owner references (e.g.
 		// for Usages), and will fail if we try to add a controller reference to
 		// a resource that already has a different one.
-		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerComposed)); err != nil {
+		// NOTE(phisco): We need to set a field owner unique for each XR here,
+		// this prevents multiple XRs composing the same resource to be
+		// continuously alternated as controllers.
+		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
 		}
 
@@ -496,6 +502,29 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events}, nil
+}
+
+// ComposedFieldOwnerName generates a unique field owner name
+// for a given Crossplane composite resource (XR). This uniqueness is crucial to
+// prevent multiple XRs, which compose the same resource, from continuously
+// alternating as controllers.
+//
+// The function generates a deterministic hash based on the XR's name and
+// GroupKind (GK), ensuring consistency even during system restores. The hash
+// does not include the XR's UID (as it's not deterministic), namespace (XRs
+// don't have one), or version (to allow version changes without needing to
+// update the field owner name).
+//
+// We decided to include the GK in the hash to prevent transferring ownership of
+// composed resources across XRs with whole new GK, as that should not be
+// supported without manual intervention.
+//
+// Given that field owner names are limited to 128 characters, the function
+// truncates the hash to 32 characters. A longer hash was deemed unnecessary.
+func ComposedFieldOwnerName(xr *composite.Unstructured) string {
+	h := sha256.New()
+	_, _ = h.Write([]byte(xr.GetName() + xr.GroupVersionKind().GroupKind().String()))
+	return fmt.Sprintf("%s/%x", FieldOwnerComposedPrefix, h.Sum(nil))
 }
 
 // ExistingExtraResourcesFetcher fetches extra resources requested by
