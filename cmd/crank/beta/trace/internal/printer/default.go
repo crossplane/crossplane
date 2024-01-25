@@ -60,7 +60,7 @@ func (r *defaultPrinterRow) String() string {
 		r.synced,
 		r.ready,
 		r.status,
-	}, "\t") + "\t"
+	}, "\t")
 }
 
 type defaultPkgPrinterRow struct {
