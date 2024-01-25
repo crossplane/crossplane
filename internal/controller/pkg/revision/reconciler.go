@@ -777,24 +777,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	// Check status of package dependencies unless package specifies to skip
-	// resolution.
-	if pr.GetSkipDependencyResolution() != nil && !*pr.GetSkipDependencyResolution() {
-		found, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
-		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
-		if err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errResolveDeps)
-			pr.SetConditions(v1.UnknownHealth().WithMessage(err.Error()))
-			_ = r.client.Status().Update(ctx, pr)
-
-			r.record.Event(pr, event.Warning(reasonDependencies, err))
-
-			return reconcile.Result{}, err
+	found, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
+	pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
+	if err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
 		}
+
+		err = errors.Wrap(err, errResolveDeps)
+		pr.SetConditions(v1.UnknownHealth().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, pr)
+
+		r.record.Event(pr, event.Warning(reasonDependencies, err))
+
+		return reconcile.Result{}, err
 	}
 
 	if r.runtimeHook != nil {

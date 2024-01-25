@@ -122,6 +122,13 @@ spec:
                     provider:
                       description: Provider is the name of a Provider package image.
                       type: string
+                    skipDependencyResolution:
+                      default: false
+                      description: SkipDependencyResolution indicates to the package
+                        manager whether to skip resolving dependencies for a dependsOn
+                        package. Setting this value to true may have unintended consequences.
+                        Default is false.
+                      type: boolean
                     version:
                       description: Version is the semantic version constraints of
                         the dependency image.
@@ -246,6 +253,13 @@ spec:
                     provider:
                       description: Provider is the name of a Provider package image.
                       type: string
+                    skipDependencyResolution:
+                      default: false
+                      description: SkipDependencyResolution indicates to the package
+                        manager whether to skip resolving dependencies for a dependsOn
+                        package. Setting this value to true may have unintended consequences.
+                        Default is false.
+                      type: boolean
                     version:
                       description: Version is the semantic version constraints of
                         the dependency image.

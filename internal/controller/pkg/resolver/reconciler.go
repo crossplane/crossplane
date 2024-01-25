@@ -299,6 +299,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after dependency creation to address this.
 	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
 	pack.SetSource(fmt.Sprintf(packageTagFmt, ref.String(), addVer))
+	pack.SetSkipDependencyResolution(dep.SkipDependencyResolution)
 
 	// NOTE(hasheddan): consider making the lock the controller of packages
 	// it creates.

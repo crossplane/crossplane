@@ -97,10 +97,16 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			pdep.Type = v1beta1.FunctionPackageType
 		}
 		pdep.Constraints = dep.Version
+		pdep.SkipDependencyResolution = dep.SkipDependencyResolution
 		sources[i] = pdep
 	}
 
 	found = len(sources)
+
+	// If we are skipping dependency resolution for sub-packages, we remove all
+	if pr.GetSkipDependencyResolution() != nil && *pr.GetSkipDependencyResolution() {
+		sources = []v1beta1.Dependency{}
+	}
 
 	// Get the lock.
 	lock := &v1beta1.Lock{}

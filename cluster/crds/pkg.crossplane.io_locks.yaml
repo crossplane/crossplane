@@ -54,6 +54,13 @@ spec:
                         description: Package is the OCI image name without a tag or
                           digest.
                         type: string
+                      skipDependencyResolution:
+                        default: false
+                        description: SkipDependencyResolution indicates to the package
+                          manager whether to skip resolving dependencies for a dependency
+                          package. Setting this value to true may have unintended
+                          consequences. Default is false.
+                        type: boolean
                       type:
                         description: Type is the type of package. Can be either Configuration
                           or Provider.
