@@ -18,12 +18,14 @@ limitations under the License.
 package dag
 
 import (
+	"strings"
+
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // Node is a node in DAG.
 type Node interface {
-	Identifier() string
+	Identifier(reg string) string
 	Neighbors() []Node
 
 	// Node implementations should be careful to establish uniqueness of
@@ -38,7 +40,7 @@ type DAG interface {
 	AddNode(Node) error
 	AddNodes(...Node) error
 	AddOrUpdateNodes(...Node)
-	GetNode(identifier string) (Node, error)
+	GetNode(identifier, reg string) (Node, error)
 	AddEdge(from string, to Node) (bool, error)
 	AddEdges(edges map[string][]Node) ([]Node, error)
 	NodeExists(identifier string) bool
@@ -50,15 +52,19 @@ type DAG interface {
 // MapDag is a directed acyclic graph implementation that uses a map for its
 // underlying data structure.
 type MapDag struct {
-	nodes map[string]Node
+	nodes           map[string]Node
+	defaultRegistry string
 }
 
 // NewDAGFn is a function that returns a DAG.
-type NewDAGFn func() DAG
+type NewDAGFn func(string) DAG
 
 // NewMapDag creates a new MapDag.
-func NewMapDag() DAG {
-	return &MapDag{nodes: map[string]Node{}}
+func NewMapDag(reg string) DAG {
+	return &MapDag{
+		nodes:           map[string]Node{},
+		defaultRegistry: reg,
+	}
 }
 
 // Init initializes a MapDag and implies missing destination nodes. Any implied
@@ -74,7 +80,7 @@ func (d *MapDag) Init(nodes []Node) ([]Node, error) {
 	var implied []Node
 	for _, node := range nodes {
 		miss, err := d.AddEdges(map[string][]Node{
-			node.Identifier(): node.Neighbors(),
+			node.Identifier(d.defaultRegistry): node.Neighbors(),
 		})
 		if err != nil {
 			return nil, err
@@ -96,10 +102,11 @@ func (d *MapDag) AddNodes(nodes ...Node) error {
 
 // AddNode adds a node to the graph.
 func (d *MapDag) AddNode(node Node) error {
-	if _, ok := d.nodes[node.Identifier()]; ok {
-		return errors.Errorf("node %s already exists", node.Identifier())
+	identifier := node.Identifier(d.defaultRegistry)
+	if _, ok := d.nodes[identifier]; ok {
+		return errors.Errorf("node %s already exists", identifier)
 	}
-	d.nodes[node.Identifier()] = node
+	d.nodes[identifier] = node
 	return nil
 }
 
@@ -107,7 +114,7 @@ func (d *MapDag) AddNode(node Node) error {
 // identifier.
 func (d *MapDag) AddOrUpdateNodes(nodes ...Node) {
 	for _, node := range nodes {
-		d.nodes[node.Identifier()] = node
+		d.nodes[node.Identifier(d.defaultRegistry)] = node
 	}
 }
 
@@ -142,11 +149,12 @@ func (d *MapDag) traceNode(identifier string, tree map[string]Node) error {
 	for _, n := range d.nodes[identifier].Neighbors() {
 		// if we have already visited this neighbor, then we have already
 		// visited its neighbors, so we can skip.
-		if _, ok := tree[n.Identifier()]; ok {
+		identifier := n.Identifier(d.defaultRegistry)
+		if _, ok := tree[identifier]; ok {
 			continue
 		}
-		tree[n.Identifier()] = n
-		if err := d.traceNode(n.Identifier(), tree); err != nil {
+		tree[identifier] = n
+		if err := d.traceNode(identifier, tree); err != nil {
 			return err
 		}
 	}
@@ -154,11 +162,22 @@ func (d *MapDag) traceNode(identifier string, tree map[string]Node) error {
 }
 
 // GetNode returns a node in the dag.
-func (d *MapDag) GetNode(identifier string) (Node, error) {
-	if _, ok := d.nodes[identifier]; !ok {
-		return nil, errors.Errorf("node %s does not exist", identifier)
+func (d *MapDag) GetNode(identifier, reg string) (Node, error) {
+	id := AddDefaultRegistry(identifier, reg)
+	if _, ok := d.nodes[id]; !ok {
+		return nil, errors.Errorf("node %s does not exist", id)
 	}
-	return d.nodes[identifier], nil
+	return d.nodes[id], nil
+}
+
+// AddDefaultRegistry adds the default registry to an image if there is no registry.
+func AddDefaultRegistry(image, reg string) string {
+	id := image
+
+	if strings.Count(id, "/") < 2 {
+		id = strings.Join([]string{reg, id}, "/")
+	}
+	return id
 }
 
 // AddEdges adds edges to the graph.
@@ -184,7 +203,7 @@ func (d *MapDag) AddEdge(from string, to Node) (bool, error) {
 		return false, errors.Errorf("node %s does not exist", to)
 	}
 	implied := false
-	if _, ok := d.nodes[to.Identifier()]; !ok {
+	if _, ok := d.nodes[to.Identifier(d.defaultRegistry)]; !ok {
 		implied = true
 		if err := d.AddNode(to); err != nil {
 			return implied, err
@@ -212,15 +231,16 @@ func (d *MapDag) visit(name string, neighbors []Node, stack map[string]bool, vis
 	visited[name] = true
 	stack[name] = true
 	for _, n := range neighbors {
-		if !visited[n.Identifier()] {
-			if _, ok := d.nodes[n.Identifier()]; !ok {
-				return errors.Errorf("node %q does not exist", n.Identifier())
+		identifier := n.Identifier(d.defaultRegistry)
+		if !visited[identifier] {
+			if _, ok := d.nodes[identifier]; !ok {
+				return errors.Errorf("node %q does not exist", identifier)
 			}
-			if err := d.visit(n.Identifier(), d.nodes[n.Identifier()].Neighbors(), stack, visited, results); err != nil {
+			if err := d.visit(n.Identifier(d.defaultRegistry), d.nodes[identifier].Neighbors(), stack, visited, results); err != nil {
 				return err
 			}
-		} else if stack[n.Identifier()] {
-			return errors.Errorf("detected cycle on: %s", n.Identifier())
+		} else if stack[identifier] {
+			return errors.Errorf("detected cycle on: %s", identifier)
 		}
 	}
 	for i, r := range results {

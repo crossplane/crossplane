@@ -55,17 +55,19 @@ type DependencyManager interface {
 
 // PackageDependencyManager is a resolver for packages.
 type PackageDependencyManager struct {
-	client      client.Client
-	newDag      dag.NewDAGFn
-	packageType v1beta1.PackageType
+	client          client.Client
+	defaultRegistry string
+	newDag          dag.NewDAGFn
+	packageType     v1beta1.PackageType
 }
 
 // NewPackageDependencyManager creates a new PackageDependencyManager.
-func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1beta1.PackageType) *PackageDependencyManager {
+func NewPackageDependencyManager(c client.Client, r string, nd dag.NewDAGFn, t v1beta1.PackageType) *PackageDependencyManager {
 	return &PackageDependencyManager{
-		client:      c,
-		newDag:      nd,
-		packageType: t,
+		client:          c,
+		defaultRegistry: r,
+		newDag:          nd,
+		packageType:     t,
 	}
 }
 
@@ -113,12 +115,12 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		return found, installed, invalid, errors.Wrap(err, errGetOrCreateLock)
 	}
 
-	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(""))
+	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(m.defaultRegistry))
 	if err != nil {
 		return found, installed, invalid, err
 	}
 
-	d := m.newDag()
+	d := m.newDag(m.defaultRegistry)
 	implied, err := d.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		return found, installed, invalid, errors.Wrap(err, errInitDAG)
@@ -157,11 +159,11 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		// transitive ones.
 		var missing []string
 		for _, dep := range self.Dependencies {
-			if d.NodeExists(dep.Identifier()) {
+			if d.NodeExists(dep.Identifier(m.defaultRegistry)) {
 				installed++
 				continue
 			}
-			missing = append(missing, dep.Identifier())
+			missing = append(missing, dep.Identifier(m.defaultRegistry))
 		}
 		if installed != found {
 			return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, missing)
@@ -177,9 +179,9 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	// Check if any dependencies or transitive dependencies are missing (implied).
 	var missing []string
 	for _, imp := range implied {
-		if _, ok := tree[imp.Identifier()]; ok {
+		if _, ok := tree[imp.Identifier(m.defaultRegistry)]; ok {
 			installed--
-			missing = append(missing, imp.Identifier())
+			missing = append(missing, imp.Identifier(m.defaultRegistry))
 		}
 	}
 	if len(missing) != 0 {
@@ -190,7 +192,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	// that neighbors have valid versions.
 	var invalidDeps []string
 	for _, dep := range self.Dependencies {
-		n, err := d.GetNode(dep.Package)
+		n, err := d.GetNode(dep.Package, m.defaultRegistry)
 		if err != nil {
 			return found, installed, invalid, errors.New(errDependencyNotInGraph)
 		}
@@ -207,7 +209,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			return found, installed, invalid, err
 		}
 		if !c.Check(v) {
-			invalidDeps = append(invalidDeps, lp.Identifier())
+			invalidDeps = append(invalidDeps, lp.Identifier(m.defaultRegistry))
 		}
 	}
 	invalid = len(invalidDeps)

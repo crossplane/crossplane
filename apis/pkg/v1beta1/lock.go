@@ -65,8 +65,8 @@ func ToNodes(pkgs ...LockPackage) []dag.Node {
 }
 
 // Identifier returns the source of a LockPackage.
-func (l *LockPackage) Identifier() string {
-	return l.Source
+func (l *LockPackage) Identifier(reg string) string {
+	return dag.AddDefaultRegistry(l.Source, reg)
 }
 
 // Neighbors returns dependencies of a LockPackage.
@@ -100,8 +100,8 @@ type Dependency struct {
 }
 
 // Identifier returns a dependency's source.
-func (d *Dependency) Identifier() string {
-	return d.Package
+func (d *Dependency) Identifier(reg string) string {
+	return dag.AddDefaultRegistry(d.Package, reg)
 }
 
 // Neighbors in is a no-op for dependencies because we are not yet aware of its

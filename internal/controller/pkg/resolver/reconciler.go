@@ -207,7 +207,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"name", lock.GetName(),
 	)
 
-	dag := r.newDag()
+	dag := r.newDag(r.registry)
 	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
@@ -232,7 +232,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// check for missing nodes again.
 	dep, ok := implied[0].(*v1beta1.Dependency)
 	if !ok {
-		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, dep.Identifier()))
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, dep.Identifier(r.registry)))
 		return reconcile.Result{Requeue: false}, nil
 	}
 	c, err := semver.NewConstraint(dep.Constraints)
@@ -276,7 +276,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// NOTE(hasheddan): consider creating event on package revision
 	// dictating constraints.
 	if addVer == "" {
-		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
+		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(r.registry), dep.Constraints))
 		return reconcile.Result{Requeue: false}, nil
 	}
 
