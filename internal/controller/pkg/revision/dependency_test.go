@@ -18,6 +18,7 @@ package revision
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -39,6 +40,12 @@ import (
 )
 
 var _ DependencyManager = &PackageDependencyManager{}
+
+const (
+	defaultRegistry = "test.registry.io"
+
+	imageWithRegistryFmt = "%s/%s"
+)
 
 func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -136,7 +143,7 @@ func TestResolve(t *testing.T) {
 						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 						MockCreate: test.NewMockCreateFn(nil),
 					},
-					newDag: func() dag.DAG {
+					newDag: func(string) dag.DAG {
 						return &dagfake.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, errBoom
@@ -171,7 +178,7 @@ func TestResolve(t *testing.T) {
 							return nil
 						}),
 					},
-					newDag: func() dag.DAG {
+					newDag: func(string) dag.DAG {
 						return &dagfake.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
@@ -205,7 +212,8 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
+					defaultRegistry: defaultRegistry,
+					newDag: func(string) dag.DAG {
 						return &dagfake.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
@@ -246,7 +254,9 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				total: 2,
-				err:   errors.Errorf(errFmtMissingDependencies, []string{"not-here-1", "not-here-2"}),
+				err: errors.Errorf(errFmtMissingDependencies,
+					[]string{fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-1"),
+						fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-2")}),
 			},
 		},
 		"ErrorSelfExistMissingDependencies": {
@@ -285,7 +295,8 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
+					defaultRegistry: defaultRegistry,
+					newDag: func(string) dag.DAG {
 						return &dagfake.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
@@ -299,9 +310,9 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-1"): &v1beta1.Dependency{},
+									fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-2"): &v1beta1.Dependency{},
+									fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-3"): &v1beta1.Dependency{},
 								}, nil
 							},
 						}
@@ -334,7 +345,9 @@ func TestResolve(t *testing.T) {
 			want: want{
 				total:     3,
 				installed: 1,
-				err:       errors.Errorf(errFmtMissingDependencies, []string{"not-here-2", "not-here-3"}),
+				err: errors.Errorf(errFmtMissingDependencies,
+					[]string{fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-2"),
+						fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-3")}),
 			},
 		},
 		"ErrorSelfExistInvalidDependencies": {
@@ -373,7 +386,8 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
+					defaultRegistry: defaultRegistry,
+					newDag: func(string) dag.DAG {
 						return &dagfake.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
@@ -385,7 +399,7 @@ func TestResolve(t *testing.T) {
 									"not-here-3": &v1beta1.Dependency{},
 								}, nil
 							},
-							MockGetNode: func(s string) (dag.Node, error) {
+							MockGetNode: func(s, r string) (dag.Node, error) {
 								if s == "not-here-1" {
 									return &v1beta1.LockPackage{
 										Source:  "not-here-1",
@@ -433,7 +447,9 @@ func TestResolve(t *testing.T) {
 				total:     3,
 				installed: 3,
 				invalid:   2,
-				err:       errors.Errorf(errFmtIncompatibleDependency, []string{"not-here-1", "not-here-2"}),
+				err: errors.Errorf(errFmtIncompatibleDependency,
+					[]string{fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-1"),
+						fmt.Sprintf(imageWithRegistryFmt, defaultRegistry, "not-here-2")}),
 			},
 		},
 		"SuccessfulSelfExistValidDependencies": {
@@ -476,7 +492,7 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					newDag: func() dag.DAG {
+					newDag: func(string) dag.DAG {
 						return &dagfake.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
@@ -492,7 +508,7 @@ func TestResolve(t *testing.T) {
 									"function-not-here-1": &v1beta1.Dependency{},
 								}, nil
 							},
-							MockGetNode: func(s string) (dag.Node, error) {
+							MockGetNode: func(s, r string) (dag.Node, error) {
 								if s == "not-here-1" {
 									return &v1beta1.LockPackage{
 										Source:  "not-here-1",

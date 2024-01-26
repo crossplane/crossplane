@@ -29,7 +29,7 @@ type MockDag struct {
 	MockAddNode          func(dag.Node) error
 	MockAddNodes         func(...dag.Node) error
 	MockAddOrUpdateNodes func(...dag.Node)
-	MockGetNode          func(identifier string) (dag.Node, error)
+	MockGetNode          func(identifier, reg string) (dag.Node, error)
 	MockAddEdge          func(from string, to dag.Node) (bool, error)
 	MockAddEdges         func(edges map[string][]dag.Node) ([]dag.Node, error)
 	MockNodeExists       func(identifier string) bool
@@ -59,8 +59,8 @@ func (d *MockDag) AddOrUpdateNodes(n ...dag.Node) {
 }
 
 // GetNode calls the underlying MockGetNode.
-func (d *MockDag) GetNode(i string) (dag.Node, error) {
-	return d.MockGetNode(i)
+func (d *MockDag) GetNode(i, r string) (dag.Node, error) {
+	return d.MockGetNode(i, r)
 }
 
 // AddEdge calls the underlying MockAddEdge.

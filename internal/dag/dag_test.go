@@ -22,6 +22,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 type simpleNode struct {
@@ -29,7 +31,7 @@ type simpleNode struct {
 	neighbors  map[string]simpleNode
 }
 
-func (s *simpleNode) Identifier() string {
+func (s *simpleNode) Identifier(string) string {
 	return s.identifier
 }
 
@@ -50,7 +52,7 @@ func (s *simpleNode) AddNeighbors(nodes ...Node) error {
 		if !ok {
 			return errors.New("not a simple node")
 		}
-		s.neighbors[sn.Identifier()] = *sn
+		s.neighbors[sn.Identifier(xpkg.DefaultRegistry)] = *sn
 	}
 	return nil
 }
@@ -81,7 +83,7 @@ func TestSort(t *testing.T) {
 	seven := "crossplane/seven"
 	eight := "crossplane/eight"
 	nine := "crossplane/nine"
-	dag := NewMapDag()
+	dag := NewMapDag(xpkg.DefaultRegistry)
 	type want struct {
 		numImplied int
 		numDeps    int
@@ -138,8 +140,8 @@ func TestSort(t *testing.T) {
 			want: want{
 				sortedFn: func(nodes []simpleNode, sorted []string) error {
 					for i, s := range sorted {
-						if s != nodes[len(nodes)-i-1].Identifier() {
-							errors.Errorf("Wrong sort: expected %s to be %s", s, nodes[len(nodes)-i-1].Identifier())
+						if s != nodes[len(nodes)-i-1].Identifier(xpkg.DefaultRegistry) {
+							errors.Errorf("Wrong sort: expected %s to be %s", s, nodes[len(nodes)-i-1].Identifier(xpkg.DefaultRegistry))
 						}
 					}
 					return nil
@@ -230,7 +232,7 @@ func TestSort(t *testing.T) {
 			if err := tc.want.sortedFn(tc.nodes, sorted); err != nil {
 				t.Errorf("\n%s\nsorted(...): %s", tc.reason, err)
 			}
-			tree, _ := dag.TraceNode(tc.nodes[0].Identifier())
+			tree, _ := dag.TraceNode(tc.nodes[0].Identifier(xpkg.DefaultRegistry))
 			if diff := cmp.Diff(tc.want.numDeps, len(tree)); diff != "" {
 				t.Errorf("\n%s\\TraceNode(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -239,6 +241,6 @@ func TestSort(t *testing.T) {
 }
 
 func TestDag(_ *testing.T) {
-	d := NewMapDag()
+	d := NewMapDag(xpkg.DefaultRegistry)
 	d.AddNode(&simpleNode{identifier: "hi"})
 }

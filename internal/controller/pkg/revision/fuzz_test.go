@@ -56,18 +56,18 @@ func init() {
 	}
 }
 
-func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
+func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func(string) dag.DAG, error) {
 	traceNodeMap := make(map[string]dag.Node)
 	err := ff.FuzzMap(&traceNodeMap)
 	if err != nil {
-		return func() dag.DAG { return nil }, err
+		return func(string) dag.DAG { return nil }, err
 	}
 	lp := &v1beta1.LockPackage{}
 	err = ff.GenerateStruct(lp)
 	if err != nil {
-		return func() dag.DAG { return nil }, err
+		return func(string) dag.DAG { return nil }, err
 	}
-	return func() dag.DAG {
+	return func(string) dag.DAG {
 		return &dagfake.MockDag{
 			MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 				return nil, nil
@@ -78,7 +78,7 @@ func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
 			MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 				return traceNodeMap, nil
 			},
-			MockGetNode: func(s string) (dag.Node, error) {
+			MockGetNode: func(s, r string) (dag.Node, error) {
 				return lp, nil
 			},
 		}

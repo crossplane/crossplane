@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
+
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 type SimpleFuzzNode struct {
@@ -46,12 +48,12 @@ func (s *SimpleFuzzNode) AddNeighbors(nodes ...Node) error {
 		if s.NeighborsField == nil {
 			s.NeighborsField = make(map[string]SimpleFuzzNode)
 		}
-		s.NeighborsField[sn.Identifier()] = *sn
+		s.NeighborsField[sn.Identifier(xpkg.DefaultRegistry)] = *sn
 	}
 	return nil
 }
 
-func (s *SimpleFuzzNode) Identifier() string {
+func (s *SimpleFuzzNode) Identifier(string) string {
 	return s.IdentifierString
 }
 
@@ -79,7 +81,7 @@ func FuzzDag(f *testing.F) {
 				n.NeighborsField = make(map[string]SimpleFuzzNode)
 			}
 		}
-		d := NewMapDag()
+		d := NewMapDag(xpkg.DefaultRegistry)
 
 		_, _ = d.Init(toNodesFuzz(nodes))
 		identifier, err := c.GetString()

@@ -163,7 +163,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, errBoom
@@ -199,7 +199,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
@@ -238,7 +238,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
@@ -277,7 +277,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
@@ -320,7 +320,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
@@ -367,7 +367,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
@@ -415,7 +415,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
@@ -464,7 +464,7 @@ func TestReconcile(t *testing.T) {
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithNewDagFn(func() dag.DAG {
+					WithNewDagFn(func(string) dag.DAG {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
