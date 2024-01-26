@@ -215,9 +215,8 @@ func GetComplexPackage() *resource.Resource {
 					},
 					{
 						Unstructured: DummyPackage(v1.ProviderGroupVersionKind, "upbound-provider-aws-ec2",
-							WithConditions(v1.Active(), v1.Unhealthy().WithMessage("post establish runtime hook failed for package: provider package deployment has no condition of type \"Available\" yet")),
+							WithConditions(v1.Active(), v1.UnknownHealth().WithMessage("cannot resolve package dependencies: incompatible dependencies: [xpkg.upbound.io/crossplane-contrib/provider-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]")),
 							WithPackage("xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0"),
-							WithDesiredState(v1.PackageRevisionActive),
 						),
 						Children: []*resource.Resource{
 							{
@@ -225,6 +224,12 @@ func GetComplexPackage() *resource.Resource {
 									WithConditions(v1.Active(), v1.Unhealthy().WithMessage("post establish runtime hook failed for package: provider package deployment has no condition of type \"Available\" yet")),
 									WithImage("xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0"),
 									WithDesiredState(v1.PackageRevisionActive)),
+							},
+							{
+								Unstructured: DummyPackage(v1.ProviderGroupVersionKind, "upbound-provider-aws-something",
+									WithConditions(v1.Active()), // Missing healthy condition on purpose.
+									WithPackage("xpkg.upbound.io/upbound/provider-aws-something:v0.47.0"),
+								),
 							},
 						},
 					},
