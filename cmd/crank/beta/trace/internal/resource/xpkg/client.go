@@ -237,20 +237,13 @@ func getPackageDetails(t v1beta1.PackageType) (string, string, pkgv1.PackageRevi
 // getDependencyRef returns the dependency reference for the given package,
 // based on the lock file.
 func (kc *Client) getDependencyRef(ctx context.Context, lock *v1beta1.Lock, pkgType v1beta1.PackageType, pkg string) (*v1.ObjectReference, error) {
-	var name string
-	pkgKind, apiVersion, revision, err := getPackageDetails(pkgType)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get package details for dependency %s", pkg)
-	}
-
 	// if we don't find a package to match the current dependency, which
 	// can happen during initial installation when dependencies are
 	// being discovered and fetched. We'd still like to show something
 	// though, so try to make the package name pretty
+	name := xpkg.ToDNSLabel(pkg)
 	if pkgref, err := pkgname.ParseReference(pkg); err == nil {
 		name = xpkg.ToDNSLabel(pkgref.Context().RepositoryStr())
-	} else {
-		name = xpkg.ToDNSLabel(pkg)
 	}
 
 	// NOTE: everything in the lock file is basically a package revision
@@ -261,6 +254,11 @@ func (kc *Client) getDependencyRef(ctx context.Context, lock *v1beta1.Lock, pkgT
 	// - pkgrev C
 
 	// find the current dependency from all the packages in the lock file
+	pkgKind, apiVersion, revision, err := getPackageDetails(pkgType)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get package details for dependency %s", pkg)
+	}
+
 	for _, p := range lock.Packages {
 		if p.Source == pkg {
 			// current package source matches the package of the dependency, let's get the full object

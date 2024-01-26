@@ -98,8 +98,7 @@ func DummyNamespacedMR(kind, name, namespace string, conds ...xpv1.Condition) un
 
 // DummyPackage returns an unstructured that has basic fields set to be used by other tests.
 func DummyPackage(gvk schema.GroupVersionKind, name string, opts ...DummyManifestOpt) unstructured.Unstructured {
-	apiVersion, kind := gvk.ToAPIVersionAndKind()
-	return DummyManifest(kind, name, append([]DummyManifestOpt{WithAPIVersion(apiVersion)}, opts...)...)
+	return DummyManifest(gvk.Kind, name, append([]DummyManifestOpt{WithAPIVersion(gvk.GroupVersion().String())}, opts...)...)
 }
 
 // GetComplexResource returns a complex resource with children.
