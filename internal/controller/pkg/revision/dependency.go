@@ -127,6 +127,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	}
 
 	lockRef := xpkg.ParsePackageSourceFromReference(prRef)
+	lockRef = dag.AddDefaultRegistry(lockRef, m.defaultRegistry) // Add default registry if not present.
+
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
