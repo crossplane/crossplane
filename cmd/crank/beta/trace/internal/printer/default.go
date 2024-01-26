@@ -198,7 +198,7 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 
 // getResourceStatus returns a string that represents an entire row of status
 // information for the resource.
-func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
+func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer { //nolint:gocyclo // NOTE(phisco): just a few switches, not much to do here
 	readyCond := r.GetCondition(xpv1.TypeReady)
 	syncedCond := r.GetCondition(xpv1.TypeSynced)
 	var status, m string
@@ -211,12 +211,14 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 		// if both are true we want to show the ready reason only
 		status = string(readyCond.Reason)
 
-	// The following cases are for when one of the conditions is false,
+	// The following cases are for when one of the conditions is not true (false or unknown),
 	// prioritizing synced over readiness in case of issues.
-	case syncedCond.Status == corev1.ConditionFalse:
+	case syncedCond.Status != corev1.ConditionTrue &&
+		(syncedCond.Reason != "" || syncedCond.Message != ""):
 		status = string(syncedCond.Reason)
 		m = syncedCond.Message
-	case readyCond.Status == corev1.ConditionFalse:
+	case readyCond.Status != corev1.ConditionTrue &&
+		(readyCond.Reason != "" || readyCond.Message != ""):
 		status = string(readyCond.Reason)
 		m = readyCond.Message
 
@@ -255,22 +257,24 @@ func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stri
 	gk := r.Unstructured.GroupVersionKind().GroupKind()
 	switch {
 	case r.Error != nil:
-		// if there is an error we want to show it, regardless of what type this
-		// resource is and what conditions it has
+		// If there is an error we want to show it, regardless of what type this
+		// resource is and what conditions it has.
 		status = "Error"
 		m = r.Error.Error()
 	case xpkg.IsPackageType(gk):
 		switch {
 		case healthyCond.Status == corev1.ConditionTrue && installedCond.Status == corev1.ConditionTrue:
-			// if both are true we want to show the healthy reason only
+			// If both are true we want to show the healthy reason only
 			status = string(healthyCond.Reason)
 
-		// The following cases are for when one of the conditions is false,
+		// The following cases are for when one of the conditions is not true (false or unknown),
 		// prioritizing installed over healthy in case of issues.
-		case installedCond.Status == corev1.ConditionFalse:
+		case installedCond.Status != corev1.ConditionTrue &&
+			(installedCond.Reason != "" || installedCond.Message != ""):
 			status = string(installedCond.Reason)
 			m = installedCond.Message
-		case healthyCond.Status == corev1.ConditionFalse:
+		case healthyCond.Status != corev1.ConditionTrue &&
+			(healthyCond.Reason != "" || healthyCond.Message != ""):
 			status = string(healthyCond.Reason)
 			m = healthyCond.Message
 		default:

@@ -73,13 +73,14 @@ ObjectStorage/test-resource (default)                  True      True
 			want: want{
 				// Note: Use spaces instead of tabs for indentation
 				output: `
-NAME                                                                                   VERSION   INSTALLED   HEALTHY   STATE    STATUS                                                                                          
-Configuration/platform-ref-aws                                                         v0.9.0    True        True      -        HealthyPackageRevision                                                                          
-├─ ConfigurationRevision/platform-ref-aws-9ad7b5db2899                                 v0.9.0    True        True      Active   HealthyPackageRevision                                                                          
-└─ Configuration/upbound-configuration-aws-network upbound-configuration-aws-network   v0.7.0    True        True      -        HealthyPackageRevision                                                                          
-   ├─ ConfigurationRevision/upbound-configuration-aws-network-97be9100cfe1             v0.7.0    True        True      Active   HealthyPackageRevision                                                                          
-   └─ Provider/upbound-provider-aws-ec2                                                v0.47.0   True        False     -        UnhealthyPackageRevision: ...ider package deployment has no condition of type "Available" yet   
-      └─ ProviderRevision/upbound-provider-aws-ec2-9ad7b5db2899                        v0.47.0   True        False     Active   UnhealthyPackageRevision: ...ider package deployment has no condition of type "Available" yet   
+NAME                                                                                   VERSION   INSTALLED   HEALTHY   STATE    STATUS                                                                                              
+Configuration/platform-ref-aws                                                         v0.9.0    True        True      -        HealthyPackageRevision                                                                              
+├─ ConfigurationRevision/platform-ref-aws-9ad7b5db2899                                 v0.9.0    True        True      Active   HealthyPackageRevision                                                                              
+└─ Configuration/upbound-configuration-aws-network upbound-configuration-aws-network   v0.7.0    True        True      -        HealthyPackageRevision                                                                              
+   ├─ ConfigurationRevision/upbound-configuration-aws-network-97be9100cfe1             v0.7.0    True        True      Active   HealthyPackageRevision                                                                              
+   └─ Provider/upbound-provider-aws-ec2                                                v0.47.0   True        Unknown   -        UnknownPackageRevisionHealth: ...der-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]   
+      ├─ ProviderRevision/upbound-provider-aws-ec2-9ad7b5db2899                        v0.47.0   True        False     Active   UnhealthyPackageRevision: ...ider package deployment has no condition of type "Available" yet       
+      └─ Provider/upbound-provider-aws-something                                       v0.47.0   True        -         -        ActivePackageRevision                                                                               
 `,
 				err: nil,
 			},
