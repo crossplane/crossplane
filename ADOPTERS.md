@@ -68,3 +68,4 @@ This list is sorted in the order that organizations were added to it.
 | [Novo Nordisk](https://www.novonordisk.com/) | [scni@novonordisk.com](mailto:scni@novonordisk.com) ([@CasperGN](https://github.com/CasperGN)) | Provisioning our Cluster setup with Crossplane to span across both of our Cloud Providers. |
 | [VMware Tanzu](https://tanzu.vmware.com/tanzu) | [@teddyking](https://github.com/teddyking) | Crossplane is an essential component backing many of the services capabilities offered by [Tanzu Application Platform](https://tanzu.vmware.com/application-platform) |
 | [Nexthink](https://nexthink.com) | @fernandezcuesta | Deployment and bootstrapping of multiple EKS clusters and common infrastructure replacing Terraform+Ansible. |
+| [Nokia](https://www.nokia.com) | @bobh66 | Multi-cloud orchestration of resources in support of production deployments for a variety of network services. |
