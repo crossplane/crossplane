@@ -69,3 +69,5 @@ This list is sorted in the order that organizations were added to it.
 | [VMware Tanzu](https://tanzu.vmware.com/tanzu) | [@teddyking](https://github.com/teddyking) | Crossplane is an essential component backing many of the services capabilities offered by [Tanzu Application Platform](https://tanzu.vmware.com/application-platform) |
 | [Nexthink](https://nexthink.com) | @fernandezcuesta | Deployment and bootstrapping of multiple EKS clusters and common infrastructure replacing Terraform+Ansible. |
 | [Nokia](https://www.nokia.com) | @bobh66 | Multi-cloud orchestration of resources in support of production deployments for a variety of network services. |
+| [Built Technologies](https://www.getbuilt.com) | @rwsweeney | Built Technologies uses Crossplane in our developer environment, and at times it has exceeded over 10,000 AWS resources managed by Crossplane. |
+
