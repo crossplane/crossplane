@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package xrm
 
 import (
 	"strings"
@@ -28,6 +28,8 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)
@@ -79,7 +81,7 @@ func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
 
 func TestGetResourceChildrenRefs(t *testing.T) {
 	type args struct {
-		resource   *Resource
+		resource   *resource2.Resource
 		witSecrets bool
 	}
 	type want struct {
@@ -93,7 +95,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		"XRCWithChildrenXR": {
 			reason: "Should return the XR child for an XRC.",
 			args: args{
-				resource: &Resource{
+				resource: &resource2.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCRef(&v1.ObjectReference{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
@@ -114,7 +116,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		"XRWithChildren": {
 			reason: "Should return the list of children refs for an XR.",
 			args: args{
-				resource: &Resource{
+				resource: &resource2.Resource{
 					Unstructured: *buildXR("root-xr", withXRRefs(v1.ObjectReference{
 						APIVersion: "example.com/v1",
 						Kind:       "MR",
@@ -166,7 +168,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return the XR child, but no writeConnectionSecret ref for an XRC.",
 			args: args{
 				witSecrets: true,
-				resource: &Resource{
+				resource: &resource2.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&v1.ObjectReference{
@@ -196,7 +198,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return the XR child, but no writeConnectionSecret, ref for an XRC.",
 			args: args{
 				witSecrets: false,
-				resource: &Resource{
+				resource: &resource2.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&v1.ObjectReference{
@@ -220,7 +222,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return a list of children refs for an XR.",
 			args: args{
 				witSecrets: true,
-				resource: &Resource{
+				resource: &resource2.Resource{
 					Unstructured: *buildXR("root-xr", withXRSecretRef(&xpv1.SecretReference{
 						Name:      "secret-1",
 						Namespace: "ns-1",

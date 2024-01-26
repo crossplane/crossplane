@@ -34,8 +34,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
 )
 
 const (
@@ -59,9 +62,12 @@ type Cmd struct {
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
-	Namespace             string `short:"n" name:"namespace" help:"Namespace of the resource." default:"default"`
-	Output                string `short:"o" name:"output" help:"Output format. One of: default, wide, json, dot." enum:"default,wide,json,dot" default:"default"`
-	ShowConnectionSecrets bool   `short:"s" name:"show-connection-secrets" help:"Show connection secrets in the output."`
+	Namespace                 string `short:"n" name:"namespace" help:"Namespace of the resource." default:"default"`
+	Output                    string `short:"o" name:"output" help:"Output format. One of: default, wide, json, dot." enum:"default,wide,json,dot" default:"default"`
+	ShowConnectionSecrets     bool   `short:"s" name:"show-connection-secrets" help:"Show connection secrets in the output."`
+	ShowPackageDependencies   string `name:"show-package-dependencies" help:"Show package dependencies in the output. One of: unique, all, none." enum:"unique,all,none" default:"unique"`
+	ShowPackageRevisions      string `name:"show-package-revisions" help:"Show package revisions in the output. One of: active, all, none." enum:"active,all,none" default:"active"`
+	ShowPackageRuntimeConfigs bool   `name:"show-package-runtime-configs" help:"Show package runtime configs in the output." default:"false"`
 }
 
 // Help returns help message for the trace command.
@@ -97,6 +103,7 @@ Examples:
 
 // Run runs the trace command.
 func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(phisco): refactor
+	ctx := context.Background()
 	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
 
 	// Init new printer
@@ -119,6 +126,9 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 		return errors.Wrap(err, errInitKubeClient)
 	}
 
+	// add package scheme
+	_ = pkg.AddToScheme(client.Scheme())
+
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 	if err != nil {
 		return errors.Wrap(err, errGetDiscoveryClient)
@@ -129,19 +139,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	d := memory.NewMemCacheClient(discoveryClient)
 	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d)
 
-	// Get client for k8s package
-	resClient, err := resource.NewClient(client, rmapper, resource.WithConnectionSecrets(c.ShowConnectionSecrets))
-	if err != nil {
-		return errors.Wrap(err, errInitKubeClient)
-	}
-	logger.Debug("Built client")
-
-	resource, name, err := c.getResourceAndName()
+	res, name, err := c.getResourceAndName()
 	if err != nil {
 		return errors.Wrap(err, errInvalidResourceAndName)
 	}
 
-	mapping, err := resClient.MappingFor(resource)
+	mapping, err := resource.MappingFor(rmapper, res)
 	if err != nil {
 		return errors.Wrap(err, errGetMapping)
 	}
@@ -157,7 +160,34 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 		rootRef.Namespace = c.Namespace
 	}
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
-	root, err := resClient.GetResourceTree(context.Background(), rootRef)
+	// Get client for k8s package
+	root := resource.GetResource(ctx, client, rootRef)
+	// We should just surface any error getting the root resource immediately.
+	if err := root.Error; err != nil {
+		return errors.Wrap(err, errGetResource)
+	}
+
+	var treeClient resource.TreeClient
+	switch {
+	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
+		logger.Debug("Requested resource is an Package")
+		treeClient, err = xpkg.NewClient(client,
+			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
+			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
+			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+		if err != nil {
+			return errors.Wrap(err, errInitKubeClient)
+		}
+	default:
+		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
+		treeClient, err = xrm.NewClient(client, xrm.WithConnectionSecrets(c.ShowConnectionSecrets))
+		if err != nil {
+			return errors.Wrap(err, errInitKubeClient)
+		}
+	}
+	logger.Debug("Built client")
+
+	root, err = treeClient.GetResourceTree(ctx, root)
 	if err != nil {
 		logger.Debug(errGetResource, "error", err)
 		return errors.Wrap(err, errGetResource)

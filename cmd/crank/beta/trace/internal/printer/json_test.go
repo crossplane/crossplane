@@ -18,7 +18,7 @@ package printer
 
 import (
 	"bytes"
-	"strings"
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -83,8 +83,7 @@ func TestJSONPrinter(t *testing.T) {
         "apiVersion": "test.cloud/v1alpha1",
         "kind": "XObjectStorage",
         "metadata": {
-          "name": "test-resource-hash",
-          "namespace": ""
+          "name": "test-resource-hash"
         },
         "status": {
           "conditions": [
@@ -109,8 +108,7 @@ func TestJSONPrinter(t *testing.T) {
             "apiVersion": "test.cloud/v1alpha1",
             "kind": "Bucket",
             "metadata": {
-              "name": "test-resource-bucket-hash",
-              "namespace": ""
+              "name": "test-resource-bucket-hash"
             },
             "status": {
               "conditions": [
@@ -135,8 +133,7 @@ func TestJSONPrinter(t *testing.T) {
                 "apiVersion": "test.cloud/v1alpha1",
                 "kind": "User",
                 "metadata": {
-                  "name": "test-resource-child-1-bucket-hash",
-                  "namespace": ""
+                  "name": "test-resource-child-1-bucket-hash"
                 },
                 "status": {
                   "conditions": [
@@ -162,8 +159,7 @@ func TestJSONPrinter(t *testing.T) {
                 "apiVersion": "test.cloud/v1alpha1",
                 "kind": "User",
                 "metadata": {
-                  "name": "test-resource-child-mid-bucket-hash",
-                  "namespace": ""
+                  "name": "test-resource-child-mid-bucket-hash"
                 },
                 "status": {
                   "conditions": [
@@ -189,8 +185,7 @@ func TestJSONPrinter(t *testing.T) {
                 "apiVersion": "test.cloud/v1alpha1",
                 "kind": "User",
                 "metadata": {
-                  "name": "test-resource-child-2-bucket-hash",
-                  "namespace": ""
+                  "name": "test-resource-child-2-bucket-hash"
                 },
                 "status": {
                   "conditions": [
@@ -216,8 +211,7 @@ func TestJSONPrinter(t *testing.T) {
                     "apiVersion": "test.cloud/v1alpha1",
                     "kind": "User",
                     "metadata": {
-                      "name": "test-resource-child-2-1-bucket-hash",
-                      "namespace": ""
+                      "name": "test-resource-child-2-1-bucket-hash"
                     },
                     "status": {
                       "conditions": [
@@ -240,8 +234,7 @@ func TestJSONPrinter(t *testing.T) {
             "apiVersion": "test.cloud/v1alpha1",
             "kind": "User",
             "metadata": {
-              "name": "test-resource-user-hash",
-              "namespace": ""
+              "name": "test-resource-user-hash"
             },
             "status": {
               "conditions": [
@@ -276,14 +269,23 @@ func TestJSONPrinter(t *testing.T) {
 			p := JSONPrinter{}
 			var buf bytes.Buffer
 			err := p.Print(&buf, tc.args.resource)
-			got := buf.String()
+			gotJSON := buf.String()
 
 			// Check error
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
 			}
+			// Unmarshal expected and actual output to compare them as maps
+			// instead of strings, to avoid order dependent failures
+			var output, got map[string]any
+			if err := json.Unmarshal([]byte(tc.want.output), &output); err != nil {
+				t.Errorf("JSONPrinter.Print() error unmarshalling expected output: %s", err)
+			}
+			if err := json.Unmarshal([]byte(gotJSON), &got); err != nil {
+				t.Errorf("JSONPrinter.Print() error unmarshalling actual output: %s", err)
+			}
 			// Check table
-			if diff := cmp.Diff(strings.TrimSpace(tc.want.output), strings.TrimSpace(got)); diff != "" {
+			if diff := cmp.Diff(output, got); diff != "" {
 				t.Errorf("%s\nCliTableAddResource(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

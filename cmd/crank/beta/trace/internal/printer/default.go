@@ -21,13 +21,18 @@ import (
 	"io"
 	"strings"
 
+	gcrname "github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/printers"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
 )
 
 const (
@@ -56,7 +61,61 @@ func (r *defaultPrinterRow) String() string {
 		r.synced,
 		r.ready,
 		r.status,
-	}, "\t") + "\t"
+	}, "\t")
+}
+
+type defaultPkgPrinterRow struct {
+	wide bool
+	// wide only fields
+	// NOTE(phisco): just package is a reserved word
+	packageImg string
+
+	name      string
+	version   string
+	installed string
+	healthy   string
+	state     string
+	status    string
+}
+
+func (r *defaultPkgPrinterRow) String() string {
+	cols := []string{
+		r.name,
+	}
+	if r.wide {
+		cols = append(cols, r.packageImg)
+	}
+	cols = append(cols,
+		r.version,
+		r.installed,
+		r.healthy,
+		r.state,
+		r.status,
+	)
+	return strings.Join(cols, "\t") + "\t"
+}
+
+func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackageOrPackageRevision bool) {
+	if xpkg.IsPackageType(gk) || xpkg.IsPackageRevisionType(gk) {
+		return &defaultPkgPrinterRow{
+			wide: wide,
+
+			name:       "NAME",
+			packageImg: "PACKAGE",
+			version:    "VERSION",
+			installed:  "INSTALLED",
+			healthy:    "HEALTHY",
+			state:      "STATE",
+			status:     "STATUS",
+		}, true
+	}
+	return &defaultPrinterRow{
+		name:   "NAME",
+		synced: "SYNCED",
+		ready:  "READY",
+		status: "STATUS",
+	}, false
+
 }
 
 // Print implements the Printer interface by prints the resource tree in a
@@ -64,12 +123,8 @@ func (r *defaultPrinterRow) String() string {
 func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 	tw := printers.GetNewTabWriter(w)
 
-	headers := defaultPrinterRow{
-		name:   "NAME",
-		synced: "SYNCED",
-		ready:  "READY",
-		status: "STATUS",
-	}
+	headers, isPackageOrRevision := getHeaders(root.Unstructured.GroupVersionKind().GroupKind(), p.wide)
+
 	if _, err := fmt.Fprintln(tw, headers.String()); err != nil {
 		return errors.Wrap(err, errWriteHeader)
 	}
@@ -113,14 +168,14 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 		if item.resource.Unstructured.GetNamespace() != "" {
 			name.WriteString(fmt.Sprintf(" (%s)", item.resource.Unstructured.GetNamespace()))
 		}
-		ready, synced, status := getResourceStatus(item.resource, p.wide)
 
-		row := defaultPrinterRow{
-			name:   name.String(),
-			ready:  ready,
-			synced: synced,
-			status: status,
+		var row fmt.Stringer
+		if isPackageOrRevision {
+			row = getPkgResourceStatus(item.resource, name.String(), p.wide)
+		} else {
+			row = getResourceStatus(item.resource, name.String(), p.wide)
 		}
+
 		if _, err := fmt.Fprintln(tw, row.String()); err != nil {
 			return errors.Wrap(err, errWriteRow)
 		}
@@ -141,11 +196,12 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 	return nil
 }
 
-// getResourceStatus returns the status of the resource.
-func getResourceStatus(r *resource.Resource, wide bool) (ready string, synced string, status string) {
+// getResourceStatus returns a string that represents an entire row of status
+// information for the resource.
+func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
 	readyCond := r.GetCondition(xpv1.TypeReady)
 	syncedCond := r.GetCondition(xpv1.TypeSynced)
-	var m string
+	var status, m string
 	switch {
 	case r.Error != nil:
 		// if there is an error we want to show it
@@ -181,7 +237,105 @@ func getResourceStatus(r *resource.Resource, wide bool) (ready string, synced st
 		status = fmt.Sprintf("%s: %s", status, m)
 	}
 
-	return mapEmptyStatusToDash(readyCond.Status), mapEmptyStatusToDash(syncedCond.Status), status
+	return &defaultPrinterRow{
+		name:   name,
+		ready:  mapEmptyStatusToDash(readyCond.Status),
+		synced: mapEmptyStatusToDash(syncedCond.Status),
+		status: status,
+	}
+}
+
+func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer { //nolint:gocyclo // TODO: just a few switches, not much to do here
+	var err error
+	var packageImg, state, status, m string
+
+	healthyCond := r.GetCondition(pkgv1.TypeHealthy)
+	installedCond := r.GetCondition(pkgv1.TypeInstalled)
+
+	gk := r.Unstructured.GroupVersionKind().GroupKind()
+	switch {
+	case r.Error != nil:
+		// if there is an error we want to show it, regardless of what type this
+		// resource is and what conditions it has
+		status = "Error"
+		m = r.Error.Error()
+	case xpkg.IsPackageType(gk):
+		switch {
+		case healthyCond.Status == corev1.ConditionTrue && installedCond.Status == corev1.ConditionTrue:
+			// if both are true we want to show the healthy reason only
+			status = string(healthyCond.Reason)
+
+		// The following cases are for when one of the conditions is false,
+		// prioritizing installed over healthy in case of issues.
+		case installedCond.Status == corev1.ConditionFalse:
+			status = string(installedCond.Reason)
+			m = installedCond.Message
+		case healthyCond.Status == corev1.ConditionFalse:
+			status = string(healthyCond.Reason)
+			m = healthyCond.Message
+		default:
+			// both are unknown or unset, let's try showing the installed reason
+			status = string(installedCond.Reason)
+			m = installedCond.Message
+		}
+
+		if packageImg, err = fieldpath.Pave(r.Unstructured.Object).GetString("spec.package"); err != nil {
+			state = err.Error()
+		}
+	case xpkg.IsPackageRevisionType(gk):
+		// package revisions only have the healthy condition, so use that
+		status = string(healthyCond.Reason)
+		m = healthyCond.Message
+
+		// Get the state (active vs. inactive) of this package revision.
+		var err error
+		state, err = fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState")
+		if err != nil {
+			state = err.Error()
+		}
+		// Get the image used.
+		if packageImg, err = fieldpath.Pave(r.Unstructured.Object).GetString("spec.image"); err != nil {
+			state = err.Error()
+		}
+	case xpkg.IsPackageRuntimeConfigType(gk):
+		// nothing to do here
+	default:
+		status = "Unknown package type"
+	}
+
+	// Crop the message to the last 64 characters if it's too long and we are
+	// not in wide mode
+	if !wide && len(m) > 64 {
+		m = "..." + m[len(m)-64:]
+	}
+
+	// Append the message to the status if it's not empty
+	if m != "" {
+		status = fmt.Sprintf("%s: %s", status, m)
+	}
+
+	// Parse the image reference extracting the tag, we'll leave it empty if we
+	// couldn't parse it and leave the whole thing as package instead.
+	var packageImgTag string
+	if tag, err := gcrname.NewTag(packageImg); err == nil {
+		packageImgTag = tag.TagStr()
+		packageImg = tag.RepositoryStr()
+		if tag.RegistryStr() != "" {
+			packageImg = fmt.Sprintf("%s/%s", tag.RegistryStr(), packageImg)
+		}
+	}
+
+	return &defaultPkgPrinterRow{
+		wide: wide,
+
+		name:       name,
+		packageImg: packageImg,
+		version:    packageImgTag,
+		installed:  mapEmptyStatusToDash(installedCond.Status),
+		healthy:    mapEmptyStatusToDash(healthyCond.Status),
+		state:      mapEmptyStatusToDash(corev1.ConditionStatus(state)),
+		status:     status,
+	}
 }
 
 func mapEmptyStatusToDash(s corev1.ConditionStatus) string {
