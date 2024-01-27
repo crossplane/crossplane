@@ -70,4 +70,5 @@ This list is sorted in the order that organizations were added to it.
 | [Nexthink](https://nexthink.com) | @fernandezcuesta | Deployment and bootstrapping of multiple EKS clusters and common infrastructure replacing Terraform+Ansible. |
 | [Nokia](https://www.nokia.com) | @bobh66 | Multi-cloud orchestration of resources in support of production deployments for a variety of network services. |
 | [Built Technologies](https://www.getbuilt.com) | @rwsweeney | Built Technologies uses Crossplane in our developer environment, and at times it has exceeded over 10,000 AWS resources managed by Crossplane. |
-
+| [Printbox](https://getprintbox.com/) | [@printbox-team](https://github.com/printbox-team) | Printbox is leveraging Crossplane in production environments, to streamline the deployment of a wide range of services. Our usage of Crossplane extends from basic tasks like creating S3 buckets on AWS to more complex operations such as implementing CDN solutions on Google Cloud. |
+| [DeepSea](https://deepsea.ai/) | [bmutziu](https://github.com/bmutziu) | Migrated to Crossplane from Terraform in production environments. |
