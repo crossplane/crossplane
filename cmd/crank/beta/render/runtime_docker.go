@@ -205,7 +205,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //n
 		}
 	}
 
-	if err := c.ContainerStart(ctx, rsp.ID, types.ContainerStartOptions{}); err != nil {
+	if err := c.ContainerStart(ctx, rsp.ID, container.StartOptions{}); err != nil {
 		return RuntimeContext{}, errors.Wrap(err, "cannot start Docker container")
 	}
 
