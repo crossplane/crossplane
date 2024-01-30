@@ -211,7 +211,14 @@ func TestRender(t *testing.T) {
 									Composite: &fnv1beta1.Resource{
 										Resource: MustStructJSON(`{
 											"status": {
-												"widgets": 9001
+												"widgets": 9001,
+												"conditions": [{
+													"lastTransitionTime": null,
+													"type": "Ready",
+													"status": "False",
+													"reason": "Creating",
+													"message": "Unready resources: a-cool-resource, b-cool-resource"
+												}]
 											}
 										}`),
 									},
@@ -266,7 +273,184 @@ func TestRender(t *testing.T) {
 									"name": "test-render"
 								},
 								"status": {
-									"widgets": 9001
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": null,
+										"type": "Ready",
+										"status": "False",
+										"reason": "Creating",
+										"message": "Unready resources: a-cool-resource, b-cool-resource"
+									}]
+								}
+							}`),
+						},
+					},
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "BComposed",
+									"spec": {
+										"widgets": 9002
+									}
+								}`),
+							},
+						},
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "atest.crossplane.io/v1",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "b-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"kind": "AComposed",
+									"spec": {
+										"widgets": 9003
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+		},
+		"SuccessReady": {
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &composite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: &pipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1beta1.Function{
+						func() pkgv1beta1.Function {
+
+							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
+								Desired: &fnv1beta1.State{
+									Composite: &fnv1beta1.Resource{
+										Resource: MustStructJSON(`{
+											"status": {
+												"widgets": 9001,
+												"conditions": [{
+													"lastTransitionTime": null,
+													"type": "Ready",
+													"status": "False",
+													"reason": "Creating",
+													"message": "Unready resources: a-cool-resource, b-cool-resource"
+												}]
+											}
+										}`),
+									},
+									Resources: map[string]*fnv1beta1.Resource{
+										"b-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "atest.crossplane.io/v1",
+												"kind": "AComposed",
+												"spec": {
+													"widgets": 9003
+												}
+											}`),
+											Ready: fnv1beta1.Ready_READY_TRUE,
+										},
+										"a-cool-resource": {
+											Resource: MustStructJSON(`{
+												"apiVersion": "btest.crossplane.io/v1",
+												"kind": "BComposed",
+												"spec": {
+													"widgets": 9002
+												}
+											}`),
+											Ready: fnv1beta1.Ready_READY_TRUE,
+										},
+									},
+								},
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1beta1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+					Context: map[string][]byte{
+						"crossplane.io/context-key": []byte(`{}`),
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					CompositeResource: &composite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": null,
+										"type": "Ready",
+										"status": "True",
+										"reason": "Available"
+									}]
 								}
 							}`),
 						},
@@ -477,7 +661,14 @@ func TestRender(t *testing.T) {
 									"name": "test-render"
 								},
 								"status": {
-									"widgets": "bar"
+									"widgets": "bar",
+									"conditions": [{
+										"lastTransitionTime": null,
+										"type": "Ready",
+										"status": "False",
+										"reason": "Creating",
+										"message": "Unready resources: a-cool-resource, b-cool-resource"
+									}]
 								}
 							}`),
 						},
