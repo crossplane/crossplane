@@ -223,8 +223,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	r.record.Event(u, event.Normal(reasonResolveSelectors, "Selectors resolved, if any."))
-
 	of := u.Spec.Of
 	by := u.Spec.By
 
