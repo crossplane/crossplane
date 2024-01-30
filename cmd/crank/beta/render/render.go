@@ -19,15 +19,18 @@ package render
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sort"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -240,7 +243,12 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 	}
 
 	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
+	var unready []string
 	for name, dr := range d.GetResources() {
+		if dr.GetReady() != fnv1beta1.Ready_READY_TRUE {
+			unready = append(unready, name)
+		}
+
 		cd := composed.New()
 		if err := composite.FromStruct(cd, dr.GetResource()); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
@@ -277,6 +285,13 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 	xr.SetAPIVersion(in.CompositeResource.GetAPIVersion())
 	xr.SetKind(in.CompositeResource.GetKind())
 	xr.SetName(in.CompositeResource.GetName())
+	xrCond := xpv1.Available()
+	if len(unready) > 0 {
+		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
+	}
+	// lastTransitionTime would just be noise, so we drop it.
+	xrCond.LastTransitionTime = metav1.Time{}
+	xr.SetConditions(xrCond)
 
 	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
 	if fctx != nil {
