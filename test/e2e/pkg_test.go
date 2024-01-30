@@ -119,11 +119,7 @@ func TestProviderUpgrade(t *testing.T) {
 			WithTeardown("DeleteUpgradedManagedResource", funcs.AllOf(
 				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr-upgrade.yaml"),
-			)).
-			WithTeardown("DeleteUpgradedProvider", funcs.AllOf(
-				funcs.DeleteResources(manifests, "provider-upgrade.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-upgrade.yaml"),
-			)).Feature(),
+			)).WithTeardown("DeleteUpgradedProvider", funcs.ResourcesDeletedAfterListedAreGone(1*time.Minute, manifests, "provider-upgrade.yaml", nopList)).Feature(),
 	)
 }
 
