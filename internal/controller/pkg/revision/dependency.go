@@ -18,6 +18,8 @@ package revision
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -41,7 +43,7 @@ const (
 	errNotMeta                   = "meta type is not a valid package"
 	errGetOrCreateLock           = "cannot get or create lock"
 	errInitDAG                   = "cannot initialize dependency graph from the packages in the lock"
-	errFmtIncompatibleDependency = "incompatible dependencies: %+v"
+	errFmtIncompatibleDependency = "incompatible dependencies: %s"
 	errFmtMissingDependencies    = "missing dependencies: %+v"
 	errDependencyNotInGraph      = "dependency is not present in graph"
 	errDependencyNotLockPackage  = "dependency in graph is not a lock package"
@@ -207,12 +209,16 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			return found, installed, invalid, err
 		}
 		if !c.Check(v) {
-			invalidDeps = append(invalidDeps, lp.Identifier())
+			s := fmt.Sprintf("%s@%s", lp.Identifier(), lp.Version)
+			if dep.Constraints != "" {
+				s += " with " + strings.TrimSpace(dep.Constraints)
+			}
+			invalidDeps = append(invalidDeps, s)
 		}
 	}
 	invalid = len(invalidDeps)
 	if invalid > 0 {
-		return found, installed, invalid, errors.Errorf(errFmtIncompatibleDependency, invalidDeps)
+		return found, installed, invalid, errors.Errorf(errFmtIncompatibleDependency, strings.Join(invalidDeps, "; "))
 	}
 	return found, installed, invalid, nil
 }
