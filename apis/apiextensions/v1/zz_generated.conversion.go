@@ -143,9 +143,12 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentConfigurationToPV1Environ
 	var pV1EnvironmentConfiguration *EnvironmentConfiguration
 	if source != nil {
 		var v1EnvironmentConfiguration EnvironmentConfiguration
-		mapStringV1JSON := make(map[string]v1.JSON, len((*source).DefaultData))
-		for key, value := range (*source).DefaultData {
-			mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
+		var mapStringV1JSON map[string]v1.JSON
+		if (*source).DefaultData != nil {
+			mapStringV1JSON = make(map[string]v1.JSON, len((*source).DefaultData))
+			for key, value := range (*source).DefaultData {
+				mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
+			}
 		}
 		v1EnvironmentConfiguration.DefaultData = mapStringV1JSON
 		var v1EnvironmentSourceList []EnvironmentSource
@@ -212,9 +215,12 @@ func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source
 	var pV1MapTransform *MapTransform
 	if source != nil {
 		var v1MapTransform MapTransform
-		mapStringV1JSON := make(map[string]v1.JSON, len((*source).Pairs))
-		for key, value := range (*source).Pairs {
-			mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
+		var mapStringV1JSON map[string]v1.JSON
+		if (*source).Pairs != nil {
+			mapStringV1JSON = make(map[string]v1.JSON, len((*source).Pairs))
+			for key, value := range (*source).Pairs {
+				mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
+			}
 		}
 		v1MapTransform.Pairs = mapStringV1JSON
 		pV1MapTransform = &v1MapTransform
