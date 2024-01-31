@@ -137,7 +137,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	// 	(restmapper.NewDeferredDiscoveryRESTMapper), as cli-runtime
 	// 	pkg/resource Builder does.
 	d := memory.NewMemCacheClient(discoveryClient)
-	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d)
+	rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d, nil)
 
 	res, name, err := c.getResourceAndName()
 	if err != nil {
