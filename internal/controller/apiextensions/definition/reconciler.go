@@ -341,7 +341,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// just in case. This is a no-op if the controller was
 			// already stopped.
 			r.composite.Stop(composite.ControllerName(d.GetName()))
-			r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
+			log.Debug("Stopped composite resource controller")
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
 				if kerrors.IsConflict(err) {
@@ -394,7 +394,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// so that it doesn't crash.
 		r.composite.Stop(composite.ControllerName(d.GetName()))
 		log.Debug("Stopped composite resource controller")
-		r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
@@ -403,7 +402,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		log.Debug("Deleted composite resource CustomResourceDefinition")
-		r.record.Event(d, event.Normal(reasonTerminateXR, "Deleted composite resource CustomResourceDefinition"))
+		r.record.Event(d, event.Normal(reasonTerminateXR, fmt.Sprintf("Deleted composite resource CustomResourceDefinition: %s", crd.GetName())))
 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue
@@ -515,6 +514,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
 	}
+	log.Debug("(Re)started composite resource controller")
 
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		r.xrInformers.RegisterComposite(xrGVK, ca)
