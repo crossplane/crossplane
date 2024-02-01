@@ -267,8 +267,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	ao := apiextensionscontroller.Options{
 		Options:        o,
-		Namespace:      c.Namespace,
-		ServiceAccount: c.ServiceAccount,
 		FunctionRunner: functionRunner,
 	}
 
