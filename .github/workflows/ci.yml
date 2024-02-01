@@ -245,6 +245,7 @@ jobs:
           - base
           - environment-configs
           - usage
+          - ssa-claims
 
     steps:
       - name: Setup QEMU

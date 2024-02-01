@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -34,6 +35,23 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
+
+const (
+	// SuiteSSAClaims is the value for the config.LabelTestSuite label to be
+	// assigned to tests that should be part of the SSAClaims  test suite.
+	SuiteSSAClaims = "ssa-claims"
+)
+
+func init() {
+	environment.AddTestSuite(SuiteSSAClaims,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-ssa-claims}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteSSAClaims, config.TestSuiteDefault},
+		}),
+	)
+}
 
 // LabelAreaAPIExtensions is applied to all features pertaining to API
 // extensions (i.e. Composition, XRDs, etc).
@@ -204,7 +222,12 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
+			WithSetup("EnableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -239,6 +262,10 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DisableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
 			Feature(),
 	)
 }

@@ -204,8 +204,7 @@ type crComposite struct {
 
 func defaultCRComposite(c client.Client) crComposite {
 	return crComposite{
-		// TODO(negz): Use CSA syncer unless feature flag is enabled.
-		CompositeSyncer:      NewServerSideCompositeSyncer(c, names.NewNameGenerator(c)),
+		CompositeSyncer:      NewClientSideCompositeSyncer(c, names.NewNameGenerator(c)),
 		ConnectionPropagator: NewAPIConnectionPropagator(c),
 	}
 }
@@ -310,7 +309,7 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 		client:        c,
 		gvkClaim:      schema.GroupVersionKind(of),
 		gvkXR:         schema.GroupVersionKind(with),
-		managedFields: NewPatchingManagedFieldsUpgrader(c), // TODO(negz): Use Nop unless flag is enabled.
+		managedFields: &NopManagedFieldsUpgrader{},
 		composite:     defaultCRComposite(c),
 		claim:         defaultCRClaim(c),
 		log:           logging.NewNopLogger(),
