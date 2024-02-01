@@ -18,7 +18,6 @@ package definition
 
 import (
 	"context"
-	"io"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -36,14 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -79,7 +75,6 @@ func (m *MockEngine) Err(name string) error {
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
-	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	now := metav1.Now()
 	owner := types.UID("definitely-a-uuid")
 	ctrlr := true
@@ -742,21 +737,22 @@ func TestReconcile(t *testing.T) {
 		},
 	}
 
-	withRealtimeComposition := feature.Flags{}
-	withRealtimeComposition.Enable(features.EnableRealtimeCompositions)
+	// Run every test with and without the realtime compositions feature.
+	rtc := apiextensionscontroller.Options{Options: controller.DefaultOptions()}
+	rtc.Features.Enable(features.EnableAlphaRealtimeCompositions)
 
 	type mode struct {
-		name    string
-		options apiextensionscontroller.Options
+		name  string
+		extra []ReconcilerOption
 	}
 	for _, m := range []mode{
-		{name: "polling", options: apiextensionscontroller.Options{Options: controller.DefaultOptions()}},
-		{name: "realtime", options: apiextensionscontroller.Options{Options: controller.Options{Features: &withRealtimeComposition}}},
+		{name: "Default"},
+		{name: string(features.EnableAlphaRealtimeCompositions), extra: []ReconcilerOption{WithOptions(rtc)}},
 	} {
 		t.Run(m.name, func(t *testing.T) {
 			for name, tc := range cases {
 				t.Run(name, func(t *testing.T) {
-					r := NewReconciler(tc.args.mgr, m.options, append(tc.args.opts, WithLogger(testLog))...)
+					r := NewReconciler(tc.args.mgr, append(tc.args.opts, m.extra...)...)
 					got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 					if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

@@ -124,11 +124,12 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
-	r := NewReconciler(mgr, o,
+	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithOptions(o))
 
-	if o.Features.Enabled(features.EnableRealtimeCompositions) {
+	if o.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// Register a runnable regularly checking whether the watch composed
 		// resources are still referenced by composite resources. If not, the
 		// composed resource informer is stopped.
@@ -164,6 +165,14 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
+	}
+}
+
+// WithOptions lets the Reconciler know which options to pass to new composite
+// resource controllers.
+func WithOptions(o apiextensionscontroller.Options) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.options = o
 	}
 }
 
@@ -206,15 +215,10 @@ type definition struct {
 }
 
 // NewReconciler returns a Reconciler of CompositeResourceDefinitions.
-func NewReconciler(mgr manager.Manager, o apiextensionscontroller.Options, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	ca := controller.NewGVKRoutedCache(mgr.GetScheme(), mgr.GetCache())
-	if o.Features.Enabled(features.EnableRealtimeCompositions) {
-		// wrap the manager's cache to route requests to dynamically started
-		// informers for managed resources.
-		mgr = controller.WithGVKRoutedCache(ca, mgr)
-	}
 
 	r := &Reconciler{
 		mgr: mgr,
@@ -242,11 +246,19 @@ func NewReconciler(mgr manager.Manager, o apiextensionscontroller.Options, opts 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 
-		options: o,
+		options: apiextensionscontroller.Options{
+			Options: controller.DefaultOptions(),
+		},
 	}
 
 	for _, f := range opts {
 		f(r)
+	}
+
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+		// wrap the manager's cache to route requests to dynamically started
+		// informers for managed resources.
+		r.mgr = controller.WithGVKRoutedCache(ca, mgr)
 	}
 
 	return r
@@ -329,7 +341,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// just in case. This is a no-op if the controller was
 			// already stopped.
 			r.composite.Stop(composite.ControllerName(d.GetName()))
-			r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
+			log.Debug("Stopped composite resource controller")
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
 				if kerrors.IsConflict(err) {
@@ -382,7 +394,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// so that it doesn't crash.
 		r.composite.Stop(composite.ControllerName(d.GetName()))
 		log.Debug("Stopped composite resource controller")
-		r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
@@ -391,7 +402,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		log.Debug("Deleted composite resource CustomResourceDefinition")
-		r.record.Event(d, event.Normal(reasonTerminateXR, "Deleted composite resource CustomResourceDefinition"))
+		r.record.Event(d, event.Normal(reasonTerminateXR, fmt.Sprintf("Deleted composite resource CustomResourceDefinition: %s", crd.GetName())))
 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue
@@ -437,7 +448,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		r.composite.Stop(composite.ControllerName(d.GetName()))
-		if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+		if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 			r.xrInformers.UnregisterComposite(d.GetCompositeGroupVersionKind())
 		}
 		log.Debug("Referenceable version changed; stopped composite resource controller",
@@ -447,7 +458,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		ro = append(ro, composite.WithKindObserver(composite.KindObserverFunc(r.xrInformers.WatchComposedResources)))
 	}
 	cr := composite.NewReconciler(r.mgr, ck, ro...)
@@ -468,7 +479,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
 		}),
 	}
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// enqueue XRs that when a relevant MR is updated
 		watches = append(watches, controller.TriggeredBy(&r.xrInformers, handler.Funcs{
 			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
@@ -485,7 +496,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		ca = c.GetCache()
 		if err := ca.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
 			log.Debug(errAddIndex, "error", err)
@@ -503,8 +514,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
 	}
+	log.Debug("(Re)started composite resource controller")
 
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		r.xrInformers.RegisterComposite(xrGVK, ca)
 	}
 

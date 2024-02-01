@@ -19,6 +19,7 @@ package offered
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -265,8 +266,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource claim CustomResourceDefinition"))
-
 	if meta.WasDeleted(d) {
 		d.Status.SetConditions(v1.TerminatingClaim())
 		if err := r.client.Status().Update(ctx, d); err != nil {
@@ -298,7 +297,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// just in case. This is a no-op if the controller was
 			// already stopped.
 			r.claim.Stop(claim.ControllerName(d.GetName()))
-			r.record.Event(d, event.Normal(reasonRedactXRC, "Stopped composite resource claim controller"))
+			log.Debug("Stopped composite resource claim controller")
 
 			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				if kerrors.IsConflict(err) {
@@ -351,14 +350,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// The controller should be stopped before the deletion of CRD
 		// so that it doesn't crash.
 		r.claim.Stop(claim.ControllerName(d.GetName()))
-		r.record.Event(d, event.Normal(reasonRedactXRC, "Stopped composite resource claim controller"))
+		log.Debug("Stopped composite resource claim controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			err = errors.Wrap(err, errDeleteCRD)
 			r.record.Event(d, event.Warning(reasonRedactXRC, err))
 			return reconcile.Result{}, err
 		}
-		r.record.Event(d, event.Normal(reasonRedactXRC, "Deleted composite resource claim CustomResourceDefinition"))
+		r.record.Event(d, event.Normal(reasonRedactXRC, fmt.Sprintf("Deleted composite resource claim CustomResourceDefinition: %s", crd.GetName())))
 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue
@@ -376,7 +375,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
+	origRV := ""
+	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
@@ -384,7 +384,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
 		return reconcile.Result{}, err
 	}
-	r.record.Event(d, event.Normal(reasonOfferXRC, "Applied composite resource claim CustomResourceDefinition"))
+	if crd.GetResourceVersion() != origRV {
+		r.record.Event(d, event.Normal(reasonOfferXRC, fmt.Sprintf("Applied composite resource claim CustomResourceDefinition: %s", crd.GetName())))
+	}
 
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
@@ -427,9 +429,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	desired := v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		r.claim.Stop(claim.ControllerName(d.GetName()))
-		r.record.Event(d, event.Normal(reasonOfferXRC, "Referenceable version changed; stopped composite resource claim controller",
+		log.Debug("Referenceable version changed; stopped composite resource claim controller",
 			"observed-version", observed.APIVersion,
-			"desired-version", desired.APIVersion))
+			"desired-version", desired.APIVersion)
 	}
 
 	cm := &kunstructured.Unstructured{}
@@ -446,7 +448,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))
 		return reconcile.Result{}, err
 	}
-	r.record.Event(d, event.Normal(reasonOfferXRC, "(Re)started composite resource claim controller"))
+	log.Debug("(Re)started composite resource claim controller")
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	d.Status.SetConditions(v1.WatchingClaim())

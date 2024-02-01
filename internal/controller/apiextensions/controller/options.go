@@ -27,14 +27,6 @@ import (
 type Options struct {
 	controller.Options
 
-	// Namespace in which we'll look for image pull secrets for in-cluster
-	// private registry authentication when pulling Composition Functions.
-	Namespace string
-
-	// ServiceAccount for which we'll find image pull secrets for in-cluster
-	// private registry authentication when pulling Composition Functions.
-	ServiceAccount string
-
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner *xfn.PackagedFunctionRunner
 }
