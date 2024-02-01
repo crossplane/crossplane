@@ -743,7 +743,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	withRealtimeComposition := feature.Flags{}
-	withRealtimeComposition.Enable(features.EnableRealtimeCompositions)
+	withRealtimeComposition.Enable(features.EnableAlphaRealtimeCompositions)
 
 	type mode struct {
 		name    string

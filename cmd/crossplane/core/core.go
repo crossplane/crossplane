@@ -257,8 +257,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		}
 	}
 	if c.EnableRealtimeCompositions {
-		o.Features.Enable(features.EnableRealtimeCompositions)
-		log.Info("Alpha feature enabled", "flag", features.EnableRealtimeCompositions)
+		o.Features.Enable(features.EnableAlphaRealtimeCompositions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRealtimeCompositions)
 	}
 	if c.EnableDeploymentRuntimeConfigs {
 		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)

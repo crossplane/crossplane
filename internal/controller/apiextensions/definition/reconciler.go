@@ -128,7 +128,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
-	if o.Features.Enabled(features.EnableRealtimeCompositions) {
+	if o.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// Register a runnable regularly checking whether the watch composed
 		// resources are still referenced by composite resources. If not, the
 		// composed resource informer is stopped.
@@ -210,7 +210,7 @@ func NewReconciler(mgr manager.Manager, o apiextensionscontroller.Options, opts 
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	ca := controller.NewGVKRoutedCache(mgr.GetScheme(), mgr.GetCache())
-	if o.Features.Enabled(features.EnableRealtimeCompositions) {
+	if o.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// wrap the manager's cache to route requests to dynamically started
 		// informers for managed resources.
 		mgr = controller.WithGVKRoutedCache(ca, mgr)
@@ -437,7 +437,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		r.composite.Stop(composite.ControllerName(d.GetName()))
-		if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+		if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 			r.xrInformers.UnregisterComposite(d.GetCompositeGroupVersionKind())
 		}
 		log.Debug("Referenceable version changed; stopped composite resource controller",
@@ -447,7 +447,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		ro = append(ro, composite.WithKindObserver(composite.KindObserverFunc(r.xrInformers.WatchComposedResources)))
 	}
 	cr := composite.NewReconciler(r.mgr, ck, ro...)
@@ -468,7 +468,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
 		}),
 	}
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// enqueue XRs that when a relevant MR is updated
 		watches = append(watches, controller.TriggeredBy(&r.xrInformers, handler.Funcs{
 			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
@@ -485,7 +485,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		ca = c.GetCache()
 		if err := ca.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
 			log.Debug(errAddIndex, "error", err)
@@ -504,7 +504,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		r.xrInformers.RegisterComposite(xrGVK, ca)
 	}
 
