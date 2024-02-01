@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/kong v0.8.1
 	github.com/bufbuild/buf v1.29.0
 	github.com/crossplane/crossplane-runtime v1.15.0-rc.0.0.20240123001642-87cb2d83e24c
-	github.com/docker/docker v25.0.0+incompatible
+	github.com/docker/docker v25.0.2+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.6.1
 	github.com/go-git/go-billy/v5 v5.5.0
@@ -22,7 +22,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.11.0
-	github.com/upbound/up-sdk-go v0.1.1-0.20230405182644-366f20e6aa5f
+	github.com/upbound/up-sdk-go v0.1.1-0.20240122203953-2d00664aab8e
 	golang.org/x/sync v0.6.0
 	google.golang.org/grpc v1.61.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
