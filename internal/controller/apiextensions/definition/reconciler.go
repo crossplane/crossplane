@@ -59,6 +59,7 @@ import (
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/pkg/controller/interceptor"
 )
 
 const (
@@ -445,14 +446,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"desired-version", desired.APIVersion)
 	}
 
-	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
+	cn := composite.ControllerName(fmt.Sprintf("%s.%s", d.Spec.Names.Plural, d.Spec.Group))
+	clog := r.options.Logger.WithValues("controller", cn)
+	ro := CompositeReconcilerOptions(r.options, d, r.client, clog, r.record)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
 	if r.options.Features.Enabled(features.EnableRealtimeCompositions) {
 		ro = append(ro, composite.WithKindObserver(composite.KindObserverFunc(r.xrInformers.WatchComposedResources)))
 	}
 	cr := composite.NewReconciler(r.mgr, ck, ro...)
 	ko := r.options.ForControllerRuntime()
-	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
+	ko.Reconciler = ratelimiter.NewReconciler(cn, interceptor.LoggingInterceptor(clog, errors.WithSilentRequeueOnConflict(cr)), r.options.GlobalRateLimiter)
 
 	xrGVK := d.GetCompositeGroupVersionKind()
 

@@ -751,7 +751,7 @@ func TestReconcile(t *testing.T) {
 	}
 	for _, m := range []mode{
 		{name: "polling", options: apiextensionscontroller.Options{Options: controller.DefaultOptions()}},
-		{name: "realtime", options: apiextensionscontroller.Options{Options: controller.Options{Features: &withRealtimeComposition}}},
+		{name: "realtime", options: apiextensionscontroller.Options{Options: controller.Options{Logger: logging.NewNopLogger(), Features: &withRealtimeComposition}}},
 	} {
 		t.Run(m.name, func(t *testing.T) {
 			for name, tc := range cases {
