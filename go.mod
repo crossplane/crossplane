@@ -11,7 +11,7 @@ require (
 	github.com/alecthomas/kong v0.8.1
 	github.com/bufbuild/buf v1.29.0
 	github.com/crossplane/crossplane-runtime v1.15.0-rc.0.0.20240201162822-fe8248892c41
-	github.com/docker/docker v25.0.0+incompatible
+	github.com/docker/docker v25.0.2+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.6.1
 	github.com/go-git/go-billy/v5 v5.5.0
