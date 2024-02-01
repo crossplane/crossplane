@@ -124,9 +124,10 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
-	r := NewReconciler(mgr, o,
+	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithOptions(o))
 
 	if o.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// Register a runnable regularly checking whether the watch composed
@@ -164,6 +165,14 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
+	}
+}
+
+// WithOptions lets the Reconciler know which options to pass to new composite
+// resource controllers.
+func WithOptions(o apiextensionscontroller.Options) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.options = o
 	}
 }
 
@@ -206,15 +215,10 @@ type definition struct {
 }
 
 // NewReconciler returns a Reconciler of CompositeResourceDefinitions.
-func NewReconciler(mgr manager.Manager, o apiextensionscontroller.Options, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	ca := controller.NewGVKRoutedCache(mgr.GetScheme(), mgr.GetCache())
-	if o.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		// wrap the manager's cache to route requests to dynamically started
-		// informers for managed resources.
-		mgr = controller.WithGVKRoutedCache(ca, mgr)
-	}
 
 	r := &Reconciler{
 		mgr: mgr,
@@ -242,11 +246,19 @@ func NewReconciler(mgr manager.Manager, o apiextensionscontroller.Options, opts 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 
-		options: o,
+		options: apiextensionscontroller.Options{
+			Options: controller.DefaultOptions(),
+		},
 	}
 
 	for _, f := range opts {
 		f(r)
+	}
+
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+		// wrap the manager's cache to route requests to dynamically started
+		// informers for managed resources.
+		r.mgr = controller.WithGVKRoutedCache(ca, mgr)
 	}
 
 	return r
