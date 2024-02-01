@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -215,6 +216,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetUsage, "error", err)
 		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
 	}
+	orig := u.DeepCopy()
 
 	if err := r.usage.resolveSelectors(ctx, u); err != nil {
 		log.Debug(errResolveSelectors, "error", err)
@@ -222,8 +224,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(u, event.Warning(reasonResolveSelectors, err))
 		return reconcile.Result{}, err
 	}
-
-	r.record.Event(u, event.Normal(reasonResolveSelectors, "Selectors resolved, if any."))
 
 	of := u.Spec.Of
 	by := u.Spec.By
@@ -406,11 +406,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	u.Status.SetConditions(xpv1.Available())
-	r.record.Event(u, event.Normal(reasonUsageConfigured, "Usage configured successfully."))
+
 	// We are only watching the Usage itself but not using or used resources.
 	// So, we need to reconcile the Usage periodically to check if the using
 	// or used resources are still there.
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, u), errUpdateStatus)
+	if !cmp.Equal(u, orig) {
+		r.record.Event(u, event.Normal(reasonUsageConfigured, "Usage configured successfully."))
+		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, u), errUpdateStatus)
+	}
+
+	return reconcile.Result{RequeueAfter: r.pollInterval}, nil
 }
 
 func detailsAnnotation(u *v1alpha1.Usage) string {
