@@ -425,8 +425,8 @@ github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.8.4 h1:CcVxjf3Q8PM0mHUKJCdn+eZZtm5yQwehR5yeSVQQcUk=
 github.com/tetratelabs/wazero v1.6.0 h1:z0H1iikCdP8t+q341xqepY4EWvHEw8Es7tlqiVzlP3g=
 github.com/tetratelabs/wazero v1.6.0/go.mod h1:0U0G41+ochRKoPKCJlh0jMg1CHkyfK8kDqiirMmKY8A=
-github.com/upbound/up-sdk-go v0.1.1-0.20230405182644-366f20e6aa5f h1:k/beHtZrHDM881FwkwwXycRZSnxwjAS3Bd9Mq/UvwUs=
-github.com/upbound/up-sdk-go v0.1.1-0.20230405182644-366f20e6aa5f/go.mod h1:IDIbYDb9fbedtxCc2CrdGcVRol6la7z2gkKh0VYWVGk=
+github.com/upbound/up-sdk-go v0.1.1-0.20240122203953-2d00664aab8e h1:aNzUuv4ZKH2OT3Qv6dpZxkMPDOfl/6MoS79T/zUzako=
+github.com/upbound/up-sdk-go v0.1.1-0.20240122203953-2d00664aab8e/go.mod h1:IDIbYDb9fbedtxCc2CrdGcVRol6la7z2gkKh0VYWVGk=
 github.com/vbatts/tar-split v0.11.5 h1:3bHCTIheBm1qFTcgh9oPu+nNBtX+XJIupG/vacinCts=
 github.com/vbatts/tar-split v0.11.5/go.mod h1:yZbwRsSeGjusneWgA781EKej9HF8vme8okylkAeNKLk=
 github.com/vladimirvivien/gexe v0.2.0 h1:nbdAQ6vbZ+ZNsolCgSVb9Fno60kzSuvtzVh6Ytqi/xY=
