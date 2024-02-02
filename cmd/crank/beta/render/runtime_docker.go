@@ -151,6 +151,7 @@ var _ Runtime = &RuntimeDocker{}
 
 // Start a Function as a Docker container.
 func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (RuntimeContext, error) { //nolint:gocyclo // TODO(phisco): Refactor to break this up a bit, not so easy.
+	logger.Debug("Starting Docker container runtime", "image", r.Image)
 	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")

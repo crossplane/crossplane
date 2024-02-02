@@ -85,10 +85,6 @@ type Outputs struct {
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
 	// are in use?
-
-	// TODO(negz): Allow returning desired XR readiness? Or perhaps just set the
-	// ready status condition on the XR if all supplied observed resources
-	// appear ready?
 }
 
 // Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
@@ -104,7 +100,11 @@ func Render(ctx context.Context, logger logging.Logger, in Inputs) (Outputs, err
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
-		defer rctx.Stop(ctx) //nolint:errcheck // Not sure what to do with this error. Log it to stderr?
+		defer func() {
+			if err := rctx.Stop(ctx); err != nil {
+				logger.Debug("Error stopping function runtime", "function", fn.GetName(), "error", err)
+			}
+		}()
 
 		conn, err := grpc.DialContext(ctx, rctx.Target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
