@@ -19,6 +19,7 @@ package validate
 import (
 	"context"
 	"fmt"
+	"io"
 
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -32,6 +33,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+)
+
+const (
+	errWriteOutput = "cannot write output"
 )
 
 func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[runtimeschema.GroupVersionKind][]*validation.SchemaValidator, map[runtimeschema.GroupVersionKind]*schema.Structural, error) {
@@ -86,7 +91,7 @@ func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[ru
 }
 
 // SchemaValidation validates the resources against the given CRDs
-func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, skipSuccessLogs bool) error {
+func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, skipSuccessLogs bool, w io.Writer) error { //nolint:gocyclo // printing the output increases the cyclomatic complexity a little bit
 	schemaValidators, structurals, err := newValidatorsAndStructurals(crds)
 	if err != nil {
 		return errors.Wrap(err, "cannot create schema validators")
@@ -99,7 +104,10 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 		sv, ok := schemaValidators[gvk]
 		if !ok {
 			missingSchemas++
-			fmt.Println("[!] could not find CRD/XRD for: " + r.GroupVersionKind().String())
+			if _, err := fmt.Fprintf(w, "[!] could not find CRD/XRD for: %s\n", r.GroupVersionKind().String()); err != nil {
+				return errors.Wrap(err, errWriteOutput)
+			}
+
 			continue
 		}
 
@@ -109,7 +117,9 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 			re := validation.ValidateCustomResource(nil, r, *v)
 			for _, e := range re {
 				rf++
-				fmt.Printf("[x] schema validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error())
+				if _, err := fmt.Fprintf(w, "[x] schema validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
+					return errors.Wrap(err, errWriteOutput)
+				}
 			}
 
 			s := structurals[gvk] // if we have a schema validator, we should also have a structural
@@ -118,18 +128,24 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 			re, _ = celValidator.Validate(context.TODO(), nil, s, resources[i].Object, nil, celconfig.PerCallLimit)
 			for _, e := range re {
 				rf++
-				fmt.Printf("[x] CEL validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error())
+				if _, err := fmt.Fprintf(w, "[x] CEL validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
+					return errors.Wrap(err, errWriteOutput)
+				}
 			}
 
 			if rf == 0 && !skipSuccessLogs {
-				fmt.Printf("[✓] %s, %s validated successfully\n", r.GroupVersionKind().String(), getResourceName(r))
+				if _, err := fmt.Fprintf(w, "[✓] %s, %s validated successfully\n", r.GroupVersionKind().String(), getResourceName(r)); err != nil {
+					return errors.Wrap(err, errWriteOutput)
+				}
 			} else {
 				failure++
 			}
 		}
 	}
 
-	fmt.Printf("Total %d resources: %d missing schemas, %d success cases, %d failure cases\n", len(resources), missingSchemas, len(resources)-failure-missingSchemas, failure)
+	if _, err := fmt.Fprintf(w, "Total %d resources: %d missing schemas, %d success cases, %d failure cases\n", len(resources), missingSchemas, len(resources)-failure-missingSchemas, failure); err != nil {
+		return errors.Wrap(err, errWriteOutput)
+	}
 
 	if failure > 0 {
 		return errors.New("could not validate all resources")

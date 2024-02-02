@@ -18,6 +18,7 @@ package validate
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/afero"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -47,6 +48,7 @@ const (
 type Manager struct {
 	fetcher ImageFetcher
 	cache   Cache
+	writer  io.Writer
 
 	crds  []*apiextv1.CustomResourceDefinition
 	deps  map[string]bool // One level dependency images
@@ -54,7 +56,7 @@ type Manager struct {
 }
 
 // NewManager returns a new Manager
-func NewManager(cacheDir string, fs afero.Fs) *Manager {
+func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m := &Manager{}
 
 	m.cache = &LocalCache{
@@ -63,7 +65,7 @@ func NewManager(cacheDir string, fs afero.Fs) *Manager {
 	}
 
 	m.fetcher = &Fetcher{}
-
+	m.writer = w
 	m.crds = make([]*apiextv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
 	m.confs = make(map[string]bool)
@@ -218,7 +220,9 @@ func (m *Manager) cacheDependencies() error {
 			continue
 		}
 
-		fmt.Printf("package schemas does not exist, downloading: %s\n", image)
+		if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
+			return errors.Wrapf(err, errWriteOutput)
+		}
 
 		layer, err := m.fetcher.FetchBaseLayer(image)
 		if err != nil {

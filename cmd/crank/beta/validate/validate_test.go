@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1153,7 +1154,8 @@ func TestConvertToCRDs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewManager("", nil)
+			w := &bytes.Buffer{}
+			m := NewManager("", nil, w)
 			err := m.PrepExtensions(tc.args.schemas)
 
 			if diff := cmp.Diff(tc.want.crd, m.crds); diff != "" {
@@ -1300,7 +1302,8 @@ func TestValidateResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := SchemaValidation(tc.args.resources, tc.args.crds, false)
+			w := &bytes.Buffer{}
+			got := SchemaValidation(tc.args.resources, tc.args.crds, false, w)
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)

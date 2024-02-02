@@ -81,7 +81,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run validate.
-func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error { //nolint:gocyclo // stdin check makes it over the top
+func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo // stdin check makes it over the top
 	if c.Resources == "-" && c.Extensions == "-" {
 		return errors.New("cannot use stdin for both extensions and resources")
 	}
@@ -117,7 +117,7 @@ func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 		c.CacheDir = filepath.Join(currentPath, c.CacheDir)
 	}
 
-	m := NewManager(c.CacheDir, c.fs)
+	m := NewManager(c.CacheDir, c.fs, k.Stdout)
 
 	// Convert XRDs/CRDs to CRDs and add package dependencies
 	if err := m.PrepExtensions(extensions); err != nil {
@@ -130,7 +130,7 @@ func (c *Cmd) Run(_ *kong.Context, _ logging.Logger) error { //nolint:gocyclo //
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, m.crds, c.SkipSuccessResults); err != nil {
+	if err := SchemaValidation(resources, m.crds, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 
