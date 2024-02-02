@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -49,7 +50,7 @@ const (
 // A Runtime runs a Function.
 type Runtime interface {
 	// Start the Function.
-	Start(ctx context.Context) (RuntimeContext, error)
+	Start(ctx context.Context, logger logging.Logger) (RuntimeContext, error)
 }
 
 // RuntimeContext contains context on how a Function is being run.

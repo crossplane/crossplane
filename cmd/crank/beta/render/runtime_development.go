@@ -19,6 +19,8 @@ package render
 import (
 	"context"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -50,6 +52,6 @@ func GetRuntimeDevelopment(fn pkgv1beta1.Function) *RuntimeDevelopment {
 var _ Runtime = &RuntimeDevelopment{}
 
 // Start does nothing. It returns a Stop function that also does nothing.
-func (r *RuntimeDevelopment) Start(_ context.Context) (RuntimeContext, error) {
+func (r *RuntimeDevelopment) Start(_ context.Context, _ logging.Logger) (RuntimeContext, error) {
 	return RuntimeContext{Target: r.Target, Stop: func(_ context.Context) error { return nil }}, nil
 }
