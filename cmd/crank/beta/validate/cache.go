@@ -17,7 +17,6 @@ limitations under the License.
 package validate
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,7 +83,6 @@ func (c *LocalCache) Init() error {
 
 // Flush removes the cache directory
 func (c *LocalCache) Flush() error {
-	fmt.Println("flushing cache directory: ", c.cacheDir)
 	return c.fs.RemoveAll(c.cacheDir)
 }
 

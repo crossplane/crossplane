@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -65,6 +66,64 @@ var (
 									},
 									Required: []string{
 										"replicas",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	testCRDWithCEL = &extv1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apiextensions.k8s.io/v1",
+			Kind:       "CustomResourceDefinition",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test",
+		},
+		Spec: extv1.CustomResourceDefinitionSpec{
+			Group: "test.org",
+			Names: extv1.CustomResourceDefinitionNames{
+				Kind:     "Test",
+				ListKind: "TestList",
+				Plural:   "tests",
+				Singular: "test",
+			},
+			Scope: "Cluster",
+			Versions: []extv1.CustomResourceDefinitionVersion{
+				{
+					Name:    "v1alpha1",
+					Served:  true,
+					Storage: true,
+					Schema: &extv1.CustomResourceValidation{
+						OpenAPIV3Schema: &extv1.JSONSchemaProps{
+							Type: "object",
+							Properties: map[string]extv1.JSONSchemaProps{
+								"spec": {
+									Type: "object",
+									XValidations: extv1.ValidationRules{
+										extv1.ValidationRule{
+											Rule:    "self.minReplicas <= self.replicas && self.replicas <= self.maxReplicas",
+											Message: "replicas should be in between minReplicas and maxReplicas",
+										},
+									},
+									Properties: map[string]extv1.JSONSchemaProps{
+										"replicas": {
+											Type: "integer",
+										},
+										"minReplicas": {
+											Type: "integer",
+										},
+										"maxReplicas": {
+											Type: "integer",
+										},
+									},
+									Required: []string{
+										"replicas",
+										"minReplicas",
+										"maxReplicas",
 									},
 								},
 							},
@@ -1095,7 +1154,8 @@ func TestConvertToCRDs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewManager("", nil)
+			w := &bytes.Buffer{}
+			m := NewManager("", nil, w)
 			err := m.PrepExtensions(tc.args.schemas)
 
 			if diff := cmp.Diff(tc.want.crd, m.crds); diff != "" {
@@ -1143,6 +1203,30 @@ func TestValidateResources(t *testing.T) {
 				},
 			},
 		},
+		"ValidWithCEL": {
+			reason: "Should not return an error if the resources are valid",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas":    5,
+								"minReplicas": 3,
+								"maxReplicas": 10,
+							},
+						},
+					},
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					testCRDWithCEL,
+				},
+			},
+		},
 		"Invalid": {
 			reason: "Should return an error if the resources are invalid",
 			args: args{
@@ -1162,6 +1246,33 @@ func TestValidateResources(t *testing.T) {
 				},
 				crds: []*extv1.CustomResourceDefinition{
 					testCRD,
+				},
+			},
+			want: want{
+				err: errors.New("could not validate all resources"),
+			},
+		},
+		"InvalidWithCEL": {
+			reason: "Should not return an error if the resources are valid",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas":    50,
+								"minReplicas": 3,
+								"maxReplicas": 10,
+							},
+						},
+					},
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					testCRDWithCEL,
 				},
 			},
 			want: want{
@@ -1191,7 +1302,8 @@ func TestValidateResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := SchemaValidation(tc.args.resources, tc.args.crds, false)
+			w := &bytes.Buffer{}
+			got := SchemaValidation(tc.args.resources, tc.args.crds, false, w)
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
