@@ -2,7 +2,11 @@
 
 * Owner: Maximilian Blatt (maximilian.blatt@accenture.com, @mistermx)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
+
+> **NOTE:** this document discussed the alpha version of this feature. The goals
+> still apply, but for an updated discussion of its issues and the plan forward
+> see [the beta one-pager](./one-pager-composition-environment-beta.md).
 
 ## Background
 
