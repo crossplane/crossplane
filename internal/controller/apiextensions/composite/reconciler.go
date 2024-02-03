@@ -586,8 +586,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	// TODO(negz): Pass this method a copy of xr, to make very clear that
-	// anything it does won't be reflected in the state of xr?
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
