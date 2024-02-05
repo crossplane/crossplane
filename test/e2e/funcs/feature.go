@@ -668,8 +668,8 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 }
 
 // CompositeResourceHasFieldValueWithin asserts that the XR referred to by the
-// claim in the the given file has the specified value at the specified path
-// within the specified time.
+// claim in the given file has the specified value at the specified path within
+// the specified time.
 func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm := &claim.Unstructured{}

@@ -71,7 +71,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// First we sync claim -> XR.
 
 	// It's possible we're being asked to configure a statically provisioned XR.
-	// We should respect its existing external name annotation.
+	// We should respect its existing external name annotation.
 	en := meta.GetExternalName(xr)
 
 	// Do not propagate *.kubernetes.io annotations/labels from claim to XR. For
