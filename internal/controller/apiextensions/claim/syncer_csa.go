@@ -149,9 +149,13 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// This ensures we don't leak an XR. We could leak an XR if we created an XR
 	// then crashed before saving a reference to it. We'd create another XR on
 	// the next reconcile.
-	cm.SetResourceReference(meta.ReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
-	if err := s.client.Update(ctx, cm); err != nil {
-		return errors.Wrap(err, errUpdateClaim)
+	existing := cm.GetResourceReference()
+	proposed := meta.ReferenceTo(xr, xr.GetObjectKind().GroupVersionKind())
+	if !cmp.Equal(existing, proposed) {
+		cm.SetResourceReference(proposed)
+		if err := s.client.Update(ctx, cm); err != nil {
+			return errors.Wrap(err, errUpdateClaim)
+		}
 	}
 
 	// Apply the XR, unless it's a no-op change.
