@@ -344,7 +344,7 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
-				t.Logf("value doesn't match with diff %s", diff)
+				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
 				return false
 			}
 			return true
@@ -387,7 +387,7 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
-				t.Logf("value doesn't match with diff %s", diff)
+				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
 				return false
 			}
 			return true
@@ -704,7 +704,7 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
-				t.Logf("value doesn't match with diff %s", diff)
+				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(xr), path, diff)
 				return false
 			}
 			return true
@@ -784,7 +784,7 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 			}
 
 			if diff := cmp.Diff(want, got); diff != "" {
-				t.Logf("value doesn't match with diff %s", diff)
+				t.Logf("%s doesn't yet have desired value at field path %s: %s", identifier(u), path, diff)
 				return false
 			}
 			return true
