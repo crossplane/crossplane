@@ -302,6 +302,14 @@ func CRDInitialNamesAccepted() xpv1.Condition {
 	}
 }
 
+type notFound struct{}
+
+func (nf notFound) String() string { return "NotFound" }
+
+// NotFound is a special 'want' value that indicates the supplied path should
+// not be found.
+var NotFound = notFound{}
+
 // ResourcesHaveFieldValueWithin fails a test if the supplied resources do not
 // have the supplied value at the supplied field path within the supplied
 // duration. The supplied 'want' value must cmp.Equal the actual value.
@@ -326,11 +334,20 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 			count.Add(1)
 			u := asUnstructured(o)
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if fieldpath.IsNotFound(err) {
+				if _, ok := want.(notFound); ok {
+					return true
+				}
+			}
 			if err != nil {
 				return false
 			}
 
-			return cmp.Equal(want, got)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Logf("value doesn't match with diff %s", diff)
+				return false
+			}
+			return true
 		}
 
 		start := time.Now()
@@ -360,7 +377,12 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
-			if err != nil && !fieldpath.IsNotFound(err) {
+			if fieldpath.IsNotFound(err) {
+				if _, ok := want.(notFound); ok {
+					return true
+				}
+			}
+			if err != nil {
 				return false
 			}
 
@@ -430,6 +452,8 @@ func ApplyClaim(manager, dir, cm string) features.Func {
 			t.Errorf("Only one claim allows in %s", filepath.Join(dir, cm))
 			return ctx
 		}
+		// TODO(negz): Only two functions seem to read this key. Either adopt it
+		// everywhere it would be relevant, or drop it.
 		f := func(o k8s.Object) {
 			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)})
 		}
@@ -535,6 +559,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		m := func(o k8s.Object) bool {
 			return o.GetGeneration() != cm.GetGeneration()
 		}
+		t.Errorf("Ensuring claim %s does not change within %s", identifier(cm), d.String())
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
@@ -543,7 +568,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			}
 			return ctx
 		}
-		t.Errorf("Claim %s got changed, but it should not", identifier(cm))
+		t.Errorf("Claim %s changed within %s, but it should not have", identifier(cm), d.String())
 		return ctx
 	}
 }
@@ -578,15 +603,17 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		m := func(o k8s.Object) bool {
 			return o.GetResourceVersion() != cp.GetResourceVersion()
 		}
+
+		t.Errorf("Ensuring composite resource %s does not change within %s", identifier(cp), d.String())
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
-				t.Logf("Composite %s did not change within %s", identifier(cp), d.String())
+				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
 			} else {
-				t.Errorf("Error while observing composite %s: %v", identifier(cp), err)
+				t.Errorf("Error while observing composite resource %s: %v", identifier(cp), err)
 			}
 			return ctx
 		}
-		t.Errorf("Composite %s got changed, but it should not", identifier(cp))
+		t.Errorf("Composite resource %s changed within %s, but it should not have", identifier(cp), d.String())
 		return ctx
 	}
 }
@@ -640,10 +667,70 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 	}
 }
 
-// ComposedResourcesOfClaimHaveFieldValueWithin fails a test if the composed
+// CompositeResourceHasFieldValueWithin asserts that the XR referred to by the
+// claim in the the given file has the specified value at the specified path
+// within the specified time.
+func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm := &claim.Unstructured{}
+
+		if err := decoder.DecodeFile(os.DirFS(dir), claimFile, cm); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+			return ctx
+		}
+
+		xrRef := cm.GetResourceReference()
+		xr := &unstructured.Unstructured{}
+		xr.SetGroupVersionKind(xrRef.GroupVersionKind())
+		xr.SetName(xrRef.Name)
+
+		count := atomic.Int32{}
+		match := func(o k8s.Object) bool {
+			count.Add(1)
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if fieldpath.IsNotFound(err) {
+				if _, ok := want.(notFound); ok {
+					return true
+				}
+			}
+			if err != nil {
+				return false
+			}
+
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Logf("value doesn't match with diff %s", diff)
+				return false
+			}
+			return true
+		}
+
+		start := time.Now()
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(xr, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(xr)
+			t.Errorf("XR did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("no resources matched pattern %s", filepath.Join(dir, claimFile))
+			return ctx
+		}
+
+		t.Logf("%s has desired value %q at field path %s after %s", identifier(xr), want, path, since(start))
+		return ctx
+	}
+}
+
+// ComposedResourcesHaveFieldValueWithin fails a test if the composed
 // resources created by the claim does not have the supplied value at the
 // supplied path within the supplied duration.
-func ComposedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func {
+func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func { //nolint:gocyclo // Not too much over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm := &claim.Unstructured{}
 		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
@@ -687,11 +774,20 @@ func ComposedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pa
 			count.Add(1)
 			u := asUnstructured(o)
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if fieldpath.IsNotFound(err) {
+				if _, ok := want.(notFound); ok {
+					return true
+				}
+			}
 			if err != nil {
 				return false
 			}
 
-			return cmp.Equal(want, got)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Logf("value doesn't match with diff %s", diff)
+				return false
+			}
+			return true
 		}
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
