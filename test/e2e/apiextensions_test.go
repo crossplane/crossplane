@@ -275,6 +275,12 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
+			// SSA claims are always enabled in this test suite, so we need to
+			// explicitly disable them first before we create anything.
+			WithSetup("DisableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(config.TestSuiteDefault)), // Disable our feature flag.
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
