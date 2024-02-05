@@ -679,8 +679,17 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 			return ctx
 		}
 
-		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
-			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+		hasResourceRef := func(o k8s.Object) bool {
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetString("spec.resourceRef.name")
+			if err != nil {
+				return false
+			}
+			return got != ""
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cm, hasResourceRef), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			t.Errorf("Claim %q does not have a resourceRef to an XR: %v", cm.GetName(), err)
 			return ctx
 		}
 
@@ -738,8 +747,17 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 			return ctx
 		}
 
-		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
-			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+		hasResourceRef := func(o k8s.Object) bool {
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetString("spec.resourceRef.name")
+			if err != nil {
+				return false
+			}
+			return got != ""
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cm, hasResourceRef), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			t.Errorf("Claim %q does not have a resourceRef to an XR: %v", cm.GetName(), err)
 			return ctx
 		}
 
