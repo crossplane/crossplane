@@ -62,26 +62,6 @@ func TestServerSideSync(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"RefuseToBindBoundXR": {
-			reason: "We should return an error if the XR is already bound to a different claim.",
-			args: args{
-				cm: NewClaim(func(cm *claim.Unstructured) {
-					cm.SetName("cool-claim")
-				}),
-				xr: NewComposite(func(xr *composite.Unstructured) {
-					xr.SetClaimReference(&claim.Reference{Name: "another-claim"})
-				}),
-			},
-			want: want{
-				cm: NewClaim(func(cm *claim.Unstructured) {
-					cm.SetName("cool-claim")
-				}),
-				xr: NewComposite(func(xr *composite.Unstructured) {
-					xr.SetClaimReference(&claim.Reference{Name: "another-claim"})
-				}),
-				err: errors.New(errBindCompositeConflict),
-			},
-		},
 		"GenerateXRNameError": {
 			reason: "We should return an error if we can't generate an XR name.",
 			params: params{

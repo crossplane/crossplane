@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/csaupgrade"
@@ -119,13 +118,6 @@ func NewServerSideCompositeSyncer(c client.Client, ng names.NameGenerator) *Serv
 // Sync the supplied claim with the supplied composite resource (XR). Syncing
 // may involve creating and binding the XR.
 func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { //nolint:gocyclo // This complex process seems easier to follow in one long method.
-	// Refuse to bind and sync an XR bound to a different claim.
-	existing := xr.GetClaimReference()
-	proposed := cm.GetReference()
-	if existing != nil && !cmp.Equal(existing, proposed) {
-		return errors.New(errBindCompositeConflict)
-	}
-
 	// First we sync claim -> XR.
 
 	// Create an empty XR patch object. We'll use this object to ensure we only
@@ -203,7 +195,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 
 	// We overwrite the entire XR spec above, so we wait until this point to set
 	// the claim reference.
-	xrPatch.SetClaimReference(proposed)
+	xrPatch.SetClaimReference(cm.GetReference())
 
 	// Below this point we're syncing XR -> claim.
 

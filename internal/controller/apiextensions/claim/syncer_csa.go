@@ -37,11 +37,10 @@ import (
 )
 
 const (
-	errUpdateClaim           = "cannot update claim"
-	errUnsupportedClaimSpec  = "claim spec was not an object"
-	errBindCompositeConflict = "cannot bind composite resource that references a different claim"
-	errGenerateName          = "cannot generate a name for composite resource"
-	errApplyComposite        = "cannot apply composite resource"
+	errUpdateClaim          = "cannot update claim"
+	errUnsupportedClaimSpec = "claim spec was not an object"
+	errGenerateName         = "cannot generate a name for composite resource"
+	errApplyComposite       = "cannot apply composite resource"
 
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
@@ -69,13 +68,6 @@ func NewClientSideCompositeSyncer(c client.Client, ng names.NameGenerator) *Clie
 // Sync the supplied claim with the supplied composite resource (XR). Syncing
 // may involve creating and binding the XR.
 func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { //nolint:gocyclo // This complex process seems easier to follow in one long method.
-	// Refuse to bind and sync an XR bound to a different claim.
-	existing := xr.GetClaimReference()
-	proposed := cm.GetReference()
-	if existing != nil && !cmp.Equal(existing, proposed) {
-		return errors.New(errBindCompositeConflict)
-	}
-
 	// First we sync claim -> XR.
 
 	// It's possible we're being asked to configure a statically provisioned XR.
@@ -130,7 +122,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 
 	// We overwrite the entire XR spec above, so we wait until this point to set
 	// the claim reference.
-	xr.SetClaimReference(proposed)
+	xr.SetClaimReference(cm.GetReference())
 
 	// If the claim references an XR, make sure we're going to apply that XR. We
 	// do this just in case the XR exists, but we couldn't get it due to a stale
