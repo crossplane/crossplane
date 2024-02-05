@@ -69,13 +69,10 @@ const reconcilePausedMsg = "Reconciliation (including deletion) is paused via th
 
 // Event reasons.
 const (
-	reasonBind                event.Reason = "BindCompositeResource"
-	reasonDelete              event.Reason = "DeleteCompositeResource"
-	reasonCompositeConfigure  event.Reason = "ConfigureCompositeResource"
-	reasonClaimConfigure      event.Reason = "ConfigureClaim"
-	reasonClaimSelectDefaults event.Reason = "SelectClaimDefaults"
-	reasonPropagate           event.Reason = "PropagateConnectionSecret"
-	reasonPaused              event.Reason = "ReconciliationPaused"
+	reasonBind      event.Reason = "BindCompositeResource"
+	reasonDelete    event.Reason = "DeleteCompositeResource"
+	reasonPropagate event.Reason = "PropagateConnectionSecret"
+	reasonPaused    event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
