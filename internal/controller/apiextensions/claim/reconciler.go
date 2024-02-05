@@ -466,6 +466,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
+	// The XR's claim reference before syncing. Used to determine if we bind it.
+	before := xr.GetClaimReference()
+
 	// Create (if necessary), bind, and sync an XR with the claim.
 	if err := r.composite.Sync(ctx, cm, xr); err != nil {
 		if kerrors.IsConflict(err) {
@@ -475,6 +478,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonBind, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+
+	// The XR didn't reference the claim before the sync, but does now.
+	if ref := cm.GetReference(); !cmp.Equal(before, ref) && cmp.Equal(xr.GetClaimReference(), ref) {
+		record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
 	}
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
@@ -487,11 +495,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
-
-	// TODO(negz): Don't emit this event every time we reconcile. Perhaps emit
-	// if if the XR doesn't reference this claim before calling sync, but does
-	// after.
-	record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
 
 	propagated, err := r.composite.PropagateConnection(ctx, cm, xr)
 	if err != nil {
