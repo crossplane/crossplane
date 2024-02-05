@@ -384,3 +384,49 @@ func TestCompositionSelection(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestBindToExistingXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/bind-existing-xr"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			// Create an XR we'll later bind to.
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available()),
+			)).
+			// Make sure our fields are set to the XR's values.
+			Assess("XRFieldHasOriginalValues", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.coolField", "Set by XR"),
+			)).
+			// Create a claim that explicitly asks to bind to the above XR.
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("XRIsBoundToClaim", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.claimRef.name", "bind-existing-xr"),
+			)).
+			Assess("XRFieldChangesToClaimValue", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.coolField", "Set by claim"),
+			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+
+				// Deleting the claim should delete the XR.
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
