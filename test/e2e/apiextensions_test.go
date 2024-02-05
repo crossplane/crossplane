@@ -59,6 +59,24 @@ var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReferen
 	Kind:       "NopResource",
 }))
 
+const (
+	// SuiteCachedCompositions is the value for the config.LabelTestSuite label
+	// to be assigned to tests that should be part of the CachedCompositions
+	// test suite.
+	CachedCompositions = "cached-compositions"
+)
+
+func init() {
+	environment.AddTestSuite(CachedCompositions,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-cached-compositions}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{CachedCompositions, config.TestSuiteDefault},
+		}),
+	)
+}
+
 // TestCompositionMinimal tests Crossplane's Composition functionality,
 // checking that a claim using a very minimal Composition (with no patches,
 // transforms, or functions) will become available when its composed
