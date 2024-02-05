@@ -202,14 +202,14 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 
 // RelatedObjectsDeletedWithin fails a test if any objects related to the
 // supplied resources are not deleted within the supplied duration.
-func RelatedObjectsDeletedWithin(d time.Duration, dir, pattern string) features.Func {
+func RelatedObjectsDeletedWithin(d time.Duration) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
-		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
-		if err != nil {
-			t.Error(err)
+		rs, ok := ctx.Value(deletedResourcesCtxKey{}).(map[string]k8s.Object)
+		if !ok {
+			t.Fatalf("deleted resources not available in the context, previous steps should have set them")
 			return ctx
 		}
+		ctx = context.WithValue(ctx, deletedResourcesCtxKey{}, nil)
 
 		// build list with all requested objects
 		list := &unstructured.UnstructuredList{}
@@ -539,6 +539,8 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 	}
 }
 
+type deletedResourcesCtxKey struct{}
+
 // DeleteResources deletes (from the environment) all resources defined by the
 // manifests under the supplied directory that match the supplied glob pattern
 // (e.g. *.yaml).
@@ -546,14 +548,18 @@ func DeleteResources(dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
 
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources())); err != nil {
+		objs := map[string]k8s.Object{}
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, func(ctx context.Context, obj k8s.Object) error {
+			objs[identifier(obj)] = obj
+			return decoder.DeleteHandler(c.Client().Resources())(ctx, obj)
+		}); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
 
 		files, _ := fs.Glob(dfs, pattern)
 		t.Logf("Deleted resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
-		return ctx
+		return context.WithValue(ctx, deletedResourcesCtxKey{}, objs)
 	}
 }
 
