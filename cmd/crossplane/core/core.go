@@ -267,7 +267,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableAlphaClaimSSA)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaDeploymentRuntimeConfigs)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
 	}
 
 	ao := apiextensionscontroller.Options{
