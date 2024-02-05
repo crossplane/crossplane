@@ -109,6 +109,7 @@ type startCommand struct {
 	EnableUsages               bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
 	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableSSAClaims            bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableCachedCompositions   bool `group:"Alpha Features:" help:"Enable support for caching claims, composite resources (XRs), and composed resources in the composition controllers."`
 
 	EnableCompositionFunctions               bool `group:"Beta Features:" default:"true" help:"Enable support for Composition Functions."`
 	EnableCompositionFunctionsExtraResources bool `group:"Beta Features:" default:"true" help:"Enable support for Composition Functions Extra Resources. Only respected if --enable-composition-functions is set to true."`
@@ -150,8 +151,16 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		}),
 		Client: client.Options{
 			Cache: &client.CacheOptions{
-				DisableFor:   []client.Object{&corev1.Secret{}},
-				Unstructured: false, // this is the default to not cache unstructured objects
+				DisableFor: []client.Object{&corev1.Secret{}},
+
+				// We don't have our feature flag plumbing setup yet, so just
+				// use the flag here. We do log and enable the flag separately
+				// below.
+
+				// Technically this is enabling caching for everything
+				// unstructured, not just in the composition controllers. We
+				// only use unstructured types in those controllers.
+				Unstructured: c.EnableCachedCompositions,
 			},
 		},
 		EventBroadcaster: eb,
@@ -260,6 +269,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableRealtimeCompositions {
 		o.Features.Enable(features.EnableAlphaRealtimeCompositions)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRealtimeCompositions)
+	}
+	if c.EnableCachedCompositions {
+		// Note that we just enable this flag by convention. Nothing reads it.
+		// See the client setup in the call to ctrl.NewManager above for where
+		// it's actually used.
+		o.Features.Enable(features.EnableAlphaCachedCompositions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCachedCompositions)
 	}
 	if c.EnableDeploymentRuntimeConfigs {
 		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
