@@ -80,7 +80,7 @@ func TestConfigurationWithDependency(t *testing.T) {
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				funcs.RelatedObjectsDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
 			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider-dependency.yaml"),

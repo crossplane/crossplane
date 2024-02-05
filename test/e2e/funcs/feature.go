@@ -200,6 +200,47 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 	}
 }
 
+// RelatedObjectsDeletedWithin fails a test if any objects related to the
+// supplied resources are not deleted within the supplied duration.
+func RelatedObjectsDeletedWithin(d time.Duration, dir, pattern string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+
+		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
+		if err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		// build list with all requested objects
+		list := &unstructured.UnstructuredList{}
+		for _, o := range rs {
+			u := asUnstructured(o)
+			list.Items = append(list.Items, *u)
+			t.Logf("Waiting %s for %s to be deleted...", d, identifier(u))
+		}
+
+		// Get all related objects
+		objs := itemsToObjects(list.Items)
+		related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
+		for _, o := range related {
+			u := asUnstructured(o)
+			list.Items = append(list.Items, *u)
+			t.Logf("Waiting related resource %s for %s to be deleted...", d, identifier(u))
+		}
+
+		start := time.Now()
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
+
+			t.Errorf("resources not deleted: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", err, toYAML(objs...), events, toYAML(related...))
+			return ctx
+		}
+
+		t.Logf("%d resources deleted after %s", len(list.Items), since(start))
+		return ctx
+	}
+}
+
 // ResourceDeletedWithin fails a test if the supplied resource is not deleted
 // within the supplied duration.
 func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
