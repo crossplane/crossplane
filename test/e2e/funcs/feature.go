@@ -559,7 +559,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		m := func(o k8s.Object) bool {
 			return o.GetGeneration() != cm.GetGeneration()
 		}
-		t.Errorf("Ensuring claim %s does not change within %s", identifier(cm), d.String())
+		t.Logf("Ensuring claim %s does not change within %s", identifier(cm), d.String())
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
@@ -604,7 +604,7 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 			return o.GetResourceVersion() != cp.GetResourceVersion()
 		}
 
-		t.Errorf("Ensuring composite resource %s does not change within %s", identifier(cp), d.String())
+		t.Logf("Ensuring composite resource %s does not change within %s", identifier(cp), d.String())
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
