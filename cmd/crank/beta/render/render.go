@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -290,8 +291,9 @@ func Render(ctx context.Context, logger logging.Logger, in Inputs) (Outputs, err
 	if len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
-	// lastTransitionTime would just be noise, so we drop it.
-	xrCond.LastTransitionTime = metav1.Time{}
+	// lastTransitionTime would just be noise, but we can't drop it as it's a
+	// required field and null is not allowed, so we set a random time.
+	xrCond.LastTransitionTime = metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
 	xr.SetConditions(xrCond)
 
 	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}

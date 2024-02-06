@@ -214,7 +214,7 @@ func TestRender(t *testing.T) {
 											"status": {
 												"widgets": 9001,
 												"conditions": [{
-													"lastTransitionTime": null,
+													"lastTransitionTime": "2024-01-01T00:00:00Z",
 													"type": "Ready",
 													"status": "False",
 													"reason": "Creating",
@@ -276,7 +276,7 @@ func TestRender(t *testing.T) {
 								"status": {
 									"widgets": 9001,
 									"conditions": [{
-										"lastTransitionTime": null,
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
 										"type": "Ready",
 										"status": "False",
 										"reason": "Creating",
@@ -383,7 +383,7 @@ func TestRender(t *testing.T) {
 											"status": {
 												"widgets": 9001,
 												"conditions": [{
-													"lastTransitionTime": null,
+													"lastTransitionTime": "2024-01-01T00:00:00Z",
 													"type": "Ready",
 													"status": "False",
 													"reason": "Creating",
@@ -447,7 +447,7 @@ func TestRender(t *testing.T) {
 								"status": {
 									"widgets": 9001,
 									"conditions": [{
-										"lastTransitionTime": null,
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
 										"type": "Ready",
 										"status": "True",
 										"reason": "Available"
@@ -664,7 +664,7 @@ func TestRender(t *testing.T) {
 								"status": {
 									"widgets": "bar",
 									"conditions": [{
-										"lastTransitionTime": null,
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
 										"type": "Ready",
 										"status": "False",
 										"reason": "Creating",
