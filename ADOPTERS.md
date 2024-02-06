@@ -38,7 +38,7 @@ This list is sorted in the order that organizations were added to it.
 | [Akuity](https://akuity.io) | @wanghong230 | Control plane and infrastructure management solution for [Akuity Platform - Managed Argo CD](https://akuity.io/akuity-platform/). Crossplane manages some infrastructure part of dev, staging, and production environments. |
 | [Neux](https://neux.io) | @styk-tv | In production, running dynamic Crossplane control plane for auto-adjusting kafka/connect/telegraf payload transformations, filtering to/from sources/destinations. |
 | [Disashop](https://www.disashop.com/) | @edalonso | We manage our infrastructure in EKS for all dev, staging, and production environments and create compositions in order to deploy our transactional platform about digital products in kubernetes clusters.|
-| [ConsenSys](https://consensys.net/) | @clementblaise | Main control plane in production for an internal developer platform |
+| [Consensys](https://consensys.io/) | [@clementblaise](https://github.com/clementblaise) | Main control plane for an internal developer platform powering production workloads and managing more than 1,000 resources. Watch our KubeCon + CloudNativeCon [talk](https://www.youtube.com/watch?v=pcpm4HiRktY) |
 | [Wildlife Studios](https://wildlifestudios.com/) | @kasama | Component that powers an API used to manage infrastructure for a self-service platform for developers |
 | [Autodesk](https://autodesk.com/) | @jessesanford | IaC components and declarative API abstractions for our next generation Autodesk Unified Control Plane. |
 | [Millennium bcp](https://www.millenniumbcp.pt/) | @infbase | Self-service platform for end-to-end application (and dependant resources) lifecycle |
