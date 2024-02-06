@@ -17,23 +17,38 @@ limitations under the License.
 package e2e
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
+
+const (
+	// SuiteSSAClaims is the value for the config.LabelTestSuite label to be
+	// assigned to tests that should be part of the SSAClaims  test suite.
+	SuiteSSAClaims = "ssa-claims"
+)
+
+func init() {
+	environment.AddTestSuite(SuiteSSAClaims,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-ssa-claims}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteSSAClaims, config.TestSuiteDefault},
+		}),
+	)
+}
 
 // LabelAreaAPIExtensions is applied to all features pertaining to API
 // extensions (i.e. Composition, XRDs, etc).
@@ -204,7 +219,12 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
+			WithSetup("EnableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -217,26 +237,200 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 			)).
 			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
 			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
-				funcs.CompositeResourceMustMatchWithin(1*time.Minute, manifests, "claim.yaml", func(xr *composite.Unstructured) bool {
-					labels := xr.GetLabels()
-					_, barLabelExists := labels["bar"]
-					annotations := xr.GetAnnotations()
-					_, barAnnotationExists := annotations["test/bar"]
-					p := fieldpath.Pave(xr.Object)
-					_, err := p.GetValue("spec.tags.newtag")
-					n, _ := p.GetStringArray("spec.numbers")
-					return labels["foo"] == "1" && !barLabelExists && labels["foo2"] == "3" &&
-						annotations["test/foo"] == "1" && !barAnnotationExists && annotations["test/foo2"] == "4" &&
-						reflect.DeepEqual(n, []string{"one", "five"}) &&
-						err != nil
-				}),
+				// Updates and deletes are propagated claim -> XR.
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo]", "1"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[bar]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo2]", "3"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/foo]", "1"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/bar]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/foo2]", "4"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[0]", "one"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[1]", "five"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[2]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[tag]", "v1"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[newtag]", funcs.NotFound),
 				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
+				// Status is propagated XR -> claim.
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim-update.yaml", "status.coolerField", "I'm cool!"),
 				funcs.CompositeUnderTestMustNotChangeWithin(1*time.Minute),
 			)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DisableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Feature(),
+	)
+}
+
+func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
+			// SSA claims are always enabled in this test suite, so we need to
+			// explicitly disable them first before we create anything.
+			WithSetup("DisableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(config.TestSuiteDefault)), // Disable our feature flag.
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			// Note that unlike TestPropagateFieldsRemovalToXR above, here we
+			// enable SSA _after_ creating the claim. Our goal is to test that
+			// we can still remove fields from the XR when we've upgraded the
+			// field managers from CSA to SSA. If we didn't upgrade successfully
+			// would end up sharing ownership with the old CSA field manager.
+			Assess("EnableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
+			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
+				// Updates and deletes are propagated claim -> XR.
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo]", "1"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[bar]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo2]", "3"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/foo]", "1"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/bar]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/foo2]", "4"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[0]", "one"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[1]", "five"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.numbers[2]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[tag]", "v1"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.parameters.tags[newtag]", funcs.NotFound),
+				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
+				// Status is propagated XR -> claim.
+				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim-update.yaml", "status.coolerField", "I'm cool!"),
+				funcs.CompositeUnderTestMustNotChangeWithin(1*time.Minute),
+			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DisableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Feature(),
+	)
+}
+
+func TestCompositionSelection(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/composition-selection"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
+			WithSetup("EnableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("LabelSelectorPropagatesToXR", funcs.AllOf(
+				// The label selector should be propagated claim -> XR.
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[environment]", "testing"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[region]", "AU"),
+				// The XR should select the composition.
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionRef.name", "testing-au"),
+				// The selected composition should propagate XR -> claim.
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionRef.name", "testing-au"),
+			)).
+			// Remove the region label from the composition selector.
+			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
+			Assess("UpdatedLabelSelectorPropagatesToXR", funcs.AllOf(
+				// The label selector should be propagated claim -> XR.
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[environment]", "testing"),
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[region]", funcs.NotFound),
+				// The XR should still have the composition selected.
+				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionRef.name", "testing-au"),
+				// The claim should still have the composition selected.
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionRef.name", "testing-au"),
+				// The label selector shouldn't reappear on the claim
+				// https://github.com/crossplane/crossplane/issues/3992
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[environment]", "testing"),
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "spec.compositionSelector.matchLabels[region]", funcs.NotFound),
+			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DisableSSAClaims", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Feature(),
+	)
+}
+
+func TestBindToExistingXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/bind-existing-xr"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			// Create an XR we'll later bind to.
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available()),
+			)).
+			// Make sure our fields are set to the XR's values.
+			Assess("XRFieldHasOriginalValues", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.coolField", "Set by XR"),
+			)).
+			// Create a claim that explicitly asks to bind to the above XR.
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("XRIsBoundToClaim", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.claimRef.name", "bind-existing-xr"),
+			)).
+			Assess("XRFieldChangesToClaimValue", funcs.AllOf(
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "spec.coolField", "Set by claim"),
+			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+
+				// Deleting the claim should delete the XR.
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),

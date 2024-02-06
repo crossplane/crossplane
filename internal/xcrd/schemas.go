@@ -32,7 +32,7 @@ const (
 var CompositionRevisionRef = "compositionRevisionRef"
 
 // PropagateSpecProps is the list of XRC spec properties to propagate
-// when translating an XRC into an XR and vice-versa.
+// when translating an XRC into an XR.
 var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionUpdatePolicy", "compositionRevisionSelector"}
 
 // TODO(negz): Add descriptions to schema fields.

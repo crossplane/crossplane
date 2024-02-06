@@ -50,6 +50,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
+	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -398,6 +399,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
 		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
 		claim.WithPollInterval(r.options.PollInterval),
+	}
+
+	// We only want to use the server-side XR syncer if the relevant feature
+	// flag is enabled. Otherwise, we start claim reconcilers with the default
+	// client-side syncer. If we use a server-side syncer we also need to handle
+	// upgrading fields that were previously managed using client-side apply.
+	if r.options.Features.Enabled(features.EnableAlphaClaimSSA) {
+		o = append(o,
+			claim.WithCompositeSyncer(claim.NewServerSideCompositeSyncer(r.client, names.NewNameGenerator(r.client))),
+			claim.WithManagedFieldsUpgrader(claim.NewPatchingManagedFieldsUpgrader(r.client)),
+		)
 	}
 
 	// We only want to enable ExternalSecretStore support if the relevant
