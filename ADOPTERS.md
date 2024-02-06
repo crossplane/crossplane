@@ -74,3 +74,4 @@ This list is sorted in the order that organizations were added to it.
 | [DeepSea](https://deepsea.ai/) | [bmutziu](https://github.com/bmutziu) | Migrated to Crossplane from Terraform in production environments. |
 | [Imagine Learning](https://www.imaginelearning.com/) | [@blakeromano](https://github.com/blakeromano) [blake.romano@imaginelearning.com](mailto:blake.romano@imaginelearning.com) | Control Plane for Infrastructure in Internal Developer Platform |
 | [babelforce](https://www.babelforce.com/) | [@nik843](https://github.com/nik843) | Orchestrating relational database servers by creating databases, users and permissions for them within all environments. |
+| [Nike](https://nike.com/) | [joel.cooklin@nike.com](mailto:joel.cooklin@nike.com) | Crossplane powers the internal developer platform managing thousands of resources from development to production.  |
