@@ -19,6 +19,8 @@ package render
 import (
 	"context"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -35,12 +37,14 @@ type RuntimeDevelopment struct {
 	// Target is the gRPC target for the running function, for example
 	// localhost:9443.
 	Target string
+	// Function is the name of the function to be run.
+	Function string
 }
 
 // GetRuntimeDevelopment extracts RuntimeDevelopment configuration from the
 // supplied Function.
 func GetRuntimeDevelopment(fn pkgv1beta1.Function) *RuntimeDevelopment {
-	r := &RuntimeDevelopment{Target: "localhost:9443"}
+	r := &RuntimeDevelopment{Target: "localhost:9443", Function: fn.GetName()}
 	if t := fn.GetAnnotations()[AnnotationKeyRuntimeDevelopmentTarget]; t != "" {
 		r.Target = t
 	}
@@ -50,6 +54,7 @@ func GetRuntimeDevelopment(fn pkgv1beta1.Function) *RuntimeDevelopment {
 var _ Runtime = &RuntimeDevelopment{}
 
 // Start does nothing. It returns a Stop function that also does nothing.
-func (r *RuntimeDevelopment) Start(_ context.Context) (RuntimeContext, error) {
+func (r *RuntimeDevelopment) Start(_ context.Context, logger logging.Logger) (RuntimeContext, error) {
+	logger.Debug("Starting development runtime. Remember to run the function manually.", "function", r.Function, "target", r.Target)
 	return RuntimeContext{Target: r.Target, Stop: func(_ context.Context) error { return nil }}, nil
 }

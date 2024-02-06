@@ -32,6 +32,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
@@ -84,14 +85,10 @@ type Outputs struct {
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
 	// are in use?
-
-	// TODO(negz): Allow returning desired XR readiness? Or perhaps just set the
-	// ready status condition on the XR if all supplied observed resources
-	// appear ready?
 }
 
 // Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
-func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
+func Render(ctx context.Context, logger logging.Logger, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
 	// Run our Functions.
 	conns := map[string]*grpc.ClientConn{}
 	for _, fn := range in.Functions {
@@ -99,11 +96,15 @@ func Render(ctx context.Context, in Inputs) (Outputs, error) { //nolint:gocyclo 
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
-		rctx, err := runtime.Start(ctx)
+		rctx, err := runtime.Start(ctx, logger)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
-		defer rctx.Stop(ctx) //nolint:errcheck // Not sure what to do with this error. Log it to stderr?
+		defer func() {
+			if err := rctx.Stop(ctx); err != nil {
+				logger.Debug("Error stopping function runtime", "function", fn.GetName(), "error", err)
+			}
+		}()
 
 		conn, err := grpc.DialContext(ctx, rctx.Target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),

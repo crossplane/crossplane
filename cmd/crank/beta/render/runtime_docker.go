@@ -29,6 +29,7 @@ import (
 	"github.com/docker/go-connections/nat"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -149,7 +150,8 @@ func GetRuntimeDocker(fn pkgv1beta1.Function) (*RuntimeDocker, error) {
 var _ Runtime = &RuntimeDocker{}
 
 // Start a Function as a Docker container.
-func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //nolint:gocyclo // TODO(phisco): Refactor to break this up a bit, not so easy.
+func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (RuntimeContext, error) { //nolint:gocyclo // TODO(phisco): Refactor to break this up a bit, not so easy.
+	logger.Debug("Starting Docker container runtime", "image", r.Image)
 	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")
@@ -180,6 +182,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //n
 	}
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
+		logger.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
 		err = PullImage(ctx, c, r.Image)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
@@ -187,6 +190,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //n
 	}
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
+	logger.Debug("Creating Docker container", "image", r.Image, "address", addr)
 	rsp, err := c.ContainerCreate(ctx, cfg, hcfg, nil, nil, "")
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
@@ -194,6 +198,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //n
 		}
 
 		// The image was not found, but we're allowed to pull it.
+		logger.Debug("Image not found, pulling", "image", r.Image)
 		err = PullImage(ctx, c, r.Image)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
@@ -210,7 +215,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //n
 	}
 
 	stop := func(_ context.Context) error {
-		// TODO(negz): Maybe log to stderr that we're leaving the container running?
+		logger.Debug("Container left running", "container", rsp.ID, "image", r.Image)
 		return nil
 	}
 	if r.Stop {
