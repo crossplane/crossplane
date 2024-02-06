@@ -63,16 +63,16 @@ func TestJSONPrinter(t *testing.T) {
     "status": {
       "conditions": [
         {
-          "type": "Synced",
-          "status": "True",
           "lastTransitionTime": null,
-          "reason": ""
+          "reason": "",
+          "status": "True",
+          "type": "Synced"
         },
         {
-          "type": "Ready",
-          "status": "True",
           "lastTransitionTime": null,
-          "reason": ""
+          "reason": "",
+          "status": "True",
+          "type": "Ready"
         }
       ]
     }
@@ -88,16 +88,16 @@ func TestJSONPrinter(t *testing.T) {
         "status": {
           "conditions": [
             {
-              "type": "Synced",
-              "status": "True",
               "lastTransitionTime": null,
-              "reason": ""
+              "reason": "",
+              "status": "True",
+              "type": "Synced"
             },
             {
-              "type": "Ready",
-              "status": "True",
               "lastTransitionTime": null,
-              "reason": ""
+              "reason": "",
+              "status": "True",
+              "type": "Ready"
             }
           ]
         }
@@ -108,21 +108,24 @@ func TestJSONPrinter(t *testing.T) {
             "apiVersion": "test.cloud/v1alpha1",
             "kind": "Bucket",
             "metadata": {
+              "annotations": {
+                "crossplane.io/composition-resource-name": "one"
+              },
               "name": "test-resource-bucket-hash"
             },
             "status": {
               "conditions": [
                 {
-                  "type": "Synced",
-                  "status": "True",
                   "lastTransitionTime": null,
-                  "reason": ""
+                  "reason": "",
+                  "status": "True",
+                  "type": "Synced"
                 },
                 {
-                  "type": "Ready",
-                  "status": "True",
                   "lastTransitionTime": null,
-                  "reason": ""
+                  "reason": "",
+                  "status": "True",
+                  "type": "Ready"
                 }
               ]
             }
@@ -133,22 +136,25 @@ func TestJSONPrinter(t *testing.T) {
                 "apiVersion": "test.cloud/v1alpha1",
                 "kind": "User",
                 "metadata": {
+                  "annotations": {
+                    "crossplane.io/composition-resource-name": "two"
+                  },
                   "name": "test-resource-child-1-bucket-hash"
                 },
                 "status": {
                   "conditions": [
                     {
-                      "type": "Synced",
-                      "status": "True",
                       "lastTransitionTime": null,
-                      "reason": ""
+                      "reason": "",
+                      "status": "True",
+                      "type": "Synced"
                     },
                     {
-                      "type": "Ready",
-                      "status": "False",
                       "lastTransitionTime": null,
+                      "message": "Error with bucket child 1: Sint eu mollit tempor ad minim do commodo irure. Magna labore irure magna. Non cillum id nulla. Anim culpa do duis consectetur.",
                       "reason": "SomethingWrongHappened",
-                      "message": "Error with bucket child 1"
+                      "status": "False",
+                      "type": "Ready"
                     }
                   ]
                 }
@@ -159,22 +165,25 @@ func TestJSONPrinter(t *testing.T) {
                 "apiVersion": "test.cloud/v1alpha1",
                 "kind": "User",
                 "metadata": {
+                  "annotations": {
+                    "crossplane.io/composition-resource-name": "three"
+                  },
                   "name": "test-resource-child-mid-bucket-hash"
                 },
                 "status": {
                   "conditions": [
                     {
-                      "type": "Synced",
-                      "status": "False",
                       "lastTransitionTime": null,
+                      "message": "Sync error with bucket child mid",
                       "reason": "CantSync",
-                      "message": "Sync error with bucket child mid"
+                      "status": "False",
+                      "type": "Synced"
                     },
                     {
-                      "type": "Ready",
-                      "status": "True",
                       "lastTransitionTime": null,
-                      "reason": "AllGood"
+                      "reason": "AllGood",
+                      "status": "True",
+                      "type": "Ready"
                     }
                   ]
                 }
@@ -185,22 +194,25 @@ func TestJSONPrinter(t *testing.T) {
                 "apiVersion": "test.cloud/v1alpha1",
                 "kind": "User",
                 "metadata": {
+                  "annotations": {
+                    "crossplane.io/composition-resource-name": "four"
+                  },
                   "name": "test-resource-child-2-bucket-hash"
                 },
                 "status": {
                   "conditions": [
                     {
-                      "type": "Synced",
-                      "status": "True",
                       "lastTransitionTime": null,
-                      "reason": ""
+                      "reason": "",
+                      "status": "True",
+                      "type": "Synced"
                     },
                     {
-                      "type": "Ready",
-                      "status": "False",
                       "lastTransitionTime": null,
+                      "message": "Error with bucket child 2",
                       "reason": "SomethingWrongHappened",
-                      "message": "Error with bucket child 2"
+                      "status": "False",
+                      "type": "Ready"
                     }
                   ]
                 }
@@ -211,15 +223,18 @@ func TestJSONPrinter(t *testing.T) {
                     "apiVersion": "test.cloud/v1alpha1",
                     "kind": "User",
                     "metadata": {
+                      "annotations": {
+                        "crossplane.io/composition-resource-name": ""
+                      },
                       "name": "test-resource-child-2-1-bucket-hash"
                     },
                     "status": {
                       "conditions": [
                         {
-                          "type": "Synced",
-                          "status": "True",
                           "lastTransitionTime": null,
-                          "reason": ""
+                          "reason": "",
+                          "status": "True",
+                          "type": "Synced"
                         }
                       ]
                     }
@@ -239,16 +254,16 @@ func TestJSONPrinter(t *testing.T) {
             "status": {
               "conditions": [
                 {
-                  "type": "Ready",
-                  "status": "True",
                   "lastTransitionTime": null,
-                  "reason": ""
+                  "reason": "",
+                  "status": "True",
+                  "type": "Ready"
                 },
                 {
-                  "type": "Synced",
-                  "status": "Unknown",
                   "lastTransitionTime": null,
-                  "reason": ""
+                  "reason": "",
+                  "status": "Unknown",
+                  "type": "Synced"
                 }
               ]
             }
