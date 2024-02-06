@@ -33,6 +33,7 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 const (
@@ -49,6 +50,11 @@ type DefaultPrinter struct {
 var _ Printer = &DefaultPrinter{}
 
 type defaultPrinterRow struct {
+	wide bool
+
+	// wide only fields
+	resourceName string
+
 	name   string
 	synced string
 	ready  string
@@ -56,12 +62,18 @@ type defaultPrinterRow struct {
 }
 
 func (r *defaultPrinterRow) String() string {
-	return strings.Join([]string{
+	cols := []string{
 		r.name,
+	}
+	if r.wide {
+		cols = append(cols, r.resourceName)
+	}
+	cols = append(cols,
 		r.synced,
 		r.ready,
 		r.status,
-	}, "\t")
+	)
+	return strings.Join(cols, "\t")
 }
 
 type defaultPkgPrinterRow struct {
@@ -110,10 +122,12 @@ func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackage
 		}, true
 	}
 	return &defaultPrinterRow{
-		name:   "NAME",
-		synced: "SYNCED",
-		ready:  "READY",
-		status: "STATUS",
+		wide:         wide,
+		name:         "NAME",
+		resourceName: "RESOURCE",
+		synced:       "SYNCED",
+		ready:        "READY",
+		status:       "STATUS",
 	}, false
 
 }
@@ -240,10 +254,12 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 	}
 
 	return &defaultPrinterRow{
-		name:   name,
-		ready:  mapEmptyStatusToDash(readyCond.Status),
-		synced: mapEmptyStatusToDash(syncedCond.Status),
-		status: status,
+		wide:         wide,
+		name:         name,
+		resourceName: r.Unstructured.GetAnnotations()[composite.AnnotationKeyCompositionResourceName],
+		ready:        mapEmptyStatusToDash(readyCond.Status),
+		synced:       mapEmptyStatusToDash(syncedCond.Status),
+		status:       status,
 	}
 }
 
