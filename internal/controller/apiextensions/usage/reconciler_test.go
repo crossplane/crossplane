@@ -82,6 +82,27 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
+		"CannotParseApiVersion": {
+			reason: "We should return an error if we cannot parse APIVersion of used resource.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								o := obj.(*v1alpha1.Usage)
+								o.Spec.Of.APIVersion = "/invalid/"
+								o.Spec.Of.ResourceSelector = &v1alpha1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("unexpected GroupVersion string: /invalid/"), errParseAPIVersion),
+			},
+		},
 		"CannotResolveSelectors": {
 			reason: "We should return an error if we cannot resolve selectors.",
 			args: args{
