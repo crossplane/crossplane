@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	gcrname "github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
@@ -54,6 +55,7 @@ type defaultPrinterRow struct {
 
 	// wide only fields
 	resourceName string
+	ttr          string
 
 	name   string
 	synced string
@@ -66,7 +68,7 @@ func (r *defaultPrinterRow) String() string {
 		r.name,
 	}
 	if r.wide {
-		cols = append(cols, r.resourceName)
+		cols = append(cols, r.resourceName, r.ttr)
 	}
 	cols = append(cols,
 		r.synced,
@@ -125,6 +127,7 @@ func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackage
 		wide:         wide,
 		name:         "NAME",
 		resourceName: "RESOURCE",
+		ttr:          "TTR",
 		synced:       "SYNCED",
 		ready:        "READY",
 		status:       "STATUS",
@@ -253,10 +256,19 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 		status = fmt.Sprintf("%s: %s", status, m)
 	}
 
+	ttr := "-"
+	var readyAt time.Time
+	if readyCond.Status == corev1.ConditionTrue {
+		createdAt := r.Unstructured.GetCreationTimestamp()
+		readyAt = readyCond.LastTransitionTime.Time
+		ttr = readyAt.Sub(createdAt.Time).String()
+	}
+
 	return &defaultPrinterRow{
 		wide:         wide,
 		name:         name,
 		resourceName: r.Unstructured.GetAnnotations()[composite.AnnotationKeyCompositionResourceName],
+		ttr:          ttr,
 		ready:        mapEmptyStatusToDash(readyCond.Status),
 		synced:       mapEmptyStatusToDash(syncedCond.Status),
 		status:       status,
