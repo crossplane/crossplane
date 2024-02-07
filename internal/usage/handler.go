@@ -25,6 +25,7 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -53,7 +54,14 @@ func IndexValueForObject(u *unstructured.Unstructured) string {
 }
 
 func indexValue(apiVersion, kind, name string) string {
-	return fmt.Sprintf("%s.%s.%s", apiVersion, kind, name)
+	// There are two sources for "apiVersion" input, one is from the unstructured objects fetched from k8s and the other
+	// is from the Usage spec. The one from the objects from k8s is already validated by the k8s API server, so we don't
+	// need to validate it again. The one from the Usage spec is validated by the Usage controller, so we don't need to
+	// validate it as well. So we can safely ignore the error here.
+	// Another reason to ignore the error is that the IndexerFunc using this value to index the objects does not return
+	// an error, so we cannot bubble up the error here.
+	gr, _ := schema.ParseGroupVersion(apiVersion)
+	return fmt.Sprintf("%s.%s.%s", gr.Group, kind, name)
 }
 
 // SetupWebhookWithManager sets up the webhook with the manager.
