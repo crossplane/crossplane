@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -69,6 +70,7 @@ const (
 	errAddFinalizer         = "cannot add finalizer"
 	errRemoveFinalizer      = "cannot remove finalizer"
 	errUpdateStatus         = "cannot update status of usage"
+	errParseAPIVersion      = "cannot parse APIVersion"
 )
 
 // Event reasons.
@@ -214,6 +216,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.client.Get(ctx, req.NamespacedName, u); err != nil {
 		log.Debug(errGetUsage, "error", err)
 		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
+	}
+
+	// Validate APIVersion of used object provided as input.
+	// We parse this value while indexing the objects, and we need to make sure it is valid.
+	_, err := schema.ParseGroupVersion(u.Spec.Of.APIVersion)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, errParseAPIVersion)
 	}
 
 	if err := r.usage.resolveSelectors(ctx, u); err != nil {
