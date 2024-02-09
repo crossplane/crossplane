@@ -454,6 +454,46 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
 	}
 
+	// Produce our array of resources to return to the Reconciler. The
+	// Reconciler uses this array to determine whether the XR is ready.
+	resources := make([]ComposedResource, 0, len(desired))
+
+	// We apply all of our desired resources before we observe them in the loop
+	// below. This ensures that issues observing and processing one composed
+	// resource won't block the application of another.
+	for name, cd := range desired {
+		// We don't need any crossplane-runtime resource.Applicator style apply
+		// options here because server-side apply takes care of everything.
+		// Specifically it will merge rather than replace owner references (e.g.
+		// for Usages), and will fail if we try to add a controller reference to
+		// a resource that already has a different one.
+		// NOTE(phisco): We need to set a field owner unique for each XR here,
+		// this prevents multiple XRs composing the same resource to be
+		// continuously alternated as controllers.
+		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
+			if kerrors.IsInvalid(err) {
+				// We tried applying an invalid resource, we can't tell whether
+				// this means the resource will never be valid or it will if we
+				// run again the composition after some other resource is
+				// created or updated successfully. So, we emit a warning event
+				// and move on.
+				// We mark the resource as not synced, so that once we get to
+				// decide the XR's Synced condition, we can set it to false if
+				// any of the resources didn't sync successfully.
+				events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)))
+				// NOTE(phisco): here we behave differently w.r.t. the native
+				// p&t composer, as we respect the readiness reported by
+				// functions, while there we defaulted to also set ready false
+				// in case of apply errors.
+				resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: false})
+				continue
+			}
+			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
+		}
+
+		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true})
+	}
+
 	// Our goal here is to patch our XR's status using server-side apply. We
 	// want the resulting, patched object loaded into uxr. We need to pass in
 	// only our "fully specified intent" - i.e. only the fields that we actually
@@ -475,30 +515,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// NOTE(phisco): Here we are fine using a hardcoded field owner as there is
 	// no risk of conflict between different XRs.
 	if err := c.client.Status().Patch(ctx, xr, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
+		// Note(phisco): here we are fine with this error being terminal, as
+		// there is no other resource to apply that might eventually resolve
+		// this issue.
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
-	}
-
-	// Produce our array of resources to return to the Reconciler. The
-	// Reconciler uses this array to determine whether the XR is ready.
-	resources := make([]ComposedResource, 0, len(desired))
-
-	// We apply all of our desired resources before we observe them in the loop
-	// below. This ensures that issues observing and processing one composed
-	// resource won't block the application of another.
-	for name, cd := range desired {
-		// We don't need any crossplane-runtime resource.Applicator style apply
-		// options here because server-side apply takes care of everything.
-		// Specifically it will merge rather than replace owner references (e.g.
-		// for Usages), and will fail if we try to add a controller reference to
-		// a resource that already has a different one.
-		// NOTE(phisco): We need to set a field owner unique for each XR here,
-		// this prevents multiple XRs composing the same resource to be
-		// continuously alternated as controllers.
-		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
-		}
-
-		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready})
 	}
 
 	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events}, nil

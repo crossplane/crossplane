@@ -517,21 +517,27 @@ func TestReconcile(t *testing.T) {
 							Composed: []ComposedResource{{
 								ResourceName: "elephant",
 								Ready:        false,
+								Synced:       true,
 							}, {
 								ResourceName: "cow",
 								Ready:        false,
+								Synced:       true,
 							}, {
 								ResourceName: "pig",
 								Ready:        true,
+								Synced:       true,
 							}, {
 								ResourceName: "cat",
 								Ready:        false,
+								Synced:       true,
 							}, {
 								ResourceName: "dog",
 								Ready:        true,
+								Synced:       true,
 							}, {
 								ResourceName: "snake",
 								Ready:        false,
+								Synced:       true,
 							}},
 						}, nil
 					})),
