@@ -35,8 +35,14 @@ type ComposedResource struct {
 	ResourceName ResourceName
 
 	// Ready indicates whether this composed resource is ready - i.e. whether
-	// all of its readiness checks passed.
+	// all of its readiness checks passed. Setting it to false will cause the
+	// XR to be marked as not ready.
 	Ready bool
+
+	// Synced indicates whether the composition process was able to sync the
+	// composed resource with its desired state. Setting it to false will cause
+	// the XR to be marked as not synced.
+	Synced bool
 }
 
 // ComposedResourceState represents a composed resource (either desired or

@@ -272,6 +272,21 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
 		o = append(o, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))...)
 		if err := c.client.Apply(ctx, cd, o...); err != nil {
+			if kerrors.IsInvalid(err) {
+				// We tried applying an invalid resource, we can't tell whether
+				// this means the resource will never be valid or it will if we
+				// run again the composition after some other resource is
+				// created or updated successfully. So, we emit a warning event
+				// and move on.
+				events = append(events, event.Warning(reasonCompose, errors.Wrap(err, errApplyComposed)))
+				// We unset the cd here so that we don't try to observe it
+				// later. This will also mean we report it as not ready and not
+				// synced. Resulting in the XR being reported as not ready nor
+				// synced too.
+				cds[i] = nil
+				continue
+			}
+
 			// TODO(negz): Include the template name (if any) in this error.
 			// Including the rendered resource's kind may help too (e.g. if the
 			// template is anonymous).
@@ -297,7 +312,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		// to observe it. We still want to return it to the Reconciler so that
 		// it knows that this desired composed resource is not ready.
 		if cd == nil {
-			resources[i] = ComposedResource{ResourceName: name, Ready: false}
+			resources[i] = ComposedResource{ResourceName: name, Synced: false, Ready: false}
 			continue
 		}
 
@@ -327,7 +342,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			return CompositionResult{}, errors.Wrapf(err, errFmtCheckReadiness, name)
 		}
 
-		resources[i] = ComposedResource{ResourceName: name, Ready: ready}
+		resources[i] = ComposedResource{ResourceName: name, Ready: ready, Synced: true}
 	}
 
 	// Call Apply so that we do not just replace fields on existing XR but
