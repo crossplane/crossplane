@@ -677,9 +677,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if !cd.Synced {
-			log.Debug("Composed resource is not yet valid", "id", id)
+			log.Debug("Composed resource is not yet synced", "id", id)
 			unsynced = append(unsynced, cd)
-			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet valid", id)))
+			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet synced", id)))
+			continue
 		}
 
 		if !cd.Ready {
@@ -711,7 +712,7 @@ func updateXRConditions(xr *composite.Unstructured, unsynced, unready []Composed
 	if len(unsynced) > 0 {
 		// We want to requeue to wait for our composed resources to
 		// become ready, since we can't watch them.
-		syncedCond = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Invalid resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unsynced))))
+		syncedCond = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Unsynced resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unsynced))))
 		requeueImmediately = true
 	}
 	if len(unready) > 0 {
