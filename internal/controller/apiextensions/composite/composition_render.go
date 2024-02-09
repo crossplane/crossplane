@@ -86,7 +86,7 @@ func RenderFromCompositeAndEnvironmentPatches(cd resource.Composed, xr resource.
 		}
 
 		if e != nil {
-			if err := ApplyToObjects(p[i], e, cd, patchTypesFromToEnvironment()...); err != nil {
+			if err := ApplyToObjects(p[i], e, cd, patchTypesFromEnvironment()...); err != nil {
 				return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
 			}
 		}
@@ -94,13 +94,19 @@ func RenderFromCompositeAndEnvironmentPatches(cd resource.Composed, xr resource.
 	return nil
 }
 
-// RenderToCompositePatches renders the supplied composite resource by applying
-// all patches that are _from_ the supplied composed resource. composed resource
-// and template.
-func RenderToCompositePatches(xr resource.Composite, cd resource.Composed, p []v1.Patch) error {
+// RenderToCompositeAndEnvironentPatches renders the supplied composite resource
+// and environment by applying all patches that are _from_ the supplied composed
+// resource.
+func RenderToCompositeAndEnvironmentPatches(xr resource.Composite, cd resource.Composed, e *Environment, p []v1.Patch) error {
 	for i := range p {
 		if err := Apply(p[i], xr, cd, patchTypesToXR()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
+		}
+
+		if e != nil {
+			if err := ApplyToObjects(p[i], e, cd, patchTypesToEnvironment()...); err != nil {
+				return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
+			}
 		}
 	}
 	return nil

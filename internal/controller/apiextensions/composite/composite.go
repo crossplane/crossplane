@@ -51,12 +51,19 @@ func patchTypesFromXR() []v1.PatchType {
 	return []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
 }
 
-// Returns types of patches that are _from_ the environment to a composed resource
-// and vice versa.
-func patchTypesFromToEnvironment() []v1.PatchType {
+// Returns types of patches that are _from_ the environment to a composed
+// resource, or an XR.
+func patchTypesFromEnvironment() []v1.PatchType {
 	return []v1.PatchType{
 		v1.PatchTypeFromEnvironmentFieldPath,
 		v1.PatchTypeCombineFromEnvironment,
+	}
+}
+
+// Returns types of patches that are from a composed resource or XR __to__ the
+// environment.
+func patchTypesToEnvironment() []v1.PatchType {
+	return []v1.PatchType{
 		v1.PatchTypeToEnvironmentFieldPath,
 		v1.PatchTypeCombineToEnvironment,
 	}

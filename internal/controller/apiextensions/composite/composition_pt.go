@@ -302,7 +302,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			continue
 		}
 
-		if err := RenderToCompositePatches(xr, cd, t.Patches); err != nil {
+		if err := RenderToCompositeAndEnvironmentPatches(xr, cd, req.Environment, t.Patches); err != nil {
 			// Failures to render ToComposite patches are terminal because this
 			// indicates a Required ToCompositeFieldPath patch failed; i.e. the
 			// composite was _required_ to be patched, but wasn't.
