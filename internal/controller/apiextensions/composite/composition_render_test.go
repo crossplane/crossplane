@@ -67,8 +67,25 @@ func TestRenderFromJSON(t *testing.T) {
 				err: errors.Wrap(errInvalidChar, errUnmarshalJSON),
 			},
 		},
-		"ExistingGVKChanged": {
-			reason: "We should return an error if unmarshalling the base template changed the composed resource's group, version, or kind",
+		"ExistingGroupChanged": {
+			reason: "We should return an error if unmarshalling the base template changed the composed resource's group.",
+			args: args{
+				o: composed.New(composed.FromReference(corev1.ObjectReference{
+					APIVersion: "example.org/v1",
+					Kind:       "Potato",
+				})),
+				data: []byte(`{"apiVersion": "foo.io/v1", "kind": "Potato"}`),
+			},
+			want: want{
+				o: composed.New(composed.FromReference(corev1.ObjectReference{
+					APIVersion: "foo.io/v1",
+					Kind:       "Potato",
+				})),
+				err: errors.Errorf(errFmtKindOrGroupChanged, "example.org/v1, Kind=Potato", "foo.io/v1, Kind=Potato"),
+			},
+		},
+		"ExistingKindChanged": {
+			reason: "We should return an error if unmarshalling the base template changed the composed resource's kind.",
 			args: args{
 				o: composed.New(composed.FromReference(corev1.ObjectReference{
 					APIVersion: "example.org/v1",
@@ -81,7 +98,23 @@ func TestRenderFromJSON(t *testing.T) {
 					APIVersion: "example.org/v1",
 					Kind:       "Different",
 				})),
-				err: errors.Errorf(errFmtKindChanged, "example.org/v1, Kind=Potato", "example.org/v1, Kind=Different"),
+				err: errors.Errorf(errFmtKindOrGroupChanged, "example.org/v1, Kind=Potato", "example.org/v1, Kind=Different"),
+			},
+		},
+		"VersionCanChange": {
+			reason: "We should accept version changes in the base template.",
+			args: args{
+				o: composed.New(composed.FromReference(corev1.ObjectReference{
+					APIVersion: "example.org/v1alpha1",
+					Kind:       "Potato",
+				})),
+				data: []byte(`{"apiVersion": "example.org/v1beta1", "kind": "Potato"}`),
+			},
+			want: want{
+				o: composed.New(composed.FromReference(corev1.ObjectReference{
+					APIVersion: "example.org/v1beta1",
+					Kind:       "Potato",
+				})),
 			},
 		},
 		"NewComposedResource": {
