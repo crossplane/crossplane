@@ -95,6 +95,9 @@ type RuntimeDocker struct {
 
 	// PullPolicy controls how the runtime image is pulled.
 	PullPolicy DockerPullPolicy
+
+	// log is the logger for this runtime.
+	log logging.Logger
 }
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
@@ -124,7 +127,7 @@ func GetDockerCleanup(fn pkgv1beta1.Function) (DockerCleanup, error) {
 
 // GetRuntimeDocker extracts RuntimeDocker configuration from the supplied
 // Function.
-func GetRuntimeDocker(fn pkgv1beta1.Function) (*RuntimeDocker, error) {
+func GetRuntimeDocker(fn pkgv1beta1.Function, log logging.Logger) (*RuntimeDocker, error) {
 	cleanup, err := GetDockerCleanup(fn)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get cleanup policy for Function %q", fn.GetName())
@@ -140,6 +143,7 @@ func GetRuntimeDocker(fn pkgv1beta1.Function) (*RuntimeDocker, error) {
 		Image:      fn.Spec.Package,
 		Stop:       cleanup == AnnotationValueRuntimeDockerCleanupStop,
 		PullPolicy: pullPolicy,
+		log:        log,
 	}
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
 		r.Image = i
@@ -150,8 +154,8 @@ func GetRuntimeDocker(fn pkgv1beta1.Function) (*RuntimeDocker, error) {
 var _ Runtime = &RuntimeDocker{}
 
 // Start a Function as a Docker container.
-func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (RuntimeContext, error) { //nolint:gocyclo // TODO(phisco): Refactor to break this up a bit, not so easy.
-	logger.Debug("Starting Docker container runtime", "image", r.Image)
+func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //nolint:gocyclo // TODO(phisco): Refactor to break this up a bit, not so easy.
+	r.log.Debug("Starting Docker container runtime", "image", r.Image)
 	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")
@@ -182,7 +186,7 @@ func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (Runti
 	}
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
-		logger.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
+		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
 		err = PullImage(ctx, c, r.Image)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
@@ -190,7 +194,7 @@ func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (Runti
 	}
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
-	logger.Debug("Creating Docker container", "image", r.Image, "address", addr)
+	r.log.Debug("Creating Docker container", "image", r.Image, "address", addr)
 	rsp, err := c.ContainerCreate(ctx, cfg, hcfg, nil, nil, "")
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
@@ -198,7 +202,7 @@ func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (Runti
 		}
 
 		// The image was not found, but we're allowed to pull it.
-		logger.Debug("Image not found, pulling", "image", r.Image)
+		r.log.Debug("Image not found, pulling", "image", r.Image)
 		err = PullImage(ctx, c, r.Image)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
@@ -215,7 +219,7 @@ func (r *RuntimeDocker) Start(ctx context.Context, logger logging.Logger) (Runti
 	}
 
 	stop := func(_ context.Context) error {
-		logger.Debug("Container left running", "container", rsp.ID, "image", r.Image)
+		r.log.Debug("Container left running", "container", rsp.ID, "image", r.Image)
 		return nil
 	}
 	if r.Stop {

@@ -119,7 +119,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run render.
-func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // Only a touch over.
+func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocyclo // Only a touch over.
 	xr, err := LoadCompositeResource(c.fs, c.CompositeResource)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
@@ -180,7 +180,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	out, err := Render(ctx, logger, Inputs{
+	out, err := Render(ctx, log, Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,

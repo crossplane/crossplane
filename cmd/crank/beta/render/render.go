@@ -89,21 +89,21 @@ type Outputs struct {
 }
 
 // Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
-func Render(ctx context.Context, logger logging.Logger, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
+func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
 	// Run our Functions.
 	conns := map[string]*grpc.ClientConn{}
 	for _, fn := range in.Functions {
-		runtime, err := GetRuntime(fn)
+		runtime, err := GetRuntime(fn, log)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
-		rctx, err := runtime.Start(ctx, logger)
+		rctx, err := runtime.Start(ctx)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
 		defer func() {
 			if err := rctx.Stop(ctx); err != nil {
-				logger.Debug("Error stopping function runtime", "function", fn.GetName(), "error", err)
+				log.Debug("Error stopping function runtime", "function", fn.GetName(), "error", err)
 			}
 		}()
 
