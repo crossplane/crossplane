@@ -67,7 +67,7 @@ func (s *SimpleFuzzNode) Neighbors() []Node {
 }
 
 func FuzzDag(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		c := fuzz.NewConsumer(data)
 		nodes := make([]SimpleFuzzNode, 0)
 		err := c.CreateSlice(&nodes)

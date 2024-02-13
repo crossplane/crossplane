@@ -88,7 +88,7 @@ func TestClientSideSync(t *testing.T) {
 		"GenerateXRNameError": {
 			reason: "We should return an error if we can't generate an XR name.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return errBoom
 				}),
 			},
@@ -132,7 +132,7 @@ func TestClientSideSync(t *testing.T) {
 		"UpdateClaimResourceRefError": {
 			reason: "We should return an error if we can't update the claim to persist its resourceRef.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
 					cd.SetName("cool-claim-random")
 					return nil
 				}),
@@ -184,7 +184,7 @@ func TestClientSideSync(t *testing.T) {
 		"ApplyXRError": {
 			reason: "We should return an error if we can't apply the XR.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
 					cd.SetName("cool-claim-random")
 					return nil
 				}),
@@ -239,7 +239,7 @@ func TestClientSideSync(t *testing.T) {
 		"UpdateClaimStatusError": {
 			reason: "We should return an error if we can't update the claim's status.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
 					cd.SetName("cool-claim-random")
 					return nil
 				}),
@@ -296,7 +296,7 @@ func TestClientSideSync(t *testing.T) {
 		"XRDoesNotExist": {
 			reason: "We should create, bind, and sync with an XR when none exists.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
 					cd.SetName("cool-claim-random")
 					return nil
 				}),

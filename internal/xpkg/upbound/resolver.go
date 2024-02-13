@@ -39,7 +39,7 @@ func JSON(base, overlay io.Reader) (kong.Resolver, error) {
 		return nil, err
 	}
 
-	var f kong.ResolverFunc = func(context *kong.Context, parent *kong.Path, flag *kong.Flag) (interface{}, error) {
+	var f kong.ResolverFunc = func(_ *kong.Context, _ *kong.Path, flag *kong.Flag) (interface{}, error) {
 		name := strings.ReplaceAll(flag.Name, "-", "_")
 		bRaw, bOk := resolveValue(name, flag.Envs, baseValues)
 		oRaw, oOk := resolveValue(name, flag.Envs, overlayValues)

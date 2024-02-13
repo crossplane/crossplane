@@ -25,7 +25,7 @@ import (
 )
 
 func FuzzNewCompositionRevision(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		f := fuzz.NewConsumer(data)
 		c := &v1.Composition{}
 		f.GenerateStruct(c)

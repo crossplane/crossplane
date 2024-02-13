@@ -53,7 +53,7 @@ func TestLockObject(t *testing.T) {
 		"FailApply": {
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return errBoom
 					},
 				},

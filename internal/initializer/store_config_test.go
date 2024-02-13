@@ -43,7 +43,7 @@ func TestStoreConfigObject(t *testing.T) {
 		"FailedToCreate": {
 			args: args{
 				kube: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return errBoom
 					},
 				},
@@ -55,7 +55,7 @@ func TestStoreConfigObject(t *testing.T) {
 		"SuccessCreated": {
 			args: args{
 				kube: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return nil
 					},
 				},
@@ -64,7 +64,7 @@ func TestStoreConfigObject(t *testing.T) {
 		"SuccessAlreadyExists": {
 			args: args{
 				kube: &test.MockClient{
-					MockCreate: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return kerrors.NewAlreadyExists(schema.GroupResource{}, "default")
 					},
 				},

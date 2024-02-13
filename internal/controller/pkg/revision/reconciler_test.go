@@ -274,7 +274,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDeletionTimestamp(&now)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
 								t.Errorf("StatusUpdate should not be called")
 								return nil
 							}),
@@ -380,7 +380,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
 								t.Errorf("StatusUpdate should not be called")
 								return nil
 							}),
@@ -415,7 +415,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
 								t.Errorf("StatusUpdate should not be called")
 								return nil
 							}),
@@ -732,7 +732,7 @@ func TestReconcile(t *testing.T) {
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -789,7 +789,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -886,7 +886,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -950,7 +950,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1016,7 +1016,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1084,7 +1084,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1146,7 +1146,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1212,7 +1212,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1275,7 +1275,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1407,7 +1407,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1525,7 +1525,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},
@@ -1589,7 +1589,7 @@ func TestReconcile(t *testing.T) {
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(s string, rc io.ReadCloser) error {
+						MockStore: func(_ string, rc io.ReadCloser) error {
 							_, err := io.ReadAll(rc)
 							return err
 						},

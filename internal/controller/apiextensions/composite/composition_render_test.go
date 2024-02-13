@@ -36,7 +36,7 @@ import (
 )
 
 func TestRenderFromJSON(t *testing.T) {
-	errInvalidChar := json.Unmarshal([]byte("olala"), &fake.Composed{})
+	errInvalidChar := json.Unmarshal([]byte("olala"), &fake.Composed{}) //nolint:musttag // Not an issue in this test.
 
 	type args struct {
 		o    resource.Object

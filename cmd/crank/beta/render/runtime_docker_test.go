@@ -33,7 +33,7 @@ import (
 )
 
 type mockPullClient struct {
-	MockPullImage func(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
+	MockPullImage func(_ context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
 }
 
 func (m *mockPullClient) ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error) {

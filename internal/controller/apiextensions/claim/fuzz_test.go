@@ -31,7 +31,7 @@ import (
 )
 
 func FuzzPropagateConnection(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		f := fuzz.NewConsumer(data)
 		cp := &fake.Composite{}
 		cm := &fake.CompositeClaim{}
@@ -62,7 +62,7 @@ func FuzzPropagateConnection(f *testing.F) {
 					return nil
 				}),
 			},
-			Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+			Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 				return nil
 			}),
 		}

@@ -534,7 +534,7 @@ func TestReconcile(t *testing.T) {
 				mgr: &mockManager{
 					GetCacheFn: func() cache.Cache {
 						return &mockCache{
-							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
 						}
 					},
 					GetClientFn: func() client.Client {
@@ -585,7 +585,7 @@ func TestReconcile(t *testing.T) {
 				mgr: &mockManager{
 					GetCacheFn: func() cache.Cache {
 						return &mockCache{
-							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
 						}
 					},
 					GetClientFn: func() client.Client {
@@ -627,16 +627,16 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr: func(name string) error { return errBoom }, // This error should only be logged.
+						MockErr: func(_ string) error { return errBoom }, // This error should only be logged.
 						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
 							return mockNamedController{
-								MockStart: func(ctx context.Context) error { return nil },
+								MockStart: func(_ context.Context) error { return nil },
 								MockGetCache: func() cache.Cache {
 									return &mockCache{
-										IndexFieldFn: func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+										IndexFieldFn: func(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
 											return nil
 										},
-										WaitForCacheSyncFn: func(ctx context.Context) bool {
+										WaitForCacheSyncFn: func(_ context.Context) bool {
 											return true
 										},
 									}
@@ -656,7 +656,7 @@ func TestReconcile(t *testing.T) {
 				mgr: &mockManager{
 					GetCacheFn: func() cache.Cache {
 						return &mockCache{
-							ListFn: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error { return nil },
+							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
 						}
 					},
 					GetClientFn: func() client.Client {
@@ -711,16 +711,16 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr: func(name string) error { return nil },
+						MockErr: func(_ string) error { return nil },
 						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
 							return mockNamedController{
-								MockStart: func(ctx context.Context) error { return nil },
+								MockStart: func(_ context.Context) error { return nil },
 								MockGetCache: func() cache.Cache {
 									return &mockCache{
-										IndexFieldFn: func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+										IndexFieldFn: func(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
 											return nil
 										},
-										WaitForCacheSyncFn: func(ctx context.Context) bool {
+										WaitForCacheSyncFn: func(_ context.Context) bool {
 											return true
 										},
 									}
@@ -768,7 +768,7 @@ func TestReconcile(t *testing.T) {
 }
 
 type mockNamedController struct {
-	MockStart    func(ctx context.Context) error
+	MockStart    func(_ context.Context) error
 	MockGetCache func() cache.Cache
 }
 
@@ -823,9 +823,9 @@ func (m *mockManager) GetControllerOptions() ctrlconfig.Controller {
 type mockCache struct {
 	cache.Cache
 
-	ListFn             func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
-	IndexFieldFn       func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error
-	WaitForCacheSyncFn func(ctx context.Context) bool
+	ListFn             func(_ context.Context, list client.ObjectList, opts ...client.ListOption) error
+	IndexFieldFn       func(_ context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error
+	WaitForCacheSyncFn func(_ context.Context) bool
 }
 
 func (m *mockCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {

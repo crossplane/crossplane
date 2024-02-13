@@ -173,7 +173,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
@@ -200,14 +200,14 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockNodeExists: func(_ string) bool {
@@ -287,7 +287,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package: "not-here-2",
@@ -375,7 +375,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
@@ -478,10 +478,10 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
-							MockNodeExists: func(identifier string) bool {
+							MockNodeExists: func(_ string) bool {
 								return true
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {

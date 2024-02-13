@@ -25,7 +25,7 @@ import (
 )
 
 func FuzzForCompositeResourceXcrd(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
 		xrd := &v1.CompositeResourceDefinition{}
 		err := ff.GenerateStruct(xrd)
@@ -37,7 +37,7 @@ func FuzzForCompositeResourceXcrd(f *testing.F) {
 }
 
 func FuzzForCompositeResourceClaim(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
 		xrd := &v1.CompositeResourceDefinition{}
 		err := ff.GenerateStruct(xrd)

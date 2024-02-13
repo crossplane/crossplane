@@ -49,7 +49,7 @@ func NewMockCacheGetFn(rc io.ReadCloser, err error) func() (io.ReadCloser, error
 
 // NewMockCacheStoreFn creates a new MockStore function for MockCache.
 func NewMockCacheStoreFn(err error) func(s string, rc io.ReadCloser) error {
-	return func(s string, rc io.ReadCloser) error { return err }
+	return func(_ string, _ io.ReadCloser) error { return err }
 }
 
 // NewMockCacheDeleteFn creates a new MockDelete function for MockCache.

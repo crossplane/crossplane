@@ -25,7 +25,7 @@ import (
 )
 
 func FuzzRenderClusterRoles(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
 		pr := &v1.ProviderRevision{}
 		ff.GenerateStruct(pr)

@@ -226,7 +226,7 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return nil
 					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
@@ -244,7 +244,7 @@ func TestInstaller(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
-					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return nil
 					},
 				},
@@ -304,7 +304,7 @@ func TestInstaller(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
-					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return nil
 					},
 				},
@@ -316,7 +316,7 @@ func TestInstaller(t *testing.T) {
 			args: args{
 				c: []string{c1},
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return nil
 					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
@@ -332,7 +332,7 @@ func TestInstaller(t *testing.T) {
 						}
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
-					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, _ client.Object, _ ...client.CreateOption) error {
 						return nil
 					},
 				},
@@ -343,10 +343,10 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return nil
 					},
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return errBoom
 					},
 				},

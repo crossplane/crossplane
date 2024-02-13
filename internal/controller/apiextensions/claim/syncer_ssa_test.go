@@ -65,7 +65,7 @@ func TestServerSideSync(t *testing.T) {
 		"GenerateXRNameError": {
 			reason: "We should return an error if we can't generate an XR name.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return errBoom
 				}),
 			},
@@ -88,7 +88,7 @@ func TestServerSideSync(t *testing.T) {
 		"WeirdClaimSpec": {
 			reason: "We should return an error if the claim spec is not an object.",
 			params: params{
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return nil
 				}),
 			},
@@ -117,7 +117,7 @@ func TestServerSideSync(t *testing.T) {
 					// Fail to update the claim.
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return nil
 				}),
 			},
@@ -170,7 +170,7 @@ func TestServerSideSync(t *testing.T) {
 					// Fail to patch the XR.
 					MockPatch: test.NewMockPatchFn(errBoom),
 				},
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return nil
 				}),
 			},
@@ -228,7 +228,7 @@ func TestServerSideSync(t *testing.T) {
 						return nil
 					}),
 				},
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return nil
 				}),
 			},
@@ -285,7 +285,7 @@ func TestServerSideSync(t *testing.T) {
 					// Fail to update the claim's status.
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 				},
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error {
 					return nil
 				}),
 			},
@@ -345,7 +345,7 @@ func TestServerSideSync(t *testing.T) {
 					// Update the claim's status.
 					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
-				ng: names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
 					// Generate a name for the XR.
 					cd.SetName("cool-claim-random")
 					return nil

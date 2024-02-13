@@ -132,10 +132,10 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
-					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
 				},
@@ -235,7 +235,7 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 				},
 			},
@@ -261,7 +261,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errDeleteCDs)))
 						})),
 					}),
-					WithConnectionUnpublisher(ConnectionUnpublisherFn(func(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error {
+					WithConnectionUnpublisher(ConnectionUnpublisherFn(func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ managed.ConnectionDetails) error {
 						return errBoom
 					})),
 				},
@@ -289,7 +289,7 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
+						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom },
 					}),
 				},
 			},
@@ -316,7 +316,7 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 				},
 			},
@@ -350,7 +350,7 @@ func TestReconcile(t *testing.T) {
 						MockDelete: test.NewMockDeleteFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 				},
 			},
@@ -385,7 +385,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
 				},
 			},
@@ -406,7 +406,7 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom },
 					}),
 				},
 			},
@@ -427,9 +427,9 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
-					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return errBoom })),
+					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return errBoom })),
 				},
 			},
 			want: want{
@@ -465,9 +465,9 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
-					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return nil })),
+					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
 				},
 			},
 			want: want{
@@ -501,10 +501,10 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
-					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return false, errBoom
 					})),
 				},
@@ -542,10 +542,10 @@ func TestReconcile(t *testing.T) {
 						})),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
-					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return nil })),
-					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+					WithCompositeSyncer(CompositeSyncerFn(func(_ context.Context, _ *claim.Unstructured, _ *composite.Unstructured) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
 				},
@@ -582,8 +582,8 @@ func NewClaim(m ...ClaimModifier) *claim.Unstructured {
 }
 
 // A status update function that ensures the supplied object is the claim we want.
-func WantClaim(t *testing.T, want *claim.Unstructured) func(ctx context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-	return func(ctx context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
+func WantClaim(t *testing.T, want *claim.Unstructured) func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+	return func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 		// Normally we use a custom Equal method on conditions to ignore the
 		// lastTransitionTime, but we're using unstructured types here where
 		// the conditions are just a map[string]any.

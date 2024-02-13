@@ -119,7 +119,7 @@ func EnvFuncs(fns ...env.Func) env.Func {
 func CreateKindClusterWithConfig(clusterName, configFilePath string) env.Func {
 	return EnvFuncs(
 		envfuncs.CreateClusterWithConfig(kind.NewProvider(), clusterName, configFilePath),
-		func(ctx context.Context, config *envconf.Config) (context.Context, error) {
+		func(ctx context.Context, _ *envconf.Config) (context.Context, error) {
 			b, err := os.ReadFile(filepath.Clean(configFilePath))
 			if err != nil {
 				return ctx, err

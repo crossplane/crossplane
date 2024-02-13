@@ -155,7 +155,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "We should return error if we cannot list the used resources.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return errBoom
 					},
 				},
@@ -181,7 +181,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "We should return error if we cannot list the using resources.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return errBoom
 					},
 				},
@@ -214,7 +214,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "We should return error if we cannot update the usage after resolving used resource.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "SomeKindList":
@@ -234,7 +234,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
 						return errBoom
 					},
 				},
@@ -260,7 +260,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "We should return error if we cannot update the usage after resolving using resource.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "AnotherKindList":
@@ -280,7 +280,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
 						return errBoom
 					},
 				},
@@ -313,7 +313,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "We should return error if there are no matching resources.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return nil
 					},
 				},
@@ -340,7 +340,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "We should return error if there are no matching resources with controller ref.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "SomeKindList":
@@ -360,7 +360,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
 						return nil
 					},
 				},
@@ -387,7 +387,7 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "If selectors defined for both \"of\" and \"by\", both should be resolved.",
 			args: args{
 				client: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, opts ...client.ListOption) error {
 						l := list.(*composed.UnstructuredList)
 						if v := l.GroupVersionKind().Version; v != "v1" {
 							t.Errorf("unexpected list version: %s", v)
@@ -437,7 +437,7 @@ func TestResolveSelectors(t *testing.T) {
 						}
 						return nil
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
 						return nil
 					},
 				},

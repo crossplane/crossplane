@@ -66,7 +66,7 @@ func addType(p *v1.Patch, i int) {
 }
 
 func FuzzPatchApply(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		f := fuzz.NewConsumer(data)
 
 		cp := &fake.Composite{}
@@ -122,7 +122,7 @@ func addTransformType(t *v1.Transform, i int) error {
 }
 
 func FuzzTransform(f *testing.F) {
-	f.Fuzz(func(tt *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		f := fuzz.NewConsumer(data)
 
 		t := &v1.Transform{}

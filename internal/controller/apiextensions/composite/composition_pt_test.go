@@ -94,7 +94,7 @@ func TestPTCompose(t *testing.T) {
 			reason: "We should return any error encountered while associating Composition templates with composed resources.",
 			params: params{
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						return nil, errBoom
 					})),
 				},
@@ -112,7 +112,7 @@ func TestPTCompose(t *testing.T) {
 			reason: "We should return any error encountered while parsing a composed resource base template",
 			params: params{
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{
 							{
 								Template: v1.ComposedTemplate{
@@ -123,14 +123,14 @@ func TestPTCompose(t *testing.T) {
 						}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(_ resource.Composed, _ managed.ConnectionDetails, _ ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
 						return details, nil
 					})),
-					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(_ context.Context, _ ConditionedObject, _ ...ReadinessCheck) (ready bool, err error) {
 						return true, nil
 					})),
 				},
@@ -152,7 +152,7 @@ func TestPTCompose(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: ptr.To("cool-resource"),
@@ -161,7 +161,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
 				},
 			},
 			args: args{
@@ -184,7 +184,7 @@ func TestPTCompose(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(errBoom),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: ptr.To("cool-resource"),
@@ -193,7 +193,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
 				},
 			},
 			args: args{
@@ -216,7 +216,7 @@ func TestPTCompose(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: ptr.To("cool-resource"),
@@ -225,8 +225,8 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
 				},
@@ -251,7 +251,7 @@ func TestPTCompose(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: ptr.To("cool-resource"),
@@ -260,11 +260,11 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(_ resource.Composed, _ managed.ConnectionDetails, _ ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
 				},
@@ -289,7 +289,7 @@ func TestPTCompose(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(nil),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: ptr.To("cool-resource"),
@@ -298,14 +298,14 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(_ context.Context, _ ConditionedObject, _ ...ReadinessCheck) (ready bool, err error) {
 						return false, errBoom
 					})),
 				},
@@ -333,7 +333,7 @@ func TestPTCompose(t *testing.T) {
 					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						return nil, nil
 					})),
 				},
@@ -360,7 +360,7 @@ func TestPTCompose(t *testing.T) {
 					MockPatch:  test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
 							Template: v1.ComposedTemplate{
 								Name: ptr.To("cool-resource"),
@@ -369,14 +369,14 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, _ resource.Object) error { return nil })),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(_ resource.Composed, _ managed.ConnectionDetails, _ ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
 						return details, nil
 					})),
-					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(_ context.Context, _ ConditionedObject, _ ...ReadinessCheck) (ready bool, err error) {
 						return true, nil
 					})),
 				},
@@ -409,7 +409,7 @@ func TestPTCompose(t *testing.T) {
 					MockPatch:  test.NewMockPatchFn(nil),
 				},
 				o: []PTComposerOption{
-					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{
 							{
 								Template: v1.ComposedTemplate{
@@ -428,19 +428,19 @@ func TestPTCompose(t *testing.T) {
 						}
 						return tas, nil
 					})),
-					WithComposedNameGenerator(names.NameGeneratorFn(func(ctx context.Context, cd resource.Object) error {
+					WithComposedNameGenerator(names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
 						if cd.GetObjectKind().GroupVersionKind().Kind == "BrokenResource" {
 							return errBoom
 						}
 						return nil
 					})),
-					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(_ resource.Composed, _ managed.ConnectionDetails, _ ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
 						return details, nil
 					})),
-					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(_ context.Context, _ ConditionedObject, _ ...ReadinessCheck) (ready bool, err error) {
 						return true, nil
 					})),
 				},
@@ -645,7 +645,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			},
 		},
 		"ResourceControlledBySomeoneElse": {
-			reason: "We should not garbage collect a resource that is controlled by another resource.",
+			reason: "We should not garbage colle_ a resource that is controlled by another resource.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
@@ -673,7 +673,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			},
 		},
 		"ResourceNotControlled": {
-			reason: "We should not garbage collect a resource that has no controller reference.",
+			reason: "We should not garbage colle_ a resource that has no controller reference.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
