@@ -26,6 +26,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -145,8 +147,8 @@ func TestGetRuntimeDocker(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			rd, err := GetRuntimeDocker(tc.args.fn)
-			if diff := cmp.Diff(tc.want.rd, rd); diff != "" {
+			rd, err := GetRuntimeDocker(tc.args.fn, logging.NewNopLogger())
+			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{})); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

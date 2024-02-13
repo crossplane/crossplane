@@ -50,7 +50,7 @@ const (
 // A Runtime runs a Function.
 type Runtime interface {
 	// Start the Function.
-	Start(ctx context.Context, logger logging.Logger) (RuntimeContext, error)
+	Start(ctx context.Context) (RuntimeContext, error)
 }
 
 // RuntimeContext contains context on how a Function is being run.
@@ -63,12 +63,12 @@ type RuntimeContext struct {
 }
 
 // GetRuntime for the supplied Function, per its annotations.
-func GetRuntime(fn pkgv1beta1.Function) (Runtime, error) {
+func GetRuntime(fn pkgv1beta1.Function, log logging.Logger) (Runtime, error) {
 	switch r := RuntimeType(fn.GetAnnotations()[AnnotationKeyRuntime]); r {
 	case AnnotationValueRuntimeDocker, "":
-		return GetRuntimeDocker(fn)
+		return GetRuntimeDocker(fn, log)
 	case AnnotationValueRuntimeDevelopment:
-		return GetRuntimeDevelopment(fn), nil
+		return GetRuntimeDevelopment(fn, log), nil
 	default:
 		return nil, errors.Errorf("unsupported %q annotation value %q (unknown runtime)", AnnotationKeyRuntime, r)
 	}
