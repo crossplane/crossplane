@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/internal/xpkg/upbound"
 	"github.com/crossplane/crossplane/internal/xpkg/upbound/credhelper"
 )
 
@@ -61,6 +62,9 @@ type pushCmd struct {
 
 	// Flags. Keep sorted alphabetically.
 	PackageFiles []string `short:"f" type:"existingfile" placeholder:"PATH" help:"A comma-separated list of xpkg files to push."`
+
+	// Common Upbound API configuration.
+	upbound.Flags `embed:""`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs afero.Fs
@@ -91,6 +95,11 @@ func (c *pushCmd) AfterApply() error {
 
 // Run runs the push cmd.
 func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This feels easier to read as-is.
+	upCtx, err := upbound.NewFromFlags(c.Flags, upbound.AllowMissingProfile())
+	if err != nil {
+		return err
+	}
+
 	tag, err := name.NewTag(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
 	if err != nil {
 		return errors.Wrapf(err, errFmtNewTag, c.Package)
@@ -112,7 +121,11 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This fe
 	}
 
 	kc := authn.NewMultiKeychain(
-		authn.NewKeychainFromHelper(credhelper.New()),
+		authn.NewKeychainFromHelper(credhelper.New(
+			credhelper.WithLogger(logger),
+			credhelper.WithProfile(upCtx.ProfileName),
+			credhelper.WithDomain(upCtx.Domain.Hostname()),
+		)),
 		authn.DefaultKeychain,
 	)
 
