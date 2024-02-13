@@ -124,7 +124,64 @@ type startCommand struct {
 }
 
 // Run core Crossplane controllers.
-func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo // Only slightly over.
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo // Complexity is mostly from feature flag conditionals.
+	o := controller.Options{
+		Logger:                  log,
+		MaxConcurrentReconciles: c.MaxReconcileRate,
+		PollInterval:            c.PollInterval,
+		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
+		Features:                &feature.Flags{},
+	}
+
+	// Alpha features.
+	if c.EnableEnvironmentConfigs {
+		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
+	}
+	if c.EnableExternalSecretStores {
+		o.Features.Enable(features.EnableAlphaExternalSecretStores)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
+	}
+	if c.EnableUsages {
+		o.Features.Enable(features.EnableAlphaUsages)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaUsages)
+	}
+	if c.EnableRealtimeCompositions {
+		o.Features.Enable(features.EnableAlphaRealtimeCompositions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRealtimeCompositions)
+	}
+	if c.EnableSSAClaims {
+		o.Features.Enable(features.EnableAlphaClaimSSA)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
+	}
+	if c.EnableCachedCompositions {
+		o.Features.Enable(features.EnableAlphaCachedCompositions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCachedCompositions)
+	}
+
+	// Beta features.
+	if c.EnableCompositionWebhookSchemaValidation {
+		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
+	}
+	if c.EnableDeploymentRuntimeConfigs {
+		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaDeploymentRuntimeConfigs)
+	}
+	if c.EnableCompositionFunctions {
+		o.Features.Enable(features.EnableBetaCompositionFunctions)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
+	}
+	if c.EnableCompositionFunctionsExtraResources {
+		o.Features.Enable(features.EnableBetaCompositionFunctionsExtraResources)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctionsExtraResources)
+	}
+
+	// GA features.
+	if !c.EnableCompositionRevisions {
+		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
+	}
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot get config")
@@ -153,14 +210,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			Cache: &client.CacheOptions{
 				DisableFor: []client.Object{&corev1.Secret{}},
 
-				// We don't have our feature flag plumbing setup yet, so just
-				// use the flag here. We do log and enable the flag separately
-				// below.
-
 				// Technically this is enabling caching for everything
 				// unstructured, not just in the composition controllers. We
 				// only use unstructured types in those controllers.
-				Unstructured: c.EnableCachedCompositions,
+				Unstructured: o.Features.Enabled(features.EnableAlphaCachedCompositions),
 			},
 		},
 		EventBroadcaster: eb,
@@ -191,28 +244,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	})
 	defer eb.Shutdown()
 
-	o := controller.Options{
-		Logger:                  log,
-		MaxConcurrentReconciles: c.MaxReconcileRate,
-		PollInterval:            c.PollInterval,
-		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
-		Features:                &feature.Flags{},
-	}
-
-	if !c.EnableCompositionRevisions {
-		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
-	}
-
+	// If composition functions are enabled we need to create a global function
+	// runner that is shared by all XR controllers. We also need to load the TLS
+	// certificates used to communicate with functions.
 	var functionRunner *xfn.PackagedFunctionRunner
-	if c.EnableCompositionFunctions {
-		o.Features.Enable(features.EnableBetaCompositionFunctions)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
-
-		if c.EnableCompositionFunctionsExtraResources {
-			o.Features.Enable(features.EnableBetaCompositionFunctionsExtraResources)
-			log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctionsExtraResources)
-		}
-
+	if o.Features.Enabled(features.EnableBetaCompositionFunctions) {
 		clienttls, err := certificates.LoadMTLSConfig(
 			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
@@ -237,22 +273,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		defer cancel()
 		go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
 	}
-	if c.EnableEnvironmentConfigs {
-		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
-	}
-	if c.EnableCompositionWebhookSchemaValidation {
-		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
-	}
-	if c.EnableUsages {
-		o.Features.Enable(features.EnableAlphaUsages)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaUsages)
-	}
-	if c.EnableExternalSecretStores {
-		o.Features.Enable(features.EnableAlphaExternalSecretStores)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 
+	// If external secret stores are enabled we need to load the TLS
+	// certificates used to communicate with the plugin.
+	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		tcfg, err := certificates.LoadMTLSConfig(
 			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
@@ -265,25 +289,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.ESSOptions = &controller.ESSOptions{
 			TLSConfig: tcfg,
 		}
-	}
-	if c.EnableRealtimeCompositions {
-		o.Features.Enable(features.EnableAlphaRealtimeCompositions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRealtimeCompositions)
-	}
-	if c.EnableCachedCompositions {
-		// Note that we just enable this flag by convention. Nothing reads it.
-		// See the client setup in the call to ctrl.NewManager above for where
-		// it's actually used.
-		o.Features.Enable(features.EnableAlphaCachedCompositions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCachedCompositions)
-	}
-	if c.EnableDeploymentRuntimeConfigs {
-		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaDeploymentRuntimeConfigs)
-	}
-	if c.EnableSSAClaims {
-		o.Features.Enable(features.EnableAlphaClaimSSA)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
 	}
 
 	ao := apiextensionscontroller.Options{
