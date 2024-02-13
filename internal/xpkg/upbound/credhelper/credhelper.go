@@ -113,8 +113,10 @@ func (h *Helper) List() (map[string]string, error) {
 // Get gets credentials for the supplied server.
 func (h *Helper) Get(serverURL string) (string, string, error) {
 	if !strings.Contains(serverURL, h.domain) {
+		h.log.Debug("Supplied server URL is not supported by this credentials helper", "serverURL", serverURL, "domain", h.domain)
 		return "", "", errors.New(errUnsupportedDomain)
 	}
+	h.log.Debug("Getting credentials for server", "serverURL", serverURL)
 	if err := h.src.Initialize(); err != nil {
 		return "", "", errors.Wrap(err, errInitializeSource)
 	}
@@ -124,11 +126,13 @@ func (h *Helper) Get(serverURL string) (string, string, error) {
 	}
 	var p config.Profile
 	if h.profile == "" {
+		h.log.Debug("No profile specified, using default profile")
 		_, p, err = conf.GetDefaultUpboundProfile()
 		if err != nil {
 			return "", "", errors.Wrap(err, errGetDefaultProfile)
 		}
 	} else {
+		h.log.Debug("Using specified profile", "profile", h.profile)
 		p, err = conf.GetUpboundProfile(h.profile)
 		if err != nil {
 			return "", "", errors.Wrap(err, errGetProfile)
