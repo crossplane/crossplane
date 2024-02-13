@@ -58,7 +58,7 @@ for ignoring some managed resource parameters during updates.
 
 ## Proposal
 
-Proposed solution is to rework the new [managementPolicy] feature which came
+Proposed solution is to rework the new [managementPolicies] feature which came
 with the [ObserveOnly] feature and transform it into a set of enum values
 representing what Crossplane should do with the managed resource.
 
@@ -77,44 +77,44 @@ This will allow users to fine-tune how Crossplane manages the external
 resource, in a manner which is very explicit and easy to understand.
 
 Some examples on how the management policies would work and how they would
-replace the current `managementPolicy` and `deletionPolicy`:
+replace the current `managementPolicies` and `deletionPolicy`:
 
 ```yaml
 # Default
 spec:
-  managementPolicy: FullControl
+  managementPolicies: FullControl
   deletionPolicy: Delete
 
 # would be replaced with:
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe", "LateInitialize"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe", "LateInitialize"]
   # or
-  managementPolicy: ["*"]
+  managementPolicies: ["*"]
 
 # ObserveOnly
 spec:
-  managmentPolicy: ObserveOnly
+  managementPolicies: ObserveOnly
 
 # would be replaced with:
 spec:
-  managementPolicy: ["Observe"]
+  managementPolicies: ["Observe"]
 
 # OrphanOnDelete
 spec:
-  managementPolicy: OrphanOnDelete
+  managementPolicies: OrphanOnDelete
 
 # would be replaced with:
 spec:
-  managementPolicy: ["Create", "Update", "Observe", "LateInitialize"]
+  managementPolicies: ["Create", "Update", "Observe", "LateInitialize"]
 
-# pause can be achieved by setting managementPolicy to empty list instead of
+# pause can be achieved by setting managementPolicies to empty list instead of
 # using the annotation
 spec:
-  managementPolicy: []
+  managementPolicies: []
 
 # Turn off late initialization
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe"]
 ```
 
 In addition to the new management policy, we will also add a new field
@@ -144,11 +144,11 @@ For example:
 policies according to [the ObserveOnly design doc.][ObserveOnly], but still
 retain some functionality if a non-default value was set. In practice, it
 meant that if the `deletionPolicy` was set to `Orphan`, and the
-`managementPolicy` set to `FullControl`, the external resource would be
+`managementPolicies` set to `FullControl`, the external resource would be
 orphaned.
 
 In the new design, we could still follow this approach, by orphaning the
-resource even if the `managementPolicy` includes `Delete`, if the
+resource even if the `managementPolicies` includes `Delete`, if the
 `deletionPolicy` is set to `Orphan`, until we entirely remove the deletion
 policy.
 
@@ -170,11 +170,11 @@ future-proof.
 
 ### Migrating existing resources
 
-The `managementPolicy` feature is alpha, so it should be ok to break the
-API. The combinations of `managementPolicy` and `deletionPolicy` would look
-like this in the new `managementPolicy` field.
+The `managementPolicies` feature is alpha, so it should be ok to break the
+API. The combinations of `managementPolicies` and `deletionPolicy` would look
+like this in the new `managementPolicies` field.
 
-| managementPolicy | deletionPolicy | new managementPolicy                              |
+| managementPolicies | deletionPolicy | new managementPolicies                              |
 |------------------|----------------|---------------------------------------------------|
 | FullControl      | Delete         | ["*"]                                             |
 | FullControl      | Orphan         | ["Create", "Update", "Observe", "LateInitialize"] |
@@ -184,8 +184,8 @@ like this in the new `managementPolicy` field.
 | ObserveOnly      | Orphan         | ["Observe"]                                       |
 
 As this will be a breaking change, if users want to keep the old
-`managementPolicy` behaviour, we suggest pausing the reconciliation of the MR,
-upgrading Crossplane, and then updating the `managementPolicy` to the desired
+`managementPolicies` behaviour, we suggest pausing the reconciliation of the MR,
+upgrading Crossplane, and then updating the `managementPolicies` to the desired
 value before unpausing the reconciliation.
 
 In reality this is only needed for the `ObserveOnly` and
@@ -256,7 +256,7 @@ policy.
 
 ```yaml
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe"]
   forProvider:
     maxSize: 5
     minSize: 1
@@ -273,7 +273,7 @@ would need to be used alongside omitting `LateInitialize` management policy.
 
 ```yaml
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe"]
   initProvider:
     readCapacity: 1
     writeCapacity: 1
@@ -290,7 +290,7 @@ the autoscaler would be able to control the `desiredSize` after creation.
 
 ```yaml
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe"]
   initProvider:
     scalingConfig:
       desiredSize: 1
@@ -308,7 +308,7 @@ Just omitting the `LateInitialize` management policy would be enough as the
 
 ```yaml
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe"]
   forProvider:
   ...
 ```
@@ -322,7 +322,7 @@ omitting the `LateInitialize` management policy.
 Example:
 ```yaml
 spec:
-  managementPolicy: ["Create", "Update", "Delete", "Observe"]
+  managementPolicies: ["Create", "Update", "Delete", "Observe"]
   initProvider:
     members:
       - user1
@@ -349,7 +349,7 @@ Ref: [Upjet Initialize] or [AWS community provider tag example].
 
 ### PartialControl management policy + initProvider
 
-Proposed solution is to use the new [managementPolicy] field which came with
+Proposed solution is to use the new [managementPolicies] field which came with
 the [ObserveOnly] feature and add a new management policy that will
 skip late initialization. The loss the information that the
 late initialization was providing would be offset by the `status.atProvider`
@@ -410,7 +410,7 @@ policy.
 
 ```yaml
 spec:
-  managementPolicy: PartialControl
+  managementPolicies: PartialControl
   forProvider:
     maxSize: 5
     minSize: 1
@@ -427,7 +427,7 @@ would need to be used alongside `PartialControl` management policy.
 
 ```yaml
 spec:
-  managementPolicy: PartialControl
+  managementPolicies: PartialControl
   initProvider:
     readCapacity: 1
     writeCapacity: 1
@@ -444,7 +444,7 @@ autoscaler would be able to control the `desiredSize` after creation.
 
 ```yaml
 spec:
-  managementPolicy: PartialControl
+  managementPolicies: PartialControl
   initProvider:
     scalingConfig:
       desiredSize: 1
@@ -468,7 +468,7 @@ Just using the `PartialControl` management policy would be enough as the
 
 ```yaml
 spec:
-  managementPolicy: PartialControl
+  managementPolicies: PartialControl
   forProvider:
   ...
 ```
@@ -482,7 +482,7 @@ then ignored on updates would be solved by using `initProvider` alongside
 Example:
 ```yaml
 spec:
-  managementPolicy: PartialControl
+  managementPolicies: PartialControl
   initProvider:
     members:
       - user1
@@ -670,7 +670,7 @@ if this issue is not that widespread, we could have an easy fix.
 [Update section]: https://github.com/crossplane/crossplane-runtime/blob/1316ae6695eec09cf47abdfd0bc6273aeaab1895/pkg/reconciler/managed/reconciler.go#L1061-L1096
 [Late Init section]: https://github.com/crossplane/crossplane-runtime/blob/1316ae6695eec09cf47abdfd0bc6273aeaab1895/pkg/reconciler/managed/reconciler.go#L1033-L1046
 [Initialize]: https://github.com/crossplane/crossplane-runtime/blob/1316ae6695eec09cf47abdfd0bc6273aeaab1895/pkg/reconciler/managed/reconciler.go#L742
-[managementPolicy]: https://github.com/crossplane/crossplane-runtime/blob/1316ae6695eec09cf47abdfd0bc6273aeaab1895/apis/common/v1/policies.go#L22
+[managementPolicies]: https://github.com/crossplane/crossplane-runtime/blob/229b63d39990935b8130cf838e6488dcba5c085a/apis/common/v1/policies.go#L21
 [ObserveOnly]: https://github.com/crossplane/crossplane/blob/019ddb55916396d654e53a86d9acf1cde49aee31/design/design-doc-observe-only-resources.md
 [ResourceLateInitialize]: https://github.com/crossplane/crossplane-runtime/blob/00239648258e9731c274fb1f879f8255b948c79a/pkg/reconciler/managed/reconciler.go#L1033
 [Late Initialization Update]: https://github.com/crossplane/crossplane-runtime/blob/00239648258e9731c274fb1f879f8255b948c79a/pkg/reconciler/managed/reconciler.go#L1033
