@@ -138,6 +138,11 @@ spec:
               reason:
                 description: Reason is the reason for blocking deletion of the resource.
                 type: string
+              replayDeletion:
+                description: ReplayDeletion will trigger a deletion on the used resource
+                  during the deletion of the usage itself, if it was attempted to
+                  be deleted at least once.
+                type: boolean
             required:
             - of
             type: object
