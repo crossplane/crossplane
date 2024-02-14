@@ -68,6 +68,9 @@ type UsageSpec struct {
 	// Reason is the reason for blocking deletion of the resource.
 	// +optional
 	Reason *string `json:"reason,omitempty"`
+	// ReplayDeletion will trigger a deletion on the used resource during the deletion of the usage itself, if it was attempted to be deleted at least once.
+	// +optional
+	ReplayDeletion *bool `json:"replayDeletion,omitempty"`
 }
 
 // UsageStatus defines the observed state of Usage.

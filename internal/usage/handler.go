@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -43,6 +45,10 @@ const (
 	// InUseIndexKey used to index CRDs by "Kind" and "group", to be used when
 	// indexing and retrieving needed CRDs
 	InUseIndexKey = "inuse.apiversion.kind.name"
+
+	// AnnotationKeyFirstDeletionAttempt is the annotation key used to record the timestamp for first deletion attempt
+	// which was blocked due to usage.
+	AnnotationKeyFirstDeletionAttempt = "usage.crossplane.io/first-deletion-attempt"
 
 	// Error strings.
 	errFmtUnexpectedOp = "unexpected operation %q, expected \"DELETE\""
@@ -87,7 +93,7 @@ func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error
 
 // Handler implements the admission Handler for Composition.
 type Handler struct {
-	reader client.Reader
+	client client.Client
 	log    logging.Logger
 }
 
@@ -102,9 +108,9 @@ func WithLogger(l logging.Logger) HandlerOption {
 }
 
 // NewHandler returns a new Handler.
-func NewHandler(reader client.Reader, opts ...HandlerOption) *Handler {
+func NewHandler(client client.Client, opts ...HandlerOption) *Handler {
 	h := &Handler{
-		reader: reader,
+		client: client,
 		log:    logging.NewNopLogger(),
 	}
 
@@ -135,13 +141,26 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured) admission.Response {
 	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName())
 	usageList := &v1alpha1.UsageList{}
-	if err := h.reader.List(ctx, usageList, client.MatchingFields{InUseIndexKey: IndexValueForObject(u)}); err != nil {
+	if err := h.client.List(ctx, usageList, client.MatchingFields{InUseIndexKey: IndexValueForObject(u)}); err != nil {
 		h.log.Debug("Error when getting Usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if len(usageList.Items) > 0 {
 		msg := inUseMessage(usageList)
 		h.log.Debug("Usage found, deletion not allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "msg", msg)
+
+		// If the resource is being deleted, we want to record the first deletion attempt
+		// so that we can track whether a deletion was attempted at least once.
+		if u.GetAnnotations() == nil || u.GetAnnotations()[AnnotationKeyFirstDeletionAttempt] == "" {
+			orig := u.DeepCopy()
+			xpmeta.AddAnnotations(u, map[string]string{AnnotationKeyFirstDeletionAttempt: metav1.Now().Format(time.RFC3339)})
+			// Patch the resource to add the deletion attempt annotation
+			if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
+				h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
+				return admission.Errored(http.StatusInternalServerError, err)
+			}
+		}
+
 		return admission.Response{
 			AdmissionResponse: admissionv1.AdmissionResponse{
 				Allowed: false,

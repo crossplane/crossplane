@@ -85,6 +85,7 @@ const (
 	reasonRemoveInUseLabel event.Reason = "RemoveInUseLabel"
 	reasonAddFinalizer     event.Reason = "AddFinalizer"
 	reasonRemoveFinalizer  event.Reason = "RemoveFinalizer"
+	reasonReplayDeletion   event.Reason = "ReplayDeletion"
 
 	reasonUsageConfigured event.Reason = "UsageConfigured"
 	reasonWaitUsing       event.Reason = "WaitingUsingDeleted"
@@ -313,6 +314,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					return reconcile.Result{}, err
 				}
 			}
+		}
+
+		if u.Spec.ReplayDeletion != nil && *u.Spec.ReplayDeletion && used.GetAnnotations() != nil && used.GetAnnotations()[usage.AnnotationKeyFirstDeletionAttempt] != "" {
+			// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
+			log.Debug("Replaying deletion of the used resource", "apiVersion", used.GetAPIVersion(), "kind", used.GetKind(), "name", used.GetName())
+			go func() {
+				// We do the deletion async and after some delay to make sure the usage is deleted before the
+				// deletion attempt. We remove the finalizer on this Usage right below, so, we know it will disappear
+				// very soon.
+				time.Sleep(2 * time.Second)
+				// We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
+				_ = r.client.Delete(context.Background(), used)
+			}()
 		}
 
 		// Remove the finalizer from the usage
