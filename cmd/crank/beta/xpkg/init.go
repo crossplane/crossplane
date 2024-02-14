@@ -47,6 +47,7 @@ func WellKnownTemplates() map[string]string {
 		"provider-template-upjet":  "https://github.com/upbound/upjet-provider-template",
 		"function-template-go":     "https://github.com/crossplane/function-template-go",
 		"function-template-python": "https://github.com/crossplane/function-template-python",
+		"configuration-template":   "https://github.com/crossplane/configuration-template",
 	}
 }
 
