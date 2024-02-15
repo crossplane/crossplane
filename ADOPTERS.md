@@ -75,3 +75,4 @@ This list is sorted in the order that organizations were added to it.
 | [Imagine Learning](https://www.imaginelearning.com/) | [@blakeromano](https://github.com/blakeromano) [blake.romano@imaginelearning.com](mailto:blake.romano@imaginelearning.com) | Control Plane for Infrastructure in Internal Developer Platform |
 | [babelforce](https://www.babelforce.com/) | [@nik843](https://github.com/nik843) | Orchestrating relational database servers by creating databases, users and permissions for them within all environments. |
 | [Nike](https://nike.com/) | [joel.cooklin@nike.com](mailto:joel.cooklin@nike.com) | Crossplane powers the internal developer platform managing thousands of resources from development to production.  |
+| [Elastic](https://elastic.co) | [@hwoarang](https://github.com/hwoarang) | We use Crossplane to deploy resources across multiple Cloud Providers for the [Elastic Serverless](https://www.elastic.co/elasticsearch/serverless) products. |
