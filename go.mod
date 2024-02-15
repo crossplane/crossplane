@@ -10,7 +10,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.8.1
 	github.com/bufbuild/buf v1.27.2
-	github.com/crossplane/crossplane-runtime v1.15.0-rc.1
+	github.com/crossplane/crossplane-runtime v1.15.0
 	github.com/docker/docker v25.0.2+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.6.1
