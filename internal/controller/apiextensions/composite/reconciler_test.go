@@ -543,7 +543,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
 			},
 		},
 		"ComposedResourcesReady": {
