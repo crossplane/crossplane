@@ -42,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -73,6 +74,7 @@ const (
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
 	errRenderCD               = "cannot render composed resource"
+	errGetClaim               = "cannot get claim"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -633,6 +635,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
+	var cm *claim.Unstructured
+	if ref := xr.GetClaimReference(); ref != nil {
+		cm = claim.New()
+		cm.SetKind(ref.Kind)
+		cm.SetAPIVersion(ref.APIVersion)
+		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+		if err := r.client.Get(ctx, nn, cm); resource.IgnoreNotFound(err) != nil {
+			err = errors.Wrap(err, errGetClaim)
+			r.record.Event(xr, event.Warning(reasonCompose, err))
+			xr.SetConditions(xpv1.ReconcileError(err))
+		}
+	}
+
 	warnings := 0
 	for _, e := range res.Events {
 		if e.Type == event.TypeWarning {
@@ -640,6 +655,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		log.Debug(e.Message)
 		r.record.Event(xr, e)
+		if cm != nil {
+			r.record.Event(cm, e)
+		}
 	}
 
 	if warnings == 0 {
