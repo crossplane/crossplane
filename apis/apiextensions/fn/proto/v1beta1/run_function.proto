@@ -218,6 +218,14 @@ message Result {
 
   // Human-readable details about the result.
   string message = 2;
+
+  // Determines who should receive any Events or Status Conditions that are
+  // generated as part of this result
+  repeated Target targets = 3;
+
+  // Optionally update the supplied status condition on all targets.
+  // The result's reason and message will be used in the condition.
+  optional Condition condition = 4;
 }
 
 // Severity of Function results.
@@ -237,4 +245,31 @@ enum Severity {
   // Normal results are emitted as normal events and debug logs associated
   // with the composite resource.
   SEVERITY_NORMAL = 3;
+}
+
+// Target of Function results.
+enum Target {
+  TARGET_UNSPECIFIED = 0;
+  TARGET_COMPOSITE = 1;
+  TARGET_CLAIM = 2;
+}
+
+// Status of Function result condition.
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_FALSE = 1;
+  STATUS_TRUE = 2;
+  STATUS_UNKNOWN = 3;
+}
+
+message Condition {
+  // Type of the condition, e.g. DatabaseReady.
+  // 'Ready' and 'Synced' are reserved for use by Crossplane.
+  string type = 1;
+
+  // Status of the condition.
+  Status status = 2;
+
+  // Machine-readable PascalCase reason.
+  string reason = 3;
 }

@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	apixr "github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/names"
 )
 
@@ -69,10 +70,12 @@ const reconcilePausedMsg = "Reconciliation (including deletion) is paused via th
 
 // Event reasons.
 const (
-	reasonBind      event.Reason = "BindCompositeResource"
-	reasonDelete    event.Reason = "DeleteCompositeResource"
-	reasonPropagate event.Reason = "PropagateConnectionSecret"
-	reasonPaused    event.Reason = "ReconciliationPaused"
+	reasonBind          event.Reason = "BindCompositeResource"
+	reasonDelete        event.Reason = "DeleteCompositeResource"
+	reasonPropagate     event.Reason = "PropagateConnectionSecret"
+	reasonPaused        event.Reason = "ReconciliationPaused"
+	reasonFnFailure     event.Reason = "CompositionFunctionFailure"
+	reasonFnProgressing event.Reason = "CompositionFunctionProgressing"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -484,12 +487,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
 
+	// update conditions returned by composition functions
+	prevConditions := apixr.GetConditions(&cm.Unstructured)
+	newFnConditions := apixr.GetClaimConditions(xr)
+	// remove any stale conditions and merge the prev conditions with the new ones
+	filteredConditions := apixr.RemoveStaleConditions(prevConditions, newFnConditions)
+	// force set conditions to include only the filtered list
+	apixr.ForceSetConditions(&cm.Unstructured, filteredConditions...)
+
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
-
+		cm.SetConditions(Waiting())
 		// We should be watching the composite resource and will have a
 		// request queued if it changes, so no need to requeue.
-		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 

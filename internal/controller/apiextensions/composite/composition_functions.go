@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -273,7 +274,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// The Function pipeline starts with empty desired state.
 	d := &v1beta1.State{}
 
-	events := []event.Event{}
+	xrEvents := []event.Event{}
+	cmEvents := []event.Event{}
+	xrConditions := make(map[xpv1.ConditionType]FunctionCondition)
+	cmConditions := make(map[xpv1.ConditionType]FunctionCondition)
 
 	// The Function context starts empty...
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -286,6 +290,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 		fctx.Fields[FunctionContextKeyEnvironment] = structpb.NewStructValue(e)
 	}
+
+	// TODO dalton: if we have multiple functions, who determines the condition message?
+	// I assume they all share the same message and each can update it as they see fit.
+	// for example, if the function author has 5 functions that create a total of 10 MRs...
+	// they could have a function at the end which computes the condition message of "Creating: Network, Database, Bucket.."
 
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
@@ -359,22 +368,67 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// We intentionally discard/ignore this after the last Function runs.
 		fctx = rsp.GetContext()
 
-		// Results of fatal severity stop the Composition process. Other results
-		// are accumulated to be emitted as events by the Reconciler.
+		var resErrs []error
 		for _, rs := range rsp.GetResults() {
-			switch rs.GetSeverity() {
-			case v1beta1.Severity_SEVERITY_FATAL:
-				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
-			case v1beta1.Severity_SEVERITY_WARNING:
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
-			case v1beta1.Severity_SEVERITY_NORMAL:
-				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
-			case v1beta1.Severity_SEVERITY_UNSPECIFIED:
-				// We could hit this case if a Function was built against a newer
-				// protobuf than this build of Crossplane, and the new protobuf
-				// introduced a severity that we don't know about.
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
+			if rs.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
+				// Results of fatal severity stop the Composition process. Other results
+				// are accumulated to be emitted as events and status conditions by the Reconciler.
+				resErrs = append(resErrs, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage()))
 			}
+
+			var condition *FunctionCondition
+			if rs.GetCondition() != nil && rs.GetCondition().GetType() != "" {
+				condition = &FunctionCondition{
+					Condition: xpv1.Condition{
+						Type:               xpv1.ConditionType(rs.GetCondition().GetType()),
+						LastTransitionTime: metav1.Now(),
+						Reason:             xpv1.ConditionReason(rs.GetCondition().GetReason()),
+						Message:            rs.GetMessage(),
+					},
+					severity: rs.GetSeverity(),
+				}
+				switch rs.GetCondition().GetStatus() {
+				case v1beta1.Status_STATUS_TRUE:
+					condition.Status = corev1.ConditionTrue
+				case v1beta1.Status_STATUS_FALSE:
+					condition.Status = corev1.ConditionFalse
+				case v1beta1.Status_STATUS_UNKNOWN, v1beta1.Status_STATUS_UNSPECIFIED:
+					// TODO(dalton): for unspecified, should we set default or leave empty?
+					// should check to see if empty is valid manifest, if so, leaning towards leaving empty
+					condition.Status = corev1.ConditionUnknown
+				}
+			}
+
+			if targetsComposite(rs.GetTargets()) {
+				if condition != nil {
+					xrConditions[condition.Type] = *condition
+				} else {
+					xrEvents = append(xrEvents, xrEvent(rs, fn.Step))
+				}
+			}
+			if targetsClaim(rs.GetTargets()) {
+				if condition != nil {
+					cmConditions[condition.Type] = *condition
+				} else {
+					cmEvents = append(cmEvents, cmEvent(rs))
+				}
+			}
+		}
+
+		if len(resErrs) > 0 {
+			// TODO(dalton): existing behavior is to return on the first error,
+			// however, we want condition from result[1] to override a matching
+			// condition at result[0]. Do we want to change error behavior to match?
+
+			// returning the first error encountered to preserve existing behavior
+			return CompositionResult{
+				Composed:            []ComposedResource{},
+				ConnectionDetails:   map[string][]byte{},
+				CompositeEvents:     xrEvents,
+				ClaimEvents:         cmEvents,
+				CompositeConditions: xrConditions,
+				ClaimConditions:     cmConditions,
+			}, resErrs[0]
 		}
 	}
 
@@ -501,7 +555,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready})
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events}, nil
+	return CompositionResult{
+		Composed:            resources,
+		ConnectionDetails:   d.GetComposite().GetConnectionDetails(),
+		CompositeEvents:     xrEvents,
+		ClaimEvents:         cmEvents,
+		CompositeConditions: xrConditions,
+		ClaimConditions:     cmConditions,
+	}, nil
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
@@ -782,4 +843,52 @@ func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired Compose
 	})
 
 	xr.SetResourceReferences(refs)
+}
+
+func targetsClaim(targets []v1beta1.Target) bool {
+	for _, t := range targets {
+		if t == v1beta1.Target_TARGET_CLAIM {
+			return true
+		}
+	}
+	return false
+}
+
+func targetsComposite(targets []v1beta1.Target) bool {
+	for _, t := range targets {
+		if t == v1beta1.Target_TARGET_UNSPECIFIED || t == v1beta1.Target_TARGET_COMPOSITE {
+			return true
+		}
+	}
+	return false
+}
+
+func xrEvent(rs *v1beta1.Result, step string) event.Event {
+	switch rs.GetSeverity() {
+	case v1beta1.Severity_SEVERITY_FATAL, v1beta1.Severity_SEVERITY_WARNING:
+		return event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", step, rs.GetMessage()))
+	case v1beta1.Severity_SEVERITY_NORMAL:
+		return event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", step, rs.GetMessage()))
+	case v1beta1.Severity_SEVERITY_UNSPECIFIED:
+		// We could hit this case if a Function was built against a newer
+		// protobuf than this build of Crossplane, and the new protobuf
+		// introduced a severity that we don't know about.
+		return event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", step, rs.GetMessage()))
+	}
+	return event.Event{}
+}
+
+func cmEvent(rs *v1beta1.Result) event.Event {
+	switch rs.GetSeverity() {
+	case v1beta1.Severity_SEVERITY_FATAL, v1beta1.Severity_SEVERITY_WARNING:
+		return event.Warning(reasonCompose, errors.Errorf(rs.GetMessage()))
+	case v1beta1.Severity_SEVERITY_NORMAL:
+		return event.Normal(reasonCompose, rs.GetMessage())
+	case v1beta1.Severity_SEVERITY_UNSPECIFIED:
+		// We could hit this case if a Function was built against a newer
+		// protobuf than this build of Crossplane, and the new protobuf
+		// introduced a severity that we don't know about.
+		return event.Warning(reasonCompose, errors.Errorf(rs.GetMessage()))
+	}
+	return event.Event{}
 }

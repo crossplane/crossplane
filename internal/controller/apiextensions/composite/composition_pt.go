@@ -349,7 +349,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
+	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, CompositeEvents: events}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,
