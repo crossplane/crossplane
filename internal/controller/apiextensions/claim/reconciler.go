@@ -61,6 +61,7 @@ const (
 	errSync                 = "cannot bind and sync claim with composite resource"
 	errPropagateCDs         = "cannot propagate connection details from composite resource"
 	errUpdateClaimStatus    = "cannot update claim status"
+	errGetCompositeEvents   = "cannot get composite events"
 
 	errFmtUnbound = "refusing to operate on composite resource %q that is not bound to this claim: bound to claim %q"
 )
@@ -302,6 +303,7 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 // configure their composite resources.
 func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
 	c := unstructured.NewClient(m.GetClient())
+
 	r := &Reconciler{
 		client:        c,
 		gvkClaim:      schema.GroupVersionKind(of),
@@ -483,6 +485,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
+
+	matchFields := client.MatchingFields{
+		"involvedObject.uid": string(xr.GetUID()),
+	}
+	xrEvents := &corev1.EventList{}
+	if err := r.client.List(ctx, xrEvents, matchFields); err != nil {
+		err = errors.Wrap(err, errGetCompositeEvents)
+		log.Debug(errGetCompositeEvents, "error", err)
+		record.Event(cm, event.Warning(reasonPropagate, err))
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+	// copy events from xr to claim
+	for _, e := range xrEvents.Items {
+		ce := event.Event{
+			Type:        event.Type(e.Type),
+			Reason:      event.Reason(e.Reason),
+			Message:     e.Message,
+			Annotations: e.Annotations,
+		}
+		record.Event(cm, ce)
+	}
 
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))

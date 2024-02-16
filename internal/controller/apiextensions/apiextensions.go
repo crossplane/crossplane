@@ -18,7 +18,10 @@ limitations under the License.
 package apiextensions
 
 import (
+	"context"
+
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -26,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 	"github.com/crossplane/crossplane/internal/features"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Setup API extensions controllers.
@@ -42,6 +46,13 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		if err := usage.Setup(mgr, o); err != nil {
 			return err
 		}
+	}
+
+	indexer := mgr.GetFieldIndexer()
+	if err := indexer.IndexField(context.Background(), &corev1.Event{}, "involvedObject.uid", func(obj client.Object) []string {
+		return []string{string((obj.(*corev1.Event)).InvolvedObject.UID)}
+	}); err != nil {
+		return err
 	}
 
 	return offered.Setup(mgr, o)
