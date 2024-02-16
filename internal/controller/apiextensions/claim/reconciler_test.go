@@ -106,6 +106,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							cm.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 				},
 			},
@@ -130,6 +131,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.ReconcileSuccess())
 							cm.SetConditions(Waiting())
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -167,6 +169,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errGetComposite)))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 				},
 			},
@@ -199,6 +202,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
 							cm.SetConditions(xpv1.ReconcileError(errors.Errorf(errFmtUnbound, "", "some-other-claim")))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 				},
 			},
@@ -233,6 +237,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.Deleting())
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errDeleteComposite)))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -260,6 +265,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.Deleting())
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errDeleteCDs)))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithConnectionUnpublisher(ConnectionUnpublisherFn(func(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error {
 						return errBoom
@@ -287,6 +293,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.Deleting())
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
@@ -314,6 +321,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.Deleting())
 							cm.SetConditions(xpv1.ReconcileSuccess())
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -348,6 +356,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockDelete: test.NewMockDeleteFn(nil),
+						MockList:   test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -383,6 +392,7 @@ func TestReconcile(t *testing.T) {
 							}
 							return nil
 						}),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -404,6 +414,7 @@ func TestReconcile(t *testing.T) {
 							// Check that we set our status condition.
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
@@ -425,6 +436,7 @@ func TestReconcile(t *testing.T) {
 							// Check that we set our status condition.
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSync)))
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -463,6 +475,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.ReconcileSuccess())
 							cm.SetConditions(Waiting())
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -499,6 +512,47 @@ func TestReconcile(t *testing.T) {
 							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPropagateCDs)))
 						})),
+						MockList: test.NewMockListFn(nil),
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return false, errBoom
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"EventPropagationError": {
+			reason: "We should fail the reconcile if we can't propagate the bound XR's events to the claim",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							switch o := obj.(type) {
+							case *claim.Unstructured:
+								// We won't try to get an XR unless the claim
+								// references one.
+								o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							case *composite.Unstructured:
+								// Pretend the XR exists and is available.
+								o.SetCreationTimestamp(now)
+								o.SetClaimReference(&claim.Reference{})
+								o.SetConditions(xpv1.Available())
+							}
+							return nil
+						}),
+						MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
+							// Check that we set our status condition.
+							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errGetCompositeEvents)))
+						})),
+						MockList: test.NewMockListFn(errBoom),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
@@ -540,6 +594,7 @@ func TestReconcile(t *testing.T) {
 							cm.SetConditions(xpv1.ReconcileSuccess())
 							cm.SetConditions(xpv1.Available())
 						})),
+						MockList: test.NewMockListFn(nil),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },

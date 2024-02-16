@@ -20,6 +20,7 @@ package apiextensions
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -29,7 +30,6 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 	"github.com/crossplane/crossplane/internal/features"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Setup API extensions controllers.
