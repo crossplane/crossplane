@@ -697,9 +697,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// stable order otherwise.
 		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
 
-		// TODO(negz): This will exponentially backoff from 1s to 1m. We
-		// probably don't want to back off so much when waiting for composed
-		// resources to become ready.
+		// This requeue is subject to rate limiting. Requeues will exponentially
+		// backoff from 1 to 30 seconds. See the 'definition' (XRD) reconciler
+		// that sets up the ratelimiter.
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 

@@ -463,6 +463,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	cr := composite.NewReconciler(r.mgr, ck, ro...)
 	ko := r.options.ForControllerRuntime()
+
+	// Most controllers use this type of rate limiter to backoff requeues from 1
+	// to 60 seconds. Despite the name, it doesn't only rate limit requeues due
+	// to errors. It also rate limits requeues due to a reconcile returning
+	// {Requeue: true}. The XR reconciler returns {Requeue: true} while waiting
+	// for composed resources to become ready, and we don't want to back off as
+	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
+	ko.RateLimiter = workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 30*time.Second)
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	xrGVK := d.GetCompositeGroupVersionKind()
