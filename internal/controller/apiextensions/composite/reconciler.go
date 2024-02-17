@@ -588,6 +588,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
+	var cm *claim.Unstructured
+	if ref := xr.GetClaimReference(); ref != nil {
+		cm = claim.New()
+		cm.SetKind(ref.Kind)
+		cm.SetAPIVersion(ref.APIVersion)
+		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+		if err := r.client.Get(ctx, nn, cm); resource.IgnoreNotFound(err) != nil {
+			err = errors.Wrap(err, errGetClaim)
+			r.record.Event(xr, event.Warning(reasonCompose, err))
+			xr.SetConditions(xpv1.ReconcileError(err))
+		}
+	}
+
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
@@ -596,6 +609,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errCompose)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
+		if cm != nil {
+			r.record.Event(cm, event.Warning(reasonCompose, err))
+		}
 		if kerrors.IsInvalid(err) {
 			// API Server's invalid errors may be unstable due to pointers in
 			// the string representation of invalid structs (%v), among other
@@ -633,19 +649,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 		log.Debug("Successfully published connection details")
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
-	}
-
-	var cm *claim.Unstructured
-	if ref := xr.GetClaimReference(); ref != nil {
-		cm = claim.New()
-		cm.SetKind(ref.Kind)
-		cm.SetAPIVersion(ref.APIVersion)
-		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
-		if err := r.client.Get(ctx, nn, cm); resource.IgnoreNotFound(err) != nil {
-			err = errors.Wrap(err, errGetClaim)
-			r.record.Event(xr, event.Warning(reasonCompose, err))
-			xr.SetConditions(xpv1.ReconcileError(err))
-		}
 	}
 
 	warnings := 0
