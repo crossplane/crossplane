@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -249,12 +248,7 @@ func WithPollIntervalHook(h PollIntervalHook) ReconcilerOption {
 // polls twice as frequently (i.e. at half the supplied interval) +/- 10% when
 // waiting for composed resources to become ready.
 func WithPollInterval(interval time.Duration) ReconcilerOption {
-	return WithPollIntervalHook(func(_ context.Context, xr *composite.Unstructured) time.Duration {
-		// The XR is ready when its composed resources are ready. If the
-		// XR isn't ready yet, poll more frequently.
-		if xr.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
-			interval /= 2
-		}
+	return WithPollIntervalHook(func(_ context.Context, _ *composite.Unstructured) time.Duration {
 		// Jitter the poll interval +/- 10%.
 		return interval + time.Duration((rand.Float64()-0.5)*2*(float64(interval)*0.1)) //nolint:gosec // No need for secure randomness
 	})
@@ -702,7 +696,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.
 		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
-		return reconcile.Result{RequeueAfter: r.pollInterval(ctx, xr)}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+
+		// TODO(negz): This will exponentially backoff from 1s to 1m. We
+		// probably don't want to back off so much when waiting for composed
+		// resources to become ready.
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	// We requeue after our poll interval because we can't watch composed
