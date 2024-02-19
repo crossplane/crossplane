@@ -29,11 +29,11 @@ import (
 
 // Cache defines an interface for caching schemas.
 type Cache interface {
-	Store([][]byte, string) error
+	Store(schemas [][]byte, path string) error
 	Flush() error
 	Init() error
 	Load() ([]*unstructured.Unstructured, error)
-	Exists(string) (string, error)
+	Exists(image string) (string, error)
 }
 
 // LocalCache implements the Cache interface.

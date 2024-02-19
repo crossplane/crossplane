@@ -110,7 +110,7 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 	SetCurrentIdentifier(r string)
 
 	GetSkipDependencyResolution() *bool
-	SetSkipDependencyResolution(*bool)
+	SetSkipDependencyResolution(skip *bool)
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
@@ -425,7 +425,7 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 	SetRevision(r int64)
 
 	GetSkipDependencyResolution() *bool
-	SetSkipDependencyResolution(*bool)
+	SetSkipDependencyResolution(skip *bool)
 
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)

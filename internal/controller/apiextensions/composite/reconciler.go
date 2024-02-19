@@ -350,7 +350,7 @@ type revision struct {
 
 // A CompositionRevisionValidator validates the supplied CompositionRevision.
 type CompositionRevisionValidator interface {
-	Validate(*v1.CompositionRevision) error
+	Validate(rev *v1.CompositionRevision) error
 }
 
 // A CompositionRevisionValidatorFn is a function that validates a

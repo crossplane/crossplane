@@ -29,7 +29,7 @@ import (
 type Source interface {
 	Initialize() error
 	GetConfig() (*Config, error)
-	UpdateConfig(*Config) error
+	UpdateConfig(cfg *Config) error
 }
 
 // NewFSSource constructs a new FSSource. Path must be supplied via modifier or

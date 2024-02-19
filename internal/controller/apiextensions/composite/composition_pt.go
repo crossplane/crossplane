@@ -410,7 +410,7 @@ func AssociateByOrder(t []v1.ComposedTemplate, r []corev1.ObjectReference) []Tem
 
 // A CompositionTemplateAssociator returns an array of template associations.
 type CompositionTemplateAssociator interface {
-	AssociateTemplates(context.Context, resource.Composite, []v1.ComposedTemplate) ([]TemplateAssociation, error)
+	AssociateTemplates(ctx context.Context, xr resource.Composite, cts []v1.ComposedTemplate) ([]TemplateAssociation, error)
 }
 
 // A CompositionTemplateAssociatorFn returns an array of template associations.

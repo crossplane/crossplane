@@ -40,7 +40,7 @@ type CertificateSigner struct {
 
 // CertificateGenerator can return you TLS certificate valid for given domains.
 type CertificateGenerator interface {
-	Generate(*x509.Certificate, *CertificateSigner) (key []byte, crt []byte, err error)
+	Generate(c *x509.Certificate, cs *CertificateSigner) (key, crt []byte, err error)
 }
 
 var pkixName = pkix.Name{ //nolint:gochecknoglobals // We treat this as a constant.
