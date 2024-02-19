@@ -37,7 +37,6 @@ linters:
     - paralleltest
     - nonamedreturns
     - wastedassign
-    - predeclared
     - ireturn
     - nilnil
     - gomnd
