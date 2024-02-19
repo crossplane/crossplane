@@ -247,11 +247,11 @@ The current `ClusterPackageInstall` will serve as the basis for the new
 // ClusterPackageInstall is the CRD type for a request to add a package to Crossplane.
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
-// +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="Source",type="string",JSONPath=".spec.source"
+// +kubebuilder:printcolumn:name="Package",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type ClusterPackageInstall struct {
   metav1.TypeMeta   `json:",inline"`
   metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -358,11 +358,11 @@ The full schema for the `Package` will be as follows:
 // Package is the CRD type for a request to add a package to Crossplane.
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="SOURCE",type="string",JSONPath=".spec.source"
-// +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="Source",type="string",JSONPath=".spec.source"
+// +kubebuilder:printcolumn:name="Package",type="string",JSONPath=".spec.package"
 // +kubebuilder:printcolumn:name="CRD",type="string",JSONPath=".spec.crd"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type Package struct {
   metav1.TypeMeta   `json:",inline"`
   metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -436,9 +436,9 @@ type. The current `Package` schema is as follows:
 // A Package that has been added to Crossplane.
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type Package struct {
   metav1.TypeMeta   `json:",inline"`
   metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -631,9 +631,9 @@ const (
 // A PackageRevision that has been added to Crossplane.
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
-// +kubebuilder:printcolumn:name="VERSION",type="string",JSONPath=".spec.version"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".spec.version"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 type PackageRevision struct {
   metav1.TypeMeta   `json:",inline"`
   metav1.ObjectMeta `json:"metadata,omitempty"`
