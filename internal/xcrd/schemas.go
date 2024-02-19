@@ -28,7 +28,7 @@ const (
 	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
-// CompositionRevisionRef should be propagated dynamically
+// CompositionRevisionRef should be propagated dynamically.
 var CompositionRevisionRef = "compositionRevisionRef"
 
 // PropagateSpecProps is the list of XRC spec properties to propagate
@@ -413,7 +413,7 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 	}
 }
 
-// GetPropFields returns the fields from a map of schema properties
+// GetPropFields returns the fields from a map of schema properties.
 func GetPropFields(props map[string]extv1.JSONSchemaProps) []string {
 	propFields := make([]string, len(props))
 	i := 0

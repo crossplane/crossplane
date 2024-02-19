@@ -43,7 +43,7 @@ const (
 // NopConnectionUnpublisher is a ConnectionUnpublisher that does nothing.
 type NopConnectionUnpublisher struct{}
 
-// NewNopConnectionUnpublisher returns a new NopConnectionUnpublisher
+// NewNopConnectionUnpublisher returns a new NopConnectionUnpublisher.
 func NewNopConnectionUnpublisher() *NopConnectionUnpublisher {
 	return &NopConnectionUnpublisher{}
 }

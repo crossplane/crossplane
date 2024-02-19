@@ -41,7 +41,7 @@ import (
 
 const (
 	// InUseIndexKey used to index CRDs by "Kind" and "group", to be used when
-	// indexing and retrieving needed CRDs
+	// indexing and retrieving needed CRDs.
 	InUseIndexKey = "inuse.apiversion.kind.name"
 
 	// Error strings.

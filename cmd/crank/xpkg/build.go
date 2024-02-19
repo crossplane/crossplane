@@ -94,12 +94,12 @@ func (c *buildCmd) AfterApply() error {
 // buildCmd builds a crossplane package.
 type buildCmd struct {
 	// Flags. Keep sorted alphabetically.
-	EmbedRuntimeImage        string   `placeholder:"NAME" help:"An OCI image to embed in the package as its runtime." xor:"runtime-image"`
-	EmbedRuntimeImageTarball string   `placeholder:"PATH" type:"existingfile" help:"An OCI image tarball to embed in the package as its runtime." xor:"runtime-image"`
-	ExamplesRoot             string   `short:"e" type:"path" help:"A directory of example YAML files to include in the package." default:"./examples"`
-	Ignore                   []string `placeholder:"PATH" help:"Comma-separated file paths, specified relative to --package-root, to exclude from the package. Wildcards are supported. Directories cannot be excluded."`
-	PackageFile              string   `short:"o" type:"path" placeholder:"PATH" help:"The file to write the package to. Defaults to a generated filename in --package-root."`
-	PackageRoot              string   `short:"f" type:"existingdir" help:"The directory that contains the package's crossplane.yaml file." default:"."`
+	EmbedRuntimeImage        string   `help:"An OCI image to embed in the package as its runtime."                                                                                                    placeholder:"NAME"                                                     xor:"runtime-image"`
+	EmbedRuntimeImageTarball string   `help:"An OCI image tarball to embed in the package as its runtime."                                                                                            placeholder:"PATH"                                                     type:"existingfile" xor:"runtime-image"`
+	ExamplesRoot             string   `default:"./examples"                                                                                                                                           help:"A directory of example YAML files to include in the package."    short:"e"           type:"path"`
+	Ignore                   []string `help:"Comma-separated file paths, specified relative to --package-root, to exclude from the package. Wildcards are supported. Directories cannot be excluded." placeholder:"PATH"`
+	PackageFile              string   `help:"The file to write the package to. Defaults to a generated filename in --package-root."                                                                   placeholder:"PATH"                                                     short:"o"           type:"path"`
+	PackageRoot              string   `default:"."                                                                                                                                                    help:"The directory that contains the package's crossplane.yaml file." short:"f"           type:"existingdir"`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs      afero.Fs
@@ -148,7 +148,6 @@ func (c *buildCmd) GetRuntimeBaseImageOpts() ([]xpkg.BuildOpt, error) {
 		return []xpkg.BuildOpt{xpkg.WithBase(img)}, nil
 	}
 	return nil, nil
-
 }
 
 // GetOutputFileName prepares output file name.

@@ -60,7 +60,7 @@ func (s *NoopEnvironmentSelector) SelectEnvironment(_ context.Context, _ resourc
 	return nil
 }
 
-// NewAPIEnvironmentSelector creates a new APIEnvironmentSelector
+// NewAPIEnvironmentSelector creates a new APIEnvironmentSelector.
 func NewAPIEnvironmentSelector(kube client.Client) *APIEnvironmentSelector {
 	return &APIEnvironmentSelector{
 		kube: kube,

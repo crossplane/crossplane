@@ -45,7 +45,6 @@ const (
 // Transform is a unit of process whose input is transformed into an output with
 // the supplied configuration.
 type Transform struct {
-
 	// Type of the transform to be run.
 	// +kubebuilder:validation:Enum=map;match;math;string;convert
 	Type TransformType `json:"type"`
@@ -360,7 +359,6 @@ const (
 
 // A StringTransform returns a string given the supplied input.
 type StringTransform struct {
-
 	// Type of the string transform to be run.
 	// +optional
 	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix;Regexp;Join
@@ -430,7 +428,6 @@ func (s *StringTransform) Validate() *field.Error {
 		return field.Invalid(field.NewPath("type"), s.Type, "unknown string transform type")
 	}
 	return nil
-
 }
 
 // A StringTransformRegexp extracts a match from the input using a regular

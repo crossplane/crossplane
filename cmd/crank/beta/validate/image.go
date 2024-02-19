@@ -27,15 +27,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// ImageFetcher defines an interface for fetching images
+// ImageFetcher defines an interface for fetching images.
 type ImageFetcher interface {
 	FetchBaseLayer(image string) (*conregv1.Layer, error)
 }
 
-// Fetcher implements the ImageFetcher interface
+// Fetcher implements the ImageFetcher interface.
 type Fetcher struct{}
 
-// FetchBaseLayer fetches the base layer of the image which contains the 'package.yaml' file
+// FetchBaseLayer fetches the base layer of the image which contains the 'package.yaml' file.
 func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 	if strings.Contains(image, "sha") { // Strip the digest before fetching the image
 		image = strings.Split(image, "@")[0]

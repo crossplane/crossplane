@@ -107,7 +107,7 @@ type SecretStoreConnectionPublisher struct {
 	filter    []string
 }
 
-// NewSecretStoreConnectionPublisher returns a SecretStoreConnectionPublisher
+// NewSecretStoreConnectionPublisher returns a SecretStoreConnectionPublisher.
 func NewSecretStoreConnectionPublisher(p managed.ConnectionPublisher, filter []string) *SecretStoreConnectionPublisher {
 	return &SecretStoreConnectionPublisher{
 		publisher: p,

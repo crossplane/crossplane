@@ -31,7 +31,7 @@ const (
 	errGenerateCertificate = "cannot generate tls certificate"
 )
 
-// CertificateSigner is the parent's certificate and key that will be used to sign the certificate
+// CertificateSigner is the parent's certificate and key that will be used to sign the certificate.
 type CertificateSigner struct {
 	certificate    *x509.Certificate
 	key            *rsa.PrivateKey
@@ -43,15 +43,13 @@ type CertificateGenerator interface {
 	Generate(*x509.Certificate, *CertificateSigner) (key []byte, crt []byte, err error)
 }
 
-var (
-	pkixName = pkix.Name{
-		CommonName:   "Crossplane",
-		Organization: []string{"Crossplane"},
-		Country:      []string{"Earth"},
-		Province:     []string{"Earth"},
-		Locality:     []string{"Earth"},
-	}
-)
+var pkixName = pkix.Name{
+	CommonName:   "Crossplane",
+	Organization: []string{"Crossplane"},
+	Country:      []string{"Earth"},
+	Province:     []string{"Earth"},
+	Locality:     []string{"Earth"},
+}
 
 // NewCertGenerator returns a new CertGenerator.
 func NewCertGenerator() *CertGenerator {

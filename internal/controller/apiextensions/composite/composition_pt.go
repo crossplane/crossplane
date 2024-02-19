@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane/internal/names"
 )
 
-// Error strings
+// Error strings.
 const (
 	errGetComposed   = "cannot get composed resource"
 	errGCComposed    = "cannot garbage collect composed resource"
@@ -354,7 +354,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 
 // toXRPatchesFromTAs selects patches defined in composed templates,
 // whose type is one of the XR-targeting patches
-// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite)
+// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite).
 func toXRPatchesFromTAs(tas []TemplateAssociation) []v1.Patch {
 	filtered := make([]v1.Patch, 0, len(tas))
 	for _, ta := range tas {
@@ -364,7 +364,7 @@ func toXRPatchesFromTAs(tas []TemplateAssociation) []v1.Patch {
 	return filtered
 }
 
-// filterPatches selects patches whose type belong to the list onlyTypes
+// filterPatches selects patches whose type belong to the list onlyTypes.
 func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
 	filtered := make([]v1.Patch, 0, len(pas))
 	include := make(map[v1.PatchType]bool)

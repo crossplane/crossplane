@@ -42,7 +42,7 @@ const (
 	errFlushTabWriter = "cannot flush tab writer"
 )
 
-// DefaultPrinter defines the DefaultPrinter configuration
+// DefaultPrinter defines the DefaultPrinter configuration.
 type DefaultPrinter struct {
 	wide bool
 }
@@ -129,7 +129,6 @@ func getHeaders(gk schema.GroupKind, wide bool) (headers fmt.Stringer, isPackage
 		ready:        "READY",
 		status:       "STATUS",
 	}, false
-
 }
 
 // Print implements the Printer interface by prints the resource tree in a

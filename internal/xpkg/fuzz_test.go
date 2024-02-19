@@ -48,7 +48,7 @@ func FuzzFindXpkgInDir(f *testing.F) {
 				t.Skip()
 			}
 
-			if err = afero.WriteFile(fs, fname, fcontents, 0777); err != nil {
+			if err = afero.WriteFile(fs, fname, fcontents, 0o777); err != nil {
 				t.Skip()
 			}
 		}
@@ -56,5 +56,4 @@ func FuzzFindXpkgInDir(f *testing.F) {
 		_, _ = FindXpkgInDir(fs, "/")
 		_, _ = ParseNameFromMeta(fs, "/")
 	})
-
 }

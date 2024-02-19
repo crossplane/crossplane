@@ -16,11 +16,17 @@ limitations under the License.
 
 package v1
 
-var _ Package = &Provider{}
-var _ Package = &Configuration{}
+var (
+	_ Package = &Provider{}
+	_ Package = &Configuration{}
+)
 
-var _ PackageRevision = &ProviderRevision{}
-var _ PackageRevision = &ConfigurationRevision{}
+var (
+	_ PackageRevision = &ProviderRevision{}
+	_ PackageRevision = &ConfigurationRevision{}
+)
 
-var _ PackageRevisionList = &ProviderRevisionList{}
-var _ PackageRevisionList = &ConfigurationRevisionList{}
+var (
+	_ PackageRevisionList = &ProviderRevisionList{}
+	_ PackageRevisionList = &ConfigurationRevisionList{}
+)

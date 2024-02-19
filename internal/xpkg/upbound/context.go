@@ -56,14 +56,14 @@ const (
 // Flags are common flags used by commands that interact with Upbound.
 type Flags struct {
 	// Keep sorted alphabetically.
-	Account               string   `short:"a" env:"UP_ACCOUNT" help:"Account used to execute command." json:"account,omitempty"`
-	Domain                *url.URL `env:"UP_DOMAIN" default:"https://upbound.io" help:"Root Upbound domain." json:"domain,omitempty"`
+	Account               string   `env:"UP_ACCOUNT"                  help:"Account used to execute command."            json:"account,omitempty"               short:"a"`
+	Domain                *url.URL `default:"https://upbound.io"      env:"UP_DOMAIN"                                    help:"Root Upbound domain."            json:"domain,omitempty"`
 	InsecureSkipTLSVerify bool     `env:"UP_INSECURE_SKIP_TLS_VERIFY" help:"[INSECURE] Skip verifying TLS certificates." json:"insecureSkipTLSVerify,omitempty"`
-	Profile               string   `env:"UP_PROFILE" help:"Profile used to execute command." predictor:"profiles" json:"profile,omitempty"`
+	Profile               string   `env:"UP_PROFILE"                  help:"Profile used to execute command."            json:"profile,omitempty"               predictor:"profiles"`
 
 	// Hidden flags.
-	APIEndpoint      *url.URL `env:"OVERRIDE_API_ENDPOINT" hidden:"" name:"override-api-endpoint" help:"Overrides the default API endpoint." json:"apiEndpoint,omitempty"`
-	RegistryEndpoint *url.URL `env:"OVERRIDE_REGISTRY_ENDPOINT" hidden:"" name:"override-registry-endpoint" help:"Overrides the default registry endpoint." json:"registryEndpoint,omitempty"`
+	APIEndpoint      *url.URL `env:"OVERRIDE_API_ENDPOINT"      help:"Overrides the default API endpoint."      hidden:"" json:"apiEndpoint,omitempty"      name:"override-api-endpoint"`
+	RegistryEndpoint *url.URL `env:"OVERRIDE_REGISTRY_ENDPOINT" help:"Overrides the default registry endpoint." hidden:"" json:"registryEndpoint,omitempty" name:"override-registry-endpoint"`
 }
 
 // Context includes common data that Upbound consumers may utilize.
@@ -86,7 +86,7 @@ type Context struct {
 	fs                  afero.Fs
 }
 
-// Option modifies a Context
+// Option modifies a Context.
 type Option func(*Context)
 
 // AllowMissingProfile indicates that Context should still be returned even if a
@@ -185,10 +185,11 @@ func (c *Context) BuildSDKConfig() (*up.Config, error) {
 		return nil, err
 	}
 	if c.Profile.Session != "" {
-		cj.SetCookies(c.APIEndpoint, []*http.Cookie{{
-			Name:  CookieName,
-			Value: c.Profile.Session,
-		},
+		cj.SetCookies(c.APIEndpoint, []*http.Cookie{
+			{
+				Name:  CookieName,
+				Value: c.Profile.Session,
+			},
 		})
 	}
 	tr := &http.Transport{

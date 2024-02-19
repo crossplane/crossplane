@@ -59,7 +59,7 @@ type K8sFetcher struct {
 	userAgent      string
 }
 
-// FetcherOpt can be used to add optional parameters to NewK8sFetcher
+// FetcherOpt can be used to add optional parameters to NewK8sFetcher.
 type FetcherOpt func(k *K8sFetcher) error
 
 // WithCustomCA is a FetcherOpt that can be used to add a custom CA bundle to a K8sFetcher.

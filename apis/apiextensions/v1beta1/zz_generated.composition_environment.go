@@ -82,7 +82,6 @@ func (e *EnvironmentConfiguration) Validate() field.ErrorList {
 
 // ShouldResolve specifies whether EnvironmentConfiguration should be resolved or not.
 func (e *EnvironmentConfiguration) ShouldResolve(currentRefs []corev1.ObjectReference) bool {
-
 	if e == nil || len(e.EnvironmentConfigs) == 0 {
 		return false
 	}
@@ -187,7 +186,6 @@ const (
 
 // An EnvironmentSourceSelector selects an EnvironmentConfig via labels.
 type EnvironmentSourceSelector struct {
-
 	// Mode specifies retrieval strategy: "Single" or "Multiple".
 	// +kubebuilder:validation:Enum=Single;Multiple
 	// +kubebuilder:default=Single
@@ -209,7 +207,6 @@ type EnvironmentSourceSelector struct {
 
 // Validate logically validates the EnvironmentSourceSelector.
 func (e *EnvironmentSourceSelector) Validate() *field.Error {
-
 	if e.Mode == EnvironmentSourceSelectorSingleMode && e.MaxMatch != nil {
 		return field.Forbidden(field.NewPath("maxMatch"), "maxMatch is not supported in Single mode")
 	}

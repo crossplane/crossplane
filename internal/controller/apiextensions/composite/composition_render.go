@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-// Error strings
+// Error strings.
 const (
 	errUnmarshalJSON      = "cannot unmarshal JSON data"
 	errMarshalProtoStruct = "cannot marshal protobuf Struct to JSON"

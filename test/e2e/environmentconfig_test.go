@@ -324,6 +324,7 @@ func TestEnvironmentConfigMultipleMaxMatchNil(t *testing.T) {
 			Feature(),
 	)
 }
+
 func TestEnvironmentConfigMultipleMaxMatch1(t *testing.T) {
 	subfolder := "multipleModeMaxMatch1"
 

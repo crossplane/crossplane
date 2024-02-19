@@ -16,9 +16,8 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
 )
 
-// DotPrinter defines the DotPrinter configuration
-type DotPrinter struct {
-}
+// DotPrinter defines the DotPrinter configuration.
+type DotPrinter struct{}
 
 var _ Printer = &DotPrinter{}
 

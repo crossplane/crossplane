@@ -54,7 +54,7 @@ const (
 	finalizer           = "composite.apiextensions.crossplane.io"
 )
 
-// Error strings
+// Error strings.
 const (
 	errGet                    = "cannot get composite resource"
 	errUpdate                 = "cannot update composite resource"

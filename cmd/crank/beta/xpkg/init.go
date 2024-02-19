@@ -56,9 +56,9 @@ type initCmd struct {
 	Name     string `arg:"" help:"The name of the new package to initialize."`
 	Template string `arg:"" help:"The template name or URL to use to initialize the new package."`
 
-	Directory     string `short:"d" default:"." type:"path" help:"The directory to initialize. It must be empty. It will be created if it doesn't exist."`
-	RunInitScript bool   `short:"r" name:"run-init-script" help:"Runs the init.sh script if it exists without prompting"`
-	RefName       string `short:"b" name:"ref-name" help:"The branch or tag to clone from the template repository."`
+	Directory     string `default:"."                                                     help:"The directory to initialize. It must be empty. It will be created if it doesn't exist." short:"d" type:"path"`
+	RunInitScript bool   `help:"Runs the init.sh script if it exists without prompting"   name:"run-init-script"                                                                        short:"r"`
+	RefName       string `help:"The branch or tag to clone from the template repository." name:"ref-name"                                                                               short:"b"`
 }
 
 func (c *initCmd) Help() string {
@@ -108,7 +108,7 @@ func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:g
 	case err == nil && !f.IsDir():
 		return errors.Errorf("path %s is not a directory", c.Directory)
 	case os.IsNotExist(err):
-		if err := os.MkdirAll(c.Directory, 0750); err != nil {
+		if err := os.MkdirAll(c.Directory, 0o750); err != nil {
 			return errors.Wrapf(err, "failed to create directory %s", c.Directory)
 		}
 		logger.Debug("Created directory", "path", c.Directory)

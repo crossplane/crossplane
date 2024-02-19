@@ -35,7 +35,7 @@ type Cmd struct {
 	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
-	CacheDir           string `help:"Absolute path to the cache directory where downloaded schemas are stored." default:".crossplane/cache"`
+	CacheDir           string `default:".crossplane/cache"                                          help:"Absolute path to the cache directory where downloaded schemas are stored."`
 	CleanCache         bool   `help:"Clean the cache directory before downloading package schemas."`
 	SkipSuccessResults bool   `help:"Skip printing success results."`
 

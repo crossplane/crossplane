@@ -67,7 +67,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error { 
 			break
 		}
 	}
-	var resources = unstructured.UnstructuredList{}
+	resources := unstructured.UnstructuredList{}
 	resources.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   crd.Spec.Group,
 		Version: storageVersion,

@@ -90,7 +90,6 @@ func (v *Validator) validateEnvironmentPatchesWithSchemas(ctx context.Context, c
 			compositeResGVK: compositeResGVK,
 		}), field.NewPath("spec").Child("environment", "patches").Index(i)); err != nil {
 			errs = append(errs, err)
-
 		}
 	}
 	return errs
@@ -427,7 +426,6 @@ func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segmen
 			return validateFieldPathSegmentField(parent.AdditionalProperties.Schema, segment)
 		}
 		return nil, errors.Errorf(errFmtFieldInvalid, segment.Field)
-
 	}
 	return &prop, nil
 }

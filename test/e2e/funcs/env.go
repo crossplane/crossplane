@@ -76,7 +76,6 @@ func AsFeaturesFunc(fn env.Func) features.Func {
 		}
 		return ctx
 	}
-
 }
 
 // HelmUninstall uninstalls a Helm chart.
@@ -115,7 +114,7 @@ func EnvFuncs(fns ...env.Func) env.Func {
 
 // CreateKindClusterWithConfig create kind cluster of the given name according to
 // configuration referred via configFilePath.
-// The configuration is placed in test context afterward
+// The configuration is placed in test context afterward.
 func CreateKindClusterWithConfig(clusterName, configFilePath string) env.Func {
 	return EnvFuncs(
 		envfuncs.CreateClusterWithConfig(kind.NewProvider(), clusterName, configFilePath),

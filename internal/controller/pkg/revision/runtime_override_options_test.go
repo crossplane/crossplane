@@ -169,7 +169,8 @@ func TestDeploymentWithRuntimeContainer(t *testing.T) {
 									},
 									{
 										Name: "another-one",
-									}, {
+									},
+									{
 										Name: runtimeContainerName,
 									},
 								},

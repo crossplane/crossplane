@@ -28,12 +28,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Loader interface defines the contract for different input sources
+// Loader interface defines the contract for different input sources.
 type Loader interface {
 	Load() ([]*unstructured.Unstructured, error)
 }
 
-// NewLoader returns a Loader based on the input source
+// NewLoader returns a Loader based on the input source.
 func NewLoader(input string) (Loader, error) {
 	if input == "-" {
 		return &StdinLoader{}, nil
@@ -51,10 +51,10 @@ func NewLoader(input string) (Loader, error) {
 	return &FileLoader{path: input}, nil
 }
 
-// StdinLoader implements the Loader interface for reading from stdin
+// StdinLoader implements the Loader interface for reading from stdin.
 type StdinLoader struct{}
 
-// Load reads the contents from stdin
+// Load reads the contents from stdin.
 func (s *StdinLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := load(os.Stdin)
 	if err != nil {
@@ -64,12 +64,12 @@ func (s *StdinLoader) Load() ([]*unstructured.Unstructured, error) {
 	return streamToUnstructured(stream)
 }
 
-// FileLoader implements the Loader interface for reading from a file and converting input to unstructured objects
+// FileLoader implements the Loader interface for reading from a file and converting input to unstructured objects.
 type FileLoader struct {
 	path string
 }
 
-// Load reads the contents from a file
+// Load reads the contents from a file.
 func (f *FileLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := readFile(f.path)
 	if err != nil {
@@ -79,12 +79,12 @@ func (f *FileLoader) Load() ([]*unstructured.Unstructured, error) {
 	return streamToUnstructured(stream)
 }
 
-// FolderLoader implements the Loader interface for reading from a folder
+// FolderLoader implements the Loader interface for reading from a folder.
 type FolderLoader struct {
 	path string
 }
 
-// Load reads the contents from all files in a folder
+// Load reads the contents from all files in a folder.
 func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 	var stream [][]byte
 	err := filepath.Walk(f.path, func(path string, info os.FileInfo, err error) error {
@@ -114,7 +114,6 @@ func isYamlFile(info os.FileInfo) bool {
 
 func readFile(path string) ([][]byte, error) {
 	f, err := os.Open(filepath.Clean(path))
-
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open file")
 	}

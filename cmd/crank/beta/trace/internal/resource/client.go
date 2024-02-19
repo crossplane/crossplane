@@ -85,7 +85,6 @@ func GetResource(ctx context.Context, client client.Client, ref *v1.ObjectRefere
 	result.SetGroupVersionKind(ref.GroupVersionKind())
 
 	err := client.Get(ctx, xpmeta.NamespacedNameOf(ref), &result)
-
 	if err != nil {
 		// If the resource is not found, we still want to return a Resource
 		// object with the name and namespace set, so that the caller can

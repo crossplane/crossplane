@@ -51,8 +51,8 @@ const (
 
 // Cmd represents the top command.
 type Cmd struct {
-	Summary   bool   `short:"s" name:"summary" help:"Adds summary header for all Crossplane pods."`
-	Namespace string `short:"n" name:"namespace" help:"Show pods from a specific namespace, defaults to crossplane-system." default:"crossplane-system"`
+	Summary   bool   `help:"Adds summary header for all Crossplane pods." name:"summary"                                                             short:"s"`
+	Namespace string `default:"crossplane-system"                         help:"Show pods from a specific namespace, defaults to crossplane-system." name:"namespace" short:"n"`
 }
 
 // Help returns help instructions for the top command.
@@ -130,7 +130,6 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	ctx := context.Background()
 
 	pods, err := k8sClientset.CoreV1().Pods(c.Namespace).List(ctx, metav1.ListOptions{})
-
 	if err != nil {
 		return errors.Wrap(err, errFetchAllPods)
 	}

@@ -59,7 +59,7 @@ import (
 
 const (
 	reconcileTimeout = 3 * time.Minute
-	// the max size of a package parsed by the parser
+	// the max size of a package parsed by the parser.
 	maxPackageSize = 200 << 20 // 100 MB
 )
 
@@ -444,7 +444,6 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 
 // NewReconciler creates a new package revision reconciler.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
-
 	r := &Reconciler{
 		client:    mgr.GetClient(),
 		cache:     xpkg.NewNopCache(),

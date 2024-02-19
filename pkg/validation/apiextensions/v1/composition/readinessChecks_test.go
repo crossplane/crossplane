@@ -237,7 +237,6 @@ func TestValidateReadinessCheck(t *testing.T) {
 						crd.Spec.Versions[1].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someField"] = extv1.JSONSchemaProps{
 							Type: "integer",
 						}
-
 					}).build()),
 			},
 			want: want{

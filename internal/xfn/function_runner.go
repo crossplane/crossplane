@@ -35,7 +35,7 @@ import (
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
-// Error strings
+// Error strings.
 const (
 	errListFunctionRevisions = "cannot list FunctionRevisions"
 	errNoActiveRevisions     = "cannot find an active FunctionRevision (a FunctionRevision with spec.desiredState: Active)"

@@ -366,7 +366,14 @@ func TestValidateFieldPath(t *testing.T) {
 							Properties: map[string]apiextensions.JSONSchemaProps{
 								"forProvider": {
 									Properties: map[string]apiextensions.JSONSchemaProps{
-										"foo": {Type: "string"}}}}}}}},
+										"foo": {Type: "string"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"AcceptMetadataLabelsValue": {
 			reason: "Should validate a valid field path",
@@ -391,7 +398,14 @@ func TestValidateFieldPath(t *testing.T) {
 							Properties: map[string]apiextensions.JSONSchemaProps{
 								"forProvider": {
 									Properties: map[string]apiextensions.JSONSchemaProps{
-										"foo": {Type: "string"}}}}}}}},
+										"foo": {Type: "string"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"AcceptFieldPathXPreserveUnknownFields": {
 			reason: "Should not return an error for an undefined but accepted field path",
@@ -404,9 +418,15 @@ func TestValidateFieldPath(t *testing.T) {
 							Properties: map[string]apiextensions.JSONSchemaProps{
 								"forProvider": {
 									Properties: map[string]apiextensions.JSONSchemaProps{
-										"foo": {Type: "string"}},
+										"foo": {Type: "string"},
+									},
 									XPreserveUnknownFields: &[]bool{true}[0],
-								}}}}}},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"AcceptValidArray": {
 			reason: "Should validate arrays properly",
@@ -424,7 +444,18 @@ func TestValidateFieldPath(t *testing.T) {
 											Items: &apiextensions.JSONSchemaPropsOrArray{
 												Schema: &apiextensions.JSONSchemaProps{
 													Properties: map[string]apiextensions.JSONSchemaProps{
-														"bar": {Type: "string"}}}}}}}}}}}},
+														"bar": {Type: "string"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		"AcceptComplexSchema": {
 			reason: "Should validate properly with complex schema",
@@ -475,7 +506,10 @@ func TestValidateFieldPath(t *testing.T) {
 									XPreserveUnknownFields: &[]bool{true}[0],
 								},
 							},
-						}}}},
+						},
+					},
+				},
+			},
 		},
 		"AcceptAnnotations": {
 			want: want{err: nil, fieldType: "string"},
@@ -896,7 +930,6 @@ func TestGetSchemaForVersion(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestComposedTemplateGetBaseObject(t *testing.T) {

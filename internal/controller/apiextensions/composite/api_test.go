@@ -705,7 +705,8 @@ func TestSelectorResolver(t *testing.T) {
 						}
 						t.Errorf("wrong query")
 						return nil
-					}},
+					},
+				},
 				cp: &fake.Composite{
 					CompositionSelector: fake.CompositionSelector{Sel: sel},
 				},

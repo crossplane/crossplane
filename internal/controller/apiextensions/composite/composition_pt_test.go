@@ -474,7 +474,6 @@ func TestPTCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			c := NewPTComposer(tc.params.kube, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
@@ -485,7 +484,6 @@ func TestPTCompose(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }

@@ -135,7 +135,6 @@ type Reconciler struct {
 // Reconcile a ProviderRevision by creating a ClusterRoleBinding that binds a
 // provider's service account to its system ClusterRole.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
-
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

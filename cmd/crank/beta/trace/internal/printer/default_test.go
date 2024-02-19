@@ -151,5 +151,4 @@ Configuration/platform-ref-aws                                                  
 			}
 		})
 	}
-
 }

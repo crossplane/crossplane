@@ -305,5 +305,4 @@ func TestJSONPrinter(t *testing.T) {
 			}
 		})
 	}
-
 }

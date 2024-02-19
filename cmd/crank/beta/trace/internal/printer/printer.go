@@ -33,7 +33,7 @@ const (
 // Type represents the type of printer.
 type Type string
 
-// Implemented PrinterTypes
+// Implemented PrinterTypes.
 const (
 	TypeDefault Type = "default"
 	TypeWide    Type = "wide"

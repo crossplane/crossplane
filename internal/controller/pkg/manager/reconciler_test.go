@@ -53,6 +53,7 @@ func NewMockRevisionFn(hash string, err error) func() (string, error) {
 		return hash, err
 	}
 }
+
 func (m *MockRevisioner) Revision(context.Context, v1.Package) (string, error) {
 	return m.MockRevision()
 }

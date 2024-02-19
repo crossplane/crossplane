@@ -126,7 +126,7 @@ func (p *Provider) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *Provider) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }
@@ -271,7 +271,7 @@ func (p *Configuration) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *Configuration) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }
@@ -444,7 +444,7 @@ func (p *ProviderRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *ProviderRevision) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }
@@ -601,7 +601,7 @@ func (p *ConfigurationRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *ConfigurationRevision) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }

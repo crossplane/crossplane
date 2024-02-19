@@ -34,19 +34,19 @@ import (
 
 // initCommand configuration for the initialization of core Crossplane controllers.
 type initCommand struct {
-	Providers      []string `name:"provider" help:"Pre-install a Provider by giving its image URI. This argument can be repeated."`
-	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
-	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
-	ServiceAccount string   `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
+	Providers      []string `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."      name:"provider"`
+	Configurations []string `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated." name:"configuration"`
+	Namespace      string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"       help:"Namespace used to set as default scope in default secret store config." short:"n"`
+	ServiceAccount string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT" help:"Name of the Crossplane Service Account."`
 
-	WebhookEnabled          bool   `help:"Enable webhook configuration." default:"true" env:"WEBHOOK_ENABLED"`
-	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
-	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
-	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
-	ESSTLSServerSecretName  string `help:"The name of the Secret that the initializer will fill with ESS TLS server certificate." env:"ESS_TLS_SERVER_SECRET_NAME"`
-	TLSCASecretName         string `help:"The name of the Secret that the initializer will fill with TLS CA certificate." env:"TLS_CA_SECRET_NAME"`
-	TLSServerSecretName     string `help:"The name of the Secret that the initializer will fill with TLS server certificates." env:"TLS_SERVER_SECRET_NAME"`
-	TLSClientSecretName     string `help:"The name of the Secret that the initializer will fill with TLS client certificates." env:"TLS_CLIENT_SECRET_NAME"`
+	WebhookEnabled          bool   `default:"true"                   env:"WEBHOOK_ENABLED"                                                                         help:"Enable webhook configuration."`
+	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"       help:"The name of the Service object that the webhook service will be run."`
+	WebhookServiceNamespace string `env:"WEBHOOK_SERVICE_NAMESPACE"  help:"The namespace of the Service object that the webhook service will be run."`
+	WebhookServicePort      int32  `env:"WEBHOOK_SERVICE_PORT"       help:"The port of the Service that the webhook service will be run."`
+	ESSTLSServerSecretName  string `env:"ESS_TLS_SERVER_SECRET_NAME" help:"The name of the Secret that the initializer will fill with ESS TLS server certificate."`
+	TLSCASecretName         string `env:"TLS_CA_SECRET_NAME"         help:"The name of the Secret that the initializer will fill with TLS CA certificate."`
+	TLSServerSecretName     string `env:"TLS_SERVER_SECRET_NAME"     help:"The name of the Secret that the initializer will fill with TLS server certificates."`
+	TLSClientSecretName     string `env:"TLS_CLIENT_SECRET_NAME"     help:"The name of the Secret that the initializer will fill with TLS client certificates."`
 }
 
 // Run starts the initialization process.

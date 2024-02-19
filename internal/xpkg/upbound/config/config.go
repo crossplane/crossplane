@@ -88,7 +88,7 @@ const (
 	TokenProfileType ProfileType = "token"
 )
 
-// A Profile is a set of credentials
+// A Profile is a set of credentials.
 type Profile struct {
 	// ID is either a username, email, or token.
 	ID string `json:"id"`

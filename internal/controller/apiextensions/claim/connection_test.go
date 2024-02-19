@@ -34,9 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var (
-	_ ConnectionPropagator = &APIConnectionPropagator{}
-)
+var _ ConnectionPropagator = &APIConnectionPropagator{}
 
 func TestPropagateConnection(t *testing.T) {
 	errBoom := errors.New("boom")

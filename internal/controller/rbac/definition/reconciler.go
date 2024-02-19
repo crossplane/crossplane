@@ -152,7 +152,6 @@ type Reconciler struct {
 // Reconcile a CompositeResourceDefinition by creating a series of opinionated
 // ClusterRoles that may be bound to allow access to the resources it defines.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

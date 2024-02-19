@@ -81,7 +81,7 @@ func withConfig(config string) Option {
 	return func(ctx *Context) {
 		// establish fs and create config.json
 		fs := afero.NewMemMapFs()
-		fs.MkdirAll(filepath.Dir("/.up/"), 0755)
+		fs.MkdirAll(filepath.Dir("/.up/"), 0o755)
 		f, _ := fs.Create("/.up/config.json")
 
 		f.WriteString(config)

@@ -47,7 +47,7 @@ const (
 	EnableAlphaClaimSSA feature.Flag = "EnableAlphaClaimSSA"
 )
 
-// Beta Feature Flags
+// Beta Feature Flags.
 const (
 	// EnableBetaCompositionFunctions enables alpha support for composition
 	// functions. See the below design for more details.

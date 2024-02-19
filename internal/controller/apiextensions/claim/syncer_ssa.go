@@ -36,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-// Error strings
+// Error strings.
 const (
 	errCreatePatch                = "cannot create patch"
 	errPatchFieldManagers         = "cannot patch field managers"

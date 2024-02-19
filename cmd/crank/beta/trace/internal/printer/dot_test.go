@@ -11,7 +11,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
-// Define a test for PrintDotGraph
+// Define a test for PrintDotGraph.
 func TestPrintDotGraph(t *testing.T) {
 	type args struct {
 		resource *resource.Resource
@@ -103,8 +103,6 @@ func TestPrintDotGraph(t *testing.T) {
 			if diff := cmp.Diff(tc.want.dotString, got); diff != "" {
 				t.Errorf("%s\nDotPrinter.Print(): -want, +got:\n%s", tc.reason, diff)
 			}
-
 		})
-
 	}
 }

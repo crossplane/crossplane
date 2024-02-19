@@ -333,8 +333,7 @@ func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOver
 			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
 		}
 		if len(cc.Spec.VolumeMounts) > 0 {
-			d.Spec.Template.Spec.Containers[0].VolumeMounts =
-				append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
+			d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
 		}
 	}
 }
@@ -415,12 +414,10 @@ func mountTLSSecret(secret, volName, mountPath, envName string, d *appsv1.Deploy
 		ReadOnly:  true,
 		MountPath: mountPath,
 	}
-	d.Spec.Template.Spec.Containers[0].VolumeMounts =
-		append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+	d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 
 	envs := []corev1.EnvVar{
 		{Name: envName, Value: mountPath},
 	}
-	d.Spec.Template.Spec.Containers[0].Env =
-		append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+	d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 }

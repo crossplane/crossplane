@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	// default container name that XP uses
+	// default container name that XP uses.
 	runtimeContainerName = "package-runtime"
 
 	errNilControllerConfig = "ControllerConfig is nil"
@@ -39,7 +39,7 @@ const (
 var timeNow = time.Now()
 
 // controllerConfigToDeploymentRuntimeConfig converts a ControllerConfig to
-// a DeploymentRuntimeConfig
+// a DeploymentRuntimeConfig.
 func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*v1beta1.DeploymentRuntimeConfig, error) {
 	if cc == nil {
 		return nil, errors.New(errNilControllerConfig)
@@ -165,8 +165,7 @@ func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Contai
 		c.Env = append(c.Env, cc.Spec.Env...)
 	}
 	if len(cc.Spec.VolumeMounts) > 0 {
-		c.VolumeMounts =
-			append(c.VolumeMounts, cc.Spec.VolumeMounts...)
+		c.VolumeMounts = append(c.VolumeMounts, cc.Spec.VolumeMounts...)
 	}
 	if cc.Spec.ResourceRequirements != nil {
 		c.Resources = *cc.Spec.ResourceRequirements.DeepCopy()
@@ -235,7 +234,7 @@ func withDeploymentTemplate(dt *v1beta1.DeploymentTemplate) func(*v1beta1.Deploy
 }
 
 // shouldCreateDeploymentTemplate determines whether we should create a deployment
-// template in the DeploymentRuntimeConfig
+// template in the DeploymentRuntimeConfig.
 func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool { //nolint:gocyclo // There are a lot of triggers for this, but it's not complex
 	return len(cc.Labels) > 0 ||
 		len(cc.Annotations) > 0 ||
@@ -255,7 +254,7 @@ func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool { //noli
 }
 
 // shouldCreateDeploymentTemplateContainer determines whether we should create a container
-// entry in the DeploymentRuntimeConfig
+// entry in the DeploymentRuntimeConfig.
 func shouldCreateDeploymentTemplateContainer(cc *v1alpha1.ControllerConfig) bool {
 	return cc.Spec.Image != nil ||
 		cc.Spec.ImagePullPolicy != nil ||

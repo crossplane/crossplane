@@ -44,7 +44,7 @@ const (
 	imageFmt = "%s:%s"
 )
 
-// Manager defines a Manager for preparing Crossplane packages for validation
+// Manager defines a Manager for preparing Crossplane packages for validation.
 type Manager struct {
 	fetcher ImageFetcher
 	cache   Cache
@@ -55,7 +55,7 @@ type Manager struct {
 	confs map[string]bool // Configuration images
 }
 
-// NewManager returns a new Manager
+// NewManager returns a new Manager.
 func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m := &Manager{}
 
@@ -73,7 +73,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	return m
 }
 
-// PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency
+// PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
 func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocyclo // the function itself is not that complex, it just has different cases
 	for _, e := range extensions {
 		switch e.GroupVersionKind().GroupKind() {
@@ -142,7 +142,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 	return nil
 }
 
-// CacheAndLoad finds and caches dependencies and loads them as CRDs
+// CacheAndLoad finds and caches dependencies and loads them as CRDs.
 func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	if cleanCache {
 		if err := m.cache.Flush(); err != nil {

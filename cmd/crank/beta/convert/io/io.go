@@ -54,7 +54,7 @@ func WriteObjectYAML(fs afero.Fs, outputFile string, o runtime.Object) error {
 	var output io.Writer
 
 	if outputFile != "" {
-		f, err := fs.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := fs.OpenFile(outputFile, os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
 			return errors.Wrap(err, "Unable to open output file")
 		}

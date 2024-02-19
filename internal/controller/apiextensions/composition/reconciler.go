@@ -46,7 +46,7 @@ const (
 	timeout = 2 * time.Minute
 )
 
-// Error strings
+// Error strings.
 const (
 	errGet             = "cannot get Composition"
 	errListRevs        = "cannot list CompositionRevisions"

@@ -32,11 +32,11 @@ import (
 // Cmd arguments and flags for converting a patch-and-transform to a function pipeline composition.
 type Cmd struct {
 	// Arguments.
-	InputFile string `arg:"" type:"path" optional:"" default:"-" help:"The Composition file to be converted. If not specified or '-', stdin will be used."`
+	InputFile string `arg:"" default:"-" help:"The Composition file to be converted. If not specified or '-', stdin will be used." optional:"" type:"path"`
 
 	// Flags.
-	OutputFile   string `short:"o" type:"path" placeholder:"PATH" help:"The file to write the generated Composition to. If not specified, stdout will be used."`
-	FunctionName string `short:"f" type:"string" placeholder:"STRING" help:"FunctionRefName. Defaults to function-patch-and-transform."`
+	OutputFile   string `help:"The file to write the generated Composition to. If not specified, stdout will be used." placeholder:"PATH"   short:"o" type:"path"`
+	FunctionName string `help:"FunctionRefName. Defaults to function-patch-and-transform."                             placeholder:"STRING" short:"f" type:"string"`
 
 	fs afero.Fs
 }

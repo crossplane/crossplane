@@ -76,7 +76,7 @@ func (c *Composition) validatePipeline() (errs field.ErrorList) {
 // validatePatchSets checks that:
 // - patchSets are composed of valid patches
 // - there are no nested patchSets
-// - only existing patchSets are used by resources
+// - only existing patchSets are used by resources.
 func (c *Composition) validatePatchSets() (errs field.ErrorList) {
 	definedPatchSets := make(map[string]bool, len(c.Spec.PatchSets))
 	for i, s := range c.Spec.PatchSets {

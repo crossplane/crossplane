@@ -151,7 +151,6 @@ func TestRender(t *testing.T) {
 					},
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
-
 							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
 								Results: []*fnv1beta1.Result{
 									{
@@ -206,7 +205,6 @@ func TestRender(t *testing.T) {
 					},
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
-
 							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
 								Desired: &fnv1beta1.State{
 									Composite: &fnv1beta1.Resource{
@@ -375,7 +373,6 @@ func TestRender(t *testing.T) {
 					},
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
-
 							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
 								Desired: &fnv1beta1.State{
 									Composite: &fnv1beta1.Resource{
@@ -739,7 +736,6 @@ func TestRender(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			out, err := Render(tc.args.ctx, logging.NewNopLogger(), tc.args.in)
 
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {

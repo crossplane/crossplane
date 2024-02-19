@@ -43,14 +43,14 @@ type StoreConfig struct {
 
 // +kubebuilder:object:root=true
 
-// StoreConfigList contains a list of StoreConfig
+// StoreConfigList contains a list of StoreConfig.
 type StoreConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []StoreConfig `json:"items"`
 }
 
-// GetStoreConfig returns SecretStoreConfig
+// GetStoreConfig returns SecretStoreConfig.
 func (in *StoreConfig) GetStoreConfig() xpv1.SecretStoreConfig {
 	return in.Spec.SecretStoreConfig
 }

@@ -115,7 +115,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	wrh := &EnqueueRequestForAllRevisionsWithRequests{
 		client:          mgr.GetClient(),
-		clusterRoleName: o.AllowClusterRole}
+		clusterRoleName: o.AllowClusterRole,
+	}
 
 	sfh := &EnqueueRequestForAllRevisionsInFamily{
 		client: mgr.GetClient(),
@@ -373,7 +374,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 func DefinedResources(refs []xpv1.TypedReference) []Resource {
 	out := make([]Resource, 0, len(refs))
 	for _, ref := range refs {
-
 		// This would only return an error if the APIVersion contained more than
 		// one "/". This should be impossible, but if it somehow happens we'll
 		// just skip this resource since it can't be a CRD.

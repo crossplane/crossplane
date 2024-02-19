@@ -39,20 +39,20 @@ import (
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
 	// Arguments.
-	CompositeResource string `arg:"" type:"existingfile" help:"A YAML file specifying the composite resource (XR) to render."`
-	Composition       string `arg:"" type:"existingfile" help:"A YAML file specifying the Composition to use to render the XR. Must be mode: Pipeline."`
-	Functions         string `arg:"" type:"path" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR."`
+	CompositeResource string `arg:"" help:"A YAML file specifying the composite resource (XR) to render."                                        type:"existingfile"`
+	Composition       string `arg:"" help:"A YAML file specifying the Composition to use to render the XR. Must be mode: Pipeline."              type:"existingfile"`
+	Functions         string `arg:"" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR." type:"path"`
 
 	// Flags. Keep them in alphabetical order.
-	ContextFiles           map[string]string `mapsep:"," help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."`
-	ContextValues          map[string]string `mapsep:"," help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files."`
-	IncludeFunctionResults bool              `short:"r" help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."`
-	IncludeFullXR          bool              `short:"x" help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."`
-	ObservedResources      string            `short:"o" placeholder:"PATH" type:"path" help:"A YAML file or directory of YAML files specifying the observed state of composed resources."`
-	ExtraResources         string            `short:"e" placeholder:"PATH" type:"path" help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."`
-	IncludeContext         bool              `short:"c" help:"Include the context in the rendered output as a resource of kind: Context."`
+	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""`
+	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
+	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
+	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" short:"o" type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e" type:"path"`
+	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 
-	Timeout time.Duration `help:"How long to run before timing out." default:"1m"`
+	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 
 	fs afero.Fs
 }

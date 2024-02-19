@@ -189,7 +189,7 @@ func (e *Environment) HelmInstallBaseCrossplane() env.Func {
 }
 
 // getSuiteInstallOpts returns the helm install options for the specified
-// suite, appending additional specified ones
+// suite, appending additional specified ones.
 func (e *Environment) getSuiteInstallOpts(suite string, extra ...helm.Option) []helm.Option {
 	p, ok := e.suites[suite]
 	if !ok {
@@ -238,7 +238,7 @@ func WithoutBaseDefaultTestSuite() TestSuiteOpt {
 }
 
 // WithLabelsToSelect sets the provided testSuite to include the provided
-// labels, if not already specified by the user
+// labels, if not already specified by the user.
 func WithLabelsToSelect(labels features.Labels) TestSuiteOpt {
 	return func(suite *testSuite) {
 		suite.labelsToSelect = labels

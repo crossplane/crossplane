@@ -125,7 +125,6 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 // to exist within the supplied duration.
 func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -171,7 +170,6 @@ func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 // within the supplied duration.
 func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -315,7 +313,6 @@ var NotFound = notFound{}
 // duration. The supplied 'want' value must cmp.Equal the actual value.
 func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -432,7 +429,7 @@ func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOptio
 type claimCtxKey struct{}
 
 // ApplyClaim applies the claim stored in the given folder and file
-// and stores it in the test context for later retrival if needed
+// and stores it in the test context for later retrival if needed.
 func ApplyClaim(manager, dir, cm string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
@@ -541,7 +538,7 @@ func DeleteResources(dir, pattern string) features.Func {
 }
 
 // ClaimUnderTestMustNotChangeWithin asserts that the claim available in
-// the test context does not change within the given time
+// the test context does not change within the given time.
 func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm, ok := ctx.Value(claimCtxKey{}).(*claim.Unstructured)
@@ -574,7 +571,7 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 }
 
 // CompositeUnderTestMustNotChangeWithin asserts that the claim available in
-// the test context does not change within the given time
+// the test context does not change within the given time.
 func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm, ok := ctx.Value(claimCtxKey{}).(*claim.Unstructured)
@@ -619,7 +616,7 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 }
 
 // CompositeResourceMustMatchWithin assert that a composite referred by the given file
-// must be matched by the given function within the given timeout
+// must be matched by the given function within the given timeout.
 func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, match func(xr *composite.Unstructured) bool) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm := &claim.Unstructured{}

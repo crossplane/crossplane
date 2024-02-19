@@ -32,8 +32,10 @@ import (
 
 var _ = kong.Must(&cli)
 
-type versionFlag string
-type verboseFlag bool
+type (
+	versionFlag string
+	verboseFlag bool
+)
 
 // Decode overrides the default string decoder to be a no-op.
 func (v versionFlag) Decode(_ *kong.DecodeContext) error { return nil }
@@ -68,8 +70,8 @@ var cli struct {
 	Beta beta.Cmd `cmd:"" help:"Beta commands."`
 
 	// Flags.
-	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
-	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
+	Verbose verboseFlag `help:"Print verbose logging statements." name:"verbose"`
+	Version versionFlag `help:"Print version and quit."           name:"version" short:"v"`
 }
 
 func main() {
