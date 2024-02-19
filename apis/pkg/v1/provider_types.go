@@ -77,13 +77,13 @@ type ProviderRevisionSpec struct {
 // A ProviderRevision that has been added to Crossplane.
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
-// +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
-// +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
-// +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.image"
-// +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".spec.desiredState"
-// +kubebuilder:printcolumn:name="DEP-FOUND",type="string",JSONPath=".status.foundDependencies"
-// +kubebuilder:printcolumn:name="DEP-INSTALLED",type="string",JSONPath=".status.installedDependencies"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Healthy",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
+// +kubebuilder:printcolumn:name="Revision",type="string",JSONPath=".spec.revision"
+// +kubebuilder:printcolumn:name="Image",type="string",JSONPath=".spec.image"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".spec.desiredState"
+// +kubebuilder:printcolumn:name="Dep-Found",type="string",JSONPath=".status.foundDependencies"
+// +kubebuilder:printcolumn:name="Dep-Installed",type="string",JSONPath=".status.installedDependencies"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,pkgrev}
 type ProviderRevision struct {
 	metav1.TypeMeta   `json:",inline"`
