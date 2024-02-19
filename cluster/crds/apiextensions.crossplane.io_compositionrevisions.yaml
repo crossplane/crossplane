@@ -19,16 +19,16 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.revision
-      name: REVISION
+      name: Revision
       type: string
     - jsonPath: .spec.compositeTypeRef.kind
-      name: XR-KIND
+      name: XR-Kind
       type: string
     - jsonPath: .spec.compositeTypeRef.apiVersion
-      name: XR-APIVERSION
+      name: XR-APIVersion
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     name: v1
     schema:
@@ -1595,16 +1595,16 @@ spec:
       status: {}
   - additionalPrinterColumns:
     - jsonPath: .spec.revision
-      name: REVISION
+      name: Revision
       type: string
     - jsonPath: .spec.compositeTypeRef.kind
-      name: XR-KIND
+      name: XR-Kind
       type: string
     - jsonPath: .spec.compositeTypeRef.apiVersion
-      name: XR-APIVERSION
+      name: XR-APIVersion
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     name: v1beta1
     schema:
