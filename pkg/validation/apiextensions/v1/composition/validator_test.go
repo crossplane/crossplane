@@ -91,7 +91,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 		},
 		"RejectStrictInvalidFromFieldPath": {
-			reason: "Should reject a Composition with a patch using a field not allowed by the the Composite resource, if all CRDs are found",
+			reason: "Should reject a Composition with a patch using a field not allowed by the Composite resource, if all CRDs are found",
 			want: want{
 				errs: field.ErrorList{
 					{

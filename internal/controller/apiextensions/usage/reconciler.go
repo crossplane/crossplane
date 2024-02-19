@@ -66,7 +66,7 @@ const (
 	errGetUsed              = "cannot get used"
 	errAddOwnerToUsage      = "cannot update usage resource with owner ref"
 	errAddDetailsAnnotation = "cannot update usage resource with details annotation"
-	errAddInUseLabel        = "cannot add in use use label to the used resource"
+	errAddInUseLabel        = "cannot add in use label to the used resource"
 	errRemoveInUseLabel     = "cannot remove in use label from the used resource"
 	errAddFinalizer         = "cannot add finalizer"
 	errRemoveFinalizer      = "cannot remove finalizer"

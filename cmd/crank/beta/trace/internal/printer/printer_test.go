@@ -219,7 +219,7 @@ func GetComplexPackage() *resource.Resource {
 					WithDesiredState(v1.PackageRevisionActive)),
 			},
 			{
-				Unstructured: DummyPackage(v1.ConfigurationGroupVersionKind, "upbound-configuration-aws-network upbound-configuration-aws-network",
+				Unstructured: DummyPackage(v1.ConfigurationGroupVersionKind, "upbound-configuration-aws-network",
 					WithConditions(v1.Active(), v1.Healthy()),
 					WithPackage("xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0")),
 				Children: []*resource.Resource{

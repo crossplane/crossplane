@@ -46,7 +46,6 @@ linters:
     - gochecknoglobals
     - forcetypeassert
     - containedctx
-    - dupword
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
