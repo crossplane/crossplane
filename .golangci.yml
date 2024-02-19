@@ -112,13 +112,18 @@ linters:
   enable-all: true
   
   disable:
-    # These linters are all deprecated as of golangci-lint v1.49.0. We disable
-    # them explicitly to avoid the linter logging deprecation warnings.
+    # These linters are all deprecated. We disable them explicitly to avoid the
+    # linter logging deprecation warnings.
     - deadcode
     - varcheck
     - scopelint
     - structcheck
     - interfacer
+    - exhaustivestruct
+    - ifshort
+    - golint
+    - maligned
+    - nosnakecase
 
   fast: false
 
