@@ -110,9 +110,9 @@ type CompositionSpec struct {
 // +genclient:nonNamespaced
 
 // A Composition specifies how a composite resource should be composed.
-// +kubebuilder:printcolumn:name="XR-KIND",type="string",JSONPath=".spec.compositeTypeRef.kind"
-// +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="XR-Kind",type="string",JSONPath=".spec.compositeTypeRef.kind"
+// +kubebuilder:printcolumn:name="XR-APIVersion",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=comp
 type Composition struct {
 	metav1.TypeMeta   `json:",inline"`
