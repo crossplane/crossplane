@@ -17,13 +17,13 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .metadata.annotations.crossplane\.io/usage-details
-      name: DETAILS
+      name: Details
       type: string
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
-      name: READY
+      name: Ready
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     name: v1alpha1
     schema:
