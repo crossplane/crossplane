@@ -42,7 +42,6 @@ linters:
     - nilnil
     - inamedparam
     - gomnd
-    - interfacebloat
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -207,6 +206,9 @@ linters-settings:
           desc: "See https://go.dev/wiki/TestComments#assert-libraries"
         - pkg: github.com/onsi/gomega
           desc: "See https://go.dev/wiki/TestComments#assert-libraries"
+
+  interfacebloat:
+    max: 5
 
 issues:
   # Excluding configuration per-path and per-linter

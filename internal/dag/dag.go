@@ -33,7 +33,7 @@ type Node interface {
 }
 
 // DAG is a Directed Acyclic Graph.
-type DAG interface {
+type DAG interface { //nolint:interfacebloat // TODO(negz): Could this be several smaller interfaces?
 	Init(nodes []Node) ([]Node, error)
 	AddNode(Node) error
 	AddNodes(...Node) error

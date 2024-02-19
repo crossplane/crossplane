@@ -63,7 +63,7 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 
 // PackageWithRuntime is the interface satisfied by packages with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageWithRuntime interface {
+type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
 	Package
 
 	GetControllerConfigRef() *ControllerConfigReference
@@ -79,7 +79,7 @@ type PackageWithRuntime interface {
 
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
-type Package interface {
+type Package interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
 	resource.Object
 	resource.Conditioned
 
@@ -379,7 +379,7 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageRevisionWithRuntime interface {
+type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
 	PackageRevision
 
 	GetControllerConfigRef() *ControllerConfigReference
@@ -397,7 +397,7 @@ type PackageRevisionWithRuntime interface {
 
 // PackageRevision is the interface satisfied by package revision types.
 // +k8s:deepcopy-gen=false
-type PackageRevision interface {
+type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
 	resource.Object
 	resource.Conditioned
 
