@@ -19,7 +19,7 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     name: v1alpha1
     schema:
