@@ -20,13 +20,13 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.conditions[?(@.type=='Established')].status
-      name: ESTABLISHED
+      name: Established
       type: string
     - jsonPath: .status.conditions[?(@.type=='Offered')].status
-      name: OFFERED
+      name: Offered
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     name: v1
     schema:
