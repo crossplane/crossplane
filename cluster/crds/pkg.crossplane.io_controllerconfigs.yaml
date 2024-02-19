@@ -15,7 +15,7 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     deprecated: true
     deprecationWarning: ControllerConfig.pkg.crossplane.io/v1alpha1 is deprecated.
