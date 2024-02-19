@@ -18,7 +18,11 @@ package metrics
 
 import "sigs.k8s.io/controller-runtime/pkg/metrics"
 
+// TODO(negz): Should we try to plumb the metrics registry down to all callers?
+// I think this would be a good practice - similar to how we plumb the logger.
+// On the other hand, using a global metrics registry is idiomatic for Prom.
+
 // Registry is a Prometheus metrics registry. All Crossplane metrics should be
 // registered with it. Crossplane adds metrics to the registry created and
 // served by controller-runtime.
-var Registry = metrics.Registry
+var Registry = metrics.Registry //nolint:gochecknoglobals // See TODO above.

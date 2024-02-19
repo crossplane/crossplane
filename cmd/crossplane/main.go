@@ -46,7 +46,7 @@ type (
 	versionFlag bool
 )
 
-var cli struct {
+type cli struct {
 	Debug debugFlag `help:"Print verbose logging statements." short:"d"`
 
 	Version versionFlag `help:"Print version and quit." short:"v"`
@@ -97,7 +97,7 @@ func main() {
 	// objects.
 	s := runtime.NewScheme()
 
-	ctx := kong.Parse(&cli,
+	ctx := kong.Parse(&cli{},
 		kong.Name("crossplane"),
 		kong.Description("An open source multicloud control plane."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),

@@ -43,7 +43,7 @@ type CertificateGenerator interface {
 	Generate(*x509.Certificate, *CertificateSigner) (key []byte, crt []byte, err error)
 }
 
-var pkixName = pkix.Name{
+var pkixName = pkix.Name{ //nolint:gochecknoglobals // We treat this as a constant.
 	CommonName:   "Crossplane",
 	Organization: []string{"Crossplane"},
 	Country:      []string{"Earth"},

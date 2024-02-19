@@ -306,7 +306,7 @@ func (nf notFound) String() string { return "NotFound" }
 
 // NotFound is a special 'want' value that indicates the supplied path should
 // not be found.
-var NotFound = notFound{}
+var NotFound = notFound{} //nolint:gochecknoglobals // We treat this as a constant.
 
 // ResourcesHaveFieldValueWithin fails a test if the supplied resources do not
 // have the supplied value at the supplied field path within the supplied

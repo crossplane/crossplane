@@ -68,9 +68,9 @@ type Command struct {
 
 // KongVars represent the kong variables associated with the CLI parser
 // required for the Registry default variable interpolation.
-var KongVars = kong.Vars{
+var KongVars = kong.Vars{ //nolint:gochecknoglobals // We treat these as constants.
 	"default_registry":   xpkg.DefaultRegistry,
-	"default_user_agent": transport.DefaultUserAgent,
+	"default_user_agent": transport.DefaultUserAgent(),
 }
 
 // Run is the no-op method required for kong call tree

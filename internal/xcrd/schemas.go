@@ -29,11 +29,11 @@ const (
 )
 
 // CompositionRevisionRef should be propagated dynamically.
-var CompositionRevisionRef = "compositionRevisionRef"
+const CompositionRevisionRef = "compositionRevisionRef"
 
 // PropagateSpecProps is the list of XRC spec properties to propagate
 // when translating an XRC into an XR.
-var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionUpdatePolicy", "compositionRevisionSelector"}
+var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionUpdatePolicy", "compositionRevisionSelector"} //nolint:gochecknoglobals // We treat this as a constant.
 
 // TODO(negz): Add descriptions to schema fields.
 

@@ -455,7 +455,7 @@ func GetConversionFunc(t *v1.ConvertTransform, from v1.TransformIOType) (func(an
 // The unparam linter is complaining that these functions always return a nil
 // error, but we need this to be the case given some other functions in the map
 // may return an error.
-var conversions = map[conversionPair]func(any) (any, error){
+var conversions = map[conversionPair]func(any) (any, error){ //nolint:gochecknoglobals // We treat this map as a constant.
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
 		s, ok := i.(string)
 		if !ok {

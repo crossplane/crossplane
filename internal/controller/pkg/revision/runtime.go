@@ -58,6 +58,7 @@ const (
 	tlsClientCertsDir        = "/tls/client"
 )
 
+//nolint:gochecknoglobals // We treat these as constants, but take their addresses.
 var (
 	runAsUser                = int64(2000)
 	runAsGroup               = int64(2000)

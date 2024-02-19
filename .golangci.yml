@@ -43,7 +43,6 @@ linters:
     - inamedparam
     - gomnd
     - interfacebloat
-    - gochecknoglobals
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -221,6 +220,7 @@ issues:
         - scopelint
         - unparam
         - gochecknoinits
+        - gochecknoglobals
         - containedctx
         - forcetypeassert
 
@@ -235,6 +235,7 @@ issues:
     - path: apis/
       linters:
       - gochecknoinits
+      - gochecknoglobals
 
     # These are performance optimisations rather than style issues per se.
     # They warn when function arguments or range values copy a lot of memory

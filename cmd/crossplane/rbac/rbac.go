@@ -45,7 +45,7 @@ const (
 
 // KongVars represent the kong variables associated with the CLI parser
 // required for the RBAC enum interpolation.
-var KongVars = kong.Vars{
+var KongVars = kong.Vars{ //nolint:gochecknoglobals // We treat these as constants.
 	"rbac_manage_default_var": ManagementPolicyBasic,
 	"rbac_manage_enum_var": strings.Join(
 		[]string{

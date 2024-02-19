@@ -18,7 +18,6 @@ package deploymentruntime
 
 import (
 	"errors"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -36,8 +35,6 @@ const (
 	errNilControllerConfig = "ControllerConfig is nil"
 )
 
-var timeNow = time.Now()
-
 // controllerConfigToDeploymentRuntimeConfig converts a ControllerConfig to
 // a DeploymentRuntimeConfig.
 func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*v1beta1.DeploymentRuntimeConfig, error) {
@@ -49,7 +46,7 @@ func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*
 		withName(cc.Name),
 		// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
 		// to be removed when fixed. k8s apply ignores this field
-		withCreationTimestamp(metav1.NewTime(timeNow)),
+		withCreationTimestamp(metav1.Now()),
 		withServiceAccountTemplate(cc),
 		withServiceTemplate(cc),
 		withDeploymentTemplate(dt),
@@ -80,7 +77,7 @@ func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1be
 	// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
 	// to be removed when fixed. k8s apply ignores this field
 	if cc.CreationTimestamp.IsZero() || dt.Spec.Template.ObjectMeta.CreationTimestamp.IsZero() {
-		dt.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(timeNow)
+		dt.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
 	}
 
 	if cc.Spec.Metadata != nil {
