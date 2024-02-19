@@ -239,44 +239,44 @@ type CompositeResourceDefinitionList struct {
 
 // GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for
 // the composite resource this CompositeResourceDefinition defines.
-func (in CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
+func (c CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	v := ""
-	for _, vr := range in.Spec.Versions {
+	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
 		}
 	}
 
-	return schema.GroupVersionKind{Group: in.Spec.Group, Version: v, Kind: in.Spec.Names.Kind}
+	return schema.GroupVersionKind{Group: c.Spec.Group, Version: v, Kind: c.Spec.Names.Kind}
 }
 
 // OffersClaim is true when a CompositeResourceDefinition offers a claim for the
 // composite resource it defines.
-func (in CompositeResourceDefinition) OffersClaim() bool {
-	return in.Spec.ClaimNames != nil
+func (c CompositeResourceDefinition) OffersClaim() bool {
+	return c.Spec.ClaimNames != nil
 }
 
 // GetClaimGroupVersionKind returns the schema.GroupVersionKind of the CRD for
 // the composite resource claim this CompositeResourceDefinition defines. An
 // empty GroupVersionKind is returned if the CompositeResourceDefinition does
 // not offer a claim.
-func (in CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVersionKind {
-	if !in.OffersClaim() {
+func (c CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVersionKind {
+	if !c.OffersClaim() {
 		return schema.GroupVersionKind{}
 	}
 
 	v := ""
-	for _, vr := range in.Spec.Versions {
+	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
 			v = vr.Name
 		}
 	}
 
-	return schema.GroupVersionKind{Group: in.Spec.Group, Version: v, Kind: in.Spec.ClaimNames.Kind}
+	return schema.GroupVersionKind{Group: c.Spec.Group, Version: v, Kind: c.Spec.ClaimNames.Kind}
 }
 
 // GetConnectionSecretKeys returns the set of allowed keys to filter the connection
 // secret.
-func (in *CompositeResourceDefinition) GetConnectionSecretKeys() []string {
-	return in.Spec.ConnectionSecretKeys
+func (c *CompositeResourceDefinition) GetConnectionSecretKeys() []string {
+	return c.Spec.ConnectionSecretKeys
 }

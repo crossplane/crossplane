@@ -33,7 +33,6 @@ linters:
     - thelper
     - testpackage
     - tagliatelle
-    - stylecheck
     - paralleltest
     - nonamedreturns
     - ireturn

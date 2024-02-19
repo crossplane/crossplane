@@ -21,7 +21,6 @@ import (
 	"io"
 
 	"github.com/spf13/afero"
-	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -50,7 +49,7 @@ type Manager struct {
 	cache   Cache
 	writer  io.Writer
 
-	crds  []*apiextv1.CustomResourceDefinition
+	crds  []*extv1.CustomResourceDefinition
 	deps  map[string]bool // One level dependency images
 	confs map[string]bool // Configuration images
 }
@@ -66,7 +65,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 
 	m.fetcher = &Fetcher{}
 	m.writer = w
-	m.crds = make([]*apiextv1.CustomResourceDefinition, 0)
+	m.crds = make([]*extv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
 	m.confs = make(map[string]bool)
 

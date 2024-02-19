@@ -50,12 +50,12 @@ var (
 )
 
 // GetSchemaAwareValidationMode returns the schema-aware validation mode set for the Composition.
-func (in *Composition) GetSchemaAwareValidationMode() (CompositionValidationMode, error) {
-	if in.Annotations == nil {
+func (c *Composition) GetSchemaAwareValidationMode() (CompositionValidationMode, error) {
+	if c.Annotations == nil {
 		return DefaultSchemaAwareCompositionValidationMode, nil
 	}
 
-	mode, ok := in.Annotations[SchemaAwareCompositionValidationModeAnnotation]
+	mode, ok := c.Annotations[SchemaAwareCompositionValidationModeAnnotation]
 	if !ok {
 		return DefaultSchemaAwareCompositionValidationMode, nil
 	}
