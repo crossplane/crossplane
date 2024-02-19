@@ -144,7 +144,6 @@ linters:
     - containedctx
     - dupword
     - depguard  # TODO(negz): Use this to avoid e.g. stretchr/testify.
-    - gochecknoinits
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -212,12 +211,19 @@ issues:
         - gosec
         - scopelint
         - unparam
+        - gochecknoinits
 
     # Ease some gocritic warnings on test files.
     - path: _test\.go
       text: "(unnamedResult|exitAfterDefer)"
       linters:
         - gocritic
+    
+    # It's idiomatic to register Kubernetes types with a package scoped
+    # SchemeBuilder using an init function.
+    - path: apis/
+      linters:
+      - gochecknoinits
 
     # These are performance optimisations rather than style issues per se.
     # They warn when function arguments or range values copy a lot of memory

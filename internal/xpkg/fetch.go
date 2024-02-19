@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // See comment below.
 	// NOTE(hasheddan): we set the logrus package-level logger to discard output
 	// due to the fact that the AWS ECR credential helper uses it to log errors
 	// when parsing registry server URL, which happens any time a package is
