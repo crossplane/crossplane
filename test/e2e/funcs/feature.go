@@ -186,7 +186,7 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 		start := time.Now()
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			objs := itemsToObjects(list.Items)
-			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
+			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), objs...)
 			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
 
 			t.Errorf("resources not deleted: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", err, toYAML(objs...), events, toYAML(related...))
@@ -269,7 +269,7 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		start := time.Now()
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			objs := itemsToObjects(list.Items)
-			related, _ := RelatedObjects(ctx, c.Client().RESTConfig(), objs...)
+			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), objs...)
 			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
 
 			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(objs...), events, toYAML(related...))

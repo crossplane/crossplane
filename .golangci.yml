@@ -149,7 +149,6 @@ linters:
     - depguard  # TODO(negz): Use this to avoid e.g. stretchr/testify.
     - gochecknoinits
     - gocognit  # TODO(negz): Consider switching to this over gocyclo.
-    - forbidigo
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.

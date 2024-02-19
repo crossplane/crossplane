@@ -138,7 +138,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	logger.Debug("Fetched all Crossplane pods", "pods", crossplanePods, "namespace", c.Namespace)
 
 	if len(crossplanePods) == 0 {
-		fmt.Println("No Crossplane pods found in the namespace", c.Namespace)
+		fmt.Fprintln(k.Stdout, "No Crossplane pods found in the namespace", c.Namespace)
 		return nil
 	}
 
@@ -172,7 +172,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 	if c.Summary {
 		printPodsSummary(k.Stdout, crossplanePods)
 		logger.Debug("Printed pods summary")
-		fmt.Println()
+		fmt.Fprintln(k.Stdout)
 	}
 
 	if err := printPodsTable(k.Stdout, crossplanePods); err != nil {
