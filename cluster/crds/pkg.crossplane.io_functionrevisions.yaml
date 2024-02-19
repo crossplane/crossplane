@@ -18,25 +18,25 @@ spec:
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.conditions[?(@.type=='Healthy')].status
-      name: HEALTHY
+      name: Healthy
       type: string
     - jsonPath: .spec.revision
-      name: REVISION
+      name: Revision
       type: string
     - jsonPath: .spec.image
-      name: IMAGE
+      name: Image
       type: string
     - jsonPath: .spec.desiredState
-      name: STATE
+      name: State
       type: string
     - jsonPath: .status.foundDependencies
-      name: DEP-FOUND
+      name: Dep-Found
       type: string
     - jsonPath: .status.installedDependencies
-      name: DEP-INSTALLED
+      name: Dep-Installed
       type: string
     - jsonPath: .metadata.creationTimestamp
-      name: AGE
+      name: Age
       type: date
     name: v1beta1
     schema:
