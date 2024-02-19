@@ -79,7 +79,7 @@ const (
 )
 
 // Resolve the supplied Transform.
-func Resolve(t v1.Transform, input any) (any, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
+func Resolve(t v1.Transform, input any) (any, error) {
 	var out any
 	var err error
 
@@ -283,7 +283,7 @@ func unmarshalJSON(j extv1.JSON, output *any) error {
 }
 
 // ResolveString resolves a String transform.
-func ResolveString(t v1.StringTransform, input any) (string, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
+func ResolveString(t v1.StringTransform, input any) (string, error) {
 	switch t.Type {
 	case v1.StringTransformTypeFormat:
 		if t.Format == nil {

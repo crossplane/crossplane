@@ -159,7 +159,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 //  3. Apply all composed resources that rendered successfully.
 //  4. Observe the readiness and connection details of all composed resources
 //     that rendered successfully.
-func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
+func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocognit // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets before composing resources.
 	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
 	if err != nil {
@@ -439,7 +439,7 @@ func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociato
 }
 
 // AssociateTemplates with composed resources.
-func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) { //nolint:gocyclo // Only slightly over (13).
+func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 	templates := map[ResourceName]int{}
 	for i, t := range ct {
 		if t.Name == nil {

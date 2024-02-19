@@ -102,7 +102,7 @@ Examples:
 }
 
 // Run runs the trace command.
-func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(phisco): refactor
+func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	ctx := context.Background()
 	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
 

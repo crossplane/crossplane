@@ -102,7 +102,7 @@ Examples:
 	return fmt.Sprintf(tpl, b.String())
 }
 
-func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // file check switch and print error check make it over the top
+func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {
 	f, err := os.Stat(c.Directory)
 	switch {
 	case err == nil && !f.IsDir():

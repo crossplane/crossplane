@@ -75,8 +75,6 @@ type Transform struct {
 }
 
 // Validate this Transform is valid.
-//
-//nolint:gocyclo // This is a long but simple/same-y switch.
 func (t *Transform) Validate() *field.Error {
 	switch t.Type {
 	case TransformTypeMath:
@@ -396,8 +394,6 @@ type StringTransform struct {
 }
 
 // Validate checks this StringTransform is valid.
-//
-//nolint:gocyclo // just a switch
 func (s *StringTransform) Validate() *field.Error {
 	switch s.Type {
 	case StringTransformTypeFormat, "":

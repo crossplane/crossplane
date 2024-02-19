@@ -57,7 +57,7 @@ func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*
 	return drc, nil
 }
 
-func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1beta1.DeploymentTemplate { //nolint:gocyclo // Just a lot of if, then set field
+func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1beta1.DeploymentTemplate {
 	if cc == nil || !shouldCreateDeploymentTemplate(cc) {
 		return nil
 	}
@@ -135,7 +135,7 @@ func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1be
 	return dt
 }
 
-func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Container { //nolint:gocyclo // Just a lot of if, then set field
+func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Container {
 	if cc == nil || !shouldCreateDeploymentTemplateContainer(cc) {
 		return nil
 	}
@@ -235,7 +235,7 @@ func withDeploymentTemplate(dt *v1beta1.DeploymentTemplate) func(*v1beta1.Deploy
 
 // shouldCreateDeploymentTemplate determines whether we should create a deployment
 // template in the DeploymentRuntimeConfig.
-func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool { //nolint:gocyclo // There are a lot of triggers for this, but it's not complex
+func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool {
 	return len(cc.Labels) > 0 ||
 		len(cc.Annotations) > 0 ||
 		cc.Spec.Metadata != nil ||

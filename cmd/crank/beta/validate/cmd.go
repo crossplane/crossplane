@@ -81,7 +81,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run validate.
-func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error { //nolint:gocyclo // stdin check makes it over the top
+func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	if c.Resources == "-" && c.Extensions == "-" {
 		return errors.New("cannot use stdin for both extensions and resources")
 	}

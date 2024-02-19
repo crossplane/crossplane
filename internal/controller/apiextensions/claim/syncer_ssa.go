@@ -117,7 +117,7 @@ func NewServerSideCompositeSyncer(c client.Client, ng names.NameGenerator) *Serv
 
 // Sync the supplied claim with the supplied composite resource (XR). Syncing
 // may involve creating and binding the XR.
-func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { //nolint:gocyclo // This complex process seems easier to follow in one long method.
+func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error {
 	// First we sync claim -> XR.
 
 	// Create an empty XR patch object. We'll use this object to ensure we only

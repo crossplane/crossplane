@@ -211,7 +211,7 @@ func (p *DefaultPrinter) Print(w io.Writer, root *resource.Resource) error {
 
 // getResourceStatus returns a string that represents an entire row of status
 // information for the resource.
-func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer { //nolint:gocyclo // NOTE(phisco): just a few switches, not much to do here
+func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
 	readyCond := r.GetCondition(xpv1.TypeReady)
 	syncedCond := r.GetCondition(xpv1.TypeSynced)
 	var status, m string
@@ -262,7 +262,7 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 	}
 }
 
-func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer { //nolint:gocyclo // TODO: just a few switches, not much to do here
+func getPkgResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringer {
 	var err error
 	var packageImg, state, status, m string
 

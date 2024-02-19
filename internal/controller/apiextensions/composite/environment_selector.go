@@ -135,7 +135,7 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 	return res, nil
 }
 
-func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) { //nolint:gocyclo // TODO: refactor
+func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
 	ec := make([]v1alpha1.EnvironmentConfig, 0)
 
 	if cl == nil {
@@ -184,7 +184,7 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 	return envConfigs, nil
 }
 
-func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error { //nolint:gocyclo // TODO(phisco): refactor
+func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
 	p := make([]struct {
 		ec  v1alpha1.EnvironmentConfig
 		val any

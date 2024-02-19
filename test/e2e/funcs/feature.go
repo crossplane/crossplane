@@ -736,7 +736,7 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 // ComposedResourcesHaveFieldValueWithin fails a test if the composed
 // resources created by the claim does not have the supplied value at the
 // supplied path within the supplied duration.
-func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func { //nolint:gocyclo // Not too much over.
+func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func { //nolint:gocognit // Not too much over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm := &claim.Unstructured{}
 		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
@@ -894,7 +894,7 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 
 // LogResources polls the given kind of resources and logs creations, deletions
 // and changed conditions.
-func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) features.Func { //nolint:gocyclo // this is a test helper
+func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) features.Func { //nolint:gocognit // this is a test helper
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		prev := map[string]map[xpv1.ConditionType]xpv1.Condition{}
 

@@ -255,7 +255,7 @@ func DeploymentWithRuntimeContainer() DeploymentOverride {
 
 // DeploymentForControllerConfig overrides the deployment with the values
 // defined in the ControllerConfig.
-func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOverride { //nolint:gocyclo // Simple if statements for setting values if they are not nil/empty.
+func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOverride { //nolint:gocognit // Simple if statements for setting values if they are not nil/empty.
 	return func(d *appsv1.Deployment) {
 		d.Labels = cc.Labels
 		d.Annotations = cc.Annotations

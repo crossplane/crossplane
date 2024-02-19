@@ -67,7 +67,7 @@ func NewClientSideCompositeSyncer(c client.Client, ng names.NameGenerator) *Clie
 
 // Sync the supplied claim with the supplied composite resource (XR). Syncing
 // may involve creating and binding the XR.
-func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { //nolint:gocyclo // This complex process seems easier to follow in one long method.
+func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error {
 	// First we sync claim -> XR.
 
 	// It's possible we're being asked to configure a statically provisioned XR.

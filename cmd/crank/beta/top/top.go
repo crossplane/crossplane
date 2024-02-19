@@ -101,7 +101,7 @@ func (r *defaultPrinterRow) String() string {
 }
 
 // Run runs the top command.
-func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO:(piotr1215) refactor to use dedicated functions
+func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	logger = logger.WithValues("cmd", "top")
 
 	logger.Debug("Tabwriter header created")

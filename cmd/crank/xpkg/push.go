@@ -94,7 +94,7 @@ func (c *pushCmd) AfterApply() error {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This feels easier to read as-is.
+func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This feels easier to read as-is.
 	upCtx, err := upbound.NewFromFlags(c.Flags, upbound.AllowMissingProfile())
 	if err != nil {
 		return err

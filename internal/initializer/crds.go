@@ -80,7 +80,7 @@ type CoreCRDs struct {
 }
 
 // Run applies all CRDs in the given directory.
-func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo // TODO(negz): Can anything be broken out (maybe the loop body)?
+func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 	var caBundle []byte
 	if c.WebhookTLSSecretRef != nil {
 		s := &corev1.Secret{}

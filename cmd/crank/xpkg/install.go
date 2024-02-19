@@ -84,7 +84,7 @@ Examples:
 }
 
 // Run the package install cmd.
-func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
+func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
 		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))

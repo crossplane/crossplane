@@ -98,7 +98,7 @@ func AllowMissingProfile() Option {
 }
 
 // NewFromFlags constructs a new context from flags.
-func NewFromFlags(f Flags, opts ...Option) (*Context, error) { //nolint:gocyclo // TODO(phisco): imported as is, refactor
+func NewFromFlags(f Flags, opts ...Option) (*Context, error) {
 	p, err := config.GetDefaultPath()
 	if err != nil {
 		return nil, err

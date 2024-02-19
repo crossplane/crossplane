@@ -207,7 +207,7 @@ type Reconciler struct {
 
 // Reconcile a Usage resource by resolving its selectors, defining ownership
 // relationship, adding a finalizer and handling proper deletion.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are typically complex.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex.
 	log := r.log.WithValues("request", req)
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()

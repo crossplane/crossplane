@@ -168,8 +168,6 @@ func (c ReadinessCheck) Validate() error {
 }
 
 // IsReady runs the readiness check against the supplied object.
-//
-//nolint:gocyclo // just a switch
 func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, error) {
 	if err := c.Validate(); err != nil {
 		return false, errors.Wrap(err, errInvalidCheck)

@@ -100,7 +100,7 @@ func (c *loginCmd) AfterApply(kongCtx *kong.Context) error {
 }
 
 // Run executes the login command.
-func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error { //nolint:gocyclo // TODO(phisco): refactor
+func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error {
 	auth, profType, err := constructAuth(c.Username, c.Token, c.Password)
 	if err != nil {
 		return errors.Wrap(err, "failed to construct auth")

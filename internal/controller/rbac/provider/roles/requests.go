@@ -128,7 +128,7 @@ func (r Rule) path() path {
 }
 
 // Expand RBAC policy rules into our granular rules.
-func Expand(ctx context.Context, rs ...rbacv1.PolicyRule) ([]Rule, error) { //nolint:gocyclo // Granular rules are inherently complex.
+func Expand(ctx context.Context, rs ...rbacv1.PolicyRule) ([]Rule, error) { //nolint:gocognit // Granular rules are inherently complex.
 	out := make([]Rule, 0, len(rs))
 	for _, r := range rs {
 		for _, u := range r.NonResourceURLs {

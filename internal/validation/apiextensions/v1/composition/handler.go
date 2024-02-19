@@ -79,7 +79,7 @@ type validator struct {
 }
 
 // ValidateCreate validates a Composition.
-func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) { //nolint:gocyclo // Currently only at 11
+func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	comp, ok := obj.(*v1.Composition)
 	if !ok {
 		return nil, errors.New(errNotComposition)

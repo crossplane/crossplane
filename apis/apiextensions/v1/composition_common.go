@@ -200,7 +200,7 @@ func (m *MatchConditionReadinessCheck) Validate() *field.Error {
 }
 
 // Validate checks if the readiness check is logically valid.
-func (r *ReadinessCheck) Validate() *field.Error { //nolint:gocyclo // This function is not that complex, just a switch
+func (r *ReadinessCheck) Validate() *field.Error {
 	if !r.Type.IsValid() {
 		return field.Invalid(field.NewPath("type"), string(r.Type), "unknown readiness check type")
 	}

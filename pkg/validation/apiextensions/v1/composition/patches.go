@@ -168,7 +168,7 @@ type patchValidationCtx struct {
 	resourceGVK     schema.GroupVersionKind
 }
 
-func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
+func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *field.Error {
 	var validationErr *field.Error
 	var fromType, toType xpschema.KnownJSONType
 	switch ctx.patch.GetType() {
@@ -398,7 +398,7 @@ func validateFieldPathSegment(parent *apiextensions.JSONSchemaProps, segment fie
 	return nil, nil
 }
 
-func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) { //nolint:gocyclo // inherently complex
+func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) {
 	if parent == nil {
 		return nil, nil
 	}
@@ -460,8 +460,6 @@ func validateFieldPathSegmentIndex(parent *apiextensions.JSONSchemaProps, segmen
 }
 
 // IsValidInputForTransform validates the supplied Transform type, taking into consideration also the input type.
-//
-//nolint:gocyclo // This is a long but simple/same-y switch.
 func IsValidInputForTransform(t *v1.Transform, fromType v1.TransformIOType) error {
 	switch t.Type {
 	case v1.TransformTypeMath:

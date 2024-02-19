@@ -215,7 +215,7 @@ func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupV
 //
 // Note that this complements WatchComposedResources which starts informers for
 // the composed resources referenced by a composite resource.
-func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context.Context) { //nolint:gocyclo // splitting it doesn't make it easier to read.
+func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context.Context) {
 	crds := extv1.CustomResourceDefinitionList{}
 	if err := i.cluster.GetClient().List(ctx, &crds); err != nil {
 		i.log.Debug(errListCRDs, "error", err)

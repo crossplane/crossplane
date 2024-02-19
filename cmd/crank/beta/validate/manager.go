@@ -74,7 +74,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 }
 
 // PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
-func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocyclo // the function itself is not that complex, it just has different cases
+func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocognit // the function itself is not that complex, it just has different cases
 	for _, e := range extensions {
 		switch e.GroupVersionKind().GroupKind() {
 		case schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}:

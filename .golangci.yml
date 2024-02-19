@@ -41,10 +41,6 @@ linters-settings:
       - blank
       - dot
 
-  gocyclo:
-    # minimal code complexity to report, 30 by default (but we recommend 10-20)
-    min-complexity: 10
-
   maligned:
     # print struct with more effective memory layout or not, false by default
     suggest-new: true
@@ -110,6 +106,7 @@ linters-settings:
 
 linters:
   enable-all: true
+  fast: false
   
   disable:
     # These linters are all deprecated. We disable them explicitly to avoid the
@@ -148,7 +145,6 @@ linters:
     - dupword
     - depguard  # TODO(negz): Use this to avoid e.g. stretchr/testify.
     - gochecknoinits
-    - gocognit  # TODO(negz): Consider switching to this over gocyclo.
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -175,7 +171,8 @@ linters:
     # than we need. Not every error needs to be tested for equality.
     - goerr113
 
-    # These linters duplicate gocyclo, but calculate complexity differently.
+    # These linters duplicate gocognit, but calculate complexity differently.
+    - gocyclo
     - cyclop
     - nestif
     - funlen
@@ -204,19 +201,14 @@ linters:
     # every duplicated code block to be factored out into a function.
     - dupl
 
-
-  fast: false
-
-
 issues:
   # Excluding configuration per-path and per-linter
   exclude-rules:
     # Exclude some linters from running on tests files.
     - path: _test(ing)?\.go
       linters:
-        - gocyclo
+        - gocognit
         - errcheck
-        - dupl
         - gosec
         - scopelint
         - unparam
