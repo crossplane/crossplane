@@ -157,9 +157,6 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyc
 		}
 	}
 
-	if err != nil {
-		return errors.Wrap(err, errGetPodMetrics)
-	}
 	logger.Debug("Added metrics to Crossplane pods")
 
 	sort.Slice(crossplanePods, func(i, j int) bool {
