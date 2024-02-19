@@ -125,6 +125,87 @@ linters:
     - maligned
     - nosnakecase
 
+    # These are linters we'd like to enable, but that will be labor intensive to
+    # make existing code compliant.
+    - wrapcheck
+    - varnamelen
+    - thelper
+    - testpackage
+    - tagliatelle
+    - stylecheck
+    - paralleltest
+    - nonamedreturns
+    - wastedassign
+    - predeclared
+    - ireturn
+    - nilnil
+    - inamedparam
+    - gomnd
+    - interfacebloat
+    - gochecknoglobals
+    - forcetypeassert
+    - containedctx
+    - dupword
+    - depguard  # TODO(negz): Use this to avoid e.g. stretchr/testify.
+    - gochecknoinits
+    - gocognit  # TODO(negz): Consider switching to this over gocyclo.
+    - forbidigo
+
+    # Below are linters that lint for things we don't value. Each entry below
+    # this line must have a comment explaining the rationale.
+
+    # These linters add whitespace in an attempt to make code more readable.
+    # This isn't a widely accepted Go best practice, and would be laborious to
+    # apply to existing code.
+    - wsl 
+    - nlreturn
+
+    # Warns about uses of fmt.Sprintf that are less performant than alternatives
+    # such as string concatenation. We value readability more than performance
+    # unless performance is measured to be an issue.
+    - perfsprint
+
+    # This linter:
+    #
+    # 1. Requires errors.Is/errors.As to test equality.
+    # 2. Requires all errors be wrapped with fmt.Errorf specifically.
+    # 3. Disallows errors.New inline - requires package level errors.
+    #
+    # 1 is covered by other linters. 2 is covered by wrapcheck, which can also
+    # handle our use of crossplane-runtime's errors package. 3 is more strict
+    # than we need. Not every error needs to be tested for equality.
+    - goerr113
+
+    # These linters duplicate gocyclo, but calculate complexity differently.
+    - cyclop
+    - nestif
+    - funlen
+    - maintidx
+
+    # Enforces max line length. It's not idiomatic to enforce a strict limit on
+    # line length in Go. We'd prefer to lint for things that often cause long
+    # lines, like functions with too many parameters or long parameter names
+    # that duplicate their types.
+    - lll
+
+    # Warns about struct instantiations that don't specify every field. Could be
+    # useful in theory to catch fields that are accidentally omitted. Seems like
+    # it would have many more false positives than useful catches, though.
+    - exhaustruct
+
+    # Warns about TODO comments. The rationale being they should be issues
+    # instead. We're okay with using TODO to track minor cleanups for next time
+    # we touch a particular file.
+    - godox
+
+    # Warns about duplicated code blocks within the same file. Could be useful
+    # to prompt folks to think about whether code should be broken out into a
+    # function, but generally we're less worried about DRY and fine with a
+    # little copying. We don't want to give folks the impression that we require
+    # every duplicated code block to be factored out into a function.
+    - dupl
+
+
   fast: false
 
 
