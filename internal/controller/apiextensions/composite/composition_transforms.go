@@ -156,7 +156,7 @@ func resolveMathMultiply(t v1.MathTransform, input any) (any, error) {
 // is not a number. depending on the type of clamp, the result will be either
 // the input or the clamp value, preserving their original types.
 func resolveMathClamp(t v1.MathTransform, input any) (any, error) {
-	in := int64(0)
+	var in int64
 	switch i := input.(type) {
 	case int:
 		in = int64(i)

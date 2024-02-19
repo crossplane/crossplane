@@ -36,7 +36,6 @@ linters:
     - stylecheck
     - paralleltest
     - nonamedreturns
-    - wastedassign
     - ireturn
     - nilnil
     - gomnd
