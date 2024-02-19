@@ -109,20 +109,7 @@ linters-settings:
 
 
 linters:
-  enable:
-    - megacheck
-    - govet
-    - gocyclo
-    - gocritic
-    - goconst
-    - gci
-    - gofmt  # We enable this as well as goimports for its simplify mode.
-    - prealloc
-    - revive
-    - unconvert
-    - misspell
-    - nakedret
-    - nolintlint
+  enable-all: true
   
   disable:
     # These linters are all deprecated as of golangci-lint v1.49.0. We disable
@@ -133,9 +120,6 @@ linters:
     - structcheck
     - interfacer
 
-  presets:
-    - bugs
-    - unused
   fast: false
 
 
