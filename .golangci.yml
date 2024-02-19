@@ -47,7 +47,6 @@ linters:
     - forcetypeassert
     - containedctx
     - dupword
-    - depguard  # TODO(negz): Use this to avoid e.g. stretchr/testify.
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -198,6 +197,20 @@ linters-settings:
   nolintlint:
     require-explanation: true
     require-specific: true
+  
+  depguard:
+    rules:
+      no_third_party_test_libraries:
+        list-mode: lax
+        files:
+        - $test
+        deny:
+        - pkg: github.com/stretchr/testify
+          desc: "See https://go.dev/wiki/TestComments#assert-libraries"
+        - pkg: github.com/onsi/ginkgo
+          desc: "See https://go.dev/wiki/TestComments#assert-libraries"
+        - pkg: github.com/onsi/gomega
+          desc: "See https://go.dev/wiki/TestComments#assert-libraries"
 
 issues:
   # Excluding configuration per-path and per-linter
