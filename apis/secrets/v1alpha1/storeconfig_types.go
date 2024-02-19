@@ -30,9 +30,9 @@ type StoreConfigSpec struct {
 // +kubebuilder:object:root=true
 
 // A StoreConfig configures how Crossplane controllers should store connection details.
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:printcolumn:name="TYPE",type="string",JSONPath=".spec.type"
-// +kubebuilder:printcolumn:name="DEFAULT-SCOPE",type="string",JSONPath=".spec.defaultScope"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type"
+// +kubebuilder:printcolumn:name="Default-Scope",type="string",JSONPath=".spec.defaultScope"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,store}
 type StoreConfig struct {
 	metav1.TypeMeta   `json:",inline"`
