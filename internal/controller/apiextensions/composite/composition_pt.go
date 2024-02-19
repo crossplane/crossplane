@@ -344,7 +344,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 	// be rejected by the API server. This will trigger an immediate requeue,
 	// and we'll proceed to update the status as soon as there are no changes to
 	// be made to the spec.
-	objCopy := xr.DeepCopyObject().(client.Object)
+	objCopy := xr.DeepCopy()
 	if err := c.client.Apply(ctx, objCopy, mergeOptions(toXRPatchesFromTAs(tas))...); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}

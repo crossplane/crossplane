@@ -91,7 +91,10 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	}
 
 	// N.B.: We expect the revision to be applied by the caller
-	fRev := pr.(*v1beta1.FunctionRevision)
+	fRev, ok := pr.(*v1beta1.FunctionRevision)
+	if !ok {
+		return errors.Errorf("cannot apply function package hooks to %T", pr)
+	}
 	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
 
 	secServer := build.TLSServerSecret()

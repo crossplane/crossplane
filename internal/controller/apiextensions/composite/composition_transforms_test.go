@@ -1127,7 +1127,7 @@ func TestConvertResolve(t *testing.T) {
 				format: (*v1.ConvertTransformFormat)(ptr.To(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
-				err: resource.ErrFormatWrong,
+				err: errors.Wrap(resource.ErrFormatWrong, "cannot convert value 1000 blabla"),
 			},
 		},
 		"SameTypeNoOp": {

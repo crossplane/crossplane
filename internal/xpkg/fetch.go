@@ -108,9 +108,13 @@ func WithServiceAccount(sa string) FetcherOpt {
 
 // NewK8sFetcher creates a new K8sFetcher.
 func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher, error) {
+	dt, ok := remote.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, errors.Errorf("default transport was not a %T", &http.Transport{})
+	}
 	k := &K8sFetcher{
 		client:    client,
-		transport: remote.DefaultTransport.(*http.Transport).Clone(),
+		transport: dt.Clone(),
 	}
 
 	for _, o := range opts {

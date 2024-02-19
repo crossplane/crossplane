@@ -68,7 +68,7 @@ func indexValue(apiVersion, kind, name string) string {
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	indexer := mgr.GetFieldIndexer()
 	if err := indexer.IndexField(context.Background(), &v1alpha1.Usage{}, InUseIndexKey, func(obj client.Object) []string {
-		u := obj.(*v1alpha1.Usage)
+		u := obj.(*v1alpha1.Usage) //nolint:forcetypeassert // Will always be a Usage.
 		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
 			return []string{}
 		}

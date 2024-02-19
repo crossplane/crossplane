@@ -239,7 +239,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 		g.Go(func() error {
 			// Assert desired object to resource.Object so that we can access its
 			// metadata.
-			d, ok := res.(resource.Object)
+			desired, ok := res.(resource.Object)
 			if !ok {
 				return errors.New(errAssertResourceObj)
 			}
@@ -257,7 +257,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 			if !ok {
 				return errors.New(errAssertClientObj)
 			}
-			err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
+			err := e.client.Get(ctx, types.NamespacedName{Name: desired.GetName(), Namespace: desired.GetNamespace()}, current)
 			if resource.IgnoreNotFound(err) != nil {
 				return err
 			}
@@ -268,26 +268,25 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				// We will not create a resource if we are not going to control it,
 				// so we don't need to check with dry run.
 				if control {
-					if err := e.create(ctx, d, parent, client.DryRunAll); err != nil {
+					if err := e.create(ctx, desired, parent, client.DryRunAll); err != nil {
 						return err
 					}
 				}
 				// Add to objects as not existing.
 				select {
-				case out <- currentDesired{Desired: d, Current: nil, Exists: false}:
+				case out <- currentDesired{Desired: desired, Current: nil, Exists: false}:
 					return nil
 				case <-ctx.Done():
 					return ctx.Err()
 				}
 			}
 
-			c := current.(resource.Object)
-			if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
+			if err := e.update(ctx, current, desired, parent, control, client.DryRunAll); err != nil {
 				return err
 			}
 			// Add to objects as existing.
 			select {
-			case out <- currentDesired{Desired: d, Current: c, Exists: true}:
+			case out <- currentDesired{Desired: desired, Current: current, Exists: true}:
 				return nil
 			case <-ctx.Done():
 				return ctx.Err()

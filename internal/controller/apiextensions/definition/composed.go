@@ -165,8 +165,8 @@ func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupV
 
 		if _, err := inf.AddEventHandler(kcache.ResourceEventHandlerFuncs{
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				old := oldObj.(client.Object)
-				obj := newObj.(client.Object)
+				old := oldObj.(client.Object) //nolint:forcetypeassert // Will always be client.Object.
+				obj := newObj.(client.Object) //nolint:forcetypeassert // Will always be client.Object.
 				if old.GetResourceVersion() == obj.GetResourceVersion() {
 					return
 				}

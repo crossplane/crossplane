@@ -231,11 +231,11 @@ func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
 		vali, valj := p[i].val, p[j].val
 		switch valsKind { //nolint:exhaustive // we only support these types
 		case reflect.Float64:
-			return vali.(float64) < valj.(float64)
+			return vali.(float64) < valj.(float64) //nolint:forcetypeassert // Checked by reflect.
 		case reflect.Int64:
-			return vali.(int64) < valj.(int64)
+			return vali.(int64) < valj.(int64) //nolint:forcetypeassert // Checked by reflect.
 		case reflect.String:
-			return vali.(string) < valj.(string)
+			return vali.(string) < valj.(string) //nolint:forcetypeassert // Checked by reflect.
 		default:
 			// should never happen
 			err = errors.Errorf(errFmtSortUnknownType, valsKind)

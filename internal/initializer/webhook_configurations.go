@@ -132,7 +132,7 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 		default:
 			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %T", obj)
 		}
-		if err := pa.Apply(ctx, obj.(client.Object)); err != nil {
+		if err := pa.Apply(ctx, obj.(client.Object)); err != nil { //nolint:forcetypeassert // Should always be a client.Object.
 			return errors.Wrap(err, errApplyWebhookConfiguration)
 		}
 	}

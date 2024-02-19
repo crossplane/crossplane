@@ -526,7 +526,7 @@ func GetBaseObject(ct *v1.ComposedTemplate) (client.Object, error) {
 		ct.Base.Object = cd
 	}
 	if ct, ok := ct.Base.Object.(client.Object); ok {
-		return ct.DeepCopyObject().(client.Object), nil
+		return ct.DeepCopyObject().(client.Object), nil //nolint:forcetypeassert // Deepcopy will always be the same type.
 	}
 	return nil, errors.New("base object is not a client.Object")
 }

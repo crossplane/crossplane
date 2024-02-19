@@ -452,6 +452,7 @@ func RespectOwnerRefs() xpresource.ApplyOption {
 		// This is a Usage resource, so we need to respect existing owner
 		// references in case it has any.
 		if len(cu.GetOwnerReferences()) > 0 {
+			//nolint:forcetypeassert // This will always be a metav1.Object.
 			desired.(metav1.Object).SetOwnerReferences(cu.GetOwnerReferences())
 		}
 		return nil

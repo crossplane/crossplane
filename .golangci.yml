@@ -44,7 +44,6 @@ linters:
     - gomnd
     - interfacebloat
     - gochecknoglobals
-    - forcetypeassert
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -223,6 +222,7 @@ issues:
         - unparam
         - gochecknoinits
         - containedctx
+        - forcetypeassert
 
     # Ease some gocritic warnings on test files.
     - path: _test\.go

@@ -399,8 +399,10 @@ func DefinedResources(refs []xpv1.TypedReference) []Resource {
 // ClusterRoles. We consider ClusterRoles to be different if their labels and
 // rules do not match.
 func ClusterRolesDiffer(current, desired runtime.Object) bool {
-	c := current.(*rbacv1.ClusterRole)
-	d := desired.(*rbacv1.ClusterRole)
+	// Calling this with anything but ClusterRoles is a programming error. If it
+	// happens, we probably do want to panic.
+	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
+	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }
 
