@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -544,7 +545,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"EnsureRecordCompositeResults": {
-			reason: "We should record the Composition Function results to both the Composite and the Claim.",
+			reason: "When encountering non-fatal results, we should record the results to both the Composite and the Claim.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -599,6 +600,63 @@ func TestReconcile(t *testing.T) {
 					newRecord(NewComposite(), event.Normal(reasonResolve, "Successfully selected composition: ")),
 					newRecord(NewComposite(), event.Warning("Warning", errBoom)),
 					newRecord(NewClaim(), event.Warning("Warning", errBoom)),
+				},
+			},
+		},
+		"EnsureRecordCompositeFatalResult": {
+			reason: "When encountering a fatal result, we should record the result to both the Composite and the Claim.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							switch o := obj.(type) {
+							case *claim.Unstructured:
+								return nil
+							case *composite.Unstructured:
+								o.SetGroupVersionKind(NewComposite().GroupVersionKind())
+								o.SetClaimReference(NewClaim().GetReference())
+								o.SetGroupVersionKind(NewComposite().GroupVersionKind())
+							}
+							return nil
+						}),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetClaimReference(NewClaim().GetReference())
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errCompose)))
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
+						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{{}},
+						}}
+						return c, nil
+					})),
+					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, errBoom
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, nil
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+				records: []record{
+					newRecord(NewComposite(), event.Normal(reasonResolve, "Successfully selected composition: ")),
+					newRecord(NewComposite(), event.Warning(reasonCompose, fmt.Errorf("cannot compose resources: boom"))),
+					newRecord(NewClaim(), event.Warning(reasonCompose, fmt.Errorf("cannot compose resources: boom"))),
 				},
 			},
 		},
