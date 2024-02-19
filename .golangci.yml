@@ -35,7 +35,6 @@ linters:
     - tagliatelle
     - paralleltest
     - nonamedreturns
-    - ireturn
     - nilnil
     - gomnd
 
@@ -93,6 +92,12 @@ linters:
     # little copying. We don't want to give folks the impression that we require
     # every duplicated code block to be factored out into a function.
     - dupl
+
+    # Warns about returning interfaces rather than concrete types. We do think
+    # it's best to avoid returning interfaces where possible. However, at the
+    # time of writing enabling this linter would only catche the (many) cases
+    # where we must return an interface. 
+    - ireturn
 
 linters-settings:
   errcheck:
