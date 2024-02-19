@@ -252,10 +252,10 @@ func (f Flags) MarshalJSON() ([]byte, error) {
 		Domain                string `json:"domain,omitempty"`
 		Profile               string `json:"profile,omitempty"`
 		Account               string `json:"account,omitempty"`
-		InsecureSkipTLSVerify bool   `json:"insecure_skip_tls_verify,omitempty"`
-		APIEndpoint           string `json:"override_api_endpoint,omitempty"`
-		ProxyEndpoint         string `json:"override_proxy_endpoint,omitempty"`
-		RegistryEndpoint      string `json:"override_registry_endpoint,omitempty"`
+		InsecureSkipTLSVerify bool   `json:"insecure_skip_tls_verify,omitempty"`   //nolint:tagliatelle // We want snake case in this file.
+		APIEndpoint           string `json:"override_api_endpoint,omitempty"`      //nolint:tagliatelle // We want snake case in this file.
+		ProxyEndpoint         string `json:"override_proxy_endpoint,omitempty"`    //nolint:tagliatelle // We want snake case in this file.
+		RegistryEndpoint      string `json:"override_registry_endpoint,omitempty"` //nolint:tagliatelle // We want snake case in this file.
 	}{
 		Domain:                nullableURL(f.Domain),
 		Profile:               f.Profile,

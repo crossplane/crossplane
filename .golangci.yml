@@ -32,7 +32,6 @@ linters:
     - varnamelen
     - thelper
     - testpackage
-    - tagliatelle
     - paralleltest
     - nonamedreturns
     - nilnil
@@ -210,6 +209,11 @@ linters-settings:
 
   interfacebloat:
     max: 5
+  
+  tagliatelle:
+    case:
+      rules:
+        json: goCamel
 
 issues:
   # Excluding configuration per-path and per-linter

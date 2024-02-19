@@ -177,7 +177,7 @@ type CompositeResourceValidation struct {
 	// OpenAPIV3Schema is the OpenAPI v3 schema to use for validation and
 	// pruning.
 	// +kubebuilder:pruning:PreserveUnknownFields
-	OpenAPIV3Schema runtime.RawExtension `json:"openAPIV3Schema,omitempty"`
+	OpenAPIV3Schema runtime.RawExtension `json:"openAPIV3Schema,omitempty"` //nolint:tagliatelle // False positive. Linter thinks it should be Apiv3, not APIV3.
 }
 
 // CompositeResourceDefinitionStatus shows the observed state of the definition.
