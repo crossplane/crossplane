@@ -91,7 +91,7 @@ type DeploymentRuntimeConfigSpec struct {
 // the package uses a runtime and the package manager is running with
 // --package-runtime=Deployment (the default). See the following design doc for
 // more details:https://github.com/crossplane/crossplane/blob/91edeae3fcac96c6c8a1759a723981eea4bb77e4/design/one-pager-package-runtime-config.md#migration-from-controllerconfig
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane}
 type DeploymentRuntimeConfig struct {
 	metav1.TypeMeta   `json:",inline"`
