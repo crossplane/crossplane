@@ -52,6 +52,8 @@ type coordinate struct {
 // Note: this is a pretty expensive operation only suited for e2e tests with
 // small clusters.
 func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
+	t.Helper()
+
 	// Discover all resource types
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
@@ -142,6 +144,8 @@ func parseAPIVersion(apiVersion string) (group, version string) {
 // ownership, i.e. the returned objects are transitively owned by obj, or
 // resource reference.
 func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs ...client.Object) ([]client.Object, error) {
+	t.Helper()
+
 	dynClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -185,6 +189,8 @@ func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs
 }
 
 func loadCoordinates(ctx context.Context, t *testing.T, dynClient dynamic.Interface, coords []coordinate) []client.Object {
+	t.Helper()
+
 	ret := make([]client.Object, 0, len(coords))
 	for _, coord := range coords {
 		other, err := dynClient.Resource(coord.GroupVersionResource).Namespace(coord.Namespace).Get(ctx, coord.Name, metav1.GetOptions{})

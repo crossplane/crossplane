@@ -69,6 +69,8 @@ type onSuccessHandler func(o k8s.Object)
 // AllOf runs the supplied functions in order.
 func AllOf(fns ...features.Func) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		for _, fn := range fns {
 			ctx = fn(ctx, t, c)
 		}
@@ -79,6 +81,8 @@ func AllOf(fns ...features.Func) features.Func {
 // InBackground runs the supplied function in a goroutine.
 func InBackground(fn features.Func) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		go fn(ctx, t, c)
 		return ctx
 	}
@@ -109,6 +113,8 @@ func ReadyToTestWithin(d time.Duration, namespace string) features.Func {
 // not Available within the supplied duration.
 func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Waiting %s for deployment %s/%s to become Available...", d, dp.GetNamespace(), dp.GetName())
 		start := time.Now()
@@ -125,6 +131,8 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 // to exist within the supplied duration.
 func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -153,6 +161,8 @@ func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func 
 // exist within the supplied duration.
 func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		t.Logf("Waiting %s for %s to be created...", d, identifier(o))
 
 		start := time.Now()
@@ -170,6 +180,8 @@ func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 // within the supplied duration.
 func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -202,6 +214,8 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 // within the supplied duration.
 func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		t.Logf("Waiting %s for %s to be deleted...", d, identifier(o))
 
 		start := time.Now()
@@ -220,6 +234,8 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 // Comparison of conditions is modulo messages.
 func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -313,6 +329,8 @@ var NotFound = notFound{} //nolint:gochecknoglobals // We treat this as a consta
 // duration. The supplied 'want' value must cmp.Equal the actual value.
 func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {
 			t.Error(err)
@@ -369,6 +387,8 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 // duration. The supplied 'want' value must cmp.Equal the actual value.
 func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		t.Logf("Waiting %s for %s to have value %q at field path %s...", d, identifier(o), want, path)
 
 		match := func(o k8s.Object) bool {
@@ -408,6 +428,8 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 // resource cannot be applied successfully.
 func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		dfs := os.DirFS(dir)
 
 		files, _ := fs.Glob(dfs, pattern)
@@ -432,6 +454,8 @@ type claimCtxKey struct{}
 // and stores it in the test context for later retrival if needed.
 func ApplyClaim(manager, dir, cm string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		dfs := os.DirFS(dir)
 
 		files, _ := fs.Glob(dfs, cm)
@@ -484,6 +508,8 @@ func SetAnnotationMutateOption(key, value string) decoder.DecodeOption {
 // server should reject a resource.
 func ResourcesFailToApply(manager, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		dfs := os.DirFS(dir)
 
 		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager)); err == nil {
@@ -524,6 +550,8 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 // (e.g. *.yaml).
 func DeleteResources(dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		dfs := os.DirFS(dir)
 
 		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources())); err != nil {
@@ -541,6 +569,8 @@ func DeleteResources(dir, pattern string) features.Func {
 // the test context does not change within the given time.
 func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		cm, ok := ctx.Value(claimCtxKey{}).(*claim.Unstructured)
 		if !ok {
 			t.Fatalf("claim not available in the context")
@@ -574,6 +604,8 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 // the test context does not change within the given time.
 func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		cm, ok := ctx.Value(claimCtxKey{}).(*claim.Unstructured)
 		if !ok {
 			t.Fatalf("claim not available in the context")
@@ -619,6 +651,8 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 // must be matched by the given function within the given timeout.
 func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, match func(xr *composite.Unstructured) bool) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		cm := &claim.Unstructured{}
 
 		if err := decoder.DecodeFile(os.DirFS(dir), claimFile, cm); err != nil {
@@ -669,6 +703,8 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 // the specified time.
 func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		cm := &claim.Unstructured{}
 
 		if err := decoder.DecodeFile(os.DirFS(dir), claimFile, cm); err != nil {
@@ -738,6 +774,8 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 // supplied path within the supplied duration.
 func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func { //nolint:gocognit // Not too much over.
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		cm := &claim.Unstructured{}
 		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
 			t.Error(err)
@@ -827,6 +865,8 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 // validation function within the supplied duration.
 func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, min, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources didn't pass validation: %v:\n\n%s\n\n", err, y)
@@ -842,6 +882,8 @@ func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min in
 // is not deleted within the supplied duration.
 func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
@@ -861,6 +903,8 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 // not modified within the supplied duration.
 func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
@@ -896,6 +940,8 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 // and changed conditions.
 func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) features.Func { //nolint:gocognit // this is a test helper
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		prev := map[string]map[xpv1.ConditionType]xpv1.Condition{}
 
 		pollCtx, cancel := context.WithCancel(ctx)
@@ -964,6 +1010,8 @@ func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) feat
 // webhook.
 func DeletionBlockedByUsageWebhook(dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		dfs := os.DirFS(dir)
 
 		err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources()))

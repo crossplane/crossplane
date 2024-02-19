@@ -30,7 +30,6 @@ linters:
     # make existing code compliant.
     - wrapcheck
     - varnamelen
-    - thelper
     - testpackage
     - paralleltest
     - nilnil

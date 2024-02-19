@@ -594,7 +594,9 @@ func NewClaim(m ...ClaimModifier) *claim.Unstructured {
 
 // A status update function that ensures the supplied object is the claim we want.
 func WantClaim(t *testing.T, want *claim.Unstructured) func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+	t.Helper()
 	return func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
+		t.Helper()
 		// Normally we use a custom Equal method on conditions to ignore the
 		// lastTransitionTime, but we're using unstructured types here where
 		// the conditions are just a map[string]any.

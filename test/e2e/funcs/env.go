@@ -70,6 +70,8 @@ func HelmUpgrade(o ...helm.Option) env.Func {
 // returns an error the calling test is failed with t.Fatal(err).
 func AsFeaturesFunc(fn env.Func) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
 		ctx, err := fn(ctx, c)
 		if err != nil {
 			t.Fatal(err)

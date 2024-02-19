@@ -211,6 +211,8 @@ func TestRunFunction(t *testing.T) {
 }
 
 func TestGetClientConn(t *testing.T) {
+	t.Helper()
+
 	// TestRunFunction exercises most of the getClientConn code. Here we just
 	// test some cases that don't fit well in our usual table-driven format.
 
@@ -372,6 +374,8 @@ func NewListFn(target string) test.MockListFn {
 }
 
 func NewGRPCServer(t *testing.T, ss v1beta1.FunctionRunnerServiceServer) net.Listener {
+	t.Helper()
+
 	// Listen on a random port.
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

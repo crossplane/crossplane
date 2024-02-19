@@ -753,6 +753,8 @@ func TestRender(t *testing.T) {
 }
 
 func NewFunction(t *testing.T, rsp *fnv1beta1.RunFunctionResponse) net.Listener {
+	t.Helper()
+
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
@@ -766,6 +768,8 @@ func NewFunction(t *testing.T, rsp *fnv1beta1.RunFunctionResponse) net.Listener 
 }
 
 func NewFunctionWithRunFunc(t *testing.T, runFunc func(context.Context, *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error)) net.Listener {
+	t.Helper()
+
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)

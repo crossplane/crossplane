@@ -145,7 +145,10 @@ func TestMain(m *testing.M) {
 	}
 
 	// Check that all features are specifying a suite they belong to via LabelTestSuite.
+	//nolint:thelper // We can't make testing.T the second argument because we want to satisfy types.FeatureEnvFunc.
 	environment.BeforeEachFeature(func(ctx context.Context, _ *envconf.Config, t *testing.T, feature features.Feature) (context.Context, error) {
+		t.Helper()
+
 		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
 			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
 		}
