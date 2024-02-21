@@ -145,7 +145,7 @@ func TestGetDependencyRef(t *testing.T) {
 				pkgType: v1beta1.FunctionPackageType,
 				pkg:     "example.com/function-1:v1.0.0",
 				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, "whatever")
 					}),
 				},

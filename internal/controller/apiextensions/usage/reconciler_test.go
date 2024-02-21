@@ -42,7 +42,7 @@ import (
 )
 
 type fakeSelectorResolver struct {
-	resourceSelectorFn func(ctx context.Context, u *v1alpha1.Usage) error
+	resourceSelectorFn func(_ context.Context, _ *v1alpha1.Usage) error
 }
 
 func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error {
@@ -118,7 +118,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return errBoom
 						},
 					}),
@@ -143,7 +143,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -172,7 +172,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -201,13 +201,13 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -245,7 +245,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -283,7 +283,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -332,7 +332,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -391,7 +391,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -440,7 +440,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -474,7 +474,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -508,7 +508,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -550,7 +550,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -582,13 +582,13 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
 								return errBoom
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -620,16 +620,16 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
 								return nil
 							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
 								return errBoom
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -663,7 +663,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -695,7 +695,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
@@ -710,7 +710,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),
@@ -753,7 +753,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
@@ -768,7 +768,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
 							return nil
 						},
 					}),

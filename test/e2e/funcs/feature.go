@@ -157,7 +157,7 @@ func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
 		t.Logf("Waiting %s for %s to be created...", d, identifier(o))
 
 		start := time.Now()
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, func(object k8s.Object) bool { return true }), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, func(_ k8s.Object) bool { return true }), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Errorf("resource %s did not exist: %v", identifier(o), err)
 			return ctx
 		}

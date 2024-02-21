@@ -252,7 +252,7 @@ func encode(pkg parser.Lintable) (*bytes.Buffer, error) {
 
 // SkipContains supplies a FilterFn that skips paths that contain the give pattern.
 func SkipContains(pattern string) parser.FilterFn {
-	return func(path string, info os.FileInfo) (bool, error) {
+	return func(path string, _ os.FileInfo) (bool, error) {
 		return strings.Contains(path, pattern), nil
 	}
 }

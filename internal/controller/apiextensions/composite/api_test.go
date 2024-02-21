@@ -323,7 +323,7 @@ func TestFetchRevision(t *testing.T) {
 					}),
 				},
 				// This should not be called.
-				Applicator: resource.ApplyFn(func(c context.Context, o client.Object, ao ...resource.ApplyOption) error { return errBoom }),
+				Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -359,7 +359,7 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 				},
-				Applicator: resource.ApplyFn(func(c context.Context, o client.Object, ao ...resource.ApplyOption) error {
+				Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					// Ensure we were updated to reference the latest CompositionRevision.
 					want := &fake.Composite{
 						CompositionReferencer: fake.CompositionReferencer{
@@ -416,7 +416,7 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 				},
-				Applicator: resource.ApplyFn(func(c context.Context, o client.Object, ao ...resource.ApplyOption) error {
+				Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					// Ensure we were updated to reference the latest CompositionRevision.
 					want := &fake.Composite{
 						CompositionReferencer: fake.CompositionReferencer{
@@ -474,7 +474,7 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 				},
-				Applicator: resource.ApplyFn(func(c context.Context, o client.Object, ao ...resource.ApplyOption) error {
+				Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 					return errBoom
 				}),
 			},

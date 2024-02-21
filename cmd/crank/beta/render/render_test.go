@@ -546,7 +546,7 @@ func TestRender(t *testing.T) {
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
 							i := 0
-							lis := NewFunctionWithRunFunc(t, func(ctx context.Context, request *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
+							lis := NewFunctionWithRunFunc(t, func(_ context.Context, request *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
 								defer func() { i++ }()
 								switch i {
 								case 0:

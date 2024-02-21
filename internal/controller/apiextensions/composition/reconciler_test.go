@@ -249,7 +249,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1.Composition) = *compDev
 							return nil
 						}),
-						MockList: func(ctx context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+						MockList: func(_ context.Context, obj client.ObjectList, opts ...client.ListOption) error {
 							if len(opts) < 1 || opts[0].(client.MatchingLabels)[v1.LabelCompositionName] != compDev.Name {
 								t.Errorf("unexpected list options: %v", opts)
 							}
@@ -287,7 +287,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1.Composition) = *compDev
 							return nil
 						}),
-						MockList: func(ctx context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+						MockList: func(_ context.Context, obj client.ObjectList, opts ...client.ListOption) error {
 							if len(opts) < 1 || opts[0].(client.MatchingLabels)[v1.LabelCompositionName] != compDev.Name {
 								t.Errorf("unexpected list options: %v", opts)
 							}

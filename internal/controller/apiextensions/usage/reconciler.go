@@ -444,7 +444,7 @@ func detailsAnnotation(u *v1alpha1.Usage) string {
 // composite controller since otherwise we lose the owner reference this
 // controller puts on the Usage.
 func RespectOwnerRefs() xpresource.ApplyOption {
-	return func(ctx context.Context, current, desired runtime.Object) error {
+	return func(_ context.Context, current, desired runtime.Object) error {
 		cu, ok := current.(*composed.Unstructured)
 		if !ok || cu.GetObjectKind().GroupVersionKind() != v1alpha1.UsageGroupVersionKind {
 			return nil

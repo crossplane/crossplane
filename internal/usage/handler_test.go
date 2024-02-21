@@ -122,7 +122,7 @@ func TestHandle(t *testing.T) {
 			reason: "We should allow a delete request if there is no usages for the given object.",
 			args: args{
 				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return nil
 					},
 				},
@@ -148,7 +148,7 @@ func TestHandle(t *testing.T) {
 			reason: "We should reject a delete request if we cannot list usages.",
 			args: args{
 				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return errBoom
 					},
 				},
@@ -174,7 +174,7 @@ func TestHandle(t *testing.T) {
 			reason: "We should reject a delete request if there are usages for the given object with \"by\" defined.",
 			args: args{
 				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*v1alpha1.UsageList)
 						l.Items = []v1alpha1.Usage{
 							{
@@ -232,7 +232,7 @@ func TestHandle(t *testing.T) {
 			reason: "We should reject a delete request if there are usages for the given object with \"reason\" defined.",
 			args: args{
 				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*v1alpha1.UsageList)
 						l.Items = []v1alpha1.Usage{
 							{
@@ -284,7 +284,7 @@ func TestHandle(t *testing.T) {
 			reason: "We should reject a delete request if there are usages for the given object without \"reason\" or \"by\" defined.",
 			args: args{
 				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*v1alpha1.UsageList)
 						l.Items = []v1alpha1.Usage{
 							{

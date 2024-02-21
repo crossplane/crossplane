@@ -51,7 +51,7 @@ func TestCRDWaiter(t *testing.T) {
 				period:  1 * time.Second,
 				timeout: 2 * time.Second,
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
 				},
@@ -63,7 +63,7 @@ func TestCRDWaiter(t *testing.T) {
 				timeout: 2 * time.Millisecond,
 				period:  1 * time.Millisecond,
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 				},
@@ -78,7 +78,7 @@ func TestCRDWaiter(t *testing.T) {
 				period:  1 * time.Millisecond,
 				timeout: 1 * time.Second,
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return errBoom
 					},
 				},

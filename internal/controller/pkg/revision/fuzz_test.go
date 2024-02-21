@@ -69,16 +69,16 @@ func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
 	}
 	return func() dag.DAG {
 		return &dagfake.MockDag{
-			MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
+			MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 				return nil, nil
 			},
-			MockNodeExists: func(identifier string) bool {
+			MockNodeExists: func(_ string) bool {
 				return true
 			},
 			MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 				return traceNodeMap, nil
 			},
-			MockGetNode: func(s string) (dag.Node, error) {
+			MockGetNode: func(_ string) (dag.Node, error) {
 				return lp, nil
 			},
 		}
@@ -102,7 +102,7 @@ func getFuzzMockClient(ff *fuzz.ConsumeFuzzer) (*test.MockClient, error) {
 }
 
 func FuzzRevisionControllerPackageHandling(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data, revisionData []byte) {
+	f.Fuzz(func(_ *testing.T, data, revisionData []byte) {
 		ff := fuzz.NewConsumer(revisionData)
 		p := parser.New(metaScheme, objScheme)
 		r := io.NopCloser(bytes.NewReader(data))

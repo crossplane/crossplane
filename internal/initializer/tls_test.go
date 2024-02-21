@@ -108,7 +108,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the CA secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
 						if key.Name != caCertSecretName || key.Namespace != secretNS {
 							return errors.New("unexpected secret name or namespace")
 						}
@@ -129,7 +129,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the CA secret cannot be updated.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name != caCertSecretName || key.Namespace != secretNS {
 							return errors.New("unexpected secret name or namespace")
 						}
@@ -161,7 +161,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return no error after loading the CA from the Secret.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name != caCertSecretName {
 							return nil
 						}
@@ -177,7 +177,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				certificate: &MockCertificateGenerator{
-					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
+					MockGenerate: func(_ *x509.Certificate, _ *CertificateSigner) ([]byte, []byte, error) {
 						return []byte("test-key"), []byte("test-cert"), nil
 					},
 				},
@@ -191,7 +191,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the CA secret cannot be parsed.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name != caCertSecretName || key.Namespace != secretNS {
 							return errors.New("unexpected secret name or namespace")
 						}
@@ -228,7 +228,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the server secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -260,7 +260,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the client secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -301,7 +301,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should be successful if the CA and TLS certificates are generated and put into the Secret.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -337,7 +337,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 
 						return errors.New("unexpected secret name or namespace")
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 						if obj.GetName() == tlsServerSecretName && obj.GetNamespace() == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -366,7 +366,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 					},
 				},
 				certificate: &MockCertificateGenerator{
-					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
+					MockGenerate: func(_ *x509.Certificate, _ *CertificateSigner) ([]byte, []byte, error) {
 						return []byte(caKey), []byte(caCert), nil
 					},
 				},
@@ -380,7 +380,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should be successful if the CA and TLS certificates are already in the Secret.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -428,7 +428,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 				},
 				certificate: &MockCertificateGenerator{
-					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
+					MockGenerate: func(_ *x509.Certificate, _ *CertificateSigner) ([]byte, []byte, error) {
 						return nil, nil, errBoom
 					},
 				},
@@ -445,7 +445,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the CA and TLS certificates cannot be generated.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -460,7 +460,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 					},
 				},
 				certificate: &MockCertificateGenerator{
-					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
+					MockGenerate: func(_ *x509.Certificate, _ *CertificateSigner) ([]byte, []byte, error) {
 						return nil, nil, errBoom
 					},
 				},
@@ -479,7 +479,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the CA secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
 						if key.Name != caCertSecretName || key.Namespace != secretNS {
 							return errors.New("unexpected secret name or namespace")
 						}
@@ -499,7 +499,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the server secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -530,7 +530,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should be successful if the server certificates are already in the Secret.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -567,7 +567,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			args: args{
 
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -592,7 +592,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 
 						return errors.New("unexpected secret name or namespace")
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 						if obj.GetName() == tlsServerSecretName && obj.GetNamespace() == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -609,7 +609,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 				},
 
 				certificate: &MockCertificateGenerator{
-					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
+					MockGenerate: func(_ *x509.Certificate, _ *CertificateSigner) ([]byte, []byte, error) {
 						return []byte(caKey), []byte(caCert), nil
 					},
 				},
@@ -623,7 +623,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the CA secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
 						if key.Name != caCertSecretName || key.Namespace != secretNS {
 							return errors.New("unexpected secret name or namespace")
 						}
@@ -643,7 +643,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should return error if the client secret cannot be retrieved.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -674,7 +674,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			reason: "It should be successful if the client certificates are already in the Secret.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -711,7 +711,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 			args: args{
 
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -736,7 +736,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 
 						return errors.New("unexpected secret name or namespace")
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 						if obj.GetName() == tlsClientSecretName && obj.GetNamespace() == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
@@ -753,7 +753,7 @@ func TestTLSCertificateGeneratorRun(t *testing.T) {
 				},
 
 				certificate: &MockCertificateGenerator{
-					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
+					MockGenerate: func(_ *x509.Certificate, _ *CertificateSigner) ([]byte, []byte, error) {
 						return []byte(caKey), []byte(caCert), nil
 					},
 				},

@@ -25,7 +25,7 @@ import (
 )
 
 func FuzzRenderRoles(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		ff := fuzz.NewConsumer(data)
 		ns := &corev1.Namespace{}
 		ff.GenerateStruct(ns)

@@ -74,7 +74,7 @@ func TestFunctionPreHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceFn: func(overrides ...ServiceOverride) *corev1.Service {
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
 						return &corev1.Service{}
 					},
 					TLSServerSecretFn: func() *corev1.Secret {
@@ -82,17 +82,17 @@ func TestFunctionPreHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						if svc, ok := obj.(*corev1.Service); ok {
 							svc.Name = "some-service"
 							svc.Namespace = "some-namespace"
 						}
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
 						return nil
 					},
 				},
@@ -189,18 +189,18 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return errBoom
 					},
 				},
@@ -230,18 +230,18 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
 							return errBoom
 						}
@@ -274,18 +274,18 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
 				},
@@ -315,18 +315,18 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						if d, ok := obj.(*appsv1.Deployment); ok {
 							d.Status.Conditions = []appsv1.DeploymentCondition{{
 								Type:    appsv1.DeploymentAvailable,
@@ -364,18 +364,18 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						if d, ok := obj.(*appsv1.Deployment); ok {
 							d.Status.Conditions = []appsv1.DeploymentCondition{{
 								Type:   appsv1.DeploymentAvailable,
@@ -411,15 +411,15 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 				},
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						if sa, ok := obj.(*corev1.ServiceAccount); ok {
 							if sa.GetName() == xpManagedSA {
 								return kerrors.NewNotFound(corev1.Resource("serviceaccount"), xpManagedSA)
@@ -427,7 +427,7 @@ func TestFunctionPostHook(t *testing.T) {
 						}
 						return nil
 					},
-					MockCreate: func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						if sa, ok := obj.(*corev1.ServiceAccount); ok {
 							if sa.GetName() == xpManagedSA {
 								t.Error("unexpected call to create SA when SA is managed externally")
@@ -435,7 +435,7 @@ func TestFunctionPostHook(t *testing.T) {
 						}
 						return nil
 					},
-					MockPatch: func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						if d, ok := obj.(*appsv1.Deployment); ok {
 							d.Status.Conditions = []appsv1.DeploymentCondition{{
 								Type:   appsv1.DeploymentAvailable,
@@ -501,15 +501,15 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			reason: "Should return error if we fail to delete deployment.",
 			args: args{
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
 				},
 				client: &test.MockClient{
-					MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						if _, ok := obj.(*appsv1.Deployment); ok {
 							return errBoom
 						}
@@ -525,14 +525,14 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			reason: "Should not return error if successfully deleted service account and deployment.",
 			args: args{
 				manifests: &MockManifestBuilder{
-					ServiceAccountFn: func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount {
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "some-sa",
 							},
 						}
 					},
-					DeploymentFn: func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment {
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "some-deployment",
@@ -552,7 +552,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 					},
 				},
 				client: &test.MockClient{
-					MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
 						switch obj.(type) {
 						case *corev1.ServiceAccount:
 							return errors.New("service account should not be deleted during deactivation")

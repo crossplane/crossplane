@@ -110,7 +110,7 @@ func TestGenerateName(t *testing.T) {
 		},
 		"SuccessAfterConflict": {
 			reason: "Name is found on second try",
-			client: &test.MockClient{MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+			client: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, _ client.Object) error {
 				if key.Name == "cool-resource-42" {
 					return nil
 				}

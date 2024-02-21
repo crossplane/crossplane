@@ -177,7 +177,7 @@ func TestConnectionDetailsFetcherChain(t *testing.T) {
 		"SingleFetcherChain": {
 			reason: "A chain of one fetcher should return only its connection details.",
 			c: ConnectionDetailsFetcherChain{
-				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return managed.ConnectionDetails{"a": []byte("b")}, nil
 				}),
 			},
@@ -191,7 +191,7 @@ func TestConnectionDetailsFetcherChain(t *testing.T) {
 		"FetcherError": {
 			reason: "We should return errors from a chained fetcher.",
 			c: ConnectionDetailsFetcherChain{
-				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return nil, errBoom
 				}),
 			},
@@ -205,14 +205,14 @@ func TestConnectionDetailsFetcherChain(t *testing.T) {
 		"MultipleFetcherChain": {
 			reason: "A chain of multiple fetchers should return all of their connection details, with later fetchers winning if there are duplicates.",
 			c: ConnectionDetailsFetcherChain{
-				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return managed.ConnectionDetails{
 						"a": []byte("a"),
 						"b": []byte("b"),
 						"c": []byte("c"),
 					}, nil
 				}),
-				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return managed.ConnectionDetails{
 						"a": []byte("A"),
 					}, nil

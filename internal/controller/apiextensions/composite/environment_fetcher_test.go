@@ -212,7 +212,7 @@ func TestFetch(t *testing.T) {
 			reason: "It should merge the data of multiple EnvironmentConfigs in the order they are listed.",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, o client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, o client.Object) error {
 						cs := o.(*v1alpha1.EnvironmentConfig)
 						switch key.Name {
 						case "a":

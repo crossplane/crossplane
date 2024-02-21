@@ -161,7 +161,7 @@ func TestReconcile(t *testing.T) {
 							MockGet:  test.NewMockGetFn(nil),
 							MockList: test.NewMockListFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(ctx context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							// Simulate a no-op change by not allowing the update.
 							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 						}),

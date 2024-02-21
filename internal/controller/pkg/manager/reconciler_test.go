@@ -489,7 +489,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return errBoom
 						}),
 					},

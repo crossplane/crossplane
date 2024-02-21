@@ -595,7 +595,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr:   func(name string) error { return errBoom }, // This error should only be logged.
+						MockErr:   func(_ string) error { return errBoom }, // This error should only be logged.
 						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil }},
 					),
 				},
@@ -654,7 +654,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr:   func(name string) error { return nil },
+						MockErr:   func(_ string) error { return nil },
 						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil },
 						MockStop:  func(_ string) {},
 					}),
