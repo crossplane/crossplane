@@ -1,0 +1,137 @@
+header:
+  schema-version: 1.0.0
+  expiration-date: '2025-01-12T12:00:00.000Z'
+  last-updated: '2025-01-12'
+  last-reviewed: '2025-01-12'
+  commit-hash: 05b9c3ce127c2495a68839213e3e95772aa5b6c2
+  project-url: https://github.com/crossplane/crossplane
+  project-release: '1.14.5'
+  changelog: https://github.com/crossplane/crossplane/releases
+  license: https://github.com/crossplane/crossplane/blob/master/LICENSE
+project-lifecycle:
+  status: active
+  roadmap: https://github.com/orgs/crossplane/projects/20/views/3
+  bug-fixes-only: false
+  core-maintainers:
+  - https://github.com/crossplane/crossplane/blob/master/OWNERS.md
+  release-cycle: https://docs.crossplane.io/knowledge-base/guides/release-cycle/
+  release-process: |
+      https://github.com/crossplane/release/blob/main/README.md
+contribution-policy:
+  accepts-pull-requests: true
+  accepts-automated-pull-requests: true  
+  contributing-policy: https://github.com/crossplane/crossplane/blob/master/contributing/README.md
+  code-of-conduct: https://github.com/crossplane/crossplane/blob/master/CODE_OF_CONDUCT.md
+documentation:
+  - https://docs.crossplane.io
+  - https://github.com/crossplane/crossplane/tree/master/contributing/specifications
+distribution-points:
+  - https://github.com/crossplane/crossplane/releases
+  - https://charts.crossplane.io
+security-artifacts:
+  threat-model:
+    threat-model-created: true
+    evidence-url:
+    - https://github.com/crossplane/crossplane/blob/master/security/ADA-security-audit-23.pdf
+  other-artifacts:
+    - artifact-name: Crossplane Fuzzing Audit
+      artifact-created: true
+      evidence-url:
+        - https://github.com/crossplane/crossplane/blob/master/security/ADA-fuzzing-audit-22.pdf
+    - artifact-name: Crossplane Security Audit
+      artifact-created: true
+      evidence-url:
+        - https://github.com/crossplane/crossplane/blob/master/security/ADA-security-audit-23.pdf
+security-testing:
+- tool-type: sca
+  tool-name: Renovate
+  tool-version: 37.127.0
+  tool-url: https://github.com/renovatebot/renovate
+  tool-rulesets:
+  - built-in
+  - https://github.com/crossplane/crossplane/blob/master/.github/renovate.json5
+  integration:
+    ad-hoc: false
+    ci: true
+    before-release: true
+  comment: |
+    We use the hosted version of Renovate, which uses a recent release from https://github.com/renovatebot/renovat/releases
+- tool-type: sca
+  tool-name: Trivy
+  tool-version: 0.48.1
+  tool-url: https://github.com/aquasecurity/trivy
+  tool-rulesets:
+  - built-in
+  integration:
+    ad-hoc: false
+    ci: true
+    before-release: true
+  comment: |
+    The version of Trivy is determined by the GitHub action, https://github.com/crossplane/crossplane/blob/master/.github/workflows/scan.yaml, 
+    which defines the version of Trivy in https://github.com/aquasecurity/trivy-action/blob/master/Dockerfile
+- tool-type: fuzzer
+  tool-name: OSS-Fuzz
+  tool-version: Latest from master
+  tool-url: https://github.com/google/oss-fuzz
+  tool-rulesets:
+  - built-in
+  - https://github.com/google/oss-fuzz/tree/master/projects/crossplane
+  integration:
+    ad-hoc: false
+    ci: true
+    before-release: true
+security-assessments:
+- auditor-name: ADA Logics
+  auditor-url: https://adalogics.com/
+  auditor-report: https://github.com/crossplane/crossplane/blob/master/security/ADA-security-audit-23.pdf
+  report-year: 2023
+security-contacts:
+- type: email
+  value: jared@upbound.io
+  primary: true
+- type: email
+  value: negz@upbound.io
+  primary: false
+- type: email
+  value: philippe.scorsolini@upbound.io
+  primary: false
+- type: email
+  value: bob.haddleton@nokia.com
+  primary: false
+vulnerability-reporting:
+  accepts-vulnerability-reports: true
+  email-contact: crossplane-security@lists.cncf.io
+  security-policy: https://github.com/crossplane/crossplane/blob/master/SECURITY.md
+  bug-bounty-available: false
+  in-scope:
+  - cryptographic failures
+  - injection
+  - insecure design
+  - security misconfiguration
+  - vulnerable and outdated components
+  - identification and authentication failures
+  - software and data integrity failures
+  - security logging and monitoring failures
+  - ssrf
+  - other
+#dependencies:
+#  third-party-packages: true
+#  dependencies-lists:
+#  - https://github.com/foo/packages.json
+#  sbom:
+#  - sbom-file: https://foo.bar/sbom
+#    sbom-format: CycloneDX
+#    sbom-url: https://foo.bar
+#  dependencies-lifecycle:
+#    policy-url: https://example.org
+#    comment: |
+#      foo bar
+#  env-dependencies-policy:
+#    policy-url: https://example.org
+#    comment: |
+#      foo bar
+
+
+
+
+    
