@@ -20,6 +20,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -40,6 +41,12 @@ import (
 
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
+
+// minTimeToKeepAlive is the minimum time to keep a composed resource informer
+// alive after it has been seen by a composite resource. If syncing XRs for
+// examples takes long, we better wait this time to avoid stopping the informer
+// too early.
+const minTimeToKeepAlive = 5 * time.Minute
 
 // composedResourceInformers manages composed resource informers referenced by
 // composite resources. It serves as an event source for realtime notifications
@@ -67,8 +74,9 @@ type composedResourceInformers struct {
 }
 
 type cdCache struct {
-	cache    cache.Cache
-	cancelFn context.CancelFunc
+	markedForDeletion time.Time
+	cache             cache.Cache
+	cancelFn          context.CancelFunc
 }
 
 var _ source.Source = &composedResourceInformers{}
@@ -133,12 +141,14 @@ func (i *composedResourceInformers) UnregisterComposite(gvk schema.GroupVersionK
 // garbage collects composed resource informers that are no longer referenced by
 // any composite.
 func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupVersionKind) {
-	i.lock.RLock()
-	defer i.lock.RUnlock()
+	i.lock.Lock()
+	defer i.lock.Unlock()
 
 	// start new informers
 	for _, gvk := range gvks {
-		if _, found := i.cdCaches[gvk]; found {
+		if info, found := i.cdCaches[gvk]; found {
+			info.markedForDeletion = time.Time{}
+			i.cdCaches[gvk] = info
 			continue
 		}
 
@@ -259,10 +269,23 @@ func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context
 	}
 
 	// stop old informers
+	i.lock.Lock()
+	defer i.lock.Unlock()
 	for gvk, inf := range i.cdCaches {
 		if referenced[gvk] {
+			i.log.Debug("Keeping composed resource informer alive", "reason", "Referenced", "gvk", gvk.String())
 			continue
 		}
+
+		if inf.markedForDeletion.IsZero() {
+			inf.markedForDeletion = time.Now()
+			i.cdCaches[gvk] = inf
+		}
+		if time.Since(inf.markedForDeletion) < minTimeToKeepAlive {
+			i.log.Debug("Keeping composed resource informer alive", "reason", "MinTimeToKeepAlive", "gvk", gvk.String(), "lastSeen", time.Since(inf.markedForDeletion))
+			continue
+		}
+
 		inf.cancelFn()
 		i.gvkRoutedCache.RemoveDelegate(gvk)
 		i.log.Info("Stopped composed resource watch", "gvk", gvk.String())
