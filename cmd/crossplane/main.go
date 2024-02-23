@@ -68,6 +68,7 @@ func (d debugFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // Be
 	// *very* verbose even at info level, so we only provide it a real
 	// logger when we're running in debug mode.
 	ctrl.SetLogger(zl)
+	logging.SetFilteredKlogLogger(zl)
 	return nil
 }
 
@@ -79,11 +80,14 @@ func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // Bef
 
 func main() {
 	zl := zap.New().WithName("crossplane")
+	logging.SetFilteredKlogLogger(zl)
+
 	// Setting the controller-runtime logger to a no-op logger by default,
 	// unless debug mode is enabled. This is because the controller-runtime
 	// logger is *very* verbose even at info level. This is not really needed,
 	// but otherwise we get a warning from the controller-runtime.
 	ctrl.SetLogger(zap.New(zap.WriteTo(io.Discard)))
+
 	// Note that the controller managers scheme must be a superset of the
 	// package manager's object scheme; it must contain all object types that
 	// may appear in a Crossplane package. This is because the package manager
