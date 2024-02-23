@@ -750,9 +750,10 @@ func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, c client.Reade
 		xrs.SetKind(schema.GroupVersionKind(of).Kind + "List")
 		if err := c.List(ctx, &xrs); err != nil {
 			// logging is most we can do here. This is a programming error if it happens.
-			log.Info("cannot list in CompositionRevision handler", "type", schema.GroupVersionKind(of).String(), "error", err)
+			log.Info("cannot list in CompositionRevision handler", "gvk", schema.GroupVersionKind(of).String(), "error", err)
 			return
 		}
+		log.Debug("Enqueueing composite resources because a new CompositionRevision was created", "gvk", schema.GroupVersionKind(of), "count", len(xrs.Items))
 
 		// enqueue all those that reference the Composition of this revision
 		compName := rev.Labels[v1.LabelCompositionName]
