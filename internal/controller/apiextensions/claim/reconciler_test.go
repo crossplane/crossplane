@@ -383,7 +383,18 @@ func TestReconcile(t *testing.T) {
 							}
 							return nil
 						}),
-					}),
+						MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
+							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							// We want to foreground delete.
+							fg := xpv1.CompositeDeleteForeground
+							cm.SetCompositeDeletePolicy(&fg)
+
+							// Check that we set our status condition.
+							cm.SetDeletionTimestamp(&now)
+							cm.SetConditions(xpv1.Deleting())
+						})),
+					},
+					),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
