@@ -5,13 +5,15 @@
 * Status: Draft
 
 ## Background
+
+### Desired Behavior
 Composition Function authors should be able to communicate with users. 
 Topics of communication include:
 - The status of underlying resources.
 - Errors that need to be resolved by the user.
 - Internal errors.
 
-## Existing Behavior
+### Existing Behavior
 Currently the only path to communicate with the user is by defining a custom field in the Claim's status.
 For example, we can define an XRD with:
 ```yaml
@@ -54,7 +56,7 @@ Technically the behavior above is currently supported, though it has a couple li
 After implementing the proposed solution, these conditions would be seen on the Claim as well as the XR.
 Additionally, these conditions would also be seen when encountering a fatal result.
 
-## Implementation
+## Required Changes
 From the Crossplane side, the flow will look like this:
 - Always copy \*custom `status.conditions` from the desired XR to the XR itself, even when a fatal result is encountered.
 - Copy \*custom `status.conditions` from the XR to the Claim
