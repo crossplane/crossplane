@@ -340,7 +340,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// controller on a previous reconcile, but we try again
 			// just in case. This is a no-op if the controller was
 			// already stopped.
-			r.composite.Stop(composite.ControllerName(d.GetName()))
+			r.stopCompositeController(d)
 			log.Debug("Stopped composite resource controller")
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
@@ -392,7 +392,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// The controller should be stopped before the deletion of CRD
 		// so that it doesn't crash.
-		r.composite.Stop(composite.ControllerName(d.GetName()))
+		r.stopCompositeController(d)
 		log.Debug("Stopped composite resource controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
@@ -448,10 +448,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	switch {
 	case observed.APIVersion != "" && observed != desired:
-		r.composite.Stop(composite.ControllerName(d.GetName()))
-		if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-			r.xrInformers.UnregisterComposite(d.GetCompositeGroupVersionKind())
-		}
+		r.stopCompositeController(d)
 		log.Debug("Referenceable version changed; stopped composite resource controller",
 			"observed-version", observed.APIVersion,
 			"desired-version", desired.APIVersion)
@@ -534,6 +531,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	d.Status.SetConditions(v1.WatchingComposite())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+}
+
+func (r *Reconciler) stopCompositeController(d *v1.CompositeResourceDefinition) {
+	r.composite.Stop(composite.ControllerName(d.GetName()))
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+		r.xrInformers.UnregisterComposite(d.GetCompositeGroupVersionKind())
+	}
 }
 
 // CompositeReconcilerOptions builds the options for a composite resource
