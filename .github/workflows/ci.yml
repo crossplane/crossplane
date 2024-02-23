@@ -246,6 +246,7 @@ jobs:
           - environment-configs
           - usage
           - ssa-claims
+          - realtime-compositions
 
     steps:
       - name: Setup QEMU
