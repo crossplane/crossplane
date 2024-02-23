@@ -736,7 +736,7 @@ func getComposerResourcesNames(cds []ComposedResource) []string {
 // related) XRs when a new CompositionRevision is created. This speeds up
 // reconciliation of XRs on changes to the Composition by not having to wait for
 // the 60s sync period, but be instant.
-func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error, log logging.Logger) func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
+func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, c client.Reader, log logging.Logger) func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
 	return func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
 		rev, ok := createEvent.Object.(*v1.CompositionRevision)
 		if !ok {
@@ -748,7 +748,7 @@ func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx 
 		xrs := kunstructured.UnstructuredList{}
 		xrs.SetGroupVersionKind(schema.GroupVersionKind(of))
 		xrs.SetKind(schema.GroupVersionKind(of).Kind + "List")
-		if err := list(ctx, &xrs); err != nil {
+		if err := c.List(ctx, &xrs); err != nil {
 			// logging is most we can do here. This is a programming error if it happens.
 			log.Info("cannot list in CompositionRevision handler", "type", schema.GroupVersionKind(of).String(), "error", err)
 			return
