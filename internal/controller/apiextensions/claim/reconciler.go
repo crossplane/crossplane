@@ -411,7 +411,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 			if meta.WasDeleted(xr) && requiresForegroundDeletion {
 				log.Debug("Waiting for the XR to finish deleting (foreground deletion)")
-				return reconcile.Result{Requeue: true}, nil
+				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
 			do := &client.DeleteOptions{}
 			if requiresForegroundDeletion {
