@@ -7,11 +7,27 @@
 ## Background
 
 ### Desired Behavior
-Composition Function authors should be able to communicate with users. 
-Topics of communication include:
-- The status of underlying resources.
-- Errors that need to be resolved by the user.
-- Internal errors.
+Composition Function authors should be able to communicate and translate
+the underlying status with users.
+
+#### Managed Resource Status
+We think authors often won't want to surface the status as it appear on an MR,
+but will probably want to derive more user-friendly messages from it. Messages 
+that are more meaningful to folks reading claims.
+
+Some examples include:
+- The external system for an MR is unreachable.
+- The MR is incorrectly configured.
+- The MR is being created, updated, etc.
+
+#### Internal Errors
+We think authors may want to have a catch-all Internal Error
+message. Authors should be able to display the real error on the XR and provide
+a basic "Internal Error" message on the Claim.
+
+Currently internal errors often leave the Claim in a "Waiting" state. It would
+be nice to notify the user that an internal error was encountered, and that the
+team has been notified by an alert.
 
 ### Existing Behavior
 
@@ -50,53 +66,119 @@ There are a couple issues with this solution.
 - There is an existing field that would be more intuitive to use as it is
   already performing this same task for Crossplane itself (`status.conditions`).
 
-## Proposal
-Allow the Composition Function author to set conditions inside the Claim's
-`status.conditions` field.
+#### Setting the Composite's Status Conditions
+Currently you can update the Composite's status conditions by setting them with
+SetDesiredCompositeResource.
+There are a couple of limitations to this:
+- it only shows up on the XR
+- it only shows up if there are no fatal results
 
-From the Function author's perspective, they would just need to update the
-desired XR as follows:
+Example of setting the Composite's status conditions.
 ```go
-  // includes:
-  //    corev1 "k8s.io/api/core/v1"
-  //    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-  //    xpv1   "github.com/crossplane/crossplane-runtime/apis/common/v1"
-  // 
-  //    "github.com/crossplane/function-sdk-go/response"
-  desiredXR, err := request.GetDesiredCompositeResource(req)
-  c := xpv1.Condition{
-      Type:               xpv1.ConditionType("ImageReady"),
-      Status:             corev1.ConditionFalse,
-      LastTransitionTime: metav1.Now(),
-      Reason:             "NotFound",
-      Message:            "The image provided does not exist or you are not "+
-                          "authorized to use it.",
-  }
-  desiredXR.Resource.SetConditions(c)
-  response.SetDesiredCompositeResource(rsp, desiredXR)
+// includes:
+//    corev1 "k8s.io/api/core/v1"
+//    metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+//    xpv1   "github.com/crossplane/crossplane-runtime/apis/common/v1"
+// 
+//    "github.com/crossplane/function-sdk-go/response"
+desiredXR, err := request.GetDesiredCompositeResource(req)
+c := xpv1.Condition{
+    Type:               xpv1.ConditionType("ImageReady"),
+    Status:             corev1.ConditionFalse,
+    LastTransitionTime: metav1.Now(),
+    Reason:             "NotFound",
+    Message:            "The image provided does not exist or you are not "+
+                        "authorized to use it.",
+}
+desiredXR.Resource.SetConditions(c)
+response.SetDesiredCompositeResource(rsp, desiredXR)
 ```
 
-Technically the behavior above is currently supported, though it has a couple
-limitations in its current form.
-- it only updates the XR's conditions (not the Claim)
-- it only updates if there were no fatal results returned by the function
+## Proposal
+We would like to allow the Composition Function author to:
+- Choose where results go (Claim or XR)
+- Allow results to update the Status Conditions of the XR and Claim
 
-After implementing the proposed solution, these conditions would be seen on the
-Claim as well as the XR.
-Additionally, these conditions would also be seen when encountering a fatal
-result.
+The following sections get into the details of each of the above items.
 
-## Required Changes
-From the Crossplane side, the flow will look like this:
-- Always copy \*custom `status.conditions` from the desired XR to the XR itself,
-  even when a fatal result is encountered.
-- Copy \*custom `status.conditions` from the XR to the Claim
-- Clean up any \*custom `status.condtions` from the Claim that were not seen
-  from the most recent XR.
+### Choose Where Results Go
+Currently each result returned by a function will create a corresponding
+event on the XR (if no previous fatal result exist).
 
-*\* Custom conditions: Any condition that is not of type `Ready` or `Synced`.
-`Ready` and `Synced` are used internally by Crossplane, so we will not allow
-Function authors to override these.*
+We can expand this functionality by allowing the Result to have targets. In
+order to accomplish this, we will need to expand the Result API as follows.
+```protobuf
+message Result {
+  // Omitted for brevity
+
+  Target target = 3;
+}
+
+// Target of Function results.
+enum Target {
+  TARGET_UNSPECIFIED = 0;
+  TARGET_COMPOSITE_ONLY = 1;
+  TARGET_COMPOSITE_AND_CLAIM = 2;
+}
+```
+The reason for having `TARGET_COMPOSITE_AND_CLAIM` and not `TARGET_CLAIM` is an
+implementation limitation. This prevents more involved API changes, and this
+is also consistent with existing behavior (func copies to XR, Crossplane copies
+XR to Claim).
+
+An example of a function using this behavior to create events for both the
+Composite and Claim:
+```go
+// rb "github.com/crossplane/function-sdk-go/response/result/builder"
+// var messageUnauthorized = errors.New("You are unauthorized to access this reasource.")
+result := rb.Fatal(messageUnauthorized).
+  TargetCompositeAndClaim().
+  Build()
+response.AddResult(rsp, result)
+```
+
+### Allow Results to Set a Condition
+We would like the function author to be able to set the Claim's status
+conditions. This would allow the function author to clearly communicate the
+state of the Claim with their users.
+
+To allow the setting of conditions in the result, we will need to expand the
+Result API as follows.
+```protobuf
+message Result {
+  // Omitted for brevity
+
+  // Optionally update the supplied status condition on all targets.
+  // The result's reason and message will be used in the condition.
+  optional Condition condition = 4;
+}
+
+message Condition {
+  // Type of the condition, e.g. DatabaseReady.
+  // 'Ready' and 'Synced' are reserved for use by Crossplane.
+  string type = 1;
+
+  // Status of the condition.
+  Status status = 2;
+
+  // Machine-readable PascalCase reason.
+  string reason = 3;
+}
+```
+
+An example of a function utilizing this new ability:
+```go
+// rb "github.com/crossplane/function-sdk-go/response/result/builder"
+// corev1 "k8s.io/api/core/v1"
+// const databaseReady = "DatabaseReady"
+// const reasonUnauthorized = "Unauthorized"
+// var messageUnauthorized = errors.New("You are unauthorized to access this reasource.")
+result := rb.Fatal(messageUnauthorized).
+  TargetCompositeAndClaim().
+  WithCondition(databaseReady, corev1.ConditionFalse, reasonUnauthorized).
+  Build()
+response.AddResult(rsp, result)
+```
 
 ## Advanced Usage Example
 Lets say we are a team of platform engineers who have a Crossplane offering.
@@ -131,11 +213,6 @@ status:
     reason: NotFound
     message: The image provided does not exist or you are not authorized to use
              it.
-  - type: AppReady
-    status: Unknown
-    reason: PreviousErrors
-    message: There were previous errors which prevented us from updating this
-             condition.
 ```
 #### Progressing
 All is fine and the application is progressing but not yet fully online.
@@ -174,40 +251,6 @@ status:
     status: True
     reason: Available
 ```
-
-### Team Implementation
-To accomplish this behavior, the team would need to configure their function
-pipeline to have the following behavior.
-1. The first step of the pipeline must always "reserve" the expected
-  `status.conditions` on the desired XR. In this example above, this would be to
-  create an entry for all three condition types (`DatabaseReady`, `ImageReady`,
-  `AppReady`) and set each to a default of:
-  ```yaml
-    - type: <type>
-      status: Unknown
-      reason: PreviousErrors
-      message: There were previous errors which prevented us from updating this
-               condition.
-  ```
-  This is required in the case that we exit early due to an error. If we did not
-  pre-populate this and we hit an error before creating an entry, the Claim will
-  remove that condition from it's status, assuming the condition is no longer
-  desired.
-1. As we reach points in the function where we wish to update a specific
-  condition, we can do so.
-  ```go
-  c := xpv1.Condition{...}
-  desiredXR.Resource.SetConditions(c)
-  response.SetDesiredCompositeResource(rsp, desiredXR)
-  ```
-
-## Alternatives Considered
-
-### Events
-In our search for providing communication to the Claim, we considered giving
-Composition Function authors the ability to send events to the Claim, however,
-we believe the proposal above is preferred as it provides the ability to
-communicate with users in a more structured way.
 
 ## Further Reading
 - [k8s typical status properties](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties)
