@@ -51,10 +51,15 @@ import (
 
 type MockEngine struct {
 	ControllerEngine
-	MockCreate func(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
-	MockStart  func(name string, o kcontroller.Options, w ...controller.Watch) error
-	MockStop   func(name string)
-	MockErr    func(name string) error
+	MockIsRunning func(name string) bool
+	MockCreate    func(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
+	MockStart     func(name string, o kcontroller.Options, w ...controller.Watch) error
+	MockStop      func(name string)
+	MockErr       func(name string) error
+}
+
+func (m *MockEngine) IsRunning(name string) bool {
+	return m.MockIsRunning(name)
 }
 
 func (m *MockEngine) Create(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error) {
@@ -567,7 +572,8 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr: func(_ string) error { return nil },
+						MockIsRunning: func(_ string) bool { return false },
+						MockErr:       func(_ string) error { return nil },
 						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
 							return nil, errBoom
 						},
@@ -627,7 +633,8 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr: func(_ string) error { return errBoom }, // This error should only be logged.
+						MockIsRunning: func(_ string) bool { return false },
+						MockErr:       func(_ string) error { return errBoom }, // This error should only be logged.
 						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
 							return mockNamedController{
 								MockStart: func(_ context.Context) error { return nil },
@@ -728,6 +735,67 @@ func TestReconcile(t *testing.T) {
 							}, nil
 						},
 						MockStop: func(_ string) {},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"NotRestartingWithoutVersionChange": {
+			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+			args: args{
+				mgr: &mockManager{
+					GetCacheFn: func() cache.Cache {
+						return &mockCache{
+							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
+						}
+					},
+					GetClientFn: func() client.Client {
+						return &test.MockClient{MockList: test.NewMockListFn(nil)}
+					},
+					GetSchemeFn: runtime.NewScheme,
+					GetRESTMapperFn: func() meta.RESTMapper {
+						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
+					},
+				},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.CompositeResourceDefinition{}
+								want.Status.SetConditions(v1.WatchingComposite())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					}),
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{
+							Status: extv1.CustomResourceDefinitionStatus{
+								Conditions: []extv1.CustomResourceDefinitionCondition{
+									{Type: extv1.Established, Status: extv1.ConditionTrue},
+								},
+							},
+						}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithControllerEngine(&MockEngine{
+						MockIsRunning: func(_ string) bool { return true },
+						MockErr:       func(_ string) error { return errBoom }, // This error should only be logged.
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+							t.Errorf("MockCreate should not be called")
+							return nil, nil
+						},
 					}),
 				},
 			},
