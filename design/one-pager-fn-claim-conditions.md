@@ -169,13 +169,12 @@ message Condition {
 An example of a function utilizing this new ability:
 ```go
 // rb "github.com/crossplane/function-sdk-go/response/result/builder"
-// corev1 "k8s.io/api/core/v1"
 // const databaseReady = "DatabaseReady"
 // const reasonUnauthorized = "Unauthorized"
 // var messageUnauthorized = errors.New("You are unauthorized to access this resource.")
 result := rb.Fatal(messageUnauthorized).
   TargetCompositeAndClaim().
-  WithCondition(databaseReady, corev1.ConditionFalse, reasonUnauthorized).
+  WithConditionFalse(databaseReady, reasonUnauthorized).
   Build()
 response.AddResult(rsp, result)
 ```
