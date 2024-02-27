@@ -130,7 +130,7 @@ An example of a function using this behavior to create events for both the
 Composite and Claim:
 ```go
 // rb "github.com/crossplane/function-sdk-go/response/result/builder"
-// var messageUnauthorized = errors.New("You are unauthorized to access this reasource.")
+// var messageUnauthorized = errors.New("You are unauthorized to access this resource.")
 result := rb.Fatal(messageUnauthorized).
   TargetCompositeAndClaim().
   Build()
@@ -172,7 +172,7 @@ An example of a function utilizing this new ability:
 // corev1 "k8s.io/api/core/v1"
 // const databaseReady = "DatabaseReady"
 // const reasonUnauthorized = "Unauthorized"
-// var messageUnauthorized = errors.New("You are unauthorized to access this reasource.")
+// var messageUnauthorized = errors.New("You are unauthorized to access this resource.")
 result := rb.Fatal(messageUnauthorized).
   TargetCompositeAndClaim().
   WithCondition(databaseReady, corev1.ConditionFalse, reasonUnauthorized).
