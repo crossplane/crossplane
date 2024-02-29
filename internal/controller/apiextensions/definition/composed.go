@@ -20,6 +20,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -63,7 +64,9 @@ type composedResourceInformers struct {
 	// composites referencing a certain composed resource GVK. If no composite
 	// is left doing so, a composed resource informer is stopped.
 	xrCaches map[schema.GroupVersionKind]cache.Cache
-	sinks    map[string]func(ev runtimeevent.UpdateEvent) // by some uid
+	// xrCachesSynced holds the composite resource informers sync state.
+	xrCachesSynced map[schema.GroupVersionKind]bool
+	sinks          map[string]func(ev runtimeevent.UpdateEvent) // by some uid
 }
 
 type cdCache struct {
@@ -105,23 +108,51 @@ func (i *composedResourceInformers) Start(ctx context.Context, h handler.EventHa
 
 // RegisterComposite registers a composite resource cache with its GVK.
 // Instances of this GVK will be considered to keep composed resource informers
-// alive.
-func (i *composedResourceInformers) RegisterComposite(gvk schema.GroupVersionKind, ca cache.Cache) {
+// alive as soon as the cache syncs. This method does not block.
+func (i *composedResourceInformers) RegisterComposite(gvk schema.GroupVersionKind, xrCache cache.Cache) {
+	i.log.Debug("Registering composite resource cache. Waiting for sync", "gvk", gvk.String())
+
 	i.lock.Lock()
 	defer i.lock.Unlock()
+
+	startAt := time.Now()
 
 	if i.xrCaches == nil {
 		i.xrCaches = make(map[schema.GroupVersionKind]cache.Cache)
 	}
-	i.xrCaches[gvk] = ca
+	i.xrCaches[gvk] = xrCache
+	if i.xrCachesSynced[gvk] {
+		i.log.Debug("Unmatched RegisterComposite call. Should be unregistred first", "gvk", gvk.String())
+		delete(i.xrCachesSynced, gvk)
+	}
+
+	// Asynchronously mark the cache as synced. We won't list XRs before this
+	// happens. We delay composite informer deletion by at least
+	// minTimeToKeepAlive such that there is time to sync.
+	go func() {
+		if xrCache.WaitForCacheSync(context.Background()) {
+			i.lock.Lock()
+			defer i.lock.Unlock()
+			if ca, ok := i.xrCaches[gvk]; ok && ca == xrCache {
+				i.log.Debug("Composite resource cache seen synced", "gvk", gvk.String(), "after", time.Since(startAt))
+				if i.xrCachesSynced == nil {
+					i.xrCachesSynced = make(map[schema.GroupVersionKind]bool)
+				}
+				i.xrCachesSynced[gvk] = true
+			}
+		}
+	}()
 }
 
 // UnregisterComposite removes a composite resource cache from being considered
 // to keep composed resource informers alive.
 func (i *composedResourceInformers) UnregisterComposite(gvk schema.GroupVersionKind) {
+	i.log.Debug("Unregistering composite resource cache", "gvk", gvk.String())
+
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	delete(i.xrCaches, gvk)
+	delete(i.xrCachesSynced, gvk)
 }
 
 // WatchComposedResources starts informers for the given composed resource GVKs.
@@ -226,7 +257,9 @@ func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context
 	xrCaches := make(map[schema.GroupVersionKind]cache.Cache, len(i.xrCaches))
 	i.lock.RLock()
 	for gvk, ca := range i.xrCaches {
-		xrCaches[gvk] = ca
+		if i.xrCachesSynced[gvk] {
+			xrCaches[gvk] = ca
+		}
 	}
 	i.lock.RUnlock()
 
