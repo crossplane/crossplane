@@ -1,0 +1,51 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xparents.example.org
+spec:
+  defaultCompositionRef:
+    name: parent
+  group: example.org
+  names:
+    kind: XParent
+    plural: xparents
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                someField:
+                  # no limits on its value
+                  type: integer
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xchildren.example.org
+spec:
+  defaultCompositionRef:
+    name: child
+  group: example.org
+  names:
+    kind: XChild
+    plural: xchildren
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                someField:
+                  minimum: 2
+                  type: integer
