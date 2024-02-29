@@ -20,6 +20,7 @@ package composite
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -228,15 +229,29 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// WithPollInterval specifies how long the Reconciler should wait before queueing
-// a new reconciliation after a successful reconcile. The Reconciler requeues
-// after a specified duration when it is not actively waiting for an external
-// operation, but wishes to check whether resources it does not have a watch on
-// (i.e. composed resources) need to be reconciled.
-func WithPollInterval(after time.Duration) ReconcilerOption {
+// A PollIntervalHook determines how frequently the XR should poll its composed
+// resources.
+type PollIntervalHook func(ctx context.Context, xr *composite.Unstructured) time.Duration
+
+// WithPollIntervalHook specifies how to determine how long the Reconciler
+// should wait before queueing a new reconciliation after a successful
+// reconcile.
+func WithPollIntervalHook(h PollIntervalHook) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.pollInterval = after
+		r.pollInterval = h
 	}
+}
+
+// WithPollInterval specifies how long the Reconciler should wait before
+// queueing a new reconciliation after a successful reconcile. The Reconciler
+// uses the interval jittered +/- 10% when all composed resources are ready. It
+// polls twice as frequently (i.e. at half the supplied interval) +/- 10% when
+// waiting for composed resources to become ready.
+func WithPollInterval(interval time.Duration) ReconcilerOption {
+	return WithPollIntervalHook(func(_ context.Context, _ *composite.Unstructured) time.Duration {
+		// Jitter the poll interval +/- 10%.
+		return interval + time.Duration((rand.Float64()-0.5)*2*(float64(interval)*0.1)) //nolint:gosec // No need for secure randomness
+	})
 }
 
 // WithClient specifies how the Reconciler should interact with the Kubernetes
@@ -421,7 +436,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 
-		pollInterval: defaultPollInterval,
+		pollInterval: func(_ context.Context, _ *composite.Unstructured) time.Duration { return defaultPollInterval },
 	}
 
 	for _, f := range opts {
@@ -448,7 +463,7 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	pollInterval time.Duration
+	pollInterval PollIntervalHook
 }
 
 // Reconcile a composite resource.
@@ -678,9 +693,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		for i, cd := range unready {
 			names[i] = string(cd.ResourceName)
 		}
-		// sort for stable condition messages. With functions, we don't have a
+		// Sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.
 		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
+
+		// This requeue is subject to rate limiting. Requeues will exponentially
+		// backoff from 1 to 30 seconds. See the 'definition' (XRD) reconciler
+		// that sets up the ratelimiter.
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -688,7 +707,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// resources - we can't know what type of resources we might compose
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	return reconcile.Result{RequeueAfter: r.pollInterval(ctx, xr)}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 }
 
 // EnqueueForCompositionRevisionFunc returns a function that enqueues (the
