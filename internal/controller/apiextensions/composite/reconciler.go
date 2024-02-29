@@ -677,9 +677,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if !cd.Synced {
-			log.Debug("Composed resource is not yet synced", "id", id)
+			log.Debug("Composed resource is not yet valid", "id", id)
 			unsynced = append(unsynced, cd)
-			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet synced", id)))
+			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet valid", id)))
 			continue
 		}
 
