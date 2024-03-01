@@ -202,12 +202,6 @@ func (e *Environment) getSuiteInstallOpts(suite string, extra ...helm.Option) []
 	return append(opts, extra...)
 }
 
-// GetSelectedSuiteInstallOpts returns the helm install options for the
-// selected suite, appending additional specified ones.
-func (e *Environment) GetSelectedSuiteInstallOpts(extra ...helm.Option) []helm.Option {
-	return e.getSuiteInstallOpts(e.selectedTestSuite.String(), extra...)
-}
-
 // AddTestSuite adds a new test suite, panics if already defined.
 func (e *Environment) AddTestSuite(name string, opts ...TestSuiteOpt) {
 	if _, ok := e.suites[name]; ok {
@@ -251,28 +245,6 @@ func WithHelmInstallOpts(opts ...helm.Option) TestSuiteOpt {
 	return func(suite *testSuite) {
 		suite.helmInstallOpts = append(suite.helmInstallOpts, opts...)
 	}
-}
-
-// WithConditionalEnvSetupFuncs sets the provided testSuite to include the
-// provided env setup funcs, if the condition is true, when evaluated.
-func WithConditionalEnvSetupFuncs(condition func() bool, funcs ...env.Func) TestSuiteOpt {
-	return func(suite *testSuite) {
-		suite.additionalSetupFuncs = append(suite.additionalSetupFuncs, conditionalSetupFunc{condition, funcs})
-	}
-}
-
-// HelmOptions valid for installing and upgrading the Crossplane Helm chart.
-// Used to install Crossplane before any test starts, but some tests also use
-// these options - for example to reinstall Crossplane with a feature flag
-// enabled.
-func (e *Environment) HelmOptions(extra ...helm.Option) []helm.Option {
-	return append(e.GetSelectedSuiteInstallOpts(), extra...)
-}
-
-// HelmOptionsToSuite returns the Helm options for the specified suite,
-// appending additional specified ones.
-func (e *Environment) HelmOptionsToSuite(suite string, extra ...helm.Option) []helm.Option {
-	return append(e.getSuiteInstallOpts(suite), extra...)
 }
 
 // ShouldInstallCrossplane returns true if the test should install Crossplane

@@ -618,55 +618,6 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 	}
 }
 
-// CompositeResourceMustMatchWithin assert that a composite referred by the given file
-// must be matched by the given function within the given timeout
-func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, match func(xr *composite.Unstructured) bool) features.Func {
-	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		cm := &claim.Unstructured{}
-
-		if err := decoder.DecodeFile(os.DirFS(dir), claimFile, cm); err != nil {
-			t.Error(err)
-			return ctx
-		}
-
-		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
-			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
-			return ctx
-		}
-
-		xrRef := cm.GetResourceReference()
-
-		list := &unstructured.UnstructuredList{}
-
-		uxr := unstructured.Unstructured{}
-		uxr.SetName(xrRef.Name)
-		uxr.SetNamespace(xrRef.Namespace)
-		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
-
-		list.Items = append(list.Items, uxr)
-
-		count := atomic.Int32{}
-		m := func(o k8s.Object) bool {
-			count.Add(1)
-			u := asUnstructured(o)
-			return match(&composite.Unstructured{Unstructured: *u})
-		}
-
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil && count.Load() > 0 {
-			t.Errorf("composite %s did not match the condition before timeout (%s): %s\n\n", identifier(&uxr), d.String(), err)
-			return ctx
-		}
-
-		if count.Load() == 0 {
-			t.Errorf("there were composite resource %s", identifier(&uxr))
-			return ctx
-		}
-
-		t.Logf("composite resource %s matched", identifier(&uxr))
-		return ctx
-	}
-}
-
 // CompositeResourceHasFieldValueWithin asserts that the XR referred to by the
 // claim in the given file has the specified value at the specified path within
 // the specified time.
