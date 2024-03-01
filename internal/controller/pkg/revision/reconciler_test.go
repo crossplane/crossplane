@@ -104,10 +104,6 @@ func NewMockPostFn(err error) func() error {
 	return func() error { return err }
 }
 
-func NewMockDeactivateFn(err error) func() error {
-	return func() error { return err }
-}
-
 func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
 	return h.MockPre()
 }

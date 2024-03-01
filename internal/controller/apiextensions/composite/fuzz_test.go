@@ -21,9 +21,7 @@ import (
 	"testing"
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 
@@ -146,13 +144,4 @@ func FuzzTransform(f *testing.F) {
 
 		_, _ = Resolve(*t, i)
 	})
-}
-
-func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
-	obj := make(map[string]interface{})
-	err := yaml.Unmarshal([]byte(yamlStr), &obj)
-	if err != nil {
-		return nil, err
-	}
-	return &unstructured.Unstructured{Object: obj}, nil
 }
