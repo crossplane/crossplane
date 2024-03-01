@@ -37,11 +37,6 @@ func NewMockGetVersionStringFn(s string) func() string {
 	return func() string { return s }
 }
 
-// NewMockGetSemVerFn creates new MockGetSemver function for MockVersioner.
-func NewMockGetSemVerFn(s *semver.Version, err error) func() (*semver.Version, error) {
-	return func() (*semver.Version, error) { return s, err }
-}
-
 // NewMockInConstraintsFn creates new MockInConstraintsString function for MockVersioner.
 func NewMockInConstraintsFn(b bool, err error) func() (bool, error) {
 	return func() (bool, error) { return b, err }
