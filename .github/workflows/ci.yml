@@ -246,6 +246,7 @@ jobs:
           - environment-configs
           - usage
           - ssa-claims
+          - cached-compositions
 
     steps:
       - name: Setup QEMU

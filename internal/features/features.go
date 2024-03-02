@@ -45,6 +45,12 @@ const (
 	// the claim controller. See the below issue for more details:
 	// https://github.com/crossplane/crossplane/issues/4581
 	EnableAlphaClaimSSA feature.Flag = "EnableAlphaClaimSSA"
+
+	// EnableAlphaCachedCompositions enables alpha support for caching claims,
+	// composite resources (XRs), and composed resources in the composition
+	// controllers.
+	// See https://github.com/crossplane/crossplane/issues/5338 for details.
+	EnableAlphaCachedCompositions feature.Flag = "EnableAlphaCachedCompositions"
 )
 
 // Beta Feature Flags
