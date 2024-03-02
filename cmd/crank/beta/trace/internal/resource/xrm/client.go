@@ -22,9 +22,11 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -35,7 +37,8 @@ import (
 
 // Client to get a Resource with all its children.
 type Client struct {
-	getConnectionSecrets bool
+	getConnectionSecrets     bool
+	setKnownResourceChildren bool
 
 	client client.Client
 }
@@ -47,6 +50,13 @@ type ResourceClientOption func(*Client)
 func WithConnectionSecrets(v bool) ResourceClientOption {
 	return func(c *Client) {
 		c.getConnectionSecrets = v
+	}
+}
+
+// WithKnownResourceChildren is a functional option that sets the client to get known resource children to the desired value.
+func WithKnownResourceChildren(v bool) ResourceClientOption {
+	return func(c *Client) {
+		c.setKnownResourceChildren = v
 	}
 }
 
@@ -75,6 +85,19 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 		res := queue[0]
 		queue = queue[1:]
 
+		if kc.setKnownResourceChildren {
+			// We didn't get any reference for this resource, so either it's an
+			// MR or an XR with no composed resources (yet).
+			// In the former case, we could still want to show some useful info
+			// as children.
+			// NOTE(phisco): We don't want to actually fetch them in this case,
+			//   as these could either not exist at all, e.g. some kind of fake
+			//   placeholder resource, or just be unreachable, e.g. in a
+			//   different Kubernetes cluster. So we just add them as children
+			//   instead of adding them to the refs below.
+			res.Children = getKnownResourceChildren(res)
+		}
+
 		refs := getResourceChildrenRefs(res, kc.getConnectionSecrets)
 
 		for i := range refs {
@@ -86,6 +109,29 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 	}
 
 	return root, nil
+}
+
+// getKnownResourceChildren returns children for known resources.
+func getKnownResourceChildren(res *resource.Resource) (children []*resource.Resource) {
+	gvk := res.Unstructured.GroupVersionKind()
+	switch {
+	// provider-kubernetes Objects, we want to show the manifest as a child
+	case gvk.GroupKind() == schema.GroupKind{Group: "kubernetes.crossplane.io", Kind: "Object"}:
+		o := map[string]interface{}{}
+		p := fieldpath.Pave(res.Unstructured.Object)
+		err := p.GetValueInto("status.atProvider.manifest", &o)
+		if err != nil {
+			// If there is no status, we fall back at the spec definition
+			err = p.GetValueInto("spec.forProvider.manifest", &o)
+		}
+		if err == nil {
+			children = append(children, &resource.Resource{Unstructured: unstructured.Unstructured{Object: o}})
+		}
+	default:
+		// not a known resource, so we don't have any children
+		return nil
+	}
+	return children
 }
 
 // getResourceChildrenRefs returns the references to the children for the given

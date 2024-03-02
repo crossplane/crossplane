@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)
@@ -81,7 +81,7 @@ func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
 
 func TestGetResourceChildrenRefs(t *testing.T) {
 	type args struct {
-		resource   *resource2.Resource
+		resource   *resource.Resource
 		witSecrets bool
 	}
 	type want struct {
@@ -95,7 +95,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		"XRCWithChildrenXR": {
 			reason: "Should return the XR child for an XRC.",
 			args: args{
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCRef(&v1.ObjectReference{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
@@ -116,7 +116,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 		"XRWithChildren": {
 			reason: "Should return the list of children refs for an XR.",
 			args: args{
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXR("root-xr", withXRRefs(v1.ObjectReference{
 						APIVersion: "example.com/v1",
 						Kind:       "MR",
@@ -168,7 +168,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return the XR child, but no writeConnectionSecret ref for an XRC.",
 			args: args{
 				witSecrets: true,
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&v1.ObjectReference{
@@ -198,7 +198,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return the XR child, but no writeConnectionSecret, ref for an XRC.",
 			args: args{
 				witSecrets: false,
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
 					}), withXRCRef(&v1.ObjectReference{
@@ -222,7 +222,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return a list of children refs for an XR.",
 			args: args{
 				witSecrets: true,
-				resource: &resource2.Resource{
+				resource: &resource.Resource{
 					Unstructured: *buildXR("root-xr", withXRSecretRef(&xpv1.SecretReference{
 						Name:      "secret-1",
 						Namespace: "ns-1",
@@ -288,6 +288,149 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 				return strings.Compare(r1.String(), r2.String()) < 0
 			})); diff != "" {
 				t.Errorf("\n%s\ngetResourceChildrenRefs(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetKnownResourceChildren(t *testing.T) {
+	type args struct {
+		resource *resource.Resource
+	}
+	type want struct {
+		children []*resource.Resource
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"UnknownResource": {
+			reason: "Should return nil for an unknown resource.",
+			args: args{
+				resource: &resource.Resource{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.com/v1",
+							"kind":       "Unknown",
+							"metadata": map[string]interface{}{
+								"name":      "unknown",
+								"namespace": "ns-1",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				children: nil,
+			},
+		},
+		"ProviderKubernetesObjectWithStatus": {
+			reason: "Should return the manifest in the status for a provider kubernetes Object.",
+			args: args{
+				resource: &resource.Resource{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "kubernetes.crossplane.io/v1",
+							"kind":       "Object",
+							"spec": map[string]interface{}{
+								"forProvider": map[string]interface{}{
+									"manifest": map[string]interface{}{
+										"apiVersion": "v1",
+										"kind":       "ConfigMap",
+										"metadata": map[string]interface{}{
+											"name":      "configmap-1",
+											"namespace": "ns-1",
+										},
+									},
+								},
+							},
+							"status": map[string]interface{}{
+								"atProvider": map[string]interface{}{
+									"manifest": map[string]interface{}{
+										"apiVersion": "v1",
+										"kind":       "ConfigMap",
+										"metadata": map[string]interface{}{
+											"name":      "configmap-1",
+											"namespace": "ns-1",
+											"labels": map[string]interface{}{
+												"want": "this",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				children: []*resource.Resource{
+					{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"metadata": map[string]interface{}{
+									"name":      "configmap-1",
+									"namespace": "ns-1",
+									"labels": map[string]interface{}{
+										"want": "this",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"ProviderKubernetesObjectWithSpec": {
+			reason: "Should return the manifest in the status for a provider kubernetes Object.",
+			args: args{
+				resource: &resource.Resource{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "kubernetes.crossplane.io/v1",
+							"kind":       "Object",
+							"spec": map[string]interface{}{
+								"forProvider": map[string]interface{}{
+									"manifest": map[string]interface{}{
+										"apiVersion": "v1",
+										"kind":       "ConfigMap",
+										"metadata": map[string]interface{}{
+											"name":      "configmap-1",
+											"namespace": "ns-1",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				children: []*resource.Resource{
+					{
+						Unstructured: unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"metadata": map[string]interface{}{
+									"name":      "configmap-1",
+									"namespace": "ns-1",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := getKnownResourceChildren(tc.args.resource)
+			if diff := cmp.Diff(tc.want.children, got, cmpopts.IgnoreUnexported(resource.Resource{})); diff != "" {
+				t.Errorf("\n%s\ngetKnownResourceChildren(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
