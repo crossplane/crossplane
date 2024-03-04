@@ -188,7 +188,7 @@ type CompositeResourceDefinitionStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	// +optional
-	Conditions []xpv1.Condition `json:"claimConditions,omitempty"`
+	ClaimConditions []xpv1.Condition `json:"claimConditions,omitempty"`
 
 	// Controllers represents the status of the controllers that power this
 	// composite resource definition.

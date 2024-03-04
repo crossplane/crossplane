@@ -70,12 +70,10 @@ const reconcilePausedMsg = "Reconciliation (including deletion) is paused via th
 
 // Event reasons.
 const (
-	reasonBind          event.Reason = "BindCompositeResource"
-	reasonDelete        event.Reason = "DeleteCompositeResource"
-	reasonPropagate     event.Reason = "PropagateConnectionSecret"
-	reasonPaused        event.Reason = "ReconciliationPaused"
-	reasonFnFailure     event.Reason = "CompositionFunctionFailure"
-	reasonFnProgressing event.Reason = "CompositionFunctionProgressing"
+	reasonBind      event.Reason = "BindCompositeResource"
+	reasonDelete    event.Reason = "DeleteCompositeResource"
+	reasonPropagate event.Reason = "PropagateConnectionSecret"
+	reasonPaused    event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -497,9 +495,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
-		cm.SetConditions(Waiting())
 		// We should be watching the composite resource and will have a
 		// request queued if it changes, so no need to requeue.
+		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 

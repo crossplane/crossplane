@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -86,14 +85,12 @@ const (
 
 // Event reasons.
 const (
-	reasonResolve       event.Reason = "SelectComposition"
-	reasonCompose       event.Reason = "ComposeResources"
-	reasonPublish       event.Reason = "PublishConnectionSecret"
-	reasonInit          event.Reason = "InitializeCompositeResource"
-	reasonDelete        event.Reason = "DeleteCompositeResource"
-	reasonPaused        event.Reason = "ReconciliationPaused"
-	reasonFnFailure     event.Reason = "CompositionFunctionFailure"
-	reasonFnProgressing event.Reason = "CompositionFunctionProgressing"
+	reasonResolve event.Reason = "SelectComposition"
+	reasonCompose event.Reason = "ComposeResources"
+	reasonPublish event.Reason = "PublishConnectionSecret"
+	reasonInit    event.Reason = "InitializeCompositeResource"
+	reasonDelete  event.Reason = "DeleteCompositeResource"
+	reasonPaused  event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -191,10 +188,7 @@ type CompositionRequest struct {
 	Environment *Environment
 }
 
-type Severity string
-
-const ()
-
+// FunctionCondition represents a condition returned by a Composition Function
 type FunctionCondition struct {
 	xpv1.Condition `json:",inline"`
 	// we need severity so we know what level to emit the corresponding event as
@@ -819,43 +813,6 @@ func recordEvents(r *Reconciler, log logging.Logger, o runtime.Object, events []
 		if o != nil {
 			r.record.Event(o, e)
 		}
-	}
-}
-
-// IsFunctionCondition returns true if the condition refers to a Composition Function
-func IsFunctionCondition(c xpv1.Condition) bool {
-	return IsFunctionFailure(c) || IsFunctionProgressing(c)
-}
-
-// IsFunctionFailure returns true if the condition refers to a Composition Function failure
-func IsFunctionFailure(c xpv1.Condition) bool {
-	return c.Reason == xpv1.ConditionReason(reasonFnFailure)
-}
-
-// IsFunctionProgressing returns true if the condition refers to Composition Function progress
-func IsFunctionProgressing(c xpv1.Condition) bool {
-	return c.Reason == xpv1.ConditionReason(reasonFnProgressing)
-}
-
-// FunctionFailure returns a condition that indicates a failed function pipeline.
-func FunctionFailure(m string) xpv1.Condition {
-	return xpv1.Condition{
-		Type:               xpv1.TypeSynced,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             xpv1.ConditionReason(reasonFnFailure),
-		Message:            m,
-	}
-}
-
-// FunctionProgressing returns a condition that indicates a progressing function pipeline.
-func FunctionProgressing(m string) xpv1.Condition {
-	return xpv1.Condition{
-		Type:               xpv1.TypeReady,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             xpv1.ConditionReason(reasonFnProgressing),
-		Message:            m,
 	}
 }
 

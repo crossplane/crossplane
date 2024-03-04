@@ -291,11 +291,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		fctx.Fields[FunctionContextKeyEnvironment] = structpb.NewStructValue(e)
 	}
 
-	// TODO dalton: if we have multiple functions, who determines the condition message?
-	// I assume they all share the same message and each can update it as they see fit.
-	// for example, if the function author has 5 functions that create a total of 10 MRs...
-	// they could have a function at the end which computes the condition message of "Creating: Network, Database, Bucket.."
-
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
@@ -399,14 +394,23 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				}
 			}
 
-			if targetsComposite(rs.GetTargets()) {
+			targetsComposite, targetsClaim := false, false
+			for _, t := range rs.GetTargets() {
+				switch t {
+				case v1beta1.Target_TARGET_COMPOSITE, v1beta1.Target_TARGET_UNSPECIFIED:
+					targetsComposite = true
+				case v1beta1.Target_TARGET_CLAIM:
+					targetsClaim = true
+				}
+			}
+			if targetsComposite {
 				if condition != nil {
 					xrConditions[condition.Type] = *condition
 				} else {
 					xrEvents = append(xrEvents, xrEvent(rs, fn.Step))
 				}
 			}
-			if targetsClaim(rs.GetTargets()) {
+			if targetsClaim {
 				if condition != nil {
 					cmConditions[condition.Type] = *condition
 				} else {
@@ -843,24 +847,6 @@ func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired Compose
 	})
 
 	xr.SetResourceReferences(refs)
-}
-
-func targetsClaim(targets []v1beta1.Target) bool {
-	for _, t := range targets {
-		if t == v1beta1.Target_TARGET_CLAIM {
-			return true
-		}
-	}
-	return false
-}
-
-func targetsComposite(targets []v1beta1.Target) bool {
-	for _, t := range targets {
-		if t == v1beta1.Target_TARGET_UNSPECIFIED || t == v1beta1.Target_TARGET_COMPOSITE {
-			return true
-		}
-	}
-	return false
 }
 
 func xrEvent(rs *v1beta1.Result, step string) event.Event {
