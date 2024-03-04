@@ -104,23 +104,23 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (war
 }
 
 // ValidateUpdate implements the same logic as ValidateCreate.
-func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object) (warns admission.Warnings, err error) {
+func (v *validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (warns admission.Warnings, err error) {
 	// Validate the update
-	oldObj, ok := old.(*v1.CompositeResourceDefinition)
+	oldXRD, ok := oldObj.(*v1.CompositeResourceDefinition)
 	if !ok {
 		return nil, errors.New(errUnexpectedType)
 	}
-	newObj, ok := new.(*v1.CompositeResourceDefinition)
+	newXRD, ok := newObj.(*v1.CompositeResourceDefinition)
 	if !ok {
 		return nil, errors.New(errUnexpectedType)
 	}
 	// Validate the update
-	validationWarns, validationErr := newObj.ValidateUpdate(oldObj)
+	validationWarns, validationErr := newXRD.ValidateUpdate(oldXRD)
 	warns = append(warns, validationWarns...)
 	if validationErr != nil {
 		return validationWarns, validationErr.ToAggregate()
 	}
-	crds, err := getAllCRDsForXRD(newObj)
+	crds, err := getAllCRDsForXRD(newXRD)
 	if err != nil {
 		return warns, xperrors.Wrap(err, "cannot get CRDs for CompositeResourceDefinition")
 	}
@@ -137,7 +137,7 @@ func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object)
 		// which previously did not specify a claim.
 		err := v.dryRunUpdateOrCreateIfNotFound(ctx, crd)
 		if err != nil {
-			return warns, v.rewriteError(err, newObj, crd)
+			return warns, v.rewriteError(err, newXRD, crd)
 		}
 	}
 

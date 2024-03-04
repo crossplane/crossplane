@@ -151,7 +151,6 @@ func TestRender(t *testing.T) {
 					},
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
-
 							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
 								Results: []*fnv1beta1.Result{
 									{
@@ -206,7 +205,6 @@ func TestRender(t *testing.T) {
 					},
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
-
 							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
 								Desired: &fnv1beta1.State{
 									Composite: &fnv1beta1.Resource{
@@ -375,7 +373,6 @@ func TestRender(t *testing.T) {
 					},
 					Functions: []pkgv1beta1.Function{
 						func() pkgv1beta1.Function {
-
 							lis := NewFunction(t, &fnv1beta1.RunFunctionResponse{
 								Desired: &fnv1beta1.State{
 									Composite: &fnv1beta1.Resource{
@@ -739,7 +736,6 @@ func TestRender(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
 			out, err := Render(tc.args.ctx, logging.NewNopLogger(), tc.args.in)
 
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {
@@ -757,6 +753,8 @@ func TestRender(t *testing.T) {
 }
 
 func NewFunction(t *testing.T, rsp *fnv1beta1.RunFunctionResponse) net.Listener {
+	t.Helper()
+
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
@@ -770,6 +768,8 @@ func NewFunction(t *testing.T, rsp *fnv1beta1.RunFunctionResponse) net.Listener 
 }
 
 func NewFunctionWithRunFunc(t *testing.T, runFunc func(context.Context, *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error)) net.Listener {
+	t.Helper()
+
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)

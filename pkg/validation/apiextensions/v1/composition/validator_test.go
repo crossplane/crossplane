@@ -91,7 +91,7 @@ func TestValidatorValidate(t *testing.T) {
 			},
 		},
 		"RejectStrictInvalidFromFieldPath": {
-			reason: "Should reject a Composition with a patch using a field not allowed by the the Composite resource, if all CRDs are found",
+			reason: "Should reject a Composition with a patch using a field not allowed by the Composite resource, if all CRDs are found",
 			want: want{
 				errs: field.ErrorList{
 					{
@@ -320,7 +320,8 @@ func TestValidatorValidate(t *testing.T) {
 							Type:          v1.PatchTypeFromCompositeFieldPath,
 							FromFieldPath: ptr.To("spec.someField"),
 							ToFieldPath:   ptr.To("spec.someOtherField"),
-						}}},
+						}},
+					},
 				), withPatches(0, v1.Patch{
 					Type:         v1.PatchTypePatchSet,
 					PatchSetName: ptr.To("some-patch-set"),
@@ -360,7 +361,8 @@ func TestValidatorValidate(t *testing.T) {
 									},
 								},
 								ToFieldPath: ptr.To("spec.someOtherField"),
-							}}},
+							}},
+						},
 					), withPatches(0, v1.Patch{
 						Type:         v1.PatchTypePatchSet,
 						PatchSetName: ptr.To("some-patch-set"),
@@ -660,8 +662,10 @@ func sortFieldErrors() cmp.Option {
 	})
 }
 
-const testGroup = "resources.test.com"
-const testGroupSingular = "resource.test.com"
+const (
+	testGroup         = "resources.test.com"
+	testGroupSingular = "resource.test.com"
+)
 
 func marshalJSON(t *testing.T, obj interface{}) []byte {
 	t.Helper()

@@ -760,7 +760,9 @@ func WithComposite(_ *testing.T, cr *composite.Unstructured) func(_ context.Cont
 
 // A status update function that ensures the supplied object is the XR we want.
 func WantComposite(t *testing.T, want resource.Composite) func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+	t.Helper()
 	return func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
+		t.Helper()
 		// Normally we use a custom Equal method on conditions to ignore the
 		// lastTransitionTime, but we may be using unstructured types here where
 		// the conditions are just a map[string]any.

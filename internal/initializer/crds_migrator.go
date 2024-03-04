@@ -46,7 +46,7 @@ type CoreCRDsMigrator struct {
 }
 
 // Run applies all CRDs in the given directory.
-func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo // TODO(phisco) refactor
+func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error {
 	var crd extv1.CustomResourceDefinition
 	if err := kube.Get(ctx, client.ObjectKey{Name: c.crdName}, &crd); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -67,7 +67,7 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error { 
 			break
 		}
 	}
-	var resources = unstructured.UnstructuredList{}
+	resources := unstructured.UnstructuredList{}
 	resources.SetGroupVersionKind(schema.GroupVersionKind{
 		Group:   crd.Spec.Group,
 		Version: storageVersion,

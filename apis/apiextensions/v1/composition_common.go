@@ -35,7 +35,7 @@ import (
 	into composition_revision_types.go.
 */
 
-// A CompositionMode determines what mode of Composition is used
+// A CompositionMode determines what mode of Composition is used.
 type CompositionMode string
 
 const (
@@ -63,7 +63,7 @@ type TypeReference struct {
 	Kind string `json:"kind"`
 }
 
-// TypeReferenceTo returns a reference to the supplied GroupVersionKind
+// TypeReferenceTo returns a reference to the supplied GroupVersionKind.
 func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
 	return TypeReference{APIVersion: gvk.GroupVersion().String(), Kind: gvk.Kind}
 }
@@ -146,7 +146,7 @@ func (t *ReadinessCheckType) IsValid() bool {
 }
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
-// for consumption
+// for consumption.
 type ReadinessCheck struct {
 	// TODO(negz): Optional fields should be nil in the next version of this
 	// API. How would we know if we actually wanted to match the empty string,
@@ -174,7 +174,7 @@ type ReadinessCheck struct {
 }
 
 // MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
-// for consumption
+// for consumption.
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
 	// +kubebuilder:default="Ready"
@@ -200,7 +200,7 @@ func (m *MatchConditionReadinessCheck) Validate() *field.Error {
 }
 
 // Validate checks if the readiness check is logically valid.
-func (r *ReadinessCheck) Validate() *field.Error { //nolint:gocyclo // This function is not that complex, just a switch
+func (r *ReadinessCheck) Validate() *field.Error {
 	if !r.Type.IsValid() {
 		return field.Invalid(field.NewPath("type"), string(r.Type), "unknown readiness check type")
 	}

@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // See comment below.
 	// NOTE(hasheddan): we set the logrus package-level logger to discard output
 	// due to the fact that the AWS ECR credential helper uses it to log errors
 	// when parsing registry server URL, which happens any time a package is
@@ -59,7 +59,7 @@ type K8sFetcher struct {
 	userAgent      string
 }
 
-// FetcherOpt can be used to add optional parameters to NewK8sFetcher
+// FetcherOpt can be used to add optional parameters to NewK8sFetcher.
 type FetcherOpt func(k *K8sFetcher) error
 
 // WithCustomCA is a FetcherOpt that can be used to add a custom CA bundle to a K8sFetcher.
@@ -108,9 +108,13 @@ func WithServiceAccount(sa string) FetcherOpt {
 
 // NewK8sFetcher creates a new K8sFetcher.
 func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher, error) {
+	dt, ok := remote.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, errors.Errorf("default transport was not a %T", &http.Transport{})
+	}
 	k := &K8sFetcher{
 		client:    client,
-		transport: remote.DefaultTransport.(*http.Transport).Clone(),
+		transport: dt.Clone(),
 	}
 
 	for _, o := range opts {

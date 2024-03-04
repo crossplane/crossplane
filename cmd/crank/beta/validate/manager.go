@@ -21,7 +21,6 @@ import (
 	"io"
 
 	"github.com/spf13/afero"
-	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,18 +43,18 @@ const (
 	imageFmt = "%s:%s"
 )
 
-// Manager defines a Manager for preparing Crossplane packages for validation
+// Manager defines a Manager for preparing Crossplane packages for validation.
 type Manager struct {
 	fetcher ImageFetcher
 	cache   Cache
 	writer  io.Writer
 
-	crds  []*apiextv1.CustomResourceDefinition
+	crds  []*extv1.CustomResourceDefinition
 	deps  map[string]bool // One level dependency images
 	confs map[string]bool // Configuration images
 }
 
-// NewManager returns a new Manager
+// NewManager returns a new Manager.
 func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m := &Manager{}
 
@@ -66,15 +65,15 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 
 	m.fetcher = &Fetcher{}
 	m.writer = w
-	m.crds = make([]*apiextv1.CustomResourceDefinition, 0)
+	m.crds = make([]*extv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
 	m.confs = make(map[string]bool)
 
 	return m
 }
 
-// PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency
-func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocyclo // the function itself is not that complex, it just has different cases
+// PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
+func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocognit // the function itself is not that complex, it just has different cases
 	for _, e := range extensions {
 		switch e.GroupVersionKind().GroupKind() {
 		case schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}:
@@ -142,7 +141,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 	return nil
 }
 
-// CacheAndLoad finds and caches dependencies and loads them as CRDs
+// CacheAndLoad finds and caches dependencies and loads them as CRDs.
 func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	if cleanCache {
 		if err := m.cache.Flush(); err != nil {

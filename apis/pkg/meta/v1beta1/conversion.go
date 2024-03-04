@@ -17,4 +17,4 @@ limitations under the License.
 package v1beta1
 
 // Hub marks this type as the conversion hub.
-func (p *Function) Hub() {}
+func (f *Function) Hub() {}

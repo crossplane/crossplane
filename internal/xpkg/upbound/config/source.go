@@ -29,7 +29,7 @@ import (
 type Source interface {
 	Initialize() error
 	GetConfig() (*Config, error)
-	UpdateConfig(*Config) error
+	UpdateConfig(cfg *Config) error
 }
 
 // NewFSSource constructs a new FSSource. Path must be supplied via modifier or
@@ -88,10 +88,10 @@ func (src *FSSource) Initialize() error {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		if err := src.fs.MkdirAll(filepath.Dir(src.path), 0755); err != nil {
+		if err := src.fs.MkdirAll(filepath.Dir(src.path), 0o755); err != nil {
 			return err
 		}
-		f, err := src.fs.OpenFile(src.path, os.O_CREATE, 0600)
+		f, err := src.fs.OpenFile(src.path, os.O_CREATE, 0o600)
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func (src *FSSource) GetConfig() (*Config, error) {
 
 // UpdateConfig updates the Config in the filesystem.
 func (src *FSSource) UpdateConfig(c *Config) error {
-	f, err := src.fs.OpenFile(src.path, os.O_RDWR|os.O_TRUNC, 0600)
+	f, err := src.fs.OpenFile(src.path, os.O_RDWR|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

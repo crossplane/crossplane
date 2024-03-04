@@ -105,7 +105,6 @@ func TestSetMissingConnectionDetailFields(t *testing.T) {
 			if diff := cmp.Diff(tc.want.sk, sk); diff != "" {
 				t.Errorf("%s\nsetMissingConnectionDetailFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }
@@ -467,7 +466,6 @@ func TestSetTransformTypeRequiredFields(t *testing.T) {
 			if diff := cmp.Diff(tc.want.tt, tt); diff != "" {
 				t.Errorf("%s\nsetTransformTypeRequiredFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }
@@ -692,7 +690,6 @@ func TestSetMissingPatchSetFields(t *testing.T) {
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("%s\nsetMissingPatchSetFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }
@@ -721,7 +718,8 @@ func TestSetMissingEnvironmentPatchFields(t *testing.T) {
 				Type:          v1.PatchTypeCombineFromComposite,
 				FromFieldPath: &fieldPath,
 				ToFieldPath:   &fieldPath,
-			}},
+			},
+		},
 		"TransformArrayMissingFields": {
 			reason: "Nested missing Types are filled in for a transform array",
 			args: args{
@@ -776,7 +774,8 @@ func TestSetMissingEnvironmentPatchFields(t *testing.T) {
 				Type:          v1.PatchTypeFromCompositeFieldPath,
 				FromFieldPath: &fieldPath,
 				ToFieldPath:   &fieldPath,
-			}},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -812,7 +811,8 @@ func TestSetMissingPatchFields(t *testing.T) {
 				Type:          v1.PatchTypeCombineFromComposite,
 				FromFieldPath: &fieldPath,
 				ToFieldPath:   &fieldPath,
-			}},
+			},
+		},
 		"TransformArrayMissingFields": {
 			reason: "Nested missing Types are filled in for a transform array",
 			args: args{
@@ -867,7 +867,8 @@ func TestSetMissingPatchFields(t *testing.T) {
 				Type:          v1.PatchTypeFromCompositeFieldPath,
 				FromFieldPath: &fieldPath,
 				ToFieldPath:   &fieldPath,
-			}},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -884,7 +885,7 @@ func TestSetMissingResourceFields(t *testing.T) {
 	empty := ""
 	str := "crossplane"
 	fcsk := v1.ConnectionDetailTypeFromConnectionSecretKey
-	var baseNoName = map[string]any{
+	baseNoName := map[string]any{
 		"apiVersion": "nop.crossplane.io/v1",
 		"kind":       "TestResource",
 		"spec":       map[string]any{},

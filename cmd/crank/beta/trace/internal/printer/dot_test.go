@@ -11,7 +11,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
-// Define a test for PrintDotGraph
+// Define a test for PrintDotGraph.
 func TestPrintDotGraph(t *testing.T) {
 	type args struct {
 		resource *resource.Resource
@@ -67,7 +67,7 @@ func TestPrintDotGraph(t *testing.T) {
 	
 	n1[label="Name: platform-ref-aws\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/platform-ref-aws:v0.9.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
 	n2[label="Name: platform-ref-aws-9ad7b5db2899\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/platform-ref-aws:v0.9.0\nHealthy: True\nState: HealthyPackageRevision\n",penwidth="2"];
-	n3[label="Name: upbound-configuration-aws-network upbound-configuration-aws-network\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
+	n3[label="Name: upbound-configuration-aws-network\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0\nInstalled: True\nHealthy: True\n",penwidth="2"];
 	n4[label="Name: upbound-configuration-aws-network-97be9100cfe1\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/configuration-aws-network:v0.7.0\nHealthy: True\nState: HealthyPackageRevision\n",penwidth="2"];
 	n5[label="Name: upbound-provider-aws-ec2\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0\nInstalled: True\nHealthy: Unknown\n",penwidth="2"];
 	n6[label="Name: upbound-provider-aws-ec2-9ad7b5db2899\nApiVersion: pkg.crossplane.io/v1\nPackage: xpkg.upbound.io/upbound/provider-aws-ec2:v0.47.0\nHealthy: False\nState: UnhealthyPackageRevision\n",penwidth="2"];
@@ -103,8 +103,6 @@ func TestPrintDotGraph(t *testing.T) {
 			if diff := cmp.Diff(tc.want.dotString, got); diff != "" {
 				t.Errorf("%s\nDotPrinter.Print(): -want, +got:\n%s", tc.reason, diff)
 			}
-
 		})
-
 	}
 }

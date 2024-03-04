@@ -29,7 +29,7 @@ const errInvalidTokenFile = "token file is invalid"
 
 // TokenFile is the format in which Upbound tokens are stored on disk.
 type TokenFile struct {
-	AccessID string `json:"accessId"`
+	AccessID string `json:"accessId"` //nolint:tagliatelle // Should be accessID, but keeping accessId for backward compatibility.
 	Token    string `json:"token"`
 }
 

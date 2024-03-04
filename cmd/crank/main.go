@@ -30,10 +30,12 @@ import (
 	"github.com/crossplane/crossplane/internal/version"
 )
 
-var _ = kong.Must(&cli)
+var _ = kong.Must(&cli{})
 
-type versionFlag string
-type verboseFlag bool
+type (
+	versionFlag string
+	verboseFlag bool
+)
 
 // Decode overrides the default string decoder to be a no-op.
 func (v versionFlag) Decode(_ *kong.DecodeContext) error { return nil }
@@ -56,7 +58,7 @@ func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // 
 }
 
 // The top-level crossplane CLI.
-var cli struct {
+type cli struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
 
@@ -68,13 +70,13 @@ var cli struct {
 	Beta beta.Cmd `cmd:"" help:"Beta commands."`
 
 	// Flags.
-	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
-	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
+	Verbose verboseFlag `help:"Print verbose logging statements." name:"verbose"`
+	Version versionFlag `help:"Print version and quit."           name:"version" short:"v"`
 }
 
 func main() {
 	logger := logging.NewNopLogger()
-	ctx := kong.Parse(&cli,
+	ctx := kong.Parse(&cli{},
 		kong.Name("crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands

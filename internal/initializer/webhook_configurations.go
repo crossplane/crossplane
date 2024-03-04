@@ -75,7 +75,7 @@ type WebhookConfigurations struct {
 
 // Run applies all webhook ValidatingWebhookConfigurations and
 // MutatingWebhookConfiguration in the given directory.
-func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo // Only slightly over (11).
+func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) error {
 	s := &corev1.Secret{}
 	if err := kube.Get(ctx, c.TLSSecretRef, s); err != nil {
 		return errors.Wrap(err, errGetWebhookSecret)
@@ -132,7 +132,7 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 		default:
 			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %T", obj)
 		}
-		if err := pa.Apply(ctx, obj.(client.Object)); err != nil {
+		if err := pa.Apply(ctx, obj.(client.Object)); err != nil { //nolint:forcetypeassert // Should always be a client.Object.
 			return errors.Wrap(err, errApplyWebhookConfiguration)
 		}
 	}

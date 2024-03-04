@@ -51,6 +51,7 @@ const (
 	pluralLeases     = "leases"
 )
 
+//nolint:gochecknoglobals // We treat these as constants.
 var (
 	verbsEdit   = []string{rbacv1.VerbAll}
 	verbsView   = []string{"get", "list", "watch"}
@@ -66,6 +67,8 @@ var (
 // * ConfigMaps for leader election.
 // * Leases for leader election.
 // * Events for debugging.
+//
+//nolint:gochecknoglobals // We treat this as a constant.
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{"", coordinationv1.GroupName},

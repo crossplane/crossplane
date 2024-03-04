@@ -16,6 +16,7 @@ func getDefaultMetadataSchema() *apiextensions.JSONSchemaProps {
 func getDefaultSchema() *apiextensions.JSONSchemaProps {
 	return defaultMetadataSchema(&apiextensions.JSONSchemaProps{})
 }
+
 func TestDefaultMetadataSchema(t *testing.T) {
 	type args struct {
 		in *apiextensions.JSONSchemaProps
@@ -61,14 +62,18 @@ func TestDefaultMetadataSchema(t *testing.T) {
 		},
 		"SpecPreserved": {
 			reason: "Other properties should be preserved",
-			args: args{in: &apiextensions.JSONSchemaProps{
-				Type: string(schema.KnownJSONTypeObject),
-				Properties: map[string]apiextensions.JSONSchemaProps{
-					"spec": {
-						Type: string(schema.KnownJSONTypeObject),
-						AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
-							Allows: true,
-						}}}},
+			args: args{
+				in: &apiextensions.JSONSchemaProps{
+					Type: string(schema.KnownJSONTypeObject),
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Type: string(schema.KnownJSONTypeObject),
+							AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
+								Allows: true,
+							},
+						},
+					},
+				},
 			},
 			want: want{
 				out: &apiextensions.JSONSchemaProps{
@@ -79,7 +84,11 @@ func TestDefaultMetadataSchema(t *testing.T) {
 							Type: string(schema.KnownJSONTypeObject),
 							AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
 								Allows: true,
-							}}}}},
+							},
+						},
+					},
+				},
+			},
 		},
 		"MetadataNotOverwrite": {
 			reason: "Other properties should not be overwritten in metadata if specified in the default",
@@ -91,7 +100,11 @@ func TestDefaultMetadataSchema(t *testing.T) {
 						Properties: map[string]apiextensions.JSONSchemaProps{
 							"name": {
 								Type: string(schema.KnownJSONTypeBoolean),
-							}}}}}},
+							},
+						},
+					},
+				},
+			}},
 			want: want{
 				out: func() *apiextensions.JSONSchemaProps {
 					s := getDefaultSchema()
@@ -106,16 +119,23 @@ func TestDefaultMetadataSchema(t *testing.T) {
 		},
 		"MetadataPreserved": {
 			reason: "Other properties should be preserved in if not specified in the default",
-			args: args{in: &apiextensions.JSONSchemaProps{
-				Type: string(schema.KnownJSONTypeObject),
-				Properties: map[string]apiextensions.JSONSchemaProps{
-					"metadata": {
-						Type: string(schema.KnownJSONTypeObject),
-						Properties: map[string]apiextensions.JSONSchemaProps{
-							"annotations": {
-								Type: string(schema.KnownJSONTypeObject),
-								Properties: map[string]apiextensions.JSONSchemaProps{
-									"foo": {Type: string(schema.KnownJSONTypeString)}}}}}}},
+			args: args{
+				in: &apiextensions.JSONSchemaProps{
+					Type: string(schema.KnownJSONTypeObject),
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"metadata": {
+							Type: string(schema.KnownJSONTypeObject),
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"annotations": {
+									Type: string(schema.KnownJSONTypeObject),
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {Type: string(schema.KnownJSONTypeString)},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 			want: want{
 				out: func() *apiextensions.JSONSchemaProps {

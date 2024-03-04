@@ -88,7 +88,7 @@ const (
 	TokenProfileType ProfileType = "token"
 )
 
-// A Profile is a set of credentials
+// A Profile is a set of credentials.
 type Profile struct {
 	// ID is either a username, email, or token.
 	ID string `json:"id"`
@@ -139,14 +139,14 @@ func checkProfile(p Profile) error {
 }
 
 // AddOrUpdateUpboundProfile adds or updates an Upbound profile to the Config.
-func (c *Config) AddOrUpdateUpboundProfile(name string, new Profile) error {
-	if err := checkProfile(new); err != nil {
+func (c *Config) AddOrUpdateUpboundProfile(name string, p Profile) error {
+	if err := checkProfile(p); err != nil {
 		return err
 	}
 	if c.Upbound.Profiles == nil {
 		c.Upbound.Profiles = map[string]Profile{}
 	}
-	c.Upbound.Profiles[name] = new
+	c.Upbound.Profiles[name] = p
 	return nil
 }
 

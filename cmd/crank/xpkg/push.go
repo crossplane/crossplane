@@ -61,7 +61,7 @@ type pushCmd struct {
 	Package string `arg:"" help:"Where to push the package."`
 
 	// Flags. Keep sorted alphabetically.
-	PackageFiles []string `short:"f" type:"existingfile" placeholder:"PATH" help:"A comma-separated list of xpkg files to push."`
+	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" short:"f" type:"existingfile"`
 
 	// Common Upbound API configuration.
 	upbound.Flags `embed:""`
@@ -94,7 +94,7 @@ func (c *pushCmd) AfterApply() error {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocyclo // This feels easier to read as-is.
+func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This feels easier to read as-is.
 	upCtx, err := upbound.NewFromFlags(c.Flags, upbound.AllowMissingProfile())
 	if err != nil {
 		return err

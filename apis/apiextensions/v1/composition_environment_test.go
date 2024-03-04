@@ -151,7 +151,6 @@ func TestEnvironmentShouldResolve(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-
 		t.Run(name, func(t *testing.T) {
 			got := tc.args.ec.ShouldResolve(tc.args.refs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
@@ -162,7 +161,6 @@ func TestEnvironmentShouldResolve(t *testing.T) {
 }
 
 func TestEnvironmentSourceSelectorValidate(t *testing.T) {
-
 	type args struct {
 		e *EnvironmentSourceSelector
 	}
@@ -201,7 +199,6 @@ func TestEnvironmentSourceSelectorValidate(t *testing.T) {
 	}
 
 	for name, tc := range cases {
-
 		t.Run(name, func(t *testing.T) {
 			got := tc.args.e.Validate()
 			if diff := cmp.Diff(tc.want, got, cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {

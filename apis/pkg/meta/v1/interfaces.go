@@ -16,8 +16,10 @@ limitations under the License.
 
 package v1
 
-var _ Pkg = &Configuration{}
-var _ Pkg = &Provider{}
+var (
+	_ Pkg = &Configuration{}
+	_ Pkg = &Provider{}
+)
 
 // Pkg is a description of a Crossplane package.
 // +k8s:deepcopy-gen=false
@@ -39,11 +41,11 @@ func (c *Configuration) GetDependencies() []Dependency {
 
 // GetCrossplaneConstraints gets the Provider package's Crossplane version
 // constraints.
-func (c *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
-	return c.Spec.MetaSpec.Crossplane
+func (p *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
+	return p.Spec.MetaSpec.Crossplane
 }
 
 // GetDependencies gets the Provider package's dependencies.
-func (c *Provider) GetDependencies() []Dependency {
-	return c.Spec.MetaSpec.DependsOn
+func (p *Provider) GetDependencies() []Dependency {
+	return p.Spec.MetaSpec.DependsOn
 }

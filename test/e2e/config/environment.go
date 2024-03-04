@@ -103,7 +103,7 @@ func NewEnvironmentFromFlags() Environment {
 		suites: map[string]testSuite{},
 	}
 	c.kindClusterName = flag.String("kind-cluster-name", "", "name of the kind cluster to use")
-	c.kindLogsLocation = flag.String("kind-logs-location", "", "destination of the the kind cluster logs on failure")
+	c.kindLogsLocation = flag.String("kind-logs-location", "", "destination of the kind cluster logs on failure")
 	c.createKindCluster = flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests, if the cluster does not already exist with the same name")
 	c.destroyKindCluster = flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
 	c.preinstallCrossplane = flag.Bool("preinstall-crossplane", true, "install Crossplane before running tests")
@@ -189,7 +189,7 @@ func (e *Environment) HelmInstallBaseCrossplane() env.Func {
 }
 
 // getSuiteInstallOpts returns the helm install options for the specified
-// suite, appending additional specified ones
+// suite, appending additional specified ones.
 func (e *Environment) getSuiteInstallOpts(suite string, extra ...helm.Option) []helm.Option {
 	p, ok := e.suites[suite]
 	if !ok {
@@ -238,7 +238,7 @@ func WithoutBaseDefaultTestSuite() TestSuiteOpt {
 }
 
 // WithLabelsToSelect sets the provided testSuite to include the provided
-// labels, if not already specified by the user
+// labels, if not already specified by the user.
 func WithLabelsToSelect(labels features.Labels) TestSuiteOpt {
 	return func(suite *testSuite) {
 		suite.labelsToSelect = labels

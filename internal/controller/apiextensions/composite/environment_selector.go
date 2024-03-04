@@ -60,7 +60,7 @@ func (s *NoopEnvironmentSelector) SelectEnvironment(_ context.Context, _ resourc
 	return nil
 }
 
-// NewAPIEnvironmentSelector creates a new APIEnvironmentSelector
+// NewAPIEnvironmentSelector creates a new APIEnvironmentSelector.
 func NewAPIEnvironmentSelector(kube client.Client) *APIEnvironmentSelector {
 	return &APIEnvironmentSelector{
 		kube: kube,
@@ -135,7 +135,7 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 	return res, nil
 }
 
-func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) { //nolint:gocyclo // TODO: refactor
+func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
 	ec := make([]v1alpha1.EnvironmentConfig, 0)
 
 	if cl == nil {
@@ -184,7 +184,7 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 	return envConfigs, nil
 }
 
-func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error { //nolint:gocyclo // TODO(phisco): refactor
+func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
 	p := make([]struct {
 		ec  v1alpha1.EnvironmentConfig
 		val any
@@ -231,11 +231,11 @@ func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error { //nolint:goc
 		vali, valj := p[i].val, p[j].val
 		switch valsKind { //nolint:exhaustive // we only support these types
 		case reflect.Float64:
-			return vali.(float64) < valj.(float64)
+			return vali.(float64) < valj.(float64) //nolint:forcetypeassert // Checked by reflect.
 		case reflect.Int64:
-			return vali.(int64) < valj.(int64)
+			return vali.(int64) < valj.(int64) //nolint:forcetypeassert // Checked by reflect.
 		case reflect.String:
-			return vali.(string) < valj.(string)
+			return vali.(string) < valj.(string) //nolint:forcetypeassert // Checked by reflect.
 		default:
 			// should never happen
 			err = errors.Errorf(errFmtSortUnknownType, valsKind)

@@ -61,21 +61,21 @@ type mergeConfig struct {
 	srcfilter    []string
 }
 
-// withMergeOptions allows custom mergo.Config options
+// withMergeOptions allows custom mergo.Config options.
 func withMergeOptions(opts ...func(*mergo.Config)) func(*mergeConfig) {
 	return func(config *mergeConfig) {
 		config.mergeOptions = opts
 	}
 }
 
-// withSrcFilter filters supplied keys from src map before merging
+// withSrcFilter filters supplied keys from src map before merging.
 func withSrcFilter(keys ...string) func(*mergeConfig) {
 	return func(config *mergeConfig) {
 		config.srcfilter = keys
 	}
 }
 
-// merge a src map into dst map
+// merge a src map into dst map.
 func merge(dst, src any, opts ...func(*mergeConfig)) error {
 	if dst == nil || src == nil {
 		// Nothing available to merge if dst or src are nil.

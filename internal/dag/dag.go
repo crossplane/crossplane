@@ -29,15 +29,15 @@ type Node interface {
 	// Node implementations should be careful to establish uniqueness of
 	// neighbors in their AddNeighbors method or risk counting a neighbor
 	// multiple times.
-	AddNeighbors(...Node) error
+	AddNeighbors(ns ...Node) error
 }
 
 // DAG is a Directed Acyclic Graph.
-type DAG interface {
-	Init(nodes []Node) ([]Node, error)
-	AddNode(Node) error
-	AddNodes(...Node) error
-	AddOrUpdateNodes(...Node)
+type DAG interface { //nolint:interfacebloat // TODO(negz): Could this be several smaller interfaces?
+	Init(ns []Node) ([]Node, error)
+	AddNode(n Node) error
+	AddNodes(ns ...Node) error
+	AddOrUpdateNodes(ns ...Node)
 	GetNode(identifier string) (Node, error)
 	AddEdge(from string, to Node) (bool, error)
 	AddEdges(edges map[string][]Node) ([]Node, error)

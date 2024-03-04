@@ -34,9 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var (
-	_ handler.EventHandler = &EnqueueRequestForNamespaces{}
-)
+var _ handler.EventHandler = &EnqueueRequestForNamespaces{}
 
 type addFn func(item any)
 

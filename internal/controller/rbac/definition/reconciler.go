@@ -152,7 +152,6 @@ type Reconciler struct {
 // Reconcile a CompositeResourceDefinition by creating a series of opinionated
 // ClusterRoles that may be bound to allow access to the resources it defines.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -223,7 +222,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // ClusterRoles. We consider ClusterRoles to be different if their labels and
 // rules do not match.
 func ClusterRolesDiffer(current, desired runtime.Object) bool {
-	c := current.(*rbacv1.ClusterRole)
-	d := desired.(*rbacv1.ClusterRole)
+	// Calling this with anything but ClusterRoles is a programming error. If it
+	// happens, we probably do want to panic.
+	c := current.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
+	d := desired.(*rbacv1.ClusterRole) //nolint:forcetypeassert // See above.
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }

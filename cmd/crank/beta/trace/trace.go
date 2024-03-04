@@ -58,16 +58,16 @@ const (
 // Cmd builds the trace tree for a Crossplane resource.
 type Cmd struct {
 	Resource string `arg:"" help:"Kind of the Crossplane resource, accepts the 'TYPE[.VERSION][.GROUP][/NAME]' format."`
-	Name     string `arg:"" optional:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."`
+	Name     string `arg:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."          optional:""`
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
-	Namespace                 string `short:"n" name:"namespace" help:"Namespace of the resource." default:"default"`
-	Output                    string `short:"o" name:"output" help:"Output format. One of: default, wide, json, dot." enum:"default,wide,json,dot" default:"default"`
-	ShowConnectionSecrets     bool   `short:"s" name:"show-connection-secrets" help:"Show connection secrets in the output."`
-	ShowPackageDependencies   string `name:"show-package-dependencies" help:"Show package dependencies in the output. One of: unique, all, none." enum:"unique,all,none" default:"unique"`
-	ShowPackageRevisions      string `name:"show-package-revisions" help:"Show package revisions in the output. One of: active, all, none." enum:"active,all,none" default:"active"`
-	ShowPackageRuntimeConfigs bool   `name:"show-package-runtime-configs" help:"Show package runtime configs in the output." default:"false"`
+	Namespace                 string `default:"default"                             help:"Namespace of the resource."                  name:"namespace"                                                           short:"n"`
+	Output                    string `default:"default"                             enum:"default,wide,json,dot"                       help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
+	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                     short:"s"`
+	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                             help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
+	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                             help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
+	ShowPackageRuntimeConfigs bool   `default:"false"                               help:"Show package runtime configs in the output." name:"show-package-runtime-configs"`
 }
 
 // Help returns help message for the trace command.
@@ -102,7 +102,7 @@ Examples:
 }
 
 // Run runs the trace command.
-func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(phisco): refactor
+func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	ctx := context.Background()
 	logger = logger.WithValues("Resource", c.Resource, "Name", c.Name)
 

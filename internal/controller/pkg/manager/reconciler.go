@@ -268,7 +268,7 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 }
 
 // Reconcile package.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are complex. Be wary of adding more.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are complex. Be wary of adding more.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -418,12 +418,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetCommonLabels(p.GetCommonLabels())
 
-	if pwr, ok := p.(v1.PackageWithRuntime); ok {
-		pwrr := pr.(v1.PackageRevisionWithRuntime)
-		pwrr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-		pwrr.SetControllerConfigRef(pwr.GetControllerConfigRef())
-		pwrr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
-		pwrr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+	pwr, pwok := p.(v1.PackageWithRuntime)
+	prwr, prok := pr.(v1.PackageRevisionWithRuntime)
+	if pwok && prok {
+		prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
+		prwr.SetControllerConfigRef(pwr.GetControllerConfigRef())
+		prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
+		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}
 
 	// If current revision is not active, and we have an automatic or

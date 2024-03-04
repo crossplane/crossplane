@@ -456,7 +456,6 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 			if diff := cmp.Diff(tc.want.cfgs, cfgs); diff != "" {
 				t.Errorf("\n%s\nExtractConfigsFromTemplate(...): -want, +got:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }

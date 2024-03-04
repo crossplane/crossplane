@@ -18,7 +18,6 @@ package deploymentruntime
 
 import (
 	"errors"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,16 +29,14 @@ import (
 )
 
 const (
-	// default container name that XP uses
+	// default container name that XP uses.
 	runtimeContainerName = "package-runtime"
 
 	errNilControllerConfig = "ControllerConfig is nil"
 )
 
-var timeNow = time.Now()
-
 // controllerConfigToDeploymentRuntimeConfig converts a ControllerConfig to
-// a DeploymentRuntimeConfig
+// a DeploymentRuntimeConfig.
 func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*v1beta1.DeploymentRuntimeConfig, error) {
 	if cc == nil {
 		return nil, errors.New(errNilControllerConfig)
@@ -49,7 +46,7 @@ func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*
 		withName(cc.Name),
 		// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
 		// to be removed when fixed. k8s apply ignores this field
-		withCreationTimestamp(metav1.NewTime(timeNow)),
+		withCreationTimestamp(metav1.Now()),
 		withServiceAccountTemplate(cc),
 		withServiceTemplate(cc),
 		withDeploymentTemplate(dt),
@@ -57,7 +54,7 @@ func controllerConfigToDeploymentRuntimeConfig(cc *v1alpha1.ControllerConfig) (*
 	return drc, nil
 }
 
-func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1beta1.DeploymentTemplate { //nolint:gocyclo // Just a lot of if, then set field
+func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1beta1.DeploymentTemplate {
 	if cc == nil || !shouldCreateDeploymentTemplate(cc) {
 		return nil
 	}
@@ -80,7 +77,7 @@ func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1be
 	// set the creation timestamp due to https://github.com/kubernetes/kubernetes/issues/109427
 	// to be removed when fixed. k8s apply ignores this field
 	if cc.CreationTimestamp.IsZero() || dt.Spec.Template.ObjectMeta.CreationTimestamp.IsZero() {
-		dt.Spec.Template.ObjectMeta.CreationTimestamp = metav1.NewTime(timeNow)
+		dt.Spec.Template.ObjectMeta.CreationTimestamp = metav1.Now()
 	}
 
 	if cc.Spec.Metadata != nil {
@@ -135,7 +132,7 @@ func deploymentTemplateFromControllerConfig(cc *v1alpha1.ControllerConfig) *v1be
 	return dt
 }
 
-func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Container { //nolint:gocyclo // Just a lot of if, then set field
+func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Container {
 	if cc == nil || !shouldCreateDeploymentTemplateContainer(cc) {
 		return nil
 	}
@@ -165,8 +162,7 @@ func containerFromControllerConfig(cc *v1alpha1.ControllerConfig) *corev1.Contai
 		c.Env = append(c.Env, cc.Spec.Env...)
 	}
 	if len(cc.Spec.VolumeMounts) > 0 {
-		c.VolumeMounts =
-			append(c.VolumeMounts, cc.Spec.VolumeMounts...)
+		c.VolumeMounts = append(c.VolumeMounts, cc.Spec.VolumeMounts...)
 	}
 	if cc.Spec.ResourceRequirements != nil {
 		c.Resources = *cc.Spec.ResourceRequirements.DeepCopy()
@@ -235,8 +231,8 @@ func withDeploymentTemplate(dt *v1beta1.DeploymentTemplate) func(*v1beta1.Deploy
 }
 
 // shouldCreateDeploymentTemplate determines whether we should create a deployment
-// template in the DeploymentRuntimeConfig
-func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool { //nolint:gocyclo // There are a lot of triggers for this, but it's not complex
+// template in the DeploymentRuntimeConfig.
+func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool {
 	return len(cc.Labels) > 0 ||
 		len(cc.Annotations) > 0 ||
 		cc.Spec.Metadata != nil ||
@@ -255,7 +251,7 @@ func shouldCreateDeploymentTemplate(cc *v1alpha1.ControllerConfig) bool { //noli
 }
 
 // shouldCreateDeploymentTemplateContainer determines whether we should create a container
-// entry in the DeploymentRuntimeConfig
+// entry in the DeploymentRuntimeConfig.
 func shouldCreateDeploymentTemplateContainer(cc *v1alpha1.ControllerConfig) bool {
 	return cc.Spec.Image != nil ||
 		cc.Spec.ImagePullPolicy != nil ||

@@ -53,6 +53,7 @@ const (
 	suffixFinalizers = "/finalizers"
 )
 
+//nolint:gochecknoglobals // We treat these as constants.
 var (
 	verbsEdit   = []string{rbacv1.VerbAll}
 	verbsView   = []string{"get", "list", "watch"}

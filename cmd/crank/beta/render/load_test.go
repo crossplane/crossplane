@@ -37,10 +37,8 @@ import (
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
-var (
-	//go:embed testdata
-	testdatafs embed.FS
-)
+//go:embed testdata
+var testdatafs embed.FS
 
 func TestLoadCompositeResource(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
@@ -411,15 +409,16 @@ func TestLoadYAMLStream(t *testing.T) {
 		"Success": {
 			args: args{
 				file: "testdata/observed.yaml",
-				fs: afero.FromIOFS{FS: fstest.MapFS{
-					"testdata/observed.yaml": &fstest.MapFile{
-						Data: []byte(`---
+				fs: afero.FromIOFS{
+					FS: fstest.MapFS{
+						"testdata/observed.yaml": &fstest.MapFile{
+							Data: []byte(`---
 test: "test"
 ---
 test: "test2"
 `),
+						},
 					},
-				},
 				},
 			},
 			want: want{

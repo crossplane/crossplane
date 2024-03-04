@@ -53,6 +53,7 @@ func TestDefaultPrinter(t *testing.T) {
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for indentation
+				//nolint:dupword // False positive for 'True True'
 				output: `
 NAME                                                   SYNCED    READY   STATUS
 ObjectStorage/test-resource (default)                  True      True    
@@ -75,6 +76,7 @@ ObjectStorage/test-resource (default)                  True      True
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for indentation
+				//nolint:dupword // False positive for 'True True'
 				output: `
 NAME                                                   RESOURCE   SYNCED    READY   STATUS
 ObjectStorage/test-resource (default)                             True      True    
@@ -96,15 +98,16 @@ ObjectStorage/test-resource (default)                             True      True
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for indentation
+				//nolint:dupword // False positive for 'True True'
 				output: `
-NAME                                                                                   VERSION   INSTALLED   HEALTHY   STATE    STATUS                                                                                              
-Configuration/platform-ref-aws                                                         v0.9.0    True        True      -        HealthyPackageRevision                                                                              
-├─ ConfigurationRevision/platform-ref-aws-9ad7b5db2899                                 v0.9.0    True        True      Active   HealthyPackageRevision                                                                              
-└─ Configuration/upbound-configuration-aws-network upbound-configuration-aws-network   v0.7.0    True        True      -        HealthyPackageRevision                                                                              
-   ├─ ConfigurationRevision/upbound-configuration-aws-network-97be9100cfe1             v0.7.0    True        True      Active   HealthyPackageRevision                                                                              
-   └─ Provider/upbound-provider-aws-ec2                                                v0.47.0   True        Unknown   -        UnknownPackageRevisionHealth: ...der-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]   
-      ├─ ProviderRevision/upbound-provider-aws-ec2-9ad7b5db2899                        v0.47.0   True        False     Active   UnhealthyPackageRevision: ...ider package deployment has no condition of type "Available" yet       
-      └─ Provider/upbound-provider-aws-something                                       v0.47.0   True        -         -        ActivePackageRevision                                                                               
+NAME                                                                         VERSION   INSTALLED   HEALTHY   STATE    STATUS                                                                                              
+Configuration/platform-ref-aws                                               v0.9.0    True        True      -        HealthyPackageRevision                                                                              
+├─ ConfigurationRevision/platform-ref-aws-9ad7b5db2899                       v0.9.0    True        True      Active   HealthyPackageRevision                                                                              
+└─ Configuration/upbound-configuration-aws-network                           v0.7.0    True        True      -        HealthyPackageRevision                                                                              
+   ├─ ConfigurationRevision/upbound-configuration-aws-network-97be9100cfe1   v0.7.0    True        True      Active   HealthyPackageRevision                                                                              
+   └─ Provider/upbound-provider-aws-ec2                                      v0.47.0   True        Unknown   -        UnknownPackageRevisionHealth: ...der-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]   
+      ├─ ProviderRevision/upbound-provider-aws-ec2-9ad7b5db2899              v0.47.0   True        False     Active   UnhealthyPackageRevision: ...ider package deployment has no condition of type "Available" yet       
+      └─ Provider/upbound-provider-aws-something                             v0.47.0   True        -         -        ActivePackageRevision                                                                               
 `,
 				err: nil,
 			},
@@ -117,15 +120,16 @@ Configuration/platform-ref-aws                                                  
 			},
 			want: want{
 				// Note: Use spaces instead of tabs for indentation
+				//nolint:dupword // False positive for 'True True'
 				output: `
-NAME                                                                                   PACKAGE                                             VERSION   INSTALLED   HEALTHY   STATE    STATUS                                                                                                                                                                                                    
-Configuration/platform-ref-aws                                                         xpkg.upbound.io/upbound/platform-ref-aws            v0.9.0    True        True      -        HealthyPackageRevision                                                                                                                                                                                    
-├─ ConfigurationRevision/platform-ref-aws-9ad7b5db2899                                 xpkg.upbound.io/upbound/platform-ref-aws            v0.9.0    True        True      Active   HealthyPackageRevision                                                                                                                                                                                    
-└─ Configuration/upbound-configuration-aws-network upbound-configuration-aws-network   xpkg.upbound.io/upbound/configuration-aws-network   v0.7.0    True        True      -        HealthyPackageRevision                                                                                                                                                                                    
-   ├─ ConfigurationRevision/upbound-configuration-aws-network-97be9100cfe1             xpkg.upbound.io/upbound/configuration-aws-network   v0.7.0    True        True      Active   HealthyPackageRevision                                                                                                                                                                                    
-   └─ Provider/upbound-provider-aws-ec2                                                xpkg.upbound.io/upbound/provider-aws-ec2            v0.47.0   True        Unknown   -        UnknownPackageRevisionHealth: cannot resolve package dependencies: incompatible dependencies: [xpkg.upbound.io/crossplane-contrib/provider-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]   
-      ├─ ProviderRevision/upbound-provider-aws-ec2-9ad7b5db2899                        xpkg.upbound.io/upbound/provider-aws-ec2            v0.47.0   True        False     Active   UnhealthyPackageRevision: post establish runtime hook failed for package: provider package deployment has no condition of type "Available" yet                                                            
-      └─ Provider/upbound-provider-aws-something                                       xpkg.upbound.io/upbound/provider-aws-something      v0.47.0   True        -         -        ActivePackageRevision                                                                                                                                                                                     
+NAME                                                                         PACKAGE                                             VERSION   INSTALLED   HEALTHY   STATE    STATUS                                                                                                                                                                                                    
+Configuration/platform-ref-aws                                               xpkg.upbound.io/upbound/platform-ref-aws            v0.9.0    True        True      -        HealthyPackageRevision                                                                                                                                                                                    
+├─ ConfigurationRevision/platform-ref-aws-9ad7b5db2899                       xpkg.upbound.io/upbound/platform-ref-aws            v0.9.0    True        True      Active   HealthyPackageRevision                                                                                                                                                                                    
+└─ Configuration/upbound-configuration-aws-network                           xpkg.upbound.io/upbound/configuration-aws-network   v0.7.0    True        True      -        HealthyPackageRevision                                                                                                                                                                                    
+   ├─ ConfigurationRevision/upbound-configuration-aws-network-97be9100cfe1   xpkg.upbound.io/upbound/configuration-aws-network   v0.7.0    True        True      Active   HealthyPackageRevision                                                                                                                                                                                    
+   └─ Provider/upbound-provider-aws-ec2                                      xpkg.upbound.io/upbound/provider-aws-ec2            v0.47.0   True        Unknown   -        UnknownPackageRevisionHealth: cannot resolve package dependencies: incompatible dependencies: [xpkg.upbound.io/crossplane-contrib/provider-helm xpkg.upbound.io/crossplane-contrib/provider-kubernetes]   
+      ├─ ProviderRevision/upbound-provider-aws-ec2-9ad7b5db2899              xpkg.upbound.io/upbound/provider-aws-ec2            v0.47.0   True        False     Active   UnhealthyPackageRevision: post establish runtime hook failed for package: provider package deployment has no condition of type "Available" yet                                                            
+      └─ Provider/upbound-provider-aws-something                             xpkg.upbound.io/upbound/provider-aws-something      v0.47.0   True        -         -        ActivePackageRevision                                                                                                                                                                                     
 `,
 				err: nil,
 			},
@@ -151,5 +155,4 @@ Configuration/platform-ref-aws                                                  
 			}
 		})
 	}
-
 }

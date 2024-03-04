@@ -46,7 +46,7 @@ const (
 	timeout = 2 * time.Minute
 )
 
-// Error strings
+// Error strings.
 const (
 	errGet             = "cannot get Composition"
 	errListRevs        = "cannot list CompositionRevisions"
@@ -122,7 +122,7 @@ type Reconciler struct {
 }
 
 // Reconcile a Composition.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Only slightly over (12).
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

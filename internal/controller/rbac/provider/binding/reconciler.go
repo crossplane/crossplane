@@ -134,8 +134,7 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a ClusterRoleBinding that binds a
 // provider's service account to its system ClusterRole.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
-
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -242,7 +241,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // consider ClusterRoleBindings to be different if the subjects, the roleRefs, or the owner ref
 // is different.
 func ClusterRoleBindingsDiffer(current, desired runtime.Object) bool {
-	c := current.(*rbacv1.ClusterRoleBinding)
-	d := desired.(*rbacv1.ClusterRoleBinding)
+	// Calling this with anything but ClusterRoleBindings is a programming
+	// error. If it happens, we probably do want to panic.
+	c := current.(*rbacv1.ClusterRoleBinding) //nolint:forcetypeassert // See above.
+	d := desired.(*rbacv1.ClusterRoleBinding) //nolint:forcetypeassert // See above.
 	return !cmp.Equal(c.Subjects, d.Subjects) || !cmp.Equal(c.RoleRef, d.RoleRef) || !cmp.Equal(c.GetOwnerReferences(), d.GetOwnerReferences())
 }

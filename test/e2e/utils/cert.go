@@ -27,7 +27,7 @@ import (
 )
 
 // CreateCert create TLS certificate for given dns name
-// and returns CA and key in PEM format, or an error
+// and returns CA and key in PEM format, or an error.
 func CreateCert(dnsName string) (string, string, error) {
 	ca := &x509.Certificate{
 		SerialNumber: big.NewInt(2019),

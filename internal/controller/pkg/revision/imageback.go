@@ -80,7 +80,7 @@ func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBac
 }
 
 // Init initializes an ImageBackend.
-func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) { //nolint:gocyclo // TODO(negz): Can this be made less complex?
+func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) {
 	// NOTE(hasheddan): we use nestedBackend here because simultaneous
 	// reconciles of providers or configurations can lead to the package
 	// revision being overwritten mid-execution in the shared image backend when

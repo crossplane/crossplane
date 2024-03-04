@@ -70,7 +70,7 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1beta1.Pac
 }
 
 // Resolve resolves package dependencies.
-func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity?
+func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
 	// If we are inactive, we don't need to resolve dependencies.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return 0, 0, 0, nil

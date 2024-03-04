@@ -60,7 +60,7 @@ func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error
 		// The index is used by the getCRD function below.
 		indexer := mgr.GetFieldIndexer()
 		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, crdsIndexKey, func(obj client.Object) []string {
-			return []string{getIndexValueForCRD(obj.(*extv1.CustomResourceDefinition))}
+			return []string{getIndexValueForCRD(obj.(*extv1.CustomResourceDefinition))} //nolint:forcetypeassert // Will always be a CRD.
 		}); err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ type validator struct {
 }
 
 // ValidateCreate validates a Composition.
-func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) { //nolint:gocyclo // Currently only at 11
+func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	comp, ok := obj.(*v1.Composition)
 	if !ok {
 		return nil, errors.New(errNotComposition)

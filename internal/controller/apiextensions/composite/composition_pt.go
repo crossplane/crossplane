@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane/internal/names"
 )
 
-// Error strings
+// Error strings.
 const (
 	errGetComposed   = "cannot get composed resource"
 	errGCComposed    = "cannot garbage collect composed resource"
@@ -159,7 +159,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 //  3. Apply all composed resources that rendered successfully.
 //  4. Observe the readiness and connection details of all composed resources
 //     that rendered successfully.
-func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
+func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) { //nolint:gocognit // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets before composing resources.
 	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
 	if err != nil {
@@ -344,7 +344,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 	// be rejected by the API server. This will trigger an immediate requeue,
 	// and we'll proceed to update the status as soon as there are no changes to
 	// be made to the spec.
-	objCopy := xr.DeepCopyObject().(client.Object)
+	objCopy := xr.DeepCopy()
 	if err := c.client.Apply(ctx, objCopy, mergeOptions(toXRPatchesFromTAs(tas))...); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
@@ -354,7 +354,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 
 // toXRPatchesFromTAs selects patches defined in composed templates,
 // whose type is one of the XR-targeting patches
-// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite)
+// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite).
 func toXRPatchesFromTAs(tas []TemplateAssociation) []v1.Patch {
 	filtered := make([]v1.Patch, 0, len(tas))
 	for _, ta := range tas {
@@ -364,7 +364,7 @@ func toXRPatchesFromTAs(tas []TemplateAssociation) []v1.Patch {
 	return filtered
 }
 
-// filterPatches selects patches whose type belong to the list onlyTypes
+// filterPatches selects patches whose type belong to the list onlyTypes.
 func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
 	filtered := make([]v1.Patch, 0, len(pas))
 	include := make(map[v1.PatchType]bool)
@@ -410,7 +410,7 @@ func AssociateByOrder(t []v1.ComposedTemplate, r []corev1.ObjectReference) []Tem
 
 // A CompositionTemplateAssociator returns an array of template associations.
 type CompositionTemplateAssociator interface {
-	AssociateTemplates(context.Context, resource.Composite, []v1.ComposedTemplate) ([]TemplateAssociation, error)
+	AssociateTemplates(ctx context.Context, xr resource.Composite, cts []v1.ComposedTemplate) ([]TemplateAssociation, error)
 }
 
 // A CompositionTemplateAssociatorFn returns an array of template associations.
@@ -439,7 +439,7 @@ func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociato
 }
 
 // AssociateTemplates with composed resources.
-func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) { //nolint:gocyclo // Only slightly over (13).
+func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 	templates := map[ResourceName]int{}
 	for i, t := range ct {
 		if t.Name == nil {

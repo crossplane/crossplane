@@ -37,29 +37,27 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
-// TODO(phisco): make it configurable
+// TODO(phisco): make it configurable.
 const namespace = "crossplane-system"
 
-// TODO(phisco): make it configurable
+// TODO(phisco): make it configurable.
 const crdsDir = "cluster/crds"
 
 // The caller (e.g. make e2e) must ensure these exist.
-// Run `make build e2e-tag-images` to produce them
+// Run `make build e2e-tag-images` to produce them.
 const (
-	// TODO(phisco): make it configurable
+	// TODO(phisco): make it configurable.
 	imgcore = "crossplane-e2e/crossplane:latest"
 )
 
 const (
-	// TODO(phisco): make it configurable
+	// TODO(phisco): make it configurable.
 	helmChartDir = "cluster/charts/crossplane"
-	// TODO(phisco): make it configurable
+	// TODO(phisco): make it configurable.
 	helmReleaseName = "crossplane"
 )
 
-var (
-	environment = config.NewEnvironmentFromFlags()
-)
+var environment = config.NewEnvironmentFromFlags()
 
 func TestMain(m *testing.M) {
 	// TODO(negz): Global loggers are dumb and klog is dumb. Remove this when
@@ -147,7 +145,10 @@ func TestMain(m *testing.M) {
 	}
 
 	// Check that all features are specifying a suite they belong to via LabelTestSuite.
+	//nolint:thelper // We can't make testing.T the second argument because we want to satisfy types.FeatureEnvFunc.
 	environment.BeforeEachFeature(func(ctx context.Context, _ *envconf.Config, t *testing.T, feature features.Feature) (context.Context, error) {
+		t.Helper()
+
 		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
 			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
 		}

@@ -64,8 +64,10 @@ func toNodes(n []simpleNode) []Node {
 	return nodes
 }
 
-var _ DAG = &MapDag{}
-var _ NewDAGFn = NewMapDag
+var (
+	_ DAG      = &MapDag{}
+	_ NewDAGFn = NewMapDag
+)
 
 func sortedFnNop([]simpleNode, []string) error {
 	return nil

@@ -154,7 +154,6 @@ type Reconciler struct {
 // Reconcile a Namespace by creating a series of opinionated Roles that may be
 // bound to allow access to resources within that namespace.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -230,8 +229,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // RolesDiffer returns true if the supplied objects are different Roles. We
 // consider Roles to be different if their crossplane annotations or rules do not match.
 func RolesDiffer(current, desired runtime.Object) bool {
-	c := current.(*rbacv1.Role)
-	d := desired.(*rbacv1.Role)
+	// Calling this with anything but Roles is a programming error. If it
+	// happens, we probably do want to panic.
+	c := current.(*rbacv1.Role) //nolint:forcetypeassert // See above.
+	d := desired.(*rbacv1.Role) //nolint:forcetypeassert // See above.
 	return !equalRolesAnnotations(c, d) || !cmp.Equal(c.Rules, d.Rules)
 }
 

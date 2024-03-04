@@ -31,8 +31,7 @@ const (
 )
 
 // JSONPrinter is a printer that prints the resource graph as JSON.
-type JSONPrinter struct {
-}
+type JSONPrinter struct{}
 
 var _ Printer = &JSONPrinter{}
 

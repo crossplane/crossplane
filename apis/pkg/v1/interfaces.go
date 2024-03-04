@@ -63,7 +63,7 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 
 // PackageWithRuntime is the interface satisfied by packages with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageWithRuntime interface {
+type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
 	Package
 
 	GetControllerConfigRef() *ControllerConfigReference
@@ -79,7 +79,7 @@ type PackageWithRuntime interface {
 
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
-type Package interface {
+type Package interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
 	resource.Object
 	resource.Conditioned
 
@@ -110,7 +110,7 @@ type Package interface {
 	SetCurrentIdentifier(r string)
 
 	GetSkipDependencyResolution() *bool
-	SetSkipDependencyResolution(*bool)
+	SetSkipDependencyResolution(skip *bool)
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
@@ -126,7 +126,7 @@ func (p *Provider) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *Provider) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }
@@ -271,7 +271,7 @@ func (p *Configuration) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *Configuration) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }
@@ -379,7 +379,7 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageRevisionWithRuntime interface {
+type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
 	PackageRevision
 
 	GetControllerConfigRef() *ControllerConfigReference
@@ -397,7 +397,7 @@ type PackageRevisionWithRuntime interface {
 
 // PackageRevision is the interface satisfied by package revision types.
 // +k8s:deepcopy-gen=false
-type PackageRevision interface {
+type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
 	resource.Object
 	resource.Conditioned
 
@@ -425,7 +425,7 @@ type PackageRevision interface {
 	SetRevision(r int64)
 
 	GetSkipDependencyResolution() *bool
-	SetSkipDependencyResolution(*bool)
+	SetSkipDependencyResolution(skip *bool)
 
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
@@ -444,7 +444,7 @@ func (p *ProviderRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *ProviderRevision) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }
@@ -601,7 +601,7 @@ func (p *ConfigurationRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (p *ConfigurationRevision) CleanConditions() {
 	p.Status.Conditions = []xpv1.Condition{}
 }

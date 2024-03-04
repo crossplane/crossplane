@@ -50,16 +50,16 @@ const (
 
 const (
 	// RootCACertSecretName is the name of the secret that will store CA certificates and rest of the
-	// certificates created per entities will be signed by this CA
+	// certificates created per entities will be signed by this CA.
 	RootCACertSecretName = "crossplane-root-ca"
 
-	// SecretKeyCACert is the secret key of CA certificate
+	// SecretKeyCACert is the secret key of CA certificate.
 	SecretKeyCACert = "ca.crt"
 )
 
 // TLSCertificateGenerator is an initializer step that will find the given secret
 // and fill its tls.crt, tls.key and ca.crt fields to be used for External Secret
-// Store plugins
+// Store plugins.
 type TLSCertificateGenerator struct {
 	namespace           string
 	caSecretName        string
@@ -75,14 +75,14 @@ type TLSCertificateGenerator struct {
 // TLSCertificateGeneratorOption is used to configure TLSCertificateGenerator behavior.
 type TLSCertificateGeneratorOption func(*TLSCertificateGenerator)
 
-// TLSCertificateGeneratorWithLogger returns an TLSCertificateGeneratorOption that configures logger
+// TLSCertificateGeneratorWithLogger returns an TLSCertificateGeneratorOption that configures logger.
 func TLSCertificateGeneratorWithLogger(log logging.Logger) TLSCertificateGeneratorOption {
 	return func(g *TLSCertificateGenerator) {
 		g.log = log
 	}
 }
 
-// TLSCertificateGeneratorWithOwner returns an TLSCertificateGeneratorOption that sets owner reference
+// TLSCertificateGeneratorWithOwner returns an TLSCertificateGeneratorOption that sets owner reference.
 func TLSCertificateGeneratorWithOwner(owner []metav1.OwnerReference) TLSCertificateGeneratorOption {
 	return func(g *TLSCertificateGenerator) {
 		g.owner = owner

@@ -8,6 +8,102 @@ output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
   format: colored-line-number
 
+linters:
+  enable-all: true
+  fast: false
+  
+  disable:
+    # These linters are all deprecated. We disable them explicitly to avoid the
+    # linter logging deprecation warnings.
+    - deadcode
+    - varcheck
+    - scopelint
+    - structcheck
+    - interfacer
+    - exhaustivestruct
+    - ifshort
+    - golint
+    - maligned
+    - nosnakecase
+
+    # These are linters we'd like to enable, but that will be labor intensive to
+    # make existing code compliant.
+    - wrapcheck
+    - varnamelen
+    - testpackage
+    - paralleltest
+    - nilnil
+    - gomnd
+
+    # Below are linters that lint for things we don't value. Each entry below
+    # this line must have a comment explaining the rationale.
+
+    # These linters add whitespace in an attempt to make code more readable.
+    # This isn't a widely accepted Go best practice, and would be laborious to
+    # apply to existing code.
+    - wsl 
+    - nlreturn
+
+    # Warns about uses of fmt.Sprintf that are less performant than alternatives
+    # such as string concatenation. We value readability more than performance
+    # unless performance is measured to be an issue.
+    - perfsprint
+
+    # This linter:
+    #
+    # 1. Requires errors.Is/errors.As to test equality.
+    # 2. Requires all errors be wrapped with fmt.Errorf specifically.
+    # 3. Disallows errors.New inline - requires package level errors.
+    #
+    # 1 is covered by other linters. 2 is covered by wrapcheck, which can also
+    # handle our use of crossplane-runtime's errors package. 3 is more strict
+    # than we need. Not every error needs to be tested for equality.
+    - goerr113
+
+    # These linters duplicate gocognit, but calculate complexity differently.
+    - gocyclo
+    - cyclop
+    - nestif
+    - funlen
+    - maintidx
+
+    # Enforces max line length. It's not idiomatic to enforce a strict limit on
+    # line length in Go. We'd prefer to lint for things that often cause long
+    # lines, like functions with too many parameters or long parameter names
+    # that duplicate their types.
+    - lll
+
+    # Warns about struct instantiations that don't specify every field. Could be
+    # useful in theory to catch fields that are accidentally omitted. Seems like
+    # it would have many more false positives than useful catches, though.
+    - exhaustruct
+
+    # Warns about TODO comments. The rationale being they should be issues
+    # instead. We're okay with using TODO to track minor cleanups for next time
+    # we touch a particular file.
+    - godox
+
+    # Warns about duplicated code blocks within the same file. Could be useful
+    # to prompt folks to think about whether code should be broken out into a
+    # function, but generally we're less worried about DRY and fine with a
+    # little copying. We don't want to give folks the impression that we require
+    # every duplicated code block to be factored out into a function.
+    - dupl
+
+    # Warns about returning interfaces rather than concrete types. We do think
+    # it's best to avoid returning interfaces where possible. However, at the
+    # time of writing enabling this linter would only catch the (many) cases
+    # where we must return an interface. 
+    - ireturn
+
+    # Warns about returning named variables. We do think it's best to avoid
+    # returning named variables where possible. However, at the time of writing
+    # enabling this linter would only catch the (many) cases where returning
+    # named variables is useful to document what the variables are. For example
+    # we believe it makes sense to return (ready bool) rather than just (bool)
+    # to communicate what the bool means.
+    - nonamedreturns
+
 linters-settings:
   errcheck:
     # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
@@ -40,10 +136,6 @@ linters-settings:
       - prefix(github.com/crossplane/crossplane)
       - blank
       - dot
-
-  gocyclo:
-    # minimal code complexity to report, 30 by default (but we recommend 10-20)
-    min-complexity: 10
 
   maligned:
     # print struct with more effective memory layout or not, false by default
@@ -106,38 +198,28 @@ linters-settings:
   nolintlint:
     require-explanation: true
     require-specific: true
-
-
-linters:
-  enable:
-    - megacheck
-    - govet
-    - gocyclo
-    - gocritic
-    - goconst
-    - gci
-    - gofmt  # We enable this as well as goimports for its simplify mode.
-    - prealloc
-    - revive
-    - unconvert
-    - misspell
-    - nakedret
-    - nolintlint
   
-  disable:
-    # These linters are all deprecated as of golangci-lint v1.49.0. We disable
-    # them explicitly to avoid the linter logging deprecation warnings.
-    - deadcode
-    - varcheck
-    - scopelint
-    - structcheck
-    - interfacer
+  depguard:
+    rules:
+      no_third_party_test_libraries:
+        list-mode: lax
+        files:
+        - $test
+        deny:
+        - pkg: github.com/stretchr/testify
+          desc: "See https://go.dev/wiki/TestComments#assert-libraries"
+        - pkg: github.com/onsi/ginkgo
+          desc: "See https://go.dev/wiki/TestComments#assert-libraries"
+        - pkg: github.com/onsi/gomega
+          desc: "See https://go.dev/wiki/TestComments#assert-libraries"
 
-  presets:
-    - bugs
-    - unused
-  fast: false
-
+  interfacebloat:
+    max: 5
+  
+  tagliatelle:
+    case:
+      rules:
+        json: goCamel
 
 issues:
   # Excluding configuration per-path and per-linter
@@ -145,18 +227,28 @@ issues:
     # Exclude some linters from running on tests files.
     - path: _test(ing)?\.go
       linters:
-        - gocyclo
+        - gocognit
         - errcheck
-        - dupl
         - gosec
         - scopelint
         - unparam
+        - gochecknoinits
+        - gochecknoglobals
+        - containedctx
+        - forcetypeassert
 
     # Ease some gocritic warnings on test files.
     - path: _test\.go
       text: "(unnamedResult|exitAfterDefer)"
       linters:
         - gocritic
+    
+    # It's idiomatic to register Kubernetes types with a package scoped
+    # SchemeBuilder using an init function.
+    - path: apis/
+      linters:
+      - gochecknoinits
+      - gochecknoglobals
 
     # These are performance optimisations rather than style issues per se.
     # They warn when function arguments or range values copy a lot of memory

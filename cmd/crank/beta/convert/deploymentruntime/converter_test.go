@@ -79,11 +79,12 @@ func TestNewDeploymentTemplateFromControllerConfig(t *testing.T) {
 						Affinity: &corev1.Affinity{
 							NodeAffinity: &corev1.NodeAffinity{
 								RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-									NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-										MatchFields: []corev1.NodeSelectorRequirement{
-											{Key: "xplane"},
+									NodeSelectorTerms: []corev1.NodeSelectorTerm{
+										{
+											MatchFields: []corev1.NodeSelectorRequirement{
+												{Key: "xplane"},
+											},
 										},
-									},
 									},
 								},
 							},
@@ -133,31 +134,33 @@ func TestNewDeploymentTemplateFromControllerConfig(t *testing.T) {
 								Affinity: &corev1.Affinity{
 									NodeAffinity: &corev1.NodeAffinity{
 										RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
-											NodeSelectorTerms: []corev1.NodeSelectorTerm{{
-												MatchFields: []corev1.NodeSelectorRequirement{
-													{Key: "xplane"},
+											NodeSelectorTerms: []corev1.NodeSelectorTerm{
+												{
+													MatchFields: []corev1.NodeSelectorRequirement{
+														{Key: "xplane"},
+													},
 												},
 											},
+										},
+									},
+								},
+								Containers: []corev1.Container{
+									{
+										Name:  "package-runtime",
+										Args:  []string{"- -d", "- --enable-management-policies"},
+										Image: image,
+										Resources: corev1.ResourceRequirements{
+											Limits: map[corev1.ResourceName]resource.Quantity{
+												"cpu":    *resource.NewMilliQuantity(5000, resource.DecimalSI),
+												"memory": *resource.NewQuantity(10*1024*1024*1024, resource.BinarySI),
+											},
+											Requests: map[corev1.ResourceName]resource.Quantity{
+												"cpu":    *resource.NewMilliQuantity(1500, resource.DecimalSI),
+												"memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI),
 											},
 										},
+										VolumeMounts: []corev1.VolumeMount{{Name: "mount1", MountPath: "/tmp"}, {Name: "mount2", MountPath: "/etc/ssl/certs"}},
 									},
-								},
-								Containers: []corev1.Container{{
-									Name:  "package-runtime",
-									Args:  []string{"- -d", "- --enable-management-policies"},
-									Image: image,
-									Resources: corev1.ResourceRequirements{
-										Limits: map[corev1.ResourceName]resource.Quantity{
-											"cpu":    *resource.NewMilliQuantity(5000, resource.DecimalSI),
-											"memory": *resource.NewQuantity(10*1024*1024*1024, resource.BinarySI),
-										},
-										Requests: map[corev1.ResourceName]resource.Quantity{
-											"cpu":    *resource.NewMilliQuantity(1500, resource.DecimalSI),
-											"memory": *resource.NewQuantity(5*1024*1024*1024, resource.BinarySI),
-										},
-									},
-									VolumeMounts: []corev1.VolumeMount{{Name: "mount1", MountPath: "/tmp"}, {Name: "mount2", MountPath: "/etc/ssl/certs"}},
-								},
 								},
 
 								ImagePullSecrets:   []corev1.LocalObjectReference{{Name: "my-secret"}},
@@ -284,7 +287,8 @@ func TestControllerConfigToRuntimeDeploymentConfig(t *testing.T) {
 										Labels:            map[string]string{},
 										CreationTimestamp: timeNow,
 									},
-								}},
+								},
+							},
 						},
 					},
 				},
@@ -323,7 +327,6 @@ func TestNewContainerFromControllerConfig(t *testing.T) {
 		args   args
 		want   want
 	}{
-
 		"NilControllerConfig": {
 			reason: "Correctly return an empty container",
 			args: args{
@@ -378,7 +381,6 @@ func TestNewContainerFromControllerConfig(t *testing.T) {
 			if diff := cmp.Diff(tc.want.c, c, cmpopts.EquateApproxTime(time.Second*2)); diff != "" {
 				t.Errorf("%s\ncontainerFromControllerConfig(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
-
 		})
 	}
 }

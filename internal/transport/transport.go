@@ -26,7 +26,9 @@ import (
 
 // DefaultUserAgent is the default User-Agent header that is set when making
 // HTTP requests for packages.
-var DefaultUserAgent = fmt.Sprintf("%s/%s", "crossplane", version.New().GetVersionString())
+func DefaultUserAgent() string {
+	return fmt.Sprintf("%s/%s", "crossplane", version.New().GetVersionString())
+}
 
 // UserAgent wraps a RoundTripper and injects a user agent header.
 type UserAgent struct {

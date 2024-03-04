@@ -46,9 +46,7 @@ const (
 	xpManagedSA = "xp-managed-sa"
 )
 
-var (
-	errBoom = errors.New("boom")
-)
+var errBoom = errors.New("boom")
 
 func TestProviderPreHook(t *testing.T) {
 	type args struct {

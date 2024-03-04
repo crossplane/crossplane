@@ -52,7 +52,7 @@ type PackageInstaller struct {
 }
 
 // Run makes sure all specified packages exist.
-func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo // TODO(negz): Could any of this be broken out?
+func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	pkgs := make([]client.Object, len(pi.providers)+len(pi.configurations))
 	// NOTE(hasheddan): we build maps of existing Provider and Configuration
 	// sources to the package names such that we can update the version when a

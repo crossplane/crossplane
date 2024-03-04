@@ -35,7 +35,7 @@ const (
 
 // Revisioner extracts a revision name for a package source.
 type Revisioner interface {
-	Revision(context.Context, v1.Package) (string, error)
+	Revision(ctx context.Context, p v1.Package) (string, error)
 }
 
 // PackageRevisioner extracts a revision name for a package source.

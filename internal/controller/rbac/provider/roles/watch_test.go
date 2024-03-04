@@ -35,9 +35,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
-var (
-	_ handler.EventHandler = &EnqueueRequestForAllRevisionsWithRequests{}
-)
+var _ handler.EventHandler = &EnqueueRequestForAllRevisionsWithRequests{}
 
 type addFn func(item any)
 

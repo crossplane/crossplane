@@ -53,7 +53,7 @@ func (f *NilEnvironmentFetcher) Fetch(_ context.Context, _ EnvironmentFetcherReq
 	return nil, nil
 }
 
-// NewAPIEnvironmentFetcher creates a new APIEnvironmentFetcher
+// NewAPIEnvironmentFetcher creates a new APIEnvironmentFetcher.
 func NewAPIEnvironmentFetcher(kube client.Client) *APIEnvironmentFetcher {
 	return &APIEnvironmentFetcher{
 		kube: kube,

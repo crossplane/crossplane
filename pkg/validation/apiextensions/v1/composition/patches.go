@@ -90,7 +90,6 @@ func (v *Validator) validateEnvironmentPatchesWithSchemas(ctx context.Context, c
 			compositeResGVK: compositeResGVK,
 		}), field.NewPath("spec").Child("environment", "patches").Index(i)); err != nil {
 			errs = append(errs, err)
-
 		}
 	}
 	return errs
@@ -169,7 +168,7 @@ type patchValidationCtx struct {
 	resourceGVK     schema.GroupVersionKind
 }
 
-func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
+func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *field.Error {
 	var validationErr *field.Error
 	var fromType, toType xpschema.KnownJSONType
 	switch ctx.patch.GetType() {
@@ -399,7 +398,7 @@ func validateFieldPathSegment(parent *apiextensions.JSONSchemaProps, segment fie
 	return nil, nil
 }
 
-func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) { //nolint:gocyclo // inherently complex
+func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) {
 	if parent == nil {
 		return nil, nil
 	}
@@ -427,7 +426,6 @@ func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segmen
 			return validateFieldPathSegmentField(parent.AdditionalProperties.Schema, segment)
 		}
 		return nil, errors.Errorf(errFmtFieldInvalid, segment.Field)
-
 	}
 	return &prop, nil
 }
@@ -462,8 +460,6 @@ func validateFieldPathSegmentIndex(parent *apiextensions.JSONSchemaProps, segmen
 }
 
 // IsValidInputForTransform validates the supplied Transform type, taking into consideration also the input type.
-//
-//nolint:gocyclo // This is a long but simple/same-y switch.
 func IsValidInputForTransform(t *v1.Transform, fromType v1.TransformIOType) error {
 	switch t.Type {
 	case v1.TransformTypeMath:
@@ -530,7 +526,7 @@ func GetBaseObject(ct *v1.ComposedTemplate) (client.Object, error) {
 		ct.Base.Object = cd
 	}
 	if ct, ok := ct.Base.Object.(client.Object); ok {
-		return ct.DeepCopyObject().(client.Object), nil
+		return ct.DeepCopyObject().(client.Object), nil //nolint:forcetypeassert // Deepcopy will always be the same type.
 	}
 	return nil, errors.New("base object is not a client.Object")
 }

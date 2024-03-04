@@ -54,7 +54,7 @@ const (
 	finalizer           = "composite.apiextensions.crossplane.io"
 )
 
-// Error strings
+// Error strings.
 const (
 	errGet                    = "cannot get composite resource"
 	errUpdate                 = "cannot update composite resource"
@@ -350,7 +350,7 @@ type revision struct {
 
 // A CompositionRevisionValidator validates the supplied CompositionRevision.
 type CompositionRevisionValidator interface {
-	Validate(*v1.CompositionRevision) error
+	Validate(rev *v1.CompositionRevision) error
 }
 
 // A CompositionRevisionValidatorFn is a function that validates a
@@ -467,7 +467,7 @@ type Reconciler struct {
 }
 
 // Reconcile a composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

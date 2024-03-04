@@ -30,7 +30,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
-// Error strings
+// Error strings.
 const (
 	errInvalidCheck = "invalid"
 	errPaveObject   = "cannot lookup field paths in supplied object"
@@ -60,7 +60,7 @@ const (
 )
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
-// for consumption
+// for consumption.
 type ReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
 	Type ReadinessCheckType
@@ -79,7 +79,7 @@ type ReadinessCheck struct {
 }
 
 // MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
-// for consumption
+// for consumption.
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
 	Type xpv1.ConditionType
@@ -168,8 +168,6 @@ func (c ReadinessCheck) Validate() error {
 }
 
 // IsReady runs the readiness check against the supplied object.
-//
-//nolint:gocyclo // just a switch
 func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, error) {
 	if err := c.Validate(); err != nil {
 		return false, errors.Wrap(err, errInvalidCheck)

@@ -43,7 +43,7 @@ const (
 // NopConnectionUnpublisher is a ConnectionUnpublisher that does nothing.
 type NopConnectionUnpublisher struct{}
 
-// NewNopConnectionUnpublisher returns a new NopConnectionUnpublisher
+// NewNopConnectionUnpublisher returns a new NopConnectionUnpublisher.
 func NewNopConnectionUnpublisher() *NopConnectionUnpublisher {
 	return &NopConnectionUnpublisher{}
 }
@@ -146,6 +146,8 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to re
 		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
 			// We consider the update to be a no-op and don't allow it if the
 			// current and existing secret data are identical.
+
+			//nolint:forcetypeassert // These will always be secrets.
 			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
 		}),
 	)

@@ -93,7 +93,7 @@ func convertPnTToPipeline(c *v1.Composition, functionRefName string) (*v1.Compos
 	}
 
 	// Override function name if provided
-	var fr = v1.FunctionReference{Name: defaultFunctionRefName}
+	fr := v1.FunctionReference{Name: defaultFunctionRefName}
 	if functionRefName != "" {
 		fr.Name = functionRefName
 	}
@@ -113,9 +113,9 @@ func convertPnTToPipeline(c *v1.Composition, functionRefName string) (*v1.Compos
 }
 
 // processFunctionInput populates any missing fields in the input to the function
-// that are required by the function but were optional in the built-in engine
+// that are required by the function but were optional in the built-in engine.
 func processFunctionInput(input *Input) *runtime.RawExtension {
-	var processedInput = &Input{}
+	processedInput := &Input{}
 
 	// process Environment Patches
 	if input.Environment != nil && len(input.Environment.Patches) > 0 {
@@ -143,7 +143,7 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 	processedInput.Resources = processedResources
 
 	// Wrap the input in a RawExtension
-	var inputType = map[string]any{
+	inputType := map[string]any{
 		"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 		"kind":        "Resources",
 		"environment": processedInput.Environment.DeepCopy(),
@@ -215,7 +215,7 @@ func setMissingResourceFields(idx int, rs v1.ComposedTemplate) v1.ComposedTempla
 }
 
 // setTransformTypeRequiredFields sets fields that are required with
-// function-patch-and-transform but were optional with the built-in engine
+// function-patch-and-transform but were optional with the built-in engine.
 func setTransformTypeRequiredFields(tt v1.Transform) v1.Transform {
 	if tt.Type == "" {
 		if tt.Math != nil {

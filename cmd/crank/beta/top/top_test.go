@@ -94,7 +94,6 @@ func TestGetCrossplanePods(t *testing.T) {
 				},
 				{
 					ObjectMeta: metav1.ObjectMeta{
-
 						Name:      "provider-azure-storage",
 						Namespace: "crossplane-system",
 						Labels: map[string]string{
@@ -154,6 +153,7 @@ func TestGetCrossplanePods(t *testing.T) {
 		})
 	}
 }
+
 func TestPrintPodsTable(t *testing.T) {
 	type want struct {
 		results string
@@ -236,6 +236,7 @@ function     crossplane-system   function-123     200m         1024Mi
 		})
 	}
 }
+
 func TestPrintPodsSummary(t *testing.T) {
 	type want struct {
 		results string
@@ -297,7 +298,6 @@ CPU(cores): 900000m
 			}
 		})
 	}
-
 }
 
 func TestCapitalizeFirst(t *testing.T) {

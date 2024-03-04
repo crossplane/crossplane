@@ -49,9 +49,9 @@ const (
 type loginCmd struct {
 	// Flags. We're intentionally making an exception to the rule here and not
 	// sorting these alphabetically.
-	Username string `short:"u" env:"UP_USER" xor:"identifier" help:"Username used to authenticate."`
-	Password string `short:"p" env:"UP_PASSWORD" help:"Password for specified username. '-' to read from stdin."`
-	Token    string `short:"t" env:"UP_TOKEN" xor:"identifier" help:"Token used to authenticate. '-' to read from stdin."`
+	Username string `env:"UP_USER"     help:"Username used to authenticate."                           short:"u" xor:"identifier"`
+	Password string `env:"UP_PASSWORD" help:"Password for specified username. '-' to read from stdin." short:"p"`
+	Token    string `env:"UP_TOKEN"    help:"Token used to authenticate. '-' to read from stdin."      short:"t" xor:"identifier"`
 
 	// Common Upbound API configuration.
 	upbound.Flags `embed:""`
@@ -100,7 +100,7 @@ func (c *loginCmd) AfterApply(kongCtx *kong.Context) error {
 }
 
 // Run executes the login command.
-func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error { //nolint:gocyclo // TODO(phisco): refactor
+func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error {
 	auth, profType, err := constructAuth(c.Username, c.Token, c.Password)
 	if err != nil {
 		return errors.Wrap(err, "failed to construct auth")
@@ -212,8 +212,8 @@ func getPassword(f *os.File) (string, error) {
 	// Print a new line because ReadPassword does not.
 	_, _ = fmt.Fprintf(f, "\n")
 	return string(password), nil
-
 }
+
 func getUsername(f *os.File) (string, error) {
 	if !term.IsTerminal(int(f.Fd())) {
 		return "", errors.New("not a terminal")

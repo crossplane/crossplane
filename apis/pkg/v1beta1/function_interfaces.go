@@ -34,7 +34,7 @@ func (f *Function) SetConditions(c ...xpv1.Condition) {
 	f.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (f *Function) CleanConditions() {
 	f.Status.Conditions = []xpv1.Condition{}
 }
@@ -177,7 +177,7 @@ func (r *FunctionRevision) SetConditions(c ...xpv1.Condition) {
 	r.Status.SetConditions(c...)
 }
 
-// CleanConditions removes all conditions
+// CleanConditions removes all conditions.
 func (r *FunctionRevision) CleanConditions() {
 	r.Status.Conditions = []xpv1.Condition{}
 }

@@ -18,8 +18,8 @@ package funcs
 
 import (
 	"context"
-	"fmt"
 	"strings"
+	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -51,7 +51,9 @@ type coordinate struct {
 //
 // Note: this is a pretty expensive operation only suited for e2e tests with
 // small clusters.
-func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
+func buildRelatedObjectGraph(ctx context.Context, t *testing.T, discoveryClient discovery.DiscoveryInterface, client dynamic.Interface, mapper meta.RESTMapper) (map[coordinate][]coordinate, error) {
+	t.Helper()
+
 	// Discover all resource types
 	resourceLists, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
@@ -110,7 +112,7 @@ func buildRelatedObjectGraph(ctx context.Context, discoveryClient discovery.Disc
 					group, version := parseAPIVersion(ref.APIVersion)
 					rm, err := mapper.RESTMapping(schema.GroupKind{Group: group, Kind: ref.Kind}, version)
 					if err != nil {
-						fmt.Printf("cannot find REST mapping for %v: %v\n", ref, err)
+						t.Logf("cannot find REST mapping for %v: %v\n", ref, err)
 						continue
 					}
 					owner := coordinate{
@@ -141,7 +143,9 @@ func parseAPIVersion(apiVersion string) (group, version string) {
 // RelatedObjects returns all objects related to the supplied object through
 // ownership, i.e. the returned objects are transitively owned by obj, or
 // resource reference.
-func RelatedObjects(ctx context.Context, config *rest.Config, objs ...client.Object) ([]client.Object, error) {
+func RelatedObjects(ctx context.Context, t *testing.T, config *rest.Config, objs ...client.Object) ([]client.Object, error) {
+	t.Helper()
+
 	dynClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -159,7 +163,7 @@ func RelatedObjects(ctx context.Context, config *rest.Config, objs ...client.Obj
 		return nil, err
 	}
 
-	ownershipGraph, err := buildRelatedObjectGraph(ctx, discoveryClient, dynClient, mapper)
+	ownershipGraph, err := buildRelatedObjectGraph(ctx, t, discoveryClient, dynClient, mapper)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot build ownership graph")
 	}
@@ -170,7 +174,7 @@ func RelatedObjects(ctx context.Context, config *rest.Config, objs ...client.Obj
 		gvk := obj.GetObjectKind().GroupVersionKind()
 		rm, err := mapper.RESTMapping(schema.GroupKind{Group: gvk.Group, Kind: gvk.Kind}, gvk.Version)
 		if err != nil {
-			fmt.Printf("cannot find REST mapping for %s: %v\n", gvk, err)
+			t.Logf("cannot find REST mapping for %s: %v\n", gvk, err)
 			continue
 		}
 
@@ -181,15 +185,17 @@ func RelatedObjects(ctx context.Context, config *rest.Config, objs ...client.Obj
 		}, seen)...)
 	}
 
-	return loadCoordinates(ctx, dynClient, coords), nil
+	return loadCoordinates(ctx, t, dynClient, coords), nil
 }
 
-func loadCoordinates(ctx context.Context, dynClient dynamic.Interface, coords []coordinate) []client.Object {
+func loadCoordinates(ctx context.Context, t *testing.T, dynClient dynamic.Interface, coords []coordinate) []client.Object {
+	t.Helper()
+
 	ret := make([]client.Object, 0, len(coords))
 	for _, coord := range coords {
 		other, err := dynClient.Resource(coord.GroupVersionResource).Namespace(coord.Namespace).Get(ctx, coord.Name, metav1.GetOptions{})
 		if err != nil {
-			fmt.Printf("cannot get %v: %v\n", coord, err)
+			t.Logf("cannot get %v: %v\n", coord, err)
 			continue
 		}
 		ret = append(ret, other)

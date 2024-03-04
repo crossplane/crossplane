@@ -33,7 +33,7 @@ const (
 // Type represents the type of printer.
 type Type string
 
-// Implemented PrinterTypes
+// Implemented PrinterTypes.
 const (
 	TypeDefault Type = "default"
 	TypeWide    Type = "wide"
@@ -43,7 +43,7 @@ const (
 
 // Printer implements the interface which is used by all printers in this package.
 type Printer interface {
-	Print(io.Writer, *resource.Resource) error
+	Print(w io.Writer, r *resource.Resource) error
 }
 
 // New creates a new printer based on the specified type.

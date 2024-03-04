@@ -95,7 +95,7 @@ func ApplyToObjects(p v1.Patch, cp, cd runtime.Object, only ...v1.PatchType) err
 	return errors.Errorf(errFmtInvalidPatchType, p.Type)
 }
 
-// filterPatch returns true if patch should be filtered (not applied)
+// filterPatch returns true if patch should be filtered (not applied).
 func filterPatch(p v1.Patch, only ...v1.PatchType) bool {
 	// filter does not apply if not set
 	if len(only) == 0 {

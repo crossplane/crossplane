@@ -54,12 +54,10 @@ func init() {
 // extensions (i.e. Composition, XRDs, etc).
 const LabelAreaAPIExtensions = "apiextensions"
 
-var (
-	nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
-		APIVersion: "nop.crossplane.io/v1alpha1",
-		Kind:       "NopResource",
-	}))
-)
+var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+	APIVersion: "nop.crossplane.io/v1alpha1",
+	Kind:       "NopResource",
+}))
 
 // TestCompositionMinimal tests Crossplane's Composition functionality,
 // checking that a claim using a very minimal Composition (with no patches,

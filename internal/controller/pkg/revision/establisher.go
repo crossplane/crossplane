@@ -128,7 +128,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 
 // ReleaseObjects removes control of owned resources in the API server for a
 // package revision.
-func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error { //nolint:gocyclo // complexity coming from parallelism.
+func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRevision) error { //nolint:gocognit // complexity coming from parallelism.
 	// Note(turkenh): We rely on status.objectRefs to get the list of objects
 	// that are controlled by the package revision. Relying on the status is
 	// not ideal as it might get lost (e.g. if the status subresource is
@@ -222,7 +222,7 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 	return nil
 }
 
-func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) (allObjs []currentDesired, err error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) (allObjs []currentDesired, err error) { //nolint:gocognit // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
 	if parentWithRuntime, ok := parent.(v1.PackageRevisionWithRuntime); ok && control {
 		webhookTLSCert, err = e.getWebhookTLSCert(ctx, parentWithRuntime)
@@ -239,7 +239,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 		g.Go(func() error {
 			// Assert desired object to resource.Object so that we can access its
 			// metadata.
-			d, ok := res.(resource.Object)
+			desired, ok := res.(resource.Object)
 			if !ok {
 				return errors.New(errAssertResourceObj)
 			}
@@ -257,7 +257,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 			if !ok {
 				return errors.New(errAssertClientObj)
 			}
-			err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
+			err := e.client.Get(ctx, types.NamespacedName{Name: desired.GetName(), Namespace: desired.GetNamespace()}, current)
 			if resource.IgnoreNotFound(err) != nil {
 				return err
 			}
@@ -268,26 +268,25 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				// We will not create a resource if we are not going to control it,
 				// so we don't need to check with dry run.
 				if control {
-					if err := e.create(ctx, d, parent, client.DryRunAll); err != nil {
+					if err := e.create(ctx, desired, parent, client.DryRunAll); err != nil {
 						return err
 					}
 				}
 				// Add to objects as not existing.
 				select {
-				case out <- currentDesired{Desired: d, Current: nil, Exists: false}:
+				case out <- currentDesired{Desired: desired, Current: nil, Exists: false}:
 					return nil
 				case <-ctx.Done():
 					return ctx.Err()
 				}
 			}
 
-			c := current.(resource.Object)
-			if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
+			if err := e.update(ctx, current, desired, parent, control, client.DryRunAll); err != nil {
 				return err
 			}
 			// Add to objects as existing.
 			select {
-			case out <- currentDesired{Desired: d, Current: c, Exists: true}:
+			case out <- currentDesired{Desired: desired, Current: current, Exists: true}:
 				return nil
 			case <-ctx.Done():
 				return ctx.Err()
@@ -305,7 +304,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	return allObjs, nil
 }
 
-func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLSCert []byte, parent v1.PackageRevision) error { //nolint:gocyclo // just a switch
+func (e *APIEstablisher) enrichControlledResource(res runtime.Object, webhookTLSCert []byte, parent v1.PackageRevision) error { //nolint:gocognit // just a switch
 	// The generated webhook configurations have a static hard-coded name
 	// that the developers of the providers can't affect. Here, we make sure
 	// to distinguish one from the other by setting the name to the parent
@@ -389,7 +388,7 @@ func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntim
 	return webhookTLSCert, nil
 }
 
-func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) { //nolint:gocyclo // Only slightly over (12).
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(maxConcurrentEstablishers)
 	out := make(chan xpv1.TypedReference, len(allObjs))

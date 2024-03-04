@@ -85,7 +85,7 @@ func FriendlyID(name, hash string) string {
 }
 
 // ToDNSLabel converts the string to a valid DNS label.
-func ToDNSLabel(s string) string { //nolint:gocyclo // TODO(negz): Document the conditions in this function.
+func ToDNSLabel(s string) string {
 	var cut strings.Builder
 	for i := range s {
 		b := s[i]

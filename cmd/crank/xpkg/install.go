@@ -53,16 +53,16 @@ const (
 // installCmd installs a package.
 type installCmd struct {
 	// Arguments.
-	Kind    string `arg:"" help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"." enum:"provider,configuration,function"`
+	Kind    string `arg:"" enum:"provider,configuration,function"                                                                            help:"The kind of package to install. One of \"provider\", \"configuration\", or \"function\"."`
 	Package string `arg:"" help:"The package to install."`
-	Name    string `arg:""  optional:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default."`
+	Name    string `arg:"" help:"The name of the new package in the Crossplane API. Derived from the package repository and tag by default." optional:""`
 
 	// Flags. Keep sorted alphabetically.
-	RuntimeConfig        string        `placeholder:"NAME" help:"Install the package with a runtime configuration (for example a DeploymentRuntimeConfig)."`
-	ManualActivation     bool          `short:"m" help:"Require the new package's first revision to be manually activated."`
-	PackagePullSecrets   []string      `placeholder:"NAME" help:"A comma-separated list of secrets the package manager should use to pull the package from the registry."`
-	RevisionHistoryLimit int64         `short:"r" placeholder:"LIMIT" help:"How many package revisions may exist before the oldest revisions are deleted."`
-	Wait                 time.Duration `short:"w" default:"0s" help:"How long to wait for the package to install before returning. The command does not wait by default. Returns an error if the timeout is exceeded."`
+	RuntimeConfig        string        `help:"Install the package with a runtime configuration (for example a DeploymentRuntimeConfig)."               placeholder:"NAME"`
+	ManualActivation     bool          `help:"Require the new package's first revision to be manually activated."                                      short:"m"`
+	PackagePullSecrets   []string      `help:"A comma-separated list of secrets the package manager should use to pull the package from the registry." placeholder:"NAME"`
+	RevisionHistoryLimit int64         `help:"How many package revisions may exist before the oldest revisions are deleted."                           placeholder:"LIMIT"                                                                                                                                     short:"r"`
+	Wait                 time.Duration `default:"0s"                                                                                                   help:"How long to wait for the package to install before returning. The command does not wait by default. Returns an error if the timeout is exceeded." short:"w"`
 }
 
 func (c *installCmd) Help() string {
@@ -84,7 +84,7 @@ Examples:
 }
 
 // Run the package install cmd.
-func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
+func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 	pkgName := c.Name
 	if pkgName == "" {
 		ref, err := name.ParseReference(c.Package, name.WithDefaultRegistry(xpkg.DefaultRegistry))
@@ -200,7 +200,6 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error { //nolin
 		if err := ctx.Err(); errors.Is(err, context.DeadlineExceeded) {
 			return errors.Wrap(err, "Package did not become ready")
 		}
-
 	}
 
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", c.Kind, pkg.GetName())

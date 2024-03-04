@@ -165,8 +165,8 @@ func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupV
 
 		if _, err := inf.AddEventHandler(kcache.ResourceEventHandlerFuncs{
 			UpdateFunc: func(oldObj, newObj interface{}) {
-				old := oldObj.(client.Object)
-				obj := newObj.(client.Object)
+				old := oldObj.(client.Object) //nolint:forcetypeassert // Will always be client.Object.
+				obj := newObj.(client.Object) //nolint:forcetypeassert // Will always be client.Object.
 				if old.GetResourceVersion() == obj.GetResourceVersion() {
 					return
 				}
@@ -215,7 +215,7 @@ func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupV
 //
 // Note that this complements WatchComposedResources which starts informers for
 // the composed resources referenced by a composite resource.
-func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context.Context) { //nolint:gocyclo // splitting it doesn't make it easier to read.
+func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context.Context) {
 	crds := extv1.CustomResourceDefinitionList{}
 	if err := i.cluster.GetClient().List(ctx, &crds); err != nil {
 		i.log.Debug(errListCRDs, "error", err)

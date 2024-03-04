@@ -154,7 +154,7 @@ func GetRuntimeDocker(fn pkgv1beta1.Function, log logging.Logger) (*RuntimeDocke
 var _ Runtime = &RuntimeDocker{}
 
 // Start a Function as a Docker container.
-func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) { //nolint:gocyclo // TODO(phisco): Refactor to break this up a bit, not so easy.
+func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 	r.log.Debug("Starting Docker container runtime", "image", r.Image)
 	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {

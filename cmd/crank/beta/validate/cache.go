@@ -27,22 +27,22 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Cache defines an interface for caching schemas
+// Cache defines an interface for caching schemas.
 type Cache interface {
-	Store([][]byte, string) error
+	Store(schemas [][]byte, path string) error
 	Flush() error
 	Init() error
 	Load() ([]*unstructured.Unstructured, error)
-	Exists(string) (string, error)
+	Exists(image string) (string, error)
 }
 
-// LocalCache implements the Cache interface
+// LocalCache implements the Cache interface.
 type LocalCache struct {
 	fs       afero.Fs
 	cacheDir string
 }
 
-// Store stores the schemas in the directory
+// Store stores the schemas in the directory.
 func (c *LocalCache) Store(schemas [][]byte, path string) error {
 	if err := c.fs.MkdirAll(path, os.ModePerm); err != nil {
 		return errors.Wrapf(err, "cannot create directory %s", path)
@@ -68,7 +68,7 @@ func (c *LocalCache) Store(schemas [][]byte, path string) error {
 	return nil
 }
 
-// Init creates the cache directory if it doesn't exist
+// Init creates the cache directory if it doesn't exist.
 func (c *LocalCache) Init() error {
 	if _, err := c.fs.Stat(c.cacheDir); os.IsNotExist(err) {
 		if err := c.fs.MkdirAll(c.cacheDir, os.ModePerm); err != nil {
@@ -81,12 +81,12 @@ func (c *LocalCache) Init() error {
 	return nil
 }
 
-// Flush removes the cache directory
+// Flush removes the cache directory.
 func (c *LocalCache) Flush() error {
 	return c.fs.RemoveAll(c.cacheDir)
 }
 
-// Load loads the schemas from the cache directory
+// Load loads the schemas from the cache directory.
 func (c *LocalCache) Load() ([]*unstructured.Unstructured, error) {
 	loader, err := NewLoader(c.cacheDir)
 	if err != nil {
@@ -101,7 +101,7 @@ func (c *LocalCache) Load() ([]*unstructured.Unstructured, error) {
 	return schemas, nil
 }
 
-// Exists checks if the cache contains the image and returns the path if it doesn't exist
+// Exists checks if the cache contains the image and returns the path if it doesn't exist.
 func (c *LocalCache) Exists(image string) (string, error) {
 	fName := strings.ReplaceAll(image, ":", "@")
 	path := filepath.Join(c.cacheDir, fName)

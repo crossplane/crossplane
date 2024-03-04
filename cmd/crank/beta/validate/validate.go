@@ -90,8 +90,8 @@ func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[ru
 	return validators, structurals, nil
 }
 
-// SchemaValidation validates the resources against the given CRDs
-func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, skipSuccessLogs bool, w io.Writer) error { //nolint:gocyclo // printing the output increases the cyclomatic complexity a little bit
+// SchemaValidation validates the resources against the given CRDs.
+func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, skipSuccessLogs bool, w io.Writer) error { //nolint:gocognit // printing the output increases the cyclomatic complexity a little bit
 	schemaValidators, structurals, err := newValidatorsAndStructurals(crds)
 	if err != nil {
 		return errors.Wrap(err, "cannot create schema validators")

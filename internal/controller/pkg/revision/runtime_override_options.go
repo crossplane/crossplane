@@ -255,7 +255,7 @@ func DeploymentWithRuntimeContainer() DeploymentOverride {
 
 // DeploymentForControllerConfig overrides the deployment with the values
 // defined in the ControllerConfig.
-func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOverride { //nolint:gocyclo // Simple if statements for setting values if they are not nil/empty.
+func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOverride { //nolint:gocognit // Simple if statements for setting values if they are not nil/empty.
 	return func(d *appsv1.Deployment) {
 		d.Labels = cc.Labels
 		d.Annotations = cc.Annotations
@@ -333,8 +333,7 @@ func DeploymentForControllerConfig(cc *v1alpha1.ControllerConfig) DeploymentOver
 			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
 		}
 		if len(cc.Spec.VolumeMounts) > 0 {
-			d.Spec.Template.Spec.Containers[0].VolumeMounts =
-				append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
+			d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
 		}
 	}
 }
@@ -415,12 +414,10 @@ func mountTLSSecret(secret, volName, mountPath, envName string, d *appsv1.Deploy
 		ReadOnly:  true,
 		MountPath: mountPath,
 	}
-	d.Spec.Template.Spec.Containers[0].VolumeMounts =
-		append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+	d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 
 	envs := []corev1.EnvVar{
 		{Name: envName, Value: mountPath},
 	}
-	d.Spec.Template.Spec.Containers[0].Env =
-		append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+	d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 }

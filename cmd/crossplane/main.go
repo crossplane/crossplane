@@ -41,15 +41,17 @@ import (
 	"github.com/crossplane/crossplane/internal/version"
 )
 
-type debugFlag bool
-type versionFlag bool
+type (
+	debugFlag   bool
+	versionFlag bool
+)
 
-var cli struct {
-	Debug debugFlag `short:"d" help:"Print verbose logging statements."`
+type cli struct {
+	Debug debugFlag `help:"Print verbose logging statements." short:"d"`
 
-	Version versionFlag `short:"v" help:"Print version and quit."`
+	Version versionFlag `help:"Print version and quit." short:"v"`
 
-	Core core.Command `cmd:"" help:"Start core Crossplane controllers." default:"withargs"`
+	Core core.Command `cmd:"" default:"withargs"                                help:"Start core Crossplane controllers."`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
 }
 
@@ -95,7 +97,7 @@ func main() {
 	// objects.
 	s := runtime.NewScheme()
 
-	ctx := kong.Parse(&cli,
+	ctx := kong.Parse(&cli{},
 		kong.Name("crossplane"),
 		kong.Description("An open source multicloud control plane."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),

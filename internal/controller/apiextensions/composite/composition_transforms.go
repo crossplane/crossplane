@@ -79,7 +79,7 @@ const (
 )
 
 // Resolve the supplied Transform.
-func Resolve(t v1.Transform, input any) (any, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
+func Resolve(t v1.Transform, input any) (any, error) {
 	var out any
 	var err error
 
@@ -156,7 +156,7 @@ func resolveMathMultiply(t v1.MathTransform, input any) (any, error) {
 // is not a number. depending on the type of clamp, the result will be either
 // the input or the clamp value, preserving their original types.
 func resolveMathClamp(t v1.MathTransform, input any) (any, error) {
-	in := int64(0)
+	var in int64
 	switch i := input.(type) {
 	case int:
 		in = int64(i)
@@ -283,7 +283,7 @@ func unmarshalJSON(j extv1.JSON, output *any) error {
 }
 
 // ResolveString resolves a String transform.
-func ResolveString(t v1.StringTransform, input any) (string, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
+func ResolveString(t v1.StringTransform, input any) (string, error) {
 	switch t.Type {
 	case v1.StringTransformTypeFormat:
 		if t.Format == nil {
@@ -419,7 +419,8 @@ func ResolveConvert(t v1.ConvertTransform, input any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return f(input)
+	out, err := f(input)
+	return out, errors.Wrapf(err, "cannot convert value %s", input)
 }
 
 type conversionPair struct {
@@ -454,66 +455,125 @@ func GetConversionFunc(t *v1.ConvertTransform, from v1.TransformIOType) (func(an
 // The unparam linter is complaining that these functions always return a nil
 // error, but we need this to be the case given some other functions in the map
 // may return an error.
-var conversions = map[conversionPair]func(any) (any, error){
+var conversions = map[conversionPair]func(any) (any, error){ //nolint:gochecknoglobals // We treat this map as a constant.
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-
-		return strconv.ParseInt(i.(string), 10, 64)
+		s, ok := i.(string)
+		if !ok {
+			return nil, errors.New("not a string")
+		}
+		return strconv.ParseInt(s, 10, 64)
 	},
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseBool(i.(string))
+		s, ok := i.(string)
+		if !ok {
+			return nil, errors.New("not a string")
+		}
+		return strconv.ParseBool(s)
 	},
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseFloat(i.(string), 64)
+		s, ok := i.(string)
+		if !ok {
+			return nil, errors.New("not a string")
+		}
+		return strconv.ParseFloat(s, 64)
 	},
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatQuantity}: func(i any) (any, error) {
-		q, err := resource.ParseQuantity(i.(string))
+		s, ok := i.(string)
+		if !ok {
+			return nil, errors.New("not a string")
+		}
+		q, err := resource.ParseQuantity(s)
 		if err != nil {
 			return nil, err
 		}
 		return q.AsApproximateFloat64(), nil
 	},
 
-	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatInt(i.(int64), 10), nil
+	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		i64, ok := i.(int64)
+		if !ok {
+			return nil, errors.New("not an int64")
+		}
+		return strconv.FormatInt(i64, 10), nil
 	},
-	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return i.(int64) == 1, nil
+	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		i64, ok := i.(int64)
+		if !ok {
+			return nil, errors.New("not an int64")
+		}
+		return i64 == 1, nil
 	},
-	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return float64(i.(int64)), nil
+	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		i64, ok := i.(int64)
+		if !ok {
+			return nil, errors.New("not an int64")
+		}
+		return float64(i64), nil
 	},
 
-	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatBool(i.(bool)), nil
+	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		b, ok := i.(bool)
+		if !ok {
+			return nil, errors.New("not a bool")
+		}
+		return strconv.FormatBool(b), nil
 	},
-	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		if i.(bool) {
+	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		b, ok := i.(bool)
+		if !ok {
+			return nil, errors.New("not a bool")
+		}
+		if b {
 			return int64(1), nil
 		}
 		return int64(0), nil
 	},
-	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		if i.(bool) {
+	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		b, ok := i.(bool)
+		if !ok {
+			return nil, errors.New("not a bool")
+		}
+		if b {
 			return float64(1), nil
 		}
 		return float64(0), nil
 	},
 
-	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
+	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		f64, ok := i.(float64)
+		if !ok {
+			return nil, errors.New("not a float64")
+		}
+		return strconv.FormatFloat(f64, 'f', -1, 64), nil
 	},
-	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return int64(i.(float64)), nil
+	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		f64, ok := i.(float64)
+		if !ok {
+			return nil, errors.New("not a float64")
+		}
+		return int64(f64), nil
 	},
-	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return i.(float64) == float64(1), nil
+	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		f64, ok := i.(float64)
+		if !ok {
+			return nil, errors.New("not a float64")
+		}
+		return f64 == float64(1), nil
 	},
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeObject, format: v1.ConvertTransformFormatJSON}: func(i any) (any, error) {
+		s, ok := i.(string)
+		if !ok {
+			return nil, errors.New("not a string")
+		}
 		o := map[string]any{}
-		return o, json.Unmarshal([]byte(i.(string)), &o)
+		return o, json.Unmarshal([]byte(s), &o)
 	},
 	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeArray, format: v1.ConvertTransformFormatJSON}: func(i any) (any, error) {
+		s, ok := i.(string)
+		if !ok {
+			return nil, errors.New("not a string")
+		}
 		var o []any
-		return o, json.Unmarshal([]byte(i.(string)), &o)
+		return o, json.Unmarshal([]byte(s), &o)
 	},
 }

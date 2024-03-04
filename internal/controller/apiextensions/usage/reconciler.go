@@ -66,7 +66,7 @@ const (
 	errGetUsed              = "cannot get used"
 	errAddOwnerToUsage      = "cannot update usage resource with owner ref"
 	errAddDetailsAnnotation = "cannot update usage resource with details annotation"
-	errAddInUseLabel        = "cannot add in use use label to the used resource"
+	errAddInUseLabel        = "cannot add in use label to the used resource"
 	errRemoveInUseLabel     = "cannot remove in use label from the used resource"
 	errAddFinalizer         = "cannot add finalizer"
 	errRemoveFinalizer      = "cannot remove finalizer"
@@ -207,7 +207,7 @@ type Reconciler struct {
 
 // Reconcile a Usage resource by resolving its selectors, defining ownership
 // relationship, adding a finalizer and handling proper deletion.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are typically complex.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex.
 	log := r.log.WithValues("request", req)
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
@@ -452,6 +452,7 @@ func RespectOwnerRefs() xpresource.ApplyOption {
 		// This is a Usage resource, so we need to respect existing owner
 		// references in case it has any.
 		if len(cu.GetOwnerReferences()) > 0 {
+			//nolint:forcetypeassert // This will always be a metav1.Object.
 			desired.(metav1.Object).SetOwnerReferences(cu.GetOwnerReferences())
 		}
 		return nil

@@ -89,7 +89,7 @@ type Outputs struct {
 }
 
 // Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
-func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocyclo // TODO(negz): Should we refactor to break this up a bit?
+func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocognit // TODO(negz): Should we refactor to break this up a bit?
 	// Run our Functions.
 	conns := map[string]*grpc.ClientConn{}
 	for _, fn := range in.Functions {
@@ -329,7 +329,7 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.Composite, name
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) { //nolint:gocyclo // There is not much to simplify here.
+func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) {
 	if len(ers) == 0 || selector == nil {
 		return nil, nil
 	}

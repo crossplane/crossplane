@@ -57,7 +57,7 @@ func TestHandleNotes(t *testing.T) {
 			logger := logging.NewNopLogger()
 			dir := t.TempDir()
 			if tc.args.file != "" {
-				if err := os.WriteFile(filepath.Join(dir, notes), []byte(tc.args.file), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, notes), []byte(tc.args.file), 0o644); err != nil {
 					t.Fatalf("writeFile() error = %v", err)
 				}
 			}

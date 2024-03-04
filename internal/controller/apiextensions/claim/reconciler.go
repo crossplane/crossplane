@@ -162,10 +162,10 @@ type DefaultsSelector interface {
 	SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error
 }
 
-// A DefaultsSelectorFn is responsible for copying default values from the CompositeResourceDefinition
+// A DefaultsSelectorFn is responsible for copying default values from the CompositeResourceDefinition.
 type DefaultsSelectorFn func(ctx context.Context, cm resource.CompositeClaim) error
 
-// SelectDefaults copies default values from the XRD if necessary
+// SelectDefaults copies default values from the XRD if necessary.
 func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error {
 	return fn(ctx, cm)
 }
@@ -321,7 +321,7 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 }
 
 // Reconcile a composite resource claim with a concrete composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Complexity is tough to avoid here.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Complexity is tough to avoid here.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

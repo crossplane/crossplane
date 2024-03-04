@@ -124,7 +124,7 @@ func WithBase(img v1.Image) BuildOpt {
 }
 
 // Build compiles a Crossplane package from an on-disk package.
-func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtime.Object, error) { //nolint:gocyclo // TODO(lsviben) consider refactoring
+func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtime.Object, error) {
 	bOpts := &buildOpts{
 		base: empty.Image,
 	}
