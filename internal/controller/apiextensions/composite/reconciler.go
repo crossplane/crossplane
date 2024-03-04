@@ -721,7 +721,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		for i, cd := range unready {
 			names[i] = string(cd.ResourceName)
 		}
-
 		// Sort for stable condition messages. With functions, we don't have a
 		// stable order otherwise.
 		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
