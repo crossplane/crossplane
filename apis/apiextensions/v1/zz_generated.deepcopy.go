@@ -280,6 +280,13 @@ func (in *CompositeResourceDefinitionSpecMetadata) DeepCopy() *CompositeResource
 func (in *CompositeResourceDefinitionStatus) DeepCopyInto(out *CompositeResourceDefinitionStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
+	if in.ClaimConditions != nil {
+		in, out := &in.ClaimConditions, &out.ClaimConditions
+		*out = make([]commonv1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	out.Controllers = in.Controllers
 }
 

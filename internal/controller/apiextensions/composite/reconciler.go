@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -38,13 +39,16 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -74,6 +78,7 @@ const (
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
 	errRenderCD               = "cannot render composed resource"
+	errGetClaim               = "cannot get claim"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -183,11 +188,21 @@ type CompositionRequest struct {
 	Environment *Environment
 }
 
+// FunctionCondition represents a condition returned by a Composition Function
+type FunctionCondition struct {
+	xpv1.Condition `json:",inline"`
+	// we need severity so we know what level to emit the corresponding event as
+	severity v1beta1.Severity
+}
+
 // A CompositionResult is the result of the composition process.
 type CompositionResult struct {
-	Composed          []ComposedResource
-	ConnectionDetails managed.ConnectionDetails
-	Events            []event.Event
+	Composed            []ComposedResource
+	ConnectionDetails   managed.ConnectionDetails
+	CompositeEvents     []event.Event
+	ClaimEvents         []event.Event
+	CompositeConditions map[xpv1.ConditionType]FunctionCondition
+	ClaimConditions     map[xpv1.ConditionType]FunctionCondition
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
@@ -601,6 +616,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
+	var cm *claim.Unstructured
+	if ref := xr.GetClaimReference(); ref != nil {
+		cm = claim.New()
+		cm.SetKind(ref.Kind)
+		cm.SetAPIVersion(ref.APIVersion)
+		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+		if err := r.client.Get(ctx, nn, cm); resource.IgnoreNotFound(err) != nil {
+			err = errors.Wrap(err, errGetClaim)
+			r.record.Event(xr, event.Warning(reasonCompose, err))
+			xr.SetConditions(xpv1.ReconcileError(err))
+		}
+	}
+
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
@@ -609,6 +637,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errCompose)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
+		handleFunctionResults(r, log, cm, xr, res)
 		if kerrors.IsInvalid(err) {
 			// API Server's invalid errors may be unstable due to pointers in
 			// the string representation of invalid structs (%v), among other
@@ -622,6 +651,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
+	handleFunctionResults(r, log, cm, xr, res)
 
 	if r.kindObserver != nil {
 		var gvks []schema.GroupVersionKind
@@ -648,16 +678,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
-	warnings := 0
-	for _, e := range res.Events {
+	warning := false
+	for _, e := range append(res.CompositeEvents, res.ClaimEvents...) {
 		if e.Type == event.TypeWarning {
-			warnings++
+			warning = true
+			break
 		}
-		log.Debug(e.Message)
-		r.record.Event(xr, e)
 	}
-
-	if warnings == 0 {
+	if !warning {
 		// We don't consider warnings severe enough to prevent the XR from being
 		// considered synced (i.e. severe enough to return a ReconcileError) but
 		// they are severe enough that we probably shouldn't say we successfully
@@ -756,4 +784,134 @@ func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx 
 			}})
 		}
 	}
+}
+
+// handleFunctionResults will process the result returned by the composition functions.
+// This includes recording events for the xr and claim and setting updating status conditions
+// on the xr.
+func handleFunctionResults(r *Reconciler, log logging.Logger, cm *claim.Unstructured, xr *composite.Unstructured, res CompositionResult) {
+	recordEvents(r, log, cm, res.ClaimEvents)
+	recordEvents(r, log, xr, res.CompositeEvents)
+
+	prevXrConditions := GetConditions(&xr.Unstructured)
+	filteredXrConditions := handleConditions(r.record, xr, prevXrConditions, res.CompositeConditions)
+	ForceSetConditions(&xr.Unstructured, filteredXrConditions...)
+
+	prevCmConditions := GetClaimConditions(xr)
+	filteredCmConditions := handleConditions(r.record, cm, prevCmConditions, res.ClaimConditions)
+	ForceSetClaimConditions(xr, filteredCmConditions...)
+}
+
+func recordEvents(r *Reconciler, log logging.Logger, o runtime.Object, events []event.Event) {
+	if o == nil {
+		// in the case that the object is nil (e.g., failed to fetch claim), do not emit events on this run
+		return
+	}
+	for _, e := range events {
+		log.Debug(e.Message)
+		if o != nil {
+			r.record.Event(o, e)
+		}
+	}
+}
+
+// ForceSetConditions sets the object's status.conditions to whatever is provided
+// as the conditions arg. All existing conditions will be wiped.
+func ForceSetConditions(u *kunstructured.Unstructured, conditions ...xpv1.Condition) {
+	forceSetConditions(u.Object, "status.conditions", conditions...)
+}
+
+// ForceSetClaimConditions sets the composite's status.claimConditions to whatever is provided
+// as the conditions arg. All existing conditions will be wiped.
+func ForceSetClaimConditions(c *composite.Unstructured, conditions ...xpv1.Condition) {
+	forceSetConditions(c.Object, "status.claimConditions", conditions...)
+}
+
+func forceSetConditions(o map[string]interface{}, path string, conditions ...xpv1.Condition) {
+	conditioned := xpv1.ConditionedStatus{}
+	conditioned.SetConditions(conditions...)
+	_ = fieldpath.Pave(o).SetValue(path, conditioned.Conditions)
+}
+
+// GetConditions returns all items from the object's status.conditions.
+func GetConditions(u *kunstructured.Unstructured) map[xpv1.ConditionType]xpv1.Condition {
+	return getConditions(u.Object, "status.conditions")
+}
+
+// GetClaimConditions returns all items from the composites's status.claimConditions.
+func GetClaimConditions(xr *composite.Unstructured) map[xpv1.ConditionType]xpv1.Condition {
+	return getConditions(xr.Object, "status.claimConditions")
+}
+
+func getConditions(o map[string]interface{}, path string) map[xpv1.ConditionType]xpv1.Condition {
+	conditions := []xpv1.Condition{}
+	if err := fieldpath.Pave(o).GetValueInto(path, &conditions); err != nil {
+		return make(map[xpv1.ConditionType]xpv1.Condition)
+	}
+	m := make(map[xpv1.ConditionType]xpv1.Condition)
+	for _, c := range conditions {
+		m[c.Type] = c
+	}
+	return m
+}
+
+// RemoveStaleConditions takes the previous and current list of conditions.
+// It keeps any special conditions that are required (Ready/Synced)
+// It removes any previous conditions that were not found in the current list.
+// It then merges the remaining previous conditions with the current conditions,
+// giving precedence to previous conditions for sake of accurate transition times.
+func RemoveStaleConditions(prev, curr map[xpv1.ConditionType]xpv1.Condition) []xpv1.Condition {
+	filtered := []xpv1.Condition{}
+	// remove any unknown types that were not seen in the current list
+	for t, p := range prev {
+		if _, ok := curr[t]; ok {
+			filtered = append(filtered, p)
+		} else if t == xpv1.TypeReady || t == xpv1.TypeSynced {
+			filtered = append(filtered, p)
+		}
+	}
+	// add all current entries
+	for _, c := range curr {
+		filtered = append(filtered, c)
+	}
+	return filtered
+}
+
+// TODO(dalton): come up with better naming, break the function up, etc...?
+// if we break this up for sake of better function layout.. it seems we would
+// have to sacrifice performance.
+func handleConditions(rec event.Recorder, o runtime.Object, prev map[xpv1.ConditionType]xpv1.Condition, curr map[xpv1.ConditionType]FunctionCondition) []xpv1.Condition {
+	newConditions := []xpv1.Condition{}
+
+	// ensure we keep Crossplane's conditions
+	xpTypes := []xpv1.ConditionType{xpv1.TypeReady, xpv1.TypeSynced}
+	for _, t := range xpTypes {
+		if p, ok := prev[t]; ok {
+			newConditions = append(newConditions, p)
+		}
+	}
+
+	// combine all current functions by type
+	for _, c := range curr {
+		p, ok := prev[c.Type]
+		if ok {
+			newConditions = append(newConditions, p)
+			if c.Equal(p) {
+				// this condition has not changed
+				continue
+			}
+		}
+		newConditions = append(newConditions, c.Condition)
+		// the condition is new or has changed; record it
+		switch c.severity {
+		case v1beta1.Severity_SEVERITY_FATAL,
+			v1beta1.Severity_SEVERITY_WARNING,
+			v1beta1.Severity_SEVERITY_UNSPECIFIED:
+			rec.Event(o, event.Warning(event.Reason(c.Reason), errors.New(c.Message)))
+		case v1beta1.Severity_SEVERITY_NORMAL:
+			rec.Event(o, event.Normal(event.Reason(c.Reason), c.Message))
+		}
+	}
+
+	return newConditions
 }

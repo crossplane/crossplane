@@ -393,8 +393,8 @@ func TestReconcile(t *testing.T) {
 							cm.SetDeletionTimestamp(&now)
 							cm.SetConditions(xpv1.Deleting())
 						})),
-					},
-					),
+						MockList: test.NewMockListFn(nil),
+					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },
 					}),
@@ -510,6 +510,47 @@ func TestReconcile(t *testing.T) {
 							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
 							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPropagateCDs)))
 						})),
+						MockList: test.NewMockListFn(nil),
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithCompositeSyncer(CompositeSyncerFn(func(ctx context.Context, cm *claim.Unstructured, xr *composite.Unstructured) error { return nil })),
+					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+						return false, errBoom
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"EventPropagationError": {
+			reason: "We should fail the reconcile if we can't propagate the bound XR's events to the claim",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							switch o := obj.(type) {
+							case *claim.Unstructured:
+								// We won't try to get an XR unless the claim
+								// references one.
+								o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							case *composite.Unstructured:
+								// Pretend the XR exists and is available.
+								o.SetCreationTimestamp(now)
+								o.SetClaimReference(&claim.Reference{})
+								o.SetConditions(xpv1.Available())
+							}
+							return nil
+						}),
+						MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
+							// Check that we set our status condition.
+							cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errGetCompositeEvents)))
+						})),
+						MockList: test.NewMockListFn(errBoom),
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil },

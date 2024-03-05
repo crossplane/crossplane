@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	apixr "github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/names"
 )
 
@@ -484,9 +485,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
 
+	// update conditions returned by composition functions
+	prevConditions := apixr.GetConditions(&cm.Unstructured)
+	newFnConditions := apixr.GetClaimConditions(xr)
+	// remove any stale conditions and merge the prev conditions with the new ones
+	filteredConditions := apixr.RemoveStaleConditions(prevConditions, newFnConditions)
+	// force set conditions to include only the filtered list
+	apixr.ForceSetConditions(&cm.Unstructured, filteredConditions...)
+
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
-
 		// We should be watching the composite resource and will have a
 		// request queued if it changes, so no need to requeue.
 		cm.SetConditions(Waiting())
