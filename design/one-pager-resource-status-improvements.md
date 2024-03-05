@@ -78,7 +78,7 @@ I recommend the original solution with an Updating status for consistency and ea
 
 ### 1: Improving Providers Control Over Condition Messages
 #### Problem
-Crossplane currently has primary control over the `Ready` condition, limiting the ability of providers to communicate detailed, human-readable status information to users via the `Message` field. While Crossplane's consistent conditions create predictable expectations for users, this generic nature leaves valuable context underutilized. Important status information for users and developers is often relegated to Kubernetes events and logs, which can be less convenient to access and interpret.j
+Crossplane currently has primary control over the `Ready` condition, limiting the ability of providers to communicate detailed, human-readable status information to users via the `Message` field. While Crossplane's consistent conditions create predictable expectations for users, this generic nature leaves valuable context underutilized. Important status information for users and developers is often relegated to Kubernetes events and logs, which can be less convenient to access and interpret.
 
 #### Solution
 Modify the existing condition helper functions in Crossplane to optionally accept a string argument intended for the `Message` field of a condition. This would empower provider authors to provide human-readable summaries when setting condition states.
