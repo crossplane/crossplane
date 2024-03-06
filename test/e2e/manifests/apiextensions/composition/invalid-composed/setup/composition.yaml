@@ -1,0 +1,75 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: parent
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XParent
+  resources:
+    - name: child
+      base:
+        apiVersion: example.org/v1alpha1
+        kind: XChild
+        spec: {}
+      patches:
+        - type: FromCompositeFieldPath
+          # this is going to be 1
+          fromFieldPath: spec.someField
+          # this will fail because it's supposed to be > 1
+          toFieldPath: spec.someField
+    - name: nop-resource-1
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        metadata:
+          annotations:
+            exampleVal: "foo"
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "False"
+                time: 0s
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: 1s
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          # we should still see this in the child
+          toFieldPath: metadata.annotations[something]
+        - type: ToCompositeFieldPath
+          fromFieldPath: metadata.annotations[exampleVal]
+          # we should still see this in the composite
+          toFieldPath: metadata.annotations[exampleVal]
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: child
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XChild
+  resources:
+    # we don't really care about what happens here, it's not going to work
+    # because the composite resource will be invalid
+    - name: nop-resource-1
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "False"
+                time: 0s
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: 1s
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: metadata.name
+          toFieldPath: metadata.annotations[something]

@@ -615,8 +615,8 @@ func TestFunctionCompose(t *testing.T) {
 			want: want{
 				res: CompositionResult{
 					Composed: []ComposedResource{
-						{ResourceName: "desired-resource-a"},
-						{ResourceName: "observed-resource-a", Ready: true},
+						{ResourceName: "desired-resource-a", Synced: true},
+						{ResourceName: "observed-resource-a", Ready: true, Synced: true},
 					},
 					ConnectionDetails: managed.ConnectionDetails{
 						"from": []byte("function-pipeline"),
@@ -816,8 +816,8 @@ func TestFunctionCompose(t *testing.T) {
 			want: want{
 				res: CompositionResult{
 					Composed: []ComposedResource{
-						{ResourceName: "desired-resource-a"},
-						{ResourceName: "observed-resource-a", Ready: true},
+						{ResourceName: "desired-resource-a", Synced: true},
+						{ResourceName: "observed-resource-a", Ready: true, Synced: true},
 					},
 					ConnectionDetails: managed.ConnectionDetails{
 						"from": []byte("function-pipeline"),
