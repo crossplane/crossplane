@@ -711,7 +711,7 @@ func updateXRConditions(xr *composite.Unstructured, unsynced, unready []Composed
 	if len(unsynced) > 0 {
 		// We want to requeue to wait for our composed resources to
 		// become ready, since we can't watch them.
-		syncedCond = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Unsynced resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unsynced))))
+		syncedCond = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Invalid resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unsynced))))
 		requeueImmediately = true
 	}
 	if len(unready) > 0 {
