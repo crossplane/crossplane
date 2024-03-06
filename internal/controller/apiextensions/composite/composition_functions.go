@@ -388,7 +388,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// NOTE(phisco): We need to set a field owner unique for each XR here,
 		// this prevents multiple XRs composing the same resource to be
 		// continuously alternated as controllers.
-		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
+		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwnerXR)); err != nil {
 			if kerrors.IsInvalid(err) {
 				// We tried applying an invalid resource, we can't tell whether
 				// this means the resource will never be valid or it will if we
