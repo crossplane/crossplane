@@ -150,6 +150,111 @@ func (Severity) EnumDescriptor() ([]byte, []int) {
 	return file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDescGZIP(), []int{1}
 }
 
+// Target of Function results.
+type Target int32
+
+const (
+	// If the target is unspecified, the result targets the composite resource.
+	Target_TARGET_UNSPECIFIED Target = 0
+	// Target the composite resource. Results that target the composite resource
+	// should include detailed, advanced information.
+	Target_TARGET_COMPOSITE Target = 1
+	// Target the composite and the claim. Results that target the composite and
+	// the claim should include only end-user friendly information.
+	Target_TARGET_COMPOSITE_AND_CLAIM Target = 2
+)
+
+// Enum value maps for Target.
+var (
+	Target_name = map[int32]string{
+		0: "TARGET_UNSPECIFIED",
+		1: "TARGET_COMPOSITE",
+		2: "TARGET_COMPOSITE_AND_CLAIM",
+	}
+	Target_value = map[string]int32{
+		"TARGET_UNSPECIFIED":         0,
+		"TARGET_COMPOSITE":           1,
+		"TARGET_COMPOSITE_AND_CLAIM": 2,
+	}
+)
+
+func (x Target) Enum() *Target {
+	p := new(Target)
+	*p = x
+	return p
+}
+
+func (x Target) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Target) Descriptor() protoreflect.EnumDescriptor {
+	return file_apiextensions_fn_proto_v1beta1_run_function_proto_enumTypes[2].Descriptor()
+}
+
+func (Target) Type() protoreflect.EnumType {
+	return &file_apiextensions_fn_proto_v1beta1_run_function_proto_enumTypes[2]
+}
+
+func (x Target) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Target.Descriptor instead.
+func (Target) EnumDescriptor() ([]byte, []int) {
+	return file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDescGZIP(), []int{2}
+}
+
+// Status of Function result condition.
+type Status int32
+
+const (
+	Status_STATUS_UNSPECIFIED Status = 0
+	Status_STATUS_FALSE       Status = 1
+	Status_STATUS_TRUE        Status = 2
+)
+
+// Enum value maps for Status.
+var (
+	Status_name = map[int32]string{
+		0: "STATUS_UNSPECIFIED",
+		1: "STATUS_FALSE",
+		2: "STATUS_TRUE",
+	}
+	Status_value = map[string]int32{
+		"STATUS_UNSPECIFIED": 0,
+		"STATUS_FALSE":       1,
+		"STATUS_TRUE":        2,
+	}
+)
+
+func (x Status) Enum() *Status {
+	p := new(Status)
+	*p = x
+	return p
+}
+
+func (x Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_apiextensions_fn_proto_v1beta1_run_function_proto_enumTypes[3].Descriptor()
+}
+
+func (Status) Type() protoreflect.EnumType {
+	return &file_apiextensions_fn_proto_v1beta1_run_function_proto_enumTypes[3]
+}
+
+func (x Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Status.Descriptor instead.
+func (Status) EnumDescriptor() ([]byte, []int) {
+	return file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDescGZIP(), []int{3}
+}
+
 // A RunFunctionRequest requests that the Composition Function be run.
 type RunFunctionRequest struct {
 	state         protoimpl.MessageState
@@ -1017,6 +1122,12 @@ type Result struct {
 	Severity Severity `protobuf:"varint,1,opt,name=severity,proto3,enum=apiextensions.fn.proto.v1beta1.Severity" json:"severity,omitempty"`
 	// Human-readable details about the result.
 	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// The resources this result targets.
+	Target Target `protobuf:"varint,3,opt,name=target,proto3,enum=apiextensions.fn.proto.v1beta1.Target" json:"target,omitempty"`
+	// A result can optionally indicate the condition of the target resources.
+	// Crossplane will consider the resources to be in the supplied condition
+	// until another result changes it.
+	Condition *Condition `protobuf:"bytes,4,opt,name=condition,proto3,oneof" json:"condition,omitempty"`
 }
 
 func (x *Result) Reset() {
@@ -1061,6 +1172,88 @@ func (x *Result) GetSeverity() Severity {
 func (x *Result) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *Result) GetTarget() Target {
+	if x != nil {
+		return x.Target
+	}
+	return Target_TARGET_UNSPECIFIED
+}
+
+func (x *Result) GetCondition() *Condition {
+	if x != nil {
+		return x.Condition
+	}
+	return nil
+}
+
+// A Condition
+type Condition struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	// Type of the condition, e.g. DatabaseReady.
+	// Ready and Synced are reserved for use by Crossplane.
+	Type string `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	// Status of the condition.
+	Status Status `protobuf:"varint,2,opt,name=status,proto3,enum=apiextensions.fn.proto.v1beta1.Status" json:"status,omitempty"`
+	// Machine-readable PascalCase reason.
+	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+}
+
+func (x *Condition) Reset() {
+	*x = Condition{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[13]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Condition) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Condition) ProtoMessage() {}
+
+func (x *Condition) ProtoReflect() protoreflect.Message {
+	mi := &file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[13]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Condition.ProtoReflect.Descriptor instead.
+func (*Condition) Descriptor() ([]byte, []int) {
+	return file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *Condition) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Condition) GetStatus() Status {
+	if x != nil {
+		return x.Status
+	}
+	return Status_STATUS_UNSPECIFIED
+}
+
+func (x *Condition) GetReason() string {
+	if x != nil {
+		return x.Reason
 	}
 	return ""
 }
@@ -1252,38 +1445,65 @@ var file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDesc = []byte{
 	0x6c, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c,
 	0x75, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a,
-	0x02, 0x38, 0x01, 0x22, 0x68, 0x0a, 0x06, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12, 0x44, 0x0a,
-	0x08, 0x73, 0x65, 0x76, 0x65, 0x72, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e, 0x32,
-	0x28, 0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x2e,
-	0x66, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61, 0x31,
-	0x2e, 0x53, 0x65, 0x76, 0x65, 0x72, 0x69, 0x74, 0x79, 0x52, 0x08, 0x73, 0x65, 0x76, 0x65, 0x72,
-	0x69, 0x74, 0x79, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2a, 0x3f, 0x0a,
-	0x05, 0x52, 0x65, 0x61, 0x64, 0x79, 0x12, 0x15, 0x0a, 0x11, 0x52, 0x45, 0x41, 0x44, 0x59, 0x5f,
-	0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x0e, 0x0a,
-	0x0a, 0x52, 0x45, 0x41, 0x44, 0x59, 0x5f, 0x54, 0x52, 0x55, 0x45, 0x10, 0x01, 0x12, 0x0f, 0x0a,
-	0x0b, 0x52, 0x45, 0x41, 0x44, 0x59, 0x5f, 0x46, 0x41, 0x4c, 0x53, 0x45, 0x10, 0x02, 0x2a, 0x63,
-	0x0a, 0x08, 0x53, 0x65, 0x76, 0x65, 0x72, 0x69, 0x74, 0x79, 0x12, 0x18, 0x0a, 0x14, 0x53, 0x45,
-	0x56, 0x45, 0x52, 0x49, 0x54, 0x59, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49,
-	0x45, 0x44, 0x10, 0x00, 0x12, 0x12, 0x0a, 0x0e, 0x53, 0x45, 0x56, 0x45, 0x52, 0x49, 0x54, 0x59,
-	0x5f, 0x46, 0x41, 0x54, 0x41, 0x4c, 0x10, 0x01, 0x12, 0x14, 0x0a, 0x10, 0x53, 0x45, 0x56, 0x45,
-	0x52, 0x49, 0x54, 0x59, 0x5f, 0x57, 0x41, 0x52, 0x4e, 0x49, 0x4e, 0x47, 0x10, 0x02, 0x12, 0x13,
-	0x0a, 0x0f, 0x53, 0x45, 0x56, 0x45, 0x52, 0x49, 0x54, 0x59, 0x5f, 0x4e, 0x4f, 0x52, 0x4d, 0x41,
-	0x4c, 0x10, 0x03, 0x32, 0x91, 0x01, 0x0a, 0x15, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e,
-	0x52, 0x75, 0x6e, 0x6e, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x78, 0x0a,
-	0x0b, 0x52, 0x75, 0x6e, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x32, 0x2e, 0x61,
-	0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x2e, 0x66, 0x6e, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61, 0x31, 0x2e, 0x52, 0x75,
-	0x6e, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x1a, 0x33, 0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73,
+	0x02, 0x38, 0x01, 0x22, 0x84, 0x02, 0x0a, 0x06, 0x52, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12, 0x44,
+	0x0a, 0x08, 0x73, 0x65, 0x76, 0x65, 0x72, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0e,
+	0x32, 0x28, 0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73,
 	0x2e, 0x66, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61,
-	0x31, 0x2e, 0x52, 0x75, 0x6e, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73,
-	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x46, 0x5a, 0x44, 0x67, 0x69, 0x74, 0x68, 0x75,
-	0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x72, 0x6f, 0x73, 0x73, 0x70, 0x6c, 0x61, 0x6e, 0x65,
-	0x2f, 0x63, 0x72, 0x6f, 0x73, 0x73, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2f, 0x61, 0x70, 0x69, 0x73,
-	0x2f, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x2f, 0x66,
-	0x6e, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61, 0x31, 0x62,
-	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x31, 0x2e, 0x53, 0x65, 0x76, 0x65, 0x72, 0x69, 0x74, 0x79, 0x52, 0x08, 0x73, 0x65, 0x76, 0x65,
+	0x72, 0x69, 0x74, 0x79, 0x12, 0x18, 0x0a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x3e,
+	0x0a, 0x06, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x26,
+	0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x2e, 0x66,
+	0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61, 0x31, 0x2e,
+	0x54, 0x61, 0x72, 0x67, 0x65, 0x74, 0x52, 0x06, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x12, 0x4c,
+	0x0a, 0x09, 0x63, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x04, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x29, 0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e,
+	0x73, 0x2e, 0x66, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74,
+	0x61, 0x31, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x48, 0x00, 0x52, 0x09,
+	0x63, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x88, 0x01, 0x01, 0x42, 0x0c, 0x0a, 0x0a,
+	0x5f, 0x63, 0x6f, 0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x77, 0x0a, 0x09, 0x43, 0x6f,
+	0x6e, 0x64, 0x69, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x74, 0x79, 0x70, 0x65, 0x12, 0x3e, 0x0a, 0x06, 0x73,
+	0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x26, 0x2e, 0x61, 0x70,
+	0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x2e, 0x66, 0x6e, 0x2e, 0x70,
+	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61, 0x31, 0x2e, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x16, 0x0a, 0x06, 0x72,
+	0x65, 0x61, 0x73, 0x6f, 0x6e, 0x18, 0x03, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x61,
+	0x73, 0x6f, 0x6e, 0x2a, 0x3f, 0x0a, 0x05, 0x52, 0x65, 0x61, 0x64, 0x79, 0x12, 0x15, 0x0a, 0x11,
+	0x52, 0x45, 0x41, 0x44, 0x59, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45,
+	0x44, 0x10, 0x00, 0x12, 0x0e, 0x0a, 0x0a, 0x52, 0x45, 0x41, 0x44, 0x59, 0x5f, 0x54, 0x52, 0x55,
+	0x45, 0x10, 0x01, 0x12, 0x0f, 0x0a, 0x0b, 0x52, 0x45, 0x41, 0x44, 0x59, 0x5f, 0x46, 0x41, 0x4c,
+	0x53, 0x45, 0x10, 0x02, 0x2a, 0x63, 0x0a, 0x08, 0x53, 0x65, 0x76, 0x65, 0x72, 0x69, 0x74, 0x79,
+	0x12, 0x18, 0x0a, 0x14, 0x53, 0x45, 0x56, 0x45, 0x52, 0x49, 0x54, 0x59, 0x5f, 0x55, 0x4e, 0x53,
+	0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x12, 0x0a, 0x0e, 0x53, 0x45,
+	0x56, 0x45, 0x52, 0x49, 0x54, 0x59, 0x5f, 0x46, 0x41, 0x54, 0x41, 0x4c, 0x10, 0x01, 0x12, 0x14,
+	0x0a, 0x10, 0x53, 0x45, 0x56, 0x45, 0x52, 0x49, 0x54, 0x59, 0x5f, 0x57, 0x41, 0x52, 0x4e, 0x49,
+	0x4e, 0x47, 0x10, 0x02, 0x12, 0x13, 0x0a, 0x0f, 0x53, 0x45, 0x56, 0x45, 0x52, 0x49, 0x54, 0x59,
+	0x5f, 0x4e, 0x4f, 0x52, 0x4d, 0x41, 0x4c, 0x10, 0x03, 0x2a, 0x56, 0x0a, 0x06, 0x54, 0x61, 0x72,
+	0x67, 0x65, 0x74, 0x12, 0x16, 0x0a, 0x12, 0x54, 0x41, 0x52, 0x47, 0x45, 0x54, 0x5f, 0x55, 0x4e,
+	0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00, 0x12, 0x14, 0x0a, 0x10, 0x54,
+	0x41, 0x52, 0x47, 0x45, 0x54, 0x5f, 0x43, 0x4f, 0x4d, 0x50, 0x4f, 0x53, 0x49, 0x54, 0x45, 0x10,
+	0x01, 0x12, 0x1e, 0x0a, 0x1a, 0x54, 0x41, 0x52, 0x47, 0x45, 0x54, 0x5f, 0x43, 0x4f, 0x4d, 0x50,
+	0x4f, 0x53, 0x49, 0x54, 0x45, 0x5f, 0x41, 0x4e, 0x44, 0x5f, 0x43, 0x4c, 0x41, 0x49, 0x4d, 0x10,
+	0x02, 0x2a, 0x43, 0x0a, 0x06, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x16, 0x0a, 0x12, 0x53,
+	0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45,
+	0x44, 0x10, 0x00, 0x12, 0x10, 0x0a, 0x0c, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f, 0x46, 0x41,
+	0x4c, 0x53, 0x45, 0x10, 0x01, 0x12, 0x0f, 0x0a, 0x0b, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
+	0x54, 0x52, 0x55, 0x45, 0x10, 0x02, 0x32, 0x91, 0x01, 0x0a, 0x15, 0x46, 0x75, 0x6e, 0x63, 0x74,
+	0x69, 0x6f, 0x6e, 0x52, 0x75, 0x6e, 0x6e, 0x65, 0x72, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x12, 0x78, 0x0a, 0x0b, 0x52, 0x75, 0x6e, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12,
+	0x32, 0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e, 0x73, 0x2e,
+	0x66, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62, 0x65, 0x74, 0x61, 0x31,
+	0x2e, 0x52, 0x75, 0x6e, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x1a, 0x33, 0x2e, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69,
+	0x6f, 0x6e, 0x73, 0x2e, 0x66, 0x6e, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x76, 0x31, 0x62,
+	0x65, 0x74, 0x61, 0x31, 0x2e, 0x52, 0x75, 0x6e, 0x46, 0x75, 0x6e, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x46, 0x5a, 0x44, 0x67, 0x69,
+	0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x63, 0x72, 0x6f, 0x73, 0x73, 0x70, 0x6c,
+	0x61, 0x6e, 0x65, 0x2f, 0x63, 0x72, 0x6f, 0x73, 0x73, 0x70, 0x6c, 0x61, 0x6e, 0x65, 0x2f, 0x61,
+	0x70, 0x69, 0x73, 0x2f, 0x61, 0x70, 0x69, 0x65, 0x78, 0x74, 0x65, 0x6e, 0x73, 0x69, 0x6f, 0x6e,
+	0x73, 0x2f, 0x66, 0x6e, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x76, 0x31, 0x62, 0x65, 0x74,
+	0x61, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1298,71 +1518,77 @@ func file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDescGZIP() []byte
 	return file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDescData
 }
 
-var file_apiextensions_fn_proto_v1beta1_run_function_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_apiextensions_fn_proto_v1beta1_run_function_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_apiextensions_fn_proto_v1beta1_run_function_proto_goTypes = []interface{}{
 	(Ready)(0),                  // 0: apiextensions.fn.proto.v1beta1.Ready
 	(Severity)(0),               // 1: apiextensions.fn.proto.v1beta1.Severity
-	(*RunFunctionRequest)(nil),  // 2: apiextensions.fn.proto.v1beta1.RunFunctionRequest
-	(*Credentials)(nil),         // 3: apiextensions.fn.proto.v1beta1.Credentials
-	(*CredentialData)(nil),      // 4: apiextensions.fn.proto.v1beta1.CredentialData
-	(*Resources)(nil),           // 5: apiextensions.fn.proto.v1beta1.Resources
-	(*RunFunctionResponse)(nil), // 6: apiextensions.fn.proto.v1beta1.RunFunctionResponse
-	(*RequestMeta)(nil),         // 7: apiextensions.fn.proto.v1beta1.RequestMeta
-	(*Requirements)(nil),        // 8: apiextensions.fn.proto.v1beta1.Requirements
-	(*ResourceSelector)(nil),    // 9: apiextensions.fn.proto.v1beta1.ResourceSelector
-	(*MatchLabels)(nil),         // 10: apiextensions.fn.proto.v1beta1.MatchLabels
-	(*ResponseMeta)(nil),        // 11: apiextensions.fn.proto.v1beta1.ResponseMeta
-	(*State)(nil),               // 12: apiextensions.fn.proto.v1beta1.State
-	(*Resource)(nil),            // 13: apiextensions.fn.proto.v1beta1.Resource
-	(*Result)(nil),              // 14: apiextensions.fn.proto.v1beta1.Result
-	nil,                         // 15: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
-	nil,                         // 16: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
-	nil,                         // 17: apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
-	nil,                         // 18: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
-	nil,                         // 19: apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
-	nil,                         // 20: apiextensions.fn.proto.v1beta1.State.ResourcesEntry
-	nil,                         // 21: apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
-	(*structpb.Struct)(nil),     // 22: google.protobuf.Struct
-	(*durationpb.Duration)(nil), // 23: google.protobuf.Duration
+	(Target)(0),                 // 2: apiextensions.fn.proto.v1beta1.Target
+	(Status)(0),                 // 3: apiextensions.fn.proto.v1beta1.Status
+	(*RunFunctionRequest)(nil),  // 4: apiextensions.fn.proto.v1beta1.RunFunctionRequest
+	(*Credentials)(nil),         // 5: apiextensions.fn.proto.v1beta1.Credentials
+	(*CredentialData)(nil),      // 6: apiextensions.fn.proto.v1beta1.CredentialData
+	(*Resources)(nil),           // 7: apiextensions.fn.proto.v1beta1.Resources
+	(*RunFunctionResponse)(nil), // 8: apiextensions.fn.proto.v1beta1.RunFunctionResponse
+	(*RequestMeta)(nil),         // 9: apiextensions.fn.proto.v1beta1.RequestMeta
+	(*Requirements)(nil),        // 10: apiextensions.fn.proto.v1beta1.Requirements
+	(*ResourceSelector)(nil),    // 11: apiextensions.fn.proto.v1beta1.ResourceSelector
+	(*MatchLabels)(nil),         // 12: apiextensions.fn.proto.v1beta1.MatchLabels
+	(*ResponseMeta)(nil),        // 13: apiextensions.fn.proto.v1beta1.ResponseMeta
+	(*State)(nil),               // 14: apiextensions.fn.proto.v1beta1.State
+	(*Resource)(nil),            // 15: apiextensions.fn.proto.v1beta1.Resource
+	(*Result)(nil),              // 16: apiextensions.fn.proto.v1beta1.Result
+	(*Condition)(nil),           // 17: apiextensions.fn.proto.v1beta1.Condition
+	nil,                         // 18: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
+	nil,                         // 19: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
+	nil,                         // 20: apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
+	nil,                         // 21: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
+	nil,                         // 22: apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
+	nil,                         // 23: apiextensions.fn.proto.v1beta1.State.ResourcesEntry
+	nil,                         // 24: apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
+	(*structpb.Struct)(nil),     // 25: google.protobuf.Struct
+	(*durationpb.Duration)(nil), // 26: google.protobuf.Duration
 }
 var file_apiextensions_fn_proto_v1beta1_run_function_proto_depIdxs = []int32{
-	7,  // 0: apiextensions.fn.proto.v1beta1.RunFunctionRequest.meta:type_name -> apiextensions.fn.proto.v1beta1.RequestMeta
-	12, // 1: apiextensions.fn.proto.v1beta1.RunFunctionRequest.observed:type_name -> apiextensions.fn.proto.v1beta1.State
-	12, // 2: apiextensions.fn.proto.v1beta1.RunFunctionRequest.desired:type_name -> apiextensions.fn.proto.v1beta1.State
-	22, // 3: apiextensions.fn.proto.v1beta1.RunFunctionRequest.input:type_name -> google.protobuf.Struct
-	22, // 4: apiextensions.fn.proto.v1beta1.RunFunctionRequest.context:type_name -> google.protobuf.Struct
-	15, // 5: apiextensions.fn.proto.v1beta1.RunFunctionRequest.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
-	16, // 6: apiextensions.fn.proto.v1beta1.RunFunctionRequest.credentials:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
-	4,  // 7: apiextensions.fn.proto.v1beta1.Credentials.credential_data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData
-	17, // 8: apiextensions.fn.proto.v1beta1.CredentialData.data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
-	13, // 9: apiextensions.fn.proto.v1beta1.Resources.items:type_name -> apiextensions.fn.proto.v1beta1.Resource
-	11, // 10: apiextensions.fn.proto.v1beta1.RunFunctionResponse.meta:type_name -> apiextensions.fn.proto.v1beta1.ResponseMeta
-	12, // 11: apiextensions.fn.proto.v1beta1.RunFunctionResponse.desired:type_name -> apiextensions.fn.proto.v1beta1.State
-	14, // 12: apiextensions.fn.proto.v1beta1.RunFunctionResponse.results:type_name -> apiextensions.fn.proto.v1beta1.Result
-	22, // 13: apiextensions.fn.proto.v1beta1.RunFunctionResponse.context:type_name -> google.protobuf.Struct
-	8,  // 14: apiextensions.fn.proto.v1beta1.RunFunctionResponse.requirements:type_name -> apiextensions.fn.proto.v1beta1.Requirements
-	18, // 15: apiextensions.fn.proto.v1beta1.Requirements.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
-	10, // 16: apiextensions.fn.proto.v1beta1.ResourceSelector.match_labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels
-	19, // 17: apiextensions.fn.proto.v1beta1.MatchLabels.labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
-	23, // 18: apiextensions.fn.proto.v1beta1.ResponseMeta.ttl:type_name -> google.protobuf.Duration
-	13, // 19: apiextensions.fn.proto.v1beta1.State.composite:type_name -> apiextensions.fn.proto.v1beta1.Resource
-	20, // 20: apiextensions.fn.proto.v1beta1.State.resources:type_name -> apiextensions.fn.proto.v1beta1.State.ResourcesEntry
-	22, // 21: apiextensions.fn.proto.v1beta1.Resource.resource:type_name -> google.protobuf.Struct
-	21, // 22: apiextensions.fn.proto.v1beta1.Resource.connection_details:type_name -> apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
+	9,  // 0: apiextensions.fn.proto.v1beta1.RunFunctionRequest.meta:type_name -> apiextensions.fn.proto.v1beta1.RequestMeta
+	14, // 1: apiextensions.fn.proto.v1beta1.RunFunctionRequest.observed:type_name -> apiextensions.fn.proto.v1beta1.State
+	14, // 2: apiextensions.fn.proto.v1beta1.RunFunctionRequest.desired:type_name -> apiextensions.fn.proto.v1beta1.State
+	25, // 3: apiextensions.fn.proto.v1beta1.RunFunctionRequest.input:type_name -> google.protobuf.Struct
+	25, // 4: apiextensions.fn.proto.v1beta1.RunFunctionRequest.context:type_name -> google.protobuf.Struct
+	18, // 5: apiextensions.fn.proto.v1beta1.RunFunctionRequest.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry
+	19, // 6: apiextensions.fn.proto.v1beta1.RunFunctionRequest.credentials:type_name -> apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry
+	6,  // 7: apiextensions.fn.proto.v1beta1.Credentials.credential_data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData
+	20, // 8: apiextensions.fn.proto.v1beta1.CredentialData.data:type_name -> apiextensions.fn.proto.v1beta1.CredentialData.DataEntry
+	15, // 9: apiextensions.fn.proto.v1beta1.Resources.items:type_name -> apiextensions.fn.proto.v1beta1.Resource
+	13, // 10: apiextensions.fn.proto.v1beta1.RunFunctionResponse.meta:type_name -> apiextensions.fn.proto.v1beta1.ResponseMeta
+	14, // 11: apiextensions.fn.proto.v1beta1.RunFunctionResponse.desired:type_name -> apiextensions.fn.proto.v1beta1.State
+	16, // 12: apiextensions.fn.proto.v1beta1.RunFunctionResponse.results:type_name -> apiextensions.fn.proto.v1beta1.Result
+	25, // 13: apiextensions.fn.proto.v1beta1.RunFunctionResponse.context:type_name -> google.protobuf.Struct
+	10, // 14: apiextensions.fn.proto.v1beta1.RunFunctionResponse.requirements:type_name -> apiextensions.fn.proto.v1beta1.Requirements
+	21, // 15: apiextensions.fn.proto.v1beta1.Requirements.extra_resources:type_name -> apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry
+	12, // 16: apiextensions.fn.proto.v1beta1.ResourceSelector.match_labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels
+	22, // 17: apiextensions.fn.proto.v1beta1.MatchLabels.labels:type_name -> apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntry
+	26, // 18: apiextensions.fn.proto.v1beta1.ResponseMeta.ttl:type_name -> google.protobuf.Duration
+	15, // 19: apiextensions.fn.proto.v1beta1.State.composite:type_name -> apiextensions.fn.proto.v1beta1.Resource
+	23, // 20: apiextensions.fn.proto.v1beta1.State.resources:type_name -> apiextensions.fn.proto.v1beta1.State.ResourcesEntry
+	25, // 21: apiextensions.fn.proto.v1beta1.Resource.resource:type_name -> google.protobuf.Struct
+	24, // 22: apiextensions.fn.proto.v1beta1.Resource.connection_details:type_name -> apiextensions.fn.proto.v1beta1.Resource.ConnectionDetailsEntry
 	0,  // 23: apiextensions.fn.proto.v1beta1.Resource.ready:type_name -> apiextensions.fn.proto.v1beta1.Ready
 	1,  // 24: apiextensions.fn.proto.v1beta1.Result.severity:type_name -> apiextensions.fn.proto.v1beta1.Severity
-	5,  // 25: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resources
-	3,  // 26: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Credentials
-	9,  // 27: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.ResourceSelector
-	13, // 28: apiextensions.fn.proto.v1beta1.State.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resource
-	2,  // 29: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:input_type -> apiextensions.fn.proto.v1beta1.RunFunctionRequest
-	6,  // 30: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:output_type -> apiextensions.fn.proto.v1beta1.RunFunctionResponse
-	30, // [30:31] is the sub-list for method output_type
-	29, // [29:30] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	2,  // 25: apiextensions.fn.proto.v1beta1.Result.target:type_name -> apiextensions.fn.proto.v1beta1.Target
+	17, // 26: apiextensions.fn.proto.v1beta1.Result.condition:type_name -> apiextensions.fn.proto.v1beta1.Condition
+	3,  // 27: apiextensions.fn.proto.v1beta1.Condition.status:type_name -> apiextensions.fn.proto.v1beta1.Status
+	7,  // 28: apiextensions.fn.proto.v1beta1.RunFunctionRequest.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resources
+	5,  // 29: apiextensions.fn.proto.v1beta1.RunFunctionRequest.CredentialsEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Credentials
+	11, // 30: apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.ResourceSelector
+	15, // 31: apiextensions.fn.proto.v1beta1.State.ResourcesEntry.value:type_name -> apiextensions.fn.proto.v1beta1.Resource
+	4,  // 32: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:input_type -> apiextensions.fn.proto.v1beta1.RunFunctionRequest
+	8,  // 33: apiextensions.fn.proto.v1beta1.FunctionRunnerService.RunFunction:output_type -> apiextensions.fn.proto.v1beta1.RunFunctionResponse
+	33, // [33:34] is the sub-list for method output_type
+	32, // [32:33] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_apiextensions_fn_proto_v1beta1_run_function_proto_init() }
@@ -1527,6 +1753,18 @@ func file_apiextensions_fn_proto_v1beta1_run_function_proto_init() {
 				return nil
 			}
 		}
+		file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Condition); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
 	}
 	file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[0].OneofWrappers = []interface{}{}
 	file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[1].OneofWrappers = []interface{}{
@@ -1538,13 +1776,14 @@ func file_apiextensions_fn_proto_v1beta1_run_function_proto_init() {
 		(*ResourceSelector_MatchLabels)(nil),
 	}
 	file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[9].OneofWrappers = []interface{}{}
+	file_apiextensions_fn_proto_v1beta1_run_function_proto_msgTypes[12].OneofWrappers = []interface{}{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_apiextensions_fn_proto_v1beta1_run_function_proto_rawDesc,
-			NumEnums:      2,
-			NumMessages:   20,
+			NumEnums:      4,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -243,6 +243,14 @@ message Result {
 
   // Human-readable details about the result.
   string message = 2;
+
+  // The resources this result targets.
+  Target target = 3;
+
+  // A result can optionally indicate the condition of the target resources.
+  // Crossplane will consider the resources to be in the supplied condition
+  // until another result changes it.
+  optional Condition condition = 4;
 }
 
 // Severity of Function results.
@@ -262,4 +270,40 @@ enum Severity {
   // Normal results are emitted as normal events and debug logs associated
   // with the composite resource.
   SEVERITY_NORMAL = 3;
+}
+
+// TODO(negz): Should Target instead be Audience?
+
+// Target of Function results.
+enum Target {
+  // If the target is unspecified, the result targets the composite resource.
+  TARGET_UNSPECIFIED = 0;
+
+  // Target the composite resource. Results that target the composite resource
+  // should include detailed, advanced information.
+  TARGET_COMPOSITE = 1;
+
+  // Target the composite and the claim. Results that target the composite and
+  // the claim should include only end-user friendly information.
+  TARGET_COMPOSITE_AND_CLAIM = 2;
+}
+
+// Status of Function result condition.
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_FALSE = 1;
+  STATUS_TRUE = 2;
+}
+
+// A Condition 
+message Condition {
+  // Type of the condition, e.g. DatabaseReady.
+  // Ready and Synced are reserved for use by Crossplane.
+  string type = 1;
+
+  // Status of the condition.
+  Status status = 2;
+
+  // Machine-readable PascalCase reason.
+  string reason = 3;
 }
