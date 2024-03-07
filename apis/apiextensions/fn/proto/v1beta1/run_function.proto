@@ -247,10 +247,13 @@ message Result {
   // The resources this result targets.
   Target target = 3;
 
+  // Optional PascalCase, machine-readable reason for this result.
+  optional string reason = 4;
+
   // A result can optionally indicate the condition of the target resources.
   // Crossplane will consider the resources to be in the supplied condition
   // until another result changes it.
-  optional Condition condition = 4;
+  optional Condition condition = 5;
 }
 
 // Severity of Function results.
@@ -303,7 +306,4 @@ message Condition {
 
   // Status of the condition.
   Status status = 2;
-
-  // Machine-readable PascalCase reason.
-  string reason = 3;
 }
