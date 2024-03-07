@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -185,7 +186,29 @@ type CompositionRequest struct {
 type CompositionResult struct {
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
-	Events            []event.Event
+	Events            []CompositionEvent
+}
+
+// A CompositionEventTarget is the target of a composition event.
+type CompositionEventTarget string
+
+// Composition event targets.
+const (
+	CompositionEventTargetComposite         CompositionEventTarget = "Composite"
+	CompositionEventTargetCompositeAndClaim CompositionEventTarget = "CompositeAndClaim"
+)
+
+// TODO(negz): This is more than a Kubernetes event. It's equivalent to a
+// function result, but CompositionResult is taken. Is there a better name?
+
+// A CompositionEvent represents an event produced by the composition process.
+type CompositionEvent struct {
+	Event event.Event
+
+	Target CompositionEventTarget
+
+	ConditionType   *xpv1.ConditionType
+	ConditionStatus *corev1.ConditionStatus
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
@@ -656,11 +679,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	warnings := 0
 	for _, e := range res.Events {
-		if e.Type == event.TypeWarning {
+		if e.Event.Type == event.TypeWarning {
 			warnings++
 		}
-		log.Debug(e.Message)
-		r.record.Event(xr, e)
+		log.Debug(e.Event.Message)
+
+		// TODO(negz): Add a WithLabels method to the Event type in
+		// crossplane-runtime, then use it to label the events we produce here
+		// with their targets.
+		r.record.Event(xr, e.Event)
+
+		// TODO(negz): Add a controller that watches for Events with a label
+		// like crossplane.io/result-target: composite-and-claim and emits new
+		// events associated with the relevant claim.
+
+		// TODO(negz): Update any status conditions derived from a
+		// CompositionEvent (i.e. function result) here. Also update the
+		// claimConditions array, if the target calls for it.
+
+		// TODO(negz): Update the claim controller to back-propagate any
+		// conditions in the claimConditions array.
 	}
 
 	if warnings == 0 {

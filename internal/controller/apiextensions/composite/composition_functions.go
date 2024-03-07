@@ -32,8 +32,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -291,7 +293,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// The Function pipeline starts with empty desired state.
 	d := &v1beta1.State{}
 
-	events := []event.Event{}
+	events := []CompositionEvent{}
 
 	// The Function context starts empty...
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -400,18 +402,63 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Results of fatal severity stop the Composition process. Other results
 		// are accumulated to be emitted as events by the Reconciler.
 		for _, rs := range rsp.GetResults() {
+			// TODO(negz): Break non-fatal result processing into a function.
+			reason := reasonCompose
+			if rs.Reason != nil {
+				reason = event.Reason(rs.GetReason())
+			}
+
+			var target CompositionEventTarget
+			switch rs.GetTarget() {
+			case v1beta1.Target_TARGET_UNSPECIFIED, v1beta1.Target_TARGET_COMPOSITE:
+				target = CompositionEventTargetComposite
+			case v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM:
+				target = CompositionEventTargetCompositeAndClaim
+			}
+
+			var ct *xpv1.ConditionType
+			var cs *corev1.ConditionStatus
+			if c := rs.GetCondition(); c != nil {
+				ct = ptr.To[xpv1.ConditionType](xpv1.ConditionType(c.GetType()))
+
+				switch c.GetStatus() {
+				case v1beta1.Status_STATUS_UNSPECIFIED:
+					cs = ptr.To[corev1.ConditionStatus](corev1.ConditionUnknown)
+				case v1beta1.Status_STATUS_TRUE:
+					cs = ptr.To[corev1.ConditionStatus](corev1.ConditionTrue)
+				case v1beta1.Status_STATUS_FALSE:
+					cs = ptr.To[corev1.ConditionStatus](corev1.ConditionFalse)
+				}
+			}
+
 			switch rs.GetSeverity() {
 			case v1beta1.Severity_SEVERITY_FATAL:
 				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
 			case v1beta1.Severity_SEVERITY_WARNING:
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+				events = append(events, CompositionEvent{
+					Event:           event.Warning(reason, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())),
+					Target:          target,
+					ConditionType:   ct,
+					ConditionStatus: cs,
+				})
 			case v1beta1.Severity_SEVERITY_NORMAL:
-				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+				events = append(events, CompositionEvent{
+					Event:           event.Normal(reason, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())),
+					Target:          target,
+					ConditionType:   ct,
+					ConditionStatus: cs,
+				})
 			case v1beta1.Severity_SEVERITY_UNSPECIFIED:
 				// We could hit this case if a Function was built against a newer
 				// protobuf than this build of Crossplane, and the new protobuf
 				// introduced a severity that we don't know about.
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
+				events = append(events, CompositionEvent{
+					Event: event.Warning(reason, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())),
+
+					// Explicitly target only the XR, since we're including
+					// information about an exceptional, unexpected state.
+					Target: CompositionEventTargetComposite,
+				})
 			}
 		}
 	}
@@ -531,7 +578,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				// We mark the resource as not synced, so that once we get to
 				// decide the XR's Synced condition, we can set it to false if
 				// any of the resources didn't sync successfully.
-				events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)))
+				events = append(events, CompositionEvent{
+					Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)),
+					Target: CompositionEventTargetComposite,
+				})
 				// NOTE(phisco): here we behave differently w.r.t. the native
 				// p&t composer, as we respect the readiness reported by
 				// functions, while there we defaulted to also set ready false
