@@ -740,7 +740,7 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									o.SetAnnotations(map[string]string{usage.AnnotationKeyFirstDeletionAttempt: time.Now().String()})
+									o.SetAnnotations(map[string]string{usage.AnnotationKeyDeletionAttempt: string(metav1.DeletePropagationBackground)})
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									return nil
 								}
