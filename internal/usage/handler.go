@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -46,9 +46,10 @@ const (
 	// indexing and retrieving needed CRDs
 	InUseIndexKey = "inuse.apiversion.kind.name"
 
-	// AnnotationKeyFirstDeletionAttempt is the annotation key used to record the timestamp for first deletion attempt
-	// which was blocked due to usage.
-	AnnotationKeyFirstDeletionAttempt = "usage.crossplane.io/first-deletion-attempt"
+	// AnnotationKeyDeletionAttempt is the annotation key used to record whether
+	// a deletion attempt was made and blocked by the Usage. The value stored is
+	// the propagation policy used with the deletion attempt.
+	AnnotationKeyDeletionAttempt = "usage.crossplane.io/deletion-attempt-with-policy"
 
 	// Error strings.
 	errFmtUnexpectedOp = "unexpected operation %q, expected \"DELETE\""
@@ -132,14 +133,18 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 		if err := u.UnmarshalJSON(request.OldObject.Raw); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		return h.validateNoUsages(ctx, u)
+		opts := &metav1.DeleteOptions{}
+		if err := yaml.Unmarshal(request.Options.Raw, opts); err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		return h.validateNoUsages(ctx, u, opts)
 	default:
 		return admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, request.Operation))
 	}
 }
 
-func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured) admission.Response {
-	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName())
+func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured, opts *metav1.DeleteOptions) admission.Response {
+	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
 	usageList := &v1alpha1.UsageList{}
 	if err := h.client.List(ctx, usageList, client.MatchingFields{InUseIndexKey: IndexValueForObject(u)}); err != nil {
 		h.log.Debug("Error when getting Usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
@@ -149,11 +154,16 @@ func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstruct
 		msg := inUseMessage(usageList)
 		h.log.Debug("Usage found, deletion not allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "msg", msg)
 
+		// Use the default propagation policy if not provided
+		policy := metav1.DeletePropagationBackground
+		if opts.PropagationPolicy != nil {
+			policy = *opts.PropagationPolicy
+		}
 		// If the resource is being deleted, we want to record the first deletion attempt
 		// so that we can track whether a deletion was attempted at least once.
-		if u.GetAnnotations() == nil || u.GetAnnotations()[AnnotationKeyFirstDeletionAttempt] == "" {
+		if u.GetAnnotations() == nil || u.GetAnnotations()[AnnotationKeyDeletionAttempt] != string(policy) {
 			orig := u.DeepCopy()
-			xpmeta.AddAnnotations(u, map[string]string{AnnotationKeyFirstDeletionAttempt: metav1.Now().Format(time.RFC3339)})
+			xpmeta.AddAnnotations(u, map[string]string{AnnotationKeyDeletionAttempt: string(policy)})
 			// Patch the resource to add the deletion attempt annotation
 			if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
 				h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
