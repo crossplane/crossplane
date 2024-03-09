@@ -3,6 +3,7 @@ kind: Usage
 metadata:
   name: using-uses-used
 spec:
+  replayDeletion: true
   of:
     apiVersion: nop.crossplane.io/v1alpha1
     kind: NopResource
