@@ -36,7 +36,7 @@ that can be consumed in a portable manner across cloud providers.
 
 ### Original State
 
-Originally, resource claims had to explicitly declare the the underlying
+Originally, resource claims had to explicitly declare the underlying
 resource class that they want to inherit the configuration from on deployment.
 For example, the following resource class could be declared for a Postgres RDS
 database instance on AWS:

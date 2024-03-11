@@ -304,7 +304,7 @@ Because the scheduling of `KubernetesApplication` resources is now isolated to
 target the `KubernetesTarget` resource, more intelligent scheduling can be
 enabled without touching other parts of the Crossplane ecosystem. Previously, a
 `KubernetesCluster` claim was used for claiming, consuming, and dynamically
-provisioning Kubernetes cluster resources so changes to the the API type related
+provisioning Kubernetes cluster resources so changes to the API type related
 to scheduling (i.e. consuming) could unintentionally affect those other
 capabilities as well. Potential future scheduling improvements could involve
 price, latency, and geographic optimization by surfacing additional fields or
