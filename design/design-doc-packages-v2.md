@@ -161,7 +161,7 @@ workflow the package manager uses for installing a `Package`. We will use a
    [stdout](https://github.com/crossplane/crossplane/blob/a0d139f7cf269599ba916ed15af3fd68ffeabbdf/cmd/crossplane/package/unpack/unpack.go#L53).
 4. The _`ClusterPackageInstall` controller_ waits for the `Job` to complete
    successfully before reading the logs from the `Pod`. When the `Job` is
-   complete, it reads the the logs and creates all of the objects that were
+   complete, it reads the logs and creates all of the objects that were
    printed, making a [few modifications as well as annotating and labelling
    appropriately](https://github.com/crossplane/crossplane/blob/6fc50822fbf11a7d31f8a9dabde5c8948c3b36ac/pkg/controller/packages/install/installjob.go#L259).
 5. The _`Package` controller_ observes the `Package` creation and assumes the
@@ -714,7 +714,7 @@ will operate with the following behavior.
    `spec.desiredState: Active`.
 3. Set `status.currentRevision` to full image name used for `PackageRevision`
    (this can be obtained from the `Pod` in the install `Job`)
-4. Report status of `PackageRevision` in the the status of the `Package`.
+4. Report status of `PackageRevision` in the status of the `Package`.
 
 **`Package` Created with `spec.revisionActivationPolicy: Manual`**
 
@@ -723,7 +723,7 @@ will operate with the following behavior.
    `spec.desiredState: Inactive`.
 3. Set `status.currentRevision` to full image name used for `PackageRevision`
    (this can be obtained from the `Pod` in the install `Job`)
-4. Report status of `PackageRevision` in the the status of the `Package`.
+4. Report status of `PackageRevision` in the status of the `Package`.
 
 User is responsible for manually setting the `PackageRevision` to `Active`.
 
