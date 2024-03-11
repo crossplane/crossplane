@@ -59,10 +59,8 @@ func TestUsageStandalone(t *testing.T) {
 				funcs.DeleteResources(manifests, "with-by/using.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "with-by/using.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "with-by/usage.yaml"),
-
-				// Deletion of used resource should be allowed after usage is cleared.
-				funcs.DeleteResources(manifests, "with-by/used.yaml"),
-				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "with-by/used.yaml"),
+				// We have "replayDeletion: true" on the usage, deletion of used resource should be replayed after usage is cleared.
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "with-by/used.yaml"),
 			),
 		},
 		{

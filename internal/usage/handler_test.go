@@ -42,7 +42,7 @@ var errBoom = errors.New("boom")
 func TestHandle(t *testing.T) {
 	protected := "This resource is protected!"
 	type args struct {
-		reader  client.Reader
+		client  client.Client
 		request admission.Request
 	}
 	type want struct {
@@ -121,8 +121,8 @@ func TestHandle(t *testing.T) {
 		"DeleteAllowedNoUsages": {
 			reason: "We should allow a delete request if there is no usages for the given object.",
 			args: args{
-				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+				client: &test.MockClient{
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return nil
 					},
 				},
@@ -147,8 +147,8 @@ func TestHandle(t *testing.T) {
 		"DeleteRejectedCannotList": {
 			reason: "We should reject a delete request if we cannot list usages.",
 			args: args{
-				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+				client: &test.MockClient{
+					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
 						return errBoom
 					},
 				},
@@ -173,8 +173,11 @@ func TestHandle(t *testing.T) {
 		"DeleteBlockedWithUsageBy": {
 			reason: "We should reject a delete request if there are usages for the given object with \"by\" defined.",
 			args: args{
-				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+				client: &test.MockClient{
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*v1alpha1.UsageList)
 						l.Items = []v1alpha1.Usage{
 							{
@@ -231,8 +234,11 @@ func TestHandle(t *testing.T) {
 		"DeleteBlockedWithUsageReason": {
 			reason: "We should reject a delete request if there are usages for the given object with \"reason\" defined.",
 			args: args{
-				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+				client: &test.MockClient{
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*v1alpha1.UsageList)
 						l.Items = []v1alpha1.Usage{
 							{
@@ -283,8 +289,11 @@ func TestHandle(t *testing.T) {
 		"DeleteBlockedWithUsageNone": {
 			reason: "We should reject a delete request if there are usages for the given object without \"reason\" or \"by\" defined.",
 			args: args{
-				reader: &test.MockClient{
-					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+				client: &test.MockClient{
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
 						l := list.(*v1alpha1.UsageList)
 						l.Items = []v1alpha1.Usage{
 							{
@@ -334,7 +343,7 @@ func TestHandle(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewHandler(tc.args.reader, WithLogger(logging.NewNopLogger()))
+			h := NewHandler(tc.args.client, WithLogger(logging.NewNopLogger()))
 			got := h.Handle(context.Background(), tc.args.request)
 			if diff := cmp.Diff(tc.want.resp, got); diff != "" {
 				t.Errorf("%s\nHandle(...): -want response, +got:\n%s", tc.reason, diff)
