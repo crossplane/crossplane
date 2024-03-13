@@ -32,8 +32,8 @@ const (
 	errMarshalProtoStruct = "cannot marshal protobuf Struct to JSON"
 	errSetControllerRef   = "cannot set controller reference"
 
-	errFmtKindOrGroupChanged = "cannot change the kind or group of a composed resource from %s to %s (possible composed resource template mismatch)"
-	errFmtNamePrefixLabel    = "cannot find top-level composite resource name label %q in composite resource metadata"
+	errFmtKindChanged     = "cannot change the kind of a composed resource from %s to %s (possible composed resource template mismatch)"
+	errFmtNamePrefixLabel = "cannot find top-level composite resource name label %q in composite resource metadata"
 
 	// TODO(negz): Include more detail such as field paths if they exist.
 	// Perhaps require each patch type to have a String() method to help
@@ -61,16 +61,18 @@ func RenderFromJSON(o resource.Object, data []byte) error {
 	o.SetName(name)
 	o.SetNamespace(namespace)
 
-	// This resource already had a GK (probably because it already exists), but
+	// This resource already had a Kind (probably because it already exists), but
 	// when we rendered its template it changed. This shouldn't happen. Either
-	// someone changed the kind or group in the template, or we're trying to use the
+	// someone changed the kind in the template, or we're trying to use the
 	// wrong template (e.g. because the order of an array of anonymous templates
 	// changed).
 	// Please note, we don't check for version changes, as versions can change. For example,
 	// if a composed resource was created with a template that has a version of "v1alpha1",
 	// and then the template is updated to "v1beta1", the composed resource will still be valid.
-	if !gvk.Empty() && o.GetObjectKind().GroupVersionKind().GroupKind() != gvk.GroupKind() {
-		return errors.Errorf(errFmtKindOrGroupChanged, gvk, o.GetObjectKind().GroupVersionKind())
+	// We also don't check for group changes, as groups can change during
+	// migrations.
+	if !gvk.Empty() && o.GetObjectKind().GroupVersionKind().Kind != gvk.Kind {
+		return errors.Errorf(errFmtKindChanged, gvk, o.GetObjectKind().GroupVersionKind())
 	}
 
 	return nil
