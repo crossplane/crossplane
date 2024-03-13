@@ -59,7 +59,7 @@ registryCaBundleConfig:
 
 service:
   # -- Configure annotations on the service object. Only enabled when webhooks.enabled = true
-  annotations: {}
+  customAnnotations: {}
 
 webhooks:
   # -- Enable webhooks for Crossplane and installed Provider packages.
