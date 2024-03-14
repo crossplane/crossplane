@@ -99,7 +99,7 @@ type startCommand struct {
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
-	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
+	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"100"`
 
 	WebhookEnabled bool `help:"Enable webhook configuration." default:"true" env:"WEBHOOK_ENABLED"`
 
