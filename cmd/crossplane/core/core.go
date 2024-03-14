@@ -93,9 +93,9 @@ type startCommand struct {
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" helm:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
-	SyncInterval     time.Duration `default:"1h" help:"How often all resources will be double-checked for drift from the desired state."                    short:"s"`
-	PollInterval     time.Duration `default:"1m" help:"How often individual resources will be checked for drift from the desired state."`
-	MaxReconcileRate int           `default:"10" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
+	SyncInterval     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                    short:"s"`
+	PollInterval     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
+	MaxReconcileRate int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 
 	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
