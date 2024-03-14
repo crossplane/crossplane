@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -39,6 +40,7 @@ import (
 	runtimeevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -487,19 +489,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	u.SetGroupVersionKind(xrGVK)
 
 	name := composite.ControllerName(d.GetName())
-	var ca cache.Cache
+	var xrCache cache.Cache // late initialized below
 	watches := []controller.Watch{
 		controller.For(u, &handler.EnqueueRequestForObject{}),
 		// enqueue composites whenever a matching CompositionRevision is created
-		controller.TriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
-			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
+		//
+		// Note: we explicitly use the xrCache for composition revisions to sync
+		// the life-cycle of the source and the composite list, and to avoid
+		// leaking these triggers (source.Kind does not remove a handler ever).
+		controller.TriggeredBy(&lazySyncingSource{Create: func() source.SyncingSource {
+			return source.Kind(xrCache, &v1.CompositionRevision{})
+		}}, handler.Funcs{
+			CreateFunc: func(_ context.Context, _ runtimeevent.CreateEvent, _ workqueue.RateLimitingInterface) {
+				composite.EnqueueForCompositionRevisionFunc(ck, xrCache, r.log)
+			},
 		}),
 	}
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// enqueue XRs that when a relevant MR is updated
 		watches = append(watches, controller.TriggeredBy(&r.xrInformers, handler.Funcs{
 			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
-				enqueueXRsForMR(ca, xrGVK, log)(ctx, ev, q)
+				enqueueXRsForMR(xrCache, xrGVK, log)(ctx, ev, q)
 			},
 		}))
 	}
@@ -511,14 +521,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
 	}
+	xrCache = c.GetCache()
 
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		ca = c.GetCache()
-		if err := ca.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
+		if err := xrCache.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
 			log.Debug(errAddIndex, "error", err)
 			// Nothing we can do. At worst, we won't have realtime updates.
 		}
-		if err := ca.IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
+		if err := xrCache.IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
 			log.Debug(errAddIndex, "error", err)
 			// Nothing we can do. At worst, we won't have realtime updates.
 		}
@@ -533,7 +543,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("(Re)started composite resource controller")
 
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		r.xrInformers.RegisterComposite(xrGVK, ca)
+		r.xrInformers.RegisterComposite(xrGVK, xrCache)
 	}
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
@@ -649,4 +659,25 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	}
 
 	return o
+}
+
+type lazySyncingSource struct {
+	Create func() source.SyncingSource
+
+	once   sync.Once
+	source source.SyncingSource
+}
+
+func (l *lazySyncingSource) WaitForSync(ctx context.Context) error {
+	l.once.Do(func() {
+		l.source = l.Create()
+	})
+	return l.source.WaitForSync(ctx)
+}
+
+func (l *lazySyncingSource) Start(ctx context.Context, h handler.EventHandler, q workqueue.RateLimitingInterface, prct ...predicate.Predicate) error {
+	l.once.Do(func() {
+		l.source = l.Create()
+	})
+	return l.source.Start(ctx, h, q, prct...)
 }

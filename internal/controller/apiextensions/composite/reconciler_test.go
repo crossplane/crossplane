@@ -1026,7 +1026,9 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fn := EnqueueForCompositionRevisionFunc(resource.CompositeKind(tt.args.of), tt.args.list, logging.NewNopLogger())
+			fn := EnqueueForCompositionRevisionFunc(resource.CompositeKind(tt.args.of), &mockClientReader{
+				MockList: tt.args.list,
+			}, logging.NewNopLogger())
 			q := rateLimitingQueueMock{}
 			fn(context.TODO(), tt.args.event, &q)
 			if got := q.added; !reflect.DeepEqual(got, tt.want.added) {
@@ -1043,4 +1045,19 @@ type rateLimitingQueueMock struct {
 
 func (f *rateLimitingQueueMock) Add(item interface{}) {
 	f.added = append(f.added, item)
+}
+
+var _ client.Reader = &mockClientReader{}
+
+type mockClientReader struct {
+	MockGet  func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error
+	MockList func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+}
+
+func (m *mockClientReader) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	return m.MockGet(ctx, key, obj, opts...)
+}
+
+func (m *mockClientReader) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return m.MockList(ctx, list, opts...)
 }
