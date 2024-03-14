@@ -85,9 +85,9 @@ priorityClassName: ""
 resourcesCrossplane:
   limits:
     # -- CPU resource limits for the Crossplane pod.
-    cpu: 100m
+    cpu: 500m
     # -- Memory resource limits for the Crossplane pod.
-    memory: 512Mi
+    memory: 1024Mi
   requests:
     # -- CPU resource requests for the Crossplane pod.
     cpu: 100m
