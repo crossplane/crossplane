@@ -62,23 +62,6 @@ func TestRenderFromJSON(t *testing.T) {
 				err: errors.Wrap(errInvalidChar, errUnmarshalJSON),
 			},
 		},
-		"ExistingGroupChanged": {
-			reason: "We should return an error if unmarshalling the base template changed the composed resource's group.",
-			args: args{
-				o: composed.New(composed.FromReference(corev1.ObjectReference{
-					APIVersion: "example.org/v1",
-					Kind:       "Potato",
-				})),
-				data: []byte(`{"apiVersion": "foo.io/v1", "kind": "Potato"}`),
-			},
-			want: want{
-				o: composed.New(composed.FromReference(corev1.ObjectReference{
-					APIVersion: "foo.io/v1",
-					Kind:       "Potato",
-				})),
-				err: errors.Errorf(errFmtKindOrGroupChanged, "example.org/v1, Kind=Potato", "foo.io/v1, Kind=Potato"),
-			},
-		},
 		"ExistingKindChanged": {
 			reason: "We should return an error if unmarshalling the base template changed the composed resource's kind.",
 			args: args{
@@ -93,7 +76,23 @@ func TestRenderFromJSON(t *testing.T) {
 					APIVersion: "example.org/v1",
 					Kind:       "Different",
 				})),
-				err: errors.Errorf(errFmtKindOrGroupChanged, "example.org/v1, Kind=Potato", "example.org/v1, Kind=Different"),
+				err: errors.Errorf(errFmtKindChanged, "example.org/v1, Kind=Potato", "example.org/v1, Kind=Different"),
+			},
+		},
+		"GroupCanChange": {
+			reason: "We should accept group changes in the base template.",
+			args: args{
+				o: composed.New(composed.FromReference(corev1.ObjectReference{
+					APIVersion: "example.org/v1",
+					Kind:       "Potato",
+				})),
+				data: []byte(`{"apiVersion": "foo.io/v1", "kind": "Potato"}`),
+			},
+			want: want{
+				o: composed.New(composed.FromReference(corev1.ObjectReference{
+					APIVersion: "foo.io/v1",
+					Kind:       "Potato",
+				})),
 			},
 		},
 		"VersionCanChange": {
