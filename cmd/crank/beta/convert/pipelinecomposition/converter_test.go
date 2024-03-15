@@ -291,40 +291,44 @@ func TestConvertPnTToPipeline(t *testing.T) {
 													},
 												},
 											},
-											"patchSets": []v1.PatchSet{
+											"patchSets": []NewPatchSet{
 												{
 													Name: "test-patchset",
-													Patches: []v1.Patch{
+													Patch: []Patch{
 														{
-															Type:          v1.PatchTypeFromCompositeFieldPath,
-															FromFieldPath: &fieldPath,
-															ToFieldPath:   &fieldPath,
-															Transforms: []v1.Transform{
-																{
-																	Type: v1.TransformTypeString,
-																	String: &v1.StringTransform{
-																		Format: &stringFmt,
-																		Type:   v1.StringTransformTypeFormat,
+															Patch: v1.Patch{
+																Type:          v1.PatchTypeFromCompositeFieldPath,
+																FromFieldPath: &fieldPath,
+																ToFieldPath:   &fieldPath,
+																Transforms: []v1.Transform{
+																	{
+																		Type: v1.TransformTypeString,
+																		String: &v1.StringTransform{
+																			Format: &stringFmt,
+																			Type:   v1.StringTransformTypeFormat,
+																		},
 																	},
-																},
-																{
-																	Type: v1.TransformTypeMath,
-																	Math: &v1.MathTransform{
-																		Multiply: &intp,
-																		Type:     v1.MathTransformTypeMultiply,
+																	{
+																		Type: v1.TransformTypeMath,
+																		Math: &v1.MathTransform{
+																			Multiply: &intp,
+																			Type:     v1.MathTransformTypeMultiply,
+																		},
 																	},
 																},
 															},
 														},
 														{
-															Type:          v1.PatchTypeCombineFromComposite,
-															FromFieldPath: &fieldPath,
-															ToFieldPath:   &fieldPath,
+															Patch: v1.Patch{
+																Type:          v1.PatchTypeCombineFromComposite,
+																FromFieldPath: &fieldPath,
+																ToFieldPath:   &fieldPath,
+															},
 														},
 													},
 												},
 											},
-											"resources": []v1.ComposedTemplate{},
+											"resources": []ComposedTemplate{},
 										},
 									},
 								},
@@ -494,8 +498,8 @@ func TestProcessFunctionInput(t *testing.T) {
 						"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 						"kind":        "Resources",
 						"environment": (*v1.EnvironmentConfiguration)(nil),
-						"patchSets":   []v1.PatchSet{},
-						"resources":   []v1.ComposedTemplate{},
+						"patchSets":   []NewPatchSet{},
+						"resources":   []ComposedTemplate{},
 					},
 				},
 			},
@@ -559,40 +563,44 @@ func TestProcessFunctionInput(t *testing.T) {
 								},
 							},
 						},
-						"patchSets": []v1.PatchSet{
+						"patchSets": []NewPatchSet{
 							{
 								Name: "test-patchset",
-								Patches: []v1.Patch{
+								Patch: []Patch{
 									{
-										Type:          v1.PatchTypeFromCompositeFieldPath,
-										FromFieldPath: &fieldPath,
-										ToFieldPath:   &fieldPath,
-										Transforms: []v1.Transform{
-											{
-												Type: v1.TransformTypeString,
-												String: &v1.StringTransform{
-													Format: &stringFmt,
-													Type:   v1.StringTransformTypeFormat,
+										Patch: v1.Patch{
+											Type:          v1.PatchTypeFromCompositeFieldPath,
+											FromFieldPath: &fieldPath,
+											ToFieldPath:   &fieldPath,
+											Transforms: []v1.Transform{
+												{
+													Type: v1.TransformTypeString,
+													String: &v1.StringTransform{
+														Format: &stringFmt,
+														Type:   v1.StringTransformTypeFormat,
+													},
 												},
-											},
-											{
-												Type: v1.TransformTypeMath,
-												Math: &v1.MathTransform{
-													Multiply: &intp,
-													Type:     v1.MathTransformTypeMultiply,
+												{
+													Type: v1.TransformTypeMath,
+													Math: &v1.MathTransform{
+														Multiply: &intp,
+														Type:     v1.MathTransformTypeMultiply,
+													},
 												},
 											},
 										},
 									},
 									{
-										Type:          v1.PatchTypeCombineFromComposite,
-										FromFieldPath: &fieldPath,
-										ToFieldPath:   &fieldPath,
+										Patch: v1.Patch{
+											Type:          v1.PatchTypeCombineFromComposite,
+											FromFieldPath: &fieldPath,
+											ToFieldPath:   &fieldPath,
+										},
 									},
 								},
 							},
 						},
-						"resources": []v1.ComposedTemplate{},
+						"resources": []ComposedTemplate{},
 					},
 				},
 			},
