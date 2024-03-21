@@ -136,9 +136,7 @@
     "commands": [
       "make generate"
     ],
-    fileFilters: [
-      ["**/*"]
-    ],
+    fileFilters: ["**/*"],
     executionMode: "branch",
   }
 }
