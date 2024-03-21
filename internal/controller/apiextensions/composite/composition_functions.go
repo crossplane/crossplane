@@ -274,10 +274,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// The Function pipeline starts with empty desired state.
 	d := &v1beta1.State{}
 
-	xrEvents := []event.Event{}
-	cmEvents := []event.Event{}
-	xrConditions := make(map[xpv1.ConditionType]FunctionCondition)
-	cmConditions := make(map[xpv1.ConditionType]FunctionCondition)
+	events := make(map[v1beta1.Target][]event.Event)
+	conditions := make(map[xpv1.ConditionType]FunctionCondition)
 
 	// The Function context starts empty...
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -373,15 +371,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			var condition *FunctionCondition
 			if rs.GetCondition() != nil && rs.GetCondition().GetType() != "" {
-				condition = &FunctionCondition{
-					Condition: xpv1.Condition{
-						Type:               xpv1.ConditionType(rs.GetCondition().GetType()),
-						LastTransitionTime: metav1.Now(),
-						Reason:             xpv1.ConditionReason(rs.GetCondition().GetReason()),
-						Message:            rs.GetMessage(),
-					},
-					severity: rs.GetSeverity(),
+				condition := &FunctionCondition{}
+				condition.Type = xpv1.ConditionType(rs.GetCondition().GetType())
+				condition.LastTransitionTime = metav1.Now()
+				condition.Reason = xpv1.ConditionReason(rs.GetCondition().GetReason())
+				condition.Message = rs.GetMessage()
+				condition.Target = rs.GetTarget()
+
+				switch rs.GetSeverity() {
+				case v1beta1.Severity_SEVERITY_NORMAL:
+					condition.EventType = event.TypeNormal
+				case v1beta1.Severity_SEVERITY_UNSPECIFIED, v1beta1.Severity_SEVERITY_FATAL:
+					condition.EventType = event.TypeWarning
 				}
+
 				switch rs.GetCondition().GetStatus() {
 				case v1beta1.Status_STATUS_TRUE:
 					condition.Status = corev1.ConditionTrue
@@ -394,27 +397,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				}
 			}
 
-			targetsComposite, targetsClaim := false, false
-			for _, t := range rs.GetTargets() {
-				switch t {
-				case v1beta1.Target_TARGET_COMPOSITE, v1beta1.Target_TARGET_UNSPECIFIED:
-					targetsComposite = true
-				case v1beta1.Target_TARGET_CLAIM:
-					targetsClaim = true
-				}
-			}
-			if targetsComposite {
+			switch rs.GetTarget() {
+			case v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM:
+				events[rs.GetTarget()] = append(events[rs.GetTarget()], cmEvent(rs))
+				fallthrough
+			case v1beta1.Target_TARGET_COMPOSITE, v1beta1.Target_TARGET_UNSPECIFIED:
+				events[rs.GetTarget()] = append(events[rs.GetTarget()], xrEvent(rs, fn.Step))
 				if condition != nil {
-					xrConditions[condition.Type] = *condition
-				} else {
-					xrEvents = append(xrEvents, xrEvent(rs, fn.Step))
-				}
-			}
-			if targetsClaim {
-				if condition != nil {
-					cmConditions[condition.Type] = *condition
-				} else {
-					cmEvents = append(cmEvents, cmEvent(rs))
+					conditions[condition.Type] = *condition
 				}
 			}
 		}
@@ -426,12 +416,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 			// returning the first error encountered to preserve existing behavior
 			return CompositionResult{
-				Composed:            []ComposedResource{},
-				ConnectionDetails:   map[string][]byte{},
-				CompositeEvents:     xrEvents,
-				ClaimEvents:         cmEvents,
-				CompositeConditions: xrConditions,
-				ClaimConditions:     cmConditions,
+				Composed:          []ComposedResource{},
+				ConnectionDetails: map[string][]byte{},
+				Events:            events,
+				Conditions:        conditions,
 			}, resErrs[0]
 		}
 	}
@@ -560,12 +548,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	return CompositionResult{
-		Composed:            resources,
-		ConnectionDetails:   d.GetComposite().GetConnectionDetails(),
-		CompositeEvents:     xrEvents,
-		ClaimEvents:         cmEvents,
-		CompositeConditions: xrConditions,
-		ClaimConditions:     cmConditions,
+		Composed:          resources,
+		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
+		Events:            events,
+		Conditions:        conditions,
 	}, nil
 }
 

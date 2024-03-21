@@ -282,10 +282,8 @@ func (in *CompositeResourceDefinitionStatus) DeepCopyInto(out *CompositeResource
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
 	if in.ClaimConditions != nil {
 		in, out := &in.ClaimConditions, &out.ClaimConditions
-		*out = make([]commonv1.Condition, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 	out.Controllers = in.Controllers
 }

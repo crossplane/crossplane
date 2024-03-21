@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	apixr "github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	cnds "github.com/crossplane/crossplane/internal/controller/apiextensions/conditions"
 	"github.com/crossplane/crossplane/internal/names"
 )
 
@@ -325,6 +325,7 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Complexity is tough to avoid here.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
+	cnd := cnds.New(cnds.WithRecorder(r.record))
 
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
@@ -348,7 +349,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// logging, publishing an event and updating the Synced status condition.
 	if meta.IsPaused(cm) {
 		r.record.Event(cm, event.Normal(reasonPaused, reconcilePausedMsg))
+		// TODO(dalton): add functionality to record an event when a condition has changed?
+		// This would simplify the handleConditions code...
+		// though we would need to determine if this is desired.. it would need to replace existing
+		// record calls, or be called in addition to them.
+		// In this specific example, it seems it could replace them.
+		// Perhaps we could have an abstraction on each condition that allows for setting a Event type (warn or info)
 		cm.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+
+		// we have:
+		// - recorder
+		// - thing with conditions
+
+		// we need:
+		// - condition with event type
+
 		// If the pause annotation is removed, we will have a chance to
 		// reconcile again and resume and if status update fails, we will
 		// reconcile again to retry to update the status.
@@ -485,13 +500,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
 
-	// update conditions returned by composition functions
-	prevConditions := apixr.GetConditions(&cm.Unstructured)
-	newFnConditions := apixr.GetClaimConditions(xr)
-	// remove any stale conditions and merge the prev conditions with the new ones
-	filteredConditions := apixr.RemoveStaleConditions(prevConditions, newFnConditions)
-	// force set conditions to include only the filtered list
-	apixr.ForceSetConditions(&cm.Unstructured, filteredConditions...)
+	// get conditions returned by composition functions
+	fnConditions := cnds.GetClaimConditions(xr)
+	// update conditions, drop old conditions and do not record the changes as
+	// these were already recorded by the composite reconciler
+	cnd.SetConditions(&cm.Unstructured, fnConditions, cnds.DropStale(true), cnds.WithRecorder(event.NewNopRecorder()))
 
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))

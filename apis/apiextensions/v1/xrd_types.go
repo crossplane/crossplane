@@ -184,11 +184,11 @@ type CompositeResourceValidation struct {
 type CompositeResourceDefinitionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 
-	// Conditions that should be copied to the claim.
-	// +listType=map
-	// +listMapKey=type
+	// ClaimConditions contains a subset of the status conditions types seen on
+	// the composite. For each type present, the corresponding status condition
+	// will be copied from the composite to the claim.
 	// +optional
-	ClaimConditions []xpv1.Condition `json:"claimConditions,omitempty"`
+	ClaimConditions []string `json:"claimConditions,omitempty"`
 
 	// Controllers represents the status of the controllers that power this
 	// composite resource definition.

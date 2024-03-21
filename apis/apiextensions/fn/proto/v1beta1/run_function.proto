@@ -221,7 +221,7 @@ message Result {
 
   // Determines who should receive any Events or Status Conditions that are
   // generated as part of this result
-  repeated Target targets = 3;
+  Target target = 3;
 
   // Optionally update the supplied status condition on all targets.
   // The result's reason and message will be used in the condition.
@@ -251,7 +251,7 @@ enum Severity {
 enum Target {
   TARGET_UNSPECIFIED = 0;
   TARGET_COMPOSITE = 1;
-  TARGET_CLAIM = 2;
+  TARGET_COMPOSITE_AND_CLAIM = 2;
 }
 
 // Status of Function result condition.

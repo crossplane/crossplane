@@ -188,6 +188,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		}
 	}
 
+	// TODO(dalton): need to update events here to match new definition
 	events := make([]event.Event, 0)
 
 	// We optimistically render all composed resources that we are able to with
@@ -349,7 +350,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, CompositeEvents: events}, nil
+	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,

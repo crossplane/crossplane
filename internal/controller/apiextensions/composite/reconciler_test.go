@@ -475,7 +475,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							CompositeEvents: []event.Event{event.Warning("Warning", errBoom)},
+							Events: []event.Event{event.Warning("Warning", errBoom)},
 						}, nil
 					})),
 					WithConnectionPublishers(managed.ConnectionPublisherFns{
@@ -530,7 +530,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							CompositeEvents: []event.Event{event.Warning("Warning", errBoom)},
+							Events: []event.Event{event.Warning("Warning", errBoom)},
 						}, nil
 					})),
 					WithConnectionPublishers(managed.ConnectionPublisherFns{
@@ -584,7 +584,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							CompositeEvents: []event.Event{event.Warning("Warning", errBoom)},
+							Events: []event.Event{event.Warning("Warning", errBoom)},
 						}, nil
 					})),
 					WithConnectionPublishers(managed.ConnectionPublisherFns{
