@@ -63,6 +63,7 @@ including all the custom resources and controllers.
 The following tables lists the configurable parameters of the Crossplane chart
 and their default values.
 
+
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `affinity` | Add `affinities` to the Crossplane pod deployment. | `{}` |
@@ -71,12 +72,13 @@ and their default values.
 | `customAnnotations` | Add custom `annotations` to the Crossplane pod deployment. | `{}` |
 | `customLabels` | Add custom `labels` to the Crossplane pod deployment. | `{}` |
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager pods. | `"RollingUpdate"` |
+| `dnsPolicy` | Specify the `dnsPolicy` to be used by the Crossplane pod. | `"ClusterFirst"` |
 | `extraEnvVarsCrossplane` | Add custom environmental variables to the Crossplane pod deployment. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraEnvVarsRBACManager` | Add custom environmental variables to the RBAC Manager pod deployment. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraObjects` | To add arbitrary Kubernetes Objects during a Helm Install | `[]` |
 | `extraVolumeMountsCrossplane` | Add custom `volumeMounts` to the Crossplane pod. | `{}` |
 | `extraVolumesCrossplane` | Add custom `volumes` to the Crossplane pod. | `{}` |
-| `hostNetwork` | Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. | `false` |
+| `hostNetwork` | Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. Consider setting `dnsPolicy` to `ClusterFirstWithHostNet` | `false` |
 | `image.pullPolicy` | The image pull policy used for Crossplane and RBAC Manager pods. | `"IfNotPresent"` |
 | `image.repository` | Repository for the Crossplane pod image. | `"xpkg.upbound.io/crossplane/crossplane"` |
 | `image.tag` | The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`. | `""` |
@@ -122,6 +124,7 @@ and their default values.
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
+
 
 ### Command Line
 
