@@ -22,7 +22,7 @@ tolerations: []
 # -- Add `affinities` to the Crossplane pod deployment.
 affinity: {}
 
-# -- Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. Consider setting `dnsPolicy` to `ClusterFirstWithHostNet`
+# -- Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. Consider setting `dnsPolicy` to `ClusterFirstWithHostNet`.
 hostNetwork: false
 
 # -- Specify the `dnsPolicy` to be used by the Crossplane pod.
