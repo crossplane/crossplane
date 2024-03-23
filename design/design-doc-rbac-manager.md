@@ -20,7 +20,7 @@ Crossplane, as a project, consists of three key building blocks:
 Each provider is a distinct process that is typically deployed as a pod. The API
 extensions and package manager controllers are part of the 'core' Crossplane
 controller manager process. The core controller manager is therefore responsible
-for _extending Crossplane_. Its controllers add and and remove Custom Resource
+for _extending Crossplane_. Its controllers add remove Custom Resource
 Definitions (CRDs) to and from the API server. The core Crossplane controllers
 define custom resources (CRs) that represent:
 
