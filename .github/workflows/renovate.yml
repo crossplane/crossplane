@@ -29,6 +29,8 @@ jobs:
         run:  npx --yes --package renovate -- renovate-config-validator
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@v40.1.5
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
         with:
           configurationFile: .github/renovate.json5
           token: ${{ secrets.RENOVATE_TOKEN }}
