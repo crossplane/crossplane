@@ -63,7 +63,6 @@ including all the custom resources and controllers.
 The following tables lists the configurable parameters of the Crossplane chart
 and their default values.
 
-
 | Parameter | Description | Default |
 | --- | --- | --- |
 | `affinity` | Add `affinities` to the Crossplane pod deployment. | `{}` |
@@ -124,7 +123,6 @@ and their default values.
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
-
 
 ### Command Line
 
