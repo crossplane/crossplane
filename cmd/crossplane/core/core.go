@@ -99,6 +99,8 @@ type startCommand struct {
 
 	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
+	FunctionConnectPlainText bool `help:"Uses unencrypted plaintext connections to invoke functions. Implies --tls-allow-insecure"`
+
 	TLSServerSecretName string `env:"TLS_SERVER_SECRET_NAME" help:"The name of the TLS Secret that will store Crossplane's server certificate."`
 	TLSServerCertsDir   string `env:"TLS_SERVER_CERTS_DIR"   help:"The path of the folder which will store TLS server certificate of Crossplane."`
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
@@ -214,11 +216,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			xfn.WithInterceptorCreators(m),
 		}
 
-		tlsCfg, err := c.getTLSConfig()
-		if err != nil {
-			return errors.Wrap(err, "cannot load client TLS certificates")
+		if !c.FunctionConnectPlainText {
+			tlsCfg, err := c.getTLSConfig()
+			if err != nil {
+				return errors.Wrap(err, "cannot load client TLS certificates")
+			}
+			fnRunnerOpts = append(fnRunnerOpts, xfn.WithTLSConfig(tlsCfg))
 		}
-		fnRunnerOpts = append(fnRunnerOpts, xfn.WithTLSConfig(tlsCfg))
 
 		// We want all XR controllers to share the same gRPC clients.
 		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(), fnRunnerOpts...)
