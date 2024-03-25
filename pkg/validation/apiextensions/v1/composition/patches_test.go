@@ -461,6 +461,14 @@ func TestValidateFieldPath(t *testing.T) {
 				schema:    &apiextensions.JSONSchemaProps{Properties: map[string]apiextensions.JSONSchemaProps{"metadata": {Type: "object"}}},
 			},
 		},
+		"AcceptMetadataGenerateName": {
+			reason: "Should accept metadata.generateName",
+			want:   want{err: nil, fieldType: "string"},
+			args: args{
+				fieldPath: "metadata.generateName",
+				schema:    &apiextensions.JSONSchemaProps{Properties: map[string]apiextensions.JSONSchemaProps{"metadata": {Type: "object"}}},
+			},
+		},
 		"AcceptXPreserveUnknownFieldsInAdditionalProperties": {
 			reason: "Should properly handle x-preserve-unknown-fields even if defined in a nested schema",
 			want:   want{err: nil, fieldType: ""},

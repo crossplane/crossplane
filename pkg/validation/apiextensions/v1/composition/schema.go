@@ -31,6 +31,7 @@ func defaultMetadataOnly(metadata *apiextensions.JSONSchemaProps) *apiextensions
 	setDefaultProperty(metadata, "name", string(schema.KnownJSONTypeString))
 	setDefaultProperty(metadata, "namespace", string(schema.KnownJSONTypeString))
 	setDefaultProperty(metadata, "uid", string(schema.KnownJSONTypeString))
+	setDefaultProperty(metadata, "generateName", string(schema.KnownJSONTypeString))
 	setDefaultLabels(metadata)
 	setDefaultAnnotations(metadata)
 	return metadata
