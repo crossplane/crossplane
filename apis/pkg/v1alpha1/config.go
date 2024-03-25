@@ -166,7 +166,7 @@ type PodObjectMeta struct {
 	// labels on the pod, not the pod selector. Labels will be merged
 	// with internal labels used by crossplane, and labels with a
 	// crossplane.io key might be overwritten.
-	// More info: http://kubernetes.io/docs/user-guide/labels
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
 	// +optional
 	Labels map[string]string `json:"labels,omitempty"`
 }
