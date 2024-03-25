@@ -30,7 +30,7 @@ type ObjectMeta struct {
 	// Annotations is an unstructured key value map stored with a resource that
 	// may be set by external tools to store and retrieve arbitrary metadata.
 	// They are not queryable and should be preserved when modifying objects.
-	// More info: http://kubernetes.io/docs/user-guide/annotations
+	// More info: http:https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
 
