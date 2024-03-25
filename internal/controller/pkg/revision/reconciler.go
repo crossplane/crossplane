@@ -299,8 +299,6 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.ProviderRevision{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
 			client: mgr.GetClient(),
 		})
@@ -407,8 +405,6 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.FunctionRevision{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
 		})
