@@ -26,7 +26,7 @@ affinity: {}
 hostNetwork: false
 
 # -- Specify the `dnsPolicy` to be used by the Crossplane pod.
-dnsPolicy: "ClusterFirst"
+dnsPolicy: ""
 
 # -- Add custom `labels` to the Crossplane pod deployment.
 customLabels: {}

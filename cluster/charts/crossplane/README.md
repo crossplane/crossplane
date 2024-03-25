@@ -72,7 +72,7 @@ and their default values.
 | `customAnnotations` | Add custom `annotations` to the Crossplane pod deployment. | `{}` |
 | `customLabels` | Add custom `labels` to the Crossplane pod deployment. | `{}` |
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager pods. | `"RollingUpdate"` |
-| `dnsPolicy` | Specify the `dnsPolicy` to be used by the Crossplane pod. | `"ClusterFirst"` |
+| `dnsPolicy` | Specify the `dnsPolicy` to be used by the Crossplane pod. | `""` |
 | `extraEnvVarsCrossplane` | Add custom environmental variables to the Crossplane pod deployment. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraEnvVarsRBACManager` | Add custom environmental variables to the RBAC Manager pod deployment. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
 | `extraObjects` | To add arbitrary Kubernetes Objects during a Helm Install | `[]` |
