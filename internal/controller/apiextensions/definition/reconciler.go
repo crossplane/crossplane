@@ -487,7 +487,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	u.SetGroupVersionKind(xrGVK)
 
 	name := composite.ControllerName(d.GetName())
-	var ca cache.Cache
+	var xrCache cache.Cache
 	watches := []controller.Watch{
 		controller.For(u, &handler.EnqueueRequestForObject{}),
 		// enqueue composites whenever a matching CompositionRevision is created
@@ -499,7 +499,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// enqueue XRs that when a relevant MR is updated
 		watches = append(watches, controller.TriggeredBy(&r.xrInformers, handler.Funcs{
 			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
-				enqueueXRsForMR(ca, xrGVK, log)(ctx, ev, q)
+				enqueueXRsForMR(xrCache, xrGVK, log)(ctx, ev, q)
 			},
 		}))
 	}
@@ -513,12 +513,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		ca = c.GetCache()
-		if err := ca.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
+		xrCache = c.GetCache()
+		if err := xrCache.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
 			log.Debug(errAddIndex, "error", err)
 			// Nothing we can do. At worst, we won't have realtime updates.
 		}
-		if err := ca.IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
+		if err := xrCache.IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
 			log.Debug(errAddIndex, "error", err)
 			// Nothing we can do. At worst, we won't have realtime updates.
 		}
@@ -533,7 +533,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("(Re)started composite resource controller")
 
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		r.xrInformers.RegisterComposite(xrGVK, ca)
+		r.xrInformers.RegisterComposite(xrGVK, xrCache) //nolint:contextcheck // context of informers is controller outside of reconcile
 	}
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
