@@ -395,8 +395,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				case v1beta1.Status_STATUS_FALSE:
 					condition.Status = corev1.ConditionFalse
 				case v1beta1.Status_STATUS_UNKNOWN, v1beta1.Status_STATUS_UNSPECIFIED:
-					// TODO(dalton): for unspecified, should we set default or leave empty?
-					// should check to see if empty is valid manifest, if so, leaning towards leaving empty
 					condition.Status = corev1.ConditionUnknown
 				}
 

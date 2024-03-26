@@ -489,7 +489,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// get conditions returned by composition functions
 	fnConditions := cnds.GetClaimConditions(xr)
-	log.Debug(fmt.Sprintln("num fn conditions: ", len(fnConditions)))
 	// update conditions, drop old conditions and do not record the changes as
 	// these were already recorded by the composite reconciler
 	cnd.SetConditions(fnConditions, cnds.DropStale(true), cnds.WithRecorder(event.NewNopRecorder()))
