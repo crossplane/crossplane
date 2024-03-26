@@ -87,6 +87,50 @@ func TestCompositionMinimal(t *testing.T) {
 	)
 }
 
+// TestCompositionInvalidComposed tests Crossplane's Composition functionality,
+// checking that although a composed resource is invalid, i.e. it didn't apply
+// successfully.
+func TestCompositionInvalidComposed(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/invalid-composed"
+
+	xrList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "example.org/v1alpha1",
+		Kind:       "XParent",
+	}), composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "example.org/v1alpha1",
+		Kind:       "XChild",
+	}))
+
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.InBackground(funcs.LogResources(xrList)),
+				funcs.InBackground(funcs.LogResources(nopList)),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRStillAnnotated", funcs.AllOf(
+				// Check the XR it has metadata.annotations set
+				funcs.ResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "metadata.annotations[exampleVal]", "foo"),
+			)).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
+
 // TestCompositionPatchAndTransform tests Crossplane's Composition functionality,
 // checking that a claim using patch-and-transform Composition will become
 // available when its composed resources do, and have a field derived from
