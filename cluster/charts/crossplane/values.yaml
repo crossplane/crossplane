@@ -60,6 +60,10 @@ registryCaBundleConfig:
   # -- The ConfigMap key containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates.
   key: ""
 
+service:
+  # -- Configure annotations on the service object. Only enabled when webhooks.enabled = true
+  customAnnotations: {}
+
 webhooks:
   # -- Enable webhooks for Crossplane and installed Provider packages.
   enabled: true
