@@ -353,21 +353,9 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 		"claimConditions": {
 			Description: "Conditions that should be copied to the claim.",
 			Type:        "array",
-			XListMapKeys: []string{
-				"type",
-			},
-			XListType: ptr.To("map"),
 			Items: &extv1.JSONSchemaPropsOrArray{
 				Schema: &extv1.JSONSchemaProps{
-					Type:     "object",
-					Required: []string{"lastTransitionTime", "reason", "status", "type"},
-					Properties: map[string]extv1.JSONSchemaProps{
-						"lastTransitionTime": {Type: "string", Format: "date-time"},
-						"message":            {Type: "string"},
-						"reason":             {Type: "string"},
-						"status":             {Type: "string"},
-						"type":               {Type: "string"},
-					},
+					Type: "string",
 				},
 			},
 		},

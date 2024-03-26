@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 	"github.com/crossplane/crossplane/internal/names"
@@ -188,7 +189,6 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		}
 	}
 
-	// TODO(dalton): need to update events here to match new definition
 	events := make([]event.Event, 0)
 
 	// We optimistically render all composed resources that we are able to with
@@ -350,7 +350,13 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
+	return CompositionResult{
+		ConnectionDetails: xrConnDetails,
+		Composed:          resources,
+		Events: map[v1beta1.Target][]event.Event{
+			v1beta1.Target_TARGET_COMPOSITE: events,
+		},
+	}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,

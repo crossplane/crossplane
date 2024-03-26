@@ -19,40 +19,29 @@ var (
 	}
 )
 
-/*
-TODO:
-- setting conditions creates an object, object holds a recorder
-	since the recorder will likely be default behavior, we want to do:
-	instance.SetConditions(xr, []Conditions)
-	not:
-	conditions.SetConditions(xr, conditions, WithRecorder(r.recorder))
-- break up the SetConditions function to reduce complexity but also abstract what we need
-	to log changes to the claim object
-*/
-
 type Condition struct {
 	xpv1.Condition
 	EventType event.Type
 }
 
+func Normal(c xpv1.Condition) Condition {
+	return Condition{
+		Condition: c,
+		EventType: event.TypeNormal,
+	}
+}
+
+func Warning(c xpv1.Condition) Condition {
+	return Condition{
+		Condition: c,
+		EventType: event.TypeWarning,
+	}
+}
+
 type ConditionMap map[xpv1.ConditionType]Condition
 
-// func: GetChangedConditions(u, prev) - returns any conditions that are new or need to be updated
-// func: getChangedConditions(new, prev) - returns any conditions that are new or need to be updated
-// func: IsSystemCondition(condition)
-// func: SetConditions(force=bool)
-// func: setConditions(obj, conditions) - completely wipes conditions, setting what is provided in arg
-
-/*
-prev := GetConditions()
-changed := GetChangedConditions(prev, curr)
-RecordConditions(claim, changed[only claim])
-RecordConditions(composite, changed)
-ForceSetConditions(composite)
-SetClaimConditions(composite)
-*/
-
 type ConditionProcessor struct {
+	Obj       *unstructured.Unstructured
 	Recorder  event.Recorder
 	DropStale bool
 }
@@ -74,8 +63,9 @@ func DropStale(b bool) Option {
 	}
 }
 
-func New(opts ...Option) *ConditionProcessor {
+func New(u *unstructured.Unstructured, opts ...Option) *ConditionProcessor {
 	cp := &ConditionProcessor{
+		Obj:      u,
 		Recorder: event.NewNopRecorder(),
 	}
 
@@ -86,32 +76,49 @@ func New(opts ...Option) *ConditionProcessor {
 	return cp
 }
 
-func (cp ConditionProcessor) SetConditions(u *unstructured.Unstructured, cm ConditionMap, opts ...Option) {
+func (cp ConditionProcessor) SetCondition(c Condition) {
+	cp.SetConditions(ConditionMap{c.Type: c})
+}
+
+func (cp ConditionProcessor) SetConditions(cm ConditionMap, opts ...Option) {
 	// TODO(dalton): test that this does not update the ConditionProcessor
 	for _, o := range opts {
 		o(&cp)
 	}
-	prev := GetConditions(u)
+	prev := GetConditions(cp.Obj)
 
-	upToDate := GetChangedConditions(prev, cm)
-	// record the list of changed conditions
-	RecordConditions(u, cp.Recorder, upToDate)
-	for _, p := range prev {
-		if _, ok := upToDate[p.Type]; ok {
-			// a more up-to-date entry exists
+	cmp := prev.Compare(cm)
+	updated := len(cmp.New) > 0
+	if updated {
+		RecordConditions(cp.Obj, cp.Recorder, cmp.New)
+	}
+
+	var nm ConditionMap
+	if cp.DropStale {
+		nm = mergeMaps(cmp.Equal, cmp.New)
+		if len(cmp.Old) > 0 {
+			// old entries were dropped
+			updated = true
+		}
+	} else {
+		nm = mergeMaps(cmp.Old, cmp.Equal, cmp.New)
+	}
+
+	// if the nm does not contain a system condition, try to copy that condition
+	// from the previous conditions
+	for k := range systemConditionTypes {
+		if _, ok := nm[k]; ok {
 			continue
 		}
-		if _, ok := systemConditionTypes[p.Type]; ok {
-			// always keep an entry for system conditions
-			upToDate[p.Type] = p
-			continue
-		}
-		if !cp.DropStale {
-			upToDate[p.Type] = p
+		if c, ok := prev[k]; ok {
+			nm[k] = c
 		}
 	}
 
-	ForceSetConditions(u, upToDate)
+	if updated {
+		// only update if a change occurred to prevent needless reconciliations
+		ForceSetConditions(cp.Obj, nm)
+	}
 }
 
 func ForceSetConditions(u *unstructured.Unstructured, cm ConditionMap) {
@@ -122,19 +129,31 @@ func ForceSetConditions(u *unstructured.Unstructured, cm ConditionMap) {
 	_ = fieldpath.Pave(u.Object).SetValue("status.conditions", conditioned.Conditions)
 }
 
-// GetChangedConditions will take the previous and current conditions. It will
-// return a subset of conditions that match one of the following:
-// - (new) exists in curr but not in prev
-// - (updated) exists in both but has been updated in curr
-func GetChangedConditions(prev, curr ConditionMap) ConditionMap {
-	fresh := make(ConditionMap)
-	for _, c := range curr {
-		if p, ok := prev[c.Type]; ok && p.Condition.Equal(c.Condition) {
-			continue
-		}
-		fresh[c.Type] = c
+type CompareResult struct {
+	New   ConditionMap
+	Equal ConditionMap
+	Old   ConditionMap
+}
+
+func (cm ConditionMap) Compare(other ConditionMap) CompareResult {
+	res := CompareResult{
+		New:   make(ConditionMap),
+		Equal: make(ConditionMap),
+		Old:   make(ConditionMap),
 	}
-	return fresh
+	for k, a := range cm {
+		if b, ok := other[k]; ok && a.Equal(b.Condition) {
+			res.Equal[k] = a
+		} else {
+			res.Old[k] = a
+		}
+	}
+	for k, b := range other {
+		if a, ok := cm[k]; !ok || !b.Equal(a.Condition) {
+			res.New[k] = b
+		}
+	}
+	return res
 }
 
 func RecordConditions(obj runtime.Object, r event.Recorder, cm ConditionMap) {
@@ -160,12 +179,13 @@ func SetClaimConditionTypes(xr *composite.Unstructured, cm ConditionMap) {
 
 // GetConditions returns all items from the object's status.conditions.
 func GetConditions(u *unstructured.Unstructured) ConditionMap {
-	conditions := []xpv1.Condition{}
-	if err := fieldpath.Pave(u.Object).GetValueInto("status.conditions", &conditions); err != nil {
+	conditioned := xpv1.ConditionedStatus{}
+	// The path is directly `status` because conditions are inline.
+	if err := fieldpath.Pave(u.Object).GetValueInto("status", &conditioned); err != nil {
 		return make(ConditionMap)
 	}
 	m := make(ConditionMap)
-	for _, c := range conditions {
+	for _, c := range conditioned.Conditions {
 		m[c.Type] = Condition{
 			Condition: c,
 		}
@@ -177,7 +197,7 @@ func GetConditions(u *unstructured.Unstructured) ConditionMap {
 func GetClaimConditions(xr *composite.Unstructured) ConditionMap {
 	conditions := GetConditions(&xr.Unstructured)
 	claimConditionTypes := []string{}
-	if err := fieldpath.Pave(xr.Object).GetValueInto("status.claimConditions", claimConditionTypes); err != nil {
+	if err := fieldpath.Pave(xr.Object).GetValueInto("status.claimConditions", &claimConditionTypes); err != nil {
 		return make(ConditionMap)
 	}
 	claimConditions := make(ConditionMap)
@@ -187,4 +207,18 @@ func GetClaimConditions(xr *composite.Unstructured) ConditionMap {
 		}
 	}
 	return claimConditions
+}
+
+// mergeMaps merges n maps, if same key is found in both maps[i] and maps[i+1], the value from
+// maps[i+1] will be used
+func mergeMaps[K comparable, V any](maps ...map[K]V) map[K]V {
+	nm := make(map[K]V)
+
+	for _, m := range maps {
+		for k, v := range m {
+			nm[k] = v
+		}
+	}
+
+	return nm
 }

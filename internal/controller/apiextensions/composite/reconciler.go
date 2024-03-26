@@ -481,7 +481,6 @@ type Reconciler struct {
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
-	cnd := conditions.New(conditions.WithRecorder(r.record))
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -497,6 +496,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", xr.GetResourceVersion(),
 		"name", xr.GetName(),
 	)
+	cnd := conditions.New(&xr.Unstructured, conditions.WithRecorder(r.record))
 
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
@@ -676,10 +676,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	warning := false
-	for _, e := range res.Events {
-		if e.Event.Type == event.TypeWarning {
-			warning = true
-			break
+	for _, es := range res.Events {
+		for _, e := range es {
+			if e.Type == event.TypeWarning {
+				warning = true
+				break
+			}
 		}
 	}
 	if !warning {
@@ -788,13 +790,15 @@ func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx 
 // on the xr.
 func handleFunctionResults(r *Reconciler, cnd *conditions.ConditionProcessor, log logging.Logger, cm *claim.Unstructured, xr *composite.Unstructured, res CompositionResult) {
 	// record all events
-	for _, e := range res.Events {
-		log.Debug(e.Event.Message)
-		if xr != nil {
-			r.record.Event(xr, e.Event)
-		}
-		if e.Target == v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM && cm != nil {
-			r.record.Event(cm, e.Event)
+	for t, es := range res.Events {
+		for _, e := range es {
+			log.Debug(e.Message)
+			if xr != nil {
+				r.record.Event(xr, e)
+			}
+			if t == v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM && cm != nil {
+				r.record.Event(cm, e)
+			}
 		}
 	}
 
@@ -808,9 +812,9 @@ func handleFunctionResults(r *Reconciler, cnd *conditions.ConditionProcessor, lo
 	}
 
 	prev := conditions.GetConditions(&xr.Unstructured)
-	claimChanged := conditions.GetChangedConditions(prev, claimConditions)
-	conditions.RecordConditions(cm, r.record, claimChanged)
+	cmp := prev.Compare(claimConditions)
+	conditions.RecordConditions(cm, r.record, cmp.New)
 	conditions.SetClaimConditionTypes(xr, claimConditions)
 
-	cnd.SetConditions(&xr.Unstructured, xrConditions)
+	cnd.SetConditions(xrConditions)
 }

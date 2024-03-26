@@ -369,9 +369,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				resErrs = append(resErrs, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage()))
 			}
 
-			var condition *FunctionCondition
+			events[rs.GetTarget()] = append(events[rs.GetTarget()], xrEvent(rs, fn.Step))
+			if rs.GetTarget() == v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM {
+				events[rs.GetTarget()] = append(events[rs.GetTarget()], cmEvent(rs))
+			}
+
 			if rs.GetCondition() != nil && rs.GetCondition().GetType() != "" {
-				condition := &FunctionCondition{}
+				condition := FunctionCondition{}
 				condition.Type = xpv1.ConditionType(rs.GetCondition().GetType())
 				condition.LastTransitionTime = metav1.Now()
 				condition.Reason = xpv1.ConditionReason(rs.GetCondition().GetReason())
@@ -395,17 +399,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 					// should check to see if empty is valid manifest, if so, leaning towards leaving empty
 					condition.Status = corev1.ConditionUnknown
 				}
-			}
 
-			switch rs.GetTarget() {
-			case v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM:
-				events[rs.GetTarget()] = append(events[rs.GetTarget()], cmEvent(rs))
-				fallthrough
-			case v1beta1.Target_TARGET_COMPOSITE, v1beta1.Target_TARGET_UNSPECIFIED:
-				events[rs.GetTarget()] = append(events[rs.GetTarget()], xrEvent(rs, fn.Step))
-				if condition != nil {
-					conditions[condition.Type] = *condition
-				}
+				conditions[condition.Type] = condition
 			}
 		}
 

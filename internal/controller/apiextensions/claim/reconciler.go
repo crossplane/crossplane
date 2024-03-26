@@ -19,6 +19,7 @@ package claim
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -325,7 +326,6 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Complexity is tough to avoid here.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
-	cnd := cnds.New(cnds.WithRecorder(r.record))
 
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
@@ -344,25 +344,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", cm.GetResourceVersion(),
 		"external-name", meta.GetExternalName(cm),
 	)
+	cnd := cnds.New(&cm.Unstructured, cnds.WithRecorder(r.record))
 
 	// Check the pause annotation and return if it has the value "true" after
 	// logging, publishing an event and updating the Synced status condition.
 	if meta.IsPaused(cm) {
-		r.record.Event(cm, event.Normal(reasonPaused, reconcilePausedMsg))
-		// TODO(dalton): add functionality to record an event when a condition has changed?
-		// This would simplify the handleConditions code...
-		// though we would need to determine if this is desired.. it would need to replace existing
-		// record calls, or be called in addition to them.
-		// In this specific example, it seems it could replace them.
-		// Perhaps we could have an abstraction on each condition that allows for setting a Event type (warn or info)
-		cm.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
-
-		// we have:
-		// - recorder
-		// - thing with conditions
-
-		// we need:
-		// - condition with event type
+		cnd.SetCondition(cnds.Normal(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg)))
 
 		// If the pause annotation is removed, we will have a chance to
 		// reconcile again and resume and if status update fails, we will
@@ -502,9 +489,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// get conditions returned by composition functions
 	fnConditions := cnds.GetClaimConditions(xr)
+	log.Debug(fmt.Sprintln("num fn conditions: ", len(fnConditions)))
 	// update conditions, drop old conditions and do not record the changes as
 	// these were already recorded by the composite reconciler
-	cnd.SetConditions(&cm.Unstructured, fnConditions, cnds.DropStale(true), cnds.WithRecorder(event.NewNopRecorder()))
+	cnd.SetConditions(fnConditions, cnds.DropStale(true), cnds.WithRecorder(event.NewNopRecorder()))
 
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
