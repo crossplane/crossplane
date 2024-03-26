@@ -129,26 +129,24 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 	}
 
 	// process PatchSets
-	processedPatchSet := []v1.PatchSet{}
+	processedPatchSet := []ConverterPatchSets{}
 	for _, patchSet := range input.PatchSets {
 		processedPatchSet = append(processedPatchSet, setMissingPatchSetFields(patchSet))
 	}
-	processedInput.PatchSets = processedPatchSet
 
 	// process Resources
-	processedResources := []v1.ComposedTemplate{}
+	processedResources := []ConverterComposedTemplate{}
 	for idx, resource := range input.Resources {
 		processedResources = append(processedResources, setMissingResourceFields(idx, resource))
 	}
-	processedInput.Resources = processedResources
 
 	// Wrap the input in a RawExtension
 	inputType := map[string]any{
 		"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 		"kind":        "Resources",
 		"environment": processedInput.Environment.DeepCopy(),
-		"patchSets":   processedInput.PatchSets,
-		"resources":   processedInput.Resources,
+		"patchSets":   processedPatchSet,
+		"resources":   processedResources,
 	}
 
 	return &runtime.RawExtension{
@@ -156,13 +154,22 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 	}
 }
 
-func setMissingPatchSetFields(patchSet v1.PatchSet) v1.PatchSet {
-	p := []v1.Patch{}
+// ConverterPatchSets embeds v1.PatchSet with ConverterPatches.
+type ConverterPatchSets struct {
+	v1.PatchSet
+
+	ConverterPatches []ConverterPatch `json:"patches"`
+}
+
+func setMissingPatchSetFields(patchSet v1.PatchSet) ConverterPatchSets {
+	p := []ConverterPatch{}
 	for _, patch := range patchSet.Patches {
 		p = append(p, setMissingPatchFields(patch))
 	}
-	patchSet.Patches = p
-	return patchSet
+	migratedPatchSet := ConverterPatchSets{}
+	migratedPatchSet.Name = patchSet.Name
+	migratedPatchSet.ConverterPatches = p
+	return migratedPatchSet
 }
 
 func setMissingEnvironmentPatchFields(patch v1.EnvironmentPatch) v1.EnvironmentPatch {
@@ -180,38 +187,102 @@ func setMissingEnvironmentPatchFields(patch v1.EnvironmentPatch) v1.EnvironmentP
 	return patch
 }
 
-func setMissingPatchFields(patch v1.Patch) v1.Patch {
+// ConverterPatch embeds v1.Patch with ConverterPolicy.
+type ConverterPatch struct {
+	v1.Patch
+
+	ConverterPolicy *ConverterPatchPolicy `json:"policy,omitempty"`
+}
+
+func setMissingPatchFields(patch v1.Patch) ConverterPatch {
+	migratedPatch := ConverterPatch{}
+	migratedPatch.Patch = patch
+
 	if patch.Type == "" {
-		patch.Type = v1.PatchTypeFromCompositeFieldPath
+		migratedPatch.Type = v1.PatchTypeFromCompositeFieldPath
 	}
+
+	if patch.Policy != nil && patch.Policy.MergeOptions != nil {
+		migratedPatch.ConverterPolicy = migratePolicy(patch.Policy)
+	}
+
 	if len(patch.Transforms) == 0 {
-		return patch
+		return migratedPatch
 	}
 	t := []v1.Transform{}
 	for _, transform := range patch.Transforms {
 		t = append(t, setTransformTypeRequiredFields(transform))
 	}
-	patch.Transforms = t
-	return patch
+	migratedPatch.Transforms = t
+	return migratedPatch
 }
 
-func setMissingResourceFields(idx int, rs v1.ComposedTemplate) v1.ComposedTemplate {
+// A ToFieldPathPolicy determines how to patch to a field path.
+type ToFieldPathPolicy string
+
+// ToFieldPathPatchPolicy defines the policy for the ToFieldPath in a Patch.
+const (
+	ToFieldPathPolicyReplace     ToFieldPathPolicy = "Replace"
+	ToFieldPathPolicyMerge       ToFieldPathPolicy = "Merge"
+	ToFieldPathPolicyAppendArray ToFieldPathPolicy = "AppendArray"
+)
+
+// A ConverterPatchPolicy wraps PatchPolicy deprecating MergeOptions.
+type ConverterPatchPolicy struct {
+	v1.PatchPolicy
+
+	// ToFieldPath specifies how to patch to a field path. The default is
+	// 'Replace', which means the patch will completely replace the target field,
+	// or create it if it does not exist. Use 'MergeObject' to merge the patch
+	// object with the target object, or 'AppendArray' to append the patch array
+	// to the target array.
+	ToFieldPath *ToFieldPathPolicy `json:"toFieldPath,omitempty"`
+}
+
+func migratePolicy(policy *v1.PatchPolicy) *ConverterPatchPolicy {
+	migratedPolicy := &ConverterPatchPolicy{}
+	migratedPolicy.FromFieldPath = policy.FromFieldPath
+
+	mergeOptions := policy.MergeOptions
+	if mergeOptions.KeepMapValues != nil && *mergeOptions.KeepMapValues {
+		migratedPolicy.ToFieldPath = ptr.To(ToFieldPathPolicyMerge)
+	} else if mergeOptions.AppendSlice != nil && *mergeOptions.AppendSlice {
+		migratedPolicy.ToFieldPath = ptr.To(ToFieldPathPolicyAppendArray)
+	} else {
+		migratedPolicy.ToFieldPath = ptr.To(ToFieldPathPolicyReplace)
+	}
+
+	migratedPolicy.MergeOptions = nil
+
+	return migratedPolicy
+}
+
+// ConverterComposedTemplate embeds ComposedTemplate with ConverterPatches.
+type ConverterComposedTemplate struct {
+	v1.ComposedTemplate
+
+	Patches []ConverterPatch `json:"patches,omitempty"`
+}
+
+func setMissingResourceFields(idx int, rs v1.ComposedTemplate) ConverterComposedTemplate {
+	mct := ConverterComposedTemplate{}
+
 	if rs.Name == nil || *rs.Name == "" {
-		rs.Name = ptr.To(strings.ToLower(fmt.Sprintf("resource-%d", idx)))
+		mct.Name = ptr.To(strings.ToLower(fmt.Sprintf("resource-%d", idx)))
 	}
 
 	cd := []v1.ConnectionDetail{}
 	for _, detail := range rs.ConnectionDetails {
 		cd = append(cd, setMissingConnectionDetailFields(detail))
 	}
-	rs.ConnectionDetails = cd
+	mct.ConnectionDetails = cd
 
-	patches := []v1.Patch{}
+	patches := []ConverterPatch{}
 	for _, patch := range rs.Patches {
 		patches = append(patches, setMissingPatchFields(patch))
 	}
-	rs.Patches = patches
-	return rs
+	mct.Patches = patches
+	return mct
 }
 
 // setTransformTypeRequiredFields sets fields that are required with
