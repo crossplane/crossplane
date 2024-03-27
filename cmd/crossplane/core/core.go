@@ -99,10 +99,14 @@ type startCommand struct {
 
 	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
+	FunctionConnectPlainText bool `help:"Uses unencrypted plaintext connections to invoke functions. Implies --tls-allow-insecure"`
+
 	TLSServerSecretName string `env:"TLS_SERVER_SECRET_NAME" help:"The name of the TLS Secret that will store Crossplane's server certificate."`
 	TLSServerCertsDir   string `env:"TLS_SERVER_CERTS_DIR"   help:"The path of the folder which will store TLS server certificate of Crossplane."`
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
+
+	TLSAllowInsecure bool `help:"Allow insecure TLS connections to Crossplane functions and secret stores"`
 
 	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
 	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
@@ -204,24 +208,24 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctionsExtraResources)
 		}
 
-		clienttls, err := certificates.LoadMTLSConfig(
-			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
-			false)
-		if err != nil {
-			return errors.Wrap(err, "cannot load client TLS certificates")
-		}
-
 		m := xfn.NewMetrics()
 		metrics.Registry.MustRegister(m)
 
-		// We want all XR controllers to share the same gRPC clients.
-		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+		fnRunnerOpts := []xfn.PackagedFunctionRunnerOption{
 			xfn.WithLogger(log),
-			xfn.WithTLSConfig(clienttls),
 			xfn.WithInterceptorCreators(m),
-		)
+		}
+
+		if !c.FunctionConnectPlainText {
+			tlsCfg, err := c.getTLSConfig()
+			if err != nil {
+				return errors.Wrap(err, "cannot load client TLS certificates")
+			}
+			fnRunnerOpts = append(fnRunnerOpts, xfn.WithTLSConfig(tlsCfg))
+		}
+
+		// We want all XR controllers to share the same gRPC clients.
+		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(), fnRunnerOpts...)
 
 		// Periodically remove clients for Functions that no longer exist.
 		ctx, cancel := context.WithCancel(context.Background())
@@ -244,17 +248,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableAlphaExternalSecretStores)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 
-		tcfg, err := certificates.LoadMTLSConfig(
-			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
-			false)
+		tlsCfg, err := c.getTLSConfig()
 		if err != nil {
 			return errors.Wrap(err, "cannot load TLS certificates for external secret stores")
 		}
-
 		o.ESSOptions = &controller.ESSOptions{
-			TLSConfig: tcfg,
+			TLSConfig: tlsCfg,
 		}
 	}
 	if c.EnableRealtimeCompositions {
@@ -361,4 +360,20 @@ func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
 		}
 	}
 	return nil
+}
+
+func (c *startCommand) getTLSConfig() (*tls.Config, error) {
+	if c.TLSAllowInsecure {
+		return &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true, //nolint:gosec // User setting
+		}, nil
+	}
+	tlsCfg, err := certificates.LoadMTLSConfig(
+		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
+		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
+		filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
+		false,
+	)
+	return tlsCfg, err
 }
