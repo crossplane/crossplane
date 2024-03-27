@@ -130,5 +130,13 @@
       ],
       "enabled": false
     }
-  ]
+  ],
+  postUpgradeTasks: {
+// Post-upgrade tasks that are executed before a commit is made by Renovate.
+    "commands": [
+      "make generate"
+    ],
+    fileFilters: ["**/*"],
+    executionMode: "branch",
+  }
 }
