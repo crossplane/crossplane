@@ -392,6 +392,7 @@ func TestPTCompose(t *testing.T) {
 					Composed: []ComposedResource{{
 						ResourceName: "cool-resource",
 						Ready:        true,
+						Synced:       true,
 					}},
 					ConnectionDetails: details,
 				},
@@ -457,10 +458,12 @@ func TestPTCompose(t *testing.T) {
 						{
 							ResourceName: "cool-resource",
 							Ready:        true,
+							Synced:       true,
 						},
 						{
 							ResourceName: "uncool-resource",
 							Ready:        false,
+							Synced:       false,
 						},
 					},
 					ConnectionDetails: details,

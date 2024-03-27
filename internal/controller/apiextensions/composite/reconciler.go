@@ -73,6 +73,7 @@ const (
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
 	errRenderCD               = "cannot render composed resource"
+	errSyncResources          = "cannot sync composed resources"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -651,6 +652,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	var unready []ComposedResource
+	var unsynced []ComposedResource
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
@@ -659,36 +661,60 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			id = strconv.Itoa(i)
 		}
 
+		if !cd.Synced {
+			log.Debug("Composed resource is not yet valid", "id", id)
+			unsynced = append(unsynced, cd)
+			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet valid", id)))
+		}
+
 		if !cd.Ready {
 			log.Debug("Composed resource is not yet ready", "id", id)
 			unready = append(unready, cd)
 			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet ready", id)))
-			continue
 		}
 	}
 
-	xr.SetConditions(xpv1.ReconcileSuccess())
-
-	// TODO(muvaf): If a resource becomes Unavailable at some point, should we
-	// still report it as Creating?
-	if len(unready) > 0 {
-		// We want to requeue to wait for our composed resources to
-		// become ready, since we can't watch them.
-		names := make([]string, len(unready))
-		for i, cd := range unready {
-			names[i] = string(cd.ResourceName)
-		}
-		// sort for stable condition messages. With functions, we don't have a
-		// stable order otherwise.
-		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, names))))
+	if updateXRConditions(xr, unsynced, unready) {
+		// This requeue is subject to rate limiting. Requeues will exponentially
+		// backoff from 1 to 30 seconds. See the 'definition' (XRD) reconciler
+		// that sets up the ratelimiter.
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	// We requeue after our poll interval because we can't watch composed
 	// resources - we can't know what type of resources we might compose
 	// when this controller is started.
-	xr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+}
+
+// updateXRConditions updates the conditions of the supplied composite resource
+// based on the supplied composed resources. It returns true if the XR should be
+// requeued immediately.
+func updateXRConditions(xr *composite.Unstructured, unsynced, unready []ComposedResource) (requeueImmediately bool) {
+	readyCond := xpv1.Available()
+	syncedCond := xpv1.ReconcileSuccess()
+	if len(unsynced) > 0 {
+		// We want to requeue to wait for our composed resources to
+		// become ready, since we can't watch them.
+		syncedCond = xpv1.ReconcileError(errors.New(errSyncResources)).WithMessage(fmt.Sprintf("Invalid resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unsynced))))
+		requeueImmediately = true
+	}
+	if len(unready) > 0 {
+		// We want to requeue to wait for our composed resources to
+		// become ready, since we can't watch them.
+		readyCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unready))))
+		requeueImmediately = true
+	}
+	xr.SetConditions(syncedCond, readyCond)
+	return requeueImmediately
+}
+
+func getComposerResourcesNames(cds []ComposedResource) []string {
+	names := make([]string, len(cds))
+	for i, cd := range cds {
+		names[i] = string(cd.ResourceName)
+	}
+	return names
 }
 
 // EnqueueForCompositionRevisionFunc returns a function that enqueues (the
