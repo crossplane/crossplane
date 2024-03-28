@@ -103,7 +103,7 @@ The following sections get into the details of each of the above items.
 
 ### Choose Where Results Go
 Currently each result returned by a function will create a corresponding
-event on the XR (if no previous fatal result exist).
+event on the XR (if no previous fatal result exists).
 
 We can expand this functionality by allowing the Result to have targets. In
 order to accomplish this, we will need to expand the Result API as follows.
@@ -126,15 +126,32 @@ implementation limitation. This prevents more involved API changes, and this
 is also consistent with existing behavior (func copies to XR, Crossplane copies
 XR to Claim).
 
-An example of a function using this behavior to create events for both the
-Composite and Claim:
+The following is an example of how a function author could use this behavior.
+Note that this is just a sketch and may not be the final API.
 ```go
-// rb "github.com/crossplane/function-sdk-go/response/result/builder"
-// var messageUnauthorized = errors.New("You are unauthorized to access this resource.")
-result := rb.Fatal(messageUnauthorized).
-  TargetCompositeAndClaim().
-  Build()
-response.AddResult(rsp, result)
+// import "github.com/crossplane/function-sdk-go/response"
+response.Fatal(rsp, errors.New("The image provided does not exist or you are not authorized to use it.")).
+  ConditionFalse("ImageReady", "NotFound").
+  TargetCompositeAndClaim()
+```
+
+To support this behavior, the status of the Composite would need an additional
+field `claimConditions`. This field will contain the types of conditions that
+should be propagated to the Claim.
+```yaml
+# composite status
+status:
+  # The XR's condition types that should be back-propagated to the claim
+  claimConditions: [DatabaseReady, ImageReady]
+  # The XR's conditions
+  conditions:
+  - type: DatabaseReady
+    status: True
+    reason: Available
+  - type: ImageReady
+    status: False
+    reason: NotFound
+    message: The image provided does not exist or you are not authorized to use it.
 ```
 
 ### Allow Results to Set a Condition
