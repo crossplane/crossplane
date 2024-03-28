@@ -64,11 +64,13 @@ spec:
               resourceFieldRef:
                 containerName: {{ .Chart.Name }}-init
                 resource: limits.cpu
+                divisor: "1"
           - name: GOMEMLIMIT
             valueFrom:
               resourceFieldRef:
                 containerName: {{ .Chart.Name }}-init
                 resource: limits.memory
+                divisor: "1"
       containers:
       - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:
@@ -97,11 +99,13 @@ spec:
               resourceFieldRef:
                 containerName: {{ .Chart.Name }}
                 resource: limits.cpu
+                divisor: "1"
           - name: GOMEMLIMIT
             valueFrom:
               resourceFieldRef:
                 containerName: {{ .Chart.Name }}
                 resource: limits.memory
+                divisor: "1"
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
         {{- range $key, $value := .Values.extraEnvVarsRBACManager }}
