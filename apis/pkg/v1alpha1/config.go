@@ -175,9 +175,15 @@ type PodObjectMeta struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// ControllerConfig is the CRD type for a packaged controller configuration.
-// Deprecated: This API is replaced by DeploymentRuntimeConfig, and is scheduled
-// to be removed in a future release. See the design doc for more details:
+// A ControllerConfig applies settings to controllers like Provider pods.
+//
+// _Note:_ Crossplane deprecated this API. Use the
+// [DeploymentRuntimeConfig](https://docs.crossplane.io/latest/concepts/providers#runtime-configuration)
+// instead.
+//
+// Read the
+// [Package Runtime Configuration](https://github.com/crossplane/crossplane/blob/11bbe13ea3604928cc4e24e8d0d18f3f5f7e847c/design/one-pager-package-runtime-config.md)
+// design document for more details.
 // https://github.com/crossplane/crossplane/blob/11bbe13ea3604928cc4e24e8d0d18f3f5f7e847c/design/one-pager-package-runtime-config.md
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster

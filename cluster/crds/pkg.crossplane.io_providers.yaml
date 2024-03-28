@@ -32,7 +32,13 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Provider is the CRD type for a request to add a provider to Crossplane.
+        description: |-
+          A Provider installs the Provider package, providing the CRDs representing
+          external resources.
+
+
+          Read the Crossplane documentation for
+          [more information about Providers](https://docs.crossplane.io/latest/concepts/providers).
         properties:
           apiVersion:
             description: |-

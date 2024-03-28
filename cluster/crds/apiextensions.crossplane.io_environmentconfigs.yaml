@@ -24,8 +24,13 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A EnvironmentConfig contains a set of arbitrary, unstructured
-          values.
+        description: |-
+          An EnvironmentConfig contains user-defined unstructured values for
+          use in a Composition.
+
+
+          Read the Crossplane documentation for
+          [more information about EnvironmentConfigs](https://docs.crossplane.io/latest/concepts/environment-configs).
         properties:
           apiVersion:
             description: |-

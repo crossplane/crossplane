@@ -30,7 +30,13 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: A Composition specifies how a composite resource should be composed.
+        description: |-
+          A Composition defines a template for creating multiple managed resources into
+          a single Kubernetes object.
+
+
+          Read the Crossplane documentation for
+          [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).
         properties:
           apiVersion:
             description: |-

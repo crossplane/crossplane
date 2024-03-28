@@ -41,7 +41,13 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: A FunctionRevision that has been added to Crossplane.
+        description: |-
+          A FunctionRevision represents a revision of a Function. Crossplane
+          creates new revisions when there are changes to the Function.
+
+
+          Crossplane creates and manages FunctionRevisions. Function Revisions
+          aren't designed for user changes.
         properties:
           apiVersion:
             description: |-

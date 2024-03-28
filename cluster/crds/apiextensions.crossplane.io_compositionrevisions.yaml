@@ -34,8 +34,12 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          A CompositionRevision represents a revision in time of a Composition.
-          Revisions are created by Crossplane; they should be treated as immutable.
+          A CompositionRevision represents a revision of a Composition. Crossplane
+          creates new revisions when there are changes to the Composition.
+
+
+          Crossplane creates and manages CompositionRevisions. Composition Revisions
+          aren't designed for user changes.
         properties:
           apiVersion:
             description: |-
@@ -1610,8 +1614,12 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          A CompositionRevision represents a revision in time of a Composition.
-          Revisions are created by Crossplane; they should be treated as immutable.
+          A CompositionRevision represents a revision of a Composition. Crossplane
+          creates new revisions when there are changes to the Composition.
+
+
+          Crossplane creates and manages CompositionRevisions. Composition Revisions
+          aren't designed for user changes.
         properties:
           apiVersion:
             description: |-
