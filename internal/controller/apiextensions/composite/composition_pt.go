@@ -188,7 +188,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		}
 	}
 
-	events := make([]event.Event, 0)
+	events := make([]CompositionEvent, 0)
 
 	// We optimistically render all composed resources that we are able to with
 	// the expectation that any that we fail to render will subsequently have
@@ -218,17 +218,26 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 
 		rendered := true
 		if err := RenderFromCompositeAndEnvironmentPatches(r, xr, req.Environment, ta.Template.Patches); err != nil {
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)))
+			events = append(events, CompositionEvent{
+				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)),
+				Target: CompositionEventTargetComposite,
+			})
 			rendered = false
 		}
 
 		if err := RenderComposedResourceMetadata(r, xr, ResourceName(ptr.Deref(ta.Template.Name, ""))); err != nil {
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderMetadata, name)))
+			events = append(events, CompositionEvent{
+				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderMetadata, name)),
+				Target: CompositionEventTargetComposite,
+			})
 			rendered = false
 		}
 
 		if err := c.composed.GenerateName(ctx, r); err != nil {
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtGenerateName, name)))
+			events = append(events, CompositionEvent{
+				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtGenerateName, name)),
+				Target: CompositionEventTargetComposite,
+			})
 			rendered = false
 		}
 
@@ -279,7 +288,10 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 				// run again the composition after some other resource is
 				// created or updated successfully. So, we emit a warning event
 				// and move on.
-				events = append(events, event.Warning(reasonCompose, errors.Wrap(err, errApplyComposed)))
+				events = append(events, CompositionEvent{
+					Event:  event.Warning(reasonCompose, errors.Wrap(err, errApplyComposed)),
+					Target: CompositionEventTargetComposite,
+				})
 				// We unset the cd here so that we don't try to observe it
 				// later. This will also mean we report it as not ready and not
 				// synced. Resulting in the XR being reported as not ready nor
