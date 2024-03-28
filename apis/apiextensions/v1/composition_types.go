@@ -109,7 +109,11 @@ type CompositionSpec struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// A Composition specifies how a composite resource should be composed.
+// A Composition defines a template for creating multiple managed resources into
+// a single Kubernetes object.
+//
+// Read the Crossplane documentation for
+// [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).
 // +kubebuilder:printcolumn:name="XR-KIND",type="string",JSONPath=".spec.compositeTypeRef.kind"
 // +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

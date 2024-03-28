@@ -26,7 +26,11 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 
-// A EnvironmentConfig contains a set of arbitrary, unstructured values.
+// An EnvironmentConfig contains user-defined unstructured values for
+// use in a Composition.
+//
+// Read the Crossplane documentation for
+// [more information about EnvironmentConfigs](https://docs.crossplane.io/latest/concepts/environment-configs).
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=envcfg
 type EnvironmentConfig struct {

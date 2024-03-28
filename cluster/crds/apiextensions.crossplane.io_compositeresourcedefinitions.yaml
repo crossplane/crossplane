@@ -32,9 +32,12 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          A CompositeResourceDefinition defines a new kind of composite infrastructure
-          resource. The new resource is composed of other composite or managed
-          infrastructure resources.
+          A CompositeResourceDefinition defines the schema for a new custom Kubernetes
+          API.
+
+
+          Read the Crossplane documentation for
+          [more information about CustomResourceDefinitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions).
         properties:
           apiVersion:
             description: |-
