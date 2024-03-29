@@ -229,6 +229,11 @@ func providerDeploymentOverrides(pm *pkgmetav1.Provider, pr v1.PackageRevisionWi
 		// and plan to remove this after implementing a migration in a future
 		// release.
 		DeploymentWithSelectors(providerSelectors(pm, pr)),
+
+		// Add optional scrape annotations to the deployment. It is possible to
+		// disable the scraping by setting the annotation "prometheus.io/scrape"
+		// as "false" in the DeploymentRuntimeConfig.
+		DeploymentWithOptionalPodScrapeAnnotations(),
 	}
 
 	do = append(do, DeploymentRuntimeWithOptionalImage(image))
