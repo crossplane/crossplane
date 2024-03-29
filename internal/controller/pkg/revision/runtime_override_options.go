@@ -92,6 +92,21 @@ func DeploymentWithNamespace(namespace string) DeploymentOverride {
 	}
 }
 
+// DeploymentWithOptionalPodScrapeAnnotations adds Prometheus scrape annotations
+// to a Deployment pod template if they are not already set.
+func DeploymentWithOptionalPodScrapeAnnotations() DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		if d.Spec.Template.Annotations == nil {
+			d.Spec.Template.Annotations = map[string]string{}
+		}
+		if _, ok := d.Spec.Template.Annotations["prometheus.io/scrape"]; !ok {
+			d.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
+			d.Spec.Template.Annotations["prometheus.io/port"] = "8080"
+			d.Spec.Template.Annotations["prometheus.io/path"] = "/metrics"
+		}
+	}
+}
+
 // DeploymentWithOwnerReferences overrides the owner references of a Deployment.
 func DeploymentWithOwnerReferences(owners []metav1.OwnerReference) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
