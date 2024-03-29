@@ -109,8 +109,8 @@ type CompositionSpec struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// A Composition defines a template for creating multiple managed resources into
-// a single Kubernetes object.
+// A Composition defines a collection of managed resources or functions that
+// Crossplane uses to create and manage new composite resources.
 //
 // Read the Crossplane documentation for
 // [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).

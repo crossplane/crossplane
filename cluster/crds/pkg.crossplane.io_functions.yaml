@@ -33,13 +33,8 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          A Function kind represents a
-          [Composition Function](https://docs.crossplane.io/latest/concepts/composition-functions/)
-          in Crossplane.
-
-
-          Composition Functions are custom programs that interact with Crossplane
-          resources, providers and other components.
+          A Function installs an OCI compatible Crossplane package, extending
+          Crossplane with support for a new kind of composition function.
 
 
           Read the Crossplane documentation for

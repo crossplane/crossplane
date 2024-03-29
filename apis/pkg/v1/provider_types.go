@@ -26,8 +26,8 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 
-// A Provider installs the Provider package, providing the CRDs representing
-// external resources.
+// A Provider installs an OCI compatible Crossplane package, extending
+// Crossplane with support for new kinds of managed resources.
 //
 // Read the Crossplane documentation for
 // [more information about Providers](https://docs.crossplane.io/latest/concepts/providers).
@@ -81,8 +81,8 @@ type ProviderRevisionSpec struct {
 // A ProviderRevision represents a revision of a Provider. Crossplane
 // creates new revisions when there are changes to a Provider.
 //
-// Crossplane creates and manages ProviderRevisions. Provider Revisions
-// aren't designed for user changes.
+// Crossplane creates and manages ProviderRevisions. Don't directly edit
+// ProviderRevisions.
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"

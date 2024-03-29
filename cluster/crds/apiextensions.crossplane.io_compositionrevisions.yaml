@@ -38,8 +38,8 @@ spec:
           creates new revisions when there are changes to the Composition.
 
 
-          Crossplane creates and manages CompositionRevisions. Composition Revisions
-          aren't designed for user changes.
+          Crossplane creates and manages CompositionRevisions. Don't directly edit
+          CompositionRevisions.
         properties:
           apiVersion:
             description: |-
@@ -1618,8 +1618,8 @@ spec:
           creates new revisions when there are changes to the Composition.
 
 
-          Crossplane creates and manages CompositionRevisions. Composition Revisions
-          aren't designed for user changes.
+          Crossplane creates and manages CompositionRevisions. Don't directly edit
+          CompositionRevisions.
         properties:
           apiVersion:
             description: |-

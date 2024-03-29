@@ -33,11 +33,9 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          A Configuration installs OCI "Crossplane package" images into Crossplane.
-
-
-          The Configuration kind defines the Configuration image and settings
-          Crossplane uses.
+          A Configuration installs an OCI compatible Crossplane package, extending
+          Crossplane with support for new kinds of CompositeResourceDefinitions and
+          Compositions.
 
 
           Read the Crossplane documentation for

@@ -26,10 +26,9 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 
-// A Configuration installs OCI "Crossplane package" images into Crossplane.
-//
-// The Configuration kind defines the Configuration image and settings
-// Crossplane uses.
+// A Configuration installs an OCI compatible Crossplane package, extending
+// Crossplane with support for new kinds of CompositeResourceDefinitions and
+// Compositions.
 //
 // Read the Crossplane documentation for
 // [more information about Configuration packages](https://docs.crossplane.io/latest/concepts/packages).
@@ -76,8 +75,8 @@ type ConfigurationList struct {
 // A ConfigurationRevision represents a revision of a Configuration. Crossplane
 // creates new revisions when there are changes to a Configuration.
 //
-// Crossplane creates and manages ConfigurationRevision. Configuration Revisions
-// aren't designed for user changes.
+// Crossplane creates and manages ConfigurationRevision. Don't directly edit
+// ConfigurationRevisions.
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"

@@ -46,8 +46,8 @@ spec:
           creates new revisions when there are changes to a Provider.
 
 
-          Crossplane creates and manages ProviderRevisions. Provider Revisions
-          aren't designed for user changes.
+          Crossplane creates and manages ProviderRevisions. Don't directly edit
+          ProviderRevisions.
         properties:
           apiVersion:
             description: |-

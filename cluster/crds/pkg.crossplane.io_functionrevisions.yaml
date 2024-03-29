@@ -46,8 +46,8 @@ spec:
           creates new revisions when there are changes to the Function.
 
 
-          Crossplane creates and manages FunctionRevisions. Function Revisions
-          aren't designed for user changes.
+          Crossplane creates and manages FunctionRevisions. Don't directly edit
+          FunctionRevisions.
         properties:
           apiVersion:
             description: |-

@@ -34,12 +34,8 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 
-// A Function kind represents a
-// [Composition Function](https://docs.crossplane.io/latest/concepts/composition-functions/)
-// in Crossplane.
-//
-// Composition Functions are custom programs that interact with Crossplane
-// resources, providers and other components.
+// A Function installs an OCI compatible Crossplane package, extending
+// Crossplane with support for a new kind of composition function.
 //
 // Read the Crossplane documentation for
 // [more information about Functions](https://docs.crossplane.io/latest/concepts/composition-functions).
@@ -93,8 +89,8 @@ type FunctionRevisionSpec struct {
 // A FunctionRevision represents a revision of a Function. Crossplane
 // creates new revisions when there are changes to the Function.
 //
-// Crossplane creates and manages FunctionRevisions. Function Revisions
-// aren't designed for user changes.
+// Crossplane creates and manages FunctionRevisions. Don't directly edit
+// FunctionRevisions.
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"

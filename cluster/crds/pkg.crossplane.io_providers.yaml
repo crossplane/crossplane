@@ -33,8 +33,8 @@ spec:
     schema:
       openAPIV3Schema:
         description: |-
-          A Provider installs the Provider package, providing the CRDs representing
-          external resources.
+          A Provider installs an OCI compatible Crossplane package, extending
+          Crossplane with support for new kinds of managed resources.
 
 
           Read the Crossplane documentation for

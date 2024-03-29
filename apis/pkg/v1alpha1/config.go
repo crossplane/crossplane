@@ -176,8 +176,7 @@ type PodObjectMeta struct {
 // +genclient:nonNamespaced
 
 // A ControllerConfig applies settings to controllers like Provider pods.
-//
-// _Note:_ Crossplane deprecated this API. Use the
+// Deprecated: Use the
 // [DeploymentRuntimeConfig](https://docs.crossplane.io/latest/concepts/providers#runtime-configuration)
 // instead.
 //

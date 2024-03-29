@@ -136,8 +136,8 @@ type CompositionRevisionStatus struct {
 // A CompositionRevision represents a revision of a Composition. Crossplane
 // creates new revisions when there are changes to the Composition.
 //
-// Crossplane creates and manages CompositionRevisions. Composition Revisions
-// aren't designed for user changes.
+// Crossplane creates and manages CompositionRevisions. Don't directly edit
+// CompositionRevisions.
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
 // +kubebuilder:printcolumn:name="XR-KIND",type="string",JSONPath=".spec.compositeTypeRef.kind"
 // +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
