@@ -184,6 +184,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					"pkg.crossplane.io/revision": providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Replicas = ptr.To[int32](3)
+					deployment.Spec.Template.Annotations = nil
 					deployment.Spec.Template.Labels["k"] = "v"
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
 					deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, corev1.Volume{Name: "vol-a"}, corev1.Volume{Name: "vol-b"})
@@ -243,6 +244,43 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
 					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
 					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{Name: "vm-a"}, {Name: "vm-b"}}, deployment.Spec.Template.Spec.Containers[0].VolumeMounts...)
+				}),
+			},
+		},
+		"ProviderDeploymentNoScrapeAnnotation": {
+			reason: "It should be possible to disable default scrape annotations",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							DeploymentTemplate: &v1beta1.DeploymentTemplate{
+								Spec: &appsv1.DeploymentSpec{
+									Template: corev1.PodTemplateSpec{
+										ObjectMeta: metav1.ObjectMeta{
+											Annotations: map[string]string{
+												"prometheus.io/scrape": "false",
+											},
+										},
+										Spec: corev1.PodSpec{},
+									},
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision),
+			},
+			want: want{
+				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
+					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/revision": providerRevisionName,
+				}), func(deployment *appsv1.Deployment) {
+					deployment.Spec.Template.Annotations = map[string]string{
+						"prometheus.io/scrape": "false",
+					}
 				}),
 			},
 		},
@@ -434,6 +472,11 @@ func deploymentProvider(provider string, revision string, image string, override
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"prometheus.io/scrape": "true",
+						"prometheus.io/port":   "8080",
+						"prometheus.io/path":   "/metrics",
+					},
 					Labels: map[string]string{
 						"pkg.crossplane.io/revision": revision,
 						"pkg.crossplane.io/provider": provider,
