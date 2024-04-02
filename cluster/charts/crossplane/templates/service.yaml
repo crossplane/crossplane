@@ -20,6 +20,6 @@ spec:
     release: {{ .Release.Name }}
   ports:
   - protocol: TCP
-    port: 9443
-    targetPort: 9443
+    port: {{ .Values.webhooks.port | default "9443" }}
+    targetPort: {{ .Values.webhooks.port | default "9443" }}
 {{- end }}
