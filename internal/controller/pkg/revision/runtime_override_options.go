@@ -17,6 +17,8 @@ limitations under the License.
 package revision
 
 import (
+	"strconv"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,9 +101,16 @@ func DeploymentWithOptionalPodScrapeAnnotations() DeploymentOverride {
 		if d.Spec.Template.Annotations == nil {
 			d.Spec.Template.Annotations = map[string]string{}
 		}
+		metricsPort := strconv.Itoa(metricsPortNumber)
+		for _, port := range d.Spec.Template.Spec.Containers[0].Ports {
+			if port.Name == metricsPortName {
+				metricsPort = strconv.Itoa(int(port.ContainerPort))
+				break
+			}
+		}
 		if _, ok := d.Spec.Template.Annotations["prometheus.io/scrape"]; !ok {
 			d.Spec.Template.Annotations["prometheus.io/scrape"] = "true"
-			d.Spec.Template.Annotations["prometheus.io/port"] = "8080"
+			d.Spec.Template.Annotations["prometheus.io/port"] = metricsPort
 			d.Spec.Template.Annotations["prometheus.io/path"] = "/metrics"
 		}
 	}
@@ -223,10 +232,19 @@ func DeploymentRuntimeWithAdditionalEnvironments(env []corev1.EnvVar) Deployment
 }
 
 // DeploymentRuntimeWithAdditionalPorts adds additional ports to the runtime
-// container of a Deployment.
+// container of a Deployment. A port will be added only if a port of the same name doesn't already exist.
 func DeploymentRuntimeWithAdditionalPorts(ports []corev1.ContainerPort) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
-		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, ports...)
+		names := make(map[string]bool)
+		for _, p := range d.Spec.Template.Spec.Containers[0].Ports {
+			names[p.Name] = true
+		}
+		for _, p := range ports {
+			if _, ok := names[p.Name]; ok {
+				continue
+			}
+			d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, p)
+		}
 	}
 }
 
@@ -401,10 +419,19 @@ func ServiceWithSelectors(selectors map[string]string) ServiceOverride {
 	}
 }
 
-// ServiceWithAdditionalPorts adds additional ports to a Service.
+// ServiceWithAdditionalPorts adds additional ports to a Service if no port with the same name was found.
 func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverride {
 	return func(s *corev1.Service) {
-		s.Spec.Ports = append(s.Spec.Ports, ports...)
+		names := make(map[string]bool)
+		for _, p := range s.Spec.Ports {
+			names[p.Name] = true
+		}
+		for _, p := range ports {
+			if _, ok := names[p.Name]; ok {
+				continue
+			}
+			s.Spec.Ports = append(s.Spec.Ports, p)
+		}
 	}
 }
 

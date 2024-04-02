@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
@@ -44,6 +43,7 @@ const (
 
 	// See https://github.com/grpc/grpc/blob/v1.58.0/doc/naming.md
 	grpcPortName       = "grpc"
+	grpcPort           = 9443
 	servicePort        = 9443
 	serviceEndpointFmt = "dns:///%s.%s:%d"
 
@@ -283,14 +283,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 		// Overrides that we are opinionated about.
 		ServiceWithNamespace(b.namespace),
 		ServiceWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
-		ServiceWithSelectors(b.podSelectors()),
-		ServiceWithAdditionalPorts([]corev1.ServicePort{
-			{
-				Protocol:   corev1.ProtocolTCP,
-				Port:       servicePort,
-				TargetPort: intstr.FromInt32(servicePort),
-			},
-		}))
+		ServiceWithSelectors(b.podSelectors()))
 
 	// We append the overrides passed to the function last so that they can
 	// override the above ones.
