@@ -101,9 +101,9 @@ func DeploymentWithOptionalPodScrapeAnnotations() DeploymentOverride {
 		if d.Spec.Template.Annotations == nil {
 			d.Spec.Template.Annotations = map[string]string{}
 		}
-		metricsPort := "8080"
+		metricsPort := strconv.Itoa(metricsPortNumber)
 		for _, port := range d.Spec.Template.Spec.Containers[0].Ports {
-			if port.Name == "metrics" {
+			if port.Name == metricsPortName {
 				metricsPort = strconv.Itoa(int(port.ContainerPort))
 				break
 			}
