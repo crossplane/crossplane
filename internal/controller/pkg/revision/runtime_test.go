@@ -371,6 +371,10 @@ func deploymentProvider(provider string, revision string, image string, override
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      revision,
 			Namespace: namespace,
+			Labels: map[string]string{
+				"pkg.crossplane.io/revision": revision,
+				"pkg.crossplane.io/provider": provider,
+			},
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "pkg.crossplane.io/v1",

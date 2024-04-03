@@ -159,6 +159,7 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 
 		// Overrides that we are opinionated about.
 		ServiceAccountWithNamespace(b.namespace),
+		ServiceAccountWithLabels(b.podSelectors()),
 		ServiceAccountWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		ServiceAccountWithAdditionalPullSecrets(append(b.revision.GetPackagePullSecrets(), b.serviceAccountPullSecrets...)),
 	)
@@ -194,6 +195,7 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 		// Optional defaults, will be used only if the runtime config does not
 		// specify them.
 		DeploymentWithOptionalName(b.revision.GetName()),
+		DeploymentWithLabels(b.podSelectors()),
 		DeploymentWithOptionalReplicas(1),
 		DeploymentWithOptionalPodSecurityContext(&corev1.PodSecurityContext{
 			RunAsNonRoot: &runAsNonRoot,
@@ -270,6 +272,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 		// Overrides that we are opinionated about.
 		ServiceWithNamespace(b.namespace),
 		ServiceWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
+		ServiceWithLabels(b.podSelectors()),
 		ServiceWithSelectors(b.podSelectors()),
 		ServiceWithAdditionalPorts([]corev1.ServicePort{
 			{
@@ -300,6 +303,7 @@ func (b *RuntimeManifestBuilder) TLSClientSecret() *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *b.revision.GetTLSClientSecretName(),
 			Namespace:       b.namespace,
+			Labels:          b.podSelectors(),
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
 		},
 	}
@@ -315,6 +319,7 @@ func (b *RuntimeManifestBuilder) TLSServerSecret() *corev1.Secret {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *b.revision.GetTLSServerSecretName(),
 			Namespace:       b.namespace,
+			Labels:          b.podSelectors(),
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))},
 		},
 	}

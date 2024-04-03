@@ -53,6 +53,18 @@ func ServiceAccountWithNamespace(namespace string) ServiceAccountOverride {
 	}
 }
 
+// ServiceAccountWithLabels appends to the labels of a ServiceAccount.
+func ServiceAccountWithLabels(labels map[string]string) ServiceAccountOverride {
+	return func(sa *corev1.ServiceAccount) {
+    if sa.Labels == nil {
+      sa.Labels = map[string]string{}
+    }
+    for k, v := range labels {
+      sa.Labels[k] = v
+    }
+	}
+}
+
 // ServiceAccountWithOwnerReferences overrides the owner references of a
 // ServiceAccount.
 func ServiceAccountWithOwnerReferences(owners []metav1.OwnerReference) ServiceAccountOverride {
@@ -81,6 +93,18 @@ func DeploymentWithOptionalName(name string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		if d.Name == "" {
 			d.Name = name
+		}
+	}
+}
+
+// DeploymentWithLabels appends to Labels.
+func DeploymentWithLabels(labels map[string]string) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		if d.Labels == nil {
+			d.Labels = map[string]string{}
+		}
+		for k, v := range labels {
+			d.Labels[k] = v
 		}
 	}
 }
@@ -353,6 +377,18 @@ func ServiceWithOptionalName(name string) ServiceOverride {
 	return func(s *corev1.Service) {
 		if s.Name == "" {
 			s.Name = name
+		}
+	}
+}
+
+// ServiceWithLabels appends to Labels.
+func ServiceWithLabels(labels map[string]string) ServiceOverride {
+	return func(s *corev1.Service) {
+		if s.Labels == nil {
+			s.Labels = map[string]string{}
+		}
+		for k, v := range labels {
+			s.Labels[k] = v
 		}
 	}
 }
