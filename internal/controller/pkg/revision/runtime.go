@@ -273,6 +273,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 		ServiceWithSelectors(b.podSelectors()),
 		ServiceWithAdditionalPorts([]corev1.ServicePort{
 			{
+				Name:       webhookPortName,
 				Protocol:   corev1.ProtocolTCP,
 				Port:       servicePort,
 				TargetPort: intstr.FromInt32(servicePort),

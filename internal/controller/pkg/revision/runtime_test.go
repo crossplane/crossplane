@@ -24,7 +24,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -197,6 +199,9 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 														{Name: "vm-a"},
 														{Name: "vm-b"},
 													},
+													Ports: []corev1.ContainerPort{
+														{ContainerPort: 7070, Name: metricsPortName},
+													},
 												},
 											},
 										},
@@ -219,6 +224,8 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
 					deployment.Spec.Template.Spec.Volumes = append([]corev1.Volume{{Name: "vol-a"}, {Name: "vol-b"}}, deployment.Spec.Template.Spec.Volumes...)
 					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append([]corev1.VolumeMount{{Name: "vm-a"}, {Name: "vm-b"}}, deployment.Spec.Template.Spec.Containers[0].VolumeMounts...)
+					deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 7070
+					deployment.Spec.Template.Annotations["prometheus.io/port"] = "7070"
 				}),
 			},
 		},
@@ -393,12 +400,190 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				}),
 			},
 		},
+		"FunctionDeploymentWithRuntimeConfig": {
+			reason: "Overrides from the runtime config should be applied to the deployment",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  functionRevision,
+					namespace: namespace,
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							DeploymentTemplate: &v1beta1.DeploymentTemplate{
+
+								Spec: &appsv1.DeploymentSpec{
+									Replicas: ptr.To[int32](3),
+									Template: corev1.PodTemplateSpec{
+										Spec: corev1.PodSpec{
+											Containers: []corev1.Container{
+												{
+													Name: runtimeContainerName,
+													Ports: []corev1.ContainerPort{
+														{
+															Name:          grpcPortName,
+															ContainerPort: 7070,
+														},
+														{
+															Name:          metricsPortName,
+															ContainerPort: 7071,
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: functionRevisionName,
+				overrides:          functionDeploymentOverrides(functionImage),
+			},
+			want: want{
+				want: deploymentFunction(functionName, functionRevisionName, functionImage, func(deployment *appsv1.Deployment) {
+					deployment.Spec.Replicas = ptr.To[int32](3)
+					deployment.Spec.Template.Spec.Containers[0].Ports[0].Name = grpcPortName
+					deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 7070
+					deployment.Spec.Template.Spec.Containers[0].Ports[1].Name = metricsPortName
+					deployment.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort = 7071
+				}),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := tc.args.builder.Deployment(tc.args.serviceAccountName, tc.args.overrides...)
 			if diff := cmp.Diff(tc.want.want, got); diff != "" {
 				t.Errorf("\n%s\nDeployment(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestRuntimeManifestBuilderService(t *testing.T) {
+	type args struct {
+		builder            ManifestBuilder
+		overrides          []ServiceOverride
+		serviceAccountName string
+	}
+	type want struct {
+		want *corev1.Service
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ProviderServiceNoRuntimeConfig": {
+			reason: "No overrides should result in a deployment with default values",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+				},
+				serviceAccountName: providerRevisionName,
+				overrides: []ServiceOverride{
+					ServiceWithSelectors(providerSelectors(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision)),
+				},
+			},
+			want: want{
+				want: &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      providerName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "pkg.crossplane.io/v1",
+								Kind:               "ProviderRevision",
+								Name:               providerRevisionName,
+								Controller:         ptr.To(true),
+								BlockOwnerDeletion: ptr.To(true),
+							},
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"pkg.crossplane.io/provider": providerMetaName,
+							"pkg.crossplane.io/revision": providerRevisionName,
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Name:       webhookPortName,
+								Port:       int32(webhook.DefaultPort),
+								TargetPort: intstr.FromInt32(int32(webhook.DefaultPort)),
+								Protocol:   corev1.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+		"ProviderServiceWithRuntimeConfig": {
+			reason: "Baseline provided by the runtime config should be applied to the service",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							ServiceTemplate: &v1beta1.ServiceTemplate{
+								Spec: &corev1.ServiceSpec{
+									Ports: []corev1.ServicePort{
+										{
+											Name:       webhookPortName,
+											Port:       int32(7070),
+											TargetPort: intstr.FromInt32(7070),
+											Protocol:   corev1.ProtocolTCP,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides: []ServiceOverride{
+					ServiceWithSelectors(providerSelectors(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision)),
+				},
+			},
+			want: want{
+				want: &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      providerName,
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "pkg.crossplane.io/v1",
+								Kind:               "ProviderRevision",
+								Name:               providerRevisionName,
+								Controller:         ptr.To(true),
+								BlockOwnerDeletion: ptr.To(true),
+							},
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"pkg.crossplane.io/provider": providerMetaName,
+							"pkg.crossplane.io/revision": providerRevisionName,
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Name:       webhookPortName,
+								Port:       int32(7070),
+								TargetPort: intstr.FromInt32(int32(7070)),
+								Protocol:   corev1.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.args.builder.Service(tc.args.overrides...)
+			if diff := cmp.Diff(tc.want.want, got); diff != "" {
+				t.Errorf("\n%s\nService(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
