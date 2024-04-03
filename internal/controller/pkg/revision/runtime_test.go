@@ -409,7 +409,6 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
 						Spec: v1beta1.DeploymentRuntimeConfigSpec{
 							DeploymentTemplate: &v1beta1.DeploymentTemplate{
-
 								Spec: &appsv1.DeploymentSpec{
 									Replicas: ptr.To[int32](3),
 									Template: corev1.PodTemplateSpec{
