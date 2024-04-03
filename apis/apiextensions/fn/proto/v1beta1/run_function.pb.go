@@ -643,8 +643,12 @@ type ResourceSelector struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// API version of resources to select.
 	ApiVersion string `protobuf:"bytes,1,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
-	Kind       string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Kind of resources to select.
+	Kind string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Resources to match.
+	//
 	// Types that are assignable to Match:
 	//
 	//	*ResourceSelector_MatchName
@@ -724,10 +728,12 @@ type isResourceSelector_Match interface {
 }
 
 type ResourceSelector_MatchName struct {
+	// Match the resource with this name.
 	MatchName string `protobuf:"bytes,3,opt,name=match_name,json=matchName,proto3,oneof"`
 }
 
 type ResourceSelector_MatchLabels struct {
+	// Match all resources with these labels.
 	MatchLabels *MatchLabels `protobuf:"bytes,4,opt,name=match_labels,json=matchLabels,proto3,oneof"`
 }
 

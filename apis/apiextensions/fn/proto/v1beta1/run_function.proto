@@ -139,11 +139,18 @@ message Requirements {
 
 // ResourceSelector selects a group of resources, either by name or by label.
 message ResourceSelector {
+  // API version of resources to select.
   string api_version = 1;
+
+  // Kind of resources to select.
   string kind = 2;
 
+  // Resources to match.
   oneof match {
+    // Match the resource with this name.
     string match_name = 3;
+
+    // Match all resources with these labels.
     MatchLabels match_labels = 4;
   }
 }
