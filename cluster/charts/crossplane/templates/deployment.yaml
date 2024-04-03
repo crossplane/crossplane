@@ -59,6 +59,10 @@ spec:
           - --configuration
           - "{{ $arg }}"
           {{- end }}
+          {{- range $arg := .Values.function.packages }}
+          - --function
+          - "{{ $arg }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}-init
           resources:
