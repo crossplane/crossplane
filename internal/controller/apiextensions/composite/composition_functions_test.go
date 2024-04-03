@@ -35,6 +35,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -146,6 +147,48 @@ func TestFunctionCompose(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function"),
+			},
+		},
+		"GetCredentialsSecretError": {
+			reason: "We should return any error encountered while getting the credentials secret for a Composition Function",
+			params: params{
+				kube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: composite.New(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: &v1.FunctionCredentials{
+										Source: v1.FunctionCredentialsSourceSecret,
+										SecretRef: &xpv1.SecretReference{
+											Namespace: "default",
+											Name:      "cool-secret",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function"),
 			},
 		},
 		"RunFunctionError": {
@@ -515,7 +558,23 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
 				kube: &test.MockClient{
-					MockGet:         test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")), // all names are available
+					// MockGet:
+					// test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource:
+					// "UncoolComposed"}, "")), // all names are available
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Data = map[string][]byte{
+								"secret": []byte("password"),
+							}
+							return nil
+						}
+
+						// If this isn't a secret, it's a composed resource.
+						// Return not found to indicate its name is available.
+						// TODO(negz): This is "testing through" to the
+						// names.NameGenerator implementation. Mock it out.
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					}),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
@@ -606,6 +665,13 @@ func TestFunctionCompose(t *testing.T) {
 								{
 									Step:        "run-cool-function",
 									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Credentials: &v1.FunctionCredentials{
+										Source: v1.FunctionCredentialsSourceSecret,
+										SecretRef: &xpv1.SecretReference{
+											Namespace: "default",
+											Name:      "cool-secret",
+										},
+									},
 								},
 							},
 						},

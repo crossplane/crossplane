@@ -211,6 +211,16 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceSelectorToPV1Enviro
 	}
 	return pV1EnvironmentSourceSelector
 }
+func (c *GeneratedRevisionSpecConverter) pV1FunctionCredentialsToPV1FunctionCredentials(source *FunctionCredentials) *FunctionCredentials {
+	var pV1FunctionCredentials *FunctionCredentials
+	if source != nil {
+		var v1FunctionCredentials FunctionCredentials
+		v1FunctionCredentials.Source = FunctionCredentialsSource((*source).Source)
+		v1FunctionCredentials.SecretRef = c.pV1SecretReferenceToPV1SecretReference((*source).SecretRef)
+		pV1FunctionCredentials = &v1FunctionCredentials
+	}
+	return pV1FunctionCredentials
+}
 func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source *MapTransform) *MapTransform {
 	var pV1MapTransform *MapTransform
 	if source != nil {
@@ -336,6 +346,16 @@ func (c *GeneratedRevisionSpecConverter) pV1PolicyToPV1Policy(source *v11.Policy
 		pV1Policy = &v1Policy
 	}
 	return pV1Policy
+}
+func (c *GeneratedRevisionSpecConverter) pV1SecretReferenceToPV1SecretReference(source *v11.SecretReference) *v11.SecretReference {
+	var pV1SecretReference *v11.SecretReference
+	if source != nil {
+		var v1SecretReference v11.SecretReference
+		v1SecretReference.Name = (*source).Name
+		v1SecretReference.Namespace = (*source).Namespace
+		pV1SecretReference = &v1SecretReference
+	}
+	return pV1SecretReference
 }
 func (c *GeneratedRevisionSpecConverter) pV1StoreConfigReferenceToPV1StoreConfigReference(source *StoreConfigReference) *StoreConfigReference {
 	var pV1StoreConfigReference *StoreConfigReference
@@ -626,6 +646,7 @@ func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source P
 	v1PipelineStep.Step = source.Step
 	v1PipelineStep.FunctionRef = c.v1FunctionReferenceToV1FunctionReference(source.FunctionRef)
 	v1PipelineStep.Input = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Input)
+	v1PipelineStep.Credentials = c.pV1FunctionCredentialsToPV1FunctionCredentials(source.Credentials)
 	return v1PipelineStep
 }
 func (c *GeneratedRevisionSpecConverter) v1ReadinessCheckToV1ReadinessCheck(source ReadinessCheck) ReadinessCheck {

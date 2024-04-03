@@ -986,6 +986,34 @@ spec:
                 items:
                   description: A PipelineStep in a Composition Function pipeline.
                   properties:
+                    credentials:
+                      description: Credentials are optional credentials that the Composition
+                        Function needs.
+                      properties:
+                        secretRef:
+                          description: |-
+                            A SecretRef is a reference to a secret key that contains the credentials
+                            that must be used to connect to the provider.
+                          properties:
+                            name:
+                              description: Name of the secret.
+                              type: string
+                            namespace:
+                              description: Namespace of the secret.
+                              type: string
+                          required:
+                          - name
+                          - namespace
+                          type: object
+                        source:
+                          description: Source of the function credentials.
+                          enum:
+                          - None
+                          - Secret
+                          type: string
+                      required:
+                      - source
+                      type: object
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the Composition Function this step should

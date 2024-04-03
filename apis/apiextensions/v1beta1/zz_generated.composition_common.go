@@ -300,6 +300,9 @@ type PipelineStep struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
 	Input *runtime.RawExtension `json:"input,omitempty"`
+
+	// Credentials are optional credentials that the Composition Function needs.
+	Credentials *FunctionCredentials `json:"credentials,omitempty"`
 }
 
 // A FunctionReference references a Composition Function that may be used in a
@@ -308,6 +311,33 @@ type FunctionReference struct {
 	// Name of the referenced Function.
 	Name string `json:"name"`
 }
+
+// FunctionCredentials are optional credentials that a Composition Function
+// needs to run.
+type FunctionCredentials struct {
+	// Source of the function credentials.
+	// +kubebuilder:validation:Enum=None;Secret
+	Source FunctionCredentialsSource `json:"source"`
+
+	// A SecretRef is a reference to a secret key that contains the credentials
+	// that must be used to connect to the provider.
+	// +optional
+	SecretRef *xpv1.SecretReference `json:"secretRef,omitempty"`
+}
+
+// A FunctionCredentialsSource is a source from which Composition Function
+// credentials may be acquired.
+type FunctionCredentialsSource string
+
+const (
+	// FunctionCredentialsSourceNone indicates that a function does not require
+	// credentials.
+	FunctionCredentialsSourceNone FunctionCredentialsSource = "None"
+
+	// FunctionCredentialsSourceSecret indicates that a function should acquire
+	// credentials from a secret.
+	FunctionCredentialsSourceSecret FunctionCredentialsSource = "Secret"
+)
 
 // A StoreConfigReference references a secret store config that may be used to
 // write connection details.
