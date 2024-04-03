@@ -28,8 +28,8 @@ import (
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/restmapper"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -62,6 +62,7 @@ type Cmd struct {
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
 	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
+	Context                   string `default:""                                    help:"Kubernetes context."                         name:"context"                                                             short:"c"`
 	Namespace                 string `default:"default"                             help:"Namespace of the resource."                  name:"namespace"                                                           short:"n"`
 	Output                    string `default:"default"                             enum:"default,wide,json,dot"                       help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
 	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                     short:"s"`
@@ -113,7 +114,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 	logger.Debug("Built printer", "output", c.Output)
 
-	kubeconfig, err := ctrl.GetConfig()
+	kubeconfig, err := config.GetConfigWithContext(c.Context)
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
