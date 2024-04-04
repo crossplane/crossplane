@@ -18,38 +18,21 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/alecthomas/kong"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/cmd/crank/beta"
+	"github.com/crossplane/crossplane/cmd/crank/version"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
-	"github.com/crossplane/crossplane/internal/version"
 )
 
 var _ = kong.Must(&cli{})
 
 type (
-	versionFlag string
 	verboseFlag bool
 )
-
-// Decode overrides the default string decoder to be a no-op.
-func (v versionFlag) Decode(_ *kong.DecodeContext) error { return nil }
-
-// IsBool indicates that this string flag should be treated as a boolean value.
-func (v versionFlag) IsBool() bool { return true }
-
-// BeforeApply indicates that we want to execute the logic before running any
-// commands.
-func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // BeforeApply requires this signature.
-	fmt.Fprintln(app.Stdout, version.New().GetVersionString())
-	app.Exit(0)
-	return nil
-}
 
 func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // BeforeApply requires this signature.
 	logger := logging.NewLogrLogger(zap.New(zap.UseDevMode(true)))
@@ -67,11 +50,11 @@ type cli struct {
 
 	// The alpha and beta subcommands are intentionally in a separate block. We
 	// want them to appear after all other subcommands.
-	Beta beta.Cmd `cmd:"" help:"Beta commands."`
+	Beta    beta.Cmd    `cmd:"" help:"Beta commands."`
+	Version version.Cmd `cmd:"" help:"Print the client and server version information for the current context."`
 
 	// Flags.
 	Verbose verboseFlag `help:"Print verbose logging statements." name:"verbose"`
-	Version versionFlag `help:"Print version and quit."           name:"version" short:"v"`
 }
 
 func main() {
