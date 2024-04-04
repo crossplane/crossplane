@@ -114,13 +114,13 @@ Crossplane is under the Apache 2.0 license.
 [community meeting time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
-[roadmap and releases board]: https://github.com/orgs/crossplane/projects/20/views/3?pane=info
+[roadmap and releases board]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
 [cncf]: https://www.cncf.io/
 [Get Started Docs]: https://docs.crossplane.io/latest/getting-started/
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
-[Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/3?pane=info
+[Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
 [sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE
 [sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
