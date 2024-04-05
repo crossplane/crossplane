@@ -18,8 +18,10 @@ package claim
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -441,6 +443,134 @@ func TestServerSideSync(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ns.Sync(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestStripManagedFields(t *testing.T) {
+	cases := map[string]struct {
+		reason        string
+		originalPatch []byte
+		expectedPatch []byte
+		err           error
+	}{
+		"StripManagedFields": {
+			reason: "should strip spec.resourceRefs field from ssa claim manager managed fields entries",
+			originalPatch: []byte(`
+[
+	{
+		"op":    "replace",
+		"path":  "/metadata/managedFields",
+		"value": [{"apiVersion":"nop.example.org/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:finalizers":{".":{},"v:\"composite.apiextensions.crossplane.io\"":{}},"f:generateName":{},"f:labels":{".":{},"f:crossplane.io/claim-name":{},"f:crossplane.io/claim-namespace":{},"f:crossplane.io/composite":{}}},"f:spec":{".":{},"f:claimRef":{".":{},"f:apiVersion":{},"f:kind":{},"f:name":{},"f:namespace":{}},"f:compositionRef":{".":{},"f:name":{}},"f:compositionRevisionRef":{".":{},"f:name":{}},"f:compositionUpdatePolicy":{},"f:coolField":{},"f:resourceRefs":{}}},"manager":"apiextensions.crossplane.io/claim","operation":"Apply","time":"2024-03-21T22:13:23Z"}]
+	},
+	{
+		"op":    "replace",
+		"path":  "/metadata/resourceVersion",
+		"value": "28726594"
+	}
+]
+`),
+			expectedPatch: []byte(`
+[
+	{
+		"op":    "replace",
+		"path":  "/metadata/managedFields",
+		"value": [{"apiVersion":"nop.example.org/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:finalizers":{".":{},"v:\"composite.apiextensions.crossplane.io\"":{}},"f:generateName":{},"f:labels":{".":{},"f:crossplane.io/claim-name":{},"f:crossplane.io/claim-namespace":{},"f:crossplane.io/composite":{}}},"f:spec":{".":{},"f:claimRef":{".":{},"f:apiVersion":{},"f:kind":{},"f:name":{},"f:namespace":{}},"f:compositionRef":{".":{},"f:name":{}},"f:compositionRevisionRef":{".":{},"f:name":{}},"f:compositionUpdatePolicy":{},"f:coolField":{}}},"manager":"apiextensions.crossplane.io/claim","operation":"Apply","time":"2024-03-21T22:13:23Z"}]
+	},
+	{
+		"op":    "replace",
+		"path":  "/metadata/resourceVersion",
+		"value": "28726594"
+	}
+]
+`),
+		},
+		"StripManagedFieldsNoop": {
+			reason: "should not strip spec.resourceRefs field from ssa composite manager managed fields entries",
+			originalPatch: []byte(`
+[
+	{
+		"op":    "replace",
+		"path":  "/metadata/managedFields",
+		"value": [{"apiVersion":"nop.example.org/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:resourceRefs":{}}},"manager":"apiextensions.crossplane.io/composite","operation":"Apply","time":"2024-04-03T00:28:10Z"},{"apiVersion":"nop.example.org/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:labels":{"f:crossplane.io/claim-name":{},"f:crossplane.io/claim-namespace":{}}},"f:spec":{"f:claimRef":{"f:apiVersion":{},"f:kind":{},"f:name":{},"f:namespace":{}},"f:compositionRef":{"f:name":{}},"f:compositionSelector":{"f:matchLabels":{"f:xr-template-source":{}}},"f:compositionUpdatePolicy":{},"f:coolField":{},"f:testConfig":{"f:cilium":{".":{},"f:enabled":{},"f:mode":{}},"f:eks_version":{},"f:environment":{},"f:identity_provider":{".":{},"f:enabled":{},"f:groups":{}},"f:region":{}}}},"manager":"apiextensions.crossplane.io/claim","operation":"Apply","time":"2024-04-03T00:37:30Z"}]
+	},
+	{
+		"op":    "replace",
+		"path":  "/metadata/resourceVersion",
+		"value": "28726594"
+	}
+]
+`),
+			expectedPatch: []byte(`
+[
+	{
+		"op":    "replace",
+		"path":  "/metadata/managedFields",
+		"value": [{"apiVersion":"nop.example.org/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:resourceRefs":{}}},"manager":"apiextensions.crossplane.io/composite","operation":"Apply","time":"2024-04-03T00:28:10Z"},{"apiVersion":"nop.example.org/v1alpha1","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:labels":{"f:crossplane.io/claim-name":{},"f:crossplane.io/claim-namespace":{}}},"f:spec":{"f:claimRef":{"f:apiVersion":{},"f:kind":{},"f:name":{},"f:namespace":{}},"f:compositionRef":{"f:name":{}},"f:compositionSelector":{"f:matchLabels":{"f:xr-template-source":{}}},"f:compositionUpdatePolicy":{},"f:coolField":{},"f:testConfig":{"f:cilium":{".":{},"f:enabled":{},"f:mode":{}},"f:eks_version":{},"f:environment":{},"f:identity_provider":{".":{},"f:enabled":{},"f:groups":{}},"f:region":{}}}},"manager":"apiextensions.crossplane.io/claim","operation":"Apply","time":"2024-04-03T00:37:30Z"}]
+	},
+	{
+		"op":    "replace",
+		"path":  "/metadata/resourceVersion",
+		"value": "28726594"
+	}
+]
+`),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			p, err := stripManagedFields(tc.originalPatch)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nstripManagedFields: -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			jp, err := jsonpatch.DecodePatch(p)
+			if err != nil {
+				t.Error(err)
+			}
+			v, err := jp[0].ValueInterface()
+			if err != nil {
+				t.Error(err)
+			}
+			es := v.([]interface{})
+			managedFields := make([]metav1.ManagedFieldsEntry, len(es))
+			for i := range es {
+				e, err := json.Marshal(es[i])
+				if err != nil {
+					t.Error(err)
+				}
+				err = json.Unmarshal(e, &managedFields[i])
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			jp, err = jsonpatch.DecodePatch(tc.expectedPatch)
+			if err != nil {
+				t.Error(err)
+			}
+			v, err = jp[0].ValueInterface()
+			if err != nil {
+				t.Error(err)
+			}
+			es = v.([]interface{})
+			expectedManagedFields := make([]metav1.ManagedFieldsEntry, len(es))
+			for i := range es {
+				e, err := json.Marshal(es[i])
+				if err != nil {
+					t.Error(err)
+				}
+				err = json.Unmarshal(e, &expectedManagedFields[i])
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			if diff := cmp.Diff(expectedManagedFields, managedFields); diff != "" {
+				t.Errorf("\n%s\nstripManagedFields: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

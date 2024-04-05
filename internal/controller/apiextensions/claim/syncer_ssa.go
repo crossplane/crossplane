@@ -17,13 +17,17 @@ limitations under the License.
 package claim
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/csaupgrade"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -99,7 +103,89 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 		// No patch means there's nothing to upgrade.
 		return nil
 	}
-	return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), errPatchFieldManagers)
+	fp, err := stripManagedFields(p)
+	if err != nil {
+		return errors.Wrap(err, errCreatePatch)
+	}
+	return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, fp))), errPatchFieldManagers)
+}
+
+// Strips selected fields from ssa manager upgraded managedFields entries
+// This is to ensure that the fields owned by the composite controller aren't
+// updated to be owned by the claim controller.
+func stripManagedFields(patch []byte) ([]byte, error) { //nolint:gocognit // Only slightly over.
+	var patchMap []map[string]interface{}
+	mfPath := "/metadata/managedFields"
+
+	err := json.Unmarshal(patch, &patchMap)
+	if err != nil {
+		return nil, err
+	}
+
+	var managedFields []metav1.ManagedFieldsEntry
+	for _, p := range patchMap {
+		if p["path"] == mfPath {
+			if obj, ok := p["value"]; ok && obj != nil {
+				if es, ok := obj.([]interface{}); ok && es != nil {
+					managedFields = make([]metav1.ManagedFieldsEntry, len(es))
+					for i := range es {
+						e, err := json.Marshal(es[i])
+						if err != nil {
+							return nil, err
+						}
+						err = json.Unmarshal(e, &managedFields[i])
+						if err != nil {
+							return nil, err
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// claim controller should not be `spec.resourceRefs` field's manager
+	stripSet := fieldpath.NewSet(fieldpath.MakePathOrDie("spec", "resourceRefs"))
+
+	for i, entry := range managedFields {
+		if entry.Operation != metav1.ManagedFieldsOperationApply || entry.Manager != FieldOwnerXR {
+			continue
+		}
+
+		fieldSet, err := decodeManagedFieldsEntrySet(entry)
+		if err != nil {
+			continue
+		}
+		strippedFieldSet := &fieldSet
+
+		strippedFieldSet = strippedFieldSet.Difference(stripSet)
+
+		err = encodeManagedFieldsEntrySet(&managedFields[i], *strippedFieldSet)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to encode field set")
+		}
+	}
+
+	for _, p := range patchMap {
+		if p["path"] == mfPath {
+			p["value"] = managedFields
+		}
+	}
+
+	return json.Marshal(patchMap)
+}
+
+// Included from k8s.io/client-go/utils
+// FieldsToSet creates a set paths from an input trie of fields.
+func decodeManagedFieldsEntrySet(f metav1.ManagedFieldsEntry) (s fieldpath.Set, err error) {
+	err = s.FromJSON(bytes.NewReader(f.FieldsV1.Raw))
+	return s, err
+}
+
+// Included from k8s.io/client-go/utils
+// SetToFields creates a trie of fields from an input set of paths.
+func encodeManagedFieldsEntrySet(f *metav1.ManagedFieldsEntry, s fieldpath.Set) (err error) {
+	f.FieldsV1.Raw, err = s.ToJSON()
+	return err
 }
 
 // A ServerSideCompositeSyncer binds and syncs a claim with a composite resource
