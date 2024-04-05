@@ -183,7 +183,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		}
 	}
 
-	events := make([]CompositionEvent, 0)
+	events := make([]TargetedEvent, 0)
 
 	// We optimistically render all composed resources that we are able to with
 	// the expectation that any that we fail to render will subsequently have
@@ -213,7 +213,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 
 		rendered := true
 		if err := RenderFromCompositeAndEnvironmentPatches(r, xr, req.Environment, ta.Template.Patches); err != nil {
-			events = append(events, CompositionEvent{
+			events = append(events, TargetedEvent{
 				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)),
 				Target: CompositionEventTargetComposite,
 			})
@@ -221,7 +221,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		}
 
 		if err := RenderComposedResourceMetadata(r, xr, ResourceName(ptr.Deref(ta.Template.Name, ""))); err != nil {
-			events = append(events, CompositionEvent{
+			events = append(events, TargetedEvent{
 				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderMetadata, name)),
 				Target: CompositionEventTargetComposite,
 			})
@@ -229,7 +229,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		}
 
 		if err := c.composed.GenerateName(ctx, r); err != nil {
-			events = append(events, CompositionEvent{
+			events = append(events, TargetedEvent{
 				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtGenerateName, name)),
 				Target: CompositionEventTargetComposite,
 			})
@@ -283,7 +283,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 				// run again the composition after some other resource is
 				// created or updated successfully. So, we emit a warning event
 				// and move on.
-				events = append(events, CompositionEvent{
+				events = append(events, TargetedEvent{
 					Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))),
 					Target: CompositionEventTargetComposite,
 				})

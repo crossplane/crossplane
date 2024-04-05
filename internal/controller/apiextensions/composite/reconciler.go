@@ -24,7 +24,6 @@ import (
 	"strconv"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -186,7 +185,7 @@ type CompositionRequest struct {
 type CompositionResult struct {
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
-	Events            []CompositionEvent
+	Events            []TargetedEvent
 }
 
 // A CompositionEventTarget is the target of a composition event.
@@ -198,17 +197,11 @@ const (
 	CompositionEventTargetCompositeAndClaim CompositionEventTarget = "CompositeAndClaim"
 )
 
-// TODO(negz): This is more than a Kubernetes event. It's equivalent to a
-// function result, but CompositionResult is taken. Is there a better name?
-
-// A CompositionEvent represents an event produced by the composition process.
-type CompositionEvent struct {
-	Event event.Event
-
+// A TargetedEvent represents an event produced by the composition process. It
+// can target either the XR only, or both the XR and the claim.
+type TargetedEvent struct {
+	Event  event.Event
 	Target CompositionEventTarget
-
-	ConditionType   *xpv1.ConditionType
-	ConditionStatus *corev1.ConditionStatus
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the

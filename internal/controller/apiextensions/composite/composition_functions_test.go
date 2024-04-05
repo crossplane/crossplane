@@ -692,7 +692,7 @@ func TestFunctionCompose(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{
 						"from": []byte("function-pipeline"),
 					},
-					Events: []CompositionEvent{
+					Events: []TargetedEvent{
 						{
 							Event: event.Event{
 								Type:    "Normal",
@@ -902,7 +902,7 @@ func TestFunctionCompose(t *testing.T) {
 					ConnectionDetails: managed.ConnectionDetails{
 						"from": []byte("function-pipeline"),
 					},
-					Events: []CompositionEvent{
+					Events: []TargetedEvent{
 						{
 							Event: event.Event{
 								Type:    "Normal",

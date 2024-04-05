@@ -244,16 +244,11 @@ message Result {
   // Human-readable details about the result.
   string message = 2;
 
-  // The resources this result targets.
-  Target target = 3;
-
   // Optional PascalCase, machine-readable reason for this result.
-  optional string reason = 4;
+  optional string reason = 3;
 
-  // A result can optionally indicate the condition of the target resources.
-  // Crossplane will consider the resources to be in the supplied condition
-  // until another result changes it.
-  optional Condition condition = 5;
+  // The resources this result targets.
+  optional Target target = 4;
 }
 
 // Severity of Function results.
@@ -289,21 +284,4 @@ enum Target {
   // Target the composite and the claim. Results that target the composite and
   // the claim should include only end-user friendly information.
   TARGET_COMPOSITE_AND_CLAIM = 2;
-}
-
-// Status of Function result condition.
-enum Status {
-  STATUS_UNSPECIFIED = 0;
-  STATUS_FALSE = 1;
-  STATUS_TRUE = 2;
-}
-
-// A Condition 
-message Condition {
-  // Type of the condition, e.g. DatabaseReady.
-  // Ready and Synced are reserved for use by Crossplane.
-  string type = 1;
-
-  // Status of the condition.
-  Status status = 2;
 }
