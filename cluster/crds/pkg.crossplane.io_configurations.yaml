@@ -32,8 +32,14 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Configuration is the CRD type for a request to add a configuration
-          to Crossplane.
+        description: |-
+          A Configuration installs an OCI compatible Crossplane package, extending
+          Crossplane with support for new kinds of CompositeResourceDefinitions and
+          Compositions.
+
+
+          Read the Crossplane documentation for
+          [more information about Configuration packages](https://docs.crossplane.io/latest/concepts/packages).
         properties:
           apiVersion:
             description: |-

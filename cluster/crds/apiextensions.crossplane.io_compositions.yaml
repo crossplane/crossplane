@@ -30,7 +30,13 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: A Composition specifies how a composite resource should be composed.
+        description: |-
+          A Composition defines a collection of managed resources or functions that
+          Crossplane uses to create and manage new composite resources.
+
+
+          Read the Crossplane documentation for
+          [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).
         properties:
           apiVersion:
             description: |-

@@ -26,7 +26,11 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 
-// Provider is the CRD type for a request to add a provider to Crossplane.
+// A Provider installs an OCI compatible Crossplane package, extending
+// Crossplane with support for new kinds of managed resources.
+//
+// Read the Crossplane documentation for
+// [more information about Providers](https://docs.crossplane.io/latest/concepts/providers).
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
@@ -74,7 +78,11 @@ type ProviderRevisionSpec struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// A ProviderRevision that has been added to Crossplane.
+// A ProviderRevision represents a revision of a Provider. Crossplane
+// creates new revisions when there are changes to a Provider.
+//
+// Crossplane creates and manages ProviderRevisions. Don't directly edit
+// ProviderRevisions.
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"

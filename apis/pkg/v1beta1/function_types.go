@@ -34,7 +34,11 @@ import (
 // +genclient
 // +genclient:nonNamespaced
 
-// Function is the CRD type for a request to deploy a long-running Function.
+// A Function installs an OCI compatible Crossplane package, extending
+// Crossplane with support for a new kind of composition function.
+//
+// Read the Crossplane documentation for
+// [more information about Functions](https://docs.crossplane.io/latest/concepts/composition-functions).
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
@@ -82,7 +86,11 @@ type FunctionRevisionSpec struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// A FunctionRevision that has been added to Crossplane.
+// A FunctionRevision represents a revision of a Function. Crossplane
+// creates new revisions when there are changes to the Function.
+//
+// Crossplane creates and manages FunctionRevisions. Don't directly edit
+// FunctionRevisions.
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"

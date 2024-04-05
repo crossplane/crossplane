@@ -212,9 +212,11 @@ type CompositeResourceDefinitionControllerStatus struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// A CompositeResourceDefinition defines a new kind of composite infrastructure
-// resource. The new resource is composed of other composite or managed
-// infrastructure resources.
+// A CompositeResourceDefinition defines the schema for a new custom Kubernetes
+// API.
+//
+// Read the Crossplane documentation for
+// [more information about CustomResourceDefinitions](https://docs.crossplane.io/latest/concepts/composite-resource-definitions).
 // +kubebuilder:printcolumn:name="ESTABLISHED",type="string",JSONPath=".status.conditions[?(@.type=='Established')].status"
 // +kubebuilder:printcolumn:name="OFFERED",type="string",JSONPath=".status.conditions[?(@.type=='Offered')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"

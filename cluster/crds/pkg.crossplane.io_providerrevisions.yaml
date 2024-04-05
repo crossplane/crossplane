@@ -41,7 +41,13 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: A ProviderRevision that has been added to Crossplane.
+        description: |-
+          A ProviderRevision represents a revision of a Provider. Crossplane
+          creates new revisions when there are changes to a Provider.
+
+
+          Crossplane creates and manages ProviderRevisions. Don't directly edit
+          ProviderRevisions.
         properties:
           apiVersion:
             description: |-

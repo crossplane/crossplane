@@ -41,7 +41,13 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: A ConfigurationRevision that has been added to Crossplane.
+        description: |-
+          A ConfigurationRevision represents a revision of a Configuration. Crossplane
+          creates new revisions when there are changes to a Configuration.
+
+
+          Crossplane creates and manages ConfigurationRevision. Don't directly edit
+          ConfigurationRevisions.
         properties:
           apiVersion:
             description: |-
