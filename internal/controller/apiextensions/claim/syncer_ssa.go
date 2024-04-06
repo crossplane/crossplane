@@ -21,8 +21,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/util/csaupgrade"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -74,32 +72,68 @@ func NewPatchingManagedFieldsUpgrader(w client.Writer) *PatchingManagedFieldsUpg
 
 // Upgrade the supplied object's field managers from client-side to server-side
 // apply.
-func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.Object, ssaManager string, csaManagers ...string) error {
-	// UpgradeManagedFieldsPatch removes or replaces the specified CSA managers.
-	// Unfortunately most Crossplane controllers use CSA manager "crossplane".
-	// So we could for example fight with the XR controller:
-	//
-	// 1. We remove CSA manager "crossplane", triggering XR controller watch
-	// 2. XR controller uses CSA manager "crossplane", triggering our watch
-	// 3. Back to step 1 :)
-	//
-	// In practice we only need to upgrade once, to ensure we don't share fields
-	// that only this controller has ever applied with "crossplane". We assume
-	// that if our SSA manager already exists, we've done the upgrade.
-	for _, e := range obj.GetManagedFields() {
-		if e.Manager == ssaManager {
-			return nil
-		}
-	}
-	p, err := csaupgrade.UpgradeManagedFieldsPatch(obj, sets.New[string](csaManagers...), ssaManager)
-	if err != nil {
-		return errors.Wrap(err, errCreatePatch)
-	}
-	if p == nil {
-		// No patch means there's nothing to upgrade.
+//
+// This is a multi-step process.
+//
+// Step 1: All fields are owned by manager 'crossplane' operation 'Update'. This
+// represents all fields set by the claim or XR controller up to this point.
+//
+// Step 2: Upgrade is called for the first time. We delete all field managers.
+//
+// Step 3: The claim controller server-side applies its fully specified intent
+// as field manager 'apiextensions.crossplane.io/claim'. This becomes the
+// manager of all the fields that are part of the claim controller's fully
+// specified intent. All existing fields the claim controller didn't specify
+// become owned by a special manager - 'before-first-apply', operation 'Update'.
+//
+// Step 4: Upgrade is called for the second time. It deletes the
+// 'before-first-apply' field manager entry. Only the claim field manager
+// remains.
+//
+// Step 5: Eventually the XR reconciler updates a field (e.g. spec.resourceRefs)
+// and becomes owner of that field.
+func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.Object, ssaManager string, _ ...string) error {
+	// The XR doesn't exist, nothing to upgrade.
+	if !meta.WasCreated(obj) {
 		return nil
 	}
-	return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), errPatchFieldManagers)
+
+	foundSSA := false
+	foundBFA := false
+	idxBFA := -1
+
+	for i, e := range obj.GetManagedFields() {
+		if e.Manager == ssaManager {
+			foundSSA = true
+		}
+		if e.Manager == "before-first-apply" {
+			foundBFA = true
+			idxBFA = i
+		}
+	}
+
+	switch {
+	// If our SSA field manager exists and the before-first-apply field manager
+	// doesn't, we've already done the upgrade. Don't do it again.
+	case foundSSA && !foundBFA:
+		return nil
+
+	// We found our SSA field manager but also before-first-apply. It should now
+	// be safe to delete before-first-apply.
+	case foundSSA && foundBFA:
+		p := []byte(fmt.Sprintf(`[{"op": "remove", "path": "/metadata/managedFields/%d"}]`, idxBFA))
+		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot remove before-first-apply from field managers")
+
+	// We didn't find our SSA field manager or the before-first-apply field
+	// manager. This means we haven't started the upgrade. The first thing we
+	// want to do is clear all managed fields. After we do this we'll let our
+	// SSA field manager apply the fields it cares about. The result will be
+	// that our SSA field manager shares ownership with a new manager named
+	// 'before-first-apply'.
+	default:
+		p := []byte(`[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]`)
+		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
+	}
 }
 
 // A ServerSideCompositeSyncer binds and syncs a claim with a composite resource

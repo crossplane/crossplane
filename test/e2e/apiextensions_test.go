@@ -342,7 +342,10 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
-			Assess("UpdateClaim", funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml")).
+			Assess("UpdateClaim", funcs.AllOf(
+				funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml"),
+				funcs.ClaimUnderTestMustNotChangeWithin(1*time.Minute),
+			)).
 			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
 				// Updates and deletes are propagated claim -> XR.
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo]", "1"),
