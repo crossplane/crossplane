@@ -62,10 +62,13 @@ for more information on how you can help.
 * Join our regular community meetings.
 * Provide feedback on our [roadmap and releases board].
 
-The Crossplane community meeting takes place every other [Thursday at 10:00am
-Pacific Time][community meeting time]. Anyone who wants to discuss the direction
-of the project, design and implementation reviews, or raise general questions
-with the broader community is encouraged to join.
+The Crossplane community meeting takes place every 4 weeks on [Thursday at
+10:00am Pacific Time][community meeting time]. You can find the up to date
+meeting schedule on the [Community Calendar][community calendar].
+
+Anyone who wants to discuss the direction of the project, design and
+implementation reviews, or raise general questions with the broader community is
+encouraged to join.
 
 * Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
 * [Current agenda and past meeting notes]
