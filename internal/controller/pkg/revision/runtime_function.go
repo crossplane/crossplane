@@ -134,7 +134,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	// `deploymentTemplate.spec.template.spec.serviceAccountName` in the
 	// DeploymentRuntimeConfig.
 	if sa.Name == d.Spec.Template.Spec.ServiceAccountName {
-		if err := h.client.Apply(ctx, sa); err != nil {
+		if err := applySA(ctx, h.client, sa); err != nil {
 			return errors.Wrap(err, errApplyFunctionSA)
 		}
 	}
