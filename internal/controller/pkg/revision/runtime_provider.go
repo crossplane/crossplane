@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -143,7 +144,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	// `deploymentTemplate.spec.template.spec.serviceAccountName` in the
 	// DeploymentRuntimeConfig.
 	if sa.Name == d.Spec.Template.Spec.ServiceAccountName {
-		if err := h.client.Apply(ctx, sa); err != nil {
+		if err := applySA(ctx, h.client, sa); err != nil {
 			return errors.Wrap(err, errApplyProviderSA)
 		}
 	}
@@ -268,4 +269,24 @@ func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWi
 		"pkg.crossplane.io/revision": pr.GetName(),
 		"pkg.crossplane.io/provider": providerMeta.GetName(),
 	}
+}
+
+// applySA creates/updates a ServiceAccount and includes any image pull secrets
+// that have been added by external controllers.
+func applySA(ctx context.Context, cl resource.ClientApplicator, sa *corev1.ServiceAccount) error {
+	oldSa := &corev1.ServiceAccount{}
+	if err := cl.Get(ctx, types.NamespacedName{Name: sa.Name, Namespace: sa.Namespace}, oldSa); err == nil {
+		// Add pull secrets created by other controllers
+		existingSecrets := make(map[string]bool)
+		for _, secret := range sa.ImagePullSecrets {
+			existingSecrets[secret.Name] = true
+		}
+
+		for _, secret := range oldSa.ImagePullSecrets {
+			if !existingSecrets[secret.Name] {
+				sa.ImagePullSecrets = append(sa.ImagePullSecrets, secret)
+			}
+		}
+	}
+	return cl.Apply(ctx, sa)
 }

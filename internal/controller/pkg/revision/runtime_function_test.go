@@ -387,6 +387,56 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 		},
+		"SuccessWithExtraSecret": {
+			reason: "Should not return error if successfully applied service account with additional secret.",
+			args: args{
+				pkg: &pkgmetav1beta1.Function{},
+				rev: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if sa, ok := obj.(*corev1.ServiceAccount); ok {
+							sa.ImagePullSecrets = []corev1.LocalObjectReference{{Name: "test_secret"}}
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						if d, ok := obj.(*appsv1.Deployment); ok {
+							d.Status.Conditions = []appsv1.DeploymentCondition{{
+								Type:   appsv1.DeploymentAvailable,
+								Status: corev1.ConditionTrue,
+							}}
+							return nil
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1beta1.FunctionRevision{
+					Spec: v1beta1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package:      functionImage,
+							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+				},
+			},
+		},
 		"SuccessfulWithExternallyManagedSA": {
 			reason: "Should be successful without creating an SA, when the SA is managed externally",
 			args: args{
