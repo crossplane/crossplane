@@ -427,7 +427,8 @@ spec:
                                       any input value into its raw JSON representation.
                                       `ToSha1`, `ToSha256` and `ToSha512` generate
                                       a hash value based on the input converted to
-                                      JSON.
+                                      JSON. `ToAdler32` generate a addler32 hash based
+                                      on the input string.
                                     enum:
                                     - ToUpper
                                     - ToLower
@@ -437,6 +438,7 @@ spec:
                                     - ToSha1
                                     - ToSha256
                                     - ToSha512
+                                    - ToAdler32
                                     type: string
                                   fmt:
                                     description: Format the input using a Go format
@@ -810,7 +812,8 @@ spec:
                                         any input value into its raw JSON representation.
                                         `ToSha1`, `ToSha256` and `ToSha512` generate
                                         a hash value based on the input converted
-                                        to JSON.
+                                        to JSON. `ToAdler32` generate a addler32 hash
+                                        based on the input string.
                                       enum:
                                       - ToUpper
                                       - ToLower
@@ -820,6 +823,7 @@ spec:
                                       - ToSha1
                                       - ToSha256
                                       - ToSha512
+                                      - ToAdler32
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
@@ -1269,7 +1273,8 @@ spec:
                                         any input value into its raw JSON representation.
                                         `ToSha1`, `ToSha256` and `ToSha512` generate
                                         a hash value based on the input converted
-                                        to JSON.
+                                        to JSON. `ToAdler32` generate a addler32 hash
+                                        based on the input string.
                                       enum:
                                       - ToUpper
                                       - ToLower
@@ -1279,6 +1284,7 @@ spec:
                                       - ToSha1
                                       - ToSha256
                                       - ToSha512
+                                      - ToAdler32
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
@@ -1886,7 +1892,8 @@ spec:
                                       any input value into its raw JSON representation.
                                       `ToSha1`, `ToSha256` and `ToSha512` generate
                                       a hash value based on the input converted to
-                                      JSON.
+                                      JSON. `ToAdler32` generate a addler32 hash based
+                                      on the input string.
                                     enum:
                                     - ToUpper
                                     - ToLower
@@ -1896,6 +1903,7 @@ spec:
                                     - ToSha1
                                     - ToSha256
                                     - ToSha512
+                                    - ToAdler32
                                     type: string
                                   fmt:
                                     description: Format the input using a Go format
@@ -2269,7 +2277,8 @@ spec:
                                         any input value into its raw JSON representation.
                                         `ToSha1`, `ToSha256` and `ToSha512` generate
                                         a hash value based on the input converted
-                                        to JSON.
+                                        to JSON. `ToAdler32` generate a addler32 hash
+                                        based on the input string.
                                       enum:
                                       - ToUpper
                                       - ToLower
@@ -2279,6 +2288,7 @@ spec:
                                       - ToSha1
                                       - ToSha256
                                       - ToSha512
+                                      - ToAdler32
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
@@ -2728,7 +2738,8 @@ spec:
                                         any input value into its raw JSON representation.
                                         `ToSha1`, `ToSha256` and `ToSha512` generate
                                         a hash value based on the input converted
-                                        to JSON.
+                                        to JSON. `ToAdler32` generate a addler32 hash
+                                        based on the input string.
                                       enum:
                                       - ToUpper
                                       - ToLower
@@ -2738,6 +2749,7 @@ spec:
                                       - ToSha1
                                       - ToSha256
                                       - ToSha512
+                                      - ToAdler32
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format

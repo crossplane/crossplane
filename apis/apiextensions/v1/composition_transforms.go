@@ -377,8 +377,9 @@ type StringTransform struct {
 	// `ToJson` converts any input value into its raw JSON representation.
 	// `ToSha1`, `ToSha256` and `ToSha512` generate a hash value based on the input
 	// converted to JSON.
+	// `ToAdler32` generate a addler32 hash based on the input string.
 	// +optional
-	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64;ToJson;ToSha1;ToSha256;ToSha512
+	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64;ToJson;ToSha1;ToSha256;ToSha512;ToAdler32
 	Convert *StringConversionType `json:"convert,omitempty"`
 
 	// Trim the prefix or suffix from the input
