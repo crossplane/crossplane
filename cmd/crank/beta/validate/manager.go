@@ -192,13 +192,17 @@ func (m *Manager) addDependencies() error {
 		deps := cfg.Spec.MetaSpec.DependsOn
 		for _, dep := range deps {
 			image := ""
-			if dep.Configuration != nil {
+			if dep.Configuration != nil { //nolint:gocritic // switch is not suitable here
 				image = *dep.Configuration
 			} else if dep.Provider != nil {
 				image = *dep.Provider
+			} else if dep.Function != nil {
+				image = *dep.Function
 			}
-			image = fmt.Sprintf(imageFmt, image, dep.Version)
-			m.deps[image] = true
+			if len(image) > 0 {
+				image = fmt.Sprintf(imageFmt, image, dep.Version)
+				m.deps[image] = true
+			}
 		}
 	}
 
