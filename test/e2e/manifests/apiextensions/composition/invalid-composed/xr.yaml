@@ -1,0 +1,11 @@
+---
+apiVersion: example.org/v1alpha1
+kind: XParent
+metadata:
+  name: test
+#  Expected:
+#  annotations:
+#    exampleVal: "foo"
+spec:
+  # this should be > 1 in the XChild composed resource, so it will fail applying it
+  someField: 1
