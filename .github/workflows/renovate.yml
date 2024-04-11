@@ -24,17 +24,17 @@ jobs:
     steps:
       - name: Get token
         id: get-github-app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@7bfa3a4717ef143a604ee0a99d859b8886a96d00 # v1
         with:
           app-id: ${{ secrets.RENOVATE_GITHUB_APP_ID }}
           private-key: ${{ secrets.RENOVATE_GITHUB_APP_PRIVATE_KEY }}
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       # Don't waste time starting Renovate if JSON is invalid
       - name: Validate Renovate JSON
         run:  npx --yes --package renovate -- renovate-config-validator
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@v40.1.5
+        uses: renovatebot/github-action@89bd050bafa5a15de5d9383e3129edf210422004 # v40.1.5
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           # Use GitHub API to create commits
