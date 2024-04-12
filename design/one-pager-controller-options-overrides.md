@@ -11,7 +11,7 @@ There are cases when single configuration doesn't work for all controllers of a 
 Different Crossplane controllers may have very different load profile and number of managed resources.
 Consider examples in crossplane-contrib/provider-aws:
 
-- Recomciling route53 records is fast, but having many resources of this type may trigger AWS API
+- Reconciling route53 records is fast, but having many resources of this type may trigger AWS API
 throttling when all of them are reconciled with the same interval as other resources.
 - Reconciling EC2 instance is relatively slow, and having many managed instances can
 build up a long queue.
