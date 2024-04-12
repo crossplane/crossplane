@@ -20,6 +20,7 @@ package validate
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
@@ -115,6 +116,11 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 			return errors.Wrapf(err, "cannot get current path")
 		}
 		c.CacheDir = filepath.Join(currentPath, c.CacheDir)
+	}
+
+	if strings.HasPrefix(c.CacheDir, "~/") {
+		homeDir, _ := os.UserHomeDir()
+		c.CacheDir = filepath.Join(homeDir, c.CacheDir[2:])
 	}
 
 	m := NewManager(c.CacheDir, c.fs, k.Stdout)
