@@ -66,7 +66,7 @@ Old definition:
 >* Ready - The external resource is ready to use, (where applicable) according to its API.  
 
 New definiton:
->* Ready - The external reosurce is compliant with the desired state and is ready to use. 
+>* Ready - The external resource is compliant with the desired state and is ready to use. 
 
 ##### Alternative solution
 I recommend the original solution with an Updating status for consistency and ease of use. However, as a possible alternative, we could forgo the Updating status entirely and simply trigger an immediate reconcile after successful updates.  This would retain the current Ready definition and allow providers complete control over how they implement a similar status if desired.
