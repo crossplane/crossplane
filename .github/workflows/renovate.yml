@@ -1,0 +1,44 @@
+name: Renovate
+on:
+  # Allows manual/automated trigger for debugging purposes
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Override default log level"
+        required: false
+        default: "info"
+        type: string
+      overrideSchedule:
+        description: "Override all schedules"
+        required: false
+        default: "false"
+        type: string
+  schedule:
+    - cron: '0 8 * * *'
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    if: |
+      !github.event.repository.fork && 
+      !github.event.pull_request.head.repo.fork
+    steps:
+      - name: Get token
+        id: get-github-app-token
+        uses: actions/create-github-app-token@7bfa3a4717ef143a604ee0a99d859b8886a96d00 # v1
+        with:
+          app-id: ${{ secrets.RENOVATE_GITHUB_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_GITHUB_APP_PRIVATE_KEY }}
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      # Don't waste time starting Renovate if JSON is invalid
+      - name: Validate Renovate JSON
+        run:  npx --yes --package renovate -- renovate-config-validator
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@89bd050bafa5a15de5d9383e3129edf210422004 # v40.1.5
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          # Use GitHub API to create commits
+          RENOVATE_PLATFORM_COMMIT: "true"
+        with:
+          configurationFile: .github/renovate.json5
+          token: '${{ steps.get-github-app-token.outputs.token }}'
