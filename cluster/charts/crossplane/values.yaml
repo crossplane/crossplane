@@ -51,6 +51,10 @@ configuration:
   # -- A list of Configuration packages to install.
   packages: []
 
+function:
+  # -- A list of Function packages to install
+  packages: []
+
 # -- The imagePullSecret names to add to the Crossplane ServiceAccount.
 imagePullSecrets: {}
 
