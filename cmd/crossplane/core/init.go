@@ -36,6 +36,7 @@ import (
 type initCommand struct {
 	Providers      []string `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."      name:"provider"`
 	Configurations []string `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated." name:"configuration"`
+	Functions      []string `help:"Pre-install a Function by giving its image URI. This argument can be repeated."      name:"function"`
 	Namespace      string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"       help:"Namespace used to set as default scope in default secret store config." short:"n"`
 	ServiceAccount string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT" help:"Name of the Crossplane Service Account."`
 
@@ -101,7 +102,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 
 	steps = append(steps, initializer.NewLockObject(),
-		initializer.NewPackageInstaller(c.Providers, c.Configurations),
+		initializer.NewPackageInstaller(c.Providers, c.Configurations, c.Functions),
 		initializer.NewStoreConfigObject(c.Namespace),
 		initializer.StepFunc(initializer.DefaultDeploymentRuntimeConfig),
 	)
