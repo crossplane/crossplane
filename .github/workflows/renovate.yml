@@ -30,6 +30,8 @@ jobs:
           private-key: ${{ secrets.RENOVATE_GITHUB_APP_PRIVATE_KEY }}
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          submodules: true
       # Don't waste time starting Renovate if JSON is invalid
       - name: Validate Renovate JSON
         run:  npx --yes --package renovate -- renovate-config-validator
