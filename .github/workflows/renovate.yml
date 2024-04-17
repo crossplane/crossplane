@@ -41,7 +41,7 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^make generate$"]'
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^git submodule update --init$", "^make generate$"]'
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'

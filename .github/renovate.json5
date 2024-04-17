@@ -134,6 +134,7 @@
   postUpgradeTasks: {
 // Post-upgrade tasks that are executed before a commit is made by Renovate.
     "commands": [
+      "git submodule update --init",
       "make generate"
     ],
     fileFilters: ["**/*"],
