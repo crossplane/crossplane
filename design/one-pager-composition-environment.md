@@ -248,7 +248,7 @@ provider is responsible for implementing and supporting this feature.
 See https://github.com/crossplane/crossplane/issues/1770 for details.
 
 However, the security issues mentioned in [Patch from any Object](#patch-from-any-object)
-would occure here as well.
+would occur here as well.
 One could potentially use a managed resource to extract data from a secret
 within another namespace.
 

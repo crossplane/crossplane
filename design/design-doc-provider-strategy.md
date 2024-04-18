@@ -472,7 +472,7 @@ From resource definition perspective, each cloud deserves its own summary:
 * Google TF uses DCL whenever possible already and the GCP API is already
   resource-based.
   * There isn't much discrepancy here.
-* AWS TF seems to have generally been followin CloudFormation which is powered
+* AWS TF seems to have generally been following CloudFormation which is powered
   by Cloud Control.
   * There are exceptions though, so one needs to check Cloud Control Registry.
 * Azure TF uses Azure SDK mostly and Azure API is already resource-based.

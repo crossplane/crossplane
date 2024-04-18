@@ -253,7 +253,7 @@ spec:
 By comparison, a direct translation of the [GKE cluster external resource]'s
 writable API object fields to a Kubernetes YAML specification would be as
 follows. Note that the GKE API contains several deprecated fields, all of which
-are superceded by others (e.g. `nodeConfig` is superceded by `nodePools`). The
+are superseded by others (e.g. `nodeConfig` is superseded by `nodePools`). The
 below translation omits these deprecated fields.
 
 ```yaml
