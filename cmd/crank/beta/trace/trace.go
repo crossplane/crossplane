@@ -28,8 +28,8 @@ import (
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -45,6 +45,7 @@ const (
 	errGetResource            = "cannot get requested resource"
 	errCliOutput              = "cannot print output"
 	errKubeConfig             = "failed to get kubeconfig"
+	errKubeNamespace          = "failed to get namespace from kubeconfig"
 	errInitKubeClient         = "cannot init kubeclient"
 	errGetDiscoveryClient     = "cannot get discovery client"
 	errGetMapping             = "cannot get mapping for resource"
@@ -61,9 +62,8 @@ type Cmd struct {
 	Name     string `arg:"" help:"Name of the Crossplane resource, can be passed as part of the resource too."          optional:""`
 
 	// TODO(phisco): add support for all the usual kubectl flags; configFlags := genericclioptions.NewConfigFlags(true).AddFlags(...)
-	// TODO(phisco): move to namespace defaulting to "" and use the current context's namespace
 	Context                   string `default:""                                    help:"Kubernetes context."                         name:"context"                                                             short:"c"`
-	Namespace                 string `default:"default"                             help:"Namespace of the resource."                  name:"namespace"                                                           short:"n"`
+	Namespace                 string `default:""                                    help:"Namespace of the resource."                  name:"namespace"                                                           short:"n"`
 	Output                    string `default:"default"                             enum:"default,wide,json,dot"                       help:"Output format. One of: default, wide, json, dot."                    name:"output"                    short:"o"`
 	ShowConnectionSecrets     bool   `help:"Show connection secrets in the output." name:"show-connection-secrets"                     short:"s"`
 	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                             help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
@@ -114,7 +114,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	}
 	logger.Debug("Built printer", "output", c.Output)
 
-	kubeconfig, err := config.GetConfigWithContext(c.Context)
+	clientconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{CurrentContext: c.Context},
+	)
+
+	kubeconfig, err := clientconfig.ClientConfig()
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
@@ -156,10 +161,18 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		APIVersion: mapping.GroupVersionKind.GroupVersion().String(),
 		Name:       name,
 	}
-	if mapping.Scope.Name() == meta.RESTScopeNameNamespace && c.Namespace != "" {
-		logger.Debug("Requested resource is namespaced", "namespace", c.Namespace)
-		rootRef.Namespace = c.Namespace
+	if mapping.Scope.Name() == meta.RESTScopeNameNamespace {
+		namespace := c.Namespace
+		if namespace == "" {
+			namespace, _, err = clientconfig.Namespace()
+			if err != nil {
+				return errors.Wrap(err, errKubeNamespace)
+			}
+		}
+		logger.Debug("Requested resource is namespaced", "namespace", namespace)
+		rootRef.Namespace = namespace
 	}
+
 	logger.Debug("Getting resource tree", "rootRef", rootRef.String())
 	// Get client for k8s package
 	root := resource.GetResource(ctx, client, rootRef)
