@@ -4,27 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       logLevel:
-        description: "Override default log level"
-        required: false
+        description: "Renovate's log level"
+        required: true
         default: "info"
-        type: string
-      overrideSchedule:
-        description: "Override all schedules"
-        required: false
-        default: "false"
         type: string
   schedule:
     - cron: '0 8 * * *'
-
-env:
-  # Common versions
-  GO_VERSION: '1.22.0'
 
 jobs:
   renovate:
     runs-on: ubuntu-latest
     if: |
-      !github.event.repository.fork && 
+      !github.event.repository.fork &&
       !github.event.pull_request.head.repo.fork
     steps:
       - name: Checkout
@@ -35,29 +26,6 @@ jobs:
       # Don't waste time starting Renovate if JSON is invalid
       - name: Validate Renovate JSON
         run:  npx --yes --package renovate -- renovate-config-validator
-
-      - name: Setup Go
-        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Find the Go Build Cache
-        id: go
-        run: echo "cache=$(make go.cachedir)" >> $GITHUB_OUTPUT
-
-      - name: Cache the Go Build Cache
-        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
-        with:
-          path: ${{ steps.go.outputs.cache }}
-          key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-build-check-diff-
-
-      - name: Cache Go Dependencies
-        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
-        with:
-          path: .work/pkg
-          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-pkg-
 
       - name: Get token
         id: get-github-app-token
@@ -72,7 +40,8 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^git submodule update --init$", "^make generate$"]'
+          LOG_LEVEL: ${{ github.event.inputs.logLevel }}
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^git submodule update --init$", "^make generate$", "^install-tool golang \\$\\(grep -oP \"\\^toolchain go\\\\K\\.\\+\" go\\.mod\\)$"]'
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'
