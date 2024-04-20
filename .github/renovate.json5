@@ -135,6 +135,7 @@
 // Post-upgrade tasks that are executed before a commit is made by Renovate.
     "commands": [
       "git submodule update --init",
+      "install-tool golang $(grep -oP \"^toolchain go\\K.+\" go.mod)",
       "make generate"
     ],
     fileFilters: ["**/*"],
