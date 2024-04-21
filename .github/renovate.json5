@@ -161,6 +161,10 @@
         "google/oss-fuzz"
       ],
       "enabled": false
+    }, {
+      "description": "Group all go version updates",
+      "matchDatasources": ["golang-version"],
+      "groupName": "golang version",
     }
   ],
 }
