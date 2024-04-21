@@ -11,6 +11,9 @@ on:
   schedule:
     - cron: '0 8 * * *'
 
+env:
+  LOG_LEVEL: "info"
+
 jobs:
   renovate:
     runs-on: ubuntu-latest
@@ -40,7 +43,7 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
-          LOG_LEVEL: ${{ github.event.inputs.logLevel }}
+          LOG_LEVEL: ${{ github.event.inputs.logLevel || env.LOG_LEVEL }}
           RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^git submodule update --init$", "^make generate$", "^install-tool golang \\$\\(grep -oP \"\\^toolchain go\\\\K\\.\\+\" go\\.mod\\)$"]'
         with:
           configurationFile: .github/renovate.json5
