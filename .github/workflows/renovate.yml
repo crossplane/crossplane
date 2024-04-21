@@ -44,7 +44,7 @@ jobs:
           # Use GitHub API to create commits
           RENOVATE_PLATFORM_COMMIT: "true"
           LOG_LEVEL: ${{ github.event.inputs.logLevel || env.LOG_LEVEL }}
-          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^git submodule update --init$", "^make generate$", "^install-tool golang \\$\\(grep -oP \"\\^toolchain go\\\\K\\.\\+\" go\\.mod\\)$"]'
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^git submodule update --init$", "^make generate$", "^install-tool golang \\$\\(grep -oP \"\\^toolchain go\\\\K\\.\\+\" go\\.mod\\)$", "^make go.lint$"]'
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'

@@ -1,12 +1,11 @@
 run:
   timeout: 10m
 
-  skip-files:
-  - "zz_generated\\..+\\.go$"
-
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
+      path: stderr
 
 linters:
   enable-all: true
@@ -222,7 +221,10 @@ linters-settings:
         json: goCamel
 
 issues:
-  # Excluding configuration per-path and per-linter
+  # Excluding generated files.
+  exclude-files:
+  - "zz_generated\\..+\\.go$"
+  # Excluding configuration per-path and per-linter.
   exclude-rules:
     # Exclude some linters from running on tests files.
     - path: _test(ing)?\.go

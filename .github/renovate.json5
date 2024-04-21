@@ -74,6 +74,38 @@
 // be at the beginning, high priority at the end
   "packageRules": [
     {
+      "description": "Generate code after upgrading go dependencies",
+      "matchDatasources": ["go"],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        "commands": [
+          "git submodule update --init",
+          "install-tool golang $(grep -oP \"^toolchain go\\K.+\" go.mod)",
+          "make generate",
+        ],
+        fileFilters: [
+          "**/*"
+        ],
+        executionMode: "update",
+      },
+    },
+    {
+      "description": "Lint code after upgrading golangci-lint",
+      "matchDepNames": ["golangci/golangci-lint"],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        "commands": [
+          "git submodule update --init",
+          "install-tool golang $(grep -oP \"^toolchain go\\K.+\" go.mod)",
+          "make go.lint",
+        ],
+        fileFilters: [
+          "**/*"
+        ],
+        executionMode: "update",
+      },
+    },
+    {
       "matchManagers": ["crossplane"],
       "matchFileNames": ["test/e2e/**"],
       "groupName": "e2e-manifests",
@@ -131,14 +163,4 @@
       "enabled": false
     }
   ],
-  postUpgradeTasks: {
-// Post-upgrade tasks that are executed before a commit is made by Renovate.
-    "commands": [
-      "git submodule update --init",
-      "install-tool golang $(grep -oP \"^toolchain go\\K.+\" go.mod)",
-      "make generate"
-    ],
-    fileFilters: ["**/*"],
-    executionMode: "update",
-  }
 }
