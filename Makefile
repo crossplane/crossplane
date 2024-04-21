@@ -43,7 +43,7 @@ GO_LINT_ARGS ?= "--fix"
 # Setup Kubernetes tools
 
 USE_HELM3 = true
-HELM3_VERSION = v3.14.0
+HELM3_VERSION = v3.14.4
 KIND_VERSION = v0.21.0
 -include build/makelib/k8s_tools.mk
 
