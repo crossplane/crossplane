@@ -123,7 +123,10 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 	// We found our SSA field manager but also before-first-apply. It should now
 	// be safe to delete before-first-apply.
 	case foundSSA && foundBFA:
-		p := []byte(fmt.Sprintf(`[{"op": "remove", "path": "/metadata/managedFields/%d"}]`, idxBFA))
+		p := []byte(fmt.Sprintf(`[
+			{"op":"remove","path":"/metadata/managedFields/%d"},
+			{"op":"replace","path":"/metadata/resourceVersion","value":"%s"}
+		]`, idxBFA, obj.GetResourceVersion()))
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot remove before-first-apply from field managers")
 
 	// We didn't find our SSA field manager or the before-first-apply field
@@ -133,7 +136,10 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 	// that our SSA field manager shares ownership with a new manager named
 	// 'before-first-apply'.
 	default:
-		p := []byte(`[{"op": "replace", "path": "/metadata/managedFields", "value": [{}]}]`)
+		p := []byte(fmt.Sprintf(`[
+			{"op":"replace","path": "/metadata/managedFields","value": [{}]},
+			{"op":"replace","path":"/metadata/resourceVersion","value":"%s"}
+		]`, obj.GetResourceVersion()))
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
 	}
 }
