@@ -75,8 +75,10 @@ func NewPatchingManagedFieldsUpgrader(w client.Writer) *PatchingManagedFieldsUpg
 //
 // This is a multi-step process.
 //
-// Step 1: All fields are owned by manager 'crossplane' operation 'Update'. This
-// represents all fields set by the claim or XR controller up to this point.
+// Step 1: All fields are owned by either manager 'crossplane', operation
+// 'Update' or manager 'apiextensions.crossplane.io/composite', operation
+// 'Apply'. This represents all fields set by the claim or XR controller up to
+// this point.
 //
 // Step 2: Upgrade is called for the first time. We delete all field managers.
 //
