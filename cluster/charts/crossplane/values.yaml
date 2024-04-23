@@ -56,7 +56,7 @@ function:
   packages: []
 
 # -- The imagePullSecret names to add to the Crossplane ServiceAccount.
-imagePullSecrets: {}
+imagePullSecrets: []
 
 registryCaBundleConfig:
   # -- The ConfigMap name containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates.
