@@ -89,7 +89,7 @@ func (t *teeReadCloser) Close() error {
 
 var _ io.ReadCloser = &joinedReadCloser{}
 
-// joinedReadCloster joins a reader and a closer. It is typically used in the
+// joinedReadCloser joins a reader and a closer. It is typically used in the
 // context of a ReadCloser being wrapped by a Reader.
 type joinedReadCloser struct {
 	r io.Reader
