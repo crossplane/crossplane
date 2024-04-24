@@ -174,11 +174,14 @@ func TestFunctionCompose(t *testing.T) {
 								{
 									Step:        "run-cool-function",
 									FunctionRef: v1.FunctionReference{Name: "cool-function"},
-									Credentials: &v1.FunctionCredentials{
-										Source: v1.FunctionCredentialsSourceSecret,
-										SecretRef: &xpv1.SecretReference{
-											Namespace: "default",
-											Name:      "cool-secret",
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "cool-secret",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "cool-secret",
+											},
 										},
 									},
 								},
@@ -188,7 +191,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function"),
+				err: errors.Wrapf(errBoom, errFmtGetCredentialsFromSecret, "run-cool-function", "cool-secret"),
 			},
 		},
 		"RunFunctionError": {
@@ -558,9 +561,6 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
 				kube: &test.MockClient{
-					// MockGet:
-					// test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource:
-					// "UncoolComposed"}, "")), // all names are available
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if s, ok := obj.(*corev1.Secret); ok {
 							s.Data = map[string][]byte{
@@ -665,11 +665,14 @@ func TestFunctionCompose(t *testing.T) {
 								{
 									Step:        "run-cool-function",
 									FunctionRef: v1.FunctionReference{Name: "cool-function"},
-									Credentials: &v1.FunctionCredentials{
-										Source: v1.FunctionCredentialsSourceSecret,
-										SecretRef: &xpv1.SecretReference{
-											Namespace: "default",
-											Name:      "cool-secret",
+									Credentials: []v1.FunctionCredentials{
+										{
+											Name:   "cool-secret",
+											Source: v1.FunctionCredentialsSourceSecret,
+											SecretRef: &xpv1.SecretReference{
+												Namespace: "default",
+												Name:      "cool-secret",
+											},
 										},
 									},
 								},

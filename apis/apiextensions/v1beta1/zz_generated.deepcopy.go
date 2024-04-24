@@ -741,8 +741,10 @@ func (in *PipelineStep) DeepCopyInto(out *PipelineStep) {
 	}
 	if in.Credentials != nil {
 		in, out := &in.Credentials, &out.Credentials
-		*out = new(FunctionCredentials)
-		(*in).DeepCopyInto(*out)
+		*out = make([]FunctionCredentials, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 

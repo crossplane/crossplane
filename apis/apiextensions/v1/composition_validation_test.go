@@ -510,6 +510,68 @@ func TestCompositionValidatePipeline(t *testing.T) {
 				},
 			},
 		},
+		"InvalidDuplicateCredentialNames": {
+			reason: "A step's credential names must be unique",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Mode: ptr.To(CompositionModePipeline),
+						Pipeline: []PipelineStep{
+							{
+								Step: "duplicate-creds",
+								Credentials: []FunctionCredentials{
+									{
+										Name: "foo",
+									},
+									{
+										Name: "foo",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:     field.ErrorTypeDuplicate,
+						Field:    "spec.pipeline[0].credentials[1].name",
+						BadValue: "foo",
+					},
+				},
+			},
+		},
+
+		"InvalidMissingSecretRef": {
+			reason: "A step's credential must specify a secretRef if its source is a secret",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Mode: ptr.To(CompositionModePipeline),
+						Pipeline: []PipelineStep{
+							{
+								Step: "duplicate-creds",
+								Credentials: []FunctionCredentials{
+									{
+										Name:   "foo",
+										Source: FunctionCredentialsSourceSecret,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.pipeline[0].credentials[0].secretRef",
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

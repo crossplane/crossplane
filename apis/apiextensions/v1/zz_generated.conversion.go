@@ -211,16 +211,6 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceSelectorToPV1Enviro
 	}
 	return pV1EnvironmentSourceSelector
 }
-func (c *GeneratedRevisionSpecConverter) pV1FunctionCredentialsToPV1FunctionCredentials(source *FunctionCredentials) *FunctionCredentials {
-	var pV1FunctionCredentials *FunctionCredentials
-	if source != nil {
-		var v1FunctionCredentials FunctionCredentials
-		v1FunctionCredentials.Source = FunctionCredentialsSource((*source).Source)
-		v1FunctionCredentials.SecretRef = c.pV1SecretReferenceToPV1SecretReference((*source).SecretRef)
-		pV1FunctionCredentials = &v1FunctionCredentials
-	}
-	return pV1FunctionCredentials
-}
 func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source *MapTransform) *MapTransform {
 	var pV1MapTransform *MapTransform
 	if source != nil {
@@ -560,6 +550,13 @@ func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceToV1EnvironmentSourc
 	v1EnvironmentSource.Selector = c.pV1EnvironmentSourceSelectorToPV1EnvironmentSourceSelector(source.Selector)
 	return v1EnvironmentSource
 }
+func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCredentials(source FunctionCredentials) FunctionCredentials {
+	var v1FunctionCredentials FunctionCredentials
+	v1FunctionCredentials.Name = source.Name
+	v1FunctionCredentials.Source = FunctionCredentialsSource(source.Source)
+	v1FunctionCredentials.SecretRef = c.pV1SecretReferenceToPV1SecretReference(source.SecretRef)
+	return v1FunctionCredentials
+}
 func (c *GeneratedRevisionSpecConverter) v1FunctionReferenceToV1FunctionReference(source FunctionReference) FunctionReference {
 	var v1FunctionReference FunctionReference
 	v1FunctionReference.Name = source.Name
@@ -646,7 +643,14 @@ func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source P
 	v1PipelineStep.Step = source.Step
 	v1PipelineStep.FunctionRef = c.v1FunctionReferenceToV1FunctionReference(source.FunctionRef)
 	v1PipelineStep.Input = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Input)
-	v1PipelineStep.Credentials = c.pV1FunctionCredentialsToPV1FunctionCredentials(source.Credentials)
+	var v1FunctionCredentialsList []FunctionCredentials
+	if source.Credentials != nil {
+		v1FunctionCredentialsList = make([]FunctionCredentials, len(source.Credentials))
+		for i := 0; i < len(source.Credentials); i++ {
+			v1FunctionCredentialsList[i] = c.v1FunctionCredentialsToV1FunctionCredentials(source.Credentials[i])
+		}
+	}
+	v1PipelineStep.Credentials = v1FunctionCredentialsList
 	return v1PipelineStep
 }
 func (c *GeneratedRevisionSpecConverter) v1ReadinessCheckToV1ReadinessCheck(source ReadinessCheck) ReadinessCheck {

@@ -71,7 +71,7 @@ message RunFunctionRequest {
 
   // Optional credentials that this Function may use to communicate with an
   // external system.
-  optional Credentials credentials = 7;
+  map <string, Credentials> credentials = 7;
 }
 
 // Credentials that a Function may use to communicate with an external system.

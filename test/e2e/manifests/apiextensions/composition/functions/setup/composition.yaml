@@ -37,6 +37,7 @@ spec:
          - severity: SEVERITY_NORMAL
            message: "I am doing a compose!"
     credentials:
+    - name: important-secret
       source: Secret
       secretRef:
         namespace: crossplane-system
