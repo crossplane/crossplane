@@ -143,6 +143,14 @@ e2e.init: build e2e-tag-images
 
 e2e.run: $(KIND) $(HELM3) e2e-run-tests
 
+build.artifacts.platform: build.artifacts.bundle.platform
+
+build.artifacts.bundle.platform:
+	@mkdir -p $(abspath $(OUTPUT_DIR)/bundle/$(PLATFORM))
+	@$(SHA256SUM) $(GO_OUT_DIR)/crank$(GO_OUT_EXT) | head -c 64 > $(GO_OUT_DIR)/crank$(GO_OUT_EXT).sha256
+	@tar -czvf $(abspath $(OUTPUT_DIR)/bundle/$(PLATFORM)/crank).tar.gz -C $(GO_BIN_DIR) $(PLATFORM)/crank$(GO_OUT_EXT) $(PLATFORM)/crank$(GO_OUT_EXT).sha256
+	@$(SHA256SUM) $(OUTPUT_DIR)/bundle/$(PLATFORM)/crank.tar.gz | head -c 64 > $(OUTPUT_DIR)/bundle/$(PLATFORM)/crank.tar.gz.sha256
+
 # Update the submodules, such as the common build scripts.
 submodules:
 	@git submodule sync
