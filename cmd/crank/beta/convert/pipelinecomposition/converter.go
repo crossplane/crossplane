@@ -214,16 +214,16 @@ func patchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
 	}
 
 	mo := policy.MergeOptions
-	if mo.KeepMapValues == nil && mo.AppendSlice == nil {
+	switch {
+	case mo.KeepMapValues == nil && mo.AppendSlice == nil:
 		pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
-	} else if mo.AppendSlice == nil {
+	case mo.AppendSlice == nil:
 		pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
-	} else if mo.KeepMapValues == nil {
+	case mo.KeepMapValues == nil:
 		pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
-	} else {
+	default:
 		pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
 	}
-
 	return pp
 }
 
