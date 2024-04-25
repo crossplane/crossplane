@@ -156,13 +156,6 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 	}
 }
 
-// ComposedTemplate composed template.
-type ComposedTemplate struct {
-	v1.ComposedTemplate
-
-	Patches []Patch `json:"patches,omitempty"`
-}
-
 // MigratePatchPolicyInResources patches resources.
 func MigratePatchPolicyInResources(resources []v1.ComposedTemplate) []ComposedTemplate {
 	composedTemplates := []ComposedTemplate{}
@@ -170,17 +163,8 @@ func MigratePatchPolicyInResources(resources []v1.ComposedTemplate) []ComposedTe
 	for _, resource := range resources {
 		composedTemplate := ComposedTemplate{}
 		composedTemplate.ComposedTemplate = resource
+		composedTemplate.Patches = patchPatches(resource.Patches)
 
-		for _, patch := range resource.Patches {
-			newpatch := Patch{}
-			newpatch.Patch = patch
-
-			if patch.Policy != nil && patch.Policy.MergeOptions != nil {
-				newpatch.Policy = patchPolicy(patch.Policy)
-				newpatch.Patch.Policy = nil
-			}
-			composedTemplate.Patches = append(composedTemplate.Patches, newpatch)
-		}
 		composedTemplate.ComposedTemplate.Patches = nil
 		composedTemplates = append(composedTemplates, composedTemplate)
 	}
@@ -188,24 +172,13 @@ func MigratePatchPolicyInResources(resources []v1.ComposedTemplate) []ComposedTe
 }
 
 // MigratePatchPolicy migrates mergeoptions.
-func MigratePatchPolicy(patchset []v1.PatchSet) []NewPatchSet {
-	newPatchSets := []NewPatchSet{}
+func MigratePatchPolicy(patchset []v1.PatchSet) []PatchSet {
+	newPatchSets := []PatchSet{}
 
 	for _, patchSet := range patchset {
-		newpatchset := NewPatchSet{}
+		newpatchset := PatchSet{}
 		newpatchset.Name = patchSet.Name
-
-		for _, patch := range patchSet.Patches {
-			newpatch := Patch{}
-			newpatch.Patch = patch
-
-			if patch.Policy != nil && patch.Policy.MergeOptions != nil {
-				newpatch.Policy = patchPolicy(patch.Policy)
-				newpatch.Patch.Policy = nil
-			}
-
-			newpatchset.Patch = append(newpatchset.Patch, newpatch)
-		}
+		newpatchset.Patch = patchPatches(patchSet.Patches)
 
 		newPatchSets = append(newPatchSets, newpatchset)
 	}
@@ -213,39 +186,45 @@ func MigratePatchPolicy(patchset []v1.PatchSet) []NewPatchSet {
 	return newPatchSets
 }
 
+func patchPatches(patches []v1.Patch) []Patch {
+	newPatches := []Patch{}
+
+	for _, patch := range patches {
+		newpatch := Patch{}
+		newpatch.Patch = patch
+
+		if patch.Policy != nil && patch.Policy.MergeOptions != nil {
+			newpatch.Policy = patchPolicy(patch.Policy)
+			newpatch.Patch.Policy = nil
+		}
+
+		newPatches = append(newPatches, newpatch)
+	}
+
+	return newPatches
+}
+
 func patchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
-	if policy == nil {
+	if policy.FromFieldPath == nil {
 		return nil
 	}
-	mergeOptions := policy.MergeOptions
-	toFieldPath := ptr.To(ToFieldPathPolicyReplace)
-	if mergeOptions != nil {
-		if mergeOptions.KeepMapValues != nil && *mergeOptions.KeepMapValues {
-			toFieldPath = ptr.To(ToFieldPathPolicyMerge)
-		}
-		if mergeOptions.AppendSlice != nil && *mergeOptions.AppendSlice {
-			toFieldPath = ptr.To(ToFieldPathPolicyAppendArray)
-		}
-	}
-	return &PatchPolicy{
+
+	pp := &PatchPolicy{
 		FromFieldPath: policy.FromFieldPath,
-		ToFieldPath:   toFieldPath,
 	}
-}
 
-// NewPatchSet test.
-type NewPatchSet struct {
-	// Name of this PatchSet.
-	Name string `json:"name"`
+	mo := policy.MergeOptions
+	if mo.KeepMapValues == nil && mo.AppendSlice == nil {
+		pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
+	} else if mo.AppendSlice == nil {
+		pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
+	} else if mo.KeepMapValues == nil {
+		pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
+	} else {
+		pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
+	}
 
-	Patch []Patch `json:"patches"`
-}
-
-// Patch patch.
-type Patch struct {
-	v1.Patch
-
-	Policy *PatchPolicy `json:"policy,omitempty"`
+	return pp
 }
 
 // A ToFieldPathPolicy determines how to patch to a field path.
@@ -253,16 +232,12 @@ type ToFieldPathPolicy string
 
 // ToFieldPathPatchPolicy defines the policy for the ToFieldPath in a Patch.
 const (
-	ToFieldPathPolicyReplace     ToFieldPathPolicy = "Replace"
-	ToFieldPathPolicyMerge       ToFieldPathPolicy = "Merge"
-	ToFieldPathPolicyAppendArray ToFieldPathPolicy = "AppendArray"
+	ToFieldPathPolicyReplace                       ToFieldPathPolicy = "Replace"
+	ToFieldPathPolicyMergeObjects                  ToFieldPathPolicy = "MergeObjects"
+	ToFieldPathPolicyMergeObjectsAppendArrays      ToFieldPathPolicy = "MergeObjectsAppendArrays"
+	ToFieldPathPolicyForceMergeObjects             ToFieldPathPolicy = "ForceMergeObjects"
+	ToFieldPathPolicyForceMergeObjectsAppendArrays ToFieldPathPolicy = "ForceMergeObjectsAppendArrays"
 )
-
-// PatchPolicy defines patch policy.
-type PatchPolicy struct {
-	FromFieldPath *v1.FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
-	ToFieldPath   *ToFieldPathPolicy      `json:"toFieldPath,omitempty"`
-}
 
 func setMissingPatchSetFields(patchSet v1.PatchSet) v1.PatchSet {
 	p := []v1.Patch{}

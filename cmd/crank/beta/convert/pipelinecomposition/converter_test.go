@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -291,7 +292,7 @@ func TestConvertPnTToPipeline(t *testing.T) {
 													},
 												},
 											},
-											"patchSets": []NewPatchSet{
+											"patchSets": []PatchSet{
 												{
 													Name: "test-patchset",
 													Patch: []Patch{
@@ -498,7 +499,7 @@ func TestProcessFunctionInput(t *testing.T) {
 						"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 						"kind":        "Resources",
 						"environment": (*v1.EnvironmentConfiguration)(nil),
-						"patchSets":   []NewPatchSet{},
+						"patchSets":   []PatchSet{},
 						"resources":   []ComposedTemplate{},
 					},
 				},
@@ -563,7 +564,7 @@ func TestProcessFunctionInput(t *testing.T) {
 								},
 							},
 						},
-						"patchSets": []NewPatchSet{
+						"patchSets": []PatchSet{
 							{
 								Name: "test-patchset",
 								Patch: []Patch{
@@ -985,6 +986,75 @@ func TestSetMissingResourceFields(t *testing.T) {
 			got := setMissingResourceFields(tc.args.idx, tc.args.rs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("%s\nsetMissingResourceFields(...): -want i, +got i:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPatchPolicy(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		args   *v1.PatchPolicy
+		want   *PatchPolicy
+	}{
+		"PatchPolicyWithEmptyMergeOptions": {
+			reason: "MergeOptions is empty",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions:  &commonv1.MergeOptions{},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
+			},
+		},
+		"PatchPolicyWithKeepMapValuesTrue": {
+			reason: "KeepMapValues is true",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(true),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+			},
+		},
+		"PatchPolicyWithKeepMapValuesTrueAppendSliceTrue": {
+			reason: "KeepMapValues and AppendSlice is true",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyRequired),
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(true),
+					AppendSlice:   ptr.To(true),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyRequired),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays),
+			},
+		},
+		"PatchPolicyWithAppendSliceTrue": {
+			reason: "AppendSlice is true",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					AppendSlice: ptr.To(true),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := patchPolicy(tc.args)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("%s\npatchPolicy(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -47,3 +47,31 @@ type Input struct {
 	// +optional
 	Resources []v1.ComposedTemplate `json:"resources,omitempty"`
 }
+
+// PatchSet wrapper around v1.PatchSet with custom Patch.
+type PatchSet struct {
+	// Name of this PatchSet.
+	Name string `json:"name"`
+
+	Patch []Patch `json:"patches"`
+}
+
+// ComposedTemplate wrapper around v1.ComposedTemplate with custom Patch.
+type ComposedTemplate struct {
+	v1.ComposedTemplate
+
+	Patches []Patch `json:"patches,omitempty"`
+}
+
+// Patch wrapper around v1.Patch with custom PatchPolicy.
+type Patch struct {
+	v1.Patch
+
+	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// PatchPolicy defines the policy for a patch.
+type PatchPolicy struct {
+	FromFieldPath *v1.FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	ToFieldPath   *ToFieldPathPolicy      `json:"toFieldPath,omitempty"`
+}
