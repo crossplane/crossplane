@@ -228,6 +228,7 @@ func printFile(w io.Writer, path string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to open file %s", path)
 	}
+	defer f.Close()
 	content, err := io.ReadAll(f)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read file %s", path)
