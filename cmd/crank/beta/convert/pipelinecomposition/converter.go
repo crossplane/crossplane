@@ -27,6 +27,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -205,42 +207,51 @@ func patchPatches(patches []v1.Patch) []Patch {
 }
 
 func patchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
-	pp := &PatchPolicy{
-		FromFieldPath: policy.FromFieldPath,
+	to := getToFieldPathPolicy(policy.MergeOptions)
+
+	if to == nil && policy.FromFieldPath == nil {
+		// neither To nor From has been set, just return nil to use defaults for
+		// everything
+		return nil
 	}
 
-	mo := policy.MergeOptions
-	if mo == nil {
-		pp.ToFieldPath = ptr.To(ToFieldPathPolicyReplace)
-	} else {
-		switch {
-		case mo.KeepMapValues == nil && mo.AppendSlice == nil:
-			pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
-		case mo.AppendSlice == nil:
-			if *mo.KeepMapValues {
-				pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
-			} else {
-				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
-			}
-		case mo.KeepMapValues == nil:
-			if *mo.AppendSlice {
-				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
-			} else {
-				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
-			}
-		case *mo.AppendSlice == *mo.KeepMapValues:
-			if *mo.AppendSlice {
-				pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
-			} else {
-				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
-			}
-		case *mo.AppendSlice:
-			pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
-		case *mo.KeepMapValues:
-			pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
-		}
+	return &PatchPolicy{
+		FromFieldPath: policy.FromFieldPath,
+		ToFieldPath:   to,
 	}
-	return pp
+}
+
+func getToFieldPathPolicy(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
+	if mo == nil {
+		// No merge options at all, default to nil which will mean Replace
+		return nil
+	}
+
+	if isTrue(mo.KeepMapValues) {
+		if isNilOrFalse(mo.AppendSlice) {
+			// { appendSlice: nil/false, keepMapValues: true}
+			return ptr.To(ToFieldPathPolicyMergeObjects)
+		}
+
+		// { appendSlice: true, keepMapValues: true }
+		return ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
+	}
+
+	if isTrue(mo.AppendSlice) {
+		// { appendSlice: true, keepMapValues: nil/false }
+		return ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
+	}
+
+	// { appendSlice: nil/false, keepMapValues: nil/false }
+	return ptr.To(ToFieldPathPolicyForceMergeObjects)
+}
+
+func isNilOrFalse(b *bool) bool {
+	return b == nil || !*b
+}
+
+func isTrue(b *bool) bool {
+	return b != nil && *b
 }
 
 func setMissingPatchSetFields(patchSet v1.PatchSet) v1.PatchSet {

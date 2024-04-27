@@ -992,14 +992,12 @@ func TestSetMissingResourceFields(t *testing.T) {
 }
 
 /*
-#	MergeOptions  appendSlice	keepMapValues	policy.toFieldPath
-1	nil	          N/A	        N/A*	        Replace
-2	non-nil	      nil or false	true	        MergeObjects
-3	non-nil	      true	        nil or false	ForceMergeObjectsAppendArrays
-4	non-nil	      nil or false	nil or false	ForceMergeObjects
-5	non-nil	      true	        true*	        MergeObjectsAppendArrays
-
-	* keeps dupword linter happy
+#	MergeOptions    appendSlice     keepMapValues   policy.toFieldPath
+1	nil             N/A             N/A             nil (defaults to Replace)
+2	non-nil         nil or false    true            MergeObjects
+3	non-nil         true            nil or false    ForceMergeObjectsAppendArrays
+4	non-nil         nil or false    nil or false    ForceMergeObjects
+5	non-nil         true            true            MergeObjectsAppendArrays
 */
 
 func TestPatchPolicy(t *testing.T) {
@@ -1008,6 +1006,14 @@ func TestPatchPolicy(t *testing.T) {
 		args   *v1.PatchPolicy
 		want   *PatchPolicy
 	}{
+		"PatchPolicyWithNilMergeOptionsAndFromFieldPath": { // case 1
+			reason: "MergeOptions and FromFieldPath are nil",
+			args: &v1.PatchPolicy{
+				FromFieldPath: nil,
+				MergeOptions:  nil,
+			},
+			want: nil,
+		},
 		"PatchPolicyWithNilMergeOptions": { // case 1
 			reason: "MergeOptions is nil",
 			args: &v1.PatchPolicy{
@@ -1016,18 +1022,7 @@ func TestPatchPolicy(t *testing.T) {
 			},
 			want: &PatchPolicy{
 				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
-				ToFieldPath:   ptr.To(ToFieldPathPolicyReplace),
-			},
-		},
-		"PatchPolicyWithNilFromFieldPath": { // case 1
-			reason: "MergeOptions is nil",
-			args: &v1.PatchPolicy{
-				FromFieldPath: nil,
-				MergeOptions:  nil,
-			},
-			want: &PatchPolicy{
-				FromFieldPath: nil,
-				ToFieldPath:   ptr.To(ToFieldPathPolicyReplace),
+				ToFieldPath:   nil,
 			},
 		},
 		"PatchPolicyWithKeepMapValuesTrueAppendSliceNil": {
@@ -1108,7 +1103,7 @@ func TestPatchPolicy(t *testing.T) {
 				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
 			},
 		},
-		"PatchPolicyWithNilAppendSliceInMergeOptions": {
+		"PatchPolicyWithNilAppendSliceInMergeOptions": { // case 4
 			reason: "AppendSlice is nil and KeepMapValues is false",
 			args: &v1.PatchPolicy{
 				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
@@ -1121,7 +1116,7 @@ func TestPatchPolicy(t *testing.T) {
 				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
 			},
 		},
-		"PatchPolicyWithBothKeepMapValuesAndAppendSliceFalse": {
+		"PatchPolicyWithBothKeepMapValuesAndAppendSliceFalse": { // case 4
 			reason: "Both KeepMapValues and AppendSlice is false",
 			args: &v1.PatchPolicy{
 				FromFieldPath: nil,
