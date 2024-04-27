@@ -70,6 +70,18 @@ type Patch struct {
 	Policy *PatchPolicy `json:"policy,omitempty"`
 }
 
+// A ToFieldPathPolicy determines how to patch to a field path.
+type ToFieldPathPolicy string
+
+// ToFieldPathPatchPolicy defines the policy for the ToFieldPath in a Patch.
+const (
+	ToFieldPathPolicyReplace                       ToFieldPathPolicy = "Replace"
+	ToFieldPathPolicyMergeObjects                  ToFieldPathPolicy = "MergeObjects"
+	ToFieldPathPolicyMergeObjectsAppendArrays      ToFieldPathPolicy = "MergeObjectsAppendArrays"
+	ToFieldPathPolicyForceMergeObjects             ToFieldPathPolicy = "ForceMergeObjects"
+	ToFieldPathPolicyForceMergeObjectsAppendArrays ToFieldPathPolicy = "ForceMergeObjectsAppendArrays"
+)
+
 // PatchPolicy defines the policy for a patch.
 type PatchPolicy struct {
 	FromFieldPath *v1.FromFieldPathPolicy `json:"fromFieldPath,omitempty"`

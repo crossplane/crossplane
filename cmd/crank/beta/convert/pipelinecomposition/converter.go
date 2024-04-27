@@ -193,7 +193,7 @@ func patchPatches(patches []v1.Patch) []Patch {
 		newpatch := Patch{}
 		newpatch.Patch = patch
 
-		if patch.Policy != nil && patch.Policy.MergeOptions != nil {
+		if patch.Policy != nil {
 			newpatch.Policy = patchPolicy(patch.Policy)
 			newpatch.Patch.Policy = nil
 		}
@@ -205,39 +205,43 @@ func patchPatches(patches []v1.Patch) []Patch {
 }
 
 func patchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
-	if policy.FromFieldPath == nil {
-		return nil
-	}
-
 	pp := &PatchPolicy{
 		FromFieldPath: policy.FromFieldPath,
 	}
 
 	mo := policy.MergeOptions
-	switch {
-	case mo.KeepMapValues == nil && mo.AppendSlice == nil:
-		pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
-	case mo.AppendSlice == nil:
-		pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
-	case mo.KeepMapValues == nil:
-		pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
-	default:
-		pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
+	if mo == nil {
+		pp.ToFieldPath = ptr.To(ToFieldPathPolicyReplace)
+	} else {
+		switch {
+		case mo.KeepMapValues == nil && mo.AppendSlice == nil:
+			pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
+		case mo.AppendSlice == nil:
+			if *mo.KeepMapValues {
+				pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
+			} else {
+				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
+			}
+		case mo.KeepMapValues == nil:
+			if *mo.AppendSlice {
+				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
+			} else {
+				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
+			}
+		case *mo.AppendSlice == *mo.KeepMapValues:
+			if *mo.AppendSlice {
+				pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
+			} else {
+				pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjects)
+			}
+		case *mo.AppendSlice:
+			pp.ToFieldPath = ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
+		case *mo.KeepMapValues:
+			pp.ToFieldPath = ptr.To(ToFieldPathPolicyMergeObjects)
+		}
 	}
 	return pp
 }
-
-// A ToFieldPathPolicy determines how to patch to a field path.
-type ToFieldPathPolicy string
-
-// ToFieldPathPatchPolicy defines the policy for the ToFieldPath in a Patch.
-const (
-	ToFieldPathPolicyReplace                       ToFieldPathPolicy = "Replace"
-	ToFieldPathPolicyMergeObjects                  ToFieldPathPolicy = "MergeObjects"
-	ToFieldPathPolicyMergeObjectsAppendArrays      ToFieldPathPolicy = "MergeObjectsAppendArrays"
-	ToFieldPathPolicyForceMergeObjects             ToFieldPathPolicy = "ForceMergeObjects"
-	ToFieldPathPolicyForceMergeObjectsAppendArrays ToFieldPathPolicy = "ForceMergeObjectsAppendArrays"
-)
 
 func setMissingPatchSetFields(patchSet v1.PatchSet) v1.PatchSet {
 	p := []v1.Patch{}
