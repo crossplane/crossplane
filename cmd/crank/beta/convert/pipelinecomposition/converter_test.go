@@ -992,12 +992,14 @@ func TestSetMissingResourceFields(t *testing.T) {
 }
 
 /*
-#	MergeOptions	appendSlice	  keepMapValues	policy.toFieldPath
-1	nil	          N/A	          N/A	          Replace
+#	MergeOptions  appendSlice	keepMapValues	policy.toFieldPath
+1	nil	          N/A	        N/A*	        Replace
 2	non-nil	      nil or false	true	        MergeObjects
 3	non-nil	      true	        nil or false	ForceMergeObjectsAppendArrays
 4	non-nil	      nil or false	nil or false	ForceMergeObjects
-5	non-nil	      true	        true	        MergeObjectsAppendArrays
+5	non-nil	      true	        true*	        MergeObjectsAppendArrays
+
+	* keeps dupword linter happy
 */
 
 func TestPatchPolicy(t *testing.T) {
