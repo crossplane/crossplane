@@ -109,6 +109,7 @@ func TestFunctionPreHook(t *testing.T) {
 					},
 					Status: v1beta1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(serviceEndpointFmt, "some-service", "some-namespace", servicePort),
+						Type:     v1beta1.FunctionTypeComposition,
 					},
 				},
 			},

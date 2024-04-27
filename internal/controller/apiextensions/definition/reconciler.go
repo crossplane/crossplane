@@ -604,7 +604,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(r.engine.GetClient())))
 		}
 
-		fc := composite.NewFunctionComposer(r.engine.GetClient(), r.options.FunctionRunner, fcopts...)
+		fc := composite.NewFunctionComposer(r.engine.GetClient(), composite.NewPooledFunctionRunner(r.options.FunctionPool), fcopts...)
 
 		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.

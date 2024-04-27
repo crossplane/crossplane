@@ -116,7 +116,24 @@ type FunctionRevisionStatus struct {
 	// Endpoint is the gRPC endpoint where Crossplane will send
 	// RunFunctionRequests.
 	Endpoint string `json:"endpoint,omitempty"`
+
+	// Type of this function.
+	// A Composition function can only be used in Composition pipelines.
+	// An Operation function can only be used in Operation pipelines.
+	// +kubebuilder:validation:Enum=Composition;Operation
+	Type FunctionType `json:"type,omitempty"`
 }
+
+// A FunctionType represents the type of a Function.
+type FunctionType string
+
+const (
+	// FunctionTypeComposition functions are used in a composition pipeline.
+	FunctionTypeComposition FunctionType = "Composition"
+
+	// FunctionTypeOperation functions are used in an operation pipeline.
+	FunctionTypeOperation FunctionType = "Operation"
+)
 
 // +kubebuilder:object:root=true
 

@@ -35,22 +35,22 @@ type Metrics struct {
 }
 
 // NewMetrics creates metrics for composition function runs.
-func NewMetrics() *Metrics {
+func NewMetrics(subsystem string) *Metrics {
 	return &Metrics{
 		requests: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: subsystem,
 			Name:      "run_function_request_total",
 			Help:      "Total number of RunFunctionRequests sent.",
 		}, []string{"function_name", "function_package", "grpc_target"}),
 
 		responses: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Subsystem: "composition",
+			Subsystem: subsystem,
 			Name:      "run_function_response_total",
 			Help:      "Total number of RunFunctionResponses received.",
 		}, []string{"function_name", "function_package", "grpc_target", "grpc_code", "result_severity"}),
 
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Subsystem: "composition",
+			Subsystem: subsystem,
 			Name:      "run_function_seconds",
 			Help:      "Histogram of RunFunctionResponse latency (seconds).",
 			Buckets:   prometheus.DefBuckets,
