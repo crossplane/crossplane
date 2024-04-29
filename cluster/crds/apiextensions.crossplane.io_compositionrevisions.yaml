@@ -1028,6 +1028,9 @@ spec:
                         - source
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the Composition Function this step should
@@ -2651,6 +2654,9 @@ spec:
                         - source
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the Composition Function this step should

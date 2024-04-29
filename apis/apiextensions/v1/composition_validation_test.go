@@ -542,7 +542,6 @@ func TestCompositionValidatePipeline(t *testing.T) {
 				},
 			},
 		},
-
 		"InvalidMissingSecretRef": {
 			reason: "A step's credential must specify a secretRef if its source is a secret",
 			args: args{

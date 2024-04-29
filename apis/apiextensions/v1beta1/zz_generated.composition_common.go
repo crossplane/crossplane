@@ -303,6 +303,8 @@ type PipelineStep struct {
 
 	// Credentials are optional credentials that the Composition Function needs.
 	// +optional
+	// +listType=map
+	// +listMapKey=name
 	Credentials []FunctionCredentials `json:"credentials,omitempty"`
 }
 
