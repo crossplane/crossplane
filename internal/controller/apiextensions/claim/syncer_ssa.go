@@ -52,7 +52,7 @@ const (
 type NopManagedFieldsUpgrader struct{}
 
 // Upgrade does nothing.
-func (u *NopManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.Object, ssaManager string) error {
+func (u *NopManagedFieldsUpgrader) Upgrade(_ context.Context, _ client.Object, _ string) error {
 	return nil
 }
 
