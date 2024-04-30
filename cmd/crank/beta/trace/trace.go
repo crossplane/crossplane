@@ -86,7 +86,7 @@ Examples:
   crossplane beta trace mykind my-res -n my-ns
 
   # Output wide format, showing full errors and condition messages, and other useful info 
-  # depending on the target type, e.g. composed resources names for XR/XRCs or image used for XPKGs
+  # depending on the target type, e.g. composed resources names for composite resources or image used for packages
   crossplane beta trace mykind my-res -n my-ns -o wide
 
   # Show connection secrets in the output
