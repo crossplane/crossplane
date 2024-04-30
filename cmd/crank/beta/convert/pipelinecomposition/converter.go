@@ -149,7 +149,7 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 		"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 		"kind":        "Resources",
 		"environment": processedInput.Environment.DeepCopy(),
-		"patchSets":   MigratePatchPolicy(processedInput.PatchSets),
+		"patchSets":   MigratePatchPolicyInPatchSets(processedInput.PatchSets),
 		"resources":   MigratePatchPolicyInResources(processedInput.Resources),
 	}
 
@@ -158,29 +158,31 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 	}
 }
 
-// MigratePatchPolicyInResources patches resources.
+// MigratePatchPolicyInResources processes all the patches in the given resources to migrate their patch policies.
 func MigratePatchPolicyInResources(resources []v1.ComposedTemplate) []ComposedTemplate {
 	composedTemplates := []ComposedTemplate{}
 
 	for _, resource := range resources {
 		composedTemplate := ComposedTemplate{}
 		composedTemplate.ComposedTemplate = resource
-		composedTemplate.Patches = patchPatches(resource.Patches)
-
+		composedTemplate.Patches = migratePatches(resource.Patches)
+		// Conversion function above overrides the patches in the new type,
+		// so after conversion we set the underlying patches to nil to make sure
+		// there's no conflict in the serialized output.
 		composedTemplate.ComposedTemplate.Patches = nil
 		composedTemplates = append(composedTemplates, composedTemplate)
 	}
 	return composedTemplates
 }
 
-// MigratePatchPolicy migrates mergeoptions.
-func MigratePatchPolicy(patchset []v1.PatchSet) []PatchSet {
+// MigratePatchPolicyInPatchSets processes all the patches in the given patch set to migrate their patch policies.
+func MigratePatchPolicyInPatchSets(patchset []v1.PatchSet) []PatchSet {
 	newPatchSets := []PatchSet{}
 
 	for _, patchSet := range patchset {
 		newpatchset := PatchSet{}
 		newpatchset.Name = patchSet.Name
-		newpatchset.Patch = patchPatches(patchSet.Patches)
+		newpatchset.Patches = migratePatches(patchSet.Patches)
 
 		newPatchSets = append(newPatchSets, newpatchset)
 	}
@@ -188,7 +190,7 @@ func MigratePatchPolicy(patchset []v1.PatchSet) []PatchSet {
 	return newPatchSets
 }
 
-func patchPatches(patches []v1.Patch) []Patch {
+func migratePatches(patches []v1.Patch) []Patch {
 	newPatches := []Patch{}
 
 	for _, patch := range patches {
@@ -196,7 +198,10 @@ func patchPatches(patches []v1.Patch) []Patch {
 		newpatch.Patch = patch
 
 		if patch.Policy != nil {
-			newpatch.Policy = patchPolicy(patch.Policy)
+			newpatch.Policy = migratePatchPolicy(patch.Policy)
+			// Conversion function above overrides the patch policy in the new type,
+			// so after conversion we set underlying policy to nil to make ensure
+			// there's no conflict in the serialized output.
 			newpatch.Patch.Policy = nil
 		}
 
@@ -206,8 +211,8 @@ func patchPatches(patches []v1.Patch) []Patch {
 	return newPatches
 }
 
-func patchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
-	to := getToFieldPathPolicy(policy.MergeOptions)
+func migratePatchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
+	to := migrateMergeOptions(policy.MergeOptions)
 
 	if to == nil && policy.FromFieldPath == nil {
 		// neither To nor From has been set, just return nil to use defaults for
@@ -221,7 +226,7 @@ func patchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
 	}
 }
 
-func getToFieldPathPolicy(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
+func migrateMergeOptions(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
 	if mo == nil {
 		// No merge options at all, default to nil which will mean Replace
 		return nil

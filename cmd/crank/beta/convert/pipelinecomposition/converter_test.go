@@ -295,7 +295,7 @@ func TestConvertPnTToPipeline(t *testing.T) {
 											"patchSets": []PatchSet{
 												{
 													Name: "test-patchset",
-													Patch: []Patch{
+													Patches: []Patch{
 														{
 															Patch: v1.Patch{
 																Type:          v1.PatchTypeFromCompositeFieldPath,
@@ -567,7 +567,7 @@ func TestProcessFunctionInput(t *testing.T) {
 						"patchSets": []PatchSet{
 							{
 								Name: "test-patchset",
-								Patch: []Patch{
+								Patches: []Patch{
 									{
 										Patch: v1.Patch{
 											Type:          v1.PatchTypeFromCompositeFieldPath,
@@ -1148,7 +1148,7 @@ func TestPatchPolicy(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := patchPolicy(tc.args)
+			got := migratePatchPolicy(tc.args)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("%s\npatchPolicy(...): -want i, +got i:\n%s", tc.reason, diff)
 			}

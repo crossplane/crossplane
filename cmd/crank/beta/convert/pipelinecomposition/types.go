@@ -53,7 +53,7 @@ type PatchSet struct {
 	// Name of this PatchSet.
 	Name string `json:"name"`
 
-	Patch []Patch `json:"patches"`
+	Patches []Patch `json:"patches"`
 }
 
 // ComposedTemplate wrapper around v1.ComposedTemplate with custom Patch.
