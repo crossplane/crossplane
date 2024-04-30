@@ -43,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 )
 
@@ -68,6 +69,7 @@ const (
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
+	errFmtGetCredentialsFromSecret   = "cannot get Composition pipeline step %q credential %q from Secret"
 	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
@@ -299,6 +301,26 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalPipelineStepInput, fn.Step)
 			}
 			req.Input = in
+		}
+
+		req.Credentials = map[string]*v1beta1.Credentials{}
+		for _, cs := range fn.Credentials {
+			// For now we only support loading credentials from secrets.
+			if cs.Source != v1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
+				continue
+			}
+
+			s := &corev1.Secret{}
+			if err := c.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
+			}
+			req.Credentials[cs.Name] = &v1beta1.Credentials{
+				Source: &v1beta1.Credentials_CredentialData{
+					CredentialData: &v1beta1.CredentialData{
+						Data: s.Data,
+					},
+				},
+			}
 		}
 
 		// Used to store the requirements returned at the previous iteration.

@@ -79,6 +79,8 @@ type CompositionSpec struct {
 	// THIS IS A BETA FIELD. It is not honored if the relevant Crossplane
 	// feature flag is disabled.
 	// +optional
+	// +listType=map
+	// +listMapKey=step
 	Pipeline []PipelineStep `json:"pipeline,omitempty"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the

@@ -69,6 +69,23 @@ func (c *Composition) validatePipeline() (errs field.ErrorList) {
 			errs = append(errs, field.Duplicate(field.NewPath("spec", "pipeline").Index(i).Child("step"), f.Step))
 		}
 		seen[f.Step] = true
+
+		seenCred := map[string]bool{}
+		for j, cs := range f.Credentials {
+			if seenCred[cs.Name] {
+				errs = append(errs, field.Duplicate(field.NewPath("spec", "pipeline").Index(i).Child("credentials").Index(j).Child("name"), cs.Name))
+			}
+			seenCred[cs.Name] = true
+
+			switch cs.Source {
+			case FunctionCredentialsSourceSecret:
+				if cs.SecretRef == nil {
+					errs = append(errs, field.Required(field.NewPath("spec", "pipeline").Index(i).Child("credentials").Index(j).Child("secretRef"), "must be specified when source is Secret"))
+				}
+			case FunctionCredentialsSourceNone:
+				// No requirements here.
+			}
+		}
 	}
 	return errs
 }

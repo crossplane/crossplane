@@ -36,6 +36,12 @@ spec:
         results:
          - severity: SEVERITY_NORMAL
            message: "I am doing a compose!"
+    credentials:
+    - name: important-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: super-secret
   - step: detect-readiness
     functionRef:
       name: function-auto-ready
