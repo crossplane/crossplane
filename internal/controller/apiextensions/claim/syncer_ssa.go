@@ -52,7 +52,7 @@ const (
 type NopManagedFieldsUpgrader struct{}
 
 // Upgrade does nothing.
-func (u *NopManagedFieldsUpgrader) Upgrade(_ context.Context, _ client.Object, _ string, _ ...string) error {
+func (u *NopManagedFieldsUpgrader) Upgrade(_ context.Context, _ client.Object, _ string) error {
 	return nil
 }
 
@@ -94,7 +94,7 @@ func NewPatchingManagedFieldsUpgrader(w client.Writer) *PatchingManagedFieldsUpg
 //
 // Step 5: Eventually the XR reconciler updates a field (e.g. spec.resourceRefs)
 // and becomes owner of that field.
-func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.Object, ssaManager string, _ ...string) error {
+func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.Object, ssaManager string) error {
 	// The XR doesn't exist, nothing to upgrade.
 	if !meta.WasCreated(obj) {
 		return nil
