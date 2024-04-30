@@ -86,7 +86,7 @@ func ControllerName(name string) string {
 // managed using client-side apply, but should now be managed using server-side
 // apply. See https://github.com/kubernetes/kubernetes/issues/99003 for details.
 type ManagedFieldsUpgrader interface {
-	Upgrade(ctx context.Context, obj client.Object, ssaManager string, csaManagers ...string) error
+	Upgrade(ctx context.Context, obj client.Object, ssaManager string) error
 }
 
 // A CompositeSyncer binds and syncs the supplied claim with the supplied
@@ -390,7 +390,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// to upgrade field managers if _this controller_ might have applied the XR
 	// before using the default client-side apply field manager "crossplane",
 	// but now wants to use server-side apply instead.
-	if err := r.managedFields.Upgrade(ctx, xr, FieldOwnerXR, "crossplane"); err != nil {
+	if err := r.managedFields.Upgrade(ctx, xr, FieldOwnerXR); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
