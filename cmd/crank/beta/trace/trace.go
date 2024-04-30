@@ -85,7 +85,8 @@ Examples:
   # Trace a MyKind resource (mykinds.example.org/v1alpha1) named 'my-res' in the namespace 'my-ns'
   crossplane beta trace mykind my-res -n my-ns
 
-  # Output wide format, showing full errors and condition messages
+  # Output wide format, showing full errors and condition messages, and other useful info 
+  # depending on the target type, e.g. composed resources names for XR/XRCs or image used for XPKGs
   crossplane beta trace mykind my-res -n my-ns -o wide
 
   # Show connection secrets in the output
