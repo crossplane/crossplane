@@ -22,6 +22,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/docker/cli/cli/command"
+	cliflags "github.com/docker/cli/cli/flags"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -236,13 +238,49 @@ type pullClient interface {
 	ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
 }
 
+// Creating a DockerCli is really the only way to get a DOCKER_CONTEXT-aware
+// docker client.
+func newDockerCli() (*command.DockerCli, error) {
+	dockerCli, err := command.NewDockerCli()
+	if err != nil {
+		return nil, fmt.Errorf("creating docker client: %w", err)
+	}
+
+	opts := cliflags.NewClientOptions()
+	err = dockerCli.Initialize(opts)
+	if err != nil {
+		return nil, fmt.Errorf("initializing docker client: %w", err)
+	}
+
+	// A hack to see if initialization failed.
+	// https://github.com/docker/cli/issues/4489
+	endpoint := dockerCli.DockerEndpoint()
+	if endpoint.Host == "" {
+		return nil, fmt.Errorf("initializing docker client: no valid endpoint")
+	}
+	return dockerCli, nil
+}
+
 // PullImage pulls the supplied image using the supplied client. It blocks until
 // the image has either finished pulling or hit an error.
 func PullImage(ctx context.Context, p pullClient, image string) error {
-	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{})
+	cli, err := newDockerCli()
 	if err != nil {
 		return err
 	}
+
+	encodedAuth, err := command.RetrieveAuthTokenFromImage(cli.ConfigFile(), image)
+	if err != nil {
+		return err
+	}
+
+	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{
+		RegistryAuth: encodedAuth,
+	})
+	if err != nil {
+		return err
+	}
+
 	defer out.Close() //nolint:errcheck // TODO(negz): Can this error?
 
 	// Each line read from out is a JSON object containing the status of the
