@@ -148,7 +148,7 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 	inputType := map[string]any{
 		"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 		"kind":        "Resources",
-		"environment": processedInput.Environment.DeepCopy(),
+		"environment": MigratePatchPolicyInEnvironment(processedInput.Environment.DeepCopy()),
 		"patchSets":   MigratePatchPolicyInPatchSets(processedInput.PatchSets),
 		"resources":   MigratePatchPolicyInResources(processedInput.Resources),
 	}
@@ -190,6 +190,18 @@ func MigratePatchPolicyInPatchSets(patchset []v1.PatchSet) []PatchSet {
 	return newPatchSets
 }
 
+// MigratePatchPolicyInEnvironment processes all the patches in the given
+// environment configuration to migrate their patch policies.
+func MigratePatchPolicyInEnvironment(ec *v1.EnvironmentConfiguration) *Environment {
+	if ec == nil || len(ec.Patches) == 0 {
+		return nil
+	}
+
+	return &Environment{
+		Patches: migrateEnvPatches(ec.Patches),
+	}
+}
+
 func migratePatches(patches []v1.Patch) []Patch {
 	newPatches := []Patch{}
 
@@ -200,7 +212,7 @@ func migratePatches(patches []v1.Patch) []Patch {
 		if patch.Policy != nil {
 			newpatch.Policy = migratePatchPolicy(patch.Policy)
 			// Conversion function above overrides the patch policy in the new type,
-			// so after conversion we set underlying policy to nil to make ensure
+			// so after conversion we set underlying policy to nil to make sure
 			// there's no conflict in the serialized output.
 			newpatch.Patch.Policy = nil
 		}
@@ -209,6 +221,27 @@ func migratePatches(patches []v1.Patch) []Patch {
 	}
 
 	return newPatches
+}
+
+func migrateEnvPatches(envPatches []v1.EnvironmentPatch) []EnvironmentPatch {
+	newEnvPatches := []EnvironmentPatch{}
+
+	for _, envPatch := range envPatches {
+		newEnvPatch := EnvironmentPatch{}
+		newEnvPatch.EnvironmentPatch = envPatch
+
+		if envPatch.Policy != nil {
+			newEnvPatch.Policy = migratePatchPolicy(envPatch.Policy)
+			// Conversion function above overrides the patch policy in the new type,
+			// so after conversion we set underlying policy to nil to make sure
+			// there's no conflict in the serialized output.
+			newEnvPatch.EnvironmentPatch.Policy = nil
+		}
+
+		newEnvPatches = append(newEnvPatches, newEnvPatch)
+	}
+
+	return newEnvPatches
 }
 
 func migratePatchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
@@ -226,6 +259,9 @@ func migratePatchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
 	}
 }
 
+// migrateMergeOptions implements the conversion of mergeOptions to the new
+// toFieldPath policy. The conversion logic is described in
+// https://github.com/crossplane-contrib/function-patch-and-transform/?tab=readme-ov-file#mergeoptions-replaced-by-tofieldpath.
 func migrateMergeOptions(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
 	if mo == nil {
 		// No merge options at all, default to nil which will mean Replace
