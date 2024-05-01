@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -180,6 +181,12 @@ func TestConvertPnTToPipeline(t *testing.T) {
 												},
 											},
 										},
+										Policy: &v1.PatchPolicy{
+											FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+											MergeOptions: &commonv1.MergeOptions{
+												KeepMapValues: ptr.To(true),
+											},
+										},
 									},
 									{
 										Type:          v1.PatchTypeCombineFromComposite,
@@ -223,6 +230,11 @@ func TestConvertPnTToPipeline(t *testing.T) {
 											},
 										},
 									},
+									Policy: &v1.PatchPolicy{
+										MergeOptions: &commonv1.MergeOptions{
+											AppendSlice: ptr.To(true),
+										},
+									},
 								},
 							},
 							Policy: &commonv1.Policy{
@@ -261,42 +273,18 @@ func TestConvertPnTToPipeline(t *testing.T) {
 										Object: map[string]any{
 											"apiVersion": string("pt.fn.crossplane.io/v1beta1"),
 											"kind":       string("Resources"),
-											"environment": &v1.EnvironmentConfiguration{
-												Patches: []v1.EnvironmentPatch{
+											"environment": &Environment{
+												Patches: []EnvironmentPatch{
 													{
-														Type:          typeFromCompositeFieldPath,
-														FromFieldPath: &fieldPath,
-														ToFieldPath:   &fieldPath,
-													},
-													{
-														Type:          typeFromCompositeFieldPath,
-														FromFieldPath: &fieldPath,
-														ToFieldPath:   &fieldPath,
-														Transforms: []v1.Transform{
-															{
-																Type: v1.TransformTypeString,
-																String: &v1.StringTransform{
-																	Format: &stringFmt,
-																	Type:   v1.StringTransformTypeFormat,
-																},
-															},
-															{
-																Type: v1.TransformTypeMath,
-																Math: &v1.MathTransform{
-																	Multiply: &intp,
-																	Type:     v1.MathTransformTypeMultiply,
-																},
-															},
+														EnvironmentPatch: v1.EnvironmentPatch{
+															Type:          typeFromCompositeFieldPath,
+															FromFieldPath: &fieldPath,
+															ToFieldPath:   &fieldPath,
 														},
 													},
-												},
-											},
-											"patchSets": []v1.PatchSet{
-												{
-													Name: "test-patchset",
-													Patches: []v1.Patch{
-														{
-															Type:          v1.PatchTypeFromCompositeFieldPath,
+													{
+														EnvironmentPatch: v1.EnvironmentPatch{
+															Type:          typeFromCompositeFieldPath,
 															FromFieldPath: &fieldPath,
 															ToFieldPath:   &fieldPath,
 															Transforms: []v1.Transform{
@@ -316,15 +304,54 @@ func TestConvertPnTToPipeline(t *testing.T) {
 																},
 															},
 														},
-														{
-															Type:          v1.PatchTypeCombineFromComposite,
-															FromFieldPath: &fieldPath,
-															ToFieldPath:   &fieldPath,
+														Policy: &PatchPolicy{
+															ToFieldPath: ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
 														},
 													},
 												},
 											},
-											"resources": []v1.ComposedTemplate{},
+											"patchSets": []PatchSet{
+												{
+													Name: "test-patchset",
+													Patches: []Patch{
+														{
+															Patch: v1.Patch{
+																Type:          v1.PatchTypeFromCompositeFieldPath,
+																FromFieldPath: &fieldPath,
+																ToFieldPath:   &fieldPath,
+																Transforms: []v1.Transform{
+																	{
+																		Type: v1.TransformTypeString,
+																		String: &v1.StringTransform{
+																			Format: &stringFmt,
+																			Type:   v1.StringTransformTypeFormat,
+																		},
+																	},
+																	{
+																		Type: v1.TransformTypeMath,
+																		Math: &v1.MathTransform{
+																			Multiply: &intp,
+																			Type:     v1.MathTransformTypeMultiply,
+																		},
+																	},
+																},
+															},
+															Policy: &PatchPolicy{
+																FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+																ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+															},
+														},
+														{
+															Patch: v1.Patch{
+																Type:          v1.PatchTypeCombineFromComposite,
+																FromFieldPath: &fieldPath,
+																ToFieldPath:   &fieldPath,
+															},
+														},
+													},
+												},
+											},
+											"resources": []ComposedTemplate{},
 										},
 									},
 								},
@@ -493,9 +520,9 @@ func TestProcessFunctionInput(t *testing.T) {
 					Object: map[string]any{
 						"apiVersion":  "pt.fn.crossplane.io/v1beta1",
 						"kind":        "Resources",
-						"environment": (*v1.EnvironmentConfiguration)(nil),
-						"patchSets":   []v1.PatchSet{},
-						"resources":   []v1.ComposedTemplate{},
+						"environment": (*Environment)(nil),
+						"patchSets":   []PatchSet{},
+						"resources":   []ComposedTemplate{},
 					},
 				},
 			},
@@ -550,49 +577,55 @@ func TestProcessFunctionInput(t *testing.T) {
 					Object: map[string]any{
 						"apiVersion": "pt.fn.crossplane.io/v1beta1",
 						"kind":       "Resources",
-						"environment": &v1.EnvironmentConfiguration{
-							Patches: []v1.EnvironmentPatch{
+						"environment": &Environment{
+							Patches: []EnvironmentPatch{
 								{
-									Type:          typeFromCompositeFieldPath,
-									FromFieldPath: &fieldPath,
-									ToFieldPath:   &fieldPath,
+									EnvironmentPatch: v1.EnvironmentPatch{
+										Type:          typeFromCompositeFieldPath,
+										FromFieldPath: &fieldPath,
+										ToFieldPath:   &fieldPath,
+									},
 								},
 							},
 						},
-						"patchSets": []v1.PatchSet{
+						"patchSets": []PatchSet{
 							{
 								Name: "test-patchset",
-								Patches: []v1.Patch{
+								Patches: []Patch{
 									{
-										Type:          v1.PatchTypeFromCompositeFieldPath,
-										FromFieldPath: &fieldPath,
-										ToFieldPath:   &fieldPath,
-										Transforms: []v1.Transform{
-											{
-												Type: v1.TransformTypeString,
-												String: &v1.StringTransform{
-													Format: &stringFmt,
-													Type:   v1.StringTransformTypeFormat,
+										Patch: v1.Patch{
+											Type:          v1.PatchTypeFromCompositeFieldPath,
+											FromFieldPath: &fieldPath,
+											ToFieldPath:   &fieldPath,
+											Transforms: []v1.Transform{
+												{
+													Type: v1.TransformTypeString,
+													String: &v1.StringTransform{
+														Format: &stringFmt,
+														Type:   v1.StringTransformTypeFormat,
+													},
 												},
-											},
-											{
-												Type: v1.TransformTypeMath,
-												Math: &v1.MathTransform{
-													Multiply: &intp,
-													Type:     v1.MathTransformTypeMultiply,
+												{
+													Type: v1.TransformTypeMath,
+													Math: &v1.MathTransform{
+														Multiply: &intp,
+														Type:     v1.MathTransformTypeMultiply,
+													},
 												},
 											},
 										},
 									},
 									{
-										Type:          v1.PatchTypeCombineFromComposite,
-										FromFieldPath: &fieldPath,
-										ToFieldPath:   &fieldPath,
+										Patch: v1.Patch{
+											Type:          v1.PatchTypeCombineFromComposite,
+											FromFieldPath: &fieldPath,
+											ToFieldPath:   &fieldPath,
+										},
 									},
 								},
 							},
 						},
-						"resources": []v1.ComposedTemplate{},
+						"resources": []ComposedTemplate{},
 					},
 				},
 			},
@@ -977,6 +1010,397 @@ func TestSetMissingResourceFields(t *testing.T) {
 			got := setMissingResourceFields(tc.args.idx, tc.args.rs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("%s\nsetMissingResourceFields(...): -want i, +got i:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestMigratePatchPolicyInResources(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		args   []v1.ComposedTemplate
+		want   []ComposedTemplate
+	}{
+		"ResourcesHasSimplePatches": {
+			reason: "Composed Resources has simple patches",
+			args: []v1.ComposedTemplate{
+				{
+					Name: ptr.To("resource-0"),
+					Patches: []v1.Patch{
+						{
+							Type:          v1.PatchTypeToCompositeFieldPath,
+							FromFieldPath: ptr.To("envVal"),
+							ToFieldPath:   ptr.To("spec.val"),
+							Policy:        nil,
+						},
+						{
+							Type:          v1.PatchTypeToCompositeFieldPath,
+							FromFieldPath: ptr.To("envVal"),
+							ToFieldPath:   ptr.To("spec.val"),
+							Policy: &v1.PatchPolicy{
+								FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+								MergeOptions: &commonv1.MergeOptions{
+									KeepMapValues: ptr.To(true),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []ComposedTemplate{
+				{
+					ComposedTemplate: v1.ComposedTemplate{
+						Name:    ptr.To("resource-0"),
+						Patches: nil,
+					},
+					Patches: []Patch{
+						{
+							Patch: v1.Patch{
+								Type:          v1.PatchTypeToCompositeFieldPath,
+								FromFieldPath: ptr.To("envVal"),
+								ToFieldPath:   ptr.To("spec.val"),
+								Policy:        nil,
+							},
+							Policy: nil,
+						},
+						{
+							Patch: v1.Patch{
+								Type:          v1.PatchTypeToCompositeFieldPath,
+								FromFieldPath: ptr.To("envVal"),
+								ToFieldPath:   ptr.To("spec.val"),
+								Policy:        nil,
+							},
+							Policy: &PatchPolicy{
+								FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+								ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := MigratePatchPolicyInResources(tc.args)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("MigratePatchPolicyInResources() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestMigratePatchPolicyInPatchSets(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		args   []v1.PatchSet
+		want   []PatchSet
+	}{
+		"PatchSetHasSimplePatches": {
+			reason: "PatchSet has simple patches",
+			args: []v1.PatchSet{
+				{
+					Name: "patchset-0",
+					Patches: []v1.Patch{
+						{
+							Type:          v1.PatchTypeToCompositeFieldPath,
+							FromFieldPath: ptr.To("envVal"),
+							ToFieldPath:   ptr.To("spec.val"),
+							Policy:        nil,
+						},
+						{
+							Type:          v1.PatchTypeToCompositeFieldPath,
+							FromFieldPath: ptr.To("envVal"),
+							ToFieldPath:   ptr.To("spec.val"),
+							Policy: &v1.PatchPolicy{
+								FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+								MergeOptions: &commonv1.MergeOptions{
+									KeepMapValues: ptr.To(true),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: []PatchSet{
+				{
+					Name: "patchset-0",
+					Patches: []Patch{
+						{
+							Patch: v1.Patch{
+								Type:          v1.PatchTypeToCompositeFieldPath,
+								FromFieldPath: ptr.To("envVal"),
+								ToFieldPath:   ptr.To("spec.val"),
+								Policy:        nil,
+							},
+							Policy: nil,
+						},
+						{
+							Patch: v1.Patch{
+								Type:          v1.PatchTypeToCompositeFieldPath,
+								FromFieldPath: ptr.To("envVal"),
+								ToFieldPath:   ptr.To("spec.val"),
+								Policy:        nil,
+							},
+							Policy: &PatchPolicy{
+								FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+								ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := MigratePatchPolicyInPatchSets(tc.args)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("MigratePatchPolicyInPatchSets() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestMigratePatchPolicyInEnvironment(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		args   *v1.EnvironmentConfiguration
+		want   *Environment
+	}{
+		"EnvironmentNil": {
+			reason: "Environment is nil",
+			args:   nil,
+			want:   nil,
+		},
+		"EnvironmentHasNoPatches": {
+			reason: "Environment has no patches",
+			args:   &v1.EnvironmentConfiguration{Patches: []v1.EnvironmentPatch{}},
+			want:   nil,
+		},
+		"EnvironmentHasSimplePatches": {
+			reason: "Environment has simple patches",
+			args: &v1.EnvironmentConfiguration{
+				Patches: []v1.EnvironmentPatch{
+					{
+						Type:          v1.PatchTypeToCompositeFieldPath,
+						FromFieldPath: ptr.To("envVal"),
+						ToFieldPath:   ptr.To("spec.val"),
+						Policy:        nil,
+					},
+					{
+						Type:          v1.PatchTypeToCompositeFieldPath,
+						FromFieldPath: ptr.To("envVal"),
+						ToFieldPath:   ptr.To("spec.val"),
+						Policy: &v1.PatchPolicy{
+							FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+							MergeOptions: &commonv1.MergeOptions{
+								KeepMapValues: ptr.To(true),
+							},
+						},
+					},
+				},
+			},
+			want: &Environment{
+				Patches: []EnvironmentPatch{
+					{
+						EnvironmentPatch: v1.EnvironmentPatch{
+							Type:          v1.PatchTypeToCompositeFieldPath,
+							FromFieldPath: ptr.To("envVal"),
+							ToFieldPath:   ptr.To("spec.val"),
+							Policy:        nil,
+						},
+						Policy: nil,
+					},
+					{
+						EnvironmentPatch: v1.EnvironmentPatch{
+							Type:          v1.PatchTypeToCompositeFieldPath,
+							FromFieldPath: ptr.To("envVal"),
+							ToFieldPath:   ptr.To("spec.val"),
+							Policy:        nil,
+						},
+						Policy: &PatchPolicy{
+							FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+							ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := MigratePatchPolicyInEnvironment(tc.args)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("MigratePatchPolicyInEnvironment() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+/*
+#	MergeOptions    appendSlice     keepMapValues   policy.toFieldPath
+1	nil             N/A             n/A             nil (defaults to Replace)
+2	non-nil         nil or false    true            MergeObjects
+3	non-nil         true            nil or false    ForceMergeObjectsAppendArrays
+4	non-nil         nil or false    nil or false    ForceMergeObjects
+5	non-nil         true            True            MergeObjectsAppendArrays
+*/
+
+func TestPatchPolicy(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		args   *v1.PatchPolicy
+		want   *PatchPolicy
+	}{
+		"PatchPolicyWithNilMergeOptionsAndFromFieldPath": { // case 1
+			reason: "MergeOptions and FromFieldPath are nil",
+			args: &v1.PatchPolicy{
+				FromFieldPath: nil,
+				MergeOptions:  nil,
+			},
+			want: nil,
+		},
+		"PatchPolicyWithNilMergeOptions": { // case 1
+			reason: "MergeOptions is nil",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions:  nil,
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   nil,
+			},
+		},
+		"PatchPolicyWithKeepMapValuesTrueAppendSliceNil": {
+			reason: "AppendSlice is nil && KeepMapValues is true", // case 2
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(true),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+			},
+		},
+		"PatchPolicyWithKeepMapValuesTrueAppendSliceFalse": {
+			reason: "AppendSlice is false && KeepMapValues is true", // case 2
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(true),
+					AppendSlice:   ptr.To(false),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
+			},
+		},
+		"PatchPolicyWithTrueAppendSliceInMergeOptions": { // case 3
+			reason: "AppendSlice is true && KeepMapValues is nil",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					AppendSlice: ptr.To(true),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
+			},
+		},
+		"PatchPolicyWithTrueAppendSliceFalseKeepMapValuesInMergeOptions": { // case 3
+			reason: "AppendSlice is true && KeepMapValues is false",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					AppendSlice:   ptr.To(true),
+					KeepMapValues: ptr.To(false),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
+			},
+		},
+		"PatchPolicyWithEmptyMergeOptions": { // case 4
+			reason: "Both AppendSlice and KeepMapValues are nil",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions:  &commonv1.MergeOptions{},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
+			},
+		},
+		"PatchPolicyWithNilKeepMapValuesInMergeOptions": { // case 4
+			reason: "AppendSlice is false and KeepMapValues is nil",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					AppendSlice: ptr.To(false),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
+			},
+		},
+		"PatchPolicyWithNilAppendSliceInMergeOptions": { // case 4
+			reason: "AppendSlice is nil and KeepMapValues is false",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(false),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
+			},
+		},
+		"PatchPolicyWithBothKeepMapValuesAndAppendSliceFalse": { // case 4
+			reason: "Both KeepMapValues and AppendSlice is false",
+			args: &v1.PatchPolicy{
+				FromFieldPath: nil,
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(false),
+					AppendSlice:   ptr.To(false),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: nil,
+				ToFieldPath:   ptr.To(ToFieldPathPolicyForceMergeObjects),
+			},
+		},
+		"PatchPolicyWithKeepMapValuesTrueAppendSliceTrue": { // case 5
+			reason: "Both KeepMapValues and AppendSlice is true",
+			args: &v1.PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyRequired),
+				MergeOptions: &commonv1.MergeOptions{
+					KeepMapValues: ptr.To(true),
+					AppendSlice:   ptr.To(true),
+				},
+			},
+			want: &PatchPolicy{
+				FromFieldPath: ptr.To(v1.FromFieldPathPolicyRequired),
+				ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := migratePatchPolicy(tc.args)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("%s\npatchPolicy(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}
