@@ -395,9 +395,11 @@ func (fn KindObserverFunc) WatchComposedResources(kind ...schema.GroupVersionKin
 // NewReconciler returns a new Reconciler of composite resources.
 func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
+	ar := mgr.GetAPIReader()
 
 	r := &Reconciler{
-		client: kube,
+		client:    kube,
+		apiReader: ar,
 
 		gvk: schema.GroupVersionKind(of),
 
@@ -449,7 +451,8 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
-	client client.Client
+	client    client.Client
+	apiReader client.Reader
 
 	gvk schema.GroupVersionKind
 
@@ -477,8 +480,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	xr := composite.New(composite.WithGroupVersionKind(r.gvk))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
-		log.Debug(errGet, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
+		// If the cache does not have the composite, hit the API Server
+		if err := r.apiReader.Get(ctx, req.NamespacedName, xr); err != nil {
+			log.Debug(errGet, "error", err)
+			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
+		}
 	}
 
 	log = log.WithValues(

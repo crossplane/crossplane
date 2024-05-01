@@ -175,7 +175,8 @@ func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm resource.Com
 // for each XR kind they can bind to. Each controller must watch its subset of
 // claims and any XRs they bind to.
 type Reconciler struct {
-	client client.Client
+	client    client.Client
+	apiReader client.Reader
 
 	gvkClaim schema.GroupVersionKind
 	gvkXR    schema.GroupVersionKind
@@ -302,8 +303,10 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 // configure their composite resources.
 func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
 	c := unstructured.NewClient(m.GetClient())
+	ar := m.GetAPIReader()
 	r := &Reconciler{
 		client:        c,
+		apiReader:     ar,
 		gvkClaim:      schema.GroupVersionKind(of),
 		gvkXR:         schema.GroupVersionKind(with),
 		managedFields: &NopManagedFieldsUpgrader{},
@@ -330,10 +333,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm := claim.New(claim.WithGroupVersionKind(r.gvkClaim))
 	if err := r.client.Get(ctx, req.NamespacedName, cm); err != nil {
-		// There's no need to requeue if we no longer exist. Otherwise we'll be
-		// requeued implicitly because we return an error.
-		log.Debug(errGetClaim, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
+		// If the unstructured cache does not have the claim, hit the API Server
+		if err := r.apiReader.Get(ctx, req.NamespacedName, cm); err != nil {
+			// There's no need to requeue if we no longer exist. Otherwise we'll be
+			// requeued implicitly because we return an error.
+			log.Debug(errGetClaim, "error", err)
+			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
+		}
 	}
 
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(cm))
