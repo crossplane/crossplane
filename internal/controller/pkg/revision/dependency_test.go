@@ -433,7 +433,7 @@ func TestResolve(t *testing.T) {
 				total:     3,
 				installed: 3,
 				invalid:   2,
-				err:       errors.Errorf(errFmtIncompatibleDependency, []string{"not-here-1", "not-here-2"}),
+				err:       errors.Errorf(errFmtIncompatibleDependency, "existing package not-here-1@v0.0.1 is incompatible with constraint >=v0.1.0; existing package not-here-2@v0.0.1 is incompatible with constraint >=v0.1.0"),
 			},
 		},
 		"SuccessfulSelfExistValidDependencies": {
