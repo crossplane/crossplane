@@ -209,9 +209,9 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			return found, installed, invalid, err
 		}
 		if !c.Check(v) {
-			s := fmt.Sprintf("%s@%s", lp.Identifier(), lp.Version)
+			s := fmt.Sprintf("existing package %s@%s", lp.Identifier(), lp.Version)
 			if dep.Constraints != "" {
-				s += " with " + strings.TrimSpace(dep.Constraints)
+				s = fmt.Sprintf("%s is incompatible with constraint %s", s, strings.TrimSpace(dep.Constraints))
 			}
 			invalidDeps = append(invalidDeps, s)
 		}
