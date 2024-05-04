@@ -1,0 +1,39 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+  - functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - base:
+          apiVersion: nop.crossplane.io/v1alpha1
+          kind: NopResource
+          spec:
+            forProvider:
+              conditionAfter:
+              - conditionStatus: "True"
+                conditionType: Ready
+                time: 0s
+              fields:
+                tags: {}
+        name: nop-resource-1
+        patches:
+        - fromFieldPath: spec.coolField
+          toFieldPath: metadata.annotations["cf"]
+          type: FromCompositeFieldPath
+        - fromFieldPath: metadata.annotations["cf"]
+          toFieldPath: status.coolerField
+          type: ToCompositeFieldPath
+        - fromFieldPath: spec.parameters.tags
+          toFieldPath: spec.forProvider.fields.tags
+          type: FromCompositeFieldPath
+    step: patch-and-transform
