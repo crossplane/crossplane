@@ -239,8 +239,6 @@ func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context
 	// fast enough for now. It's all in-memory.
 	referenced := make(map[schema.GroupVersionKind]bool)
 	for _, crd := range crds.Items {
-		crd := crd
-
 		if !xcrd.IsEstablished(crd.Status) {
 			continue
 		}

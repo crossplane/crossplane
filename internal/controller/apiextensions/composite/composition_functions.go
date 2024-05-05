@@ -651,7 +651,6 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *v1beta1.R
 
 		resources := make([]*v1beta1.Resource, len(list.Items))
 		for i, r := range list.Items {
-			r := r
 			o, err := AsStruct(&r)
 			if err != nil {
 				return nil, errors.Wrap(err, errExtraResourceAsStruct)

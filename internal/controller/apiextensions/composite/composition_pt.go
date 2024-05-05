@@ -416,7 +416,7 @@ func AssociateByOrder(t []v1.ComposedTemplate, r []corev1.ObjectReference) []Tem
 		j = len(r)
 	}
 
-	for i := 0; i < j; i++ {
+	for i := range j {
 		a[i].Reference = r[i]
 	}
 

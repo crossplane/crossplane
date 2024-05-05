@@ -103,9 +103,9 @@ linters:
     # to communicate what the bool means.
     - nonamedreturns
 
-    # TODO(negz): We do want these as of Go v1.22.
-    - copyloopvar
-    - intrange
+    # Warns about taking the address of a range variable. This isn't an issue in
+    # Go v1.22 and above: https://tip.golang.org/doc/go1.22
+    - exportloopref
 
 linters-settings:
   errcheck:
@@ -284,6 +284,13 @@ issues:
 
     # This is an 'errors unhandled' warning that duplicates errcheck.
     - text: "G104:"
+      linters:
+      - gosec
+      - gas
+
+    # This is about implicit memory aliasing in a range loop.
+    # This is a false positive with Go v1.22 and above.
+    - text: "G601:"
       linters:
       - gosec
       - gas

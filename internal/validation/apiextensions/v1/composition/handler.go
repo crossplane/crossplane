@@ -189,7 +189,6 @@ func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (ma
 	// Get schema for all Managed Resource Definitions defined by
 	// comp.Spec.Resources.
 	for _, res := range comp.Spec.Resources {
-		res := res
 		gvk, err := composition.GetBaseObjectGVK(&res)
 		if err != nil {
 			return nil, []error{err}

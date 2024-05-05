@@ -145,7 +145,6 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(maxConcurrentEstablishers)
 	for _, ref := range allObjs {
-		ref := ref // Pin the loop variable.
 		g.Go(func() error {
 			select {
 			case <-ctx.Done():
@@ -235,7 +234,6 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	g.SetLimit(maxConcurrentEstablishers)
 	out := make(chan currentDesired, len(objs))
 	for _, res := range objs {
-		res := res // Pin the range variable before using it in a Goroutine.
 		g.Go(func() error {
 			// Assert desired object to resource.Object so that we can access its
 			// metadata.
@@ -393,7 +391,6 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 	g.SetLimit(maxConcurrentEstablishers)
 	out := make(chan xpv1.TypedReference, len(allObjs))
 	for _, cd := range allObjs {
-		cd := cd // Pin the loop variable.
 		g.Go(func() error {
 			if !cd.Exists {
 				// Only create a missing resource if we are going to control it.
