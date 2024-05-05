@@ -70,12 +70,11 @@ limitations under the License.
 // (or protoc) to invoke them.
 
 //go:generate go install google.golang.org/protobuf/cmd/protoc-gen-go google.golang.org/grpc/cmd/protoc-gen-go-grpc
-//go:generate go run github.com/bufbuild/buf/cmd/buf generate
+//go:generate go run github.com/bufbuild/buf/cmd/buf@v1.31.0 generate
 
 package apis
 
 import (
-	_ "github.com/bufbuild/buf/cmd/buf"                 //nolint:typecheck
 	_ "github.com/jmattheis/goverter/cmd/goverter"      //nolint:typecheck
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"   //nolint:typecheck
 	_ "google.golang.org/protobuf/cmd/protoc-gen-go"    //nolint:typecheck
