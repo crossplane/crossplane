@@ -4211,6 +4211,8 @@ spec:
                                     ip:
                                       description: IP address of the host file entry.
                                       type: string
+                                  required:
+                                  - ip
                                   type: object
                                 type: array
                                 x-kubernetes-list-map-keys:
@@ -4265,6 +4267,8 @@ spec:
                                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
                                         TODO: Add other useful fields. apiVersion, kind, uid?
                                       type: string
+                                  required:
+                                  - name
                                   type: object
                                   x-kubernetes-map-type: atomic
                                 type: array

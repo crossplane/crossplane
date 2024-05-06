@@ -81,6 +81,15 @@ fallthrough: submodules
 	@make
 
 CRD_DIR = cluster/crds
+CRD_PATCH_DIR = cluster/crd-patches
+
+# See patch files for details.
+crds.patch: $(KUBECTL)
+	@$(INFO) patching generated CRDs
+	@mkdir $(WORK_DIR)/patch
+	@$(KUBECTL) patch --local --type=json -f $(CRD_DIR)/pkg.crossplane.io_deploymentruntimeconfigs.yaml --patch-file $(CRD_PATCH_DIR)/pkg.crossplane.io_deploymentruntimeconfigs.yaml -o yaml > $(WORK_DIR)/patch/pkg.crossplane.io_deploymentruntimeconfigs.yaml
+	@mv $(WORK_DIR)/patch/pkg.crossplane.io_deploymentruntimeconfigs.yaml $(CRD_DIR)/pkg.crossplane.io_deploymentruntimeconfigs.yaml
+	@$(OK) patched generated CRDs
 
 crds.clean:
 	@$(INFO) cleaning generated CRDs
@@ -93,7 +102,7 @@ generate.run: gen-kustomize-crds gen-chart-license
 gen-chart-license:
 	@cp -f LICENSE cluster/charts/crossplane/LICENSE
 
-generate.done: crds.clean
+generate.done: crds.clean crds.patch
 
 gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
