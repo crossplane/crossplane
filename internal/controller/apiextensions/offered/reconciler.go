@@ -50,6 +50,7 @@ import (
 	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/controller/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -91,7 +92,7 @@ const (
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
 type ControllerEngine interface {
 	IsRunning(name string) bool
-	Start(name string, o kcontroller.Options, w ...controller.Watch) error
+	Start(name string, o kcontroller.Options, w ...engine.Watch) error
 	Stop(name string)
 	Err(name string) error
 }
@@ -202,7 +203,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 		claim: definition{
 			CRDRenderer:      CRDRenderFn(xcrd.ForCompositeResourceClaim),
-			ControllerEngine: controller.NewEngine(mgr),
+			ControllerEngine: engine.New(mgr),
 			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
 		},
 
@@ -453,8 +454,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cp.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
 	if err := r.claim.Start(claim.ControllerName(d.GetName()), ko,
-		controller.For(cm, &handler.EnqueueRequestForObject{}),
-		controller.For(cp, &EnqueueRequestForClaim{}),
+		engine.WatchFor(cm, &handler.EnqueueRequestForObject{}),
+		engine.WatchFor(cp, &EnqueueRequestForClaim{}),
 	); err != nil {
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonOfferXRC, err))

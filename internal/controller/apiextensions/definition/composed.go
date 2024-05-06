@@ -35,9 +35,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/internal/controller/engine"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -52,7 +52,7 @@ type composedResourceInformers struct {
 	log     logging.Logger
 	cluster cluster.Cluster
 
-	gvkRoutedCache *controller.GVKRoutedCache
+	gvkRoutedCache *engine.GVKRoutedCache
 
 	lock sync.RWMutex // everything below is protected by this lock
 

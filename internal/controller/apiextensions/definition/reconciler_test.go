@@ -46,14 +46,15 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/controller/engine"
 	"github.com/crossplane/crossplane/internal/features"
 )
 
 type MockEngine struct {
 	ControllerEngine
 	MockIsRunning func(name string) bool
-	MockCreate    func(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
-	MockStart     func(name string, o kcontroller.Options, w ...controller.Watch) error
+	MockCreate    func(name string, o kcontroller.Options, w ...engine.Watch) (engine.NamedController, error)
+	MockStart     func(name string, o kcontroller.Options, w ...engine.Watch) error
 	MockStop      func(name string)
 	MockErr       func(name string) error
 }
@@ -62,11 +63,11 @@ func (m *MockEngine) IsRunning(name string) bool {
 	return m.MockIsRunning(name)
 }
 
-func (m *MockEngine) Create(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error) {
+func (m *MockEngine) Create(name string, o kcontroller.Options, w ...engine.Watch) (engine.NamedController, error) {
 	return m.MockCreate(name, o, w...)
 }
 
-func (m *MockEngine) Start(name string, o kcontroller.Options, w ...controller.Watch) error {
+func (m *MockEngine) Start(name string, o kcontroller.Options, w ...engine.Watch) error {
 	return m.MockStart(name, o, w...)
 }
 
@@ -574,7 +575,7 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return false },
 						MockErr:       func(_ string) error { return nil },
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...engine.Watch) (engine.NamedController, error) {
 							return nil, errBoom
 						},
 					}),
@@ -635,7 +636,7 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return false },
 						MockErr:       func(_ string) error { return errBoom }, // This error should only be logged.
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...engine.Watch) (engine.NamedController, error) {
 							return mockNamedController{
 								MockStart: func(_ context.Context) error { return nil },
 								MockGetCache: func() cache.Cache {
@@ -719,7 +720,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockErr: func(_ string) error { return nil },
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...engine.Watch) (engine.NamedController, error) {
 							return mockNamedController{
 								MockStart: func(_ context.Context) error { return nil },
 								MockGetCache: func() cache.Cache {
@@ -792,7 +793,7 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return true },
 						MockErr:       func(_ string) error { return errBoom }, // This error should only be logged.
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
+						MockCreate: func(_ string, _ kcontroller.Options, _ ...engine.Watch) (engine.NamedController, error) {
 							t.Errorf("MockCreate should not be called")
 							return nil, nil
 						},

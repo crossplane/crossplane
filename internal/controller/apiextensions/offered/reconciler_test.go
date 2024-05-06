@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -42,16 +41,19 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/controller/engine"
 )
+
+var _ ControllerEngine = &MockEngine{}
 
 type MockEngine struct {
 	ControllerEngine
-	MockStart func(name string, o kcontroller.Options, w ...controller.Watch) error
+	MockStart func(name string, o kcontroller.Options, w ...engine.Watch) error
 	MockStop  func(name string)
 	MockErr   func(name string) error
 }
 
-func (m *MockEngine) Start(name string, o kcontroller.Options, w ...controller.Watch) error {
+func (m *MockEngine) Start(name string, o kcontroller.Options, w ...engine.Watch) error {
 	return m.MockStart(name, o, w...)
 }
 
@@ -552,7 +554,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockErr:   func(_ string) error { return nil },
-						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return errBoom },
+						MockStart: func(_ string, _ kcontroller.Options, _ ...engine.Watch) error { return errBoom },
 					}),
 				},
 			},
@@ -596,7 +598,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockErr:   func(_ string) error { return errBoom }, // This error should only be logged.
-						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil },
+						MockStart: func(_ string, _ kcontroller.Options, _ ...engine.Watch) error { return nil },
 					},
 					),
 				},
@@ -656,7 +658,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockErr:   func(_ string) error { return nil },
-						MockStart: func(_ string, _ kcontroller.Options, _ ...controller.Watch) error { return nil },
+						MockStart: func(_ string, _ kcontroller.Options, _ ...engine.Watch) error { return nil },
 						MockStop:  func(_ string) {},
 					}),
 				},

@@ -58,6 +58,7 @@ import (
 	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/controller/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -98,8 +99,8 @@ const (
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
 type ControllerEngine interface {
 	IsRunning(name string) bool
-	Create(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
-	Start(name string, o kcontroller.Options, w ...controller.Watch) error
+	Create(name string, o kcontroller.Options, w ...engine.Watch) (engine.NamedController, error)
+	Start(name string, o kcontroller.Options, w ...engine.Watch) error
 	Stop(name string)
 	Err(name string) error
 }
@@ -219,7 +220,7 @@ type definition struct {
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
-	ca := controller.NewGVKRoutedCache(mgr.GetScheme(), mgr.GetCache())
+	ca := engine.NewGVKRoutedCache(mgr.GetScheme(), mgr.GetCache())
 
 	r := &Reconciler{
 		mgr: mgr,
@@ -231,7 +232,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 		composite: definition{
 			CRDRenderer:      CRDRenderFn(xcrd.ForCompositeResource),
-			ControllerEngine: controller.NewEngine(mgr),
+			ControllerEngine: engine.New(mgr),
 			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
 		},
 
@@ -259,7 +260,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// wrap the manager's cache to route requests to dynamically started
 		// informers for managed resources.
-		r.mgr = controller.WithGVKRoutedCache(ca, mgr)
+		r.mgr = engine.WithGVKRoutedCache(ca, mgr)
 	}
 
 	return r
@@ -489,16 +490,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	name := composite.ControllerName(d.GetName())
 	var ca cache.Cache
-	watches := []controller.Watch{
-		controller.For(u, &handler.EnqueueRequestForObject{}),
+	watches := []engine.Watch{
+		engine.WatchFor(u, &handler.EnqueueRequestForObject{}),
 		// enqueue composites whenever a matching CompositionRevision is created
-		controller.TriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
+		engine.WatchTriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
 			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
 		}),
 	}
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		// enqueue XRs that when a relevant MR is updated
-		watches = append(watches, controller.TriggeredBy(&r.xrInformers, handler.Funcs{
+		watches = append(watches, engine.WatchTriggeredBy(&r.xrInformers, handler.Funcs{
 			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
 				enqueueXRsForMR(ca, xrGVK, log)(ctx, ev, q)
 			},
