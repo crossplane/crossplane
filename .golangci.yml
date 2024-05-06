@@ -103,6 +103,10 @@ linters:
     # to communicate what the bool means.
     - nonamedreturns
 
+    # TODO(negz): We do want these as of Go v1.22.
+    - copyloopvar
+    - intrange
+
 linters-settings:
   errcheck:
     # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
@@ -224,6 +228,7 @@ issues:
   # Excluding generated files.
   exclude-files:
   - "zz_generated\\..+\\.go$"
+  - ".+\\.pb.go$"
   # Excluding configuration per-path and per-linter.
   exclude-rules:
     # Exclude some linters from running on tests files.

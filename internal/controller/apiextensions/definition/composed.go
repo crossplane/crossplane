@@ -52,6 +52,9 @@ type composedResourceInformers struct {
 	log     logging.Logger
 	cluster cluster.Cluster
 
+	handler handler.EventHandler
+	ps      []predicate.Predicate
+
 	gvkRoutedCache *engine.GVKRoutedCache
 
 	lock sync.RWMutex // everything below is protected by this lock
@@ -78,18 +81,18 @@ var _ source.Source = &composedResourceInformers{}
 // ctx is done.
 // Note that Start can be called multiple times to deliver events to multiple
 // (composite resource) controllers.
-func (i *composedResourceInformers) Start(ctx context.Context, h handler.EventHandler, q workqueue.RateLimitingInterface, ps ...predicate.Predicate) error {
+func (i *composedResourceInformers) Start(ctx context.Context, q workqueue.RateLimitingInterface) error {
 	id := uuid.New().String()
 
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	i.sinks[id] = func(ev runtimeevent.UpdateEvent) {
-		for _, p := range ps {
+		for _, p := range i.ps {
 			if !p.Update(ev) {
 				return
 			}
 		}
-		h.Update(ctx, ev, q)
+		i.handler.Update(ctx, ev, q)
 	}
 
 	go func() {
@@ -195,6 +198,7 @@ func (i *composedResourceInformers) WatchComposedResources(gvks ...schema.GroupV
 			_ = ca.Start(ctx)
 		}()
 
+		// TODO(negz): We should take a write lock before writing to this map.
 		i.cdCaches[gvk] = cdCache{
 			cache:    ca,
 			cancelFn: cancelFn,
@@ -266,6 +270,8 @@ func (i *composedResourceInformers) cleanupComposedResourceInformers(ctx context
 		inf.cancelFn()
 		i.gvkRoutedCache.RemoveDelegate(gvk)
 		i.log.Info("Stopped composed resource watch", "gvk", gvk.String())
+
+		// TODO(negz): We should take a write lock before writing to this map.
 		delete(i.cdCaches, gvk)
 	}
 }

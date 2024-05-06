@@ -848,7 +848,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 	type args struct {
 		of    schema.GroupVersionKind
 		list  func(_ context.Context, list client.ObjectList, opts ...client.ListOption) error
-		event runtimeevent.CreateEvent
+		event runtimeevent.TypedCreateEvent[*v1.CompositionRevision]
 	}
 	type want struct {
 		added []interface{}
@@ -879,6 +879,16 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 					}
 					return nil
 				},
+				event: runtimeevent.TypedCreateEvent[*v1.CompositionRevision]{
+					Object: &v1.CompositionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "dachshund-sadfa8",
+							Labels: map[string]string{
+								v1.LabelCompositionName: "dachshund",
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -897,7 +907,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 
 					return nil
 				},
-				event: runtimeevent.CreateEvent{
+				event: runtimeevent.TypedCreateEvent[*v1.CompositionRevision]{
 					Object: &v1.CompositionRevision{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "dachshund-sadfa8",
@@ -931,7 +941,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 
 					return nil
 				},
-				event: runtimeevent.CreateEvent{
+				event: runtimeevent.TypedCreateEvent[*v1.CompositionRevision]{
 					Object: &v1.CompositionRevision{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "dachshund-sadfa8",
@@ -960,7 +970,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 
 					return nil
 				},
-				event: runtimeevent.CreateEvent{
+				event: runtimeevent.TypedCreateEvent[*v1.CompositionRevision]{
 					Object: &v1.CompositionRevision{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "dachshund-sadfa8",
@@ -1005,7 +1015,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 
 					return nil
 				},
-				event: runtimeevent.CreateEvent{
+				event: runtimeevent.TypedCreateEvent[*v1.CompositionRevision]{
 					Object: &v1.CompositionRevision{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "dachshund-sadfa8",

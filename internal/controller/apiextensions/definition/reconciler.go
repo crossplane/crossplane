@@ -493,18 +493,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	watches := []engine.Watch{
 		engine.WatchFor(u, &handler.EnqueueRequestForObject{}),
 		// enqueue composites whenever a matching CompositionRevision is created
-		engine.WatchTriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
+		engine.WatchTriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}, handler.TypedFuncs[*v1.CompositionRevision]{
 			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
-		}),
+		})),
 	}
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		// enqueue XRs that when a relevant MR is updated
-		watches = append(watches, engine.WatchTriggeredBy(&r.xrInformers, handler.Funcs{
-			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
-				enqueueXRsForMR(ca, xrGVK, log)(ctx, ev, q)
-			},
-		}))
-	}
+
+	// TODO(negz): I can't find a great way to plumb this. We now need to pass
+	// the handler when creating the source (i.e. the xrInformers). The
+	// xrInformers is designed to handle multiple types, though. Given I plan to
+	// try refactor realtime compositions to make use of new controller-runtime
+	// functionality around stopping informers, I'm going to just comment it out
+	// rather than spend time getting it working.
+
+	// if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+	// 	// enqueue XRs that when a relevant MR is updated
+	// 	watches = append(watches, engine.WatchTriggeredBy(&r.xrInformers, handler.TypedFuncs[*kunstructured.Unstructured]{
+	// 		UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent[*kunstructured.Unstructured], q workqueue.RateLimitingInterface) {
+	// 			enqueueXRsForMR(ca, xrGVK, log)(ctx, ev, q)
+	// 		},
+	// 	}))
+	// }
 
 	c, err := r.composite.Create(name, ko, watches...)
 	if err != nil {

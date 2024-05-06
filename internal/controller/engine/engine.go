@@ -153,10 +153,10 @@ func (e *ControllerEngine) done(name string, err error) {
 
 // Watch an object.
 type Watch struct {
-	// one of the two:
-	kind         client.Object
+	// A watch is either a customSource, or a kind, handler, and predicates.
 	customSource source.Source
 
+	kind       client.Object
 	handler    handler.EventHandler
 	predicates []predicate.Predicate
 }
@@ -172,8 +172,8 @@ func WatchFor(kind client.Object, h handler.EventHandler, p ...predicate.Predica
 // the controller. source.Kind can be used to create a source for a secondary
 // cache. Events will be handled by the supplied EventHandler, and may be
 // filtered by the supplied predicates.
-func WatchTriggeredBy(source source.Source, h handler.EventHandler, p ...predicate.Predicate) Watch {
-	return Watch{customSource: source, handler: h, predicates: p}
+func WatchTriggeredBy(source source.Source) Watch {
+	return Watch{customSource: source}
 }
 
 // Start the named controller. Each controller is started with its own cache
@@ -236,7 +236,7 @@ func (e *ControllerEngine) Create(name string, o controller.Options, w ...Watch)
 
 	for _, wt := range w {
 		if wt.customSource != nil {
-			if err := ctrl.Watch(wt.customSource, wt.handler, wt.predicates...); err != nil {
+			if err := ctrl.Watch(wt.customSource); err != nil {
 				return nil, errors.Wrap(err, errWatch)
 			}
 			continue
@@ -249,7 +249,7 @@ func (e *ControllerEngine) Create(name string, o controller.Options, w ...Watch)
 		}
 		rc.AddDelegate(gvk, ca)
 
-		if err := ctrl.Watch(source.Kind(ca, wt.kind), wt.handler, wt.predicates...); err != nil {
+		if err := ctrl.Watch(source.Kind(ca, wt.kind, wt.handler, wt.predicates...)); err != nil {
 			return nil, errors.Wrap(err, errWatch)
 		}
 	}

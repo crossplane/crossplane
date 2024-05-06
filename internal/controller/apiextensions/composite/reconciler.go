@@ -736,13 +736,9 @@ func getComposerResourcesNames(cds []ComposedResource) []string {
 // related) XRs when a new CompositionRevision is created. This speeds up
 // reconciliation of XRs on changes to the Composition by not having to wait for
 // the 60s sync period, but be instant.
-func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error, log logging.Logger) func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
-	return func(ctx context.Context, createEvent runtimeevent.CreateEvent, q workqueue.RateLimitingInterface) {
-		rev, ok := createEvent.Object.(*v1.CompositionRevision)
-		if !ok {
-			// should not happen
-			return
-		}
+func EnqueueForCompositionRevisionFunc(of resource.CompositeKind, list func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error, log logging.Logger) func(ctx context.Context, createEvent runtimeevent.TypedCreateEvent[*v1.CompositionRevision], q workqueue.RateLimitingInterface) {
+	return func(ctx context.Context, createEvent runtimeevent.TypedCreateEvent[*v1.CompositionRevision], q workqueue.RateLimitingInterface) {
+		rev := createEvent.Object
 
 		// get all XRs
 		xrs := kunstructured.UnstructuredList{}

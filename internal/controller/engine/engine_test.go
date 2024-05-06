@@ -27,9 +27,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -55,15 +53,15 @@ type MockController struct {
 	controller.Controller
 
 	MockStart func(stop context.Context) error
-	MockWatch func(s source.Source, h handler.EventHandler, p ...predicate.Predicate) error
+	MockWatch func(s source.Source) error
 }
 
 func (c *MockController) Start(stop context.Context) error {
 	return c.MockStart(stop)
 }
 
-func (c *MockController) Watch(s source.Source, h handler.EventHandler, p ...predicate.Predicate) error {
-	return c.MockWatch(s, h, p...)
+func (c *MockController) Watch(s source.Source) error {
+	return c.MockWatch(s)
 }
 
 func TestEngine(t *testing.T) {
@@ -122,7 +120,7 @@ func TestEngine(t *testing.T) {
 				},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) { return nil, nil }),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
-					c := &MockController{MockWatch: func(source.Source, handler.EventHandler, ...predicate.Predicate) error { return errBoom }}
+					c := &MockController{MockWatch: func(source.Source) error { return errBoom }}
 					return c, nil
 				}),
 			),
@@ -145,7 +143,7 @@ func TestEngine(t *testing.T) {
 				},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) { return nil, nil }),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
-					c := &MockController{MockWatch: func(source.Source, handler.EventHandler, ...predicate.Predicate) error { return errBoom }}
+					c := &MockController{MockWatch: func(source.Source) error { return errBoom }}
 					return c, nil
 				}),
 			),
