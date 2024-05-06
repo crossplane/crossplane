@@ -17,6 +17,8 @@ spec:
         - conditionType: Ready
           conditionStatus: "True"
           time: 0s
+        fields:
+          tags: {}
     patches:
       - type: FromCompositeFieldPath
         fromFieldPath: spec.coolField
@@ -24,3 +26,6 @@ spec:
       - type: ToCompositeFieldPath
         fromFieldPath: metadata.annotations["cf"]
         toFieldPath: status.coolerField
+      - fromFieldPath: spec.parameters.tags
+        toFieldPath: spec.forProvider.fields.tags
+        type: FromCompositeFieldPath
