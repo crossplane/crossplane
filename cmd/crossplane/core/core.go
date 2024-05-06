@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -30,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	kcache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,11 +46,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/metrics"
@@ -134,6 +138,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Deduplicate: true,
 	})
 
+	// The claim and XR controllers don't use the manager's cache or client.
+	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme: s,
@@ -270,9 +276,91 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
 	}
 
+	// Claim and XR controllers are started and stopped dynamically by the
+	// ControllerEngine below. When realtime compositions are enabled, they also
+	// start and stop their watches (e.g. of composed resources) dynamically. To
+	// do this, the ControllerEngine must have exclusive ownership of a cache.
+	// This allows it to track what controllers are using the cache's informers.
+	ca, err := cache.New(mgr.GetConfig(), cache.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Scheme:     mgr.GetScheme(),
+		Mapper:     mgr.GetRESTMapper(),
+		SyncPeriod: &c.SyncInterval,
+
+		// When a CRD is deleted, any informers for its GVKs will start trying
+		// to restart their watches, and fail with scary errors. This should
+		// only happen when realtime composition is enabled, and we should GC
+		// the informer within 60 seconds. This handler tries to make the error
+		// a little more informative, and less scary.
+		DefaultWatchErrorHandler: func(_ *kcache.Reflector, err error) {
+			if errors.Is(io.EOF, err) {
+				// Watch closed normally.
+				return
+			}
+			log.Debug("Watch error - probably due to CRD being uninstalled", "error", err)
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot create cache for API extension controllers")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		// Don't start the cache until the manager is elected.
+		<-mgr.Elected()
+
+		if err := ca.Start(ctx); err != nil {
+			log.Info("API extensions cache returned an error", "error", err)
+		}
+
+		log.Info("API extensions cache stopped")
+	}()
+
+	cl, err := client.New(mgr.GetConfig(), client.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Scheme:     mgr.GetScheme(),
+		Mapper:     mgr.GetRESTMapper(),
+		Cache: &client.CacheOptions{
+			Reader: ca,
+
+			// Don't cache secrets - there may be a lot of them.
+			DisableFor: []client.Object{&corev1.Secret{}},
+
+			// Cache unstructured resources (like XRs and MRs) on Get and List.
+			Unstructured: true,
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot create client for API extension controllers")
+	}
+
+	// It's important the engine's client is wrapped with unstructured.NewClient
+	// because controller-runtime always caches *unstructured.Unstructured, not
+	// our wrapper types like *composite.Unstructured. This client takes care of
+	// automatically wrapping and unwrapping *unstructured.Unstructured.
+	ce := engine.New(mgr,
+		engine.TrackInformers(ca, mgr.GetScheme()),
+		unstructured.NewClient(cl),
+		engine.WithLogger(log),
+	)
+
+	// TODO(negz): Garbage collect informers for CRs that are still defined
+	// (i.e. still have CRDs) but aren't used? Currently if an XR starts
+	// composing a kind of CR then stops, we won't stop the unused informer
+	// until the CRD that defines the CR is deleted. That could never happen.
+	// Consider for example composing two types of MR from the same provider,
+	// then updating to compose only one.
+
+	// Garbage collect informers for custom resources when their CRD is deleted.
+	if err := ce.GarbageCollectCustomResourceInformers(ctx); err != nil {
+		return errors.Wrap(err, "cannot start garbage collector for custom resource informers")
+	}
+
 	ao := apiextensionscontroller.Options{
-		Options:        o,
-		FunctionRunner: functionRunner,
+		Options:          o,
+		ControllerEngine: ce,
+		FunctionRunner:   functionRunner,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

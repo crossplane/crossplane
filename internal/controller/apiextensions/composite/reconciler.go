@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -38,10 +38,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/engine"
 )
 
 const (
@@ -251,14 +252,6 @@ func WithPollInterval(interval time.Duration) ReconcilerOption {
 	})
 }
 
-// WithClient specifies how the Reconciler should interact with the Kubernetes
-// API.
-func WithClient(c client.Client) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.client = c
-	}
-}
-
 // WithCompositionRevisionFetcher specifies how the composition to be used should be
 // fetched.
 func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOption {
@@ -332,11 +325,13 @@ func WithComposer(c Composer) ReconcilerOption {
 	}
 }
 
-// WithKindObserver specifies how the Reconciler should observe kinds for
-// realtime events.
-func WithKindObserver(o KindObserver) ReconcilerOption {
+// WithWatchStarter specifies how the Reconciler should start watches for any
+// resources it composes.
+func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStarter) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.kindObserver = o
+		r.controllerName = controllerName
+		r.watchHandler = h
+		r.engine = w
 	}
 }
 
@@ -359,6 +354,27 @@ func (fn CompositionRevisionValidatorFn) Validate(c *v1.CompositionRevision) err
 	return fn(c)
 }
 
+// A WatchStarter can start a new watch. XR controllers use this to dynamically
+// start watches when they compose new kinds of resources.
+type WatchStarter interface {
+	// StartWatches starts the supplied watches, if they're not running already.
+	StartWatches(name string, ws ...engine.Watch) error
+}
+
+// A NopWatchStarter does nothing.
+type NopWatchStarter struct{}
+
+// StartWatches does nothing.
+func (n *NopWatchStarter) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+
+// A WatchStarterFn is a function that can start a new watch.
+type WatchStarterFn func(name string, ws ...engine.Watch) error
+
+// StartWatches starts the supplied watches, if they're not running already.
+func (fn WatchStarterFn) StartWatches(name string, ws ...engine.Watch) error {
+	return fn(name, ws...)
+}
+
 type environment struct {
 	EnvironmentFetcher
 }
@@ -371,34 +387,15 @@ type compositeResource struct {
 	managed.ConnectionPublisher
 }
 
-// KindObserver tracks kinds of referenced composed resources in composite
-// resources in order to start watches for them for realtime events.
-type KindObserver interface {
-	// WatchComposedResources starts a watch of the given kinds to trigger reconciles when
-	// a referenced object of those kinds changes.
-	WatchComposedResources(kind ...schema.GroupVersionKind)
-}
-
-// KindObserverFunc implements KindObserver as a function.
-type KindObserverFunc func(kind ...schema.GroupVersionKind)
-
-// WatchComposedResources starts a watch of the given kinds to trigger reconciles when
-// a referenced object of those kinds changes.
-func (fn KindObserverFunc) WatchComposedResources(kind ...schema.GroupVersionKind) {
-	fn(kind...)
-}
-
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
-	kube := unstructured.NewClient(mgr.GetClient())
-
+func NewReconciler(c client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: kube,
+		client: c,
 
 		gvk: schema.GroupVersionKind(of),
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)}),
 			CompositionRevisionValidator: CompositionRevisionValidatorFn(func(rev *v1.CompositionRevision) error {
 				// TODO(negz): Presumably this validation will eventually be
 				// removed in favor of the new Composition validation
@@ -417,18 +414,21 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		},
 
 		composite: compositeResource{
-			Finalizer:           resource.NewAPIFinalizer(kube, finalizer),
-			CompositionSelector: NewAPILabelSelectorResolver(kube),
+			Finalizer:           resource.NewAPIFinalizer(c, finalizer),
+			CompositionSelector: NewAPILabelSelectorResolver(c),
 			EnvironmentSelector: NewNoopEnvironmentSelector(),
-			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
+			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(c), NewAPIConfigurator(c)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
 			// never filter any keys. Is there an unfiltered variant we could
 			// use by default instead?
-			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
+			ConnectionPublisher: NewAPIFilteredSecretPublisher(c, []string{}),
 		},
 
-		resource: NewPTComposer(kube),
+		resource: NewPTComposer(c),
+
+		// Dynamic watches are disabled by default.
+		engine: &NopWatchStarter{},
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -454,8 +454,12 @@ type Reconciler struct {
 	revision  revision
 	composite compositeResource
 
-	resource     Composer
-	kindObserver KindObserver
+	resource Composer
+
+	// Used to dynamically start composed resource watches.
+	controllerName string
+	engine         WatchStarter
+	watchHandler   handler.EventHandler
 
 	log    logging.Logger
 	record event.Recorder
@@ -620,12 +624,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if r.kindObserver != nil {
-		var gvks []schema.GroupVersionKind
-		for _, ref := range xr.GetResourceReferences() {
-			gvks = append(gvks, ref.GroupVersionKind())
-		}
-		r.kindObserver.WatchComposedResources(gvks...)
+	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
+	for i, ref := range xr.GetResourceReferences() {
+		ws[i] = engine.WatchFor(composed.New(composed.FromReference(ref)), engine.WatchTypeComposedResource, r.watchHandler)
+	}
+
+	// StartWatches is a no-op unless the realtime compositions feature flag is
+	// enabled. When the flag is enabled, the ControllerEngine that starts this
+	// controller also starts a garbage collector for its watches.
+	if err := r.engine.StartWatches(r.controllerName, ws...); err != nil {
+		// TODO(negz): If we stop polling this will be a more serious error.
+		log.Debug("Cannot start watches for composed resources. Relying on polling to know when they change.", "controller-name", r.controllerName, "error", err)
 	}
 
 	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)

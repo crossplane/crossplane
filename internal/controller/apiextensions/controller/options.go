@@ -20,12 +20,16 @@ package controller
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 
+	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // Options specific to apiextensions controllers.
 type Options struct {
 	controller.Options
+
+	// ControllerEngine used to dynamically start and stop controllers.
+	ControllerEngine *engine.ControllerEngine
 
 	// FunctionRunner used to run Composition Functions.
 	FunctionRunner *xfn.PackagedFunctionRunner

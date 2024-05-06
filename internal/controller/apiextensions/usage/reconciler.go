@@ -171,6 +171,12 @@ type usageResource struct {
 
 // NewReconciler returns a Reconciler of Usages.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
+	// TODO(negz): Stop using this wrapper? It's only necessary if the client is
+	// backed by a cache, and at the time of writing the manager's client isn't.
+	// It's configured not to automatically cache unstructured objects. The
+	// wrapper is needed when caching because controller-runtime doesn't support
+	// caching types that satisfy runtime.Unstructured - it only supports the
+	// concrete *unstructured.Unstructured type.
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{

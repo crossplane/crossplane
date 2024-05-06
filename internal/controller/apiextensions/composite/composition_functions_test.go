@@ -406,11 +406,12 @@ func TestFunctionCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error for the XR.
-						u := obj.(*kunstructured.Unstructured)
-						if u.GetKind() == "CoolComposed" {
-							return nil
+						switch obj.(type) {
+						case *composite.Unstructured:
+							return errBoom
+						default:
 						}
-						return errBoom
+						return nil
 					}),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
@@ -505,9 +506,10 @@ func TestFunctionCompose(t *testing.T) {
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error if we're patching a
 						// composed resource.
-						u := obj.(*kunstructured.Unstructured)
-						if u.GetKind() == "UncoolComposed" {
+						switch obj.(type) {
+						case *composed.Unstructured:
 							return errBoom
+						default:
 						}
 						return nil
 					}),
