@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package controller provides utilties for working with controllers.
-package controller
+// Package engine provides utilties for working with controllers.
+package engine
 
 import (
 	"context"
@@ -57,10 +57,11 @@ var (
 	DefaultNewControllerFn NewControllerFn = controller.NewUnmanaged
 )
 
-// An Engine manages the lifecycles of controller-runtime controllers (and their
-// caches). The lifecycles of the controllers are not coupled to lifecycle of
-// the engine, nor to the lifecycle of the controller manager it uses.
-type Engine struct {
+// An ControllerEngine manages the lifecycles of controller-runtime controllers
+// (and their caches). The lifecycles of the controllers are not coupled to
+// lifecycle of the engine, nor to the lifecycle of the controller manager it
+// uses.
+type ControllerEngine struct {
 	mgr manager.Manager
 
 	started map[string]context.CancelFunc
@@ -71,28 +72,28 @@ type Engine struct {
 	newCtrl  NewControllerFn
 }
 
-// An EngineOption configures an Engine.
-type EngineOption func(*Engine)
+// An ControllerEngineOption configures a ControllerEngine.
+type ControllerEngineOption func(*ControllerEngine)
 
 // WithNewCacheFn may be used to configure a different cache implementation.
 // DefaultNewCacheFn is used by default.
-func WithNewCacheFn(fn NewCacheFn) EngineOption {
-	return func(e *Engine) {
+func WithNewCacheFn(fn NewCacheFn) ControllerEngineOption {
+	return func(e *ControllerEngine) {
 		e.newCache = fn
 	}
 }
 
 // WithNewControllerFn may be used to configure a different controller
 // implementation. DefaultNewControllerFn is used by default.
-func WithNewControllerFn(fn NewControllerFn) EngineOption {
-	return func(e *Engine) {
+func WithNewControllerFn(fn NewControllerFn) ControllerEngineOption {
+	return func(e *ControllerEngine) {
 		e.newCtrl = fn
 	}
 }
 
-// NewEngine produces a new Engine.
-func NewEngine(mgr manager.Manager, o ...EngineOption) *Engine {
-	e := &Engine{
+// New produces a new ControllerEngine.
+func New(mgr manager.Manager, o ...ControllerEngineOption) *ControllerEngine {
+	e := &ControllerEngine{
 		mgr: mgr,
 
 		started: make(map[string]context.CancelFunc),
@@ -111,7 +112,7 @@ func NewEngine(mgr manager.Manager, o ...EngineOption) *Engine {
 
 // IsRunning indicates whether the named controller is running - i.e. whether it
 // has been started and does not appear to have crashed.
-func (e *Engine) IsRunning(name string) bool {
+func (e *ControllerEngine) IsRunning(name string) bool {
 	e.mx.RLock()
 	defer e.mx.RUnlock()
 
@@ -121,7 +122,7 @@ func (e *Engine) IsRunning(name string) bool {
 
 // Err returns any error encountered by the named controller. The returned error
 // is always nil if the named controller is running.
-func (e *Engine) Err(name string) error {
+func (e *ControllerEngine) Err(name string) error {
 	e.mx.RLock()
 	defer e.mx.RUnlock()
 
@@ -129,11 +130,11 @@ func (e *Engine) Err(name string) error {
 }
 
 // Stop the named controller.
-func (e *Engine) Stop(name string) {
+func (e *ControllerEngine) Stop(name string) {
 	e.done(name, nil)
 }
 
-func (e *Engine) done(name string, err error) {
+func (e *ControllerEngine) done(name string, err error) {
 	e.mx.Lock()
 	defer e.mx.Unlock()
 
@@ -160,17 +161,18 @@ type Watch struct {
 	predicates []predicate.Predicate
 }
 
-// For returns a Watch for the supplied kind of object. Events will be handled
-// by the supplied EventHandler, and may be filtered by the supplied predicates.
-func For(kind client.Object, h handler.EventHandler, p ...predicate.Predicate) Watch {
+// WatchFor returns a Watch for the supplied kind of object. Events will be
+// handled by the supplied EventHandler, and may be filtered by the supplied
+// predicates.
+func WatchFor(kind client.Object, h handler.EventHandler, p ...predicate.Predicate) Watch {
 	return Watch{kind: kind, handler: h, predicates: p}
 }
 
-// TriggeredBy returns a custom watch for secondary resources triggering the
-// controller. source.Kind can be used to create a source for a secondary cache.
-// Events will be handled by the supplied EventHandler, and may be filtered by
-// the supplied predicates.
-func TriggeredBy(source source.Source, h handler.EventHandler, p ...predicate.Predicate) Watch {
+// WatchTriggeredBy returns a custom watch for secondary resources triggering
+// the controller. source.Kind can be used to create a source for a secondary
+// cache. Events will be handled by the supplied EventHandler, and may be
+// filtered by the supplied predicates.
+func WatchTriggeredBy(source source.Source, h handler.EventHandler, p ...predicate.Predicate) Watch {
 	return Watch{customSource: source, handler: h, predicates: p}
 }
 
@@ -178,7 +180,7 @@ func TriggeredBy(source source.Source, h handler.EventHandler, p ...predicate.Pr
 // whose lifecycle is coupled to the controller. The controller is started with
 // the supplied options, and configured with the supplied watches. Start does
 // not block.
-func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
+func (e *ControllerEngine) Start(name string, o controller.Options, w ...Watch) error {
 	c, err := e.Create(name, o, w...)
 	if err != nil {
 		return err
@@ -195,7 +197,7 @@ type NamedController interface {
 
 type namedController struct {
 	name string
-	e    *Engine
+	e    *ControllerEngine
 	ca   cache.Cache
 	ctrl controller.Controller
 }
@@ -204,7 +206,7 @@ type namedController struct {
 // whose lifecycle is coupled to the controller. The controller is created with
 // the supplied options, and configured with the supplied watches. It is not
 // started yet.
-func (e *Engine) Create(name string, o controller.Options, w ...Watch) (NamedController, error) {
+func (e *ControllerEngine) Create(name string, o controller.Options, w ...Watch) (NamedController, error) {
 	// Each controller gets its own cache for the GVKs it owns. This cache is
 	// wrapped by a GVKRoutedCache that routes requests to other GVKs to the
 	// manager's cache. This way we can share informers for composed resources

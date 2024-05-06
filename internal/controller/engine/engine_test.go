@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package engine
 
 import (
 	"context"
@@ -80,13 +80,13 @@ func TestEngine(t *testing.T) {
 	}
 	cases := map[string]struct {
 		reason string
-		e      *Engine
+		e      *ControllerEngine
 		args   args
 		want   want
 	}{
 		"NewCacheError": {
 			reason: "Errors creating a new cache should be returned",
-			e: NewEngine(&fake.Manager{},
+			e: New(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) { return nil, errBoom }),
 			),
 			args: args{
@@ -98,7 +98,7 @@ func TestEngine(t *testing.T) {
 		},
 		"NewControllerError": {
 			reason: "Errors creating a new controller should be returned",
-			e: NewEngine(
+			e: New(
 				&fake.Manager{
 					Scheme: runtime.NewScheme(),
 					Cache:  &MockCache{},
@@ -115,7 +115,7 @@ func TestEngine(t *testing.T) {
 		},
 		"WatchError": {
 			reason: "Errors adding a watch should be returned",
-			e: NewEngine(
+			e: New(
 				&fake.Manager{
 					Scheme: runtime.NewScheme(),
 					Cache:  &MockCache{},
@@ -128,7 +128,7 @@ func TestEngine(t *testing.T) {
 			),
 			args: args{
 				name: "coolcontroller",
-				w: []Watch{For(&unstructured.Unstructured{
+				w: []Watch{WatchFor(&unstructured.Unstructured{
 					Object: map[string]interface{}{"apiVersion": "example.org/v1", "kind": "Thing"},
 				}, nil)},
 			},
@@ -138,7 +138,7 @@ func TestEngine(t *testing.T) {
 		},
 		"SchemeError": {
 			reason: "Passing an object of unknown GVK",
-			e: NewEngine(
+			e: New(
 				&fake.Manager{
 					Scheme: runtime.NewScheme(),
 					Cache:  &MockCache{},
@@ -151,7 +151,7 @@ func TestEngine(t *testing.T) {
 			),
 			args: args{
 				name: "coolcontroller",
-				w:    []Watch{For(&unstructured.Unstructured{}, nil)},
+				w:    []Watch{WatchFor(&unstructured.Unstructured{}, nil)},
 			},
 			want: want{
 				err: errors.Wrap(runtime.NewMissingKindErr("unstructured object has no kind"), "failed to get GVK for type *unstructured.Unstructured"),
@@ -159,7 +159,7 @@ func TestEngine(t *testing.T) {
 		},
 		"CacheCrashError": {
 			reason: "Errors starting or running a cache should be returned",
-			e: NewEngine(&fake.Manager{},
+			e: New(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) {
 					c := &MockCache{MockStart: func(_ context.Context) error { return errBoom }}
 					return c, nil
@@ -180,7 +180,7 @@ func TestEngine(t *testing.T) {
 		},
 		"ControllerCrashError": {
 			reason: "Errors starting or running a controller should be returned",
-			e: NewEngine(&fake.Manager{},
+			e: New(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) {
 					c := &MockCache{MockStart: func(_ context.Context) error {
 						return nil
