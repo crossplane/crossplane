@@ -35,7 +35,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	runtimeevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -466,7 +465,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
+	ro := r.CompositeReconcilerOptions(d)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
 		ro = append(ro, composite.WithKindObserver(composite.KindObserverFunc(r.xrInformers.WatchComposedResources)))
@@ -560,33 +559,33 @@ func (r *Reconciler) stopCompositeController(d *v1.CompositeResourceDefinition) 
 
 // CompositeReconcilerOptions builds the options for a composite resource
 // reconciler. The options vary based on the supplied feature flags.
-func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.CompositeResourceDefinition, c client.Client, l logging.Logger, e event.Recorder) []composite.ReconcilerOption {
+func (r *Reconciler) CompositeReconcilerOptions(d *v1.CompositeResourceDefinition) []composite.ReconcilerOption {
 	// The default set of reconciler options when no feature flags are enabled.
 	o := []composite.ReconcilerOption{
-		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys())),
+		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(*d, e),
-			composite.NewAPIDefaultCompositionSelector(c, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), e),
-			composite.NewAPILabelSelectorResolver(c),
+			composite.NewEnforcedCompositionSelector(*d, r.record),
+			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
+			composite.NewAPILabelSelectorResolver(r.client),
 		)),
-		composite.WithLogger(l.WithValues("controller", composite.ControllerName(d.GetName()))),
-		composite.WithRecorder(e.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
-		composite.WithPollInterval(co.PollInterval),
+		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
+		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
+		composite.WithPollInterval(r.options.PollInterval),
 	}
 
 	// We only want to enable Composition environment support if the relevant
 	// feature flag is enabled. Otherwise we will default to noop selector and
 	// fetcher that will always return nil. All environment features are
 	// subsequently skipped if the environment is nil.
-	if co.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
+	if r.options.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
 		o = append(o,
-			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(c)),
-			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(c)))
+			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(r.client)),
+			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(r.client)))
 	}
 
 	// If external secret stores aren't enabled we just fetch connection details
 	// from Kubernetes secrets.
-	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(c)
+	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(r.client)
 
 	// We only want to enable ExternalSecretStore support if the relevant
 	// feature flag is enabled. Otherwise, we start the XR reconcilers with
@@ -594,48 +593,48 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	// We also add a new Configurator for ExternalSecretStore which basically
 	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
 	// the composite resource.
-	if co.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := []managed.ConnectionPublisher{
-			composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys()),
-			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind,
-				connection.WithTLSConfig(co.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
+			composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys()),
+			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind,
+				connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
 		}
 
 		// If external secret stores are enabled we need to support fetching
 		// connection details from both secrets and external stores.
 		fetcher = composite.ConnectionDetailsFetcherChain{
-			composite.NewSecretConnectionDetailsFetcher(c),
-			connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(co.ESSOptions.TLSConfig)),
+			composite.NewSecretConnectionDetailsFetcher(r.client),
+			connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
 		}
 
 		cc := composite.NewConfiguratorChain(
-			composite.NewAPINamingConfigurator(c),
-			composite.NewAPIConfigurator(c),
-			composite.NewSecretStoreConnectionDetailsConfigurator(c),
+			composite.NewAPINamingConfigurator(r.client),
+			composite.NewAPIConfigurator(r.client),
+			composite.NewSecretStoreConnectionDetailsConfigurator(r.client),
 		)
 
 		o = append(o,
 			composite.WithConnectionPublishers(pc...),
 			composite.WithConfigurator(cc),
-			composite.WithComposer(composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))))
+			composite.WithComposer(composite.NewPTComposer(r.client, composite.WithComposedConnectionDetailsFetcher(fetcher))))
 	}
 
 	// If Composition Functions are enabled we use two different Composer
 	// implementations. One supports P&T (aka 'Resources mode') and the other
 	// Functions (aka 'Pipeline mode').
-	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
-		ptc := composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))
+	if r.options.Features.Enabled(features.EnableBetaCompositionFunctions) {
+		ptc := composite.NewPTComposer(r.client, composite.WithComposedConnectionDetailsFetcher(fetcher))
 
 		fcopts := []composite.FunctionComposerOption{
-			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
+			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.client, fetcher)),
 			composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		}
 
-		if co.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
-			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(c)))
+		if r.options.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
+			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(r.client)))
 		}
 
-		fc := composite.NewFunctionComposer(c, co.FunctionRunner, fcopts...)
+		fc := composite.NewFunctionComposer(r.client, r.options.FunctionRunner, fcopts...)
 
 		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.
