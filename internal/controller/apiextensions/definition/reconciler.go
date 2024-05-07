@@ -493,7 +493,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		engine.WatchFor(u, &handler.EnqueueRequestForObject{}),
 		// enqueue composites whenever a matching CompositionRevision is created
 		engine.WatchTriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}, handler.TypedFuncs[*v1.CompositionRevision]{
-			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
+			CreateFunc: EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
 		})),
 	}
 
