@@ -282,7 +282,7 @@ spec:
                               type: string
                             mergeOptions:
                               description: MergeOptions Specifies merge options on
-                                a field path
+                                a field path.
                               properties:
                                 appendSlice:
                                   description: Specifies that already existing elements
@@ -696,7 +696,7 @@ spec:
                                 type: string
                               mergeOptions:
                                 description: MergeOptions Specifies merge options
-                                  on a field path
+                                  on a field path.
                                 properties:
                                   appendSlice:
                                     description: Specifies that already existing elements
@@ -1237,7 +1237,7 @@ spec:
                                 type: string
                               mergeOptions:
                                 description: MergeOptions Specifies merge options
-                                  on a field path
+                                  on a field path.
                                 properties:
                                   appendSlice:
                                     description: Specifies that already existing elements
