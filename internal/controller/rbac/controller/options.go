@@ -40,10 +40,6 @@ const (
 type Options struct {
 	controller.Options
 
-	// ManagementPolicy specifies which roles the RBAC manager should
-	// manage.
-	ManagementPolicy ManagementPolicy
-
 	// AllowClusterRole is used to determine what additional RBAC
 	// permissions may be granted to Providers that request them. The
 	// provider may request any permission that appears in the named role.
