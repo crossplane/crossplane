@@ -22,7 +22,6 @@ import (
 
 	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 	"github.com/crossplane/crossplane/internal/controller/rbac/definition"
-	"github.com/crossplane/crossplane/internal/controller/rbac/namespace"
 	"github.com/crossplane/crossplane/internal/controller/rbac/provider/binding"
 	"github.com/crossplane/crossplane/internal/controller/rbac/provider/roles"
 )
@@ -38,10 +37,5 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 			return err
 		}
 	}
-
-	if o.ManagementPolicy != controller.ManagementPolicyAll {
-		return nil
-	}
-
-	return namespace.Setup(mgr, o)
+	return nil
 }
