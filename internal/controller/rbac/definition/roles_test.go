@@ -96,7 +96,7 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsEdit,
 						},
 					},
@@ -114,7 +114,7 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsView,
 						},
 					},
@@ -131,7 +131,7 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsBrowse,
 						},
 					},
@@ -195,12 +195,12 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsEdit,
 						},
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXRC},
+							Resources: []string{pluralXRC, pluralXRC + suffixStatus},
 							Verbs:     verbsEdit,
 						},
 					},
@@ -218,12 +218,12 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsView,
 						},
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXRC},
+							Resources: []string{pluralXRC, pluralXRC + suffixStatus},
 							Verbs:     verbsView,
 						},
 					},
@@ -241,7 +241,7 @@ func TestRenderClusterRoles(t *testing.T) {
 					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{group},
-							Resources: []string{pluralXR},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsBrowse,
 						},
 					},
