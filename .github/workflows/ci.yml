@@ -233,6 +233,7 @@ jobs:
         with:
           flags: unittests
           file: _output/tests/linux_amd64/coverage.txt
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   e2e-tests:
     runs-on: ubuntu-22.04
