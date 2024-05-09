@@ -187,12 +187,24 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		return nil, errors.Errorf(errFmtEmptyEndpoint, active.GetName())
 	}
 
+	// If we have a connection for the up-to-date endpoint, return it.
 	r.connsMx.RLock()
 	conn, ok := r.conns[name]
+	if ok && conn.Target() == active.Status.Endpoint {
+		defer r.connsMx.RUnlock()
+		return conn, nil
+	}
 	r.connsMx.RUnlock()
 
+	// Either we didn't have a connection, or it wasn't up-to-date.
+	r.connsMx.Lock()
+	defer r.connsMx.Unlock()
+
+	// Another Goroutine might have updated the connections between when we
+	// released the read lock and took the write lock, so check again.
+	conn, ok = r.conns[name]
 	if ok {
-		// We have a connection for the up-to-date endpoint. Return it.
+		// We now have a connection for the up-to-date endpoint.
 		if conn.Target() == active.Status.Endpoint {
 			return conn, nil
 		}
@@ -202,6 +214,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		// already closed or in the process of closing.
 		log.Debug("Closing gRPC client connection with stale target", "old-target", conn.Target(), "new-target", active.Status.Endpoint)
 		_ = conn.Close()
+		delete(r.conns, name)
 	}
 
 	// This context is only used for setting up the connection.
@@ -221,9 +234,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		return nil, errors.Wrapf(err, errFmtDialFunction, active.Status.Endpoint, active.GetName())
 	}
 
-	r.connsMx.Lock()
 	r.conns[name] = conn
-	r.connsMx.Unlock()
 
 	log.Debug("Created new gRPC client connection", "target", active.Status.Endpoint)
 	return conn, nil
@@ -258,17 +269,16 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 	// path where no connections need garbage collecting we shouldn't
 	// take it at all.
 
+	// No need to take a write lock or list Functions if there's no work to do.
 	r.connsMx.RLock()
-	connections := make([]string, 0, len(r.conns))
-	for name := range r.conns {
-		connections = append(connections, name)
+	if len(r.conns) == 0 {
+		defer r.connsMx.RUnlock()
+		return 0, nil
 	}
 	r.connsMx.RUnlock()
 
-	// No need to list Functions if there's no work to do.
-	if len(connections) == 0 {
-		return 0, nil
-	}
+	r.connsMx.Lock()
+	defer r.connsMx.Unlock()
 
 	l := &pkgv1beta1.FunctionList{}
 	if err := r.client.List(ctx, l); err != nil {
@@ -280,28 +290,20 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 		functionExists[f.GetName()] = true
 	}
 
-	// Build a list of connections to garbage collect.
-	gc := make([]string, 0)
-	for _, name := range connections {
-		if !functionExists[name] {
-			gc = append(gc, name)
+	// Garbage collect connections.
+	closed := 0
+	for name := range r.conns {
+		if functionExists[name] {
+			continue
 		}
-	}
 
-	// No need to take a write lock if there's no work to do.
-	if len(gc) == 0 {
-		return 0, nil
-	}
-
-	r.log.Debug("Closing gRPC client connections for Functions that are no longer installed", "functions", gc)
-	r.connsMx.Lock()
-	for _, name := range gc {
 		// Close only returns an error is if the connection is already
 		// closed or in the process of closing.
 		_ = r.conns[name].Close()
 		delete(r.conns, name)
+		closed++
+		r.log.Debug("Closed gRPC client connection to Function that is no longer installed", "function", name)
 	}
-	r.connsMx.Unlock()
 
-	return len(gc), nil
+	return closed, nil
 }
