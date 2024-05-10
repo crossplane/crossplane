@@ -229,10 +229,11 @@ jobs:
         run: make -j2 test
 
       - name: Publish Unit Test Coverage
-        uses: codecov/codecov-action@ab904c41d6ece82784817410c45d8b8c02684457 # v3
+        uses: codecov/codecov-action@v4
         with:
           flags: unittests
           file: _output/tests/linux_amd64/coverage.txt
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   e2e-tests:
     runs-on: ubuntu-22.04
@@ -312,6 +313,16 @@ jobs:
           path: ./logs-kind
           if-no-files-found: error
           retention-days: 7
+      
+      - name: Publish E2E Test Flakes
+        if: '!cancelled()'
+        uses: buildpulse/buildpulse-action@v0.11.0
+        with:
+          account: 45158470
+          repository: 147886080
+          key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
+          secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
+          path: _output/tests/linux_amd64/e2e-tests.xml
 
   publish-artifacts:
     runs-on: ubuntu-22.04

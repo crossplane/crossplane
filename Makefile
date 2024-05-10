@@ -111,13 +111,6 @@ gen-kustomize-crds:
 		; done
 	@$(OK) All CRDs added to Kustomize file for local development
 
-# Generate a coverage report for cobertura applying exclusions on
-# - generated file
-cobertura:
-	@cat $(GO_TEST_OUTPUT)/coverage.txt | \
-		grep -v zz_generated.deepcopy | \
-		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
-
 e2e-tag-images:
 	@$(INFO) Tagging E2E test images
 	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
@@ -131,17 +124,25 @@ E2E_TEST_FLAGS ?=
 # https://github.com/kubernetes-sigs/e2e-framework/issues/282
 E2E_PATH = $(WORK_DIR)/e2e
 
+GOTESTSUM_VERSION ?= v1.11.0
+GOTESTSUM := $(TOOLS_HOST_DIR)/gotestsum
+
+$(GOTESTSUM):
+	@$(INFO) installing gotestsum
+	@GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) install gotest.tools/gotestsum@$(GOTESTSUM_VERSION) || $(FAIL)
+	@$(OK) installed gotestsum
+
 e2e-run-tests:
 	@$(INFO) Run E2E tests
 	@mkdir -p $(E2E_PATH)
 	@ln -sf $(KIND) $(E2E_PATH)/kind
 	@ln -sf $(HELM) $(E2E_PATH)/helm
-	@PATH="$(E2E_PATH):${PATH}" $(GO_TEST_OUTPUT)/e2e $(E2E_TEST_FLAGS) || $(FAIL)
+	@PATH="$(E2E_PATH):${PATH}" $(GOTESTSUM) --format testname --junitfile $(GO_TEST_OUTPUT)/e2e-tests.xml --raw-command -- $(GO) tool test2json -t -p e2e $(GO_TEST_OUTPUT)/e2e -test.v $(E2E_TEST_FLAGS) || $(FAIL)
 	@$(OK) Run E2E tests
 
 e2e.init: build e2e-tag-images
 
-e2e.run: $(KIND) $(HELM3) e2e-run-tests
+e2e.run: $(GOTESTSUM) $(KIND) $(HELM3) e2e-run-tests
 
 # Update the submodules, such as the common build scripts.
 submodules:
@@ -173,14 +174,13 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug
 
-.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile e2e.test.images
+.PHONY: manifests submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile e2e.test.images
 
 # ====================================================================================
 # Special Targets
 
 define CROSSPLANE_MAKE_HELP
 Crossplane Targets:
-    cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
     submodules         Update the submodules, such as the common build scripts.
     run                Run crossplane locally, out-of-cluster. Useful for development.
 
