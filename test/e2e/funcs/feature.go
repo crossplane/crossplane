@@ -66,13 +66,18 @@ const DefaultPollInterval = time.Millisecond * 500
 
 type onSuccessHandler func(o k8s.Object)
 
-// AllOf runs the supplied functions in order.
+// AllOf runs the supplied functions in order. If a function fails the test and
+// the environment is configured to fail fast (e2e-framework's -fail-fast flag)
+// the remaining functions will not be run.
 func AllOf(fns ...features.Func) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		for _, fn := range fns {
 			ctx = fn(ctx, t, c)
+			if t.Failed() && c.FailFast() {
+				break
+			}
 		}
 		return ctx
 	}
