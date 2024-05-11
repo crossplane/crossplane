@@ -91,7 +91,7 @@ type startCommand struct {
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
-	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" helm:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
+	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
 	SyncInterval     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                    short:"s"`
 	PollInterval     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
