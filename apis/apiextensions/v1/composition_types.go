@@ -21,11 +21,11 @@ import (
 )
 
 // CompositionSpec specifies desired state of a composition.
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 type CompositionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	CompositeTypeRef TypeReference `json:"compositeTypeRef"`
 

@@ -26,18 +26,19 @@ import (
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
-// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
 	// name of the XRD (in the form `<names.plural>.<group>`).
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Group string `json:"group"`
 
 	// Names specifies the resource and kind names of the defined composite
 	// resource.
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
 
@@ -51,6 +52,7 @@ type CompositeResourceDefinitionSpec struct {
 	// be changed or removed once they have been set.
 	// +optional
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
@@ -75,6 +77,7 @@ type CompositeResourceDefinitionSpec struct {
 	// by all composite instances whose schema is defined by this definition.
 	// +optional
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	EnforcedCompositionRef *CompositionReference `json:"enforcedCompositionRef,omitempty"`
 
