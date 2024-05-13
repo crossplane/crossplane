@@ -16,4 +16,4 @@ metadata:
   name: function-auto-ready
 spec:
   # NOTE(negz): This is also currently manually pushed.
-  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2
+  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.2.1
