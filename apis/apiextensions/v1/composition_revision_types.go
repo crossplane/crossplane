@@ -35,10 +35,12 @@ const (
 
 // CompositionRevisionSpec specifies the desired state of the composition
 // revision.
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.value) || has(self.value)", message="Value is required once set"
 type CompositionRevisionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
-	// +immutable
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	CompositeTypeRef TypeReference `json:"compositeTypeRef"`
 
 	// Mode controls what type or "mode" of Composition will be used.
@@ -118,7 +120,8 @@ type CompositionRevisionSpec struct {
 	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 
 	// Revision number. Newer revisions have larger numbers.
-	// +immutable
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Revision int64 `json:"revision"`
 }
 
