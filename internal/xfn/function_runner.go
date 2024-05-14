@@ -164,7 +164,7 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 // cost of listing and iterating over FunctionRevisions from cache. The default
 // RevisionHistoryLimit is 1, so for most Functions we'd expect there to be two
 // revisions in the cache (one active, and one previously active).
-func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string) (*grpc.ClientConn, error) {
+func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string) (*grpc.ClientConn, error) { //nolint:gocyclo // Only slightly over (12).
 	log := r.log.WithValues("function", name)
 
 	l := &pkgv1beta1.FunctionRevisionList{}
