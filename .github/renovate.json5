@@ -12,7 +12,7 @@
   "prConcurrentLimit": 5,
 // The branches renovate should target
 // PLEASE UPDATE THIS WHEN RELEASING.
-  "baseBranches": ["master","release-1.13","release-1.14","release-1.15"],
+  "baseBranches": ["master","release-1.13","release-1.14","release-1.15", "release-1.16"],
   "ignorePaths": [
     "design/**",
     // We test upgrades, so leave it on an older version on purpose.
