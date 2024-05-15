@@ -54,8 +54,8 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
+      - name: Download Go Modules
+        run: make modules.download modules.check
 
       - name: Check Diff
         run: make check-diff
@@ -108,8 +108,8 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
+      - name: Download Go Modules
+        run: make modules.download modules.check
 
       # We could run 'make lint' to ensure our desired Go version, but we prefer
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
@@ -154,8 +154,8 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
+      - name: Download Go Modules
+        run: make modules.download modules.check
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c7f9125735019aa87cfc361530512d50ea439c71 # v3
@@ -222,8 +222,8 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
+      - name: Download Go Modules
+        run: make modules.download modules.check
 
       - name: Run Unit Tests
         run: make -j2 test
@@ -292,8 +292,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pkg-
 
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
+      - name: Download Go Modules
+        run: make modules.download modules.check
 
       - name: Build Helm Chart
         run: make -j2 build
@@ -382,8 +382,8 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
+      - name: Download Go Modules
+        run: make modules.download modules.check
 
       - name: Build Artifacts
         run: make -j2 build.all
