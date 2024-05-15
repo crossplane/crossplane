@@ -125,8 +125,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/crossplane/crossplane-runtime v1.16.0-rc.2 h1:jjOx1uJdllLA+z9qeYMx7EtXL74pCEb1XFHOHf2WWIY=
-github.com/crossplane/crossplane-runtime v1.16.0-rc.2/go.mod h1:Pz2tdGVMF6KDGzHZOkvKro0nKc8EzK0sb/nSA7pH4Dc=
+github.com/crossplane/crossplane-runtime v1.16.0 h1:lz+l0wEB3qowdTmN7t0PZkfuNSvfOoEhQrEYFbYqMow=
+github.com/crossplane/crossplane-runtime v1.16.0/go.mod h1:Pz2tdGVMF6KDGzHZOkvKro0nKc8EzK0sb/nSA7pH4Dc=
 github.com/cyphar/filepath-securejoin v0.2.4 h1:Ugdm7cg7i6ZK6x3xDF1oEu1nfkyfH53EtKeQYTC3kyg=
 github.com/cyphar/filepath-securejoin v0.2.4/go.mod h1:aPGpWjXOXUn2NCNjFvBE6aRxGGx79pTxQpKOJNYHHl4=
 github.com/danieljoos/wincred v1.1.2/go.mod h1:GijpziifJoIBfYh+S7BbkdUTU4LfM+QnGqR5Vl2tAx0=
