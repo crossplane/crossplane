@@ -43,51 +43,10 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 		// Strip the digest before fetching the image
 		image = strings.SplitN(image, "@", 2)[0]
 	} else if strings.Contains(image, ":") {
-		// Separate the image base and the image tag
-		parts := strings.SplitN(image, ":", 2)
-		imageBase := parts[0]
-		imageTag := parts[1]
-
-		// Check if the tag is a constraint
-		isConstraint := true
-		c, err := semver.NewConstraint(imageTag)
+		var err error
+		image, err = findImageTagForVersionConstraint(image)
 		if err != nil {
-			isConstraint = false
-		}
-
-		if isConstraint {
-			// Fetch all image tags
-			tags, err := crane.ListTags(imageBase)
-			if err != nil {
-				return nil, errors.Wrapf(err, "cannot fetch tags for the image %s", imageBase)
-			}
-
-			// Convert tags to semver versions
-			vs := []*semver.Version{}
-			for _, r := range tags {
-				v, err := semver.NewVersion(r)
-				if err != nil {
-					// We skip any tags that are not valid semantic versions
-					continue
-				}
-				vs = append(vs, v)
-			}
-
-			// Sort all versions and find the last version complient with the constraint
-			sort.Sort(semver.Collection(vs))
-			var addVer string
-			for _, v := range vs {
-				if c.Check(v) {
-					addVer = v.Original()
-				}
-			}
-
-			if addVer == "" {
-				return nil, errors.Wrapf(err, "cannot find any tag complient with the constraint %s", imageTag)
-			}
-
-			// Compose new complete image string if any complient version was found
-			image = fmt.Sprintf("%s:%s", imageBase, addVer)
+			return nil, errors.Wrapf(err, "cannot find image tag for version constraint")
 		}
 	}
 
@@ -122,6 +81,57 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 	}
 
 	return &ll, nil
+}
+
+func findImageTagForVersionConstraint(image string) (string, error) {
+	// Separate the image base and the image tag
+	parts := strings.SplitN(image, ":", 2)
+	imageBase := parts[0]
+	imageTag := parts[1]
+
+	// Check if the tag is a constraint
+	isConstraint := true
+	c, err := semver.NewConstraint(imageTag)
+	if err != nil {
+		isConstraint = false
+	}
+
+	if isConstraint {
+		// Fetch all image tags
+		tags, err := crane.ListTags(imageBase)
+		if err != nil {
+			return "", errors.Wrapf(err, "cannot fetch tags for the image %s", imageBase)
+		}
+
+		// Convert tags to semver versions
+		vs := []*semver.Version{}
+		for _, r := range tags {
+			v, err := semver.NewVersion(r)
+			if err != nil {
+				// We skip any tags that are not valid semantic versions
+				continue
+			}
+			vs = append(vs, v)
+		}
+
+		// Sort all versions and find the last version complient with the constraint
+		sort.Sort(semver.Collection(vs))
+		var addVer string
+		for _, v := range vs {
+			if c.Check(v) {
+				addVer = v.Original()
+			}
+		}
+
+		if addVer == "" {
+			return "", errors.Wrapf(err, "cannot find any tag complient with the constraint %s", imageTag)
+		}
+
+		// Compose new complete image string if any complient version was found
+		image = fmt.Sprintf("%s:%s", imageBase, addVer)
+	}
+
+	return image, nil
 }
 
 func extractPackageContent(layer conregv1.Layer) ([][]byte, []byte, error) {
