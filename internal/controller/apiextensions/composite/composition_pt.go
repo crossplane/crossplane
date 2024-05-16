@@ -45,7 +45,7 @@ import (
 const (
 	errGetComposed   = "cannot get composed resource"
 	errGCComposed    = "cannot garbage collect composed resource"
-	errApplyComposed = "cannot apply composed resource"
+	errApplyComposed = "cannot apply composed resource %q"
 	errFetchDetails  = "cannot fetch connection details"
 	errInline        = "cannot inline Composition patch sets"
 
@@ -279,7 +279,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 				// run again the composition after some other resource is
 				// created or updated successfully. So, we emit a warning event
 				// and move on.
-				events = append(events, event.Warning(reasonCompose, errors.Wrap(err, errApplyComposed)))
+				events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))))
 				// We unset the cd here so that we don't try to observe it
 				// later. This will also mean we report it as not ready and not
 				// synced. Resulting in the XR being reported as not ready nor
@@ -291,7 +291,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			// TODO(negz): Include the template name (if any) in this error.
 			// Including the rendered resource's kind may help too (e.g. if the
 			// template is anonymous).
-			return CompositionResult{}, errors.Wrap(err, errApplyComposed)
+			return CompositionResult{}, errors.Wrapf(err, errApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))
 		}
 	}
 
