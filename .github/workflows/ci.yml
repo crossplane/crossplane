@@ -115,7 +115,7 @@ jobs:
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
       # point out linter violations).
       - name: Lint
-        uses: golangci/golangci-lint-action@3cfe3a4abbb849e10058ce4af15d205b6da42804 # v4
+        uses: golangci/golangci-lint-action@d6238b002a20823d52840fda27e2d4891c5952dc # v4
         with:
           version: ${{ env.GOLANGCI_VERSION }}
           skip-cache: true # We do our own caching.
