@@ -57,7 +57,7 @@ I proposed we switch from Make to https://earthly.dev.
 
 Earthly targets the 'glue' layer between language-specific tools like `go` and
 CI systems like GitHub Actions. In Crossplane, Earthly would replace Make and
-Docker. It's based on Docker's [BuildKit](buildkit), so all builds are
+Docker. It's based on Docker's [BuildKit][buildkit], so all builds are
 containerized and hermetic.
 
 ### Configuration
@@ -132,8 +132,8 @@ Here are some CI comparisons run on GitHub Actions standard workers.
 | Publish artifacts | ~12 minutes | ~14 minutes |
 | Run E2E tests | ~12 minutes | ~14 minutes |
 
-Earthly uses [ caching to run containerized builds as fast as Make's
-"native" builds. For Crossplane this primarily means two things:
+Earthly uses caching to run containerized builds as fast as Make's "native"
+builds. For Crossplane this primarily means two things:
 
 * It caches Go modules, and will only redownload them if `go.mod` changes.
 * It stores the Go build cache in a cache volume that's reused across builds.
@@ -220,7 +220,7 @@ example:
 * https://docs.dagger.io/quickstart/428201/custom-function
 
 I could see this becoming useful if our build logic became _really_ complex, but
-in most case I prefer the simpler `Earthfile` syntax.
+for our current use cases I prefer the simpler `Earthfile` syntax.
 
 ### Bazel and friends
 
@@ -230,7 +230,7 @@ multiple languages, where building the entire monorepo for every change isn't
 feasible. Bazel uses `BUILD` files with rules written in Starlark, a Pythonic
 language.
 
-Bazel doesn't wrap tools like `go`, but completely replaces them. It's not
+Bazel doesn't wrap tools like `go`, it completely replaces them. It's not
 compatible with Go modules for example, and instead offers tools like `gazelle`
 to generate a `BUILD` file from a module-based third party dependency.
 

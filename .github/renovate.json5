@@ -33,26 +33,24 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Bump Go version used in workflows",
+      "description": "Bump Go version in Earthfile",
       "fileMatch": [
-        "^\\.github\\/workflows\\/[^/]+\\.ya?ml$"
+        "^Earthfile$"
       ],
       "matchStrings": [
-        "GO_VERSION: '(?<currentValue>.*?)'\\n"
+        "ARG --global GO_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
     },
     {
       "customType": "regex",
-      "description": "Bump golangci-lint version in workflows and the Makefile",
+      "description": "Bump golangci-lint version in workflows and the Earthfile",
       "fileMatch": [
-        "^\\.github\\/workflows\\/[^/]+\\.ya?ml$",
-        "^Makefile$"
+        "^Earthfile$"
       ],
       "matchStrings": [
-        "GOLANGCI_VERSION: 'v(?<currentValue>.*?)'\\n",
-        "GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n"
+        "ARG GOLANGCI_LINT_VERSION=v(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "golangci/golangci-lint",
@@ -60,29 +58,73 @@
     },
     {
       "customType": "regex",
-      "description": "Bump helm version in the Makefile",
+      "description": "Bump helm version in the Earthfile",
       "fileMatch": [
-        "^Makefile$"
+        "^Earthfile$"
       ],
       "matchStrings": [
-        "HELM3_VERSION = (?<currentValue>.*?)\\n"
+        "ARG HELM_VERSION=v(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "helm/helm",
     },
     {
       "customType": "regex",
-      "description": "Bump kind version in the Makefile",
+      "description": "Bump helm-docs version in the Earthfile",
       "fileMatch": [
-        "^Makefile$"
+        "^Earthfile$"
       ],
       "matchStrings": [
-        "KIND_VERSION = (?<currentValue>.*?)\\n"
+        "ARG HELM_DOCS_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "norwoodj/helm-docs",
+    },
+    {
+      "customType": "regex",
+      "description": "Bump kind version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG KIND_VERSION=v(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "kubernetes-sigs/kind",
-    }
+    },
+    {
+      "customType": "regex",
+      "description": "Bump gotestsum version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG GOTESTSUM_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "gotestyourself/gotestsum",
+    },
+    {
+      "customType": "regex",
+      "description": "Bump codeql version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG CODEQL_VERSION=v(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "github/codeql-action",
+    },
   ],
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
+  "dockerfile": {
+    "fileMatch:" [
+      "(^|/)Earthfile$"
+    ]
+  },
   "crossplane": {
     "fileMatch": [
       "(^|/)test/e2e/.*\\.ya?ml$"
@@ -122,7 +164,6 @@
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
-          "git submodule update --init",
           "install-tool golang $(grep -oP \"^toolchain go\\K.+\" go.mod)",
           "make go.lint",
         ],

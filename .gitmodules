@@ -1,3 +1,0 @@
-[submodule "build"]
-	path = build
-	url = https://github.com/crossplane/build
