@@ -203,7 +203,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot create object"), errApplyComposed),
+				err: errors.Wrapf(errors.Wrap(errBoom, "cannot create object"), errFmtApplyComposed, "cool-resource"),
 			},
 		},
 		"FetchConnectionDetailsError": {

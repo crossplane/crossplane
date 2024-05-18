@@ -43,12 +43,12 @@ import (
 
 // Error strings.
 const (
-	errGetComposed   = "cannot get composed resource"
-	errGCComposed    = "cannot garbage collect composed resource"
-	errApplyComposed = "cannot apply composed resource %q"
-	errFetchDetails  = "cannot fetch connection details"
-	errInline        = "cannot inline Composition patch sets"
+	errGetComposed  = "cannot get composed resource"
+	errGCComposed   = "cannot garbage collect composed resource"
+	errFetchDetails = "cannot fetch connection details"
+	errInline       = "cannot inline Composition patch sets"
 
+	errFmtApplyComposed              = "cannot apply composed resource %q"
 	errFmtPatchEnvironment           = "cannot apply environment patch at index %d"
 	errFmtParseBase                  = "cannot parse base template of composed resource %q"
 	errFmtRenderFromCompositePatches = "cannot render FromComposite or environment patches for composed resource %q"
@@ -279,7 +279,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 				// run again the composition after some other resource is
 				// created or updated successfully. So, we emit a warning event
 				// and move on.
-				events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))))
+				events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))))
 				// We unset the cd here so that we don't try to observe it
 				// later. This will also mean we report it as not ready and not
 				// synced. Resulting in the XR being reported as not ready nor
@@ -291,7 +291,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 			// TODO(negz): Include the template name (if any) in this error.
 			// Including the rendered resource's kind may help too (e.g. if the
 			// template is anonymous).
-			return CompositionResult{}, errors.Wrapf(err, errApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))
+			return CompositionResult{}, errors.Wrapf(err, errFmtApplyComposed, ptr.Deref(t.Name, fmt.Sprintf("%d", i+1)))
 		}
 	}
 
