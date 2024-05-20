@@ -34,20 +34,25 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-// OffersClaim accepts a CompositeResourceDefinition that has a claim or a
-// CustomResourceDefinition that represents a claim.
+// OffersClaim accepts any CompositeResourceDefinition that offers a claim.
 func OffersClaim() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
-		xrd, ok := obj.(*v1.CompositeResourceDefinition)
-		if ok {
-			return xrd.OffersClaim()
-		}
-
-		crd, ok := obj.(*extv1.CustomResourceDefinition)
+		d, ok := obj.(*v1.CompositeResourceDefinition)
 		if !ok {
 			return false
 		}
-		for _, c := range crd.Spec.Names.Categories {
+		return d.OffersClaim()
+	}
+}
+
+// IsClaimCRD accepts any CustomResourceDefinition that represents a Claim.
+func IsClaimCRD() resource.PredicateFn {
+	return func(obj runtime.Object) bool {
+		d, ok := obj.(*extv1.CustomResourceDefinition)
+		if !ok {
+			return false
+		}
+		for _, c := range d.Spec.Names.Categories {
 			if c == xcrd.CategoryClaim {
 				return true
 			}

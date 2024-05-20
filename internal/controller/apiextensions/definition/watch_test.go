@@ -26,17 +26,17 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
-func TestOffersCompositeResource(t *testing.T) {
+func TestIsCompositeResourceCRD(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
 		want bool
 	}{
-		"NotAnXRD": {
+		"NotCRD": {
 			want: false,
 		},
 		"XRD": {
 			obj:  &v1.CompositeResourceDefinition{},
-			want: true,
+			want: false,
 		},
 		"ClaimCRD": {
 			obj: &extv1.CustomResourceDefinition{
@@ -76,9 +76,9 @@ func TestOffersCompositeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := OffersCompositeResource()(tc.obj)
+			got := IsCompositeResourceCRD()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\n%s\nOffersCompositeResource(...): -want, +got:\n%s", name, diff)
+				t.Errorf("\n%s\nIsCompositeResourceCRD(...): -want, +got:\n%s", name, diff)
 			}
 		})
 	}

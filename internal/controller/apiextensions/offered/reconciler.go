@@ -30,6 +30,7 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -124,9 +125,8 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1.CompositeResourceDefinition{}).
-		Owns(&extv1.CustomResourceDefinition{}).
-		WithEventFilter(resource.NewPredicates(OffersClaim())).
+		For(&v1.CompositeResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(OffersClaim()))).
+		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsClaimCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }

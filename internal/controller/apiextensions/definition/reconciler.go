@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -145,8 +146,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.CompositeResourceDefinition{}).
-		Owns(&extv1.CustomResourceDefinition{}).
-		WithEventFilter(resource.NewPredicates(OffersCompositeResource())).
+		Owns(&extv1.CustomResourceDefinition{}, builder.WithPredicates(resource.NewPredicates(IsCompositeResourceCRD()))).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
