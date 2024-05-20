@@ -98,7 +98,12 @@ func TestValidateReadinessCheck(t *testing.T) {
 						FieldPath: "spec.someOtherField",
 					},
 				)),
-				gkToCRD: defaultGKToCRDs(),
+				gkToCRD: buildGkToCRDs(
+					defaultManagedCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
+						crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someOtherField"] = extv1.JSONSchemaProps{
+							Type: "boolean",
+						}
+					}).build()),
 			},
 			want: want{
 				errs: nil,
@@ -114,7 +119,12 @@ func TestValidateReadinessCheck(t *testing.T) {
 						FieldPath: "spec.someOtherField",
 					},
 				)),
-				gkToCRD: defaultGKToCRDs(),
+				gkToCRD: buildGkToCRDs(
+					defaultManagedCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
+						crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someOtherField"] = extv1.JSONSchemaProps{
+							Type: "boolean",
+						}
+					}).build()),
 			},
 			want: want{
 				errs: nil,
@@ -290,7 +300,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 				t.Fatalf("NewValidator() error = %v", err)
 			}
 			got := v.validateReadinessChecksWithSchemas(context.TODO(), tt.args.comp)
-			if diff := cmp.Diff(got, tt.want.errs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
+			if diff := cmp.Diff(tt.want.errs, got, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
 				t.Errorf("validateReadinessChecksWithSchemas(...) = -want, +got\n%s\n", diff)
 			}
 		})

@@ -223,19 +223,15 @@ func TestFromKnownJSONType(t *testing.T) {
 				out: v1.TransformIOTypeBool,
 			},
 		},
-		"InvalidArray": {
-			reason: "Array should not be valid",
+		"ValidArray": {
+			reason: "Array should be valid and convert properly",
 			args:   args{t: KnownJSONTypeArray},
-			want: want{
-				err: xperrors.Errorf(errFmtUnsupportedJSONType, KnownJSONTypeArray),
-			},
+			want:   want{out: v1.TransformIOTypeObject},
 		},
-		"InvalidObject": {
-			reason: "Object should not be valid",
+		"ValidObject": {
+			reason: "Object should be valid and convert properly",
 			args:   args{t: KnownJSONTypeObject},
-			want: want{
-				err: xperrors.Errorf(errFmtUnsupportedJSONType, KnownJSONTypeObject),
-			},
+			want:   want{out: v1.TransformIOTypeObject},
 		},
 	}
 	for name, tc := range cases {
