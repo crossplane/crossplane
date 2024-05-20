@@ -55,13 +55,47 @@ func TestOffersClaim(t *testing.T) {
 			},
 			want: true,
 		},
+		"ClaimCRD": {
+			obj: &extv1.CustomResourceDefinition{
+				Spec: extv1.CustomResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{
+						Categories: []string{
+							"claim",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		"CompositeCRD": {
+			obj: &extv1.CustomResourceDefinition{
+				Spec: extv1.CustomResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{
+						Categories: []string{
+							"composite",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		"OtherCRD": {
+			obj: &extv1.CustomResourceDefinition{
+				Spec: extv1.CustomResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{
+						Categories: []string{},
+					},
+				},
+			},
+			want: false,
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := OffersClaim()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("OffersClaim(...): -want, +got:\n%s", diff)
+				t.Errorf("\n%s\nOffersClaim(...): -want, +got:\n%s", name, diff)
 			}
 		})
 	}
