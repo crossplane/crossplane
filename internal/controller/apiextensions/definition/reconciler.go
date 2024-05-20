@@ -146,6 +146,7 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 		Named(name).
 		For(&v1.CompositeResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}).
+		WithEventFilter(resource.NewPredicates(OffersCompositeResource())).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }

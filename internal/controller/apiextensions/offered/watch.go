@@ -19,6 +19,7 @@ package offered
 import (
 	"context"
 
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,17 +31,28 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-// OffersClaim accepts objects that are a CompositeResourceDefinition and offer
-// a composite resource claim.
+// OffersClaim accepts a CompositeResourceDefinition that has a claim or a
+// CustomResourceDefinition that represents a claim.
 func OffersClaim() resource.PredicateFn {
 	return func(obj runtime.Object) bool {
-		d, ok := obj.(*v1.CompositeResourceDefinition)
+		xrd, ok := obj.(*v1.CompositeResourceDefinition)
+		if ok {
+			return xrd.OffersClaim()
+		}
+
+		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
 			return false
 		}
-		return d.OffersClaim()
+		for _, c := range crd.Spec.Names.Categories {
+			if c == xcrd.CategoryClaim {
+				return true
+			}
+		}
+		return false
 	}
 }
 
