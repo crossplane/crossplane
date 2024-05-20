@@ -42,6 +42,10 @@ func TestOffersClaim(t *testing.T) {
 		"NotAnXRD": {
 			want: false,
 		},
+		"CRD": {
+			obj:  &extv1.CustomResourceDefinition{},
+			want: false,
+		},
 		"DoesNotOfferClaim": {
 			obj:  &v1.CompositeResourceDefinition{},
 			want: false,
@@ -61,7 +65,59 @@ func TestOffersClaim(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := OffersClaim()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("OffersClaim(...): -want, +got:\n%s", diff)
+				t.Errorf("\n%s\nOffersClaim(...): -want, +got:\n%s", name, diff)
+			}
+		})
+	}
+}
+
+func TestIsClaimCRD(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		want bool
+	}{
+		"NotCRD": {
+			want: false,
+		},
+		"XRD": {
+			obj:  &v1.CompositeResourceDefinition{},
+			want: false,
+		},
+		"ClaimCRD": {
+			obj: &extv1.CustomResourceDefinition{
+				Spec: extv1.CustomResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{
+						Categories: []string{
+							"claim",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		"CompositeCRD": {
+			obj: &extv1.CustomResourceDefinition{
+				Spec: extv1.CustomResourceDefinitionSpec{
+					Names: extv1.CustomResourceDefinitionNames{
+						Categories: []string{
+							"composite",
+						},
+					},
+				},
+			},
+			want: false,
+		},
+		"OtherCRD": {
+			obj:  &extv1.CustomResourceDefinition{},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsClaimCRD()(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nIsClaimCRD(...): -want, +got:\n%s", name, diff)
 			}
 		})
 	}
