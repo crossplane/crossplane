@@ -335,7 +335,6 @@ func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.R
 	}
 	out := &fnv1beta1.Resources{}
 	for _, er := range ers {
-		er := er
 		if selector.GetApiVersion() != er.GetAPIVersion() {
 			continue
 		}

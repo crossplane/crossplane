@@ -60,7 +60,6 @@ type LockPackage struct {
 func ToNodes(pkgs ...LockPackage) []dag.Node {
 	nodes := make([]dag.Node, len(pkgs))
 	for i, r := range pkgs {
-		r := r // Pin range variable so we can take its address.
 		nodes[i] = &r
 	}
 	return nodes
@@ -75,7 +74,6 @@ func (l *LockPackage) Identifier() string {
 func (l *LockPackage) Neighbors() []dag.Node {
 	nodes := make([]dag.Node, len(l.Dependencies))
 	for i, r := range l.Dependencies {
-		r := r // Pin range variable so we can take its address.
 		nodes[i] = &r
 	}
 	return nodes

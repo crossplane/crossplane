@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -37,7 +36,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
@@ -221,14 +219,6 @@ func defaultCRClaim(c client.Client) crClaim {
 // A ReconcilerOption configures a Reconciler.
 type ReconcilerOption func(*Reconciler)
 
-// WithClient specifies how the Reconciler should interact with the Kubernetes
-// API.
-func WithClient(c client.Client) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.client = c
-	}
-}
-
 // WithManagedFieldsUpgrader specifies how the Reconciler should upgrade claim
 // and composite resource (XR) managed fields from client-side apply to
 // server-side apply.
@@ -300,8 +290,7 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 // The returned Reconciler will apply only the ObjectMetaConfigurator by
 // default; most callers should supply one or more CompositeConfigurators to
 // configure their composite resources.
-func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
-	c := unstructured.NewClient(m.GetClient())
+func NewReconciler(c client.Client, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client:        c,
 		gvkClaim:      schema.GroupVersionKind(of),

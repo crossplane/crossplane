@@ -77,7 +77,6 @@ func TryConvert(obj runtime.Object, candidates ...conversion.Hub) (runtime.Objec
 	}
 
 	for _, c := range candidates {
-		c := c
 		if err := cvt.ConvertTo(c); err == nil {
 			return c, true
 		}

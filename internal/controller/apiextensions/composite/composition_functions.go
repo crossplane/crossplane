@@ -237,10 +237,6 @@ func WithManagedFieldsUpgrader(u ManagedFieldsUpgrader) FunctionComposerOption {
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
 func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
-	// TODO(negz): Can we avoid double-wrapping if the supplied client is
-	// already wrapped? Or just do away with unstructured.NewClient completely?
-	kube = unstructured.NewClient(kube)
-
 	f := NewSecretConnectionDetailsFetcher(kube)
 
 	c := &FunctionComposer{
@@ -651,7 +647,6 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *v1beta1.R
 
 		resources := make([]*v1beta1.Resource, len(list.Items))
 		for i, r := range list.Items {
-			r := r
 			o, err := AsStruct(&r)
 			if err != nil {
 				return nil, errors.Wrap(err, errExtraResourceAsStruct)

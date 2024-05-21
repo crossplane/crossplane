@@ -28,20 +28,13 @@ import (
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
-	runtimeevent "sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -52,12 +45,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -72,6 +66,8 @@ const (
 	errApplyCRD                       = "cannot apply rendered composite resource CustomResourceDefinition"
 	errUpdateStatus                   = "cannot update status of CompositeResourceDefinition"
 	errStartController                = "cannot start composite resource controller"
+	errStopController                 = "cannot stop composite resource controller"
+	errStartWatches                   = "cannot start composite resource controller watches"
 	errAddIndex                       = "cannot add composite GVK index"
 	errAddFinalizer                   = "cannot add composite resource finalizer"
 	errRemoveFinalizer                = "cannot remove composite resource finalizer"
@@ -96,12 +92,50 @@ const (
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
+//
+//nolint:interfacebloat // We use this interface to stub the engine for testing, and we need all of its functionality.
 type ControllerEngine interface {
+	Start(name string, o ...engine.ControllerOption) error
+	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
-	Create(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
-	Start(name string, o kcontroller.Options, w ...controller.Watch) error
-	Stop(name string)
-	Err(name string) error
+	GetWatches(name string) ([]engine.WatchID, error)
+	StartWatches(name string, ws ...engine.Watch) error
+	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
+	GetClient() client.Client
+	GetFieldIndexer() client.FieldIndexer
+}
+
+// A NopEngine does nothing.
+type NopEngine struct{}
+
+// Start does nothing.
+func (e *NopEngine) Start(_ string, _ ...engine.ControllerOption) error { return nil }
+
+// Stop does nothing.
+func (e *NopEngine) Stop(_ context.Context, _ string) error { return nil }
+
+// IsRunning always returns true.
+func (e *NopEngine) IsRunning(_ string) bool { return true }
+
+// GetWatches does nothing.
+func (e *NopEngine) GetWatches(_ string) ([]engine.WatchID, error) { return nil, nil }
+
+// StartWatches does nothing.
+func (e *NopEngine) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+
+// StopWatches does nothing.
+func (e *NopEngine) StopWatches(_ context.Context, _ string, _ ...engine.WatchID) (int, error) {
+	return 0, nil
+}
+
+// GetClient returns a nil client.
+func (e *NopEngine) GetClient() client.Client {
+	return nil
+}
+
+// GetFieldIndexer returns a nil field indexer.
+func (e *NopEngine) GetFieldIndexer() client.FieldIndexer {
+	return nil
 }
 
 // A CRDRenderer renders a CompositeResourceDefinition's corresponding
@@ -125,23 +159,11 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
-	r := NewReconciler(mgr,
+	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithControllerEngine(o.ControllerEngine),
 		WithOptions(o))
-
-	if o.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		// Register a runnable regularly checking whether the watch composed
-		// resources are still referenced by composite resources. If not, the
-		// composed resource informer is stopped.
-		if err := mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
-			// Run every minute.
-			wait.UntilWithContext(ctx, r.xrInformers.cleanupComposedResourceInformers, time.Minute)
-			return nil
-		})); err != nil {
-			return errors.Wrap(err, errCannotAddInformerLoopToManager)
-		}
-	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -158,7 +180,6 @@ type ReconcilerOption func(*Reconciler)
 func WithLogger(log logging.Logger) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.log = log
-		r.xrInformers.log = log
 	}
 }
 
@@ -189,7 +210,7 @@ func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 // lifecycles of composite controllers.
 func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.ControllerEngine = c
+		r.engine = c
 	}
 }
 
@@ -201,48 +222,29 @@ func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	}
 }
 
-// WithClientApplicator specifies how the Reconciler should interact with the
-// Kubernetes API.
-func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.client = ca
-	}
-}
-
 type definition struct {
 	CRDRenderer
-	ControllerEngine
 	resource.Finalizer
 }
 
+// NewClientApplicator returns a ClientApplicator suitable for use by the
+// definition controller.
+func NewClientApplicator(c client.Client) resource.ClientApplicator {
+	// TODO(negz): Use server-side apply instead of a ClientApplicator.
+	return resource.ClientApplicator{Client: c, Applicator: resource.NewAPIUpdatingApplicator(c)}
+}
+
 // NewReconciler returns a Reconciler of CompositeResourceDefinitions.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
-	kube := unstructured.NewClient(mgr.GetClient())
-
-	ca := controller.NewGVKRoutedCache(mgr.GetScheme(), mgr.GetCache())
-
+func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		mgr: mgr,
-
-		client: resource.ClientApplicator{
-			Client:     kube,
-			Applicator: resource.NewAPIUpdatingApplicator(kube),
-		},
+		client: ca,
 
 		composite: definition{
-			CRDRenderer:      CRDRenderFn(xcrd.ForCompositeResource),
-			ControllerEngine: controller.NewEngine(mgr),
-			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
+			CRDRenderer: CRDRenderFn(xcrd.ForCompositeResource),
+			Finalizer:   resource.NewAPIFinalizer(ca, finalizer),
 		},
 
-		xrInformers: composedResourceInformers{
-			log:     logging.NewNopLogger(),
-			cluster: mgr,
-
-			gvkRoutedCache: ca,
-			cdCaches:       make(map[schema.GroupVersionKind]cdCache),
-			sinks:          make(map[string]func(ev runtimeevent.UpdateEvent)),
-		},
+		engine: &NopEngine{},
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -256,26 +258,23 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		f(r)
 	}
 
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		// wrap the manager's cache to route requests to dynamically started
-		// informers for managed resources.
-		r.mgr = controller.WithGVKRoutedCache(ca, mgr)
-	}
-
 	return r
 }
 
 // A Reconciler reconciles CompositeResourceDefinitions.
 type Reconciler struct {
+	// This client should only be used by this XRD controller, not the XR
+	// controllers it manages. XR controllers should use the engine's client.
+	// This ensures XR controllers will use a client backed by the same cache
+	// used to power their watches.
 	client resource.ClientApplicator
-	mgr    manager.Manager
 
 	composite definition
 
+	engine ControllerEngine
+
 	log    logging.Logger
 	record event.Recorder
-
-	xrInformers composedResourceInformers
 
 	options apiextensionscontroller.Options
 }
@@ -337,11 +336,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// the (presumably exceedingly rare) latter case we'll orphan
 		// the CRD.
 		if !meta.WasCreated(crd) || !metav1.IsControlledBy(crd, d) {
-			// It's likely that we've already stopped this
-			// controller on a previous reconcile, but we try again
-			// just in case. This is a no-op if the controller was
-			// already stopped.
-			r.stopCompositeController(d)
+			// It's likely that we've already stopped this controller on a
+			// previous reconcile, but we try again just in case. This is a
+			// no-op if the controller was already stopped.
+			if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
+				err = errors.Wrap(err, errStopController)
+				r.record.Event(d, event.Warning(reasonTerminateXR, err))
+				return reconcile.Result{}, err
+			}
 			log.Debug("Stopped composite resource controller")
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
@@ -391,9 +393,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{Requeue: true}, nil
 		}
 
-		// The controller should be stopped before the deletion of CRD
-		// so that it doesn't crash.
-		r.stopCompositeController(d)
+		// The controller must be stopped before the deletion of the CRD so that
+		// it doesn't crash.
+		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
+			err = errors.Wrap(err, errStopController)
+			r.record.Event(d, event.Warning(reasonTerminateXR, err))
+			return reconcile.Result{}, err
+		}
 		log.Debug("Stopped composite resource controller")
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
@@ -441,36 +447,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, nil
 	}
 
-	if err := r.composite.Err(composite.ControllerName(d.GetName())); err != nil {
-		log.Debug("Composite resource controller encountered an error", "error", err)
-	}
-
 	observed := d.Status.Controllers.CompositeResourceTypeRef
 	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	switch {
-	case observed.APIVersion != "" && observed != desired:
-		r.stopCompositeController(d)
+	if observed.APIVersion != "" && observed != desired {
+		if err := r.engine.Stop(ctx, composite.ControllerName(d.GetName())); err != nil {
+			err = errors.Wrap(err, errStopController)
+			r.record.Event(d, event.Warning(reasonEstablishXR, err))
+			return reconcile.Result{}, err
+		}
 		log.Debug("Referenceable version changed; stopped composite resource controller",
 			"observed-version", observed.APIVersion,
 			"desired-version", desired.APIVersion)
-	case r.composite.IsRunning(composite.ControllerName(d.GetName())):
+	}
+
+	if r.engine.IsRunning(composite.ControllerName(d.GetName())) {
 		log.Debug("Composite resource controller is running")
 		d.Status.SetConditions(v1.WatchingComposite())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
-	default:
-		if err := r.composite.Err(composite.ControllerName(d.GetName())); err != nil {
-			log.Debug("Composite resource controller encountered an error. Going to restart it", "error", err)
-		} else {
-			log.Debug("Composite resource controller is not running. Going to start it")
-		}
 	}
 
-	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
+	ro := r.CompositeReconcilerOptions(ctx, d)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		ro = append(ro, composite.WithKindObserver(composite.KindObserverFunc(r.xrInformers.WatchComposedResources)))
-	}
-	cr := composite.NewReconciler(r.mgr, ck, ro...)
+
+	cr := composite.NewReconciler(r.engine.GetClient(), ck, ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -483,101 +482,80 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	xrGVK := d.GetCompositeGroupVersionKind()
-
-	u := &kunstructured.Unstructured{}
-	u.SetGroupVersionKind(xrGVK)
-
 	name := composite.ControllerName(d.GetName())
-	var ca cache.Cache
-	watches := []controller.Watch{
-		controller.For(u, &handler.EnqueueRequestForObject{}),
-		// enqueue composites whenever a matching CompositionRevision is created
-		controller.TriggeredBy(source.Kind(r.mgr.GetCache(), &v1.CompositionRevision{}), handler.Funcs{
-			CreateFunc: composite.EnqueueForCompositionRevisionFunc(ck, r.mgr.GetCache().List, r.log),
-		}),
-	}
+
+	// TODO(negz): Update CompositeReconcilerOptions to produce
+	// ControllerOptions instead? It bothers me that this is the only feature
+	// flagged block outside that method.
+	co := []engine.ControllerOption{engine.WithRuntimeOptions(ko)}
 	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		// enqueue XRs that when a relevant MR is updated
-		watches = append(watches, controller.TriggeredBy(&r.xrInformers, handler.Funcs{
-			UpdateFunc: func(ctx context.Context, ev runtimeevent.UpdateEvent, q workqueue.RateLimitingInterface) {
-				enqueueXRsForMR(ca, xrGVK, log)(ctx, ev, q)
-			},
-		}))
+		// If realtime composition is enabled we'll start watches dynamically,
+		// so we want to garbage collect watches for composed resource kinds
+		// that aren't used anymore.
+		gc := watch.NewGarbageCollector(name, resource.CompositeKind(xrGVK), r.engine, watch.WithLogger(log))
+		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
-	c, err := r.composite.Create(name, ko, watches...)
-	if err != nil {
+	if err := r.engine.Start(name, co...); err != nil {
 		log.Debug(errStartController, "error", err)
 		err = errors.Wrap(err, errStartController)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
 	}
 
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		ca = c.GetCache()
-		if err := ca.IndexField(ctx, u, compositeResourceRefGVKsIndex, IndexCompositeResourceRefGVKs); err != nil {
-			log.Debug(errAddIndex, "error", err)
-			// Nothing we can do. At worst, we won't have realtime updates.
-		}
-		if err := ca.IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
-			log.Debug(errAddIndex, "error", err)
-			// Nothing we can do. At worst, we won't have realtime updates.
-		}
-	}
+	// This must be *unstructured.Unstructured, not *composite.Unstructured.
+	// controller-runtime doesn't support watching types that satisfy the
+	// runtime.Unstructured interface - only *unstructured.Unstructured.
+	xr := &kunstructured.Unstructured{}
+	xr.SetGroupVersionKind(xrGVK)
 
-	if err := c.Start(context.Background()); err != nil { //nolint:contextcheck // the controller actually runs in the background.
-		log.Debug(errStartController, "error", err)
-		err = errors.Wrap(err, errStartController)
+	crh := EnqueueForCompositionRevision(resource.CompositeKind(xrGVK), r.engine.GetClient(), log)
+	if err := r.engine.StartWatches(name,
+		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
+		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
+	); err != nil {
+		log.Debug(errStartWatches, "error", err)
+		err = errors.Wrap(err, errStartWatches)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
 	}
-	log.Debug("(Re)started composite resource controller")
 
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		r.xrInformers.RegisterComposite(xrGVK, ca)
-	}
+	log.Debug("Started composite resource controller")
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	d.Status.SetConditions(v1.WatchingComposite())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
 
-func (r *Reconciler) stopCompositeController(d *v1.CompositeResourceDefinition) {
-	r.composite.Stop(composite.ControllerName(d.GetName()))
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
-		r.xrInformers.UnregisterComposite(d.GetCompositeGroupVersionKind())
-	}
-}
-
 // CompositeReconcilerOptions builds the options for a composite resource
 // reconciler. The options vary based on the supplied feature flags.
-func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.CompositeResourceDefinition, c client.Client, l logging.Logger, e event.Recorder) []composite.ReconcilerOption {
+func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.CompositeResourceDefinition) []composite.ReconcilerOption {
 	// The default set of reconciler options when no feature flags are enabled.
 	o := []composite.ReconcilerOption{
-		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys())),
+		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetClient(), d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(*d, e),
-			composite.NewAPIDefaultCompositionSelector(c, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), e),
-			composite.NewAPILabelSelectorResolver(c),
+			composite.NewEnforcedCompositionSelector(*d, r.record),
+			composite.NewAPIDefaultCompositionSelector(r.engine.GetClient(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
+			composite.NewAPILabelSelectorResolver(r.engine.GetClient()),
 		)),
-		composite.WithLogger(l.WithValues("controller", composite.ControllerName(d.GetName()))),
-		composite.WithRecorder(e.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
-		composite.WithPollInterval(co.PollInterval),
+		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
+		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
+		composite.WithPollInterval(r.options.PollInterval),
 	}
 
 	// We only want to enable Composition environment support if the relevant
 	// feature flag is enabled. Otherwise we will default to noop selector and
 	// fetcher that will always return nil. All environment features are
 	// subsequently skipped if the environment is nil.
-	if co.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
+	if r.options.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
 		o = append(o,
-			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(c)),
-			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(c)))
+			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(r.engine.GetClient())),
+			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(r.engine.GetClient())))
 	}
 
 	// If external secret stores aren't enabled we just fetch connection details
 	// from Kubernetes secrets.
-	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(c)
+	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(r.engine.GetClient())
 
 	// We only want to enable ExternalSecretStore support if the relevant
 	// feature flag is enabled. Otherwise, we start the XR reconcilers with
@@ -585,48 +563,48 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	// We also add a new Configurator for ExternalSecretStore which basically
 	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
 	// the composite resource.
-	if co.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := []managed.ConnectionPublisher{
-			composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys()),
-			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind,
-				connection.WithTLSConfig(co.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
+			composite.NewAPIFilteredSecretPublisher(r.engine.GetClient(), d.GetConnectionSecretKeys()),
+			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.engine.GetClient(), v1alpha1.StoreConfigGroupVersionKind,
+				connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
 		}
 
 		// If external secret stores are enabled we need to support fetching
 		// connection details from both secrets and external stores.
 		fetcher = composite.ConnectionDetailsFetcherChain{
-			composite.NewSecretConnectionDetailsFetcher(c),
-			connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(co.ESSOptions.TLSConfig)),
+			composite.NewSecretConnectionDetailsFetcher(r.engine.GetClient()),
+			connection.NewDetailsManager(r.engine.GetClient(), v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
 		}
 
 		cc := composite.NewConfiguratorChain(
-			composite.NewAPINamingConfigurator(c),
-			composite.NewAPIConfigurator(c),
-			composite.NewSecretStoreConnectionDetailsConfigurator(c),
+			composite.NewAPINamingConfigurator(r.engine.GetClient()),
+			composite.NewAPIConfigurator(r.engine.GetClient()),
+			composite.NewSecretStoreConnectionDetailsConfigurator(r.engine.GetClient()),
 		)
 
 		o = append(o,
 			composite.WithConnectionPublishers(pc...),
 			composite.WithConfigurator(cc),
-			composite.WithComposer(composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))))
+			composite.WithComposer(composite.NewPTComposer(r.engine.GetClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))))
 	}
 
 	// If Composition Functions are enabled we use two different Composer
 	// implementations. One supports P&T (aka 'Resources mode') and the other
 	// Functions (aka 'Pipeline mode').
-	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
-		ptc := composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))
+	if r.options.Features.Enabled(features.EnableBetaCompositionFunctions) {
+		ptc := composite.NewPTComposer(r.engine.GetClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))
 
 		fcopts := []composite.FunctionComposerOption{
-			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
+			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetClient(), fetcher)),
 			composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		}
 
-		if co.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
-			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(c)))
+		if r.options.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
+			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(r.engine.GetClient())))
 		}
 
-		fc := composite.NewFunctionComposer(c, co.FunctionRunner, fcopts...)
+		fc := composite.NewFunctionComposer(r.engine.GetClient(), r.options.FunctionRunner, fcopts...)
 
 		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.
@@ -647,6 +625,23 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 				return ptc
 			}
 		})))
+	}
+
+	// If realtime compositions are enabled we pass the ControllerEngine to the
+	// XR reconciler so that it can start watches for composed resources.
+	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+		gvk := d.GetCompositeGroupVersionKind()
+		u := &kunstructured.Unstructured{}
+		u.SetAPIVersion(gvk.GroupVersion().String())
+		u.SetKind(gvk.Kind)
+
+		// Add an index to the controller engine's client.
+		if err := r.engine.GetFieldIndexer().IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
+			r.log.Debug(errAddIndex, "error", err)
+		}
+
+		h := EnqueueCompositeResources(resource.CompositeKind(d.GetCompositeGroupVersionKind()), r.engine.GetClient(), r.log)
+		o = append(o, composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine))
 	}
 
 	return o

@@ -714,7 +714,6 @@ func defaultGKToCRDs() map[schema.GroupKind]apiextensions.CustomResourceDefiniti
 	crds := []apiextensions.CustomResourceDefinition{*defaultManagedCrdBuilder().build(), *defaultCompositeCrdBuilder().build()}
 	m := make(map[schema.GroupKind]apiextensions.CustomResourceDefinition, len(crds))
 	for _, crd := range crds {
-		crd := crd
 		m[schema.GroupKind{
 			Group: crd.Spec.Group,
 			Kind:  crd.Spec.Names.Kind,

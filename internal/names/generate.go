@@ -84,7 +84,7 @@ func (r *nameGenerator) GenerateName(ctx context.Context, cd resource.Object) er
 	//    locally. To reduce that risk even further the caller must employ a
 	//    conflict recovery mechanism.
 	maxTries := 10
-	for i := 0; i < maxTries; i++ {
+	for range maxTries {
 		name := r.namer.GenerateName(cd.GetGenerateName())
 		obj := composite.Unstructured{}
 		obj.SetGroupVersionKind(cd.GetObjectKind().GroupVersionKind())

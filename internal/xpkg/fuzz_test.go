@@ -38,7 +38,7 @@ func FuzzFindXpkgInDir(f *testing.F) {
 				fs.Remove(createdFile)
 			}
 		}()
-		for i := 0; i < noOfFiles%500; i++ {
+		for range noOfFiles % 500 {
 			fname, err := ff.GetString()
 			if err != nil {
 				t.Skip()

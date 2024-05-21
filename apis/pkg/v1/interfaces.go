@@ -726,7 +726,6 @@ type PackageRevisionList interface {
 func (p *ProviderRevisionList) GetRevisions() []PackageRevision {
 	prs := make([]PackageRevision, len(p.Items))
 	for i, r := range p.Items {
-		r := r // Pin range variable so we can take its address.
 		prs[i] = &r
 	}
 	return prs
@@ -736,7 +735,6 @@ func (p *ProviderRevisionList) GetRevisions() []PackageRevision {
 func (p *ConfigurationRevisionList) GetRevisions() []PackageRevision {
 	prs := make([]PackageRevision, len(p.Items))
 	for i, r := range p.Items {
-		r := r // Pin range variable so we can take its address.
 		prs[i] = &r
 	}
 	return prs

@@ -152,7 +152,6 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 	adds := make([]mutate.IndexAddendum, len(c.PackageFiles))
 	g, ctx := errgroup.WithContext(context.Background())
 	for i, file := range c.PackageFiles {
-		i, file := i, file // Pin range variables for use in goroutine
 		g.Go(func() error {
 			img, err := tarball.ImageFromPath(filepath.Clean(file), nil)
 			if err != nil {

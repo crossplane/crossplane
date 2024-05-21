@@ -1,0 +1,15 @@
+# For reasons that aren't immediately obvious, updating k8s.io/code-generator
+# from v0.29.x to v0.30 triggers a variant of the below issue. As far as I can
+# tell, this is the only way to work around it. The below fields are list map
+# keys, but aren't required in the generated CRD.
+# https://github.com/kubernetes-sigs/controller-tools/issues/444
+
+- op: add
+  path: /spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/deploymentTemplate/properties/spec/properties/template/properties/spec/properties/hostAliases/items/required
+  value:
+  - ip
+
+- op: add
+  path: /spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/deploymentTemplate/properties/spec/properties/template/properties/spec/properties/imagePullSecrets/items/required
+  value:
+  - name
