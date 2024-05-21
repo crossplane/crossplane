@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	goruntime "runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -432,6 +433,7 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 // are managed by the supplied field manager. It fails the test if any supplied
 // resource cannot be applied successfully.
 func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOption) features.Func {
+	errorContext := parentErrorContext()
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -439,16 +441,16 @@ func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOptio
 
 		files, _ := fs.Glob(dfs, pattern)
 		if len(files) == 0 {
-			t.Errorf("No resources found in %s", filepath.Join(dir, pattern))
+			t.Errorf("%s No resources found in %s", errorContext, filepath.Join(dir, pattern))
 			return ctx
 		}
 
 		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager), options...); err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s %v", errorContext, err)
 			return ctx
 		}
 
-		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+		t.Logf("%s Applied resources from %s (matched %d manifests)", errorContext, filepath.Join(dir, pattern), len(files))
 		return ctx
 	}
 }
@@ -458,6 +460,7 @@ type claimCtxKey struct{}
 // ApplyClaim applies the claim stored in the given folder and file
 // and stores it in the test context for later retrival if needed.
 func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) features.Func {
+	errorContext := parentErrorContext()
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -465,17 +468,17 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 
 		files, _ := fs.Glob(dfs, cm)
 		if len(files) == 0 {
-			t.Errorf("No resources found in %s", filepath.Join(dir, cm))
+			t.Errorf("%s No resources found in %s", errorContext, filepath.Join(dir, cm))
 			return ctx
 		}
 
 		objs, err := decoder.DecodeAllFiles(ctx, dfs, cm, options...)
 		if err != nil {
-			t.Error(err)
+			t.Fatalf("%s %s", errorContext, err)
 			return ctx
 		}
 		if len(objs) != 1 {
-			t.Errorf("Only one claim allows in %s", filepath.Join(dir, cm))
+			t.Errorf("%s Only one claim allows in %s", errorContext, filepath.Join(dir, cm))
 			return ctx
 		}
 		// TODO(negz): Only two functions seem to read this key. Either adopt it
@@ -484,7 +487,7 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)})
 		}
 		if err := decoder.DecodeEachFile(ctx, dfs, cm, ApplyHandler(c.Client().Resources(), manager, f)); err != nil {
-			t.Fatal(err)
+			t.Fatalf("%s %s", errorContext, err)
 			return ctx
 		}
 		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, cm), len(files))
@@ -1159,4 +1162,9 @@ func since(t time.Time) string {
 
 func deadlineExceed(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "would exceed context deadline")
+}
+
+func parentErrorContext() string {
+	_, f, l, _ := goruntime.Caller(2)
+	return fmt.Sprintf("[%s:%d]", f, l)
 }
