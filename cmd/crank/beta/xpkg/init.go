@@ -235,6 +235,7 @@ func printFile(w io.Writer, path string) error {
 	if _, err := fmt.Fprintf(w, "\n%s\n", content); err != nil {
 		return errors.Wrap(err, "failed to write to stdout")
 	}
+	defer func() { _ = f.Close() }()
 	return nil
 }
 
