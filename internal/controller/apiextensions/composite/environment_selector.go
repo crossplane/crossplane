@@ -191,7 +191,7 @@ func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
 	}, len(ec))
 
 	var valsKind reflect.Kind
-	for i := 0; i < len(ec); i++ {
+	for i := range len(ec) {
 		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ec[i])
 		if err != nil {
 			return err

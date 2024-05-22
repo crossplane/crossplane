@@ -36,7 +36,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -98,10 +97,8 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // NewReconciler returns a Reconciler of Compositions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
-	kube := unstructured.NewClient(mgr.GetClient())
-
 	r := &Reconciler{
-		client: kube,
+		client: mgr.GetClient(),
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 	}

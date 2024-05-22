@@ -333,7 +333,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	applied := make([]string, 0)
 	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
-		cr := cr // Pin range variable so we can take its address.
 		log := log.WithValues("role-name", cr.GetName())
 		origRV := ""
 		err := r.client.Apply(ctx, &cr,

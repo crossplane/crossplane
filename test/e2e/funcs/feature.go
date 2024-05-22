@@ -1147,7 +1147,6 @@ func valueOrError(s string, err error) string {
 func itemsToObjects(items []unstructured.Unstructured) []client.Object {
 	objects := make([]client.Object, len(items))
 	for i, item := range items {
-		item := item // unalias loop variable
 		objects[i] = &item
 	}
 	return objects

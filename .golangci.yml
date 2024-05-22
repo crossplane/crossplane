@@ -103,6 +103,10 @@ linters:
     # to communicate what the bool means.
     - nonamedreturns
 
+    # Warns about taking the address of a range variable. This isn't an issue in
+    # Go v1.22 and above: https://tip.golang.org/doc/go1.22
+    - exportloopref
+
 linters-settings:
   errcheck:
     # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
@@ -224,6 +228,7 @@ issues:
   # Excluding generated files.
   exclude-files:
   - "zz_generated\\..+\\.go$"
+  - ".+\\.pb.go$"
   # Excluding configuration per-path and per-linter.
   exclude-rules:
     # Exclude some linters from running on tests files.
@@ -279,6 +284,13 @@ issues:
 
     # This is an 'errors unhandled' warning that duplicates errcheck.
     - text: "G104:"
+      linters:
+      - gosec
+      - gas
+
+    # This is about implicit memory aliasing in a range loop.
+    # This is a false positive with Go v1.22 and above.
+    - text: "G601:"
       linters:
       - gosec
       - gas

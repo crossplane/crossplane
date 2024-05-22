@@ -20,62 +20,70 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	ctrlconfig "sigs.k8s.io/controller-runtime/pkg/config"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/features"
+	"github.com/crossplane/crossplane/internal/engine"
+)
+
+var (
+	_ ControllerEngine = &MockEngine{}
+	_ ControllerEngine = &NopEngine{}
 )
 
 type MockEngine struct {
-	ControllerEngine
-	MockIsRunning func(name string) bool
-	MockCreate    func(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error)
-	MockStart     func(name string, o kcontroller.Options, w ...controller.Watch) error
-	MockStop      func(name string)
-	MockErr       func(name string) error
+	MockStart           func(name string, o ...engine.ControllerOption) error
+	MockStop            func(ctx context.Context, name string) error
+	MockIsRunning       func(name string) bool
+	MockGetWatches      func(name string) ([]engine.WatchID, error)
+	MockStartWatches    func(name string, ws ...engine.Watch) error
+	MockStopWatches     func(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
+	MockGetClient       func() client.Client
+	MockGetFieldIndexer func() client.FieldIndexer
 }
 
 func (m *MockEngine) IsRunning(name string) bool {
 	return m.MockIsRunning(name)
 }
 
-func (m *MockEngine) Create(name string, o kcontroller.Options, w ...controller.Watch) (controller.NamedController, error) {
-	return m.MockCreate(name, o, w...)
+func (m *MockEngine) Start(name string, o ...engine.ControllerOption) error {
+	return m.MockStart(name, o...)
 }
 
-func (m *MockEngine) Start(name string, o kcontroller.Options, w ...controller.Watch) error {
-	return m.MockStart(name, o, w...)
+func (m *MockEngine) Stop(ctx context.Context, name string) error {
+	return m.MockStop(ctx, name)
 }
 
-func (m *MockEngine) Stop(name string) {
-	m.MockStop(name)
+func (m *MockEngine) GetWatches(name string) ([]engine.WatchID, error) {
+	return m.MockGetWatches(name)
 }
 
-func (m *MockEngine) Err(name string) error {
-	return m.MockErr(name)
+func (m *MockEngine) StartWatches(name string, ws ...engine.Watch) error {
+	return m.MockStartWatches(name, ws...)
+}
+
+func (m *MockEngine) StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error) {
+	return m.MockStopWatches(ctx, name, ws...)
+}
+
+func (m *MockEngine) GetClient() client.Client {
+	return m.MockGetClient()
+}
+
+func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
+	return m.MockGetFieldIndexer()
 }
 
 func TestReconcile(t *testing.T) {
@@ -85,7 +93,7 @@ func TestReconcile(t *testing.T) {
 	ctrlr := true
 
 	type args struct {
-		mgr  manager.Manager
+		ca   resource.ClientApplicator
 		opts []ReconcilerOption
 	}
 	type want struct {
@@ -101,13 +109,10 @@ func TestReconcile(t *testing.T) {
 		"CompositeResourceDefinitionNotFound": {
 			reason: "We should not return an error if the CompositeResourceDefinition was not found.",
 			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						},
-					}),
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					},
 				},
 			},
 			want: want{
@@ -117,13 +122,10 @@ func TestReconcile(t *testing.T) {
 		"GetCompositeResourceDefinitionError": {
 			reason: "We should return any other error encountered while getting a CompositeResourceDefinition.",
 			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(errBoom),
-						},
-					}),
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(errBoom),
+					},
 				},
 			},
 			want: want{
@@ -133,13 +135,12 @@ func TestReconcile(t *testing.T) {
 		"RenderCustomResourceDefinitionError": {
 			reason: "We should return any error we encounter rendering a CRD.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return nil, errBoom
 					})),
@@ -152,18 +153,17 @@ func TestReconcile(t *testing.T) {
 		"SetTerminatingConditionError": {
 			reason: "We should return any error we encounter while setting the terminating status condition.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							d := o.(*v1.CompositeResourceDefinition)
+							d.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								d := o.(*v1.CompositeResourceDefinition)
-								d.SetDeletionTimestamp(&now)
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -176,24 +176,23 @@ func TestReconcile(t *testing.T) {
 		"GetCustomResourceDefinitionError": {
 			reason: "We should return any error we encounter getting a CRD.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								return errBoom
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								switch v := o.(type) {
-								case *v1.CompositeResourceDefinition:
-									d := v1.CompositeResourceDefinition{}
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *extv1.CustomResourceDefinition:
-									return errBoom
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -203,24 +202,54 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetCRD),
 			},
 		},
+		"CustomResourceDefinitionNotFoundStopControllerError": {
+			reason: "We should return any error we encounter while stopping our controller (just in case) when the CRD doesn't exist.",
+			args: args{
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							if v, ok := o.(*v1.CompositeResourceDefinition); ok {
+								d := v1.CompositeResourceDefinition{}
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				opts: []ReconcilerOption{
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
+					})),
+					WithControllerEngine(&MockEngine{
+						MockStop: func(_ context.Context, _ string) error {
+							return errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errStopController),
+			},
+		},
 		"RemoveFinalizerError": {
 			reason: "We should return any error we encounter while removing a finalizer.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							if v, ok := o.(*v1.CompositeResourceDefinition); ok {
+								d := v1.CompositeResourceDefinition{}
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								if v, ok := o.(*v1.CompositeResourceDefinition); ok {
-									d := v1.CompositeResourceDefinition{}
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -236,21 +265,20 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulDelete": {
 			reason: "We should not requeue when deleted if we successfully cleaned up our CRD and removed our finalizer.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							if v, ok := o.(*v1.CompositeResourceDefinition); ok {
+								d := v1.CompositeResourceDefinition{}
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								if v, ok := o.(*v1.CompositeResourceDefinition); ok {
-									d := v1.CompositeResourceDefinition{}
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -266,29 +294,28 @@ func TestReconcile(t *testing.T) {
 		"DeleteAllCustomResourcesError": {
 			reason: "We should return any error we encounter while deleting all defined resources.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetUID(owner)
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								crd := extv1.CustomResourceDefinition{}
+								crd.SetCreationTimestamp(now)
+								crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+								*v = crd
+							}
+							return nil
+						}),
+						MockDeleteAllOf:  test.NewMockDeleteAllOfFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								switch v := o.(type) {
-								case *v1.CompositeResourceDefinition:
-									d := v1.CompositeResourceDefinition{}
-									d.SetUID(owner)
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *extv1.CustomResourceDefinition:
-									crd := extv1.CustomResourceDefinition{}
-									crd.SetCreationTimestamp(now)
-									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
-									*v = crd
-								}
-								return nil
-							}),
-							MockDeleteAllOf:  test.NewMockDeleteAllOfFn(errBoom),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -301,30 +328,29 @@ func TestReconcile(t *testing.T) {
 		"ListCustomResourcesError": {
 			reason: "We should return any error we encounter while listing all defined resources.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetUID(owner)
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								crd := extv1.CustomResourceDefinition{}
+								crd.SetCreationTimestamp(now)
+								crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+								*v = crd
+							}
+							return nil
+						}),
+						MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
+						MockList:         test.NewMockListFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								switch v := o.(type) {
-								case *v1.CompositeResourceDefinition:
-									d := v1.CompositeResourceDefinition{}
-									d.SetUID(owner)
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *extv1.CustomResourceDefinition:
-									crd := extv1.CustomResourceDefinition{}
-									crd.SetCreationTimestamp(now)
-									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
-									*v = crd
-								}
-								return nil
-							}),
-							MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
-							MockList:         test.NewMockListFn(errBoom),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -337,36 +363,35 @@ func TestReconcile(t *testing.T) {
 		"WaitForDeleteAllOf": {
 			reason: "We should record the pending deletion of defined resources.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetUID(owner)
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								crd := extv1.CustomResourceDefinition{}
+								crd.SetCreationTimestamp(now)
+								crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+								*v = crd
+							}
+							return nil
+						}),
+						MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
+						MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
+							v := o.(*unstructured.UnstructuredList)
+							*v = unstructured.UnstructuredList{
+								Items: []unstructured.Unstructured{{}, {}},
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								switch v := o.(type) {
-								case *v1.CompositeResourceDefinition:
-									d := v1.CompositeResourceDefinition{}
-									d.SetUID(owner)
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *extv1.CustomResourceDefinition:
-									crd := extv1.CustomResourceDefinition{}
-									crd.SetCreationTimestamp(now)
-									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
-									*v = crd
-								}
-								return nil
-							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
-								v := o.(*unstructured.UnstructuredList)
-								*v = unstructured.UnstructuredList{
-									Items: []unstructured.Unstructured{{}, {}},
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -376,34 +401,73 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
+		"StopControllerError": {
+			reason: "We should return any error we encounter while stopping our controller.",
+			args: args{
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetUID(owner)
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								crd := extv1.CustomResourceDefinition{}
+								crd.SetCreationTimestamp(now)
+								crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+								*v = crd
+							}
+							return nil
+						}),
+						MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
+						MockList:         test.NewMockListFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
+				opts: []ReconcilerOption{
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
+					})),
+					WithControllerEngine(&MockEngine{
+						MockStop: func(_ context.Context, _ string) error {
+							return errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errStopController),
+			},
+		},
 		"DeleteCustomResourceDefinitionError": {
 			reason: "We should return any error we encounter while deleting the CRD we created.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetUID(owner)
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								crd := extv1.CustomResourceDefinition{}
+								crd.SetCreationTimestamp(now)
+								crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+								*v = crd
+							}
+							return nil
+						}),
+						MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
+						MockList:         test.NewMockListFn(nil),
+						MockDelete:       test.NewMockDeleteFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								switch v := o.(type) {
-								case *v1.CompositeResourceDefinition:
-									d := v1.CompositeResourceDefinition{}
-									d.SetUID(owner)
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *extv1.CustomResourceDefinition:
-									crd := extv1.CustomResourceDefinition{}
-									crd.SetCreationTimestamp(now)
-									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
-									*v = crd
-								}
-								return nil
-							}),
-							MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
-							MockList:         test.NewMockListFn(nil),
-							MockDelete:       test.NewMockDeleteFn(errBoom),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -416,42 +480,41 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulCleanup": {
 			reason: "We should requeue to remove our finalizer once we've cleaned up our defined resources and CRD.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch v := o.(type) {
+							case *v1.CompositeResourceDefinition:
+								d := v1.CompositeResourceDefinition{}
+								d.SetUID(owner)
+								d.SetDeletionTimestamp(&now)
+								*v = d
+							case *extv1.CustomResourceDefinition:
+								crd := extv1.CustomResourceDefinition{}
+								crd.SetCreationTimestamp(now)
+								crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+								*v = crd
+							}
+							return nil
+						}),
+						MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
+						MockList:        test.NewMockListFn(nil),
+						MockDelete:      test.NewMockDeleteFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(got client.Object) error {
+							want := &v1.CompositeResourceDefinition{}
+							want.SetUID(owner)
+							want.SetDeletionTimestamp(&now)
+							want.Status.SetConditions(v1.TerminatingComposite())
+
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
+							}
+
+							return nil
+						}),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								switch v := o.(type) {
-								case *v1.CompositeResourceDefinition:
-									d := v1.CompositeResourceDefinition{}
-									d.SetUID(owner)
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *extv1.CustomResourceDefinition:
-									crd := extv1.CustomResourceDefinition{}
-									crd.SetCreationTimestamp(now)
-									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
-									*v = crd
-								}
-								return nil
-							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList:        test.NewMockListFn(nil),
-							MockDelete:      test.NewMockDeleteFn(nil),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(got client.Object) error {
-								want := &v1.CompositeResourceDefinition{}
-								want.SetUID(owner)
-								want.SetDeletionTimestamp(&now)
-								want.Status.SetConditions(v1.TerminatingComposite())
-
-								if diff := cmp.Diff(want, got); diff != "" {
-									t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
-								}
-
-								return nil
-							}),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -464,13 +527,12 @@ func TestReconcile(t *testing.T) {
 		"AddFinalizerError": {
 			reason: "We should return any error we encounter while adding a finalizer.",
 			args: args{
-				mgr: &fake.Manager{},
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+					},
+				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -486,16 +548,15 @@ func TestReconcile(t *testing.T) {
 		"ApplyCustomResourceDefinitionError": {
 			reason: "We should return any error we encounter while applying our CRD.",
 			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-							return errBoom
-						}),
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return errBoom
 					}),
+				},
+				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -511,16 +572,15 @@ func TestReconcile(t *testing.T) {
 		"CustomResourceDefinitionIsNotEstablished": {
 			reason: "We should requeue if we're waiting for a newly created CRD to become established.",
 			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-							return nil
-						}),
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
 					}),
+				},
+				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
@@ -533,32 +593,47 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"CreateControllerError": {
-			reason: "We should return any error we encounter while starting our controller.",
+		"VersionChangedStopControllerError": {
+			reason: "We should return any error we encounter while stopping our controller because the XRD's referencable version changed.",
 			args: args{
-				mgr: &mockManager{
-					GetCacheFn: func() cache.Cache {
-						return &mockCache{
-							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
-						}
-					},
-					GetClientFn: func() client.Client {
-						return &test.MockClient{MockList: test.NewMockListFn(nil)}
-					},
-					GetSchemeFn: runtime.NewScheme,
-					GetRESTMapperFn: func() meta.RESTMapper {
-						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
-					},
-				},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							xrd := &v1.CompositeResourceDefinition{
+								Spec: v1.CompositeResourceDefinitionSpec{
+									Group: "example.org",
+									Names: extv1.CustomResourceDefinitionNames{
+										Kind: "XR",
+									},
+									Versions: []v1.CompositeResourceDefinitionVersion{
+										{
+											Name:          "v2",
+											Referenceable: true,
+										},
+										{
+											Name: "v1",
+										},
+									},
+								},
+								Status: v1.CompositeResourceDefinitionStatus{
+									Controllers: v1.CompositeResourceDefinitionControllerStatus{
+										CompositeResourceTypeRef: v1.TypeReference{
+											APIVersion: "example.org/v1",
+											Kind:       "XR",
+										},
+									},
+								},
+							}
+
+							*obj.(*v1.CompositeResourceDefinition) = *xrd
 							return nil
 						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
 					}),
+				},
+				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
@@ -573,10 +648,47 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return false },
-						MockErr:       func(_ string) error { return nil },
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
-							return nil, errBoom
+						MockStop: func(_ context.Context, _ string) error {
+							return errBoom
 						},
+					}),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: errors.Wrap(errBoom, errStopController),
+			},
+		},
+		"StartControllerError": {
+			reason: "We should return any error we encounter while starting our controller.",
+			args: args{
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
+					}),
+				},
+				opts: []ReconcilerOption{
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{
+							Status: extv1.CustomResourceDefinitionStatus{
+								Conditions: []extv1.CustomResourceDefinitionCondition{
+									{Type: extv1.Established, Status: extv1.ConditionTrue},
+								},
+							},
+						}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithControllerEngine(&MockEngine{
+						MockIsRunning: func(_ string) bool { return false },
+						MockStart: func(_ string, _ ...engine.ControllerOption) error {
+							return errBoom
+						},
+						MockGetClient: func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -585,41 +697,18 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errStartController),
 			},
 		},
-		"SuccessfulStart": {
-			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+		"StartWatchesError": {
+			reason: "We should return any error we encounter while starting watches.",
 			args: args{
-				mgr: &mockManager{
-					GetCacheFn: func() cache.Cache {
-						return &mockCache{
-							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
-						}
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
 					},
-					GetClientFn: func() client.Client {
-						return &test.MockClient{MockList: test.NewMockListFn(nil)}
-					},
-					GetSchemeFn: runtime.NewScheme,
-					GetRESTMapperFn: func() meta.RESTMapper {
-						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
-					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
+					}),
 				},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.CompositeResourceDefinition{}
-								want.Status.SetConditions(v1.WatchingComposite())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
@@ -634,22 +723,59 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return false },
-						MockErr:       func(_ string) error { return errBoom }, // This error should only be logged.
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
-							return mockNamedController{
-								MockStart: func(_ context.Context) error { return nil },
-								MockGetCache: func() cache.Cache {
-									return &mockCache{
-										IndexFieldFn: func(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
-											return nil
-										},
-										WaitForCacheSyncFn: func(_ context.Context) bool {
-											return true
-										},
-									}
-								},
-							}, nil
+						MockStart: func(_ string, _ ...engine.ControllerOption) error {
+							return nil
 						},
+						MockStartWatches: func(_ string, _ ...engine.Watch) error {
+							return errBoom
+						},
+						MockGetClient: func() client.Client { return test.NewMockClient() },
+					}),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: errors.Wrap(errBoom, errStartWatches),
+			},
+		},
+		"SuccessfulStart": {
+			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+			args: args{
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.CompositeResourceDefinition{}
+							want.Status.SetConditions(v1.WatchingComposite())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
+					}),
+				},
+				opts: []ReconcilerOption{
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{
+							Status: extv1.CustomResourceDefinitionStatus{
+								Conditions: []extv1.CustomResourceDefinitionCondition{
+									{Type: extv1.Established, Status: extv1.ConditionTrue},
+								},
+							},
+						}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithControllerEngine(&MockEngine{
+						MockIsRunning:    func(_ string) bool { return false },
+						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
+						MockStartWatches: func(_ string, _ ...engine.Watch) error { return nil },
+						MockGetClient:    func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -660,51 +786,37 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulUpdateControllerVersion": {
 			reason: "We should return without requeueing if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
 			args: args{
-				mgr: &mockManager{
-					GetCacheFn: func() cache.Cache {
-						return &mockCache{
-							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
-						}
-					},
-					GetClientFn: func() client.Client {
-						return &test.MockClient{MockList: test.NewMockListFn(nil)}
-					},
-					GetSchemeFn: runtime.NewScheme,
-					GetRESTMapperFn: func() meta.RESTMapper {
-						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
-					},
-				},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								d := obj.(*v1.CompositeResourceDefinition)
-								d.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
-									{Name: "old", Referenceable: false},
-									{Name: "new", Referenceable: true},
-								}
-								d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "old"}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.CompositeResourceDefinition{}
-								want.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
-									{Name: "old", Referenceable: false},
-									{Name: "new", Referenceable: true},
-								}
-								want.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "new"}
-								want.Status.SetConditions(v1.WatchingComposite())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							d := obj.(*v1.CompositeResourceDefinition)
+							d.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
+								{Name: "old", Referenceable: false},
+								{Name: "new", Referenceable: true},
+							}
+							d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "old"}
 							return nil
 						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.CompositeResourceDefinition{}
+							want.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
+								{Name: "old", Referenceable: false},
+								{Name: "new", Referenceable: true},
+							}
+							want.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "new"}
+							want.Status.SetConditions(v1.WatchingComposite())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
 					}),
+				},
+				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
@@ -718,23 +830,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithControllerEngine(&MockEngine{
-						MockErr: func(_ string) error { return nil },
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
-							return mockNamedController{
-								MockStart: func(_ context.Context) error { return nil },
-								MockGetCache: func() cache.Cache {
-									return &mockCache{
-										IndexFieldFn: func(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
-											return nil
-										},
-										WaitForCacheSyncFn: func(_ context.Context) bool {
-											return true
-										},
-									}
-								},
-							}, nil
-						},
-						MockStop: func(_ string) {},
+						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
+						MockStop:         func(_ context.Context, _ string) error { return nil },
+						MockIsRunning:    func(_ string) bool { return false },
+						MockStartWatches: func(_ string, _ ...engine.Watch) error { return nil },
+						MockGetClient:    func() client.Client { return test.NewMockClient() },
 					}),
 				},
 			},
@@ -745,38 +845,24 @@ func TestReconcile(t *testing.T) {
 		"NotRestartingWithoutVersionChange": {
 			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
-				mgr: &mockManager{
-					GetCacheFn: func() cache.Cache {
-						return &mockCache{
-							ListFn: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error { return nil },
-						}
-					},
-					GetClientFn: func() client.Client {
-						return &test.MockClient{MockList: test.NewMockListFn(nil)}
-					},
-					GetSchemeFn: runtime.NewScheme,
-					GetRESTMapperFn: func() meta.RESTMapper {
-						return meta.NewDefaultRESTMapper([]schema.GroupVersion{v1.SchemeGroupVersion})
-					},
-				},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.CompositeResourceDefinition{}
-								want.Status.SetConditions(v1.WatchingComposite())
+				ca: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.CompositeResourceDefinition{}
+							want.Status.SetConditions(v1.WatchingComposite())
 
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
 							return nil
 						}),
+					},
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+						return nil
 					}),
+				},
+				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
@@ -791,10 +877,9 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithControllerEngine(&MockEngine{
 						MockIsRunning: func(_ string) bool { return true },
-						MockErr:       func(_ string) error { return errBoom }, // This error should only be logged.
-						MockCreate: func(_ string, _ kcontroller.Options, _ ...controller.Watch) (controller.NamedController, error) {
-							t.Errorf("MockCreate should not be called")
-							return nil, nil
+						MockStart: func(_ string, _ ...engine.ControllerOption) error {
+							t.Errorf("MockStart should not be called")
+							return nil
 						},
 					}),
 				},
@@ -805,105 +890,17 @@ func TestReconcile(t *testing.T) {
 		},
 	}
 
-	// Run every test with and without the realtime compositions feature.
-	rtc := apiextensionscontroller.Options{Options: controller.DefaultOptions()}
-	rtc.Features.Enable(features.EnableAlphaRealtimeCompositions)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewReconciler(tc.args.ca, tc.args.opts...)
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-	type mode struct {
-		name  string
-		extra []ReconcilerOption
-	}
-	for _, m := range []mode{
-		{name: "Default"},
-		{name: string(features.EnableAlphaRealtimeCompositions), extra: []ReconcilerOption{WithOptions(rtc)}},
-	} {
-		t.Run(m.name, func(t *testing.T) {
-			for name, tc := range cases {
-				t.Run(name, func(t *testing.T) {
-					r := NewReconciler(tc.args.mgr, append(tc.args.opts, m.extra...)...)
-					got, err := r.Reconcile(context.Background(), reconcile.Request{})
-
-					if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-						t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
-					}
-					if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
-						t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
-					}
-				})
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
-}
-
-type mockNamedController struct {
-	MockStart    func(_ context.Context) error
-	MockGetCache func() cache.Cache
-}
-
-func (m mockNamedController) Start(ctx context.Context) error {
-	return m.MockStart(ctx)
-}
-
-func (m mockNamedController) GetCache() cache.Cache {
-	return m.MockGetCache()
-}
-
-type mockManager struct {
-	manager.Manager
-
-	GetCacheFn             func() cache.Cache
-	GetClientFn            func() client.Client
-	GetSchemeFn            func() *runtime.Scheme
-	GetRESTMapperFn        func() meta.RESTMapper
-	GetConfigFn            func() *rest.Config
-	GetLoggerFn            func() logr.Logger
-	GetControllerOptionsFn func() ctrlconfig.Controller
-}
-
-func (m *mockManager) GetCache() cache.Cache {
-	return m.GetCacheFn()
-}
-
-func (m *mockManager) GetClient() client.Client {
-	return m.GetClientFn()
-}
-
-func (m *mockManager) GetScheme() *runtime.Scheme {
-	return m.GetSchemeFn()
-}
-
-func (m *mockManager) GetRESTMapper() meta.RESTMapper {
-	return m.GetRESTMapperFn()
-}
-
-func (m *mockManager) GetConfig() *rest.Config {
-	return m.GetConfigFn()
-}
-
-func (m *mockManager) GetLogger() logr.Logger {
-	return m.GetLoggerFn()
-}
-
-func (m *mockManager) GetControllerOptions() ctrlconfig.Controller {
-	return m.GetControllerOptionsFn()
-}
-
-type mockCache struct {
-	cache.Cache
-
-	ListFn             func(_ context.Context, list client.ObjectList, opts ...client.ListOption) error
-	IndexFieldFn       func(_ context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error
-	WaitForCacheSyncFn func(_ context.Context) bool
-}
-
-func (m *mockCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	return m.ListFn(ctx, list, opts...)
-}
-
-func (m *mockCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
-	return m.IndexFieldFn(ctx, obj, field, extractValue)
-}
-
-func (m *mockCache) WaitForCacheSync(ctx context.Context) bool {
-	return m.WaitForCacheSyncFn(ctx)
 }

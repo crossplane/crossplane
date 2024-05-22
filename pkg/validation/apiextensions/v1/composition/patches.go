@@ -327,7 +327,6 @@ func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema
 		return "", field.InternalError(field.NewPath("transforms"), err)
 	}
 	for i, transform := range transforms {
-		transform := transform
 		err := IsValidInputForTransform(&transform, inputType)
 		if err != nil && inputType != "" {
 			return "", field.Invalid(field.NewPath("transforms").Index(i), transform, err.Error())

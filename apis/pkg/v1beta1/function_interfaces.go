@@ -328,7 +328,6 @@ func (r *FunctionRevision) SetCommonLabels(l map[string]string) {
 func (p *FunctionRevisionList) GetRevisions() []v1.PackageRevision {
 	prs := make([]v1.PackageRevision, len(p.Items))
 	for i, r := range p.Items {
-		r := r // Pin range variable so we can take its address.
 		prs[i] = &r
 	}
 	return prs
