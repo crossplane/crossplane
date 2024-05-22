@@ -69,6 +69,7 @@ type Cmd struct {
 	ShowPackageDependencies   string `default:"unique"                              enum:"unique,all,none"                             help:"Show package dependencies in the output. One of: unique, all, none." name:"show-package-dependencies"`
 	ShowPackageRevisions      string `default:"active"                              enum:"active,all,none"                             help:"Show package revisions in the output. One of: active, all, none."    name:"show-package-revisions"`
 	ShowPackageRuntimeConfigs bool   `default:"false"                               help:"Show package runtime configs in the output." name:"show-package-runtime-configs"`
+	Concurrency               int    `default:"5"                                   help:"load concurrency"                            name:"concurrency"`
 }
 
 // Help returns help message for the trace command.
@@ -139,6 +140,11 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger.Debug("Found kubeconfig")
 
+	// XXX: this needs to be made configurable - see TODO on line 64
+	// I used the values below for checking timing as concurrency increases
+	// kubeconfig.QPS = 50
+	// kubeconfig.Burst = 100
+
 	client, err := client.New(kubeconfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
@@ -208,7 +214,10 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		}
 	default:
 		logger.Debug("Requested resource is not a package, assumed to be an XR, XRC or MR")
-		treeClient, err = xrm.NewClient(client, xrm.WithConnectionSecrets(c.ShowConnectionSecrets))
+		treeClient, err = xrm.NewClient(client,
+			xrm.WithConnectionSecrets(c.ShowConnectionSecrets),
+			xrm.WithConcurrency(c.Concurrency),
+		)
 		if err != nil {
 			return errors.Wrap(err, errInitKubeClient)
 		}
