@@ -114,8 +114,6 @@ spec:
                 - plural
                 type: object
                 x-kubernetes-validations:
-                - message: Value is required once set
-                  rule: '!has(oldSelf.value) || has(self.value)'
                 - message: Value is immutable
                   rule: self == oldSelf
               connectionSecretKeys:
@@ -277,8 +275,6 @@ spec:
                 - name
                 type: object
                 x-kubernetes-validations:
-                - message: Value is required once set
-                  rule: '!has(oldSelf.value) || has(self.value)'
                 - message: Value is immutable
                   rule: self == oldSelf
               group:
@@ -288,8 +284,6 @@ spec:
                   name of the XRD (in the form `<names.plural>.<group>`).
                 type: string
                 x-kubernetes-validations:
-                - message: Value is required once set
-                  rule: '!has(oldSelf.value) || has(self.value)'
                 - message: Value is immutable
                   rule: self == oldSelf
               metadata:
@@ -365,8 +359,6 @@ spec:
                 - plural
                 type: object
                 x-kubernetes-validations:
-                - message: Value is required once set
-                  rule: '!has(oldSelf.value) || has(self.value)'
                 - message: Value is immutable
                   rule: self == oldSelf
               versions:

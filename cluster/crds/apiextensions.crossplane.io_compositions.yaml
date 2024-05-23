@@ -74,8 +74,6 @@ spec:
                 - kind
                 type: object
                 x-kubernetes-validations:
-                - message: Value is required once set
-                  rule: '!has(oldSelf.value) || has(self.value)'
                 - message: Value is immutable
                   rule: self == oldSelf
               environment:
