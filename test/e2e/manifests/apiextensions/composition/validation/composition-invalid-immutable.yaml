@@ -1,0 +1,36 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: valid
+  annotations:
+    crossplane.io/composition-schema-aware-validation-mode: strict
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: NopResource   # <-- invalid, field is immutable
+  resources:
+  - name: nop-resource-1
+    base:
+     apiVersion: nop.crossplane.io/v1alpha1
+     kind: NopResource
+     spec:
+      forProvider:
+        conditionAfter:
+        - conditionType: Ready
+          conditionStatus: "False"
+          time: 0s
+        - conditionType: Ready
+          conditionStatus: "True"
+          time: 1s
+    patches:
+    - type: FromCompositeFieldPath
+      fromFieldPath: spec.coolField
+      toFieldPath: metadata.annotations[cool-field]
+      transforms:
+      - type: string
+        string:
+         type: Convert
+         convert: ToUpper
+    - type: ToCompositeFieldPath
+      fromFieldPath: metadata.annotations[cool-field]
+      toFieldPath: status.coolerField
