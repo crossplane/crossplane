@@ -105,6 +105,7 @@ func EnvFuncs(fns ...env.Func) env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
 		for _, fn := range fns {
 			var err error
+			//nolint:fatcontext // We want to pass the context down the chain.
 			ctx, err = fn(ctx, c)
 			if err != nil {
 				return ctx, err
