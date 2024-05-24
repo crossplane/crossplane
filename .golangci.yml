@@ -15,6 +15,7 @@ linters:
     # These linters are all deprecated. We disable them explicitly to avoid the
     # linter logging deprecation warnings.
     - deadcode
+    - execinquery
     - varcheck
     - scopelint
     - structcheck
