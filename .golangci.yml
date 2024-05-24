@@ -15,6 +15,7 @@ linters:
     # These linters are all deprecated. We disable them explicitly to avoid the
     # linter logging deprecation warnings.
     - deadcode
+    - execinquery
     - varcheck
     - scopelint
     - structcheck
@@ -57,7 +58,7 @@ linters:
     # 1 is covered by other linters. 2 is covered by wrapcheck, which can also
     # handle our use of crossplane-runtime's errors package. 3 is more strict
     # than we need. Not every error needs to be tested for equality.
-    - goerr113
+    - err113
 
     # These linters duplicate gocognit, but calculate complexity differently.
     - gocyclo
@@ -107,6 +108,10 @@ linters:
     # Go v1.22 and above: https://tip.golang.org/doc/go1.22
     - exportloopref
 
+    # Warns about using magic numbers. We do think it's best to avoid magic
+    # numbers, but we should not be strict about it.
+    - mnd
+
 linters-settings:
   errcheck:
     # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
@@ -117,14 +122,10 @@ linters-settings:
     # default is false: such cases aren't reported by default.
     check-blank: false
 
-    # [deprecated] comma-separated list of pairs of the form pkg:regex
-    # the regex is used to ignore names within pkg. (default "fmt:.*").
-    # see https://github.com/kisielk/errcheck#the-deprecated-method for details
-    ignore: fmt:.*,io/ioutil:^Read.*
-
   govet:
     # report about shadowed variables
-    check-shadowing: false
+    disable:
+      - shadow
 
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
@@ -139,10 +140,6 @@ linters-settings:
       - prefix(github.com/crossplane/crossplane)
       - blank
       - dot
-
-  maligned:
-    # print struct with more effective memory layout or not, false by default
-    suggest-new: true
 
   dupl:
     # tokens count to trigger issue, 150 by default
@@ -163,7 +160,8 @@ linters-settings:
     # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
     # if it's called for subdir of a project it can't find funcs usages. All text editor integrations
     # with golangci-lint call it on a directory with the changed file.
-    check-exported: false
+    exported-is-used: true
+    exported-fields-are-used: true
 
   unparam:
     # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
@@ -315,7 +313,7 @@ issues:
   new: false
 
   # Maximum issues count per one linter. Set to 0 to disable. Default is 50.
-  max-per-linter: 0
+  max-issues-per-linter: 0
 
   # Maximum count of issues with the same text. Set to 0 to disable. Default is 3.
   max-same-issues: 0

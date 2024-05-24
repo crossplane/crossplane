@@ -74,6 +74,7 @@ func AllOf(fns ...features.Func) features.Func {
 		t.Helper()
 
 		for _, fn := range fns {
+			//nolint:fatcontext // We want to pass the context to each function.
 			ctx = fn(ctx, t, c)
 			if t.Failed() && c.FailFast() {
 				break
