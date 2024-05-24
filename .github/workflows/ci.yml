@@ -470,8 +470,6 @@ jobs:
           name: artifacts
           path: ./out/artifacts
 
-  # TODO(negz): Refactor this job. Should the parts pertaining to release
-  # branches live in promote.yaml instead?
   protobuf-schemas:
     runs-on: ubuntu-22.04
     needs: detect-noop
@@ -483,6 +481,8 @@ jobs:
 
       - name: Setup Buf
         uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Lint Protocol Buffers
         uses: bufbuild/buf-lint-action@v1
