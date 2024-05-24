@@ -146,10 +146,6 @@ linters-settings:
       - blank
       - dot
 
-  maligned:
-    # print struct with more effective memory layout or not, false by default
-    suggest-new: true
-
   dupl:
     # tokens count to trigger issue, 150 by default
     threshold: 100
