@@ -108,6 +108,10 @@ linters:
     # Go v1.22 and above: https://tip.golang.org/doc/go1.22
     - exportloopref
 
+    # Warns about using magic numbers. We do think it's best to avoid magic
+    # numbers, but we should not be strict about it.
+    - mnd
+
 linters-settings:
   errcheck:
     # report about not checking of errors in type assetions: `a := b.(MyStruct)`;
