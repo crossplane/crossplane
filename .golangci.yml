@@ -58,7 +58,7 @@ linters:
     # 1 is covered by other linters. 2 is covered by wrapcheck, which can also
     # handle our use of crossplane-runtime's errors package. 3 is more strict
     # than we need. Not every error needs to be tested for equality.
-    - goerr113
+    - err113
 
     # These linters duplicate gocognit, but calculate complexity differently.
     - gocyclo
