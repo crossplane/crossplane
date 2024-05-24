@@ -42,6 +42,12 @@ func TestXRDValidation(t *testing.T) {
 			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "xrd-valid-updated-invalid.yaml"),
 		},
 		{
+			// An update to immutable XRD fields should be rejected.
+			Name:        "ImmutableXRDFieldUpdateIsRejected",
+			Description: "An update to immutable XRD field should be rejected.",
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "xrd-immutable-updated.yaml"),
+		},
+		{
 			// An invalid XRD should be rejected.
 			Name:        "InvalidXRDIsRejected",
 			Description: "An invalid XRD should be rejected.",
