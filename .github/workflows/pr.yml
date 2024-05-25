@@ -6,7 +6,7 @@ on:
 
 jobs:
   checklist-completed:
-    if: github.actor != 'renovate[bot]'
+    if: github.actor != 'crossplane-renovate[bot]'
     runs-on: ubuntu-22.04
     steps:
       - uses: mheap/require-checklist-action@01fe24747f8630a056d9ca79dfbbb755579850ab # v2
