@@ -124,6 +124,19 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, errKubeConfig)
 	}
+
+	// NOTE(phisco): We used to get them set as part of
+	// https://github.com/kubernetes-sigs/controller-runtime/blob/2e9781e9fc6054387cf0901c70db56f0b0a63083/pkg/client/config/config.go#L96,
+	// this new approach doesn't set them, so we need to set them here to avoid
+	// being utterly slow.
+	// TODO(phisco): make this configurable.
+	if kubeconfig.QPS == 0 {
+		kubeconfig.QPS = 20
+	}
+	if kubeconfig.Burst == 0 {
+		kubeconfig.Burst = 30
+	}
+
 	logger.Debug("Found kubeconfig")
 
 	client, err := client.New(kubeconfig, client.Options{
