@@ -86,7 +86,7 @@ CRD_PATCH_DIR = cluster/crd-patches
 # See patch files for details.
 crds.patch: $(KUBECTL)
 	@$(INFO) patching generated CRDs
-	@mkdir $(WORK_DIR)/patch
+	@mkdir -p $(WORK_DIR)/patch
 	@$(KUBECTL) patch --local --type=json -f $(CRD_DIR)/pkg.crossplane.io_deploymentruntimeconfigs.yaml --patch-file $(CRD_PATCH_DIR)/pkg.crossplane.io_deploymentruntimeconfigs.yaml -o yaml > $(WORK_DIR)/patch/pkg.crossplane.io_deploymentruntimeconfigs.yaml
 	@mv $(WORK_DIR)/patch/pkg.crossplane.io_deploymentruntimeconfigs.yaml $(CRD_DIR)/pkg.crossplane.io_deploymentruntimeconfigs.yaml
 	@$(OK) patched generated CRDs
