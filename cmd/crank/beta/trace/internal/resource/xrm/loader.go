@@ -18,6 +18,7 @@ package xrm
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
@@ -94,6 +95,18 @@ func (l *loader) load(ctx context.Context, concurrency int) {
 		}()
 	}
 	wg.Wait()
+	sortRefs(l.root)
+}
+
+func sortRefs(root *resource.Resource) {
+	for _, child := range root.Children {
+		sortRefs(child)
+	}
+	sort.Slice(root.Children, func(i, j int) bool {
+		l := root.Children[i].Unstructured
+		r := root.Children[j].Unstructured
+		return l.GetAPIVersion()+l.GetKind()+l.GetName() < r.GetAPIVersion()+r.GetKind()+r.GetName()
+	})
 }
 
 // addRefs adds work items to the queue.

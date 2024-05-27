@@ -88,63 +88,85 @@ func countItems(root *resource.Resource) int {
 }
 
 func TestLoader(t *testing.T) {
-	tests := []struct {
-		name              string
-		childDepth        int
-		numItems          int
-		channelCapacity   int
-		concurrency       int
+	type want struct {
 		expectedResources int
+	}
+	type args struct {
+		childDepth      int
+		numItems        int
+		channelCapacity int
+		concurrency     int
+	}
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
 	}{
-		{
-			name:              "simple",
-			childDepth:        3,
-			numItems:          3,
-			expectedResources: 1 + 3 + 9 + 27,
+		"Basic": {
+			reason: "simple test with default concurrency",
+			args: args{
+				childDepth: 3,
+				numItems:   3,
+			},
+			want: want{
+				expectedResources: 1 + 3 + 9 + 27,
+			},
 		},
-		{
-			name:              "blocking buffer",
-			channelCapacity:   1,
-			concurrency:       1,
-			childDepth:        3,
-			numItems:          10,
-			expectedResources: 1 + 10 + 100 + 1000,
+		"BlockingBuffer": {
+			reason: "in-process resources greater than channel buffer, causing blocking",
+			args: args{
+				channelCapacity: 1,
+				concurrency:     1,
+				childDepth:      3,
+				numItems:        10,
+			},
+			want: want{
+				expectedResources: 1 + 10 + 100 + 1000,
+			},
 		},
-		{
-			name:              "no children at root",
-			childDepth:        0,
-			numItems:          0,
-			expectedResources: 1,
+		"NoRootChildren": {
+			reason: "top-level resource has no children",
+			args: args{
+				childDepth: 0,
+				numItems:   0,
+			},
+			want: want{
+				expectedResources: 1,
+			},
 		},
-		{
-			name:              "uses default concurrency",
-			concurrency:       -1,
-			childDepth:        3,
-			numItems:          3,
-			expectedResources: 1 + 3 + 9 + 27,
+		"BadConcurrency": {
+			reason: "invalid concurrency is adjusted to be valid",
+			args: args{
+				concurrency: -1,
+				childDepth:  3,
+				numItems:    3,
+			},
+			want: want{
+				expectedResources: 1 + 3 + 9 + 27,
+			},
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 			orig := channelCapacity
 			defer func() { channelCapacity = orig }()
 
-			if test.channelCapacity > 0 {
-				channelCapacity = test.channelCapacity
+			if test.args.channelCapacity > 0 {
+				channelCapacity = test.args.channelCapacity
 			}
 			concurrency := defaultConcurrency
-			if test.concurrency != 0 {
-				concurrency = test.concurrency
+			if test.args.concurrency != 0 {
+				concurrency = test.args.concurrency
 			}
-			sg := &simpleGenerator{childDepth: test.childDepth, numItems: test.numItems}
+			sg := &simpleGenerator{childDepth: test.args.childDepth, numItems: test.args.numItems}
 			rootRef := sg.createRefAtDepth(0)
 			root := sg.createResourceFromRef(&rootRef)
 			l := newLoader(root, sg)
 			l.load(context.Background(), concurrency)
 			n := countItems(root)
-			if test.expectedResources != n {
-				t.Errorf("resource count mismatch: want %d, got %d", test.expectedResources, n)
+			if test.want.expectedResources != n {
+				t.Errorf("resource count mismatch: want %d, got %d", test.want.expectedResources, n)
 			}
 		})
 	}

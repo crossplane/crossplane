@@ -140,10 +140,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger.Debug("Found kubeconfig")
 
-	// XXX: this needs to be made configurable - see TODO on line 64
-	// I used the values below for checking timing as concurrency increases
-	// kubeconfig.QPS = 50
-	// kubeconfig.Burst = 100
+	if kubeconfig.QPS == 0 {
+		kubeconfig.QPS = 20
+	}
+	if kubeconfig.Burst == 0 {
+		kubeconfig.Burst = 30
+	}
 
 	client, err := client.New(kubeconfig, client.Options{
 		Scheme: scheme.Scheme,
