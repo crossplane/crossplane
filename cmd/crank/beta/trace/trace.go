@@ -140,13 +140,6 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	logger.Debug("Found kubeconfig")
 
-	if kubeconfig.QPS == 0 {
-		kubeconfig.QPS = 20
-	}
-	if kubeconfig.Burst == 0 {
-		kubeconfig.Burst = 30
-	}
-
 	client, err := client.New(kubeconfig, client.Options{
 		Scheme: scheme.Scheme,
 	})
