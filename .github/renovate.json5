@@ -45,7 +45,7 @@
     },
     {
       "customType": "regex",
-      "description": "Bump golangci-lint version in workflows and the Earthfile",
+      "description": "Bump golangci-lint version in the Earthfile",
       "fileMatch": [
         "^Earthfile$"
       ],
