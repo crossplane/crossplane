@@ -5,77 +5,144 @@
     "helpers:pinGitHubActionDigests",
     ":semanticCommits"
   ],
-// We only want renovate to rebase PRs when they have conflicts,
-// default "auto" mode is not required.
+  // We only want renovate to rebase PRs when they have conflicts, default
+  // "auto" mode is not required.
   "rebaseWhen": "conflicted",
-// The maximum number of PRs to be created in parallel
+  // The maximum number of PRs to be created in parallel
   "prConcurrentLimit": 5,
-// The branches renovate should target
-// PLEASE UPDATE THIS WHEN RELEASING.
-  "baseBranches": ["master","release-1.14","release-1.15", "release-1.16"],
+  // The branches renovate should target
+  // PLEASE UPDATE THIS WHEN RELEASING.
+  "baseBranches": [
+    "master",
+    "release-1.14",
+    "release-1.15",
+    "release-1.16"
+  ],
   "ignorePaths": [
     "design/**",
     // We test upgrades, so leave it on an older version on purpose.
     "test/e2e/manifests/pkg/provider/provider-initial.yaml",
   ],
-  "postUpdateOptions": ["gomodTidy"],
-// All PRs should have a label
-  "labels": ["automated"],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  // All PRs should have a label
+  "labels": [
+    "automated"
+  ],
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Bump Go version used in workflows",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
+      "description": "Bump Go version in Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
       "matchStrings": [
-        "GO_VERSION: '(?<currentValue>.*?)'\\n"
+        "ARG --global GO_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
-    }, {
+    },
+    {
       "customType": "regex",
-      "description": "Bump golangci-lint version in workflows and the Makefile",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$","^Makefile$"],
+      "description": "Bump golangci-lint version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
       "matchStrings": [
-        "GOLANGCI_VERSION: 'v(?<currentValue>.*?)'\\n",
-        "GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n"
+        "ARG GOLANGCI_LINT_VERSION=v(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "golangci/golangci-lint",
       "extractVersionTemplate": "^v(?<version>.*)$"
-    }, {
+    },
+    {
       "customType": "regex",
-      "description": "Bump helm version in the Makefile",
-      "fileMatch": ["^Makefile$"],
+      "description": "Bump helm version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
       "matchStrings": [
-        "HELM3_VERSION = (?<currentValue>.*?)\\n"
+        "ARG HELM_VERSION=v(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "helm/helm",
-    }, {
+    },
+    {
       "customType": "regex",
-      "description": "Bump kind version in the Makefile",
-      "fileMatch": ["^Makefile$"],
+      "description": "Bump helm-docs version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
       "matchStrings": [
-        "KIND_VERSION = (?<currentValue>.*?)\\n"
+        "ARG HELM_DOCS_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "norwoodj/helm-docs",
+    },
+    {
+      "customType": "regex",
+      "description": "Bump kind version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG KIND_VERSION=v(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "kubernetes-sigs/kind",
-    }
+    },
+    {
+      "customType": "regex",
+      "description": "Bump gotestsum version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG GOTESTSUM_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "gotestyourself/gotestsum",
+    },
+    {
+      "customType": "regex",
+      "description": "Bump codeql version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG CODEQL_VERSION=v(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "github/codeql-action",
+    },
   ],
-  "crossplane": {
-    "fileMatch": ["(^|/)test/e2e/.*\\.ya?ml$"]
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
+  "dockerfile": {
+    "fileMatch:" [
+      "(^|/)Earthfile$"
+    ]
   },
-// PackageRules disabled below should be enabled in case of vulnerabilities
+  "crossplane": {
+    "fileMatch": [
+      "(^|/)test/e2e/.*\\.ya?ml$"
+    ]
+  },
+  // PackageRules disabled below should be enabled in case of vulnerabilities
   "vulnerabilityAlerts": {
     "enabled": true
   },
   "osvVulnerabilityAlerts": true,
-// Renovate evaluates all packageRules in order, so low priority rules should
-// be at the beginning, high priority at the end
+  // Renovate evaluates all packageRules in order, so low priority rules should
+  // be at the beginning, high priority at the end
   "packageRules": [
     {
       "description": "Generate code after upgrading go dependencies",
-      "matchDatasources": ["go"],
+      "matchDatasources": [
+        "go"
+      ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -91,11 +158,12 @@
     },
     {
       "description": "Lint code after upgrading golangci-lint",
-      "matchDepNames": ["golangci/golangci-lint"],
+      "matchDepNames": [
+        "golangci/golangci-lint"
+      ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
-          "git submodule update --init",
           "install-tool golang $(grep -oP \"^toolchain go\\K.+\" go.mod)",
           "make go.lint",
         ],
@@ -106,24 +174,42 @@
       },
     },
     {
-      "matchManagers": ["crossplane"],
-      "matchFileNames": ["test/e2e/**"],
+      "matchManagers": [
+        "crossplane"
+      ],
+      "matchFileNames": [
+        "test/e2e/**"
+      ],
       "groupName": "e2e-manifests",
-    }, {
+    },
+    {
       "description": "Ignore non-security related updates to release branches",
-      matchBaseBranches: [ "/^release-.*/"],
+      matchBaseBranches: [
+        "/^release-.*/"
+      ],
       enabled: false,
-    }, {
+    },
+    {
       "description": "Still update Docker images on release branches though",
-      "matchDatasources": ["docker"],
-      matchBaseBranches: [ "/^release-.*/"],
+      "matchDatasources": [
+        "docker"
+      ],
+      matchBaseBranches: [
+        "/^release-.*/"
+      ],
       enabled: true,
-    }, {
+    },
+    {
       "description": "Only get Docker image updates every 2 weeks to reduce noise",
-      "matchDatasources": ["docker"],
-      "schedule": ["every 2 week on monday"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "schedule": [
+        "every 2 week on monday"
+      ],
       enabled: true,
-    }, {
+    },
+    {
       "description": "Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo",
       "matchDatasources": [
         "go"
@@ -132,7 +218,8 @@
         "k8s.io/client-go"
       ],
       "allowedVersions": "<1.0",
-    }, {
+    },
+    {
       "description": "Ignore k8s dependencies, should be updated on crossplane-runtime",
       "matchDatasources": [
         "go"
@@ -142,17 +229,23 @@
         "sigs.k8s.io"
       ],
       "enabled": false,
-    },{
+    },
+    {
       "description": "Only get dependency digest updates every month to reduce noise, except crossplane-runtime",
-      "excludePackageNames": ["github.com/crossplane/crossplane-runtime"],
+      "excludePackageNames": [
+        "github.com/crossplane/crossplane-runtime"
+      ],
       "matchDatasources": [
         "go"
       ],
       "matchUpdateTypes": [
         "digest",
       ],
-      "extends": ["schedule:monthly"],
-    }, {
+      "extends": [
+        "schedule:monthly"
+      ],
+    },
+    {
       "description": "Ignore oss-fuzz, it's not using tags, we'll stick to master",
       "matchDepTypes": [
         "action"
@@ -161,9 +254,12 @@
         "google/oss-fuzz"
       ],
       "enabled": false
-    }, {
+    },
+    {
       "description": "Group all go version updates",
-      "matchDatasources": ["golang-version"],
+      "matchDatasources": [
+        "golang-version"
+      ],
       "groupName": "golang version",
     }
   ],
