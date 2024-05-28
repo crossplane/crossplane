@@ -44,7 +44,7 @@ generate:
 
 # e2e runs end-to-end tests. See test/e2e/README.md for details. 
 e2e:
-  ARG --required FLAGS
+  ARG FLAGS="-test-suite=base"
   # Docker installs faster on Alpine, and we only need Go for go tool test2json.
   FROM golang:${GO_VERSION}-alpine3.20
   RUN apk add --no-cache docker jq

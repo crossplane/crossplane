@@ -32,7 +32,7 @@ available build targets.
 Useful targets include:
 
 * `earthly +reviewable` - Run code generators, linters, and unit tests.
-* `earthly +e2e` - Run end-to-end tests.
+* `earthly -P +e2e` - Run end-to-end tests.
 * `earthly +hack` - Build Crossplane and deploy it to a local `kind` cluster.
 
 ## Checklist Cheat Sheet
