@@ -174,10 +174,26 @@ go.cachedir:
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,
 # try running the binary directly with different arguments.
+
+CROSSPLANE_NAMESPACE ?= crossplane-system
+TLS_SERVER_CERTS_DIR ?= ./.cache/tls/server
+TLS_CLIENT_CERTS_DIR ?= ./.cache/tls/client
+CROSSPLANE_CACHE_DIR ?= ./.cache/crossplane
 run: go.build
+	@$(INFO) Getting TLS certificates from the cluster...
+	@mkdir -p $(TLS_SERVER_CERTS_DIR)
+	@kubectl get secret crossplane-tls-server -n $(CROSSPLANE_NAMESPACE) -o jsonpath="{.data.tls\.crt}" | base64 --decode > "$(TLS_SERVER_CERTS_DIR)/tls.crt"
+	@kubectl get secret crossplane-tls-server -n $(CROSSPLANE_NAMESPACE) -o jsonpath="{.data.tls\.key}" | base64 --decode > "$(TLS_SERVER_CERTS_DIR)/tls.key"
+	@kubectl get secret crossplane-tls-server -n $(CROSSPLANE_NAMESPACE) -o jsonpath="{.data.ca\.crt}" | base64 --decode > "$(TLS_SERVER_CERTS_DIR)/ca.crt"
+	@mkdir -p $(TLS_CLIENT_CERTS_DIR)
+	@kubectl get secret crossplane-tls-client -n $(CROSSPLANE_NAMESPACE) -o jsonpath="{.data.tls\.crt}" | base64 --decode > "$(TLS_CLIENT_CERTS_DIR)/tls.crt"
+	@kubectl get secret crossplane-tls-client -n $(CROSSPLANE_NAMESPACE) -o jsonpath="{.data.tls\.key}" | base64 --decode > "$(TLS_CLIENT_CERTS_DIR)/tls.key"
+	@kubectl get secret crossplane-tls-client -n $(CROSSPLANE_NAMESPACE) -o jsonpath="{.data.ca\.crt}" | base64 --decode > "$(TLS_CLIENT_CERTS_DIR)/ca.crt"
 	@$(INFO) Running Crossplane locally out-of-cluster . . .
+	@mkdir -p $(CROSSPLANE_CACHE_DIR)
 	@# To see other arguments that can be provided, run the command with --help instead
-	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug
+	@# In-cluster Crossplane should be deployed with webhooks disabled with `webhooks.enabled: false` chart value
+	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug --tls-server-certs-dir=$(TLS_SERVER_CERTS_DIR) --tls-client-certs-dir=$(TLS_CLIENT_CERTS_DIR) --cache-dir=$(CROSSPLANE_CACHE_DIR) -n $(CROSSPLANE_NAMESPACE) --webhook-enabled=false --enable-composition-webhook-schema-validation=false
 
 .PHONY: manifests submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile e2e.test.images
 
