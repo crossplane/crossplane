@@ -124,6 +124,7 @@ go-generate:
   COPY --dir hack/ apis/ internal/ .
   RUN go generate -tags 'generate' ./apis/...
   SAVE ARTIFACT apis/ AS LOCAL apis
+  SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
 
 # go-build builds Crossplane binaries for your native OS and architecture.
 go-build:
