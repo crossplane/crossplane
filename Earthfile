@@ -70,12 +70,13 @@ e2e:
 hack:
   # TODO(negz): This could run an interactive shell inside a temporary container
   # once https://github.com/earthly/earthly/issues/3206 is fixed.
+  ARG USERPLATFORM
   LOCALLY
   WAIT
     BUILD +unhack
   END
-  COPY +helm-setup/helm .hack/helm
-  COPY +kind-setup/kind .hack/kind
+  COPY --platform=${USERPLATFORM} +helm-setup/helm .hack/helm
+  COPY --platform=${USERPLATFORM} +kind-setup/kind .hack/kind
   COPY (+helm-build/output --CROSSPLANE_VERSION=v0.0.0-hack) .hack/charts
   WITH DOCKER --load crossplane-hack/crossplane:hack=+image
     RUN \
@@ -90,8 +91,9 @@ hack:
 
 # unhack deletes the kind cluster created by the hack target.
 unhack:
+  ARG USERPLATFORM
   LOCALLY
-  COPY +kind-setup/kind .hack/kind
+  COPY --platform=${USERPLATFORM} +kind-setup/kind .hack/kind
   RUN .hack/kind delete cluster --name crossplane-hack
   RUN rm -rf .hack
 
@@ -140,7 +142,6 @@ go-build:
   ARG EARTHLY_GIT_SHORT_HASH
   ARG EARTHLY_GIT_COMMIT_TIMESTAMP
   ARG CROSSPLANE_VERSION=v0.0.0-${EARTHLY_GIT_COMMIT_TIMESTAMP}-${EARTHLY_GIT_SHORT_HASH}
-  ARG NATIVEPLATFORM
   ARG TARGETARCH
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
@@ -268,51 +269,56 @@ helm-build:
 # kubectl-setup is used by other targets to setup kubectl.
 kubectl-setup:
   ARG KUBECTL_VERSION=v1.30.1
-  ARG NATIVEOS
-  ARG NATIVEARCH
-  FROM curlimages/curl:8.8.0
-  RUN curl -fsSL https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-${NATIVEOS}-${NATIVEARCH}.tar.gz|tar zx
+  ARG NATIVEPLATFORM
+  ARG TARGETOS
+  ARG TARGETARCH
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
+  RUN curl -fsSL https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-${TARGETOS}-${TARGETARCH}.tar.gz|tar zx
   SAVE ARTIFACT kubernetes/client/bin/kubectl
 
 # kind-setup is used by other targets to setup kind.
 kind-setup:
   ARG KIND_VERSION=v0.21.0
-  ARG NATIVEOS
-  ARG NATIVEARCH
-  FROM curlimages/curl:8.8.0
-  RUN curl -fsSLo kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${NATIVEOS}-${NATIVEARCH}&&chmod +x kind
+  ARG NATIVEPLATFORM
+  ARG TARGETOS
+  ARG TARGETARCH
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
+  RUN curl -fsSLo kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${TARGETOS}-${TARGETARCH}&&chmod +x kind
   SAVE ARTIFACT kind
 
 # gotestsum-setup is used by other targets to setup gotestsum.
 gotestsum-setup:
   ARG GOTESTSUM_VERSION=1.11.0
-  ARG NATIVEOS
-  ARG NATIVEARCH
-  FROM curlimages/curl:8.8.0
-  RUN curl -fsSL https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_${NATIVEOS}_${NATIVEARCH}.tar.gz|tar zx>gotestsum
+  ARG NATIVEPLATFORM
+  ARG TARGETOS
+  ARG TARGETARCH
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
+  RUN curl -fsSL https://github.com/gotestyourself/gotestsum/releases/download/v${GOTESTSUM_VERSION}/gotestsum_${GOTESTSUM_VERSION}_${TARGETOS}_${TARGETARCH}.tar.gz|tar zx>gotestsum
   SAVE ARTIFACT gotestsum
 
 # helm-docs-setup is used by other targets to setup helm-docs.
 helm-docs-setup:
   ARG HELM_DOCS_VERSION=1.11.0
-  ARG NATIVEOS
-  ARG NATIVEARCH
-  FROM curlimages/curl:8.8.0
-  IF [ "${NATIVEARCH}" = "amd64" ]
+  ARG NATIVEPLATFORM
+  ARG TARGETOS
+  ARG TARGETARCH
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
+  IF [ "${TARGETARCH}" = "amd64" ]
     LET ARCH=x86_64
   ELSE 
-    LET ARCH=${NATIVEARCH}
+    LET ARCH=${TARGETARCH}
   END
-  RUN curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_${NATIVEOS}_${ARCH}.tar.gz|tar zx>helm-docs
+  RUN curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_${TARGETOS}_${ARCH}.tar.gz|tar zx>helm-docs
   SAVE ARTIFACT helm-docs
 
 # helm-setup is used by other targets to setup helm.
 helm-setup:
   ARG HELM_VERSION=v3.14.4
-  ARG NATIVEOS
-  ARG NATIVEARCH
-  FROM curlimages/curl:8.8.0
-  RUN curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-${NATIVEOS}-${NATIVEARCH}.tar.gz|tar zx --strip-components=1
+  ARG NATIVEPLATFORM
+  ARG TARGETOS
+  ARG TARGETARCH
+  FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
+  RUN curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-${TARGETOS}-${TARGETARCH}.tar.gz|tar zx --strip-components=1
   SAVE ARTIFACT helm
 
 # Targets below this point are intended only for use in GitHub Actions CI. They
@@ -349,10 +355,10 @@ ci-codeql-setup:
 # ci-codeql is used by CI to build Crossplane with CodeQL scanning enabled.
 ci-codeql:
   ARG CGO_ENABLED=0
-  ARG NATIVEOS
-  ARG NATIVEARCH
+  ARG TARGETOS
+  ARG TARGETARCH
   FROM +go-modules
-  IF [ "${NATIVEARCH}" = "arm64" ] && [ "${NATIVEOS}" = "linux" ]
+  IF [ "${TARGETARCH}" = "arm64" ] && [ "${TARGETOS}" = "linux" ]
     RUN --no-cache echo "CodeQL doesn't support Linux on Apple Silicon" && false
   END
   COPY --dir +ci-codeql-setup/codeql /codeql
