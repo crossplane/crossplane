@@ -94,6 +94,18 @@
     },
     {
       "customType": "regex",
+      "description": "Bump kubectl version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG KUBECTL_VERSION=v(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "kubernetes/kubernetes",
+    },
+    {
+      "customType": "regex",
       "description": "Bump gotestsum version in the Earthfile",
       "fileMatch": [
         "^Earthfile$"
