@@ -121,8 +121,17 @@ go-modules-tidy:
 go-generate:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
+  COPY +kubectl-setup/kubectl /usr/local/bin/kubectl
+  COPY --dir cluster/crd-patches cluster/crd-patches
   COPY --dir hack/ apis/ internal/ .
   RUN go generate -tags 'generate' ./apis/...
+  # TODO(negz): Can this move into generate.go? Ideally it would live there with
+  # the code that actually generates the CRDs, but it depends on kubectl.
+  RUN kubectl patch --local --type=json \
+    --patch-file cluster/crd-patches/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+    --filename cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml \
+    --output=yaml > /tmp/patched.yaml \
+    && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
   SAVE ARTIFACT apis/ AS LOCAL apis
   SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
 
@@ -255,6 +264,15 @@ helm-build:
   RUN helm dependency update
   RUN helm package --version ${CROSSPLANE_CHART_VERSION} --app-version ${CROSSPLANE_CHART_VERSION} -d output .
   SAVE ARTIFACT output AS LOCAL _output/charts
+
+# kubectl-setup is used by other targets to setup kubectl.
+kubectl-setup:
+  ARG KUBECTL_VERSION=v1.30.1
+  ARG NATIVEOS
+  ARG NATIVEARCH
+  FROM curlimages/curl:8.8.0
+  RUN curl -fsSL https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-${NATIVEOS}-${NATIVEARCH}.tar.gz|tar zx
+  SAVE ARTIFACT kubernetes/client/bin/kubectl
 
 # kind-setup is used by other targets to setup kind.
 kind-setup:
