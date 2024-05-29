@@ -145,7 +145,7 @@
   // syntax is a superset of Dockerfile syntax this works to update FROM images.
   // https://github.com/renovatebot/renovate/issues/15975
   "dockerfile": {
-    "fileMatch:" [
+    "fileMatch": [
       "(^|/)Earthfile$"
     ]
   },
