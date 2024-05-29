@@ -399,7 +399,7 @@ ci-push-build-artifacts:
   ARG AWS_DEFAULT_REGION
   FROM amazon/aws-cli:2.15.57
   COPY --dir ${ARTIFACTS_DIR} artifacts
-  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete artifacts s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION}
+  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors artifacts s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION}
 
 # ci-promote-build-artifacts is used by CI to promote binary artifacts and Helm
 # charts to a channel. In practice, this means copying them from one S3
@@ -415,12 +415,12 @@ ci-promote-build-artifacts:
   ARG AWS_DEFAULT_REGION
   FROM amazon/aws-cli:2.15.57
   COPY +helm-setup/helm /usr/local/bin/helm
-  RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync s3://${BUCKET_CHARTS}/${CHANNEL} repo
-  RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION}/charts repo
+  RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --only-show-errors s3://${BUCKET_CHARTS}/${CHANNEL} repo
+  RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --only-show-errors s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION}/charts repo
   RUN helm repo index --url ${HELM_REPO_URL} repo
-  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete repo s3://${BUCKET_CHARTS}/${CHANNEL}
-  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 cp "private, max-age=0, no-transform" repo/index.yaml s3://${BUCKET_CHARTS}/${CHANNEL}/index.yaml
-  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION} s3://${BUCKET_RELEASES}/${CHANNEL}/${CROSSPLANE_VERSION}
+  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors repo s3://${BUCKET_CHARTS}/${CHANNEL}
+  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 cp --only-show-errors "private, max-age=0, no-transform" repo/index.yaml s3://${BUCKET_CHARTS}/${CHANNEL}/index.yaml
+  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION} s3://${BUCKET_RELEASES}/${CHANNEL}/${CROSSPLANE_VERSION}
   IF [ "${PRERELEASE}" = "false" ]
-    RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION} s3://${BUCKET_RELEASES}/${CHANNEL}/current
+    RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION} s3://${BUCKET_RELEASES}/${CHANNEL}/current
   END
