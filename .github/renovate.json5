@@ -41,7 +41,8 @@
         "EARTHLY_VERSION '(?<currentValue>.*?)'\\n"
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "earthly/earthly"
+      "depNameTemplate": "earthly/earthly",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "customType": "regex",
@@ -62,11 +63,10 @@
         "^Earthfile$"
       ],
       "matchStrings": [
-        "ARG GOLANGCI_LINT_VERSION=v(?<currentValue>.*?)\\n"
+        "ARG GOLANGCI_LINT_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "golangci/golangci-lint",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      "depNameTemplate": "golangci/golangci-lint"
     },
     {
       "customType": "regex",
@@ -75,7 +75,7 @@
         "^Earthfile$"
       ],
       "matchStrings": [
-        "ARG HELM_VERSION=v(?<currentValue>.*?)\\n"
+        "ARG HELM_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "helm/helm",
@@ -91,6 +91,7 @@
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "norwoodj/helm-docs",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "customType": "regex",
@@ -99,7 +100,7 @@
         "^Earthfile$"
       ],
       "matchStrings": [
-        "ARG KIND_VERSION=v(?<currentValue>.*?)\\n"
+        "ARG KIND_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "kubernetes-sigs/kind",
@@ -111,7 +112,7 @@
         "^Earthfile$"
       ],
       "matchStrings": [
-        "ARG KUBECTL_VERSION=v(?<currentValue>.*?)\\n"
+        "ARG KUBECTL_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "kubernetes/kubernetes",
@@ -127,6 +128,7 @@
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "gotestyourself/gotestsum",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     },
     {
       "customType": "regex",
@@ -135,7 +137,7 @@
         "^Earthfile$"
       ],
       "matchStrings": [
-        "ARG CODEQL_VERSION=v(?<currentValue>.*?)\\n"
+        "ARG CODEQL_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "github/codeql-action",
