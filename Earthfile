@@ -53,17 +53,17 @@ e2e:
   COPY +gotestsum-setup/gotestsum /usr/local/bin/gotestsum
   COPY +go-build-e2e/e2e .
   COPY --dir cluster test .
-  # Using a static CROSSPLANE_VERSION allows Earthly to cache E2E runs as long
-  # as no code changed. If the version contains a git commit (the default) the
-  # build layer cache is invalidated on every commit.
-  WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
-    TRY
+  TRY
+    # Using a static CROSSPLANE_VERSION allows Earthly to cache E2E runs as long
+    # as no code changed. If the version contains a git commit (the default) the
+    # build layer cache is invalidated on every commit.
+    WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
       RUN gotestsum --no-color=false --format testname --junitfile e2e-tests.xml --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
-    FINALLY
-      SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
     END
+  FINALLY
+    SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
