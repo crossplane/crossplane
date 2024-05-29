@@ -259,19 +259,19 @@ jobs:
 
       - name: Push Artifacts to https://releases.crossplane.io/build/
         if: env.AWS_USR != ''
-        run: earthly --strict +ci-push-build-artifacts --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+        run: |
+          earthly --strict \
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
+            +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
 
       - name: Push Artifacts to https://releases.crossplane.io/master/ and https://charts.crossplane.io/master
         if: env.AWS_USR != '' && github.ref == 'refs/heads/master'
-        run: earthly --strict +ci-promote-build-artifacts --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --CHANNEL=master
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+        run: |
+          earthly --strict \
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
+            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --CHANNEL=master
 
       - name: Upload Artifacts to GitHub
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4

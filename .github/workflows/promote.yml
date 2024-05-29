@@ -61,8 +61,8 @@ jobs:
 
       - name: Promote Build Artifacts to https://releases.crossplane.io/${{ inputs.channel }}
         if: env.AWS_USR != ''
-        run: earthly --strict +ci-promote-build-artifacts --CHANNEL=${{ inputs.channel }} --PRERELEASE=${{ inputs.pre-release }} --CROSSPLANE_VERSION=${{ inputs.version }}
-        env:
-          AWS_DEFAULT_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+        run: |
+          earthly --strict \
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
+            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CHANNEL=${{ inputs.channel }} --PRERELEASE=${{ inputs.pre-release }} --CROSSPLANE_VERSION=${{ inputs.version }}
