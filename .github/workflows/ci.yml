@@ -54,8 +54,8 @@ jobs:
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "EARTHLY_PUSH=true" > $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" > $GITHUB_ENV
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Generate Files
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +generate
@@ -100,8 +100,8 @@ jobs:
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "EARTHLY_PUSH=true" > $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" > $GITHUB_ENV
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Lint
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +lint
@@ -136,8 +136,8 @@ jobs:
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "EARTHLY_PUSH=true" > $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" > $GITHUB_ENV
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run CodeQL
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-codeql
@@ -200,8 +200,8 @@ jobs:
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "EARTHLY_PUSH=true" > $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" > $GITHUB_ENV
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run Unit Tests
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +test
@@ -252,8 +252,8 @@ jobs:
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
         if: github.ref == 'refs/heads/master'
         run: |
-          echo "EARTHLY_PUSH=true" > $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" > $GITHUB_ENV
+          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
+          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run E2E Tests
         run: |
@@ -323,11 +323,11 @@ jobs:
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
         if: github.ref == 'refs/heads/master'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" > $GITHUB_ENV
+        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Configure Earthly to Push Artifacts
         if: env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
-        run: echo "EARTHLY_PUSH=true" > $GITHUB_ENV
+        run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
 
       - name: Set CROSSPLANE_VERSION GitHub Environment Variable
         run: earthly +ci-version
