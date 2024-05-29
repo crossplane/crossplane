@@ -550,11 +550,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet:   test.NewMockGetFn(nil),
+						MockPatch: test.NewMockPatchFn(errBoom),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return errBoom
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -574,11 +572,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet:   test.NewMockGetFn(nil),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -628,10 +624,8 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1.CompositeResourceDefinition) = *xrd
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -664,11 +658,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet:   test.NewMockGetFn(nil),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -702,11 +694,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet:   test.NewMockGetFn(nil),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -753,10 +743,8 @@ func TestReconcile(t *testing.T) {
 							}
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -811,10 +799,8 @@ func TestReconcile(t *testing.T) {
 							}
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
@@ -857,10 +843,8 @@ func TestReconcile(t *testing.T) {
 							}
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-						return nil
-					}),
 				},
 				opts: []ReconcilerOption{
 					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
