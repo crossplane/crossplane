@@ -53,7 +53,10 @@ e2e:
   COPY +gotestsum-setup/gotestsum /usr/local/bin/gotestsum
   COPY +go-build-e2e/e2e .
   COPY --dir cluster test .
-  WITH DOCKER --load crossplane-e2e/crossplane:latest=+image
+  # Using a static CROSSPLANE_VERSION allows Earthly to cache E2E runs as long
+  # as no code changed. If the version contains a git commit (the default) the
+  # build layer cache is invalidated on every commit.
+  WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
     TRY
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
@@ -357,7 +360,10 @@ ci-codeql:
   ARG CGO_ENABLED=0
   ARG TARGETOS
   ARG TARGETARCH
-  FROM +go-modules
+  # Using a static CROSSPLANE_VERSION allows Earthly to cache E2E runs as long
+  # as no code changed. If the version contains a git commit (the default) the
+  # build layer cache is invalidated on every commit.
+  FROM +go-modules --CROSSPLANE_VERSION=v0.0.0-codeql
   IF [ "${TARGETARCH}" = "arm64" ] && [ "${TARGETOS}" = "linux" ]
     RUN --no-cache echo "CodeQL doesn't support Linux on Apple Silicon" && false
   END
