@@ -162,8 +162,8 @@ func (c *loginCmd) Run(k *kong.Context, upCtx *upbound.Context) error {
 	if err := upCtx.CfgSrc.UpdateConfig(upCtx.Cfg); err != nil {
 		return errors.Wrap(err, "failed to update config")
 	}
-	fmt.Fprintln(k.Stdout, "Login successful.")
-	return nil
+	_, err = fmt.Fprintln(k.Stdout, "Login successful.")
+	return err
 }
 
 func (c *loginCmd) setupCredentials() error {
@@ -204,21 +204,25 @@ func getPassword(f *os.File) (string, error) {
 	if !term.IsTerminal(int(f.Fd())) {
 		return "", errors.New("not a terminal")
 	}
-	fmt.Fprintf(f, "Password: ")
+	if _, err := fmt.Fprintf(f, "Password: "); err != nil {
+		return "", err
+	}
 	password, err := term.ReadPassword(int(f.Fd()))
 	if err != nil {
 		return "", err
 	}
 	// Print a new line because ReadPassword does not.
-	_, _ = fmt.Fprintf(f, "\n")
-	return string(password), nil
+	_, err = fmt.Fprintf(f, "\n")
+	return string(password), err
 }
 
 func getUsername(f *os.File) (string, error) {
 	if !term.IsTerminal(int(f.Fd())) {
 		return "", errors.New("not a terminal")
 	}
-	fmt.Fprintf(f, "Username: ")
+	if _, err := fmt.Fprintf(f, "Username: "); err != nil {
+		return "", err
+	}
 	reader := bufio.NewReader(f)
 	s, err := reader.ReadString('\n')
 	if err != nil {
