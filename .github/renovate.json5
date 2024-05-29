@@ -33,6 +33,18 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Bump Earthly version in GitHub workflows",
+      "fileMatch": [
+        "^\\.github\\/workflows\\/[^/]+\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "EARTHLY_VERSION '(?<currentValue>.*?)'\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "earthly/earthly"
+    },
+    {
+      "customType": "regex",
       "description": "Bump Go version in Earthfile",
       "fileMatch": [
         "^Earthfile$"
