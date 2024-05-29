@@ -68,7 +68,7 @@ jobs:
         if: steps.changed_files.outputs.count != 0
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         with:
-          script: core.setFailed('Found changed files after running earthly +generate.'')
+          script: core.setFailed('Found changed files after running earthly +generate.')
 
   lint:
     runs-on: ubuntu-22.04
