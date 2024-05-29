@@ -419,7 +419,7 @@ ci-promote-build-artifacts:
   RUN --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --only-show-errors s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION}/charts repo
   RUN helm repo index --url ${HELM_REPO_URL} repo
   RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors repo s3://${BUCKET_CHARTS}/${CHANNEL}
-  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 cp --only-show-errors "private, max-age=0, no-transform" repo/index.yaml s3://${BUCKET_CHARTS}/${CHANNEL}/index.yaml
+  RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 cp --only-show-errors --cache-control "private, max-age=0, no-transform" repo/index.yaml s3://${BUCKET_CHARTS}/${CHANNEL}/index.yaml
   RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION} s3://${BUCKET_RELEASES}/${CHANNEL}/${CROSSPLANE_VERSION}
   IF [ "${PRERELEASE}" = "false" ]
     RUN --push --secret=AWS_ACCESS_KEY_ID --secret=AWS_SECRET_ACCESS_KEY aws s3 sync --delete --only-show-errors s3://${BUCKET_RELEASES}/build/${EARTHLY_GIT_BRANCH}/${CROSSPLANE_VERSION} s3://${BUCKET_RELEASES}/${CHANNEL}/current
