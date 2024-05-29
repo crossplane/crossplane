@@ -33,6 +33,18 @@
   "customManagers": [
     {
       "customType": "regex",
+      "description": "Bump Earthly version in GitHub workflows",
+      "fileMatch": [
+        "^\\.github\\/workflows\\/[^/]+\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "EARTHLY_VERSION '(?<currentValue>.*?)'\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "earthly/earthly"
+    },
+    {
+      "customType": "regex",
       "description": "Bump Go version in Earthfile",
       "fileMatch": [
         "^Earthfile$"
@@ -91,6 +103,18 @@
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "kubernetes-sigs/kind",
+    },
+    {
+      "customType": "regex",
+      "description": "Bump kubectl version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG KUBECTL_VERSION=v(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "kubernetes/kubernetes",
     },
     {
       "customType": "regex",
