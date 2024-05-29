@@ -47,6 +47,11 @@ func TestCompositionValidation(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-warn-valid.yaml"),
 			),
 		},
+		{
+			// A composition that updates immutable fields should be rejected when validated in strict mode.
+			Name:       "ImmutableCompositionFieldUpdateIsRejectedStrictMode",
+			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid-immutable.yaml"),
+		},
 	}
 	environment.Test(t,
 		cases.Build(t.Name()).

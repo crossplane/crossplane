@@ -114,6 +114,9 @@ spec:
                 - kind
                 - plural
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               connectionSecretKeys:
                 description: |-
                   ConnectionSecretKeys is the list of keys that will be exposed to the end
@@ -272,12 +275,18 @@ spec:
                 required:
                 - name
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               group:
                 description: |-
                   Group specifies the API group of the defined composite resource.
                   Composite resources are served under `/apis/<group>/...`. Must match the
                   name of the XRD (in the form `<names.plural>.<group>`).
                 type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               metadata:
                 description: Metadata specifies the desired metadata for the defined
                   composite resource and claim CRD's.
@@ -350,6 +359,9 @@ spec:
                 - kind
                 - plural
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               versions:
                 description: |-
                   Versions is the list of all API versions of the defined composite

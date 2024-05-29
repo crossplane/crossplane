@@ -79,6 +79,9 @@ spec:
                 - apiVersion
                 - kind
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               environment:
                 description: |-
                   Environment configures the environment in which resources are rendered.
@@ -1579,6 +1582,9 @@ spec:
                 description: Revision number. Newer revisions have larger numbers.
                 format: int64
                 type: integer
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               writeConnectionSecretsToNamespace:
                 description: |-
                   WriteConnectionSecretsToNamespace specifies the namespace in which the
@@ -1712,6 +1718,9 @@ spec:
                 - apiVersion
                 - kind
                 type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               environment:
                 description: |-
                   Environment configures the environment in which resources are rendered.
@@ -3212,6 +3221,9 @@ spec:
                 description: Revision number. Newer revisions have larger numbers.
                 format: int64
                 type: integer
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               writeConnectionSecretsToNamespace:
                 description: |-
                   WriteConnectionSecretsToNamespace specifies the namespace in which the

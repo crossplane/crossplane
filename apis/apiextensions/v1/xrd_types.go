@@ -30,12 +30,12 @@ type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
 	// name of the XRD (in the form `<names.plural>.<group>`).
-	// +immutable
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Group string `json:"group"`
 
 	// Names specifies the resource and kind names of the defined composite
 	// resource.
-	// +immutable
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
@@ -46,8 +46,8 @@ type CompositeResourceDefinitionSpec struct {
 	// create, update, or delete a corresponding composite resource. You may add
 	// claim names to an existing CompositeResourceDefinition, but they cannot
 	// be changed or removed once they have been set.
-	// +immutable
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end
@@ -70,7 +70,7 @@ type CompositeResourceDefinitionSpec struct {
 	// EnforcedCompositionRef refers to the Composition resource that will be used
 	// by all composite instances whose schema is defined by this definition.
 	// +optional
-	// +immutable
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
 	EnforcedCompositionRef *CompositionReference `json:"enforcedCompositionRef,omitempty"`
 
 	// DefaultCompositionUpdatePolicy is the policy used when updating composites after a new
