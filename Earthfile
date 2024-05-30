@@ -291,7 +291,7 @@ kind-setup:
 
 # gotestsum-setup is used by other targets to setup gotestsum.
 gotestsum-setup:
-  ARG GOTESTSUM_VERSION=1.11.0
+  ARG GOTESTSUM_VERSION=1.12.0
   ARG NATIVEPLATFORM
   ARG TARGETOS
   ARG TARGETARCH
