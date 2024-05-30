@@ -10,7 +10,7 @@ on:
 
 env:
   # Common versions
-  EARTHLY_VERSION: '0.8.11'
+  EARTHLY_VERSION: '0.8.13'
 
   # Force Earthly to use color output
   FORCE_COLOR: "1"
