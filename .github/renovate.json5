@@ -38,7 +38,7 @@
         "^\\.github\\/workflows\\/[^/]+\\.ya?ml$"
       ],
       "matchStrings": [
-        "EARTHLY_VERSION '(?<currentValue>.*?)'\\n"
+        "EARTHLY_VERSION: '(?<currentValue>.*?)'\\n"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "earthly/earthly",
