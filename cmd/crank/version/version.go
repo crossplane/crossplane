@@ -39,7 +39,7 @@ type Cmd struct {
 
 // Run runs the version command.
 func (c *Cmd) Run(k *kong.Context) error {
-	fmt.Fprintln(k.Stdout, "Client Version: "+version.New().GetVersionString())
+	_, _ = fmt.Fprintln(k.Stdout, "Client Version: "+version.New().GetVersionString())
 	if c.Client {
 		return nil
 	}
@@ -52,7 +52,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 		return errors.Wrap(err, errGetCrossplaneVersion)
 	}
 	if vxp != "" {
-		fmt.Fprintln(k.Stdout, "Server Version: "+vxp)
+		_, _ = fmt.Fprintln(k.Stdout, "Server Version: "+vxp)
 	}
 
 	return nil

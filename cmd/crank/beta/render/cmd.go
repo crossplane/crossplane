@@ -134,7 +134,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 
 	warns, errs := comp.Validate()
 	for _, warn := range warns {
-		fmt.Fprintf(k.Stderr, "WARN(composition): %s\n", warn)
+		_, _ = fmt.Fprintf(k.Stderr, "WARN(composition): %s\n", warn)
 	}
 	if len(errs) > 0 {
 		return errors.Wrapf(errs.ToAggregate(), "invalid Composition %q", comp.GetName())
@@ -221,13 +221,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	fmt.Fprintln(k.Stdout, "---")
+	_, _ = fmt.Fprintln(k.Stdout, "---")
 	if err := s.Encode(out.CompositeResource, os.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot marshal composite resource %q to YAML", xr.GetName())
 	}
 
 	for i := range out.ComposedResources {
-		fmt.Fprintln(k.Stdout, "---")
+		_, _ = fmt.Fprintln(k.Stdout, "---")
 		if err := s.Encode(&out.ComposedResources[i], os.Stdout); err != nil {
 			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetAnnotations()[AnnotationKeyCompositionResourceName])
 		}
@@ -235,7 +235,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 
 	if c.IncludeFunctionResults {
 		for i := range out.Results {
-			fmt.Fprintln(k.Stdout, "---")
+			_, _ = fmt.Fprintln(k.Stdout, "---")
 			if err := s.Encode(&out.Results[i], os.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
@@ -243,7 +243,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	if c.IncludeContext {
-		fmt.Fprintln(k.Stdout, "---")
+		_, _ = fmt.Fprintln(k.Stdout, "---")
 		if err := s.Encode(out.Context, os.Stdout); err != nil {
 			return errors.Wrap(err, "cannot marshal context to YAML")
 		}

@@ -138,7 +138,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	logger.Debug("Fetched all Crossplane pods", "pods", crossplanePods, "namespace", c.Namespace)
 
 	if len(crossplanePods) == 0 {
-		fmt.Fprintln(k.Stdout, "No Crossplane pods found in the namespace", c.Namespace)
+		_, _ = fmt.Fprintln(k.Stdout, "No Crossplane pods found in the namespace", c.Namespace)
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 	if c.Summary {
 		printPodsSummary(k.Stdout, crossplanePods)
 		logger.Debug("Printed pods summary")
-		fmt.Fprintln(k.Stdout)
+		_, _ = fmt.Fprintln(k.Stdout)
 	}
 
 	if err := printPodsTable(k.Stdout, crossplanePods); err != nil {
@@ -227,7 +227,7 @@ func printPodsSummary(w io.Writer, pods []topMetrics) {
 	}
 
 	// Print summary directly to the provided writer
-	fmt.Fprintf(w, "Nr of Crossplane pods: %d\n", len(pods))
+	_, _ = fmt.Fprintf(w, "Nr of Crossplane pods: %d\n", len(pods))
 	// Sort categories alphabetically to ensure consistent output
 	categories := make([]string, 0, len(categoryCounts))
 	for category := range categoryCounts {
@@ -235,10 +235,10 @@ func printPodsSummary(w io.Writer, pods []topMetrics) {
 	}
 	sort.Strings(categories)
 	for _, category := range categories {
-		fmt.Fprintf(w, "%s: %d\n", capitalizeFirst(category), categoryCounts[category])
+		_, _ = fmt.Fprintf(w, "%s: %d\n", capitalizeFirst(category), categoryCounts[category])
 	}
-	fmt.Fprintf(w, "Memory: %s\n", fmt.Sprintf("%vMi", totalMemoryUsage.Value()/(1024*1024)))
-	fmt.Fprintf(w, "CPU(cores): %s\n", fmt.Sprintf("%vm", totalCPUUsage.MilliValue()))
+	_, _ = fmt.Fprintf(w, "Memory: %s\n", fmt.Sprintf("%vMi", totalMemoryUsage.Value()/(1024*1024)))
+	_, _ = fmt.Fprintf(w, "CPU(cores): %s\n", fmt.Sprintf("%vm", totalCPUUsage.MilliValue()))
 }
 
 func getCrossplanePods(pods []v1.Pod) []topMetrics {
