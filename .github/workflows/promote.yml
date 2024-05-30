@@ -65,4 +65,4 @@ jobs:
           earthly --strict \
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
             --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CHANNEL=${{ inputs.channel }} --PRERELEASE=${{ inputs.pre-release }} --CROSSPLANE_VERSION=${{ inputs.version }}
+            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CHANNEL=${{ inputs.channel }} --BUILD_DIR=${GITHUB_REF##*/} --PRERELEASE=${{ inputs.pre-release }} --CROSSPLANE_VERSION=${{ inputs.version }}
