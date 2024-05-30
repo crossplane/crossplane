@@ -141,6 +141,7 @@
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "github/codeql-action",
+      "extractVersionTemplate": "^codeql-bundle-(?<version>.*)$"
     },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
