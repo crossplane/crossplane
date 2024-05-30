@@ -27,12 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
-
       # Don't waste time starting Renovate if JSON is invalid
       - name: Validate Renovate JSON
         run:  npx --yes --package renovate -- renovate-config-validator
@@ -55,3 +49,6 @@ jobs:
         with:
           configurationFile: .github/renovate.json5
           token: '${{ steps.get-github-app-token.outputs.token }}'
+          mount-docker-socket: true
+          docker-user: root
+          docker-cmd-file: .github/renovate-entrypoint.sh
