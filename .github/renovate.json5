@@ -166,10 +166,12 @@
   // be at the beginning, high priority at the end
   "packageRules": [
     {
-      "description": "Generate code after upgrading go dependencies",
+      "description": "Generate code after upgrading go dependencies (master)",
       "matchDatasources": [
         "go"
       ],
+      // Currently we only have an Earthfile on master.
+      matchBaseBranches: ["master"],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -182,14 +184,52 @@
       },
     },
     {
-      "description": "Lint code after upgrading golangci-lint",
+      "description": "Generate code after upgrading go dependencies (release branch)",
+      "matchDatasources": [
+        "go"
+      ],
+      // Currently we only have an Earthfile on master.
+      matchBaseBranches: ["release-.+"],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        "commands": [
+          "make go.generate",
+        ],
+        fileFilters: [
+          "**/*"
+        ],
+        executionMode: "update",
+      },
+    },
+    {
+      "description": "Lint code after upgrading golangci-lint (master)",
       "matchDepNames": [
         "golangci/golangci-lint"
       ],
+      // Currently we only have an Earthfile on master.
+      matchBaseBranches: ["master"],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
           "earthly --strict +go-lint",
+        ],
+        fileFilters: [
+          "**/*"
+        ],
+        executionMode: "update",
+      },
+    },
+    {
+      "description": "Lint code after upgrading golangci-lint (release branch)",
+      "matchDepNames": [
+        "golangci/golangci-lint"
+      ],
+      // Currently we only have an Earthfile on master.
+      matchBaseBranches: ["release-.+"],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        "commands": [
+          "make go.lint",
         ],
         fileFilters: [
           "**/*"
