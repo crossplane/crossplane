@@ -326,7 +326,7 @@ jobs:
         run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Configure Earthly to Push Artifacts
-        if: env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
+        if: (github.ref == 'refs/head/master' || startsWith(github.ref, 'refs/head/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
         run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
 
       - name: Set CROSSPLANE_VERSION GitHub Environment Variable
@@ -341,7 +341,7 @@ jobs:
           earthly --strict \
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
             --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
+            +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/}
 
       - name: Push Artifacts to https://releases.crossplane.io/master/ and https://charts.crossplane.io/master
         if: env.AWS_USR != '' && github.ref == 'refs/heads/master'
@@ -349,7 +349,7 @@ jobs:
           earthly --strict \
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
             --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --CHANNEL=master
+            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=master
 
       - name: Upload Artifacts to GitHub
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
