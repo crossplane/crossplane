@@ -216,6 +216,9 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 	syncedCond := r.GetCondition(xpv1.TypeSynced)
 	var status, m string
 	switch {
+	case r.Unstructured.GetDeletionTimestamp() != nil:
+		// Report the status as deleted if the resource is being deleted
+		status = "Deleting"
 	case r.Error != nil:
 		// if there is an error we want to show it
 		status = "Error"
