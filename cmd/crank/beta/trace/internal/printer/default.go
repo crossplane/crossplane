@@ -218,7 +218,7 @@ func getResourceStatus(r *resource.Resource, name string, wide bool) fmt.Stringe
 	switch {
 	case r.Unstructured.GetDeletionTimestamp() != nil:
 		// Report the status as deleted if the resource is being deleted
-		status = "Deleted"
+		status = "Deleting"
 	case r.Error != nil:
 		// if there is an error we want to show it
 		status = "Error"
