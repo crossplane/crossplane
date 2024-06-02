@@ -178,10 +178,6 @@ spec:
           - name: "WEBHOOK_PORT"
             value: "{{ .Values.webhooks.port }}"
           {{- end}}
-          {{- if and .Values.webhooks.enabled .Values.webhooks.port }}
-          - name: "WEBHOOK_PORT"
-            value: "{{ .Values.webhooks.port }}"
-          {{- end}}
           {{- if and .Values.metrics.enabled .Values.metrics.port }}
           - name: "METRICS_BIND_ADDRESS"
             value: ":{{ .Values.metrics.port }}"
