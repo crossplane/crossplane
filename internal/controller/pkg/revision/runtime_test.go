@@ -530,7 +530,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 									Ports: []corev1.ServicePort{
 										{
 											Name:       webhookPortName,
-											Port:       int32(7070),
+											Port:       int32(7070), // we request a diverging service port
 											TargetPort: intstr.FromInt32(7070),
 											Protocol:   corev1.ProtocolTCP,
 										},
@@ -568,7 +568,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 						Ports: []corev1.ServicePort{
 							{
 								Name:       webhookPortName,
-								Port:       int32(7070),
+								Port:       int32(webhook.DefaultPort), // but expect it to be the default
 								TargetPort: intstr.FromInt32(int32(7070)),
 								Protocol:   corev1.ProtocolTCP,
 							},

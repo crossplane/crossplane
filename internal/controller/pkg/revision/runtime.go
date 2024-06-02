@@ -278,7 +278,8 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 				Port:       servicePort,
 				TargetPort: intstr.FromInt32(servicePort),
 			},
-		}))
+		}),
+		ServiceWithPort(webhookPortName, servicePort))
 
 	// We append the overrides passed to the function last so that they can
 	// override the above ones.

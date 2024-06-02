@@ -411,7 +411,7 @@ func ServiceWithSelectors(selectors map[string]string) ServiceOverride {
 	}
 }
 
-// ServiceWithAdditionalPorts adds additional ports to a Service.
+// ServiceWithAdditionalPorts adds additional ports to a Service if no port with the same name was found.
 func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverride {
 	return func(s *corev1.Service) {
 		names := make(map[string]bool)
@@ -423,6 +423,18 @@ func ServiceWithAdditionalPorts(ports []corev1.ServicePort) ServiceOverride {
 				continue
 			}
 			s.Spec.Ports = append(s.Spec.Ports, p)
+		}
+	}
+}
+
+// ServiceWithPort ensures that a service that has a port with the given portName has the given servicePort.
+func ServiceWithPort(portName string, servicePort int) ServiceOverride {
+	return func(s *corev1.Service) {
+		for i, p := range s.Spec.Ports {
+			if p.Name == portName {
+				s.Spec.Ports[i].Port = int32(servicePort)
+				return
+			}
 		}
 	}
 }
