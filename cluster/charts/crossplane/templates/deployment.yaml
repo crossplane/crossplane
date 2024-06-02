@@ -183,7 +183,7 @@ spec:
             value: ":{{ .Values.metrics.port }}"
           {{- end}}
           {{- if .Values.readiness.port }}
-          - name: "HealthProbeBindAddress"
+          - name: "HEALTH_PROBE_BIND_ADDRESS"
             value: ":{{ .Values.readiness.port }}"
           {{- end}}
           - name: "TLS_SERVER_SECRET_NAME"
