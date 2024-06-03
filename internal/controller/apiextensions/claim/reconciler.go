@@ -473,6 +473,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm.SetConditions(xpv1.ReconcileSuccess())
 
+	// Copy any custom status conditions from the XR to the claim.
+	for _, cType := range xr.GetClaimConditionTypes() {
+		c := xr.GetCondition(cType)
+		cm.SetConditions(c)
+	}
+
 	if !resource.IsConditionTrue(xr.GetCondition(xpv1.TypeReady)) {
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
