@@ -25,6 +25,8 @@ lint:
 
 # build builds Crossplane for your native OS and architecture.
 build:
+  ARG USERPLATFORM
+  BUILD --platform=$USERPLATFORM +go-build
   BUILD +image
   BUILD +helm-build
 
