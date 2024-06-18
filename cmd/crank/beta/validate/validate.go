@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
@@ -28,6 +27,7 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	runtimeschema "k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	celconfig "k8s.io/apiserver/pkg/apis/cel"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -96,7 +96,6 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 	if err != nil {
 		return errors.Wrap(err, "cannot create schema validators")
 	}
-
 	failure, missingSchemas := 0, 0
 
 	for i, r := range resources {
@@ -112,9 +111,19 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 		}
 
 		rf := 0
-
+		re := field.ErrorList{}
+		for _, c := range crds {
+			if c.Spec.Names.Kind == r.GetKind() {
+				rc, err := Validate(*c, *r)
+				if err != nil {
+					return errors.Wrap(err, "cannot validate resource")
+				}
+				re = append(re, rc...)
+				break
+			}
+		}
 		for _, v := range sv {
-			re := validation.ValidateCustomResource(nil, r, *v)
+			re = append(re, validation.ValidateCustomResource(nil, r, *v)...)
 			for _, e := range re {
 				rf++
 				if _, err := fmt.Fprintf(w, "[x] schema validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
