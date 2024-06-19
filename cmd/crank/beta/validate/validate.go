@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+
 	ext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
@@ -96,11 +97,13 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 	if err != nil {
 		return errors.Wrap(err, "cannot create schema validators")
 	}
+
 	failure, missingSchemas := 0, 0
 
 	for i, r := range resources {
 		gvk := r.GetObjectKind().GroupVersionKind()
 		sv, ok := schemaValidators[gvk]
+		s := structurals[gvk] // if we have a schema validator, we should also have a structural
 		if !ok {
 			missingSchemas++
 			if _, err := fmt.Fprintf(w, "[!] could not find CRD/XRD for: %s\n", r.GroupVersionKind().String()); err != nil {
@@ -112,26 +115,15 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 
 		rf := 0
 		re := field.ErrorList{}
-		for _, c := range crds {
-			if c.Spec.Names.Kind == r.GetKind() {
-				rc, err := Validate(*c, *r)
-				if err != nil {
-					return errors.Wrap(err, "cannot validate resource")
-				}
-				re = append(re, rc...)
-				break
-			}
-		}
 		for _, v := range sv {
 			re = append(re, validation.ValidateCustomResource(nil, r, *v)...)
+			re = append(re, validateUnknownFields(r.UnstructuredContent(), s)...)
 			for _, e := range re {
 				rf++
 				if _, err := fmt.Fprintf(w, "[x] schema validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
 					return errors.Wrap(err, errWriteOutput)
 				}
 			}
-
-			s := structurals[gvk] // if we have a schema validator, we should also have a structural
 
 			celValidator := cel.NewValidator(s, true, celconfig.PerCallLimit)
 			re, _ = celValidator.Validate(context.TODO(), nil, s, resources[i].Object, nil, celconfig.PerCallLimit)
