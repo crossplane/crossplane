@@ -21,6 +21,8 @@ nodeSelector: {}
 tolerations: []
 # -- Add `affinities` to the Crossplane pod deployment.
 affinity: {}
+# -- Add `topologySpreadConstraints` to the Crossplane pod deployment.
+topologySpreadConstraints: []
 
 # -- Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. Consider setting `dnsPolicy` to `ClusterFirstWithHostNet`.
 hostNetwork: false
@@ -89,6 +91,8 @@ rbacManager:
   tolerations: []
   # -- Add `affinities` to the RBAC Manager pod deployment.
   affinity: {}
+  # -- Add `topologySpreadConstraints` to the RBAC Manager pod deployment.
+  topologySpreadConstraints: []
 
 # -- The PriorityClass name to apply to the Crossplane and RBAC Manager pods.
 priorityClassName: ""
