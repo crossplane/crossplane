@@ -115,11 +115,13 @@ func findImageTagForVersionConstraint(image string) (string, error) {
 		}
 
 		// Sort all versions and find the last version complient with the constraint
-		sort.Sort(semver.Collection(vs))
+		sort.Sort(sort.Reverse(semver.Collection(vs)))
 		var addVer string
 		for _, v := range vs {
 			if c.Check(v) {
 				addVer = v.Original()
+
+				break
 			}
 		}
 
