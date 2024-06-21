@@ -56,11 +56,15 @@ const (
 	// container once rendering is done.
 	AnnotationValueRuntimeDockerCleanupStop DockerCleanup = "Stop"
 
+	// AnnotationValueRuntimeDockerCleanupRemove stops and removes the
+	// container once rendering is done.
+	AnnotationValueRuntimeDockerCleanupRemove DockerCleanup = "Remove"
+
 	// AnnotationValueRuntimeDockerCleanupOrphan leaves the container running
 	// once rendering is done.
 	AnnotationValueRuntimeDockerCleanupOrphan DockerCleanup = "Orphan"
 
-	AnnotationValueRuntimeDockerCleanupDefault = AnnotationValueRuntimeDockerCleanupStop
+	AnnotationValueRuntimeDockerCleanupDefault = AnnotationValueRuntimeDockerCleanupRemove
 )
 
 // AnnotationKeyRuntimeDockerPullPolicy can be added to a Function to control how its runtime
@@ -90,8 +94,8 @@ type RuntimeDocker struct {
 	// Image to run
 	Image string
 
-	// Stop container once rendering is done
-	Stop bool
+	// Cleanup controls how the containers are handled after rendering.
+	Cleanup DockerCleanup
 
 	// PullPolicy controls how the runtime image is pulled.
 	PullPolicy DockerPullPolicy
@@ -116,7 +120,7 @@ func GetDockerPullPolicy(fn pkgv1beta1.Function) (DockerPullPolicy, error) {
 // GetDockerCleanup extracts Cleanup configuration from the supplied Function.
 func GetDockerCleanup(fn pkgv1beta1.Function) (DockerCleanup, error) {
 	switch c := DockerCleanup(fn.GetAnnotations()[AnnotationKeyRuntimeDockerCleanup]); c {
-	case AnnotationValueRuntimeDockerCleanupStop, AnnotationValueRuntimeDockerCleanupOrphan:
+	case AnnotationValueRuntimeDockerCleanupStop, AnnotationValueRuntimeDockerCleanupOrphan, AnnotationValueRuntimeDockerCleanupRemove:
 		return c, nil
 	case "":
 		return AnnotationValueRuntimeDockerCleanupDefault, nil
@@ -141,7 +145,7 @@ func GetRuntimeDocker(fn pkgv1beta1.Function, log logging.Logger) (*RuntimeDocke
 	}
 	r := &RuntimeDocker{
 		Image:      fn.Spec.Package,
-		Stop:       cleanup == AnnotationValueRuntimeDockerCleanupStop,
+		Cleanup:    cleanup,
 		PullPolicy: pullPolicy,
 		log:        log,
 	}
@@ -218,15 +222,24 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		return RuntimeContext{}, errors.Wrap(err, "cannot start Docker container")
 	}
 
-	stop := func(_ context.Context) error {
-		r.log.Debug("Container left running", "container", rsp.ID, "image", r.Image)
-		return nil
-	}
-	if r.Stop {
-		stop = func(ctx context.Context) error {
-			err := c.ContainerStop(ctx, rsp.ID, container.StopOptions{})
-			return errors.Wrap(err, "cannot stop Docker container")
+	stop := func(ctx context.Context) error {
+		switch r.Cleanup {
+		case AnnotationValueRuntimeDockerCleanupOrphan:
+			r.log.Debug("Container left running", "container", rsp.ID, "image", r.Image)
+			return nil
+		case AnnotationValueRuntimeDockerCleanupStop:
+			if err := c.ContainerStop(ctx, rsp.ID, container.StopOptions{}); err != nil {
+				return errors.Wrap(err, "cannot stop Docker container")
+			}
+		case AnnotationValueRuntimeDockerCleanupRemove:
+			if err := c.ContainerStop(ctx, rsp.ID, container.StopOptions{}); err != nil {
+				return errors.Wrap(err, "cannot stop Docker container")
+			}
+			if err := c.ContainerRemove(ctx, rsp.ID, container.RemoveOptions{}); err != nil {
+				return errors.Wrap(err, "cannot remove Docker container")
+			}
 		}
+		return nil
 	}
 
 	return RuntimeContext{Target: addr, Stop: stop}, nil
