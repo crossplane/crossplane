@@ -279,6 +279,7 @@ func (b *RuntimeManifestBuilder) Service(overrides ...ServiceOverride) *corev1.S
 				TargetPort: intstr.FromInt32(servicePort),
 			},
 		}),
+		// Ensure that the service port is always the default port, to prevent customization.
 		ServiceWithPort(webhookPortName, servicePort))
 
 	// We append the overrides passed to the function last so that they can
