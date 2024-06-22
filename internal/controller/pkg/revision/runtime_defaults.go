@@ -65,16 +65,22 @@ func deploymentFromRuntimeConfig(tmpl *v1beta1.DeploymentTemplate) *appsv1.Deplo
 func serviceFromRuntimeConfig(tmpl *v1beta1.ServiceTemplate) *corev1.Service {
 	svc := &corev1.Service{}
 
-	if tmpl == nil || tmpl.Metadata == nil {
+	if tmpl == nil {
 		return svc
 	}
 
-	if tmpl.Metadata.Name != nil {
-		svc.Name = *tmpl.Metadata.Name
+	if meta := tmpl.Metadata; meta != nil {
+		if tmpl.Metadata.Name != nil {
+			svc.Name = *meta.Name
+		}
+
+		svc.Annotations = meta.Annotations
+		svc.Labels = meta.Labels
 	}
 
-	svc.Annotations = tmpl.Metadata.Annotations
-	svc.Labels = tmpl.Metadata.Labels
+	if spec := tmpl.Spec; spec != nil {
+		svc.Spec = *spec
+	}
 
 	return svc
 }

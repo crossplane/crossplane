@@ -211,3 +211,108 @@ func TestDeploymentWithRuntimeContainer(t *testing.T) {
 		})
 	}
 }
+
+func TestDeploymentRuntimeWithAdditionalPorts(t *testing.T) {
+	type args struct {
+		deployment *appsv1.Deployment
+		ports      []corev1.ContainerPort
+	}
+	type want struct {
+		deployment *appsv1.Deployment
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoPorts": {
+			reason: "Should add the given ports if no ports are set",
+			args: args{
+				deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{},
+								},
+							},
+						},
+					},
+				},
+				ports: []corev1.ContainerPort{
+					{ContainerPort: 80, Name: "http"},
+					{ContainerPort: 443, Name: "https"},
+				},
+			},
+			want: want{
+				deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Ports: []corev1.ContainerPort{
+											{ContainerPort: 80, Name: "http"},
+											{ContainerPort: 443, Name: "https"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"DontOverridePorts": {
+			reason: "Should add only new ports and not override existing ports",
+			args: args{
+				deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Ports: []corev1.ContainerPort{
+											{ContainerPort: 8080, Name: "http"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				ports: []corev1.ContainerPort{
+					{ContainerPort: 80, Name: "http"},
+					{ContainerPort: 443, Name: "https"},
+				},
+			},
+			want: want{
+				deployment: &appsv1.Deployment{
+					Spec: appsv1.DeploymentSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{
+										Ports: []corev1.ContainerPort{
+											{ContainerPort: 8080, Name: "http"},
+											{ContainerPort: 443, Name: "https"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			DeploymentRuntimeWithAdditionalPorts(tc.args.ports)(tc.args.deployment)
+			if diff := cmp.Diff(tc.want.deployment, tc.args.deployment); diff != "" {
+				t.Errorf("\n%s\nDeploymentRuntimeWithAdditionalPorts(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

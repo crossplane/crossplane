@@ -22,6 +22,7 @@ package v1beta1
 
 import (
 	"k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -482,6 +483,11 @@ func (in *ServiceTemplate) DeepCopyInto(out *ServiceTemplate) {
 	if in.Metadata != nil {
 		in, out := &in.Metadata, &out.Metadata
 		*out = new(ObjectMeta)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Spec != nil {
+		in, out := &in.Spec, &out.Spec
+		*out = new(corev1.ServiceSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }

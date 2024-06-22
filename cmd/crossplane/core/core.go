@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
@@ -102,6 +103,11 @@ type startCommand struct {
 	MaxReconcileRate int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 
 	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
+	WebhookPort    int  `default:"9443" env:"WEBHOOK_PORT"    help:"The port the webhook server listens on."`
+
+	MetricsBindAddress string `default:":8080" env:"METRICS_BIND_ADDRESS" help:"The address the metrics server listens on." placeholder:"host:port"`
+
+	HealthProbeBindAddress string `default:":8081" env:"HEALTH_PROBE_BIND_ADDRESS" help:"The address the health probe endpoint binds to." placeholder:"host:port"`
 
 	TLSServerSecretName string `env:"TLS_SERVER_SECRET_NAME" help:"The name of the TLS Secret that will store Crossplane's server certificate."`
 	TLSServerCertsDir   string `env:"TLS_SERVER_CERTS_DIR"   help:"The path of the folder which will store TLS server certificate of Crossplane."`
@@ -153,6 +159,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 					t.MinVersion = tls.VersionTLS13
 				},
 			},
+			Port: c.WebhookPort,
 		}),
 		Client: client.Options{
 			Cache: &client.CacheOptions{
@@ -160,7 +167,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 				Unstructured: false, // this is the default to not cache unstructured objects
 			},
 		},
+
 		EventBroadcaster: eb,
+
+		Metrics: metricsserver.Options{
+			BindAddress: c.MetricsBindAddress,
+		},
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
@@ -177,7 +189,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		RenewDeadline:                 func() *time.Duration { d := 50 * time.Second; return &d }(),
 
 		PprofBindAddress:       c.Profile,
-		HealthProbeBindAddress: ":8081",
+		HealthProbeBindAddress: c.HealthProbeBindAddress,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create manager")
