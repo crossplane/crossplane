@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"regexp"
-	"strconv"
+	"sync"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -14,11 +13,21 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
-var reNum = regexp.MustCompile(`-(\d+)$`)
-
+// simpleGenerator generates a tree of resources for a specific depth and the number of children to
+// create at any level.
 type simpleGenerator struct {
 	childDepth int
 	numItems   int
+	l          sync.Mutex     // lock for accessing the depth map
+	depthMap   map[string]int // tracks resource names and their depth so that we can stop when the desired depth is reached.
+}
+
+func newSimpleGenerator(childDepth, numItems int) *simpleGenerator {
+	return &simpleGenerator{
+		childDepth: childDepth,
+		numItems:   numItems,
+		depthMap:   map[string]int{},
+	}
 }
 
 func (d *simpleGenerator) createResource(apiVersion, kind, name string) *resource.Resource {
@@ -32,14 +41,22 @@ func (d *simpleGenerator) createResource(apiVersion, kind, name string) *resourc
 	return &resource.Resource{Unstructured: unstructured.Unstructured{Object: obj}}
 }
 
+func (d *simpleGenerator) trackResourceDepth(name string, depth int) {
+	d.l.Lock()
+	defer d.l.Unlock()
+	d.depthMap[name] = depth
+}
+
 func (d *simpleGenerator) createRefAtDepth(depth int) v1.ObjectReference {
 	prefix := "comp-res"
 	if depth == d.childDepth {
 		prefix = "managed-res"
 	}
+	name := fmt.Sprintf("%s-%d-%d", prefix, rand.Int(), depth)
+	d.trackResourceDepth(name, depth)
 	return v1.ObjectReference{
 		Kind:       fmt.Sprintf("Depth%d", depth),
-		Name:       fmt.Sprintf("%s-%d-%d", prefix, rand.Int(), depth),
+		Name:       name,
 		APIVersion: "example.com/v1",
 	}
 }
@@ -53,25 +70,18 @@ func (d *simpleGenerator) loadResource(_ context.Context, ref *v1.ObjectReferenc
 }
 
 func (d *simpleGenerator) depthFromResource(res *resource.Resource) int {
-	ret := 0
-	matches := reNum.FindStringSubmatch(res.Unstructured.GetName())
-	if len(matches) > 0 {
-		n, err := strconv.Atoi(matches[1])
-		if err != nil {
-			panic(err)
-		}
-		ret = n
-	}
-	return ret
+	d.l.Lock()
+	defer d.l.Unlock()
+	return d.depthMap[res.Unstructured.GetName()]
 }
 
-func (d *simpleGenerator) getResourceChildrenRefs(_ context.Context, r *resource.Resource) []v1.ObjectReference {
+func (d *simpleGenerator) getResourceChildrenRefs(r *resource.Resource) []v1.ObjectReference {
 	depth := d.depthFromResource(r)
 	if depth == d.childDepth {
 		return nil
 	}
-	var ret []v1.ObjectReference
-	for i := 0; i < d.numItems; i++ {
+	ret := make([]v1.ObjectReference, 0, d.numItems)
+	for range d.numItems {
 		ret = append(ret, d.createRefAtDepth(depth+1))
 	}
 	return ret
@@ -149,9 +159,7 @@ func TestLoader(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			orig := channelCapacity
-			defer func() { channelCapacity = orig }()
-
+			channelCapacity := defaultChannelCapacity
 			if test.args.channelCapacity > 0 {
 				channelCapacity = test.args.channelCapacity
 			}
@@ -159,10 +167,10 @@ func TestLoader(t *testing.T) {
 			if test.args.concurrency != 0 {
 				concurrency = test.args.concurrency
 			}
-			sg := &simpleGenerator{childDepth: test.args.childDepth, numItems: test.args.numItems}
+			sg := newSimpleGenerator(test.args.childDepth, test.args.numItems)
 			rootRef := sg.createRefAtDepth(0)
 			root := sg.createResourceFromRef(&rootRef)
-			l := newLoader(root, sg)
+			l := newLoader(root, sg, channelCapacity)
 			l.load(context.Background(), concurrency)
 			n := countItems(root)
 			if test.want.expectedResources != n {

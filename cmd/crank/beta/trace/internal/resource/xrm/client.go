@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
+// defaultConcurrency is the concurrency using which the resource tree if loaded when not explicitly specified.
 const defaultConcurrency = 5
 
 // Client to get a Resource with all its children.
@@ -78,7 +79,7 @@ func NewClient(in client.Client, opts ...ResourceClientOption) (*Client, error) 
 
 // GetResourceTree returns the requested Crossplane Resource and all its children.
 func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
-	q := newLoader(root, kc)
+	q := newLoader(root, kc, defaultChannelCapacity)
 	q.load(ctx, kc.concurrency)
 	return root, nil
 }
@@ -90,7 +91,7 @@ func (kc *Client) loadResource(ctx context.Context, ref *v1.ObjectReference) *re
 
 // getResourceChildrenRefs returns the references to the children for the given
 // Resource, assuming it's a Crossplane resource, XR or XRC.
-func (kc *Client) getResourceChildrenRefs(_ context.Context, r *resource.Resource) []v1.ObjectReference {
+func (kc *Client) getResourceChildrenRefs(r *resource.Resource) []v1.ObjectReference {
 	return getResourceChildrenRefs(r, kc.getConnectionSecrets)
 }
 
