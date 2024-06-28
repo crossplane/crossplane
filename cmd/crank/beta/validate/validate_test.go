@@ -262,6 +262,10 @@ func TestConvertToCRDs(t *testing.T) {
 			want: want{
 				crd: []*extv1.CustomResourceDefinition{
 					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "CustomResourceDefinition",
+							APIVersion: "apiextensions.k8s.io/v1",
+						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test",
 							OwnerReferences: []metav1.OwnerReference{
@@ -614,6 +618,10 @@ func TestConvertToCRDs(t *testing.T) {
 			want: want{
 				crd: []*extv1.CustomResourceDefinition{
 					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "CustomResourceDefinition",
+							APIVersion: "apiextensions.k8s.io/v1",
+						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "test",
 							OwnerReferences: []metav1.OwnerReference{
@@ -903,6 +911,10 @@ func TestConvertToCRDs(t *testing.T) {
 						},
 					},
 					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "CustomResourceDefinition",
+							APIVersion: "apiextensions.k8s.io/v1",
+						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "testclaims.test.org",
 							OwnerReferences: []metav1.OwnerReference{

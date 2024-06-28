@@ -60,6 +60,10 @@ const (
 	timeout   = 2 * time.Minute
 	finalizer = "defined.apiextensions.crossplane.io"
 
+	// FieldOwner owns the fields this controller mutates on
+	// CustomResourceDefinitions (CRDs).
+	FieldOwner = "apiextensions.crossplane.io/definition"
+
 	errGetXRD                         = "cannot get CompositeResourceDefinition"
 	errRenderCRD                      = "cannot render composite resource CustomResourceDefinition"
 	errGetCRD                         = "cannot get composite resource CustomResourceDefinition"
@@ -427,8 +431,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	origRV := ""
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
+	// We are aware that using controller-runtime server-side apply will result in
+	// some zero-value fields, however, this should not affect the way CRDs are
+	// implemented in this controller. For a discussion on the runtime issue, see
+	// https://github.com/kubernetes-sigs/controller-runtime/issues/347.
+	if err := r.client.Patch(ctx, crd, client.Apply, client.ForceOwnership, client.FieldOwner(FieldOwner)); err != nil {
 		log.Debug(errApplyCRD, "error", err)
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
@@ -436,9 +443,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
-	}
-	if crd.GetResourceVersion() != origRV {
-		r.record.Event(d, event.Normal(reasonEstablishXR, fmt.Sprintf("Applied composite resource CustomResourceDefinition: %s", crd.GetName())))
 	}
 
 	if !xcrd.IsEstablished(crd.Status) {

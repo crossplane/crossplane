@@ -55,6 +55,10 @@ const (
 // resource from the supplied CompositeResourceDefinition.
 func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	crd := &extv1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CustomResourceDefinition",
+			APIVersion: extv1.SchemeGroupVersion.String(),
+		},
 		Spec: extv1.CustomResourceDefinitionSpec{
 			Scope:      extv1.ClusterScoped,
 			Group:      xrd.Spec.Group,
@@ -105,6 +109,10 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 	}
 
 	crd := &extv1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CustomResourceDefinition",
+			APIVersion: extv1.SchemeGroupVersion.String(),
+		},
 		Spec: extv1.CustomResourceDefinitionSpec{
 			Scope:      extv1.NamespaceScoped,
 			Group:      xrd.Spec.Group,
