@@ -66,6 +66,18 @@ A Function MUST NOT return a Warning or Normal result every time it is called. A
 Function SHOULD return Warning or Normal results to indicate transitions - e.g.
 when entering a warning or normal state.
 
+## External Systems
+
+A Function MAY interact with external systems, defined as systems other than the
+Crossplane process that initiated the RunFunctionRequest.
+
+A Function SHOULD NOT mutate the state of external systems directly. A Function
+MAY mutate the state of external systems indirectly, by composing Crossplane
+managed resources (MRs).
+
+A Function MUST NOT communicate directly with the Kubernetes API Server, for
+example to read or mutate API resources.
+
 ## Configuration
 
 A Function MUST support the following command-line flags:
