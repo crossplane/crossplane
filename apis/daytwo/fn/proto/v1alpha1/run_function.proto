@@ -1,0 +1,195 @@
+/*
+Copyright 2022 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+syntax = "proto3";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/duration.proto";
+
+package daytwo.fn.proto.v1alpha1;
+
+option go_package = "github.com/crossplane/crossplane/apis/daytwo/fn/proto/v1alpha1";
+
+// A FunctionRunnerService is a operation function.
+service FunctionRunnerService {
+  // RunFunction runs the operation function.
+  rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
+}
+
+// A RunFunctionRequest requests that the operation function be run.
+message RunFunctionRequest {
+  // Metadata pertaining to this request.
+  RequestMeta meta = 1;
+
+  // Desired state according to a function pipeline. The state passed to a
+  // particular function may have been accumulated by previous functions in the
+  // pipeline.
+  //
+  // Note that the desired state must be a partial object with only the fields
+  // that this function (and its predecessors in the pipeline) wants to have
+  // set in the object. Copying a non-partial observed state to desired is most
+  // likely not what you want to do. Leaving out fields that had been returned
+  // as desired before will result in them being deleted from the objects in the
+  // cluster.
+  State desired = 2;
+
+  // Optional input specific to this function invocation. A JSON representation
+  // of the 'input' block of the relevant entry in a Operation's pipeline.
+  optional google.protobuf.Struct input = 3;
+
+  // Optional context. Crossplane may pass arbitary contextual information to a
+  // function. A function may also return context in its RunFunctionResponse,
+  // and that context will be passed to subsequent functions. Crossplane
+  // discards all context returned by the last function in the pipeline.
+  optional google.protobuf.Struct context = 4;
+
+  // Optional extra resources that the function required. Note that extra
+  // resources is a map to Resources, plural. The map key corresponds to the key
+  // in a RunFunctionResponse's extra_resources field. If a function requested
+  // extra resources that did not exist, Crossplane sets the map key to an empty
+  // Resources message to indicate that it attempted to satisfy the request.
+  map<string, Resources> extra_resources = 5;
+}
+
+// Resources represents the state of several Crossplane resources.
+message Resources {
+  repeated Resource items = 1;
+}
+
+// A RunFunctionResponse contains the result of a operation function run.
+message RunFunctionResponse {
+  // Metadata pertaining to this response.
+  ResponseMeta meta = 1;
+
+  // Desired state according to a function pipeline. functions may add desired
+  // state, and may mutate or delete any part of the desired state they are
+  // concerned with. A function must pass through any part of the desired state
+  // that it is not concerned with.
+  //
+  // Note that the desired state must be a partial object with only the fields
+  // that this function (and its predecessors in the pipeline) wants to have
+  // set in the object. Copying a non-partial observed state to desired is most
+  // likely not what you want to do. Leaving out fields that had been returned
+  // as desired before will result in them being deleted from the objects in the
+  // cluster.
+  State desired = 2;
+
+  // Optional output specific to this function invocation. Will be written to
+  // the Operation's status.
+  optional google.protobuf.Struct output = 3;
+
+  // Results of the function run. Results are used for observability purposes.
+  repeated Result results = 4;
+
+  // Optional context to be passed to the next function in the pipeline as part
+  // of the RunFunctionRequest. Dropped on the last function in the pipeline.
+  optional google.protobuf.Struct context = 5;
+
+  // Requirements that must be satisfied for this function to run successfully.
+  Requirements requirements = 6;
+}
+
+// RequestMeta contains metadata pertaining to a RunFunctionRequest.
+message RequestMeta {
+  // An opaque string identifying the content of the request. Two identical
+  // requests should have the same tag.
+  string tag = 1;
+}
+
+// Requirements that must be satisfied for a function to run successfully.
+message Requirements {
+  // Extra resources that this function requires.
+  // The map key uniquely identifies the group of resources.
+  map<string, ResourceSelector> extra_resources = 1;
+}
+
+// ResourceSelector selects a group of resources, either by name or by label.
+message ResourceSelector {
+  string api_version = 1;
+  string kind = 2;
+
+  oneof match {
+    string match_name = 3;
+    MatchLabels match_labels = 4;
+  }
+}
+
+// MatchLabels defines a set of labels to match resources against.
+message MatchLabels {
+  map<string, string> labels = 1;
+}
+
+// ResponseMeta contains metadata pertaining to a RunFunctionResponse.
+message ResponseMeta {
+  // An opaque string identifying the content of the request. Must match the
+  // meta.tag of the corresponding RunFunctionRequest.
+  string tag = 1;
+
+  // Time-to-live of this response. Deterministic functions with no side-effects
+  // (e.g. simple templating functions) may specify a TTL. Crossplane may choose
+  // to cache responses until the TTL expires.
+  optional google.protobuf.Duration ttl = 2;
+}
+
+// State of any resources relevant to this composition.
+message State {
+  // The state of any resources relevant to this operation.
+  map<string, Resource> resources = 2;
+}
+
+// A Resource represents the state of a composite or composed resource.
+message Resource {
+  // The JSON representation of the resource.
+  //
+  // * Crossplane will set this field in a RunFunctionRequest to the entire
+  //   observed state of a resource - including its metadata, spec, and status.
+  //
+  // * A function should set this field in a RunFunctionRequest to communicate
+  //   the desired state of a resource.
+  //
+  // * A function may not specify the desired status of a resource - only its
+  //   metadata and spec. A function should not return desired status for a
+  //   resource. This will be ignored.
+  google.protobuf.Struct resource = 1;
+}
+
+// A Result of running a function.
+message Result {
+  // Severity of this result.
+  Severity severity = 1;
+
+  // Human-readable details about the result.
+  string message = 2;
+}
+
+// Severity of function results.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+
+  // Fatal results are fatal; subsequent operation functions may run, but
+  // the operation function pipeline run will be considered a failure and
+  // the first fatal result will be returned as an error.
+  SEVERITY_FATAL = 1;
+
+  // Warning results are non-fatal; the entire Operation will run to
+  // completion but warning events and debug logs associated with the
+  // composite resource will be emitted.
+  SEVERITY_WARNING = 2;
+
+  // Normal results are emitted as normal events and debug logs associated
+  // with the composite resource.
+  SEVERITY_NORMAL = 3;
+}

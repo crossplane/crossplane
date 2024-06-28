@@ -30,7 +30,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -41,8 +40,6 @@ const (
 	errNoActiveRevisions     = "cannot find an active FunctionRevision (a FunctionRevision with spec.desiredState: Active)"
 	errListFunctions         = "cannot List Functions to determine which gRPC client connections to garbage collect."
 
-	errFmtGetClientConn = "cannot get gRPC client connection for Function %q"
-	errFmtRunFunction   = "cannot run Function %q"
 	errFmtEmptyEndpoint = "cannot determine gRPC target: active FunctionRevision %q has an empty status.endpoint"
 	errFmtDialFunction  = "cannot gRPC dial target %q from status.endpoint of active FunctionRevision %q"
 )
@@ -56,15 +53,14 @@ const (
 	lbRoundRobin = `{"loadBalancingConfig":[{"round_robin":{}}]}`
 
 	dialFunctionTimeout = 10 * time.Second
-	runFunctionTimeout  = 10 * time.Second
 )
 
-// A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
-// package's runtime. It creates a gRPC client connection for each Function. The
-// Function's endpoint is determined by reading the status.endpoint of the
-// active FunctionRevision. You must call GarbageCollectClientConnections in
-// order to ensure connections are properly closed.
-type PackagedFunctionRunner struct {
+// A PackagedFunctionConnectionPool creates a gRPC client connection for each
+// Function. The Function's endpoint is determined by reading the
+// status.endpoint of the active FunctionRevision.
+// You must call GarbageCollectClientConnections in order to ensure connections
+// are properly closed.
+type PackagedFunctionConnectionPool struct {
 	client       client.Reader
 	creds        credentials.TransportCredentials
 	interceptors []InterceptorCreator
@@ -84,18 +80,18 @@ type InterceptorCreator interface {
 }
 
 // A PackagedFunctionRunnerOption configures a PackagedFunctionRunner.
-type PackagedFunctionRunnerOption func(r *PackagedFunctionRunner)
+type PackagedFunctionRunnerOption func(r *PackagedFunctionConnectionPool)
 
 // WithLogger configures the logger the PackagedFunctionRunner should use.
 func WithLogger(l logging.Logger) PackagedFunctionRunnerOption {
-	return func(r *PackagedFunctionRunner) {
+	return func(r *PackagedFunctionConnectionPool) {
 		r.log = l
 	}
 }
 
 // WithTLSConfig configures the client TLS the PackagedFunctionRunner should use.
 func WithTLSConfig(cfg *tls.Config) PackagedFunctionRunnerOption {
-	return func(r *PackagedFunctionRunner) {
+	return func(r *PackagedFunctionConnectionPool) {
 		r.creds = credentials.NewTLS(cfg)
 	}
 }
@@ -103,15 +99,16 @@ func WithTLSConfig(cfg *tls.Config) PackagedFunctionRunnerOption {
 // WithInterceptorCreators configures the interceptors the
 // PackagedFunctionRunner should create for each function.
 func WithInterceptorCreators(ics ...InterceptorCreator) PackagedFunctionRunnerOption {
-	return func(r *PackagedFunctionRunner) {
+	return func(r *PackagedFunctionConnectionPool) {
 		r.interceptors = ics
 	}
 }
 
-// NewPackagedFunctionRunner returns a FunctionRunner that runs a Function by
-// making a gRPC call to a Function package's runtime.
-func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOption) *PackagedFunctionRunner {
-	r := &PackagedFunctionRunner{
+// NewPackagedFunctionConnectionPool returns a function connection pool that
+// creates connections to the endpoints specified by a Function package's
+// runtime.
+func NewPackagedFunctionConnectionPool(c client.Reader, o ...PackagedFunctionRunnerOption) *PackagedFunctionConnectionPool {
+	r := &PackagedFunctionConnectionPool{
 		client: c,
 		creds:  insecure.NewCredentials(),
 		conns:  make(map[string]*grpc.ClientConn),
@@ -125,25 +122,9 @@ func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOptio
 	return r
 }
 
-// RunFunction sends the supplied RunFunctionRequest to the named Function. The
-// function is expected to be an installed Function.pkg.crossplane.io package.
-func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
-	conn, err := r.getClientConn(ctx, name)
-	if err != nil {
-		return nil, errors.Wrapf(err, errFmtGetClientConn, name)
-	}
-
-	// This context is used for actually making the request.
-	ctx, cancel := context.WithTimeout(ctx, runFunctionTimeout)
-	defer cancel()
-
-	rsp, err := v1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
-	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
-}
-
-// In most cases our gRPC target will be a Kubernetes Service. The package
+// In most cases the gRPC target will be a Kubernetes Service. The package
 // manager creates this service for each active FunctionRevision, but the
-// Service is aligned with the Function. It's name is derived from the Function
+// Service is aligned with the Function. Its name is derived from the Function
 // (not the FunctionRevision). This means the target won't change just because a
 // new FunctionRevision was created.
 //
@@ -164,7 +145,11 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 // cost of listing and iterating over FunctionRevisions from cache. The default
 // RevisionHistoryLimit is 1, so for most Functions we'd expect there to be two
 // revisions in the cache (one active, and one previously active).
-func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string) (*grpc.ClientConn, error) {
+
+// GetConnection returns a connection to the named function. If a connection
+// already exists, it's returned. If no connection exists yet, it dials the
+// function revision's gRPC endpoint.
+func (r *PackagedFunctionConnectionPool) GetConnection(ctx context.Context, name string) (*grpc.ClientConn, error) {
 	log := r.log.WithValues("function", name)
 
 	l := &pkgv1beta1.FunctionRevisionList{}
@@ -243,7 +228,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 // GarbageCollectConnections runs every interval until the supplied context is
 // cancelled. It garbage collects gRPC client connections to Functions that are
 // no longer installed.
-func (r *PackagedFunctionRunner) GarbageCollectConnections(ctx context.Context, interval time.Duration) {
+func (r *PackagedFunctionConnectionPool) GarbageCollectConnections(ctx context.Context, interval time.Duration) {
 	t := time.NewTicker(interval)
 	defer t.Stop()
 
@@ -263,7 +248,7 @@ func (r *PackagedFunctionRunner) GarbageCollectConnections(ctx context.Context, 
 // GarbageCollectConnectionsNow immediately garbage collects any gRPC client
 // connections to Functions that are no longer installed. It returns the number
 // of connections garbage collected.
-func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Context) (int, error) {
+func (r *PackagedFunctionConnectionPool) GarbageCollectConnectionsNow(ctx context.Context) (int, error) {
 	// We try to take the write lock for as little time as possible,
 	// because while we have it RunFunction will block. In the happy
 	// path where no connections need garbage collecting we shouldn't

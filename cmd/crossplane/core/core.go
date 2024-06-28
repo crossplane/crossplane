@@ -200,7 +200,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
 	}
 
-	var functionRunner *xfn.PackagedFunctionRunner
+	var functionPool *xfn.PackagedFunctionConnectionPool
 	if c.EnableCompositionFunctions {
 		o.Features.Enable(features.EnableBetaCompositionFunctions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
@@ -219,20 +219,23 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			return errors.Wrap(err, "cannot load client TLS certificates")
 		}
 
-		m := xfn.NewMetrics()
-		metrics.Registry.MustRegister(m)
+		cfm := xfn.NewMetrics("composition")
+		metrics.Registry.MustRegister(cfm)
+
+		// TODO(negz): Support an option that verifies the Function package
+		// revision is of the correct type.
 
 		// We want all XR controllers to share the same gRPC clients.
-		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+		functionPool = xfn.NewPackagedFunctionConnectionPool(mgr.GetClient(),
 			xfn.WithLogger(log),
 			xfn.WithTLSConfig(clienttls),
-			xfn.WithInterceptorCreators(m),
+			xfn.WithInterceptorCreators(cfm),
 		)
 
 		// Periodically remove clients for Functions that no longer exist.
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
+		go functionPool.GarbageCollectConnections(ctx, 10*time.Minute)
 	}
 	if c.EnableEnvironmentConfigs {
 		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
@@ -360,7 +363,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	ao := apiextensionscontroller.Options{
 		Options:          o,
 		ControllerEngine: ce,
-		FunctionRunner:   functionRunner,
+		FunctionPool:     functionPool,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

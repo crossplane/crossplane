@@ -22,7 +22,9 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
@@ -77,6 +79,8 @@ const (
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 	errFmtFunctionMaxIterations      = "step %q requirements didn't stabilize after the maximum number of iterations (%d)"
+	errFmtGetClientConn              = "cannot get gRPC client connection for Function %q"
+	errFmtRunFunction                = "cannot run Function %q"
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -94,18 +98,14 @@ const (
 	// FieldOwnerComposedPrefix owns the fields this controller mutates on composed
 	// resources.
 	FieldOwnerComposedPrefix = "apiextensions.crossplane.io/composed"
-)
 
-const (
 	// FunctionContextKeyEnvironment is used to store the Composition
 	// Environment in the Function context.
 	FunctionContextKeyEnvironment = "apiextensions.crossplane.io/environment"
-)
 
-const (
-	// MaxRequirementsIterations is the maximum number of times a Function should be called,
-	// limiting the number of times it can request for extra resources, capped for
-	// safety.
+	// MaxRequirementsIterations is the maximum number of times a Function
+	// should be called, limiting the number of times it can request for extra
+	// resources, capped for safety.
 	MaxRequirementsIterations = 5
 )
 
@@ -934,4 +934,35 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 		]`, obj.GetResourceVersion()))
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
 	}
+}
+
+// A FunctionConnectionPool is a pool of gRPC connections to named functions.
+type FunctionConnectionPool interface {
+	GetConnection(ctx context.Context, name string) (*grpc.ClientConn, error)
+}
+
+// A PooledFunctionRunner runs functions using a connection pool.
+type PooledFunctionRunner struct {
+	pool FunctionConnectionPool
+}
+
+// NewPooledFunctionRunner returns a FunctionRunner that runs functions using a
+// connection pool.
+func NewPooledFunctionRunner(p FunctionConnectionPool) *PooledFunctionRunner {
+	return &PooledFunctionRunner{pool: p}
+}
+
+// RunFunction sends the supplied RunFunctionRequest to the named Function.
+func (r *PooledFunctionRunner) RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+	conn, err := r.pool.GetConnection(ctx, name)
+	if err != nil {
+		return nil, errors.Wrapf(err, errFmtGetClientConn, name)
+	}
+
+	// This context is used for actually making the request.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	rsp, err := v1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
 }

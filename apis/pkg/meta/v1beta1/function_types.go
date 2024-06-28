@@ -26,7 +26,24 @@ type FunctionSpec struct {
 
 	// Image is the packaged Function image.
 	Image *string `json:"image,omitempty"`
+
+	// The type of this function - composition or operation.
+	// +optional
+	// +kubebuilder:validation:Enum=Composition;Operation
+	// +kubebuilder:default=Composition
+	Type *FunctionType `json:"type,omitempty"`
 }
+
+// A FunctionType represents the type of a Function.
+type FunctionType string
+
+const (
+	// FunctionTypeComposition functions are used in a composition pipeline.
+	FunctionTypeComposition FunctionType = "Composition"
+
+	// FunctionTypeOperation functions are used in an operation pipeline.
+	FunctionTypeOperation FunctionType = "Operation"
+)
 
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
