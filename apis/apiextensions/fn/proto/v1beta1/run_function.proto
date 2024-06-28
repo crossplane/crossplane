@@ -121,6 +121,10 @@ message RunFunctionResponse {
 
   // Requirements that must be satisfied for this Function to run successfully.
   Requirements requirements = 5;
+
+  // Status conditions to be applied to the composite resource. Conditions may also
+  // optionally be applied to the composite resource's associated claim.
+  repeated Condition conditions = 6;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
@@ -243,6 +247,13 @@ message Result {
 
   // Human-readable details about the result.
   string message = 2;
+
+  // Optional PascalCase, machine-readable reason for this result. If omitted,
+  // the value will be ComposeResources.
+  optional string reason = 3;
+
+  // The resources this result targets.
+  optional Target target = 4;
 }
 
 // Severity of Function results.
@@ -262,4 +273,54 @@ enum Severity {
   // Normal results are emitted as normal events and debug logs associated
   // with the composite resource.
   SEVERITY_NORMAL = 3;
+}
+
+// Target of Function results and conditions.
+enum Target {
+  // If the target is unspecified, the result targets the composite resource.
+  TARGET_UNSPECIFIED = 0;
+
+  // Target the composite resource. Results that target the composite resource
+  // should include detailed, advanced information.
+  TARGET_COMPOSITE = 1;
+
+  // Target the composite and the claim. Results that target the composite and
+  // the claim should include only end-user friendly information.
+  TARGET_COMPOSITE_AND_CLAIM = 2;
+}
+
+// Status condition to be applied to the composite resource. Condition may also
+// optionally be applied to the composite resource's associated claim. For
+// detailed information on proper usage of status conditions, please see
+// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties.
+message Condition {
+  // Type of condition in PascalCase.
+  string type = 1;
+
+  // Status of the condition.
+  Status status = 2;
+
+  // Reason contains a programmatic identifier indicating the reason for the
+  // condition's last transition. Producers of specific condition types may
+  // define expected values and meanings for this field, and whether the values
+  // are considered a guaranteed API. The value should be a PascalCase string.
+  // This field may not be empty.
+  string reason = 3;
+
+  // Message is a human readable message indicating details about the
+  // transition. This may be an empty string.
+  optional string message = 4;
+
+  // The resources this condition targets.
+  optional Target target = 5;
+}
+
+enum Status {
+  STATUS_CONDITION_UNSPECIFIED = 0;
+
+  STATUS_CONDITION_UNKNOWN = 1;
+
+  STATUS_CONDITION_TRUE = 2;
+
+  STATUS_CONDITION_FALSE = 3;
 }

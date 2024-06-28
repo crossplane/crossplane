@@ -24,9 +24,11 @@ import (
 	"strconv"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -38,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
@@ -72,6 +75,8 @@ const (
 	errInvalidResources       = "some resources were invalid, check events"
 	errRenderCD               = "cannot render composed resource"
 	errSyncResources          = "cannot sync composed resources"
+	errGetClaim               = "cannot get referenced claim"
+	errParseClaimRef          = "cannot parse claim reference"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -84,6 +89,11 @@ const (
 	reasonInit    event.Reason = "InitializeCompositeResource"
 	reasonDelete  event.Reason = "DeleteCompositeResource"
 	reasonPaused  event.Reason = "ReconciliationPaused"
+)
+
+// Condition reasons.
+const (
+	reasonFatalError xpv1.ConditionReason = "FatalError"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -185,7 +195,48 @@ type CompositionRequest struct {
 type CompositionResult struct {
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
-	Events            []event.Event
+	Events            []TargetedEvent
+	Conditions        []TargetedCondition
+}
+
+// A CompositionTarget is the target of a composition event or condition.
+type CompositionTarget string
+
+// Composition event and condition targets.
+const (
+	CompositionTargetComposite         CompositionTarget = "Composite"
+	CompositionTargetCompositeAndClaim CompositionTarget = "CompositeAndClaim"
+)
+
+// A TargetedEvent represents an event produced by the composition process. It
+// can target either the XR only, or both the XR and the claim.
+type TargetedEvent struct {
+	event.Event
+	Target CompositionTarget
+	// Detail about the event to be included in the composite resource event but
+	// not the claim.
+	Detail string
+}
+
+// AsEvent produces the base event.
+func (e *TargetedEvent) AsEvent() event.Event {
+	return event.Event{Type: e.Type, Reason: e.Reason, Message: e.Message, Annotations: e.Annotations}
+}
+
+// AsDetailedEvent produces an event with additional detail if available.
+func (e *TargetedEvent) AsDetailedEvent() event.Event {
+	if e.Detail == "" {
+		return e.AsEvent()
+	}
+	msg := fmt.Sprintf("%s: %s", e.Detail, e.Message)
+	return event.Event{Type: e.Type, Reason: e.Reason, Message: msg, Annotations: e.Annotations}
+}
+
+// A TargetedCondition represents a condition produced by the composition
+// process. It can target either the XR only, or both the XR and the claim.
+type TargetedCondition struct {
+	xpv1.Condition
+	Target CompositionTarget
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
@@ -608,6 +659,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
 		}
+
 		err = errors.Wrap(err, errCompose)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		if kerrors.IsInvalid(err) {
@@ -621,6 +673,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
 		xr.SetConditions(xpv1.ReconcileError(err))
+
+		meta := r.handleCommonCompositionResult(ctx, res, xr)
+		// We encountered a fatal error. For any custom status conditions that were
+		// not received due to the fatal error, mark them as unknown.
+		for _, c := range xr.GetConditions() {
+			if xpv1.IsSystemConditionType(c.Type) {
+				continue
+			}
+			if !meta.conditionTypesSeen[c.Type] {
+				c.Status = corev1.ConditionUnknown
+				c.Reason = reasonFatalError
+				c.Message = "A fatal error occurred before the status of this condition could be determined."
+				xr.SetConditions(c)
+			}
+		}
+
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -654,16 +722,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
-	warnings := 0
-	for _, e := range res.Events {
-		if e.Type == event.TypeWarning {
-			warnings++
-		}
-		log.Debug(e.Message)
-		r.record.Event(xr, e)
-	}
+	meta := r.handleCommonCompositionResult(ctx, res, xr)
 
-	if warnings == 0 {
+	if meta.numWarningEvents == 0 {
 		// We don't consider warnings severe enough to prevent the XR from being
 		// considered synced (i.e. severe enough to return a ReconcileError) but
 		// they are severe enough that we probably shouldn't say we successfully
@@ -735,4 +796,75 @@ func getComposerResourcesNames(cds []ComposedResource) []string {
 		names[i] = string(cd.ResourceName)
 	}
 	return names
+}
+
+type compositionResultMeta struct {
+	numWarningEvents   int
+	conditionTypesSeen map[xpv1.ConditionType]bool
+}
+
+func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res CompositionResult, xr *composite.Unstructured) compositionResultMeta {
+	log := r.log.WithValues(
+		"uid", xr.GetUID(),
+		"version", xr.GetResourceVersion(),
+		"name", xr.GetName(),
+	)
+
+	cm, err := getClaimFromXR(ctx, r.client, xr)
+	if err != nil {
+		log.Debug(errGetClaim, "error", err)
+	}
+
+	numWarningEvents := 0
+	for _, e := range res.Events {
+		if e.Event.Type == event.TypeWarning {
+			numWarningEvents++
+		}
+
+		detailedEvent := e.AsDetailedEvent()
+		log.Debug(detailedEvent.Message)
+		r.record.Event(xr, detailedEvent)
+
+		if e.Target == CompositionTargetCompositeAndClaim && cm != nil {
+			r.record.Event(cm, e.AsEvent())
+		}
+	}
+
+	conditionTypesSeen := make(map[xpv1.ConditionType]bool)
+	for _, c := range res.Conditions {
+		if xpv1.IsSystemConditionType(c.Condition.Type) {
+			// Do not let users update system conditions.
+			continue
+		}
+		conditionTypesSeen[c.Condition.Type] = true
+		xr.SetConditions(c.Condition)
+		if c.Target == CompositionTargetCompositeAndClaim {
+			// We can ignore the error as it only occurs if given a system condition.
+			_ = xr.SetClaimConditionTypes(c.Condition.Type)
+		}
+	}
+
+	return compositionResultMeta{
+		numWarningEvents:   numWarningEvents,
+		conditionTypesSeen: conditionTypesSeen,
+	}
+}
+
+func getClaimFromXR(ctx context.Context, c client.Client, xr *composite.Unstructured) (*claim.Unstructured, error) {
+	if xr.GetClaimReference() == nil {
+		return nil, nil
+	}
+
+	gv, err := schema.ParseGroupVersion(xr.GetClaimReference().APIVersion)
+	if err != nil {
+		return nil, errors.Wrap(err, errParseClaimRef)
+	}
+
+	claimGVK := gv.WithKind(xr.GetClaimReference().Kind)
+	cm := claim.New(claim.WithGroupVersionKind(claimGVK))
+	claimNN := types.NamespacedName{Namespace: xr.GetClaimReference().Namespace, Name: xr.GetClaimReference().Name}
+	if err := c.Get(ctx, claimNN, cm); err != nil {
+		return nil, errors.Wrap(err, errGetClaim)
+	}
+	return cm, nil
 }
