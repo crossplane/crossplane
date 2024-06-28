@@ -33,11 +33,15 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
+// defaultConcurrency is the concurrency using which the resource tree if loaded when not explicitly specified.
+const defaultConcurrency = 5
+
 // Client to get a Resource with all its children.
 type Client struct {
 	getConnectionSecrets bool
 
-	client client.Client
+	client      client.Client
+	concurrency int
 }
 
 // ResourceClientOption is a functional option for a Client.
@@ -50,12 +54,20 @@ func WithConnectionSecrets(v bool) ResourceClientOption {
 	}
 }
 
+// WithConcurrency is a functional option that sets the concurrency for the resource load.
+func WithConcurrency(n int) ResourceClientOption {
+	return func(c *Client) {
+		c.concurrency = n
+	}
+}
+
 // NewClient returns a new Client.
 func NewClient(in client.Client, opts ...ResourceClientOption) (*Client, error) {
 	uClient := xpunstructured.NewClient(in)
 
 	c := &Client{
-		client: uClient,
+		client:      uClient,
+		concurrency: defaultConcurrency,
 	}
 
 	for _, o := range opts {
@@ -67,25 +79,20 @@ func NewClient(in client.Client, opts ...ResourceClientOption) (*Client, error) 
 
 // GetResourceTree returns the requested Crossplane Resource and all its children.
 func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
-	// Set up a FIFO queue to traverse the resource tree breadth first.
-	queue := []*resource.Resource{root}
-
-	for len(queue) > 0 {
-		// Pop the first element from the queue.
-		res := queue[0]
-		queue = queue[1:]
-
-		refs := getResourceChildrenRefs(res, kc.getConnectionSecrets)
-
-		for i := range refs {
-			child := resource.GetResource(ctx, kc.client, &refs[i])
-
-			res.Children = append(res.Children, child)
-			queue = append(queue, child)
-		}
-	}
-
+	q := newLoader(root, kc, defaultChannelCapacity)
+	q.load(ctx, kc.concurrency)
 	return root, nil
+}
+
+// loadResource returns the resource for the specified object reference.
+func (kc *Client) loadResource(ctx context.Context, ref *v1.ObjectReference) *resource.Resource {
+	return resource.GetResource(ctx, kc.client, ref)
+}
+
+// getResourceChildrenRefs returns the references to the children for the given
+// Resource, assuming it's a Crossplane resource, XR or XRC.
+func (kc *Client) getResourceChildrenRefs(r *resource.Resource) []v1.ObjectReference {
+	return getResourceChildrenRefs(r, kc.getConnectionSecrets)
 }
 
 // getResourceChildrenRefs returns the references to the children for the given
