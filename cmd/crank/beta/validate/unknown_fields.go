@@ -2,10 +2,11 @@ package validate
 
 import (
 	"fmt"
+	"strings"
+
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema/pruning"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"strings"
 )
 
 // validateUnknownFields Validates the resource's unknown fields against the given schema and returns a list of errors.
@@ -15,11 +16,11 @@ func validateUnknownFields(mr map[string]interface{}, sch *schema.Structural) fi
 	}
 	errs := field.ErrorList{}
 
-	unkFlds := pruning.PruneWithOptions(mr, sch, true, opts)
-	for _, f := range unkFlds {
+	uf := pruning.PruneWithOptions(mr, sch, true, opts)
+	for _, f := range uf {
 		strPath := strings.Split(f, ".")
 		child := strPath[len(strPath)-1]
-		errs = append(errs, field.InternalError(field.NewPath(f), fmt.Errorf("unknown field \"%s\"", child)))
+		errs = append(errs, field.Invalid(field.NewPath(f), child, fmt.Sprintf("unknown field: \"%s\"", child)))
 	}
 	return errs
 }
