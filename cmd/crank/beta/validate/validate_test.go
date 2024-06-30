@@ -18,10 +18,12 @@ package validate
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
@@ -1334,6 +1336,102 @@ func TestValidateResources(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestValidateUnknownFields(t *testing.T) {
+	type args struct {
+		mr  map[string]interface{}
+		sch *schema.Structural
+	}
+	type want struct {
+		errField string
+		errMsg   string
+		hasError bool
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"UnknownFieldPresent": {
+			reason: "Should detect unknown fields in the resource and return an error",
+			args: args{
+				mr: map[string]interface{}{
+					"apiVersion": "test.org/v1alpha1",
+					"kind":       "Test",
+					"metadata": map[string]interface{}{
+						"name": "test-instance",
+					},
+					"spec": map[string]interface{}{
+						"replicas":     3,
+						"unknownField": "should fail", // This field is not defined in the CRD schema
+					},
+				},
+				sch: &schema.Structural{
+					Properties: map[string]schema.Structural{
+						"spec": {
+							Properties: map[string]schema.Structural{
+								"replicas": {
+									Generic: schema.Generic{Type: "integer"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				errField: "spec.unknownField",
+				errMsg:   "unknown field: \"unknownField\"",
+				hasError: true,
+			},
+		},
+		"UnknownFieldNotPresent": {
+			reason: "Should not return an error when no unknown fields are present",
+			args: args{
+				mr: map[string]interface{}{
+					"apiVersion": "test.org/v1alpha1",
+					"kind":       "Test",
+					"metadata": map[string]interface{}{
+						"name": "test-instance",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3, // No unknown fields
+					},
+				},
+				sch: &schema.Structural{
+					Properties: map[string]schema.Structural{
+						"spec": {
+							Properties: map[string]schema.Structural{
+								"replicas": {
+									Generic: schema.Generic{Type: "integer"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				hasError: false,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			errs := validateUnknownFields(tc.args.mr, tc.args.sch)
+			if tc.want.hasError {
+				if len(errs) == 0 {
+					t.Errorf("%s: expected error but got none", tc.reason)
+				} else if errs[0].Field != tc.want.errField || !strings.Contains(errs[0].Error(), tc.want.errMsg) {
+					t.Errorf("%s: expected %s, %s; got %s", tc.reason, tc.want.errField, tc.want.errMsg, errs[0].Error())
+				}
+			} else {
+				if len(errs) != 0 {
+					t.Errorf("%s: expected no errors but got %v", tc.reason, errs)
+				}
 			}
 		})
 	}
