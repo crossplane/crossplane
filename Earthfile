@@ -162,8 +162,8 @@ go-build:
   COPY --dir apis/ cmd/ internal/ pkg/ .
   RUN go build -o crossplane${ext} ./cmd/crossplane
   RUN go build -o crank${ext} ./cmd/crank
-  SAVE ARTIFACT crossplane${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}
-  SAVE ARTIFACT crank${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}
+  SAVE ARTIFACT --keep-ts crossplane${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}
+  SAVE ARTIFACT --keep-ts crank${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}
 
 # go-multiplatform-build builds Crossplane binaries for all supported OS
 # and architectures.
