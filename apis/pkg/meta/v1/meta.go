@@ -44,4 +44,12 @@ type Dependency struct {
 
 	// Version is the semantic version constraints of the dependency image.
 	Version string `json:"version"`
+
+	// SkipDependencyResolution indicates to the package manager whether to skip
+	// resolving dependencies for a dependsOn package. Setting this value to true may have
+	// unintended consequences.
+	// Default is false.
+	// +optional
+	// +kubebuilder:default=false
+	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 }

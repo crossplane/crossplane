@@ -86,6 +86,12 @@ func (c *GeneratedFromHubConverter) v1DependencyToV1alpha1Dependency(source v1.D
 	}
 	v1alpha1Dependency.Function = pString3
 	v1alpha1Dependency.Version = source.Version
+	var pBool *bool
+	if source.SkipDependencyResolution != nil {
+		xbool := *source.SkipDependencyResolution
+		pBool = &xbool
+	}
+	v1alpha1Dependency.SkipDependencyResolution = pBool
 	return v1alpha1Dependency
 }
 func (c *GeneratedFromHubConverter) v1MetaSpecToV1alpha1MetaSpec(source v1.MetaSpec) MetaSpec {
@@ -285,6 +291,12 @@ func (c *GeneratedToHubConverter) v1alpha1DependencyToV1Dependency(source Depend
 	}
 	v1Dependency.Function = pString3
 	v1Dependency.Version = source.Version
+	var pBool *bool
+	if source.SkipDependencyResolution != nil {
+		xbool := *source.SkipDependencyResolution
+		pBool = &xbool
+	}
+	v1Dependency.SkipDependencyResolution = pBool
 	return v1Dependency
 }
 func (c *GeneratedToHubConverter) v1alpha1MetaSpecToV1MetaSpec(source MetaSpec) v1.MetaSpec {
