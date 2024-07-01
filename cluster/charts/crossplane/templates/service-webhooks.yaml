@@ -22,4 +22,5 @@ spec:
   - protocol: TCP
     port: 9443
     targetPort: 9443
+    name: webhooks
 {{- end }}
