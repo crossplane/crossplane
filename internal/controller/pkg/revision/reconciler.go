@@ -20,6 +20,7 @@ package revision
 import (
 	"context"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -928,7 +929,7 @@ func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.P
 	// Fetch XP ServiceAccount to get the ImagePullSecrets defined there.
 	// We will append them to the list of ImagePullSecrets for the runtime
 	// ServiceAccount.
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: r.namespace, Name: r.serviceAccount}, sa); err != nil {
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: os.Getenv("POD_NAMESPACE"), Name: os.Getenv("POD_SERVICE_ACCOUNT")}, sa); err != nil {
 		return nil, errors.Wrap(err, errGetServiceAccount)
 	}
 	if len(sa.ImagePullSecrets) > 0 {
