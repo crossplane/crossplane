@@ -216,6 +216,10 @@ func (m *Manager) addDependencies() error {
 			if len(image) > 0 {
 				image = fmt.Sprintf(imageFmt, image, dep.Version)
 				m.deps[image] = true
+
+				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
+					m.confs[image] = true
+				}
 			}
 		}
 	}

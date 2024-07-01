@@ -62,6 +62,45 @@ metadata:
 ---
 
 `)
+
+	configBase = unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "pkg.crossplane.io/v1alpha1",
+			"kind":       "Configuration",
+			"metadata": map[string]interface{}{
+				"name": "config-base",
+			},
+			"spec": map[string]interface{}{
+				"package": "config-dep-1:v1.3.0",
+			},
+		},
+	}
+
+	configDep1Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+name: config-dep-1
+spec:
+dependsOn:
+- configuration: config-dep-2
+  version: "v1.3.0"
+---
+
+`)
+
+	configDep2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+name: config-dep-2
+spec:
+dependsOn:
+- provider: provider-dep-1
+  version: "v1.3.0"
+- function: function-dep-1
+  version: "v1.3.0"
+---
+
+`)
 )
 
 func TestConfigurationTypeSupport(t *testing.T) {
@@ -236,4 +275,72 @@ type MockFetcher struct {
 
 func (m *MockFetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 	return m.fetch(image)
+}
+
+func TestAddDependencies(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	w := &bytes.Buffer{}
+
+	m := NewManager(".crossplane/cache", fs, w)
+	m.PrepExtensions([]*unstructured.Unstructured{&configBase})
+
+	cd1 := static.NewLayer(configDep1Yaml, types.OCILayer)
+	cd2 := static.NewLayer(configDep2Yaml, types.OCILayer)
+	pd1 := static.NewLayer(providerYaml, types.OCILayer)
+	fd1 := static.NewLayer(funcYaml, types.OCILayer)
+
+	type args struct {
+		fetchMock func(image string) (*conregv1.Layer, error)
+	}
+	type want struct {
+		confs int
+		deps  int
+		err   error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"SuccessfulDependenciesAddition": {
+			reason: "All dependencies should be successfully fetched and added",
+			args: args{
+				fetchMock: func(image string) (*conregv1.Layer, error) {
+					switch image {
+					case "config-dep-1:v1.3.0":
+						return &cd1, nil
+					case "config-dep-2:v1.3.0":
+						return &cd2, nil
+					case "provider-dep-1:v1.3.0":
+						return &pd1, nil
+					case "function-dep-1:v1.3.0":
+						return &fd1, nil
+					default:
+						return nil, fmt.Errorf("unknown image: %s", image)
+					}
+				},
+			},
+			want: want{
+				confs: 2,
+				deps:  4,
+				err:   nil,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			m.fetcher = &MockFetcher{tc.args.fetchMock}
+			err := m.addDependencies()
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
