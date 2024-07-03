@@ -85,9 +85,10 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 
 func findImageTagForVersionConstraint(image string) (string, error) {
 	// Separate the image base and the image tag
-	parts := strings.SplitN(image, ":", 2)
-	imageBase := parts[0]
-	imageTag := parts[1]
+	parts := strings.Split(image, ":")
+	lastPart := len(parts) - 1
+	imageBase := strings.Join(parts[0:lastPart], ":")
+	imageTag := parts[lastPart]
 
 	// Check if the tag is a constraint
 	isConstraint := true
@@ -96,42 +97,45 @@ func findImageTagForVersionConstraint(image string) (string, error) {
 		isConstraint = false
 	}
 
-	if isConstraint {
-		// Fetch all image tags
-		tags, err := crane.ListTags(imageBase)
-		if err != nil {
-			return "", errors.Wrapf(err, "cannot fetch tags for the image %s", imageBase)
-		}
-
-		// Convert tags to semver versions
-		vs := []*semver.Version{}
-		for _, r := range tags {
-			v, err := semver.NewVersion(r)
-			if err != nil {
-				// We skip any tags that are not valid semantic versions
-				continue
-			}
-			vs = append(vs, v)
-		}
-
-		// Sort all versions and find the last version complient with the constraint
-		sort.Sort(sort.Reverse(semver.Collection(vs)))
-		var addVer string
-		for _, v := range vs {
-			if c.Check(v) {
-				addVer = v.Original()
-
-				break
-			}
-		}
-
-		if addVer == "" {
-			return "", errors.Wrapf(err, "cannot find any tag complient with the constraint %s", imageTag)
-		}
-
-		// Compose new complete image string if any complient version was found
-		image = fmt.Sprintf("%s:%s", imageBase, addVer)
+	// Return original image if no constraint was detected
+	if !isConstraint {
+		return image, nil
 	}
+
+	// Fetch all image tags
+	tags, err := crane.ListTags(imageBase)
+	if err != nil {
+		return "", errors.Wrapf(err, "cannot fetch tags for the image %s", imageBase)
+	}
+
+	// Convert tags to semver versions
+	vs := []*semver.Version{}
+	for _, r := range tags {
+		v, err := semver.NewVersion(r)
+		if err != nil {
+			// We skip any tags that are not valid semantic versions
+			continue
+		}
+		vs = append(vs, v)
+	}
+
+	// Sort all versions and find the last version complient with the constraint
+	sort.Sort(sort.Reverse(semver.Collection(vs)))
+	var addVer string
+	for _, v := range vs {
+		if c.Check(v) {
+			addVer = v.Original()
+
+			break
+		}
+	}
+
+	if addVer == "" {
+		return "", errors.Errorf("cannot find any tag complient with the constraint %s", imageTag)
+	}
+
+	// Compose new complete image string if any complient version was found
+	image = fmt.Sprintf("%s:%s", imageBase, addVer)
 
 	return image, nil
 }
