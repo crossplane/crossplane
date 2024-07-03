@@ -18,7 +18,6 @@ package validate
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -26,6 +25,7 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -1347,9 +1347,7 @@ func TestValidateUnknownFields(t *testing.T) {
 		sch *schema.Structural
 	}
 	type want struct {
-		errField string
-		errMsg   string
-		hasError bool
+		errs field.ErrorList
 	}
 	cases := map[string]struct {
 		reason string
@@ -1383,9 +1381,9 @@ func TestValidateUnknownFields(t *testing.T) {
 				},
 			},
 			want: want{
-				errField: "spec.unknownField",
-				errMsg:   "unknown field: \"unknownField\"",
-				hasError: true,
+				errs: field.ErrorList{
+					field.Invalid(field.NewPath("spec.unknownField"), "unknownField", `unknown field: "unknownField"`),
+				},
 			},
 		},
 		"UnknownFieldNotPresent": {
@@ -1414,7 +1412,7 @@ func TestValidateUnknownFields(t *testing.T) {
 				},
 			},
 			want: want{
-				hasError: false,
+				errs: field.ErrorList{},
 			},
 		},
 	}
@@ -1422,16 +1420,8 @@ func TestValidateUnknownFields(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			errs := validateUnknownFields(tc.args.mr, tc.args.sch)
-			if tc.want.hasError {
-				if len(errs) == 0 {
-					t.Errorf("%s: expected error but got none", tc.reason)
-				} else if errs[0].Field != tc.want.errField || !strings.Contains(errs[0].Error(), tc.want.errMsg) {
-					t.Errorf("%s: expected %s, %s; got %s", tc.reason, tc.want.errField, tc.want.errMsg, errs[0].Error())
-				}
-			} else {
-				if len(errs) != 0 {
-					t.Errorf("%s: expected no errors but got %v", tc.reason, errs)
-				}
+			if diff := cmp.Diff(tc.want.errs, errs, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\nvalidateUnknownFields(...): -want errs, +got errs:\n%s", tc.reason, diff)
 			}
 		})
 	}
