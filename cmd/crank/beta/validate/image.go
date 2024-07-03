@@ -46,29 +46,27 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 		return nil, errors.Wrapf(err, "cannot get config")
 	}
 
-	cfg := &conregv1.ConfigFile{}
+	cfg := &conregv1.Manifest{}
 	if err := yaml.Unmarshal(cBytes, cfg); err != nil {
 		return nil, errors.Wrapf(err, "cannot unmarshal image config")
 	}
 
 	// TODO(ezgidemirel): consider using the annotations instead of labels to find out the base layer like package managed
-	if cfg.Config.Labels == nil {
+	if cfg.Config.Annotations == nil {
 		return nil, errors.New("cannot get image labels")
 	}
 
-	var label string
-	ls := cfg.Config.Labels
+	var annotation string
+	ls := cfg.Config.Annotations
 	for v, k := range ls {
-		if k == baseLayerLabel {
-			label = v // e.g.: io.crossplane.xpkg:sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
+		if k == baseLayerAnnotation {
+			annotation = v // e.g.: io.crossplane.xpkg:sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
 		}
 	}
 
-	lDigest := strings.SplitN(label, ":", 2)[1] // e.g.: sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
-
-	ll, err := crane.PullLayer(fmt.Sprintf(refFmt, image, lDigest))
+	ll, err := crane.PullLayer(fmt.Sprintf(refFmt, image, annotation))
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot pull base layer %s", lDigest)
+		return nil, errors.Wrapf(err, "cannot pull base layer %s", annotation)
 	}
 
 	return &ll, nil

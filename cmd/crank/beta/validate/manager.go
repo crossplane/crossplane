@@ -38,6 +38,7 @@ const (
 	defaultCacheDir = ".crossplane/cache"
 	packageFileName = "package.yaml"
 	baseLayerLabel  = "base"
+	baseLayerAnnotation = "base"
 
 	refFmt   = "%s@%s"
 	imageFmt = "%s:%s"
