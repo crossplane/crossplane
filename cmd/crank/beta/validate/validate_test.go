@@ -22,8 +22,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -1334,6 +1336,92 @@ func TestValidateResources(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestValidateUnknownFields(t *testing.T) {
+	type args struct {
+		mr  map[string]interface{}
+		sch *schema.Structural
+	}
+	type want struct {
+		errs field.ErrorList
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"UnknownFieldPresent": {
+			reason: "Should detect unknown fields in the resource and return an error",
+			args: args{
+				mr: map[string]interface{}{
+					"apiVersion": "test.org/v1alpha1",
+					"kind":       "Test",
+					"metadata": map[string]interface{}{
+						"name": "test-instance",
+					},
+					"spec": map[string]interface{}{
+						"replicas":     3,
+						"unknownField": "should fail", // This field is not defined in the CRD schema
+					},
+				},
+				sch: &schema.Structural{
+					Properties: map[string]schema.Structural{
+						"spec": {
+							Properties: map[string]schema.Structural{
+								"replicas": {
+									Generic: schema.Generic{Type: "integer"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				errs: field.ErrorList{
+					field.Invalid(field.NewPath("spec.unknownField"), "unknownField", `unknown field: "unknownField"`),
+				},
+			},
+		},
+		"UnknownFieldNotPresent": {
+			reason: "Should not return an error when no unknown fields are present",
+			args: args{
+				mr: map[string]interface{}{
+					"apiVersion": "test.org/v1alpha1",
+					"kind":       "Test",
+					"metadata": map[string]interface{}{
+						"name": "test-instance",
+					},
+					"spec": map[string]interface{}{
+						"replicas": 3, // No unknown fields
+					},
+				},
+				sch: &schema.Structural{
+					Properties: map[string]schema.Structural{
+						"spec": {
+							Properties: map[string]schema.Structural{
+								"replicas": {
+									Generic: schema.Generic{Type: "integer"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				errs: field.ErrorList{},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			errs := validateUnknownFields(tc.args.mr, tc.args.sch)
+			if diff := cmp.Diff(tc.want.errs, errs, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\nvalidateUnknownFields(...): -want errs, +got errs:\n%s", tc.reason, diff)
 			}
 		})
 	}
