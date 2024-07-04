@@ -50,8 +50,8 @@ type Manager struct {
 	writer  io.Writer
 
 	crds  []*extv1.CustomResourceDefinition
-	deps  map[string]bool // One level dependency images
-	confs map[string]bool // Configuration images
+	deps  map[string]bool        // Dependency images
+	confs map[string]interface{} // Configuration images
 }
 
 // NewManager returns a new Manager.
@@ -67,7 +67,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m.writer = w
 	m.crds = make([]*extv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
-	m.confs = make(map[string]bool)
+	m.confs = make(map[string]interface{})
 
 	return m
 }
@@ -133,6 +133,19 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 			m.confs[image] = true
 
+		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
+			meta, err := e.MarshalJSON()
+			if err != nil {
+				return errors.Wrap(err, "cannot marshal configuration to JSON")
+			}
+
+			cfg := &metav1.Configuration{}
+			if err := yaml.Unmarshal(meta, cfg); err != nil {
+				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
+			}
+
+			m.confs[cfg.Name] = cfg
+
 		default:
 			continue
 		}
@@ -171,21 +184,30 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 
 func (m *Manager) addDependencies() error {
 	for image := range m.confs {
-		m.deps[image] = true // we need to download the configuration package for the XRDs
-
-		layer, err := m.fetcher.FetchBaseLayer(image)
-		if err != nil {
-			return errors.Wrapf(err, "cannot download package %s", image)
-		}
-
-		_, meta, err := extractPackageContent(*layer)
-		if err != nil {
-			return errors.Wrapf(err, "cannot extract package file and meta")
-		}
-
 		cfg := &metav1.Configuration{}
-		if err := yaml.Unmarshal(meta, cfg); err != nil {
-			return errors.Wrapf(err, "cannot unmarshal configuration YAML")
+
+		switch c := m.confs[image].(type) {
+		case bool:
+			m.deps[image] = true // we need to download the configuration package for the XRDs
+
+			layer, err := m.fetcher.FetchBaseLayer(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot download package %s", image)
+			}
+
+			_, meta, err := extractPackageContent(*layer)
+			if err != nil {
+				return errors.Wrapf(err, "cannot extract package file and meta")
+			}
+			if err := yaml.Unmarshal(meta, cfg); err != nil {
+				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
+			}
+
+		case *metav1.Configuration:
+			cfg = c // Configuration.meta is used for pulling dependencies
+
+		default:
+			return errors.New("unknown configuration type")
 		}
 
 		deps := cfg.Spec.MetaSpec.DependsOn
