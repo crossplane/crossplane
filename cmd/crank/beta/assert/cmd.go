@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/afero"
 )
 
-// Cmd arguments and flags for render subcommand.
+// Cmd arguments and flags for assert subcommand.
 type Cmd struct {
 	// Arguments
 	ExpectedResources string `arg:"" help:"A YAML file or directory of YAML files specifying the expected resources."`
