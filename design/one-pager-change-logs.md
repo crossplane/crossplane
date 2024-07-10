@@ -24,7 +24,7 @@
 Crossplane is deployed to manage the most critical infrastructure resources for
 many of the organizations that have chosen to adopt it. Crossplane acts in a
 continuously reconciling loop to drive the state of external systems and
-resources to match the desired state declared by the users platform. If changes
+resources to match the desired state declared by a user's platform. If changes
 between the observed state of the real world and the desired state from the
 users are detected, Crossplane will automatically update the resources to remove
 this difference.
@@ -33,7 +33,7 @@ This means that it is possible for Crossplane to make changes to external
 systems even when no user is actively interacting with the control plane.
 Consider the scenario when someone updates a resource outside of Crossplane,
 e.g. via the AWS console or `gcloud` CLI. When Crossplane detects this
-"configuration drift", it will enforce its "source of truth" to immediately
+"configuration drift", it will enforce its "source of truth" to eventually
 correct this unexpected change without any user interaction with the control
 plane.  Currently, there is no mechanism for users of Crossplane to have
 visibility into these types of "unexpected" changes that Crossplane is making on
@@ -110,34 +110,35 @@ providers](https://github.com/crossplane/provider-template) and [Upjet generated
 providers](https://github.com/crossplane/upjet-provider-template) make use of
 the crossplane-runtime [managed
 reconciler](https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reconciler/managed/reconciler.go),
-which calls into each provider to do specific CRUD operations on external
-resources.  Therefore, the managed reconciler is the ideal place to generate the
-change log entries very close to the source of truth.
+which calls into each provider to do specific CUD (Create, Update, and Delete)
+operations on external resources.  Therefore, the managed reconciler is the
+ideal place to generate the change log entries very close to the source of
+truth.
 
 The managed reconciler calls the provider's [`ExternalClient.Observe()`
 method](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L914)
-before any CRUD operation is performed, in order to understand the current state
+before any CUD operation is performed, in order to understand the current state
 of the external system before the provider acts upon it. This up to date
 external state will be used to populate the "before" field in the change log
 entry.
 
-If a CRUD operation is performed later on in the same `Reconcile()`, then we
+If a CUD operation is performed later on in the same `Reconcile()`, then we
 will perform an additional call to this same `Observe()` method directly after
-the CRUD operation is performed. This second `Observe()` result will be used to
+the CUD operation is performed. This second `Observe()` result will be used to
 populate the "after" field in the change log entry.
 
-Some helpful pointers to where CRUD operations are performed in the managed
+Some helpful pointers to where CUD operations are performed in the managed
 reconciler:
 
 * [Create](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L1058)
 * [Update](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L1189)
 * [Delete](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L954)
 
-The code path through the managed reconciler's `Reconcile()` method are already
+The code paths through the managed reconciler's `Reconcile()` method are already
 a bit complex. One design choice that has helped minimize the complexity and
 assist in readability is that the reconciler returns as early as it can after
 performing an operation. Since we will now be adding an additional `Observe()`
-call after each CRUD operation, this will increase the complexity further, but
+call after each CUD operation, this will increase the complexity further, but
 is likely unavoidable for us to obtain an immediate understanding of the "after"
 state of a change, without having to wait for another reconcile.
 
@@ -148,7 +149,7 @@ of the control plane, and therefore we will have a fairly low tolerance for data
 loss of these logs. Change logs entries will be written to a local location
 immediately, so that a healthy network connection is not required at the time an
 entry is generated. This local location doesn't necessarily need to be a highly
-durable and persistent location itself, they key is that we don't lose any data
+durable and persistent location itself, the key is that we don't lose any data
 if we temporarily lose network connectivity while entries are being generated.
 
 We should also minimize any effort into building a novel or specific system for
@@ -163,7 +164,7 @@ change logs can then be viewed directly by entities that have read access to the
 pod logs, and they can also be exported to external/centralized systems for long
 term storage and further inspection and analysis. One suggested means to collect
 and export the change logs is to use the [OpenTelemetry
-Collector](https://opentelemetry.io/docs/collector/), but a more details
+Collector](https://opentelemetry.io/docs/collector/), but a more detailed
 analysis of that setup is out of scope for this document.
 
 #### Pod Log Benefits
@@ -181,7 +182,7 @@ Pod logs are a good option for the change log location because they:
 As mentioned in the previous section, change log entries will be written to the
 pod logs. However, there is some additional structure we will build in order to
 keep change logs entirely separated from the regular provider log entries, which
-will add not only with human readability, but also post processing and analysis
+will aid not only with human readability, but also post processing and analysis
 by the system responsible for long term storage.
 
 Each provider pod that generates change log entries will have a sidecar
@@ -191,7 +192,7 @@ will be listening on a gRPC connection from the main provider container. This
 gRPC connection between the two containers will be established over a Unix
 domain socket on a shared `emptyDir` volume mounted by both containers. This
 setup allows the main provider container to send the change log entries to the
-sidecar container in a fairly performant manner without needed any network
+sidecar container in a fairly performant manner without needing any network
 access at all.
 
 The change log entry data will be serialized in a binary protobuf format for
@@ -200,10 +201,10 @@ pod logs in a JSON serialized format.
 
 #### Summary: Change Log Entry Flow
 
-* The provider will have sidecar container where each entry is sent
+* The provider will have a sidecar container where each entry is sent
 * Main container will communicate through gRPC with the sidecar container over a
   Unix domain socket on a shared volume
-* Data is serialized in a protobuf binary format and written to sidecar
+* Data is serialized in a protobuf binary format and written to the sidecar
   container logs in JSON format
 
 ### General Architecture
@@ -219,10 +220,10 @@ This feature will be declared at an
 [alpha](https://docs.crossplane.io/latest/learn/feature-lifecycle/#alpha-features)
 level of maturity when it is first released, meaning that Crossplane users must
 opt-in to using this functionality by setting an `--enable-change-logs` feature
-flag. Note this will flag will need to be set on each provider for which change
+flag. Note this flag will need to be set on each provider for which change
 logs are desired, likely via a `DeploymentRuntimeConfig`.
 
-Also note in the plan below that core Crossplane itself does not need to updated
+Also note in the plan below that core Crossplane itself does not need to be updated
 at all to support this feature. The key changes are in `crossplane-runtime`, the
 Upjet framework, and the ecosystem of providers.
 
@@ -231,12 +232,12 @@ described below:
 
 * Managed reconciler is updated in `crossplane-runtime` to generate change log
   entries and send them to the gRPC server (i.e. provider sidecar container) and
-  to include additional calls to `Observe()` after each CRUD operation to
+  to include additional calls to `Observe()` after each CUD operation to
   capture the "after" state of the entry
 * The [Upjet framework](https://github.com/crossplane/upjet) is updated to use
   this new `crossplane-runtime` logic and with additional code generation logic
   to generate providers that:
-  * Create a initialize a sidecar container in the provider pod
+  * Create and initialize a sidecar container in the provider pod
   * Start and initialize the gRPC server in the sidecar container and the gRPC
     client in the main provider container
 * The [Upjet provider
