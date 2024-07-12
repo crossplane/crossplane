@@ -50,8 +50,8 @@ type Manager struct {
 	writer  io.Writer
 
 	crds  []*extv1.CustomResourceDefinition
-	deps  map[string]bool        // Dependency images
-	confs map[string]interface{} // Configuration images
+	deps  map[string]bool                  // Dependency images
+	confs map[string]*metav1.Configuration // Configuration images
 }
 
 // NewManager returns a new Manager.
@@ -67,7 +67,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m.writer = w
 	m.crds = make([]*extv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
-	m.confs = make(map[string]interface{})
+	m.confs = make(map[string]*metav1.Configuration)
 
 	return m
 }
@@ -131,7 +131,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get package image")
 			}
 
-			m.confs[image] = true
+			m.confs[image] = nil
 
 		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
 			meta, err := e.MarshalJSON()
@@ -184,10 +184,9 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 
 func (m *Manager) addDependencies() error {
 	for image := range m.confs {
-		cfg := &metav1.Configuration{}
+		cfg := m.confs[image]
 
-		switch c := m.confs[image].(type) {
-		case bool:
+		if cfg == nil {
 			m.deps[image] = true // we need to download the configuration package for the XRDs
 
 			layer, err := m.fetcher.FetchBaseLayer(image)
@@ -199,15 +198,10 @@ func (m *Manager) addDependencies() error {
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract package file and meta")
 			}
-			if err := yaml.Unmarshal(meta, cfg); err != nil {
+			if err := yaml.Unmarshal(meta, &cfg); err != nil {
 				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
 			}
-
-		case *metav1.Configuration:
-			cfg = c // Configuration.meta is used for pulling dependencies
-
-		default:
-			return errors.New("unknown configuration type")
+			m.confs[image] = cfg // update the configuration
 		}
 
 		deps := cfg.Spec.MetaSpec.DependsOn

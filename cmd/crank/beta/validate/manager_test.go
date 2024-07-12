@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -32,15 +32,13 @@ import (
 )
 
 var (
-	configDep2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+	configPkg = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
-  name: config-dep-2
+  name: config-pkg
 spec:
   dependsOn:
     - provider: provider-dep-1
-      version: "v1.3.0"
-    - function: function-dep-1
       version: "v1.3.0"
 ---
 
@@ -68,13 +66,22 @@ spec:
 )
 
 func TestConfigurationTypeSupport(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	w := &bytes.Buffer{}
-
-	m := NewManager(".crossplane/cache", fs, w)
-	confpkg := static.NewLayer(configDep2Yaml, types.OCILayer)
+	confpkg := static.NewLayer(configPkg, types.OCILayer)
 	pd := static.NewLayer(providerYaml, types.OCILayer)
 	fd := static.NewLayer(funcYaml, types.OCILayer)
+
+	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
+		switch image {
+		case "config-pkg:v1.3.0":
+			return &confpkg, nil
+		case "provider-dep-1:v1.3.0":
+			return &pd, nil
+		case "function-dep-1:v1.3.0":
+			return &fd, nil
+		default:
+			return nil, fmt.Errorf("unknown image: %s", image)
+		}
+	}
 
 	type args struct {
 		extensions []*unstructured.Unstructured
@@ -90,8 +97,37 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"SuccessfulDependenciesAddition": {
-			reason: "All dependencies should be successfully added from both Configuration.pkg and Configuration.meta",
+		"SuccessfulConfigPkg": {
+			//config-pkg
+			//└─►provider-dep-1
+			reason: "All dependencies should be successfully added from Configuration.pkg",
+			args: args{
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1alpha1",
+							"kind":       "Configuration",
+							"metadata": map[string]interface{}{
+								"name": "config-pkg",
+							},
+							"spec": map[string]interface{}{
+								"package": "config-pkg:v1.3.0",
+							},
+						},
+					},
+				},
+				fetchMock: fetchMockFunc,
+			},
+			want: want{
+				err:   nil,
+				confs: 1, // Configuration.pkg from remote
+				deps:  2, // 1 provider, 1 Configuration.pkg dependency
+			},
+		},
+		"SuccessfulConfigMeta": {
+			//config-meta
+			//└─►function-dep-1
+			reason: "All dependencies should be successfully added from Configuration.meta",
 			args: args{
 				extensions: []*unstructured.Unstructured{
 					{
@@ -104,7 +140,41 @@ func TestConfigurationTypeSupport(t *testing.T) {
 							"spec": map[string]interface{}{
 								"dependsOn": []map[string]interface{}{
 									{
-										"provider": "provider-dep-1",
+										"function": "function-dep-1",
+										"version":  "v1.3.0",
+									},
+								},
+							},
+						},
+					},
+				},
+				fetchMock: fetchMockFunc,
+			},
+			want: want{
+				err:   nil,
+				confs: 1, // Configuration.meta
+				deps:  1, // Not adding Configuration.meta itself to not send it to cacheDependencies() for download
+			},
+		},
+		"SuccessfulConfigMetaAndPkg": {
+			//config-meta
+			//└─►function-dep-1
+			//config-pkg
+			//└─►provider-dep-1
+			reason: "All dependencies should be successfully added from both Configuration.meta and Configuration.pkg",
+			args: args{
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "meta.pkg.crossplane.io/v1alpha1",
+							"kind":       "Configuration",
+							"metadata": map[string]interface{}{
+								"name": "config-meta",
+							},
+							"spec": map[string]interface{}{
+								"dependsOn": []map[string]interface{}{
+									{
+										"function": "function-dep-1",
 										"version":  "v1.3.0",
 									},
 								},
@@ -119,31 +189,25 @@ func TestConfigurationTypeSupport(t *testing.T) {
 								"name": "config-pkg",
 							},
 							"spec": map[string]interface{}{
-								"package": "config-dep-2:v1.3.0",
+								"package": "config-pkg:v1.3.0",
 							},
 						},
 					},
-				}, fetchMock: func(image string) (*conregv1.Layer, error) {
-					switch image {
-					case "config-dep-2:v1.3.0":
-						return &confpkg, nil
-					case "provider-dep-1:v1.3.0":
-						return &pd, nil
-					case "function-dep-1:v1.3.0":
-						return &fd, nil
-					default:
-						return nil, fmt.Errorf("unknown image: %s", image)
-					}
 				},
+				fetchMock: fetchMockFunc,
 			},
 			want: want{
 				err:   nil,
-				confs: 2,
-				deps:  3,
+				confs: 2, // Configuration.meta and Configuration.pkg
+				deps:  3, // 1 Configuration.pkg, 1 provider, 1 function
 			},
 		},
 	}
 	for name, tc := range cases {
+		fs := afero.NewMemMapFs()
+		w := &bytes.Buffer{}
+
+		m := NewManager(".crossplane/cache", fs, w)
 		t.Run(name, func(t *testing.T) {
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
 			err := m.PrepExtensions(tc.args.extensions)
