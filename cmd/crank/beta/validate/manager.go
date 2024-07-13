@@ -165,7 +165,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	if err := m.addDependencies(); err != nil {
+	if err := m.addDependencies(m.confs); err != nil {
 		return errors.Wrapf(err, "cannot add package dependencies")
 	}
 
@@ -181,8 +181,14 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
-func (m *Manager) addDependencies() error {
-	for image := range m.confs {
+// TODO(enesonus): update function to be inline with https://github.com/crossplane/crossplane/pull/5815 confs type
+func (m *Manager) addDependencies(confs map[string]bool) error {
+	if len(confs) == 0 {
+		return nil
+	}
+
+	deepConfs := make(map[string]bool)
+	for image := range confs {
 		cfg := m.confs[image]
 
 		if cfg == nil {
@@ -218,13 +224,14 @@ func (m *Manager) addDependencies() error {
 				m.deps[image] = true
 
 				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
+					deepConfs[image] = true
 					m.confs[image] = true
 				}
 			}
 		}
 	}
 
-	return nil
+	return m.addDependencies(deepConfs)
 }
 
 func (m *Manager) cacheDependencies() error {
