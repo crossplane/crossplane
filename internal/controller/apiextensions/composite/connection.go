@@ -255,7 +255,7 @@ type ConnectionDetailExtractConfig struct {
 	// connection secret of the composition instance.
 	Name string
 
-	// FromConnectionDetailKey is the key that will be used to fetch the value
+	// FromConnectionSecretKey is the key that will be used to fetch the value
 	// from the given target resource's connection details.
 	FromConnectionSecretKey *string
 
