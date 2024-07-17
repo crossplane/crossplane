@@ -44,6 +44,16 @@ func TestFindImageTagForVersionConstraint(t *testing.T) {
 			constraint:    ">=1.2.3",
 			expectedImage: "ubuntu:4.5.6",
 		},
+		"ConstraintV": {
+			responseBody:  responseTags,
+			constraint:    ">=v1.2.3",
+			expectedImage: "ubuntu:4.5.6",
+		},
+		"ConstraintPreRelease": {
+			responseBody:  responseTags,
+			constraint:    ">v4.5.6-rc.0.100.g658deda0.dirty",
+			expectedImage: "ubuntu:4.5.6",
+		},
 		"CannotFetchTags": {
 			responseBody: responseTags,
 			host:         "wrong.host",
