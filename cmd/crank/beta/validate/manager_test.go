@@ -44,7 +44,7 @@ spec:
 
 `)
 
-	providerYaml = []byte(`apiVersion: pkg.crossplane.io/v1
+	providerYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-dep-1
@@ -54,7 +54,7 @@ spec:
 
 `)
 
-	funcYaml = []byte(`apiVersion: pkg.crossplane.io/v1beta1
+	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: function-dep-1
