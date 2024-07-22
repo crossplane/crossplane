@@ -32,6 +32,7 @@ import (
 )
 
 var (
+	// config-pkg:v1.3.0
 	configPkg = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
@@ -44,22 +45,20 @@ spec:
 
 `)
 
+	// provider-dep-1:v1.3.0
 	providerYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-dep-1
-spec:
-  package: provider-dep-1:v1.3.0
 ---
 
 `)
 
+	// function-dep-1:v1.3.0
 	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: function-dep-1
-spec:
-  package: function-dep-1:v1.3.0
 ---
 
 `)
