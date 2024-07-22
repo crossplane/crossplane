@@ -77,7 +77,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-image-from-annotation",
-					Stop:       false,
+					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyAlways,
 				},
 			},
@@ -99,7 +99,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-package",
-					Stop:       true,
+					Cleanup:    AnnotationValueRuntimeDockerCleanupRemove,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
 				},
 			},
@@ -142,6 +142,30 @@ func TestGetRuntimeDocker(t *testing.T) {
 			},
 			want: want{
 				err: cmpopts.AnyError,
+			},
+		},
+		"AnnotationsCleanupSetToStop": {
+			reason: "should return a RuntimeDocker with all fields set according to the supplied Function's annotations",
+			args: args{
+				fn: v1beta1.Function{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							AnnotationKeyRuntimeDockerCleanup: string(AnnotationValueRuntimeDockerCleanupStop),
+						},
+					},
+					Spec: v1beta1.FunctionSpec{
+						PackageSpec: v1.PackageSpec{
+							Package: "test-package",
+						},
+					},
+				},
+			},
+			want: want{
+				rd: &RuntimeDocker{
+					Image:      "test-package",
+					Cleanup:    AnnotationValueRuntimeDockerCleanupStop,
+					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+				},
 			},
 		},
 	}

@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -291,7 +292,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// The Function pipeline starts with empty desired state.
 	d := &v1beta1.State{}
 
-	events := []event.Event{}
+	events := []TargetedEvent{}
+	conditions := []TargetedCondition{}
 
 	// The Function context starts empty...
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -397,22 +399,58 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// We intentionally discard/ignore this after the last Function runs.
 		fctx = rsp.GetContext()
 
+		for _, c := range rsp.GetConditions() {
+			var status corev1.ConditionStatus
+			switch c.GetStatus() {
+			case v1beta1.Status_STATUS_CONDITION_TRUE:
+				status = corev1.ConditionTrue
+			case v1beta1.Status_STATUS_CONDITION_FALSE:
+				status = corev1.ConditionFalse
+			case v1beta1.Status_STATUS_CONDITION_UNKNOWN, v1beta1.Status_STATUS_CONDITION_UNSPECIFIED:
+				status = corev1.ConditionUnknown
+			}
+
+			conditions = append(conditions, TargetedCondition{
+				Condition: xpv1.Condition{
+					Type:               xpv1.ConditionType(c.GetType()),
+					Status:             status,
+					LastTransitionTime: metav1.Now(),
+					Reason:             xpv1.ConditionReason(c.GetReason()),
+					Message:            c.GetMessage(),
+				},
+				Target: convertTarget(c.GetTarget()),
+			})
+		}
+
 		// Results of fatal severity stop the Composition process. Other results
 		// are accumulated to be emitted as events by the Reconciler.
 		for _, rs := range rsp.GetResults() {
+			reason := event.Reason(rs.GetReason())
+			if reason == "" {
+				reason = reasonCompose
+			}
+
+			e := TargetedEvent{Target: convertTarget(rs.GetTarget())}
+
 			switch rs.GetSeverity() {
 			case v1beta1.Severity_SEVERITY_FATAL:
-				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
+				return CompositionResult{Events: events, Conditions: conditions}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
 			case v1beta1.Severity_SEVERITY_WARNING:
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+				e.Event = event.Warning(reason, errors.New(rs.GetMessage()))
+				e.Detail = fmt.Sprintf("Pipeline step %q", fn.Step)
 			case v1beta1.Severity_SEVERITY_NORMAL:
-				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+				e.Event = event.Normal(reason, rs.GetMessage())
+				e.Detail = fmt.Sprintf("Pipeline step %q", fn.Step)
 			case v1beta1.Severity_SEVERITY_UNSPECIFIED:
 				// We could hit this case if a Function was built against a newer
 				// protobuf than this build of Crossplane, and the new protobuf
 				// introduced a severity that we don't know about.
-				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
+				e.Event = event.Warning(reason, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage()))
+				// Explicitly target only the XR, since we're including information
+				// about an exceptional, unexpected state.
+				e.Target = CompositionTargetComposite
 			}
+			events = append(events, e)
 		}
 	}
 
@@ -531,7 +569,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				// We mark the resource as not synced, so that once we get to
 				// decide the XR's Synced condition, we can set it to false if
 				// any of the resources didn't sync successfully.
-				events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)))
+				events = append(events, TargetedEvent{
+					Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)),
+					Target: CompositionTargetComposite,
+				})
 				// NOTE(phisco): here we behave differently w.r.t. the native
 				// p&t composer, as we respect the readiness reported by
 				// functions, while there we defaulted to also set ready false
@@ -572,7 +613,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events}, nil
+	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events, Conditions: conditions}, nil
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
@@ -934,4 +975,11 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 		]`, obj.GetResourceVersion()))
 		return errors.Wrap(resource.IgnoreNotFound(u.client.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, p))), "cannot clear field managers")
 	}
+}
+
+func convertTarget(t v1beta1.Target) CompositionTarget {
+	if t == v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM {
+		return CompositionTargetCompositeAndClaim
+	}
+	return CompositionTargetComposite
 }

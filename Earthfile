@@ -25,6 +25,8 @@ lint:
 
 # build builds Crossplane for your native OS and architecture.
 build:
+  ARG USERPLATFORM
+  BUILD --platform=$USERPLATFORM +go-build
   BUILD +image
   BUILD +helm-build
 
@@ -152,12 +154,16 @@ go-build:
   ARG GOFLAGS="-ldflags=-X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}"
   ARG CGO_ENABLED=0
   FROM +go-modules
+  LET ext = ""
+  IF [ "$GOOS" = "windows" ]
+    SET ext = ".exe"
+  END
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY --dir apis/ cmd/ internal/ pkg/ .
-  RUN go build -o crossplane ./cmd/crossplane
-  RUN go build -o crank ./cmd/crank
-  SAVE ARTIFACT crossplane AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane
-  SAVE ARTIFACT crank AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank
+  RUN go build -o crossplane${ext} ./cmd/crossplane
+  RUN go build -o crank${ext} ./cmd/crank
+  SAVE ARTIFACT crossplane${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}
+  SAVE ARTIFACT crank${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}
 
 # go-multiplatform-build builds Crossplane binaries for all supported OS
 # and architectures.

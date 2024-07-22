@@ -82,6 +82,7 @@ find the meetings in the [Community Calendar][community calendar].
 - [#sig-composition-functions][sig-composition-functions-slack]
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
 - [#sig-devex][sig-devex-slack]
+- [#sig-docs][sig-docs-slack]
 - [#sig-e2e-testing][sig-e2e-testing-slack]
 - [#sig-observability][sig-observability-slack]
 - [#sig-observe-only][sig-observe-only-slack]
@@ -128,6 +129,7 @@ Crossplane is under the Apache 2.0 license.
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE
 [sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
 [sig-devex-slack]: https://crossplane.slack.com/archives/C05U1LLM3B2
+[sig-docs-slack]: https://crossplane.slack.com/archives/C02CAQ52DPU
 [sig-e2e-testing-slack]: https://crossplane.slack.com/archives/C05C8CCTVNV
 [sig-observability-slack]: https://crossplane.slack.com/archives/C061GNH3LA0
 [sig-observe-only-slack]: https://crossplane.slack.com/archives/C04D5988QEA

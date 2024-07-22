@@ -467,8 +467,11 @@ func TestPTCompose(t *testing.T) {
 						},
 					},
 					ConnectionDetails: details,
-					Events: []event.Event{
-						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtGenerateName, "uncool-resource")),
+					Events: []TargetedEvent{
+						{
+							Event:  event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtGenerateName, "uncool-resource")),
+							Target: CompositionTargetComposite,
+						},
 					},
 				},
 			},

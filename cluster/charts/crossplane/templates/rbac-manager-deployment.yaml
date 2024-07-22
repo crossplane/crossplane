@@ -118,6 +118,9 @@ spec:
       {{- if .Values.rbacManager.tolerations }}
       tolerations: {{ toYaml .Values.rbacManager.tolerations | nindent 6 }}
       {{- end }}
+      {{- if .Values.rbacManager.topologySpreadConstraints }}
+      topologySpreadConstraints: {{ toYaml .Values.rbacManager.topologySpreadConstraints | nindent 6 }}
+      {{- end }}
       {{- if .Values.rbacManager.affinity }}
       affinity: {{ toYaml .Values.rbacManager.affinity | nindent 8 }}
       {{- end }}

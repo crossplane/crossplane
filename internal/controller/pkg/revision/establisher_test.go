@@ -20,7 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/smithy-go/ptr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -32,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -697,7 +697,7 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 							for _, ref := range o.GetOwnerReferences() {
 								if ref.Kind == "ProviderRevision" && ref.UID == "some-unique-uid-2312" {
 									found = true
-									if ptr.ToBool(ref.Controller) {
+									if ptr.Deref(ref.Controller, false) {
 										t.Errorf("expected controller to be false, got %t", *ref.Controller)
 									}
 								}
