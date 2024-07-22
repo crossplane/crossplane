@@ -80,7 +80,9 @@ Each entry in the change log will contain the following data:
 |-------------------| ------- |
 | Timestamp | ISO 8601 format, e.g. `2023-04-01T12:34:56Z` |
 | Provider name | `xpkg.upbound.io/upbound/provider-aws-ec2:v1.8.0` |
-| Managed Resource identifying data (GVK/name) | `{apiVersion: ec2.aws.upbound.io/v1beta2, kind: Instance, name: dev-instance-bt66d}` |
+| Type (GVK) | `apiVersion: ec2.aws.upbound.io/v1beta2, kind: Instance` |
+| Name | `dev-instance-bt66d` |
+| External Name | `vpc-4fa03d9fb92dfec50` |
 | Operation Type | `create\|update\|delete` |
 | Before operation desired/observed state of resource | `{full JSON dump of resource}` which includes desired `spec.forProvider` and observed `status.AtProvider` |
 | After operation desired/observed state of resource | `{full JSON dump of resource}` which includes desired `spec.forProvider` and observed `status.AtProvider`  |
@@ -214,7 +216,7 @@ below:
 
 ![Change logs architecture diagram](./images/change-logs-architecture.png)
 
-### Implementation Rollout
+### Setup and Configuration
 
 This feature will be declared at an
 [alpha](https://docs.crossplane.io/latest/learn/feature-lifecycle/#alpha-features)
@@ -223,31 +225,96 @@ opt-in to using this functionality by setting an `--enable-change-logs` feature
 flag. Note this flag will need to be set on each provider for which change
 logs are desired, likely via a `DeploymentRuntimeConfig`.
 
-Also note in the plan below that core Crossplane itself does not need to be updated
-at all to support this feature. The key changes are in `crossplane-runtime`, the
-Upjet framework, and the ecosystem of providers.
+
+Providers are not capable of defining many details about their runtime
+environment, for example they are not able to influence the configuration of the
+`Pod` that they run in. This capability is granted to two main paths:
+
+* `Package Manager`: During installation of a provider's package, the package
+  manager specifies many configuration options and details about the
+  `Deployment`, `Pod`, `ServiceAccount`, etc. that constitute the provider's
+  runtime environment.
+* `DeploymentRuntimeConfig`: The user can also customize some of these runtime
+  details through a
+  [`DeploymentRuntimeConfig`](https://docs.crossplane.io/latest/concepts/providers/#runtime-configuration)
+  resource. The specific details provided by the user are merged in with the
+  defaults from the package manager for a complete runtime specification.
+
+The `DeploymentRuntimeConfig` option is appealing, because it requires no code
+changes to core Crossplane and its package manager. At least while this feature
+is in Alpha, we will require users that want to enable change logs to do so via
+a `DeploymentRuntimeConfig` resource. A single `DeploymentRuntimeConfig` can be
+reused to configure multiple providers.
+
+Below is an example, informed by recent prototyping efforts, of what a
+`DeploymentRuntimeConfig` looks like that enables change logs for a provider.
+Note that it configures the sidecar container, mounts an `emptyDir` shared
+volume between the main provider and sidecar containers, and enables the alpha
+feature with the `--enable-change-logs` flag.
+
+```yaml
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: enable-change-logs
+spec:
+  deploymentTemplate:
+    spec:
+      selector: {}
+      template:
+        spec:
+          containers:
+          - name: package-runtime
+            args:
+            - --enable-change-logs
+            volumeMounts:
+            - name: change-log-vol
+              mountPath: /var/run/change-logs
+          - name: change-log-sidecar
+            image: crossplane/change-log-sidecar:latest
+            volumeMounts:
+            - name: change-log-vol
+              mountPath: /var/run/change-logs
+          volumes:
+          - name: change-log-vol
+            emptyDir: {}
+```
+
+### Implementation Rollout
 
 The general sequence of implementation work to roll this feature out is
-described below:
+described below.  As previously mentioned, the plan does not include any updates
+to core Crossplane to support this feature, as we will rely on a
+`DeploymentRuntimeConfig` to perform the injection of the sidecar container and
+the setup of a shared volume between the main provider and sidecar containers.
+The key code changes we will make are in `crossplane-runtime`, a new
+`change-logs-sidecar` repo, the Upjet framework and template, and the ecosystem
+of providers.
 
-* Managed reconciler is updated in `crossplane-runtime` to generate change log
-  entries and send them to the gRPC server (i.e. provider sidecar container) and
-  to include additional calls to `Observe()` after each CUD operation to
-  capture the "after" state of the entry
-* The [Upjet framework](https://github.com/crossplane/upjet) is updated to use
-  this new `crossplane-runtime` logic and with additional code generation logic
-  to generate providers that:
-  * Create and initialize a sidecar container in the provider pod
-  * Start and initialize the gRPC server in the sidecar container and the gRPC
-    client in the main provider container
-* The [Upjet provider
-  template](https://github.com/crossplane/upjet-provider-template) is updated to
-  use this new Upjet framework version, which enables new providers to have
-  change log functionality
+* `crossplane-runtime`:
+  * Protobuf types are defined for change log entries and a gRPC client/server
+    to send these entries from client to server
+  * Managed reconciler is updated to generate change log entries, send them to
+  the gRPC server (i.e. sidecar container), and to include additional calls to
+  `Observe()` after each CUD operation to capture the "after" state of the entry
+* `change-logs-sidecar`
+  * A new repository is created to build and publish the image used in the sidecar container
+  * Consumes the protobuf types from `crossplane-runtime`
+  * Starts the gRPC server and listens for change log entries
+  * Writes all entries to `stdout` (i.e. pod logs)
+* [Upjet framework](https://github.com/crossplane/upjet):
+  * Controller templates are updated to use the new `crossplane-runtime` managed
+    reconciler logic and initialize it with a gRPC client
+* [Upjet provider
+  template](https://github.com/crossplane/upjet-provider-template):
+  * Consumes this new Upjet framework version
+  * [`main.go`](https://github.com/crossplane/upjet-provider-template/blob/main/cmd/provider/main.go)
+    is updated to create and initialize the gRPC client and then pass it into
+    the setup for all of its controllers
 * The major upjet based providers (e.g. `provider-upjet-aws`,
-  `provider-upjet-gcp`, `provider-upjet-azure`, etc.) are updated to use this
-  new version of the Upjet framework, which will generate a provider capable of
-  change log generation in the very next build/release of the provider.
+  `provider-upjet-gcp`, `provider-upjet-azure`, etc.)
+  * Updated with changes similar to the upjet provider template (consumes new
+    Upjet version and creates gRPC client to pass into its controllers)
 
 ### Assumptions
 
@@ -292,15 +359,31 @@ and ease of access of the data to a wide variety of tools.
 
 The Kubernetes [audit
 logs](https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/) capture a
-similar concept to the change logs feature we are proposing, but are not a great
-fit for our goals, both in the data that it captures and the scenarios for which
-entries are generated. Recall the scenario where Crossplane detects drift and
-corrects it in the external system without any user interaction. This discovery
-of a configuration drift occurs during a regular polling `Reconcile()` call,
-which is not in response to any request at the API server level. This scenario
-would not be captured in the Kubernetes audit logs, as no API call was made to
-the Kubernetes API server. Therefore, Kubernetes audit logs are not a great fit
-for our requirements.
+similar concept to the change logs feature we are proposing, but are not an
+ideal fit for our goals. Some challenges that utilizing the Kubernetes audit
+logs would present are:
+
+* **Indirect data**: Instead of directly asking the providers for details about
+  the operations they are performing, we would be asking the API server what is
+  being done to the resources the providers are reconciling, and then having to
+  make a second order inference from that. Directly asking the providers can
+  give us more precise context.
+* **Crossplane code changes**: The "drift correction" scenario where a provider
+  detects that the observed state in the external system has drifted from the
+  desired state of the user typically happens without any user interaction
+  during a regular polling `Reconcile()` call, which is not in response to any
+  request at the API server level. In order to capture the change caused by this
+  scenario in the audit logs, we would require a change to the managed
+  reconciler in order to persist this temporary status diff to the API server,
+  thereby leaving an audit log artifact.
+* **Performance impact**: Enabling API server auditing resulted in a 10%
+  performance penalty as observed in this
+  [comment](https://github.com/crossplane/crossplane/pull/5822/files#r1670571938).
+* **Cost**: We've already seen reports in the past from the community of very
+  expensive cloud provider bills when auditing is turned on in a control plane
+  with Crossplane, e.g. https://github.com/crossplane/crossplane/issues/5074 and
+  https://github.com/crossplane/crossplane/issues/3540, so requiring audit logs
+  for this feature could be cost prohibitive for some users.
 
 ### OpenTelemetry Logging Events
 
