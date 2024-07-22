@@ -392,3 +392,19 @@ events](https://opentelemetry.io/docs/specs/otel/logs/event-api/#event-data-mode
 but they are not a great fit either for our needs. Probably the biggest blocker
 now for using otel events is that they are not very mature yet, and the Go SDK
 does not yet support this concept.
+
+### Cloud Provider Audit Logs
+
+Most cloud providers offer some type of audit log feature that provides
+information about the operations being performed on resources in their system.
+However, there are a few drawbacks that prevents us from relying completely on
+these logs:
+
+* Not all systems Crossplane has providers offer these audit logs.
+* Crossplane change logs will provide a homogenous experience, so it's easier to
+  configure them all to go to a single pane of glass destination, compared to
+  configuring Google audit logs, and AWS audit logs, and others that may be in
+  use by the control plane.
+* Crossplane change logs take away any guesswork as to what changes Crossplane
+  made, as opposed to trying to use indirect means like cloud identity, HTTP
+  user agents, or other means to identify Crossplane changes being performed.
