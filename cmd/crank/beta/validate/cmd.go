@@ -51,7 +51,7 @@ CRDs, providers, and configurations. The output of the "crossplane beta render" 
 piped to this validate command in order to rapidly validate on the outputs of the composition development experience.
 
 If providers or configurations are provided as extensions, they will be downloaded and loaded as CRDs before performing
-validation. If the cache directory is not provided, it will default to "~/.crossplane/cache" in the current workspace. 
+validation. If the cache directory is not provided, it will default to "~/.crossplane/cache". 
 Cache directory can be cleaned before downloading schemas by setting the "clean-cache" flag.
 
 All validation is performed offline locally using the Kubernetes API server's validation library, so it does not require 
