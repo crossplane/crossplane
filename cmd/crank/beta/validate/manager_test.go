@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	// config-pkg:v1.3.0
+	// config-pkg:v1.3.0.
 	configPkg = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
@@ -45,7 +45,7 @@ spec:
 
 `)
 
-	// provider-dep-1:v1.3.0
+	// provider-dep-1:v1.3.0.
 	providerYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
@@ -54,7 +54,7 @@ metadata:
 
 `)
 
-	// function-dep-1:v1.3.0
+	// function-dep-1:v1.3.0.
 	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
@@ -63,41 +63,30 @@ metadata:
 
 `)
 
-	configBase = unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "pkg.crossplane.io/v1alpha1",
-			"kind":       "Configuration",
-			"metadata": map[string]interface{}{
-				"name": "config-base",
-			},
-			"spec": map[string]interface{}{
-				"package": "config-dep-1:v1.3.0",
-			},
-		},
-	}
-
+	// config-dep-1:v1.3.0.
 	configDep1Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
-name: config-dep-1
+  name: config-dep-1
 spec:
-dependsOn:
-- configuration: config-dep-2
-  version: "v1.3.0"
+  dependsOn:
+    - configuration: config-dep-2
+      version: "v1.3.0"
 ---
 
 `)
 
+	// config-dep-2:v1.3.0.
 	configDep2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
-name: config-dep-2
+  name: config-dep-2
 spec:
-dependsOn:
-- provider: provider-dep-1
-  version: "v1.3.0"
-- function: function-dep-1
-  version: "v1.3.0"
+  dependsOn:
+    - provider: provider-dep-1
+      version: "v1.3.0"
+    - function: function-dep-1
+      version: "v1.3.0"
 ---
 
 `)
@@ -136,7 +125,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		want   want
 	}{
 		"SuccessfulConfigPkg": {
-			//config-pkg
+			// config-pkg
 			//└─►provider-dep-1
 			reason: "All dependencies should be successfully added from Configuration.pkg",
 			args: args{
@@ -163,7 +152,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			},
 		},
 		"SuccessfulConfigMeta": {
-			//config-meta
+			// config-meta
 			//└─►function-dep-1
 			reason: "All dependencies should be successfully added from Configuration.meta",
 			args: args{
@@ -195,7 +184,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			},
 		},
 		"SuccessfulConfigMetaAndPkg": {
-			//config-meta
+			// config-meta
 			//└─►function-dep-1
 			//config-pkg
 			//└─►provider-dep-1
@@ -254,11 +243,101 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				t.Errorf("\n%s\nPrepExtensions(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = m.addDependencies()
+			err = m.addDependencies(m.confs)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
+			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAddDependencies(t *testing.T) {
+	cd1 := static.NewLayer(configDep1Yaml, types.OCILayer)
+	cd2 := static.NewLayer(configDep2Yaml, types.OCILayer)
+	pd1 := static.NewLayer(providerYaml, types.OCILayer)
+	fd1 := static.NewLayer(funcYaml, types.OCILayer)
+
+	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
+		switch image {
+		case "config-dep-1:v1.3.0":
+			return &cd1, nil
+		case "config-dep-2:v1.3.0":
+			return &cd2, nil
+		case "provider-dep-1:v1.3.0":
+			return &pd1, nil
+		case "function-dep-1:v1.3.0":
+			return &fd1, nil
+		default:
+			return nil, fmt.Errorf("unknown image: %s", image)
+		}
+	}
+
+	type args struct {
+		extensions []*unstructured.Unstructured
+		fetchMock  func(image string) (*conregv1.Layer, error)
+	}
+	type want struct {
+		confs int
+		deps  int
+		err   error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"SuccessfulDependenciesAddition": {
+			// config-dep-1
+			//└─►config-dep-2
+			//config-dep-2
+			//├─►provider-dep-1
+			//└─►function-dep-1
+			reason: "All dependencies should be successfully fetched and added",
+			args: args{
+				fetchMock: fetchMockFunc,
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1alpha1",
+							"kind":       "Configuration",
+							"metadata": map[string]interface{}{
+								"name": "config-dep-1",
+							},
+							"spec": map[string]interface{}{
+								"package": "config-dep-1:v1.3.0",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				confs: 2, // 1 Base Configuration, 1 Child Configuration
+				deps:  4, // 2 Configurations, 1 provider, 1 function
+				err:   nil,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			w := &bytes.Buffer{}
+
+			m := NewManager(".crossplane/cache", fs, w)
+			_ = m.PrepExtensions(tc.args.extensions)
+
+			m.fetcher = &MockFetcher{tc.args.fetchMock}
+			err := m.addDependencies(m.confs)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
 			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
 			}
@@ -275,72 +354,4 @@ type MockFetcher struct {
 
 func (m *MockFetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 	return m.fetch(image)
-}
-
-func TestAddDependencies(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	w := &bytes.Buffer{}
-
-	m := NewManager(".crossplane/cache", fs, w)
-	m.PrepExtensions([]*unstructured.Unstructured{&configBase})
-
-	cd1 := static.NewLayer(configDep1Yaml, types.OCILayer)
-	cd2 := static.NewLayer(configDep2Yaml, types.OCILayer)
-	pd1 := static.NewLayer(providerYaml, types.OCILayer)
-	fd1 := static.NewLayer(funcYaml, types.OCILayer)
-
-	type args struct {
-		fetchMock func(image string) (*conregv1.Layer, error)
-	}
-	type want struct {
-		confs int
-		deps  int
-		err   error
-	}
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"SuccessfulDependenciesAddition": {
-			reason: "All dependencies should be successfully fetched and added",
-			args: args{
-				fetchMock: func(image string) (*conregv1.Layer, error) {
-					switch image {
-					case "config-dep-1:v1.3.0":
-						return &cd1, nil
-					case "config-dep-2:v1.3.0":
-						return &cd2, nil
-					case "provider-dep-1:v1.3.0":
-						return &pd1, nil
-					case "function-dep-1:v1.3.0":
-						return &fd1, nil
-					default:
-						return nil, fmt.Errorf("unknown image: %s", image)
-					}
-				},
-			},
-			want: want{
-				confs: 2,
-				deps:  4,
-				err:   nil,
-			},
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			m.fetcher = &MockFetcher{tc.args.fetchMock}
-			err := m.addDependencies(m.confs)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
-				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
-				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
-			}
-		})
-	}
 }

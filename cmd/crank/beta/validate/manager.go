@@ -181,13 +181,12 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
-// TODO(enesonus): update function to be inline with https://github.com/crossplane/crossplane/pull/5815 confs type
-func (m *Manager) addDependencies(confs map[string]bool) error {
+func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error {
 	if len(confs) == 0 {
 		return nil
 	}
 
-	deepConfs := make(map[string]bool)
+	deepConfs := make(map[string]*metav1.Configuration)
 	for image := range confs {
 		cfg := m.confs[image]
 
@@ -224,8 +223,8 @@ func (m *Manager) addDependencies(confs map[string]bool) error {
 				m.deps[image] = true
 
 				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
-					deepConfs[image] = true
-					m.confs[image] = true
+					deepConfs[image] = nil
+					m.confs[image] = nil
 				}
 			}
 		}
