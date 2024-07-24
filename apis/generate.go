@@ -18,7 +18,7 @@ limitations under the License.
 */
 
 // NOTE(negz): See the below link for details on what is happening here.
-// https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
+// https://go.dev/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
 
 // Remove existing manifests
 //go:generate rm -rf ../cluster/crds

@@ -854,10 +854,10 @@ func TestExample(t *testing.T) {
 [build submodule]: https://github.com/crossplane/build/
 [`kind`]: https://kind.sigs.k8s.io/
 [Crossplane release cycle]: https://docs.crossplane.io/knowledge-base/guides/release-cycle
-[good git commit hygiene]: https://www.futurelearn.com/info/blog/telling-stories-with-your-git-history
+[good git commit hygiene]: https://www.futurelearn.com/info/blog/telling-stories-with-your-git-history?category=using-futurelearn
 [Developer Certificate of Origin]: https://github.com/apps/dco
-[code review comments]: https://github.com/golang/go/wiki/CodeReviewComments
-[test review comments]: https://github.com/golang/go/wiki/TestComments
+[code review comments]: https://go.dev/wiki/CodeReviewComments
+[test review comments]: https://go.dev/wiki/TestComments
 [E2E readme]: ../test/e2e/README.md
 [docs]: https://github.com/crossplane/docs
 [Effective Go]: https://golang.org/doc/effective_go
