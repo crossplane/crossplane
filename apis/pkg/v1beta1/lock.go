@@ -97,6 +97,14 @@ type Dependency struct {
 	// Constraints is a valid semver range, which will be used to select a valid
 	// dependency version.
 	Constraints string `json:"constraints"`
+
+	// SkipDependencyResolution indicates to the package manager whether to skip
+	// resolving dependencies for a dependency package. Setting this value to true may have
+	// unintended consequences.
+	// Default is false.
+	// +optional
+	// +kubebuilder:default=false
+	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 }
 
 // Identifier returns a dependency's source.
