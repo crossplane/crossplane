@@ -126,7 +126,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 	}{
 		"SuccessfulConfigPkg": {
 			// config-pkg
-			//└─►provider-dep-1
+			// └─►provider-dep-1
 			reason: "All dependencies should be successfully added from Configuration.pkg",
 			args: args{
 				extensions: []*unstructured.Unstructured{
@@ -153,7 +153,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		},
 		"SuccessfulConfigMeta": {
 			// config-meta
-			//└─►function-dep-1
+			// └─►function-dep-1
 			reason: "All dependencies should be successfully added from Configuration.meta",
 			args: args{
 				extensions: []*unstructured.Unstructured{
@@ -185,7 +185,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		},
 		"SuccessfulConfigMetaAndPkg": {
 			// config-meta
-			//└─►function-dep-1
+			// └─►function-dep-1
 			//config-pkg
 			//└─►provider-dep-1
 			reason: "All dependencies should be successfully added from both Configuration.meta and Configuration.pkg",
@@ -234,7 +234,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		w := &bytes.Buffer{}
 
-		m := NewManager(".crossplane/cache", fs, w)
+		m := NewManager("", fs, w)
 		t.Run(name, func(t *testing.T) {
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
 			err := m.PrepExtensions(tc.args.extensions)
@@ -295,7 +295,7 @@ func TestAddDependencies(t *testing.T) {
 	}{
 		"SuccessfulDependenciesAddition": {
 			// config-dep-1
-			//└─►config-dep-2
+			// └─►config-dep-2
 			//   ├─►provider-dep-1
 			//   └─►function-dep-1
 			reason: "All dependencies should be successfully fetched and added",
@@ -317,8 +317,8 @@ func TestAddDependencies(t *testing.T) {
 				},
 			},
 			want: want{
-				confs: 2, // 1 Base Configuration, 1 Child Configuration
-				deps:  4, // 2 Configurations, 1 provider, 1 function
+				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
+				deps:  4, // 2 configurations (config-dep-1, config-dep-2), 1 provider (provider-dep-1), 1 function (function-dep-1)
 				err:   nil,
 			},
 		},
@@ -328,7 +328,7 @@ func TestAddDependencies(t *testing.T) {
 			fs := afero.NewMemMapFs()
 			w := &bytes.Buffer{}
 
-			m := NewManager(".crossplane/cache", fs, w)
+			m := NewManager("", fs, w)
 			_ = m.PrepExtensions(tc.args.extensions)
 
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
