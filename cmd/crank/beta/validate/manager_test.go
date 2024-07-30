@@ -296,9 +296,8 @@ func TestAddDependencies(t *testing.T) {
 		"SuccessfulDependenciesAddition": {
 			// config-dep-1
 			//└─►config-dep-2
-			//config-dep-2
-			//├─►provider-dep-1
-			//└─►function-dep-1
+			//   ├─►provider-dep-1
+			//   └─►function-dep-1
 			reason: "All dependencies should be successfully fetched and added",
 			args: args{
 				fetchMock: fetchMockFunc,
