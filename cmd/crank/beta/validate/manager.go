@@ -35,7 +35,6 @@ import (
 )
 
 const (
-	defaultCacheDir = ".crossplane/cache"
 	packageFileName = "package.yaml"
 	baseLayerLabel  = "base"
 
