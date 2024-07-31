@@ -165,7 +165,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	if err := m.addDependencies(); err != nil {
+	if err := m.addDependencies(m.confs); err != nil {
 		return errors.Wrapf(err, "cannot add package dependencies")
 	}
 
@@ -181,8 +181,13 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
-func (m *Manager) addDependencies() error {
-	for image := range m.confs {
+func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error {
+	if len(confs) == 0 {
+		return nil
+	}
+
+	deepConfs := make(map[string]*metav1.Configuration)
+	for image := range confs {
 		cfg := m.confs[image]
 
 		if cfg == nil {
@@ -216,11 +221,16 @@ func (m *Manager) addDependencies() error {
 			if len(image) > 0 {
 				image = fmt.Sprintf(imageFmt, image, dep.Version)
 				m.deps[image] = true
+
+				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
+					deepConfs[image] = nil
+					m.confs[image] = nil
+				}
 			}
 		}
 	}
 
-	return nil
+	return m.addDependencies(deepConfs)
 }
 
 func (m *Manager) cacheDependencies() error {
