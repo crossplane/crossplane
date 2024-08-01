@@ -104,6 +104,25 @@ example of data that could be stored here, `provider-aws` could store the
 specific endpoints it called to perform the given operation captured in the
 change log entry.
 
+#### Quantity of Generated Data
+
+From testing during prototyping, a typical change log entry was found to be
+around 6KB in size, including both the full "before" and "after" states of the
+resource. To get an idea of the total quantity of data this feature is expected
+to generate, we can use the below calculations for a very rough estimate:
+
+* 1 change log entry is ~6KB
+* 1000 resources changing 1x per hour
+* 6KB * 1000 changes/hour * 24 hours/day = ~140MB/day
+
+Note that this estimate can vary depending on the frequency of changes being
+made to the resources, and the number of fields each resource has. This estimate
+gives us a reasonable order of magnitude starting point.
+
+Also note that we only generate change log entries when actual changes are being
+made to the external resources. We do NOT generate entries for each reconcile,
+which would considerably increase the amount of data generated.
+
 ### Generating Change Logs
 
 It is a goal that the change log data is generated as close to the source of
