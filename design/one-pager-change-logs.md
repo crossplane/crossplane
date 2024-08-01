@@ -36,8 +36,8 @@ e.g. via the AWS console or `gcloud` CLI. When Crossplane detects this
 "configuration drift", it will enforce its "source of truth" to eventually
 correct this unexpected change without any user interaction with the control
 plane.  Currently, there is no mechanism for users of Crossplane to have
-visibility into these types of "unexpected" changes that Crossplane is making on
-their behalf.
+visibility into these types of "unexpected" changes that Crossplane is reverting
+on their behalf.
 
 With Crossplane acting continuously and autonomously to update critical
 infrastructure, it is vital for users to have insight into the operations being
@@ -315,6 +315,13 @@ of providers.
   `provider-upjet-gcp`, `provider-upjet-azure`, etc.)
   * Updated with changes similar to the upjet provider template (consumes new
     Upjet version and creates gRPC client to pass into its controllers)
+* Classic providers:
+  * At least one classic provider (e.g. `provider-kubernetes` and/or
+  `provider-helm`) will be updated to create/initialize the gRPC client and pass
+  it into its controllers
+  * The classic
+    [`provider-template`](https://github.com/crossplane/provider-template)
+    should be updated with these changes as well
 
 ### Assumptions
 
@@ -331,8 +338,9 @@ The below deliverables will not be included in the initial implementation of
 this feature, but should be considered in future milestones:
 
 * The [template repo](https://github.com/crossplane/provider-template) for
-  classic providers (not generated with Upjet) should be updated to include a
-  sidecar container, gRPC connection, etc.
+  classic providers (not generated with Upjet) should be updated to include
+  initializing a gRPC connection and client, passing the client to the managed
+  reconciler, etc.
 * A configuration flag for Providers that allows the user to directly send the
   change log entries to an alternate destination of their choosing besides the
   sidecar container via gRPC connection.  This alternative would also need to
@@ -343,7 +351,7 @@ this feature, but should be considered in future milestones:
 
 ## Alternatives Considered
 
-The follow alternative approaches have been considered for this change logs design:
+The following alternative approaches have been considered for this change logs design:
 
 ### Kubernetes Events
 
