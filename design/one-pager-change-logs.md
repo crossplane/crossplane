@@ -9,8 +9,8 @@
 * To build further trust and confidence in Crossplane, we will log every
   operation that is performed on all managed resources
 * The managed reconciler will generate a record of each change made to an
-  external system, as well as the state of the resource before and after the
-  operation
+  external system, as well as the full desired and observed state of the
+  resource before the operation is performed
 * Each change log entry will be sent over gRPC to a sidecar container in the
   provider pod, where it will be persisted as a standard pod log
 * Pod logs are a very standard location that allows many different tools to view
@@ -84,18 +84,9 @@ Each entry in the change log will contain the following data:
 | Name | `dev-instance-bt66d` |
 | External Name | `vpc-4fa03d9fb92dfec50` |
 | Operation Type | `create\|update\|delete` |
-| Before operation desired/observed state of resource | `{full JSON dump of resource}` which includes desired `spec.forProvider` and observed `status.AtProvider` |
-| After operation desired/observed state of resource | `{full JSON dump of resource}` which includes desired `spec.forProvider` and observed `status.AtProvider`  |
+| Desired/observed state of resource before operation | `{full JSON dump of resource}` which includes desired `spec.forProvider` and observed `status.AtProvider` |
 | Result of operation | `success` or error object |
 | (optional) Additional information that Providers can set as they choose | `{JSON object of arbitrary data}` |
-
-Note that we are capturing the full state of the resource both **before** and
-**after** the operation is performed. We could instead just record the "before"
-state during each reconciliation, but that would paint a less complete picture
-compared to observing the external system and recording the "after" state
-immediately after the operation as well. If we find during implementation and
-testing that recording the "after" state places too much burden on the system,
-we can revisit this decision.
 
 An additional information field is available in each change log entry for
 Providers to store any provider specific data they choose. Providers are not
@@ -107,13 +98,13 @@ change log entry.
 #### Quantity of Generated Data
 
 From testing during prototyping, a typical change log entry was found to be
-around 6KB in size, including both the full "before" and "after" states of the
+around 4KB in size, including both the full desired and observed state of the
 resource. To get an idea of the total quantity of data this feature is expected
 to generate, we can use the below calculations for a very rough estimate:
 
-* 1 change log entry is ~6KB
+* 1 change log entry is ~4KB
 * 1000 resources changing 1x per hour
-* 6KB * 1000 changes/hour * 24 hours/day = ~140MB/day
+* 4KB * 1000 changes/hour * 24 hours/day = ~94MB/day
 
 Note that this estimate can vary depending on the frequency of changes being
 made to the resources, and the number of fields each resource has. This estimate
@@ -140,13 +131,8 @@ The managed reconciler calls the provider's [`ExternalClient.Observe()`
 method](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L914)
 before any CUD operation is performed, in order to understand the current state
 of the external system before the provider acts upon it. This up to date
-external state will be used to populate the "before" field in the change log
-entry.
-
-If a CUD operation is performed later on in the same `Reconcile()`, then we
-will perform an additional call to this same `Observe()` method directly after
-the CUD operation is performed. This second `Observe()` result will be used to
-populate the "after" field in the change log entry.
+external state will be used to populate the desired/observed state field in the
+change log entry.
 
 Some helpful pointers to where CUD operations are performed in the managed
 reconciler:
@@ -154,14 +140,6 @@ reconciler:
 * [Create](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L1058)
 * [Update](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L1189)
 * [Delete](https://github.com/crossplane/crossplane-runtime/blob/release-1.16/pkg/reconciler/managed/reconciler.go#L954)
-
-The code paths through the managed reconciler's `Reconcile()` method are already
-a bit complex. One design choice that has helped minimize the complexity and
-assist in readability is that the reconciler returns as early as it can after
-performing an operation. Since we will now be adding an additional `Observe()`
-call after each CUD operation, this will increase the complexity further, but
-is likely unavoidable for us to obtain an immediate understanding of the "after"
-state of a change, without having to wait for another reconcile.
 
 ### Storage and Durability
 
@@ -313,9 +291,8 @@ of providers.
 * `crossplane-runtime`:
   * Protobuf types are defined for change log entries and a gRPC client/server
     to send these entries from client to server
-  * Managed reconciler is updated to generate change log entries, send them to
-  the gRPC server (i.e. sidecar container), and to include additional calls to
-  `Observe()` after each CUD operation to capture the "after" state of the entry
+  * Managed reconciler is updated to generate change log entries for appropriate
+  events and send them to the gRPC server (i.e. sidecar container)
 * `change-logs-sidecar`
   * A new repository is created to build and publish the image used in the sidecar container
   * Consumes the protobuf types from `crossplane-runtime`
@@ -377,10 +354,10 @@ The following alternative approaches have been considered for this change logs d
 We could generate standard Kubernetes events with that capture all of the data
 we are proposing to store for each change log entry, likely stored as
 annotations on the events. However, given that we propose to store the entire
-object before and after a given operation is performed, this would likely be too
-large for what a standard `Event` and its annotations, or the underlying etcd
-storage, would allow. Relying on annotations also would diminish the portability
-and ease of access of the data to a wide variety of tools.
+object's state as well as other data, this would likely be too large for what a
+standard `Event` and its annotations, or the underlying etcd storage, would
+allow. Relying on annotations also would diminish the portability and ease of
+access of the data to a wide variety of tools.
 
 ### Kubernetes Audit Logs
 
@@ -435,3 +412,21 @@ these logs:
 * Crossplane change logs take away any guesswork as to what changes Crossplane
   made, as opposed to trying to use indirect means like cloud identity, HTTP
   user agents, or other means to identify Crossplane changes being performed.
+
+### After Operation State Collection
+
+We explored the option of capturing the full state of the resource both
+**before** and **after** the operation is performed. We decided against also
+collecting the "after" state because:
+
+* The full state of the resource from before the operation is performed has both
+  `spec.forProvider` desired state and `status.atProvider` observed state. The
+  observed state is very up to date with the external system because each
+  reconciliation makes a `Observe()` call. Therefore the desired vs. observed
+  state is effective to determine why a change is being made.
+* In the Upjet based providers, we are not likely to see a difference in
+  observed state at all because they perform their operations asynchronously. A
+  second `Observe()` call directly after the operation is performed would very
+  likely not discover any changes at all.
+* There are concerns that a second `Observe()` call could cause too many calls
+  to the external API and possibly induce rate limiting or throttling.
