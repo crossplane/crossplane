@@ -37,8 +37,10 @@ customLabels: {}
 customAnnotations: {}
 
 serviceAccount:
-  # -- Specifies whether a ServiceAccount should be created
+  # -- Specifies whether Crossplane ServiceAccount should be created
   create: true
+  # -- Provide the name of an already created Crossplane ServiceAccount. Required when `create: false`
+  name: ""
   # -- Add custom `annotations` to the Crossplane ServiceAccount.
   customAnnotations: {}
 

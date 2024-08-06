@@ -11,5 +11,9 @@ roleRef:
   name: {{ template "crossplane.name" . }}
 subjects:
 - kind: ServiceAccount
+  {{- if not .Values.serviceAccount.create }}
+  name: {{ .Values.serviceAccount.name }}
+  {{- else }}
   name: {{ template "crossplane.name" . }}
+  {{- end }}
   namespace: {{ .Release.Namespace }}
