@@ -25,6 +25,7 @@ import (
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -145,16 +146,18 @@ func (v *validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.O
 }
 
 func (v *validator) dryRunUpdateOrCreateIfNotFound(ctx context.Context, crd *apiextv1.CustomResourceDefinition) error {
-	got := crd.DeepCopy()
-	err := v.client.Get(ctx, client.ObjectKey{Name: crd.Name}, got)
-	if err == nil {
-		got.Spec = crd.Spec
-		return v.client.Update(ctx, got, client.DryRunAll)
-	}
-	if kerrors.IsNotFound(err) {
-		return v.client.Create(ctx, crd, client.DryRunAll)
-	}
-	return err
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		got := crd.DeepCopy()
+		err := v.client.Get(ctx, client.ObjectKey{Name: crd.Name}, got)
+		if err == nil {
+			got.Spec = crd.Spec
+			return v.client.Update(ctx, got, client.DryRunAll)
+		}
+		if kerrors.IsNotFound(err) {
+			return v.client.Create(ctx, crd, client.DryRunAll)
+		}
+		return err
+	})
 }
 
 // ValidateDelete always allows delete requests.
