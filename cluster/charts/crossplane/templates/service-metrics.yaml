@@ -1,0 +1,26 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "crossplane.name" . }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
+    {{- include "crossplane.labels" . | indent 4 }}
+  annotations:
+    {{- with .Values.service.customAnnotations }}
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    {{- end }}
+spec:
+  selector:
+    app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+    name: metrics
+{{- end }}
