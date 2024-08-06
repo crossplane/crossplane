@@ -37,6 +37,8 @@ customLabels: {}
 customAnnotations: {}
 
 serviceAccount:
+  # -- Specifies whether a ServiceAccount should be created
+  create: true
   # -- Add custom `annotations` to the Crossplane ServiceAccount.
   customAnnotations: {}
 
