@@ -125,7 +125,7 @@ and their default values.
 | `service.customAnnotations` | Configure annotations on the service object. Only enabled when webhooks.enabled = true | `{}` |
 | `serviceAccount.create` | Specifies whether Crossplane ServiceAccount should be created | `true` |
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
-| `serviceAccount.name` | Provide the name of an already created Crossplane ServiceAccount. Required when `create: false` | `""` |
+| `serviceAccount.name` | Provide the name of an already created Crossplane ServiceAccount. Required when `serviceAccount.create` is `false` | `""` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `topologySpreadConstraints` | Add `topologySpreadConstraints` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |

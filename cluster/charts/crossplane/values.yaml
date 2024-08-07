@@ -39,7 +39,7 @@ customAnnotations: {}
 serviceAccount:
   # -- Specifies whether Crossplane ServiceAccount should be created
   create: true
-  # -- Provide the name of an already created Crossplane ServiceAccount. Required when `create: false`
+  # -- Provide the name of an already created Crossplane ServiceAccount. Required when `serviceAccount.create` is `false`
   name: ""
   # -- Add custom `annotations` to the Crossplane ServiceAccount.
   customAnnotations: {}
