@@ -54,6 +54,19 @@ metadata:
 
 `)
 
+	// provider-dep-2:v1.3.0.
+	provider2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-dep-2
+spec:
+  dependsOn:
+    - configuration: config-dep-2
+      version: "v1.3.0"
+---
+
+`)
+
 	// function-dep-1:v1.3.0.
 	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
@@ -115,9 +128,8 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		fetchMock  func(image string) (*conregv1.Layer, error)
 	}
 	type want struct {
-		err   error
-		confs int
-		deps  int
+		err  error
+		deps int
 	}
 	cases := map[string]struct {
 		reason string
@@ -146,9 +158,8 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				fetchMock: fetchMockFunc,
 			},
 			want: want{
-				err:   nil,
-				confs: 1, // Configuration.pkg from remote
-				deps:  2, // 1 provider, 1 Configuration.pkg dependency
+				err:  nil,
+				deps: 2, // 1 provider, 1 Configuration.pkg dependency
 			},
 		},
 		"SuccessfulConfigMeta": {
@@ -178,9 +189,8 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				fetchMock: fetchMockFunc,
 			},
 			want: want{
-				err:   nil,
-				confs: 1, // Configuration.meta
-				deps:  1, // Not adding Configuration.meta itself to not send it to cacheDependencies() for download
+				err:  nil,
+				deps: 2, // 1 Function, 1 Configuration.meta dependency
 			},
 		},
 		"SuccessfulConfigMetaAndPkg": {
@@ -224,9 +234,8 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				fetchMock: fetchMockFunc,
 			},
 			want: want{
-				err:   nil,
-				confs: 2, // Configuration.meta and Configuration.pkg
-				deps:  3, // 1 Configuration.pkg, 1 provider, 1 function
+				err:  nil,
+				deps: 4, // 1 Configuration.pkg, 1 Configuration.meta, 1 provider, 1 function
 			},
 		},
 	}
@@ -234,8 +243,8 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		w := &bytes.Buffer{}
 
-		m := NewManager("", fs, w)
 		t.Run(name, func(t *testing.T) {
+			m := NewManager("", fs, w)
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
 			err := m.PrepExtensions(tc.args.extensions)
 
@@ -243,13 +252,9 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				t.Errorf("\n%s\nPrepExtensions(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = m.addDependencies(m.confs)
+			err = m.addDependencies(m.deps)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
-				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
@@ -284,9 +289,8 @@ func TestAddDependencies(t *testing.T) {
 		fetchMock  func(image string) (*conregv1.Layer, error)
 	}
 	type want struct {
-		confs int
-		deps  int
-		err   error
+		deps int
+		err  error
 	}
 	cases := map[string]struct {
 		reason string
@@ -317,9 +321,8 @@ func TestAddDependencies(t *testing.T) {
 				},
 			},
 			want: want{
-				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
-				deps:  4, // 2 configurations (config-dep-1, config-dep-2), 1 provider (provider-dep-1), 1 function (function-dep-1)
-				err:   nil,
+				deps: 4, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2), 1 provider (provider-dep-1), 1 function (function-dep-1)
+				err:  nil,
 			},
 		},
 	}
@@ -332,13 +335,202 @@ func TestAddDependencies(t *testing.T) {
 			_ = m.PrepExtensions(tc.args.extensions)
 
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
-			err := m.addDependencies(m.confs)
+			err := m.addDependencies(m.deps)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.confs, len(m.confs)); diff != "" {
-				t.Errorf("\n%s\naddDependencies(...): -want confs, +got confs:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDependencyTypeSupport(t *testing.T) {
+	// Layer creation for test cases.
+	confDep1 := static.NewLayer(configDep1Yaml, types.OCILayer)
+	confDep2 := static.NewLayer(configDep2Yaml, types.OCILayer)
+	providerDep1 := static.NewLayer(providerYaml, types.OCILayer)
+	providerDep2 := static.NewLayer(provider2Yaml, types.OCILayer)
+	funcDep1 := static.NewLayer(funcYaml, types.OCILayer)
+
+	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
+		switch image {
+		case "config-dep-1:v1.3.0":
+			return &confDep1, nil
+		case "config-dep-2:v1.3.0":
+			return &confDep2, nil
+		case "provider-dep-1:v1.3.0":
+			return &providerDep1, nil
+		case "function-dep-1:v1.3.0":
+			return &funcDep1, nil
+		case "provider-dep-2:v1.3.0":
+			return &providerDep2, nil
+		default:
+			return nil, fmt.Errorf("unknown image: %s", image)
+		}
+	}
+
+	type args struct {
+		extensions []*unstructured.Unstructured
+		fetchMock  func(image string) (*conregv1.Layer, error)
+	}
+	type want struct {
+		deps int
+		err  error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AddConfigurationDependencies": {
+			// config-dependson-config
+			// └─►config-dep-2
+			//	  ├─►provider-dep-1
+			//	  └─►function-dep-1
+			reason: "Dependencies of the Configuration type should be correctly added.",
+			args: args{
+				fetchMock: fetchMockFunc,
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "meta.pkg.crossplane.io/v1alpha1",
+							"kind":       "Configuration",
+							"metadata": map[string]interface{}{
+								"name": "config-dependson-config",
+							},
+							"spec": map[string]interface{}{
+								"dependsOn": []map[string]interface{}{
+									{
+										"configuration": "config-dep-2",
+										"version":       "v1.3.0",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				deps: 4, // config-dep-1 and config-dep-2
+				err:  nil,
+			},
+		},
+		"AddProviderDependencies": {
+			// provider-dependson-config
+			// └─►config-dep-2
+			//	  ├─►provider-dep-1
+			//	  └─►function-dep-1
+			reason: "Dependencies of the Provider type should be correctly added.",
+			args: args{
+				fetchMock: fetchMockFunc,
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "meta.pkg.crossplane.io/v1",
+							"kind":       "Provider",
+							"metadata": map[string]interface{}{
+								"name": "provider-dependson-config",
+							},
+							"spec": map[string]interface{}{
+								"dependsOn": []map[string]interface{}{
+									{
+										"configuration": "config-dep-2",
+										"version":       "v1.3.0",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				deps: 4, // provider-dependson-config and config-dep-2
+				err:  nil,
+			},
+		},
+		"AddFunctionDependencies": {
+			// function-dependson-provider
+			// └─►provider-dep-1
+			reason: "Dependencies of the Function type should be correctly added.",
+			args: args{
+				fetchMock: fetchMockFunc,
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "meta.pkg.crossplane.io/v1beta1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-dependson-provider",
+							},
+							"spec": map[string]interface{}{
+								"dependsOn": []map[string]interface{}{
+									{
+										"provider": "provider-dep-1",
+										"version":  "v1.3.0",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				deps: 2, // function-dep-1 and provider-dep-1
+				err:  nil,
+			},
+		},
+		"AddAllDependencies": {
+			// function-dependson-provider
+			// └─►provider-dep-2
+			//     └─►config-dep-2
+			//	      ├─►provider-dep-1
+			//	      └─►function-dep-1
+			reason: "All dependencies should be correctly added for Configuration, Provider, and Function.",
+			args: args{
+				fetchMock: fetchMockFunc,
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "meta.pkg.crossplane.io/v1beta1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-dependson-provider",
+							},
+							"spec": map[string]interface{}{
+								"dependsOn": []map[string]interface{}{
+									{
+										"provider": "provider-dep-2",
+										"version":  "v1.3.0",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				deps: 5, // function-dependson-provider, provider-dep-2, config-dep-2, provider-dep-1, function-dep-1
+				err:  nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			w := &bytes.Buffer{}
+
+			m := NewManager("", fs, w)
+			_ = m.PrepExtensions(tc.args.extensions)
+
+			m.fetcher = &MockFetcher{tc.args.fetchMock}
+			err := m.addDependencies(m.deps)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.deps, len(m.deps)); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want deps, +got deps:\n%s", tc.reason, diff)
