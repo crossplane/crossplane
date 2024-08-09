@@ -19,6 +19,7 @@ package render
 import (
 	"bufio"
 	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/spf13/afero"
@@ -35,7 +36,7 @@ import (
 
 // LoadCompositeResource from a YAML manifest.
 func LoadCompositeResource(fs afero.Fs, file string) (*composite.Unstructured, error) {
-	y, err := afero.ReadFile(fs, file)
+	y, err := ReadFileOrStdin(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read composite resource file")
 	}
@@ -49,7 +50,7 @@ func LoadCompositeResource(fs afero.Fs, file string) (*composite.Unstructured, e
 
 // LoadComposition form a YAML manifest.
 func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, error) {
-	y, err := afero.ReadFile(fs, file)
+	y, err := ReadFileOrStdin(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read composition file")
 	}
@@ -133,7 +134,11 @@ func LoadObservedResources(fs afero.Fs, file string) ([]composed.Unstructured, e
 // LoadYAMLStream from the supplied file or directory. Returns an array of byte
 // arrays, where each byte array is expected to be a YAML manifest.
 func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
-	var files []string
+	// Don't try to open "-", it means we should read from stdin.
+	if fileOrDir == "-" {
+		return LoadYAMLStreamFromFile(filesys, fileOrDir)
+	}
+
 	f, err := filesys.Open(fileOrDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open file")
@@ -142,14 +147,14 @@ func LoadYAMLStream(filesys afero.Fs, fileOrDir string) ([][]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot stat file")
 	}
-	if !info.IsDir() {
-		files = append(files, fileOrDir)
-	} else {
+
+	files := []string{fileOrDir}
+	if info.IsDir() {
 		yamls, err := getYAMLFiles(filesys, fileOrDir)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot get YAML files")
 		}
-		files = append(files, yamls...)
+		files = yamls
 		if len(files) == 0 {
 			return nil, errors.Errorf("no YAML files found in %q (.yaml or .yml)", fileOrDir)
 		}
@@ -198,12 +203,21 @@ func getYAMLFiles(fs afero.Fs, dir string) (files []string, err error) {
 // arrays, where each byte array is expected to be a YAML manifest.
 func LoadYAMLStreamFromFile(fs afero.Fs, file string) ([][]byte, error) {
 	out := make([][]byte, 0)
-	f, err := fs.Open(file)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot open file")
+
+	var yr *yaml.YAMLReader
+	switch {
+	case file == "-":
+		// "-" represents stdin.
+		yr = yaml.NewYAMLReader(bufio.NewReader(os.Stdin))
+	default:
+		// A regular file.
+		f, err := fs.Open(file)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot open file")
+		}
+		defer f.Close() //nolint:errcheck // Only open for reading.
+		yr = yaml.NewYAMLReader(bufio.NewReader(f))
 	}
-	defer f.Close() //nolint:errcheck // Only open for reading.
-	yr := yaml.NewYAMLReader(bufio.NewReader(f))
 
 	for {
 		bytes, err := yr.Read()
@@ -219,4 +233,15 @@ func LoadYAMLStreamFromFile(fs afero.Fs, file string) ([][]byte, error) {
 		out = append(out, bytes)
 	}
 	return out, nil
+}
+
+// ReadFileOrStdin reads a file from the supplied filesystem, unless the
+// filename is "-". If the filename is "-" it reads from stdin.
+func ReadFileOrStdin(fs afero.Fs, filename string) ([]byte, error) {
+	if filename == "-" {
+		b, err := io.ReadAll(os.Stdin)
+		return b, errors.Wrap(err, "cannot read stdin")
+	}
+	b, err := afero.ReadFile(fs, filename)
+	return b, errors.Wrap(err, "cannot read file")
 }
