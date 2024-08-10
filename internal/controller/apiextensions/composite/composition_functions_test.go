@@ -1283,11 +1283,21 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 					},
 				},
 				observed: ComposedResourceStates{
-					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{}},
+					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{
+						ObjectMeta: metav1.ObjectMeta{
+							// This resource isn't controlled by the XR.
+							OwnerReferences: []metav1.OwnerReference{{
+								Controller: ptr.To(true),
+								UID:        "a-different-xr",
+								Kind:       "XR",
+								Name:       "different",
+							}},
+						},
+					}},
 				},
 			},
 			want: want{
-				err: nil,
+				err: errors.New(`refusing to delete composed resource "undesired-resource" that is controlled by XR "different"`),
 			},
 		},
 		"DeleteError": {
