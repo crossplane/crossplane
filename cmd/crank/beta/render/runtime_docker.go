@@ -168,8 +168,9 @@ func GetRuntimeDocker(fn pkgv1beta1.Function, log logging.Logger) (*RuntimeDocke
 	return r, nil
 }
 
-func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client, containerName string, startContainer bool) (string, string, error) {
+var _ Runtime = &RuntimeDocker{}
 
+func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client, containerName string, startContainer bool) (string, string) {
 	r.log.Debug("searching for Docker container", "name", r.Name)
 
 	filterArgs := filters.NewArgs()
@@ -180,40 +181,97 @@ func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client, c
 		All:     true, // Include stopped containers
 	})
 
-	if err != nil || len(containers) == 0 {
-		return "", "", err
-	}
-
-	for _, Container := range containers {
-		// Check if the container is running
-		if Container.State == "running" {
-			r.log.Debug("reusing Docker container", "name", Container.Names, "ID", Container.ID, "image", Container.Image)
-			addr := fmt.Sprintf("%s:%d", Container.Ports[0].IP, Container.Ports[0].PublicPort)
-			return Container.ID, addr, nil
-		}
-	}
-	if startContainer && containers[0].ID != "" {
-		Container := containers[0]
-		if err := cli.ContainerStart(ctx, Container.ID, container.StartOptions{}); err == nil {
-			inspect, err := cli.ContainerInspect(ctx, Container.ID)
-			if err != nil {
-				return "", "", errors.Wrapf(err, "could not start container '%s'", Container.Names[0])
+	if err == nil && len(containers) > 0 {
+		for _, Container := range containers {
+			// Check if the container is running
+			if Container.State == "running" {
+				r.log.Debug("reusing Docker container", "name", Container.Names, "ID", Container.ID, "image", Container.Image)
+				addr := fmt.Sprintf("%s:%d", Container.Ports[0].IP, Container.Ports[0].PublicPort)
+				return Container.ID, addr
 			}
-			for _, bindings := range inspect.NetworkSettings.Ports {
-				if len(bindings) > 0 {
-					addr := fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort)
-					r.log.Debug("restarted Docker container", "name", Container.Names, "ID", Container.ID, "image", Container.Image)
-					return Container.ID, addr, nil
+		}
+		if startContainer && containers[0].ID != "" {
+			Container := containers[0]
+			if err := cli.ContainerStart(ctx, Container.ID, container.StartOptions{}); err == nil {
+				inspect, err := cli.ContainerInspect(ctx, Container.ID)
+				if err != nil {
+					r.log.Debug("could not start container", "name", Container.Names[0])
+					return "", ""
+				}
+				for _, bindings := range inspect.NetworkSettings.Ports {
+					if len(bindings) > 0 {
+						addr := fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort)
+						r.log.Debug("restarted Docker container", "name", Container.Names, "ID", Container.ID, "image", Container.Image)
+						return Container.ID, addr
+					}
 				}
 			}
-
 		}
 	}
-	return "", "", errors.Wrapf(err, "name container '%s' does not exist!", containerName)
-
+	r.log.Debug("named container does not exist", "name", containerName)
+	return "", ""
 }
 
-var _ Runtime = &RuntimeDocker{}
+func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client) (string, string, error) {
+	r.log.Debug("Starting Docker container runtime setup", "image", r.Image)
+	// Find a random, available port. There's a chance of a race here, where
+	// something else binds to the port before we start our container.
+
+	lis, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return "", "", errors.Wrap(err, "cannot get available TCP port")
+	}
+	containerAddr := lis.Addr().String()
+	_ = lis.Close()
+
+	spec := fmt.Sprintf("%s:9443/tcp", containerAddr)
+	expose, bind, err := nat.ParsePortSpecs([]string{spec})
+	if err != nil {
+		return "", "", errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
+	}
+
+	cfg := &container.Config{
+		Image:        r.Image,
+		Cmd:          []string{"--insecure"},
+		ExposedPorts: expose,
+	}
+	hcfg := &container.HostConfig{
+		PortBindings: bind,
+	}
+
+	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
+		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
+		err = PullImage(ctx, cli, r.Image)
+		if err != nil {
+			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
+		}
+	}
+
+	// TODO(negz): Set a container name? Presumably unique across runs.
+	r.log.Debug("Creating Docker container", "image", r.Image, "address", containerAddr, "name", r.Name)
+	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
+	if err != nil {
+		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
+			return "", "", errors.Wrap(err, "cannot create Docker container")
+		}
+
+		// The image was not found, but we're allowed to pull it.
+		r.log.Debug("Image not found, pulling", "image", r.Image)
+		err = PullImage(ctx, cli, r.Image)
+		if err != nil {
+			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
+		}
+
+		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
+		if err != nil {
+			return "", "", errors.Wrap(err, "cannot create Docker container")
+		}
+	}
+	if err := cli.ContainerStart(ctx, rsp.ID, container.StartOptions{}); err != nil {
+		return "", "", errors.Wrap(err, "cannot start Docker container")
+	}
+	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
+}
 
 // Start a Function as a Docker container.
 func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
@@ -226,71 +284,16 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 
 	if r.Name != "" {
 		// Check if the container is already running
-		containerID, containerAddr, err = r.findContainer(ctx, c, r.Name, true)
-		if err != nil {
-			fmt.Printf("container '%s' not found: %v\n", r.Name, err)
-		}
+		containerID, containerAddr = r.findContainer(ctx, c, r.Name, true)
 	}
 	// no preexisting container?
 	if containerID == "" {
-		r.log.Debug("Starting Docker container runtime setup", "image", r.Image)
-		// Find a random, available port. There's a chance of a race here, where
-		// something else binds to the port before we start our container.
-		lis, err := net.Listen("tcp", "localhost:0")
+		containerID, containerAddr, err = r.createContainer(ctx, c)
 		if err != nil {
-			return RuntimeContext{}, errors.Wrap(err, "cannot get available TCP port")
-		}
-		containerAddr = lis.Addr().String()
-		_ = lis.Close()
-
-		spec := fmt.Sprintf("%s:9443/tcp", containerAddr)
-		expose, bind, err := nat.ParsePortSpecs([]string{spec})
-		if err != nil {
-			return RuntimeContext{}, errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
-		}
-
-		cfg := &container.Config{
-			Image:        r.Image,
-			Cmd:          []string{"--insecure"},
-			ExposedPorts: expose,
-		}
-		hcfg := &container.HostConfig{
-			PortBindings: bind,
-		}
-
-		if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
-			r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
-			err = PullImage(ctx, c, r.Image)
-			if err != nil {
-				return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
-			}
-		}
-
-		// TODO(negz): Set a container name? Presumably unique across runs.
-		r.log.Debug("Creating Docker container", "image", r.Image, "address", containerAddr, "name", r.Name)
-		rsp, err := c.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
-		if err != nil {
-			if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
-				return RuntimeContext{}, errors.Wrap(err, "cannot create Docker container")
-			}
-
-			// The image was not found, but we're allowed to pull it.
-			r.log.Debug("Image not found, pulling", "image", r.Image)
-			err = PullImage(ctx, c, r.Image)
-			if err != nil {
-				return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
-			}
-
-			rsp, err = c.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
-			if err != nil {
-				return RuntimeContext{}, errors.Wrap(err, "cannot create Docker container")
-			}
-		}
-		containerID = rsp.ID
-		if err := c.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-			return RuntimeContext{}, errors.Wrap(err, "cannot start Docker container")
+			return RuntimeContext{}, err
 		}
 	}
+
 	stop := func(ctx context.Context) error {
 		switch r.Cleanup {
 		case AnnotationValueRuntimeDockerCleanupOrphan:
