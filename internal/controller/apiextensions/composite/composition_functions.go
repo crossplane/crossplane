@@ -69,6 +69,7 @@ const (
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
 	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
+	errFmtControllerMismatch         = "refusing to delete composed resource %q that is controlled by %s %q"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
@@ -773,9 +774,17 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 	}
 
 	for name, cd := range del {
-		// We want to garbage collect this resource, but we don't control it.
-		if c := metav1.GetControllerOf(cd.Resource); c == nil || c.UID != owner.GetUID() {
-			continue
+		// Don't garbage collect composed resources that someone else controls.
+		//
+		// We do garbage collect composed resources that no-one controls. If a
+		// composed resource appears in observed (i.e. appears in the XR's
+		// spec.resourceRefs) but doesn't have a controller ref, most likely we
+		// created it but its controller ref was stripped. In this situation it
+		// would be permissible for us to adopt the composed resource by setting
+		// our XR as the controller ref, then delete it. So we may as well just
+		// go straight to deleting it.
+		if c := metav1.GetControllerOf(cd.Resource); c != nil && c.UID != owner.GetUID() {
+			return errors.Errorf(errFmtControllerMismatch, name, c.Kind, c.Name)
 		}
 
 		if err := d.client.Delete(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
