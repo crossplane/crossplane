@@ -186,7 +186,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 		"SuccessfulConfigMetaAndPkg": {
 			// config-meta
 			// └─►function-dep-1
-			//config-pkg
+			// config-pkg
 			//└─►provider-dep-1
 			reason: "All dependencies should be successfully added from both Configuration.meta and Configuration.pkg",
 			args: args{
