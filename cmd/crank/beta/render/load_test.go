@@ -207,6 +207,25 @@ func TestLoadFunctions(t *testing.T) {
 							},
 						},
 					},
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       pkgv1beta1.FunctionKind,
+							APIVersion: pkgv1beta1.SchemeGroupVersion.String(),
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-auto-ready",
+							Annotations: map[string]string{
+								AnnotationKeyRuntime:               string(AnnotationValueRuntimeDocker),
+								AnnotationKeyRuntimeDockerCleanup:  string(AnnotationValueRuntimeDockerCleanupOrphan),
+								AnnotationKeyRuntimeNamedContainer: "function-auto-ready",
+							},
+						},
+						Spec: pkgv1beta1.FunctionSpec{
+							PackageSpec: pkgv1.PackageSpec{
+								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
+							},
+						},
+					},
 				},
 			},
 		},

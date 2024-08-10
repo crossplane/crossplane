@@ -82,6 +82,33 @@ func TestGetRuntimeDocker(t *testing.T) {
 				},
 			},
 		},
+		"SuccessNamedContainer": {
+			reason: "should return a RuntimeDocker with the correct name.",
+			args: args{
+				fn: v1beta1.Function{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							AnnotationKeyRuntimeDockerCleanup:  string(AnnotationValueRuntimeDockerCleanupOrphan),
+							AnnotationKeyRuntimeNamedContainer: "test-container-name-function",
+							AnnotationKeyRuntimeDockerImage:    "test-image-from-annotation",
+						},
+					},
+					Spec: v1beta1.FunctionSpec{
+						PackageSpec: v1.PackageSpec{
+							Package: "test-package",
+						},
+					},
+				},
+			},
+			want: want{
+				rd: &RuntimeDocker{
+					Image:      "test-image-from-annotation",
+					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
+					Name:       "test-container-name-function",
+					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+				},
+			},
+		},
 		"SuccessDefaults": {
 			reason: "should return a RuntimeDocker with default fields set if no annotation are set",
 			args: args{
