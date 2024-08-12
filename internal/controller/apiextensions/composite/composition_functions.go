@@ -346,6 +346,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		// Used to store the response of the function at the previous iteration.
 		var rsp *v1beta1.RunFunctionResponse
 
+	extraResourcesLoop:
 		for i := int64(0); i <= MaxRequirementsIterations; i++ {
 			if i == MaxRequirementsIterations {
 				// The requirements didn't stabilize after the maximum number of iterations.
@@ -363,6 +364,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 				// If we don't have an extra resources getter, we don't need to
 				// iterate to satisfy the requirements.
 				break
+			}
+
+			for _, rs := range rsp.GetResults() {
+				if rs.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
+					// We won't iterate if the function returned a fatal result, we'll handle results after the loop.
+					break extraResourcesLoop
+				}
 			}
 
 			newRequirements := rsp.GetRequirements()

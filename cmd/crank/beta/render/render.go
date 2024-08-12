@@ -182,6 +182,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		// Used to store the response of the function at the previous iteration.
 		var rsp *fnv1beta1.RunFunctionResponse
 
+	extraResourcesLoop:
 		for i := int64(0); i <= composite.MaxRequirementsIterations; i++ {
 			if i == composite.MaxRequirementsIterations {
 				// The requirements didn't stabilize after the maximum number of iterations.
@@ -193,10 +194,17 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
 			}
 
+			for _, rs := range rsp.GetResults() {
+				if rs.GetSeverity() == fnv1beta1.Severity_SEVERITY_FATAL {
+					// We won't iterate if the function returned a fatal result, we'll handle results after the loop.
+					break
+				}
+			}
+
 			newRequirements := rsp.GetRequirements()
 			if reflect.DeepEqual(newRequirements, requirements) {
 				// The requirements are stable, the function is done.
-				break
+				break extraResourcesLoop
 			}
 
 			// Store the requirements for the next iteration.
