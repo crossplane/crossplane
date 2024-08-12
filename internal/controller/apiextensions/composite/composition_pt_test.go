@@ -649,7 +649,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			},
 		},
 		"ResourceControlledBySomeoneElse": {
-			reason: "We should not garbage colle_ a resource that is controlled by another resource.",
+			reason: "We should not garbage collect a resource that is controlled by another resource.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
@@ -661,6 +661,8 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 						Controller:         &ctrl,
 						BlockOwnerDeletion: &ctrl,
 						UID:                types.UID("who-dat"),
+						Kind:               "XR",
+						Name:               "different",
 					}})
 					return nil
 				}),
@@ -673,11 +675,11 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				ct: []v1.ComposedTemplate{t0},
 			},
 			want: want{
-				tas: []TemplateAssociation{{Template: t0}},
+				err: errors.New(`refusing to delete composed resource "unknown" that is controlled by XR "different"`),
 			},
 		},
 		"ResourceNotControlled": {
-			reason: "We should not garbage colle_ a resource that has no controller reference.",
+			reason: "We should garbage collect a resource that has no controller reference.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
@@ -686,6 +688,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					// This resource is not controlled by anyone.
 					return nil
 				}),
+				MockDelete: test.NewMockDeleteFn(nil),
 			},
 			args: args{
 				cr: &fake.Composite{
