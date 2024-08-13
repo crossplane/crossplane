@@ -341,63 +341,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
-		// Used to store the requirements returned at the previous iteration.
-		var requirements *v1beta1.Requirements
-		// Used to store the response of the function at the previous iteration.
-		var rsp *v1beta1.RunFunctionResponse
-
-	extraResourcesLoop:
-		for i := int64(0); i <= MaxRequirementsIterations; i++ {
-			if i == MaxRequirementsIterations {
-				// The requirements didn't stabilize after the maximum number of iterations.
-				return CompositionResult{}, errors.Errorf(errFmtFunctionMaxIterations, fn.Step, MaxRequirementsIterations)
-			}
-
-			// TODO(negz): Generate a content-addressable tag for this request.
-			// Perhaps using https://github.com/cerbos/protoc-gen-go-hashpb ?
-			rsp, err = c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
-			if err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
-			}
-
-			if c.composite.ExtraResourcesFetcher == nil {
-				// If we don't have an extra resources getter, we don't need to
-				// iterate to satisfy the requirements.
-				break
-			}
-
-			for _, rs := range rsp.GetResults() {
-				if rs.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
-					// We won't iterate if the function returned a fatal result, we'll handle results after the loop.
-					break extraResourcesLoop
-				}
-			}
-
-			newRequirements := rsp.GetRequirements()
-			if reflect.DeepEqual(newRequirements, requirements) {
-				// The requirements stabilized, the function is done.
-				break
-			}
-
-			// Store the requirements for the next iteration.
-			requirements = newRequirements
-
-			// Cleanup the extra resources from the previous iteration to store the new ones
-			req.ExtraResources = make(map[string]*v1beta1.Resources)
-
-			// Fetch the requested resources and add them to the desired state.
-			for name, selector := range newRequirements.GetExtraResources() {
-				resources, err := c.composite.ExtraResourcesFetcher.Fetch(ctx, selector)
-				if err != nil {
-					return CompositionResult{}, errors.Wrapf(err, "fetching resources for %s", name)
-				}
-
-				// Resources would be nil in case of not found resources.
-				req.ExtraResources[name] = resources
-			}
-
-			// Pass down the updated context across iterations.
-			req.Context = rsp.GetContext()
+		rsp, err := c.runFunction(ctx, fn, req)
+		if err != nil {
+			return CompositionResult{}, err
 		}
 
 		// Pass the desired state returned by this Function to the next one.
@@ -622,6 +568,61 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events, Conditions: conditions}, nil
+}
+
+func (c *FunctionComposer) runFunction(ctx context.Context, fn v1.PipelineStep, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+	// Used to store the requirements returned at the previous iteration.
+	var requirements *v1beta1.Requirements
+
+	for i := int64(0); i <= MaxRequirementsIterations; i++ {
+		// TODO(negz): Generate a content-addressable tag for this request.
+		// Perhaps using https://github.com/cerbos/protoc-gen-go-hashpb ?
+		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
+		if err != nil {
+			return nil, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+		}
+
+		if c.composite.ExtraResourcesFetcher == nil {
+			// If we don't have an extra resources getter, we don't need to
+			// iterate to satisfy the requirements.
+			return rsp, nil
+		}
+
+		for _, rs := range rsp.GetResults() {
+			if rs.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
+				// We won't iterate if the function returned a fatal result, we'll handle results after the loop.
+				return rsp, nil
+			}
+		}
+
+		newRequirements := rsp.GetRequirements()
+		if reflect.DeepEqual(newRequirements, requirements) {
+			// The requirements stabilized, the function is done.
+			return rsp, nil
+		}
+
+		// Store the requirements for the next iteration.
+		requirements = newRequirements
+
+		// Cleanup the extra resources from the previous iteration to store the new ones
+		req.ExtraResources = make(map[string]*v1beta1.Resources)
+
+		// Fetch the requested resources and add them to the desired state.
+		for name, selector := range newRequirements.GetExtraResources() {
+			resources, err := c.composite.ExtraResourcesFetcher.Fetch(ctx, selector)
+			if err != nil {
+				return nil, errors.Wrapf(err, "fetching resources for %s", name)
+			}
+
+			// Resources would be nil in case of not found resources.
+			req.ExtraResources[name] = resources
+		}
+
+		// Pass down the updated context across iterations.
+		req.Context = rsp.GetContext()
+	}
+	// The requirements didn't stabilize after the maximum number of iterations.
+	return nil, errors.Errorf(errFmtFunctionMaxIterations, fn.Step, MaxRequirementsIterations)
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
