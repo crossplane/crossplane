@@ -20,8 +20,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"sort"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -88,34 +88,90 @@ type Outputs struct {
 	// are in use?
 }
 
-// Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
-func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocognit // TODO(negz): Should we refactor to break this up a bit?
-	// Run our Functions.
+// A RuntimeFunctionRunner is a composite.FunctionRunner that runs functions
+// locally, using the runtime configured in their annotations (e.g. Docker).
+type RuntimeFunctionRunner struct {
+	contexts map[string]RuntimeContext
+	conns    map[string]*grpc.ClientConn
+	mx       sync.Mutex
+}
+
+// NewRuntimeFunctionRunner returns a FunctionRunner that runs functions
+// locally, using the runtime configured in their annotations (e.g. Docker). It
+// starts all the functions and creates gRPC connections when called.
+func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkgv1beta1.Function) (*RuntimeFunctionRunner, error) {
+	contexts := map[string]RuntimeContext{}
 	conns := map[string]*grpc.ClientConn{}
-	for _, fn := range in.Functions {
+
+	for _, fn := range fns {
 		runtime, err := GetRuntime(fn, log)
 		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
+			return nil, errors.Wrapf(err, "cannot get runtime for Function %q", fn.GetName())
 		}
 		rctx, err := runtime.Start(ctx)
 		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
+			return nil, errors.Wrapf(err, "cannot start Function %q", fn.GetName())
 		}
-		defer func() {
-			if err := rctx.Stop(ctx); err != nil {
-				log.Debug("Error stopping function runtime", "function", fn.GetName(), "error", err)
-			}
-		}()
+		contexts[fn.GetName()] = rctx
 
 		conn, err := grpc.DialContext(ctx, rctx.Target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultServiceConfig(waitForReady))
 		if err != nil {
-			return Outputs{}, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
+			return nil, errors.Wrapf(err, "cannot dial Function %q at address %q", fn.GetName(), rctx.Target)
 		}
-		defer conn.Close() //nolint:errcheck // This only returns an error if the connection is already closed or closing.
 		conns[fn.GetName()] = conn
 	}
+
+	return &RuntimeFunctionRunner{conns: conns}, nil
+}
+
+// RunFunction runs the named function.
+func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	conn, ok := r.conns[name]
+	if !ok {
+		return nil, errors.Errorf("unknown Function %q - does it exist in your Functions file?", name)
+	}
+
+	return fnv1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+}
+
+// Stop all of the runner's runtimes, and close its gRPC connections.
+func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	for name, conn := range r.conns {
+		_ = conn.Close()
+		delete(r.conns, name)
+	}
+	for name, rctx := range r.contexts {
+		if err := rctx.Stop(ctx); err != nil {
+			return errors.Wrapf(err, "cannot stop function %q runtime (target %q)", name, rctx.Target)
+		}
+		delete(r.contexts, name)
+	}
+
+	return nil
+}
+
+// Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
+func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocognit // TODO(negz): Should we refactor to break this up a bit?
+	runtimes, err := NewRuntimeFunctionRunner(ctx, log, in.Functions)
+	if err != nil {
+		return Outputs{}, errors.Wrap(err, "cannot start function runtimes")
+	}
+
+	defer func() {
+		if err := runtimes.Stop(ctx); err != nil {
+			log.Info("Error stopping function runtimes", "error", err)
+		}
+	}()
+
+	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
 
 	observed := composite.ComposedResourceStates{}
 	for i, cd := range in.ObservedResources {
@@ -159,13 +215,6 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	// the desired state returned by the last, and each Function may produce
 	// results.
 	for _, fn := range in.Composition.Spec.Pipeline {
-		conn, ok := conns[fn.FunctionRef.Name]
-		if !ok {
-			return Outputs{}, errors.Errorf("unknown Function %q, referenced by pipeline step %q - does it exist in your Functions file?", fn.FunctionRef.Name, fn.Step)
-		}
-
-		fClient := fnv1beta1.NewFunctionRunnerServiceClient(conn)
-
 		// The request to send to the function, will be updated at each iteration if needed.
 		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
@@ -177,47 +226,9 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			req.Input = in
 		}
 
-		// Used to store the requirements returned at the previous iteration.
-		var requirements *fnv1beta1.Requirements
-		// Used to store the response of the function at the previous iteration.
-		var rsp *fnv1beta1.RunFunctionResponse
-
-		for i := int64(0); i <= composite.MaxRequirementsIterations; i++ {
-			if i == composite.MaxRequirementsIterations {
-				// The requirements didn't stabilize after the maximum number of iterations.
-				return Outputs{}, errors.Errorf("requirements didn't stabilize after the maximum number of iterations (%d)", composite.MaxRequirementsIterations)
-			}
-
-			rsp, err = fClient.RunFunction(ctx, req)
-			if err != nil {
-				return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
-			}
-
-			newRequirements := rsp.GetRequirements()
-			if reflect.DeepEqual(newRequirements, requirements) {
-				// The requirements are stable, the function is done.
-				break
-			}
-
-			// Store the requirements for the next iteration.
-			requirements = newRequirements
-
-			// Cleanup the extra resources from the previous iteration to store the new ones
-			req.ExtraResources = make(map[string]*fnv1beta1.Resources)
-
-			// Fetch the requested resources and add them to the desired state.
-			for name, selector := range newRequirements.GetExtraResources() {
-				newExtraResources, err := filterExtraResources(in.ExtraResources, selector)
-				if err != nil {
-					return Outputs{}, errors.Wrapf(err, "cannot filter extra resources for pipeline step %q", fn.Step)
-				}
-
-				// Resources would be nil in case of not found resources.
-				req.ExtraResources[name] = newExtraResources
-			}
-
-			// Pass down the updated context across iterations.
-			req.Context = rsp.GetContext()
+		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
+		if err != nil {
+			return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
 		}
 
 		// Pass the desired state returned by this Function to the next one.
@@ -329,19 +340,27 @@ func SetComposedResourceMetadata(cd resource.Object, xr resource.Composite, name
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())
 }
 
-func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) {
-	if len(ers) == 0 || selector == nil {
+// FilteringFetcher is a composite.ExtraResourcesFetcher that "fetches" any
+// supplied resource that matches a resource selector.
+type FilteringFetcher struct {
+	extra []unstructured.Unstructured
+}
+
+// Fetch returns all of the underlying extra resources that match the supplied
+// resource selector.
+func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) {
+	if len(f.extra) == 0 || rs == nil {
 		return nil, nil
 	}
 	out := &fnv1beta1.Resources{}
-	for _, er := range ers {
-		if selector.GetApiVersion() != er.GetAPIVersion() {
+	for _, er := range f.extra {
+		if rs.GetApiVersion() != er.GetAPIVersion() {
 			continue
 		}
-		if selector.GetKind() != er.GetKind() {
+		if rs.GetKind() != er.GetKind() {
 			continue
 		}
-		if selector.GetMatchName() == er.GetName() {
+		if rs.GetMatchName() == er.GetName() {
 			o, err := composite.AsStruct(&er)
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
@@ -349,8 +368,8 @@ func filterExtraResources(ers []unstructured.Unstructured, selector *fnv1beta1.R
 			out.Items = []*fnv1beta1.Resource{{Resource: o}}
 			return out, nil
 		}
-		if selector.GetMatchLabels() != nil {
-			if labels.SelectorFromSet(selector.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
+		if rs.GetMatchLabels() != nil {
+			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
 				o, err := composite.AsStruct(&er)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())

@@ -600,11 +600,12 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 			composite.WithCompositeConnectionDetailsFetcher(fetcher),
 		}
 
+		var runner composite.FunctionRunner = r.options.FunctionRunner
 		if r.options.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
-			fcopts = append(fcopts, composite.WithExtraResourcesFetcher(composite.NewExistingExtraResourcesFetcher(r.engine.GetClient())))
+			runner = composite.NewFetchingFunctionRunner(runner, composite.NewExistingExtraResourcesFetcher(r.engine.GetClient()))
 		}
 
-		fc := composite.NewFunctionComposer(r.engine.GetClient(), r.options.FunctionRunner, fcopts...)
+		fc := composite.NewFunctionComposer(r.engine.GetClient(), runner, fcopts...)
 
 		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.

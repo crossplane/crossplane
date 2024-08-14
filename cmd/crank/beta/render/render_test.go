@@ -34,11 +34,17 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+)
+
+var (
+	_ composite.FunctionRunner        = &RuntimeFunctionRunner{}
+	_ composite.ExtraResourcesFetcher = &FilteringFetcher{}
 )
 
 func TestRender(t *testing.T) {
@@ -65,7 +71,7 @@ func TestRender(t *testing.T) {
 		"InvalidContextValue": {
 			args: args{
 				in: Inputs{
-					CompositeResource: composite.New(),
+					CompositeResource: ucomposite.New(),
 					Context: map[string][]byte{
 						"not-valid-json": []byte(`{`),
 					},
@@ -78,7 +84,7 @@ func TestRender(t *testing.T) {
 		"InvalidInput": {
 			args: args{
 				in: Inputs{
-					CompositeResource: composite.New(),
+					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
 							Pipeline: []apiextensionsv1.PipelineStep{
@@ -115,7 +121,7 @@ func TestRender(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
-					CompositeResource: composite.New(),
+					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
 							Mode: &pipeline,
@@ -137,7 +143,7 @@ func TestRender(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
-					CompositeResource: composite.New(),
+					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
 							Mode: &pipeline,
@@ -181,7 +187,7 @@ func TestRender(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
-					CompositeResource: &composite.Unstructured{
+					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
 								"apiVersion": "nop.example.org/v1alpha1",
@@ -263,7 +269,7 @@ func TestRender(t *testing.T) {
 			},
 			want: want{
 				out: Outputs{
-					CompositeResource: &composite.Unstructured{
+					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
 								"apiVersion": "nop.example.org/v1alpha1",
@@ -349,7 +355,7 @@ func TestRender(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
-					CompositeResource: &composite.Unstructured{
+					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
 								"apiVersion": "nop.example.org/v1alpha1",
@@ -433,7 +439,7 @@ func TestRender(t *testing.T) {
 			},
 			want: want{
 				out: Outputs{
-					CompositeResource: &composite.Unstructured{
+					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
 								"apiVersion": "nop.example.org/v1alpha1",
@@ -518,7 +524,7 @@ func TestRender(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				in: Inputs{
-					CompositeResource: &composite.Unstructured{
+					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
 								"apiVersion": "nop.example.org/v1alpha1",
@@ -650,7 +656,7 @@ func TestRender(t *testing.T) {
 			},
 			want: want{
 				out: Outputs{
-					CompositeResource: &composite.Unstructured{
+					CompositeResource: &ucomposite.Unstructured{
 						Unstructured: unstructured.Unstructured{
 							Object: MustLoadJSON(`{
 								"apiVersion": "nop.example.org/v1alpha1",
@@ -798,8 +804,11 @@ func (r *MockFunctionRunner) RunFunction(ctx context.Context, req *fnv1beta1.Run
 }
 
 func TestFilterExtraResources(t *testing.T) {
+	type params struct {
+		ers []unstructured.Unstructured
+	}
 	type args struct {
-		ers      []unstructured.Unstructured
+		ctx      context.Context
 		selector *fnv1beta1.ResourceSelector
 	}
 	type want struct {
@@ -809,13 +818,16 @@ func TestFilterExtraResources(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
+		params params
 		args   args
 		want   want
 	}{
 		"NilResources": {
 			reason: "Should return empty slice if no extra resources are passed",
-			args: args{
+			params: params{
 				ers: []unstructured.Unstructured{},
+			},
+			args: args{
 				selector: &fnv1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
@@ -831,7 +843,7 @@ func TestFilterExtraResources(t *testing.T) {
 		},
 		"NilSelector": {
 			reason: "Should return empty slice if no selector is passed",
-			args: args{
+			params: params{
 				ers: []unstructured.Unstructured{
 					{
 						Object: MustLoadJSON(`{
@@ -843,6 +855,8 @@ func TestFilterExtraResources(t *testing.T) {
 						}`),
 					},
 				},
+			},
+			args: args{
 				selector: nil,
 			},
 			want: want{
@@ -852,7 +866,7 @@ func TestFilterExtraResources(t *testing.T) {
 		},
 		"MatchName": {
 			reason: "Should return slice with matching resource for name selector",
-			args: args{
+			params: params{
 				ers: []unstructured.Unstructured{
 					{
 						Object: MustLoadJSON(`{
@@ -882,6 +896,8 @@ func TestFilterExtraResources(t *testing.T) {
 						}`),
 					},
 				},
+			},
+			args: args{
 				selector: &fnv1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Bar",
@@ -909,7 +925,7 @@ func TestFilterExtraResources(t *testing.T) {
 		},
 		"MatchLabels": {
 			reason: "Should return slice with matching resources for matching selector",
-			args: args{
+			params: params{
 				ers: []unstructured.Unstructured{
 					{
 						Object: MustLoadJSON(`{
@@ -969,6 +985,8 @@ func TestFilterExtraResources(t *testing.T) {
 						}`),
 					},
 				},
+			},
+			args: args{
 				selector: &fnv1beta1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Bar",
@@ -1016,7 +1034,8 @@ func TestFilterExtraResources(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := filterExtraResources(tc.args.ers, tc.args.selector)
+			f := &FilteringFetcher{extra: tc.params.ers}
+			out, err := f.Fetch(tc.args.ctx, tc.args.selector)
 			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(fnv1beta1.Resources{}, fnv1beta1.Resource{}, structpb.Struct{}, structpb.Value{})); diff != "" {
 				t.Errorf("%s\nfilterExtraResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
