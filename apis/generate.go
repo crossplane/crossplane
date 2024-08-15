@@ -65,6 +65,10 @@ limitations under the License.
 //go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./pkg/meta/v1alpha1
 //go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./pkg/meta/v1beta1
 
+// Replicate identical gRPC APIs
+
+//go:generate ../hack/duplicate_proto_type.sh apiextensions/fn/proto/v1/run_function.proto apiextensions/fn/proto/v1beta1
+
 // Generate gRPC types and stubs.
 //
 // We use buf rather than the traditional protoc because it's pure go and can

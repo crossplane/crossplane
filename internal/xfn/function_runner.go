@@ -24,13 +24,17 @@ import (
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -136,7 +140,7 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 	ctx, cancel := context.WithTimeout(ctx, runFunctionTimeout)
 	defer cancel()
 
-	rsp, err := fnv1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+	rsp, err := NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
 }
 
@@ -305,4 +309,69 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 	}
 
 	return closed, nil
+}
+
+// A BetaFallBackFunctionRunnerServiceClient tries to send a v1 RPC. If the
+// server reports that v1 is unimplemented, it falls back to sending a v1beta1
+// RPC. It translates the v1 RunFunctionRequest to v1beta1 by round-tripping it
+// through protobuf encoding. This works because the two messages are guaranteed
+// to be identical - the v1beta1 proto is replicated from the v1 proto.
+type BetaFallBackFunctionRunnerServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+// NewBetaFallBackFunctionRunnerServiceClient returns a client that falls back
+// to v1beta1 when v1 is unimplemented.
+func NewBetaFallBackFunctionRunnerServiceClient(cc *grpc.ClientConn) *BetaFallBackFunctionRunnerServiceClient {
+	return &BetaFallBackFunctionRunnerServiceClient{cc: cc}
+}
+
+// RunFunction tries to send a v1 RunFunctionRequest. It falls back to v1beta1
+// if the v1 service is unimplemented.
+func (c *BetaFallBackFunctionRunnerServiceClient) RunFunction(ctx context.Context, req *fnv1.RunFunctionRequest, opts ...grpc.CallOption) (*fnv1.RunFunctionResponse, error) {
+	rsp, err := fnv1.NewFunctionRunnerServiceClient(c.cc).RunFunction(ctx, req, opts...)
+
+	// If the v1 RPC worked, just return the response.
+	if err == nil {
+		return rsp, nil
+	}
+
+	// If we hit an error other than Unimplemented, return it.
+	if status.Code(err) != codes.Unimplemented {
+		return nil, err
+	}
+
+	// The v1 RPC is unimplemented. Try the v1beta1 equivalent. The messages
+	// should be identical in Go and on the wire.
+	breq, err := toBeta(req)
+	if err != nil {
+		return nil, err
+	}
+	brsp, err := fnv1beta1.NewFunctionRunnerServiceClient(c.cc).RunFunction(ctx, breq, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	rsp, err = fromBeta(brsp)
+	return rsp, err
+}
+
+func toBeta(req *fnv1.RunFunctionRequest) (*fnv1beta1.RunFunctionRequest, error) {
+	out := &fnv1beta1.RunFunctionRequest{}
+	b, err := proto.Marshal(req)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot marshal %T to protobuf bytes", req)
+	}
+	err = proto.Unmarshal(b, out)
+	return out, errors.Wrapf(err, "cannot unmarshal %T protobuf bytes into %T", req, out)
+}
+
+func fromBeta(rsp *fnv1beta1.RunFunctionResponse) (*fnv1.RunFunctionResponse, error) {
+	out := &fnv1.RunFunctionResponse{}
+	b, err := proto.Marshal(rsp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot marshal %T to protobuf bytes", rsp)
+	}
+	err = proto.Unmarshal(b, out)
+	return out, errors.Wrapf(err, "cannot unmarshal %T protobuf bytes into %T", rsp, out)
 }

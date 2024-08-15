@@ -43,6 +43,7 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -50,7 +51,7 @@ import (
 // https://grpc.io/docs/guides/wait-for-ready/
 const waitForReady = `{
 	"methodConfig":[{
-		"name": [{"service": "apiextensions.fn.proto.v1beta1.FunctionRunnerService"}],
+		"name": [{}],
 		"waitForReady": true
 	}]
 }`
@@ -136,7 +137,7 @@ func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, re
 		return nil, errors.Errorf("unknown Function %q - does it exist in your Functions file?", name)
 	}
 
-	return fnv1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+	return xfn.NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 }
 
 // Stop all of the runner's runtimes, and close its gRPC connections.

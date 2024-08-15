@@ -32,8 +32,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
+
+var _ fnv1.FunctionRunnerServiceClient = &BetaFallBackFunctionRunnerServiceClient{}
 
 func TestRunFunction(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -141,6 +144,53 @@ func TestRunFunction(t *testing.T) {
 						// Start a gRPC server.
 						lis := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
 							Meta: &fnv1.ResponseMeta{Tag: "hi!"},
+						}})
+						listeners = append(listeners, lis)
+
+						l, ok := obj.(*pkgv1.FunctionRevisionList)
+						if !ok {
+							// If we're called to list Functions we want to
+							// return none, to make sure we GC everything.
+							return nil
+						}
+						l.Items = []pkgv1.FunctionRevision{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "cool-fn-revision-a",
+								},
+								Spec: pkgv1.FunctionRevisionSpec{
+									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										DesiredState: pkgv1.PackageRevisionActive,
+									},
+								},
+								Status: pkgv1.FunctionRevisionStatus{
+									Endpoint: strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1),
+								},
+							},
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				ctx:  context.Background(),
+				name: "cool-fn",
+				req:  &fnv1.RunFunctionRequest{},
+			},
+			want: want{
+				rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Tag: "hi!"},
+				},
+			},
+		},
+		"SuccessfulFallbackToBeta": {
+			reason: "We should create a new client connection and successfully make a v1beta1 request if the server doesn't yet implement v1",
+			params: params{
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						// Start a gRPC server.
+						lis := NewBetaGRPCServer(t, &MockBetaFunctionServer{rsp: &fnv1beta1.RunFunctionResponse{
+							Meta: &fnv1beta1.ResponseMeta{Tag: "hi!"},
 						}})
 						listeners = append(listeners, lis)
 
@@ -393,6 +443,27 @@ func NewGRPCServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) net.Listen
 	return lis
 }
 
+func NewBetaGRPCServer(t *testing.T, ss fnv1beta1.FunctionRunnerServiceServer) net.Listener {
+	t.Helper()
+
+	// Listen on a random port.
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Listening for gRPC connections on %q", lis.Addr().String())
+
+	// TODO(negz): Is it worth using a WaitGroup for these?
+	go func() {
+		s := grpc.NewServer()
+		fnv1beta1.RegisterFunctionRunnerServiceServer(s, ss)
+		_ = s.Serve(lis)
+	}()
+
+	// The caller must close this listener to terminate the server.
+	return lis
+}
+
 type MockFunctionServer struct {
 	fnv1.UnimplementedFunctionRunnerServiceServer
 
@@ -401,5 +472,16 @@ type MockFunctionServer struct {
 }
 
 func (s *MockFunctionServer) RunFunction(context.Context, *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return s.rsp, s.err
+}
+
+type MockBetaFunctionServer struct {
+	fnv1beta1.UnimplementedFunctionRunnerServiceServer
+
+	rsp *fnv1beta1.RunFunctionResponse
+	err error
+}
+
+func (s *MockBetaFunctionServer) RunFunction(context.Context, *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
 	return s.rsp, s.err
 }
