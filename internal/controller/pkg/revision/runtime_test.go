@@ -71,7 +71,7 @@ var (
 		},
 	}
 
-	functionRevision = &v1beta1.FunctionRevision{
+	functionRevision = &v1.FunctionRevision{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "pkg.crossplane.io/v1beta1",
 			Kind:       "FunctionRevision",
@@ -82,7 +82,7 @@ var (
 				v1.LabelParentPackage: functionName,
 			},
 		},
-		Spec: v1beta1.FunctionRevisionSpec{
+		Spec: v1.FunctionRevisionSpec{
 			PackageRevisionSpec: v1.PackageRevisionSpec{
 				Package: functionImage,
 			},

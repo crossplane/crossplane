@@ -137,7 +137,7 @@ func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context,
 		return
 	}
 
-	l := &v1beta1.FunctionRevisionList{}
+	l := &v1.FunctionRevisionList{}
 	if err := e.client.List(ctx, l); err != nil {
 		// TODO(hasheddan): Handle this error?
 		return

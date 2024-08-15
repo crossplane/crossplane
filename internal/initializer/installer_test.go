@@ -31,7 +31,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 const (
@@ -113,14 +112,14 @@ func TestInstaller(t *testing.T) {
 									},
 								},
 							}
-						case *v1beta1.FunctionList:
-							*l = v1beta1.FunctionList{
-								Items: []v1beta1.Function{
+						case *v1.FunctionList:
+							*l = v1.FunctionList{
+								Items: []v1.Function{
 									{
 										ObjectMeta: metav1.ObjectMeta{
 											Name: f1Name,
 										},
-										Spec: v1beta1.FunctionSpec{
+										Spec: v1.FunctionSpec{
 											PackageSpec: v1.PackageSpec{
 												Package: f1,
 											},
@@ -143,7 +142,7 @@ func TestInstaller(t *testing.T) {
 							if key.Name != c1Name {
 								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							if key.Name != f1Name {
 								t.Errorf(errFmtGetFunction, key.Name)
 							}
@@ -162,7 +161,7 @@ func TestInstaller(t *testing.T) {
 							if obj.GetName() != c1Name {
 								t.Errorf(errFmtPatchConfiguration, obj.GetName())
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							if obj.GetName() != f1Name {
 								t.Errorf(errFmtPatchFunction, obj.GetName())
 							}
@@ -212,14 +211,14 @@ func TestInstaller(t *testing.T) {
 									},
 								},
 							}
-						case *v1beta1.FunctionList:
-							*l = v1beta1.FunctionList{
-								Items: []v1beta1.Function{
+						case *v1.FunctionList:
+							*l = v1.FunctionList{
+								Items: []v1.Function{
 									{
 										ObjectMeta: metav1.ObjectMeta{
 											Name: f1Existing,
 										},
-										Spec: v1beta1.FunctionSpec{
+										Spec: v1.FunctionSpec{
 											PackageSpec: v1.PackageSpec{
 												Package: fmt.Sprintf("%s:%s", f1Repo, "v100.100.100"),
 											},
@@ -242,7 +241,7 @@ func TestInstaller(t *testing.T) {
 							if key.Name != c1Existing {
 								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							if key.Name != f1Existing {
 								t.Errorf(errFmtGetFunction, key.Name)
 							}
@@ -267,7 +266,7 @@ func TestInstaller(t *testing.T) {
 							if o.GetSource() != c1 {
 								t.Errorf(errFmtPatchConfigurationSource, o.GetSource())
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							if o.GetName() != f1Existing {
 								t.Errorf(errFmtPatchFunction, o.GetName())
 							}
@@ -301,7 +300,7 @@ func TestInstaller(t *testing.T) {
 							if key.Name != c1Name {
 								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							if key.Name != f1Name {
 								t.Errorf(errFmtGetFunction, key.Name)
 							}
@@ -351,14 +350,14 @@ func TestInstaller(t *testing.T) {
 							}
 						case *v1.ConfigurationList:
 							return nil
-						case *v1beta1.FunctionList:
-							*l = v1beta1.FunctionList{
-								Items: []v1beta1.Function{
+						case *v1.FunctionList:
+							*l = v1.FunctionList{
+								Items: []v1.Function{
 									{
 										ObjectMeta: metav1.ObjectMeta{
 											Name: "other-function",
 										},
-										Spec: v1beta1.FunctionSpec{
+										Spec: v1.FunctionSpec{
 											PackageSpec: v1.PackageSpec{
 												Package: fmt.Sprintf("%s:%s", "other-repo", "v100.100.100"),
 											},
@@ -368,7 +367,7 @@ func TestInstaller(t *testing.T) {
 										ObjectMeta: metav1.ObjectMeta{
 											Name: "another-function",
 										},
-										Spec: v1beta1.FunctionSpec{
+										Spec: v1.FunctionSpec{
 											PackageSpec: v1.PackageSpec{
 												Package: "preloaded-source",
 											},
@@ -391,7 +390,7 @@ func TestInstaller(t *testing.T) {
 							if key.Name != c1Name {
 								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							if key.Name != f1Name {
 								t.Errorf(errFmtGetFunction, key.Name)
 							}
@@ -423,7 +422,7 @@ func TestInstaller(t *testing.T) {
 							if key.Name != c1Name {
 								t.Errorf("unexpected name in configuration apply")
 							}
-						case *v1beta1.Function:
+						case *v1.Function:
 							t.Errorf("no functions specified")
 						default:
 							t.Errorf("unexpected type")

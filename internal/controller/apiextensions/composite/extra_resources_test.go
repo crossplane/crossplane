@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 )
 
 var _ FunctionRunner = &FetchingFunctionRunner{}
@@ -41,11 +41,11 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
-		rs *v1beta1.ResourceSelector
+		rs *fnv1.ResourceSelector
 		c  client.Reader
 	}
 	type want struct {
-		res *v1beta1.Resources
+		res *fnv1.Resources
 		err error
 	}
 	cases := map[string]struct {
@@ -56,10 +56,10 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 		"SuccessMatchName": {
 			reason: "We should return a valid Resources when a resource is found by name",
 			args: args{
-				rs: &v1beta1.ResourceSelector{
+				rs: &fnv1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					Match: &v1beta1.ResourceSelector_MatchName{
+					Match: &fnv1.ResourceSelector_MatchName{
 						MatchName: "cool-resource",
 					},
 				},
@@ -71,8 +71,8 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 				},
 			},
 			want: want{
-				res: &v1beta1.Resources{
-					Items: []*v1beta1.Resource{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
 						{
 							Resource: MustStruct(map[string]any{
 								"apiVersion": "test.crossplane.io/v1",
@@ -89,11 +89,11 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 		"SuccessMatchLabels": {
 			reason: "We should return a valid Resources when a resource is found by labels",
 			args: args{
-				rs: &v1beta1.ResourceSelector{
+				rs: &fnv1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					Match: &v1beta1.ResourceSelector_MatchLabels{
-						MatchLabels: &v1beta1.MatchLabels{
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
 							Labels: map[string]string{
 								"cool": "resource",
 							},
@@ -133,8 +133,8 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 				},
 			},
 			want: want{
-				res: &v1beta1.Resources{
-					Items: []*v1beta1.Resource{
+				res: &fnv1.Resources{
+					Items: []*fnv1.Resource{
 						{
 							Resource: MustStruct(map[string]any{
 								"apiVersion": "test.crossplane.io/v1",
@@ -166,10 +166,10 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 		"NotFoundMatchName": {
 			reason: "We should return no error when a resource is not found by name",
 			args: args{
-				rs: &v1beta1.ResourceSelector{
+				rs: &fnv1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					Match: &v1beta1.ResourceSelector_MatchName{
+					Match: &fnv1.ResourceSelector_MatchName{
 						MatchName: "cool-resource",
 					},
 				},
@@ -186,10 +186,10 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 		"ErrorMatchName": {
 			reason: "We should return any other error encountered when getting a resource by name",
 			args: args{
-				rs: &v1beta1.ResourceSelector{
+				rs: &fnv1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					Match: &v1beta1.ResourceSelector_MatchName{
+					Match: &fnv1.ResourceSelector_MatchName{
 						MatchName: "cool-resource",
 					},
 				},
@@ -205,11 +205,11 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 		"ErrorMatchLabels": {
 			reason: "We should return any other error encountered when listing resources by labels",
 			args: args{
-				rs: &v1beta1.ResourceSelector{
+				rs: &fnv1.ResourceSelector{
 					ApiVersion: "test.crossplane.io/v1",
 					Kind:       "Foo",
-					Match: &v1beta1.ResourceSelector_MatchLabels{
-						MatchLabels: &v1beta1.MatchLabels{
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: &fnv1.MatchLabels{
 							Labels: map[string]string{
 								"cool": "resource",
 							},
@@ -259,10 +259,10 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		name string
-		req  *v1beta1.RunFunctionRequest
+		req  *fnv1.RunFunctionRequest
 	}
 	type want struct {
-		rsp *v1beta1.RunFunctionResponse
+		rsp *fnv1.RunFunctionResponse
 		err error
 	}
 
@@ -275,7 +275,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return an error if the wrapped FunctionRunner does",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					return nil, errors.New("boom")
 				}),
 			},
@@ -287,11 +287,11 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"FatalResult": {
 			reason: "We should return early if the function returns a fatal result",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
-					rsp := &v1beta1.RunFunctionResponse{
-						Results: []*v1beta1.Result{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Results: []*fnv1.Result{
 							{
-								Severity: v1beta1.Severity_SEVERITY_FATAL,
+								Severity: fnv1.Severity_SEVERITY_FATAL,
 							},
 						},
 					}
@@ -300,10 +300,10 @@ func TestFetchingFunctionRunner(t *testing.T) {
 			},
 			args: args{},
 			want: want{
-				rsp: &v1beta1.RunFunctionResponse{
-					Results: []*v1beta1.Result{
+				rsp: &fnv1.RunFunctionResponse{
+					Results: []*fnv1.Result{
 						{
-							Severity: v1beta1.Severity_SEVERITY_FATAL,
+							Severity: fnv1.Severity_SEVERITY_FATAL,
 						},
 					},
 				},
@@ -313,11 +313,11 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"NoRequirements": {
 			reason: "We should return the response unchanged if there are no requirements",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
-					rsp := &v1beta1.RunFunctionResponse{
-						Results: []*v1beta1.Result{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Results: []*fnv1.Result{
 							{
-								Severity: v1beta1.Severity_SEVERITY_NORMAL,
+								Severity: fnv1.Severity_SEVERITY_NORMAL,
 							},
 						},
 					}
@@ -326,10 +326,10 @@ func TestFetchingFunctionRunner(t *testing.T) {
 			},
 			args: args{},
 			want: want{
-				rsp: &v1beta1.RunFunctionResponse{
-					Results: []*v1beta1.Result{
+				rsp: &fnv1.RunFunctionResponse{
+					Results: []*fnv1.Result{
 						{
-							Severity: v1beta1.Severity_SEVERITY_NORMAL,
+							Severity: fnv1.Severity_SEVERITY_NORMAL,
 						},
 					},
 				},
@@ -339,10 +339,10 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"FetchResourcesError": {
 			reason: "We should return any error encountered when fetching extra resources",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
-					rsp := &v1beta1.RunFunctionResponse{
-						Requirements: &v1beta1.Requirements{
-							ExtraResources: map[string]*v1beta1.ResourceSelector{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							ExtraResources: map[string]*fnv1.ResourceSelector{
 								"gimme": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "CoolResource",
@@ -352,12 +352,12 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
-				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
+				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 					return nil, errors.New("boom")
 				}),
 			},
 			args: args{
-				req: &v1beta1.RunFunctionRequest{},
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -366,10 +366,10 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"RequirementsDidntStabilizeError": {
 			reason: "We should return an error if the function's requirements never stabilize",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
-					rsp := &v1beta1.RunFunctionResponse{
-						Requirements: &v1beta1.Requirements{
-							ExtraResources: map[string]*v1beta1.ResourceSelector{
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							ExtraResources: map[string]*fnv1.ResourceSelector{
 								"gimme": {
 									ApiVersion: "test.crossplane.io/v1",
 
@@ -381,12 +381,12 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
-				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
-					return &v1beta1.Resources{}, nil
+				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+					return &fnv1.Resources{}, nil
 				}),
 			},
 			args: args{
-				req: &v1beta1.RunFunctionRequest{},
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				err: cmpopts.AnyError,
@@ -395,14 +395,14 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"Success": {
 			reason: "We should return the fetched resources",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// We only expect to be sent extra resources the second time
 					// we're called, in response to our requirements.
 					if called {
-						want := &v1beta1.RunFunctionRequest{
-							ExtraResources: map[string]*v1beta1.Resources{
+						want := &fnv1.RunFunctionRequest{
+							ExtraResources: map[string]*fnv1.Resources{
 								"gimme": {
-									Items: []*v1beta1.Resource{{Resource: coolResource}},
+									Items: []*fnv1.Resource{{Resource: coolResource}},
 								},
 							},
 						}
@@ -415,9 +415,9 @@ func TestFetchingFunctionRunner(t *testing.T) {
 
 					called = true
 
-					rsp := &v1beta1.RunFunctionResponse{
-						Requirements: &v1beta1.Requirements{
-							ExtraResources: map[string]*v1beta1.ResourceSelector{
+					rsp := &fnv1.RunFunctionResponse{
+						Requirements: &fnv1.Requirements{
+							ExtraResources: map[string]*fnv1.ResourceSelector{
 								"gimme": {
 									ApiVersion: "test.crossplane.io/v1",
 									Kind:       "CoolResource",
@@ -427,20 +427,20 @@ func TestFetchingFunctionRunner(t *testing.T) {
 					}
 					return rsp, nil
 				}),
-				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
-					r := &v1beta1.Resources{
-						Items: []*v1beta1.Resource{{Resource: coolResource}},
+				resources: ExtraResourcesFetcherFn(func(_ context.Context, _ *fnv1.ResourceSelector) (*fnv1.Resources, error) {
+					r := &fnv1.Resources{
+						Items: []*fnv1.Resource{{Resource: coolResource}},
 					}
 					return r, nil
 				}),
 			},
 			args: args{
-				req: &v1beta1.RunFunctionRequest{},
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
-				rsp: &v1beta1.RunFunctionResponse{
-					Requirements: &v1beta1.Requirements{
-						ExtraResources: map[string]*v1beta1.ResourceSelector{
+				rsp: &fnv1.RunFunctionResponse{
+					Requirements: &fnv1.Requirements{
+						ExtraResources: map[string]*fnv1.ResourceSelector{
 							"gimme": {
 								ApiVersion: "test.crossplane.io/v1",
 								Kind:       "CoolResource",

@@ -31,7 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 // Annotations that can be used to configure the Docker runtime.
@@ -106,7 +106,7 @@ type RuntimeDocker struct {
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
 // Function.
-func GetDockerPullPolicy(fn pkgv1beta1.Function) (DockerPullPolicy, error) {
+func GetDockerPullPolicy(fn pkgv1.Function) (DockerPullPolicy, error) {
 	switch p := DockerPullPolicy(fn.GetAnnotations()[AnnotationKeyRuntimeDockerPullPolicy]); p {
 	case AnnotationValueRuntimeDockerPullPolicyAlways, AnnotationValueRuntimeDockerPullPolicyNever, AnnotationValueRuntimeDockerPullPolicyIfNotPresent:
 		return p, nil
@@ -118,7 +118,7 @@ func GetDockerPullPolicy(fn pkgv1beta1.Function) (DockerPullPolicy, error) {
 }
 
 // GetDockerCleanup extracts Cleanup configuration from the supplied Function.
-func GetDockerCleanup(fn pkgv1beta1.Function) (DockerCleanup, error) {
+func GetDockerCleanup(fn pkgv1.Function) (DockerCleanup, error) {
 	switch c := DockerCleanup(fn.GetAnnotations()[AnnotationKeyRuntimeDockerCleanup]); c {
 	case AnnotationValueRuntimeDockerCleanupStop, AnnotationValueRuntimeDockerCleanupOrphan, AnnotationValueRuntimeDockerCleanupRemove:
 		return c, nil
@@ -131,7 +131,7 @@ func GetDockerCleanup(fn pkgv1beta1.Function) (DockerCleanup, error) {
 
 // GetRuntimeDocker extracts RuntimeDocker configuration from the supplied
 // Function.
-func GetRuntimeDocker(fn pkgv1beta1.Function, log logging.Logger) (*RuntimeDocker, error) {
+func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, error) {
 	cleanup, err := GetDockerCleanup(fn)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get cleanup policy for Function %q", fn.GetName())

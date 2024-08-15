@@ -21,7 +21,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 // Annotations that can be used to configure the Development runtime.
@@ -47,7 +47,7 @@ type RuntimeDevelopment struct {
 
 // GetRuntimeDevelopment extracts RuntimeDevelopment configuration from the
 // supplied Function.
-func GetRuntimeDevelopment(fn pkgv1beta1.Function, log logging.Logger) *RuntimeDevelopment {
+func GetRuntimeDevelopment(fn pkgv1.Function, log logging.Logger) *RuntimeDevelopment {
 	r := &RuntimeDevelopment{Target: "localhost:9443", Function: fn.GetName(), log: log}
 	if t := fn.GetAnnotations()[AnnotationKeyRuntimeDevelopmentTarget]; t != "" {
 		r.Target = t

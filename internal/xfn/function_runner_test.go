@@ -31,9 +31,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 func TestRunFunction(t *testing.T) {
@@ -49,10 +48,10 @@ func TestRunFunction(t *testing.T) {
 	type args struct {
 		ctx  context.Context
 		name string
-		req  *v1beta1.RunFunctionRequest
+		req  *fnv1.RunFunctionRequest
 	}
 	type want struct {
-		rsp *v1beta1.RunFunctionResponse
+		rsp *fnv1.RunFunctionResponse
 		err error
 	}
 	cases := map[string]struct {
@@ -81,9 +80,9 @@ func TestRunFunction(t *testing.T) {
 			params: params{
 				c: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						obj.(*pkgv1beta1.FunctionRevisionList).Items = []pkgv1beta1.FunctionRevision{
+						obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
 							{
-								Spec: pkgv1beta1.FunctionRevisionSpec{
+								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
 										DesiredState: pkgv1.PackageRevisionInactive, // This revision is not active.
 									},
@@ -107,17 +106,17 @@ func TestRunFunction(t *testing.T) {
 			params: params{
 				c: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						obj.(*pkgv1beta1.FunctionRevisionList).Items = []pkgv1beta1.FunctionRevision{
+						obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
 							{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "cool-fn-revision-a",
 								},
-								Spec: pkgv1beta1.FunctionRevisionSpec{
+								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
 										DesiredState: pkgv1.PackageRevisionActive,
 									},
 								},
-								Status: pkgv1beta1.FunctionRevisionStatus{
+								Status: pkgv1.FunctionRevisionStatus{
 									Endpoint: "", // An empty endpoint.
 								},
 							},
@@ -140,28 +139,28 @@ func TestRunFunction(t *testing.T) {
 				c: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 						// Start a gRPC server.
-						lis := NewGRPCServer(t, &MockFunctionServer{rsp: &v1beta1.RunFunctionResponse{
-							Meta: &v1beta1.ResponseMeta{Tag: "hi!"},
+						lis := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
+							Meta: &fnv1.ResponseMeta{Tag: "hi!"},
 						}})
 						listeners = append(listeners, lis)
 
-						l, ok := obj.(*pkgv1beta1.FunctionRevisionList)
+						l, ok := obj.(*pkgv1.FunctionRevisionList)
 						if !ok {
 							// If we're called to list Functions we want to
 							// return none, to make sure we GC everything.
 							return nil
 						}
-						l.Items = []pkgv1beta1.FunctionRevision{
+						l.Items = []pkgv1.FunctionRevision{
 							{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "cool-fn-revision-a",
 								},
-								Spec: pkgv1beta1.FunctionRevisionSpec{
+								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
 										DesiredState: pkgv1.PackageRevisionActive,
 									},
 								},
-								Status: pkgv1beta1.FunctionRevisionStatus{
+								Status: pkgv1.FunctionRevisionStatus{
 									Endpoint: strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1),
 								},
 							},
@@ -173,11 +172,11 @@ func TestRunFunction(t *testing.T) {
 			args: args{
 				ctx:  context.Background(),
 				name: "cool-fn",
-				req:  &v1beta1.RunFunctionRequest{},
+				req:  &fnv1.RunFunctionRequest{},
 			},
 			want: want{
-				rsp: &v1beta1.RunFunctionResponse{
-					Meta: &v1beta1.ResponseMeta{Tag: "hi!"},
+				rsp: &fnv1.RunFunctionResponse{
+					Meta: &fnv1.ResponseMeta{Tag: "hi!"},
 				},
 			},
 		},
@@ -217,8 +216,8 @@ func TestGetClientConn(t *testing.T) {
 	// test some cases that don't fit well in our usual table-driven format.
 
 	// Start a gRPC server.
-	lis := NewGRPCServer(t, &MockFunctionServer{rsp: &v1beta1.RunFunctionResponse{
-		Meta: &v1beta1.ResponseMeta{Tag: "hi!"},
+	lis := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
+		Meta: &fnv1.ResponseMeta{Tag: "hi!"},
 	}})
 	defer lis.Close()
 
@@ -256,8 +255,8 @@ func TestGetClientConn(t *testing.T) {
 	})
 
 	// Start another gRPC server.
-	lis2 := NewGRPCServer(t, &MockFunctionServer{rsp: &v1beta1.RunFunctionResponse{
-		Meta: &v1beta1.ResponseMeta{Tag: "hi!"},
+	lis2 := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
+		Meta: &fnv1.ResponseMeta{Tag: "hi!"},
 	}})
 	defer lis2.Close()
 
@@ -289,8 +288,8 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 	// table-driven format.
 
 	// Start a gRPC server.
-	lis := NewGRPCServer(t, &MockFunctionServer{rsp: &v1beta1.RunFunctionResponse{
-		Meta: &v1beta1.ResponseMeta{Tag: "hi!"},
+	lis := NewGRPCServer(t, &MockFunctionServer{rsp: &fnv1.RunFunctionResponse{
+		Meta: &fnv1.ResponseMeta{Tag: "hi!"},
 	}})
 	defer lis.Close()
 
@@ -312,7 +311,7 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 
 	t.Run("FunctionStillExistsDoNotGarbageCollect", func(t *testing.T) {
 		c.MockList = test.NewMockListFn(nil, func(obj client.ObjectList) error {
-			obj.(*pkgv1beta1.FunctionList).Items = []pkgv1beta1.Function{
+			obj.(*pkgv1.FunctionList).Items = []pkgv1.Function{
 				{
 					// This Function exists!
 					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn"},
@@ -348,23 +347,23 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 
 func NewListFn(target string) test.MockListFn {
 	return test.NewMockListFn(nil, func(obj client.ObjectList) error {
-		l, ok := obj.(*pkgv1beta1.FunctionRevisionList)
+		l, ok := obj.(*pkgv1.FunctionRevisionList)
 		if !ok {
 			// If we're called to list Functions we want to
 			// return none, to make sure we GC everything.
 			return nil
 		}
-		l.Items = []pkgv1beta1.FunctionRevision{
+		l.Items = []pkgv1.FunctionRevision{
 			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "cool-fn-revision-a",
 				},
-				Spec: pkgv1beta1.FunctionRevisionSpec{
+				Spec: pkgv1.FunctionRevisionSpec{
 					PackageRevisionSpec: pkgv1.PackageRevisionSpec{
 						DesiredState: pkgv1.PackageRevisionActive,
 					},
 				},
-				Status: pkgv1beta1.FunctionRevisionStatus{
+				Status: pkgv1.FunctionRevisionStatus{
 					Endpoint: target,
 				},
 			},
@@ -373,7 +372,7 @@ func NewListFn(target string) test.MockListFn {
 	})
 }
 
-func NewGRPCServer(t *testing.T, ss v1beta1.FunctionRunnerServiceServer) net.Listener {
+func NewGRPCServer(t *testing.T, ss fnv1.FunctionRunnerServiceServer) net.Listener {
 	t.Helper()
 
 	// Listen on a random port.
@@ -386,7 +385,7 @@ func NewGRPCServer(t *testing.T, ss v1beta1.FunctionRunnerServiceServer) net.Lis
 	// TODO(negz): Is it worth using a WaitGroup for these?
 	go func() {
 		s := grpc.NewServer()
-		v1beta1.RegisterFunctionRunnerServiceServer(s, ss)
+		fnv1.RegisterFunctionRunnerServiceServer(s, ss)
 		_ = s.Serve(lis)
 	}()
 
@@ -395,12 +394,12 @@ func NewGRPCServer(t *testing.T, ss v1beta1.FunctionRunnerServiceServer) net.Lis
 }
 
 type MockFunctionServer struct {
-	v1beta1.UnimplementedFunctionRunnerServiceServer
+	fnv1.UnimplementedFunctionRunnerServiceServer
 
-	rsp *v1beta1.RunFunctionResponse
+	rsp *fnv1.RunFunctionResponse
 	err error
 }
 
-func (s *MockFunctionServer) RunFunction(context.Context, *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+func (s *MockFunctionServer) RunFunction(context.Context, *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	return s.rsp, s.err
 }

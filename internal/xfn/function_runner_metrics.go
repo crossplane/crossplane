@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 )
 
 // Metrics are requests, errors, and duration (RED) metrics for composition
@@ -97,16 +97,16 @@ func (m *Metrics) CreateInterceptor(name, pkg string) grpc.UnaryClientIntercepto
 		// no fatal results, has severity "Warning". A response with fatal
 		// results has severity "Fatal".
 		l["result_severity"] = "Normal"
-		if rsp, ok := reply.(*v1beta1.RunFunctionResponse); ok {
+		if rsp, ok := reply.(*fnv1.RunFunctionResponse); ok {
 			for _, r := range rsp.GetResults() {
 				// Keep iterating if we see a warning result - we might still
 				// see a fatal result.
-				if r.GetSeverity() == v1beta1.Severity_SEVERITY_WARNING {
+				if r.GetSeverity() == fnv1.Severity_SEVERITY_WARNING {
 					l["result_severity"] = "Warning"
 				}
 				// Break if we see a fatal result, to ensure we don't downgrade
 				// the severity to warning.
-				if r.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
+				if r.GetSeverity() == fnv1.Severity_SEVERITY_FATAL {
 					l["result_severity"] = "Fatal"
 					break
 				}

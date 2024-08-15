@@ -27,7 +27,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -90,7 +89,7 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 		}
 		cMap[xpkg.ParsePackageSourceFromReference(ref)] = c.GetName()
 	}
-	fl := &v1beta1.FunctionList{}
+	fl := &v1.FunctionList{}
 	if err := kube.List(ctx, fl); err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrap(err, errListFunctions)
 	}
@@ -122,7 +121,7 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 		pkgsIdx++
 	}
 	for _, img := range pi.functions {
-		f := &v1beta1.Function{}
+		f := &v1.Function{}
 		if err := buildPack(f, img, fMap); err != nil {
 			return err
 		}

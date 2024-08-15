@@ -132,9 +132,9 @@ func (c *installCmd) Run(k *kong.Context, logger logging.Logger) error {
 			Spec:       v1.ConfigurationSpec{PackageSpec: spec},
 		}
 	case "function":
-		pkg = &v1beta1.Function{
+		pkg = &v1.Function{
 			ObjectMeta: metav1.ObjectMeta{Name: pkgName},
-			Spec:       v1beta1.FunctionSpec{PackageSpec: spec},
+			Spec:       v1.FunctionSpec{PackageSpec: spec},
 		}
 	default:
 		// The enum struct tag on the Kind field should make this impossible.

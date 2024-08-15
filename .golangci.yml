@@ -288,6 +288,13 @@ issues:
       linters:
       - musttag
 
+    # Various fields related to native patch and transform Composition are
+    # deprecated, but we can't drop support from Crossplane 1.x. We ignore the
+    # warnings globally instead of suppressing them with comments everywhere.
+    - text: "SA1019: .+ is deprecated: Use Composition Functions instead."
+      linters:
+      - staticcheck
+
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
   # excluded by default patterns execute `golangci-lint run --help`.

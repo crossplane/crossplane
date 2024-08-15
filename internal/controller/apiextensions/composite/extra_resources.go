@@ -26,7 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 )
 
 // MaxRequirementsIterations is the maximum number of times a Function should be
@@ -49,9 +49,9 @@ func NewFetchingFunctionRunner(r FunctionRunner, f ExtraResourcesFetcher) *Fetch
 
 // RunFunction runs a function, repeatedly fetching any extra resources it asks
 // for. The function may be run up to MaxRequirementsIterations times.
-func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	// Used to store the requirements returned at the previous iteration.
-	var requirements *v1beta1.Requirements
+	var requirements *fnv1.Requirements
 
 	for i := int64(0); i <= MaxRequirementsIterations; i++ {
 		rsp, err := c.wrapped.RunFunction(ctx, name, req)
@@ -61,7 +61,7 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 		}
 
 		for _, rs := range rsp.GetResults() {
-			if rs.GetSeverity() == v1beta1.Severity_SEVERITY_FATAL {
+			if rs.GetSeverity() == fnv1.Severity_SEVERITY_FATAL {
 				// We won't iterate if the function returned a fatal result.
 				return rsp, nil
 			}
@@ -77,7 +77,7 @@ func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, r
 		requirements = newRequirements
 
 		// Cleanup the extra resources from the previous iteration to store the new ones
-		req.ExtraResources = make(map[string]*v1beta1.Resources)
+		req.ExtraResources = make(map[string]*fnv1.Resources)
 
 		// Fetch the requested resources and add them to the desired state.
 		for name, selector := range newRequirements.GetExtraResources() {
@@ -109,12 +109,12 @@ func NewExistingExtraResourcesFetcher(c client.Reader) *ExistingExtraResourcesFe
 }
 
 // Fetch fetches resources requested by functions using the provided client.Reader.
-func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
+func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 	if rs == nil {
 		return nil, errors.New(errNilResourceSelector)
 	}
 	switch match := rs.GetMatch().(type) {
-	case *v1beta1.ResourceSelector_MatchName:
+	case *fnv1.ResourceSelector_MatchName:
 		// Fetch a single resource.
 		r := &kunstructured.Unstructured{}
 		r.SetAPIVersion(rs.GetApiVersion())
@@ -133,8 +133,8 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *v1beta1.R
 		if err != nil {
 			return nil, errors.Wrap(err, errExtraResourceAsStruct)
 		}
-		return &v1beta1.Resources{Items: []*v1beta1.Resource{{Resource: o}}}, nil
-	case *v1beta1.ResourceSelector_MatchLabels:
+		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: o}}}, nil
+	case *fnv1.ResourceSelector_MatchLabels:
 		// Fetch a list of resources.
 		list := &kunstructured.UnstructuredList{}
 		list.SetAPIVersion(rs.GetApiVersion())
@@ -144,16 +144,16 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *v1beta1.R
 			return nil, errors.Wrap(err, errListExtraResources)
 		}
 
-		resources := make([]*v1beta1.Resource, len(list.Items))
+		resources := make([]*fnv1.Resource, len(list.Items))
 		for i, r := range list.Items {
 			o, err := AsStruct(&r)
 			if err != nil {
 				return nil, errors.Wrap(err, errExtraResourceAsStruct)
 			}
-			resources[i] = &v1beta1.Resource{Resource: o}
+			resources[i] = &fnv1.Resource{Resource: o}
 		}
 
-		return &v1beta1.Resources{Items: resources}, nil
+		return &fnv1.Resources{Items: resources}, nil
 	}
 	return nil, errors.New(errUnknownResourceSelector)
 }

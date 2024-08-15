@@ -56,7 +56,16 @@ var (
 	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
 )
 
+// Function type metadata.
+var (
+	FunctionKind             = reflect.TypeOf(Function{}).Name()
+	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
+	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
+	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Configuration{})
 	SchemeBuilder.Register(&Provider{})
+	SchemeBuilder.Register(&Function{})
 }

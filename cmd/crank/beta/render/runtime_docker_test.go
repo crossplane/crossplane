@@ -28,8 +28,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 type mockPullClient struct {
@@ -44,7 +43,7 @@ var _ pullClient = &mockPullClient{}
 
 func TestGetRuntimeDocker(t *testing.T) {
 	type args struct {
-		fn v1beta1.Function
+		fn pkgv1.Function
 	}
 	type want struct {
 		rd  *RuntimeDocker
@@ -59,7 +58,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 		"SuccessAllSet": {
 			reason: "should return a RuntimeDocker with all fields set according to the supplied Function's annotations",
 			args: args{
-				fn: v1beta1.Function{
+				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
 							AnnotationKeyRuntimeDockerCleanup:    string(AnnotationValueRuntimeDockerCleanupOrphan),
@@ -67,8 +66,8 @@ func TestGetRuntimeDocker(t *testing.T) {
 							AnnotationKeyRuntimeDockerImage:      "test-image-from-annotation",
 						},
 					},
-					Spec: v1beta1.FunctionSpec{
-						PackageSpec: v1.PackageSpec{
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
 							Package: "test-package",
 						},
 					},
@@ -85,12 +84,12 @@ func TestGetRuntimeDocker(t *testing.T) {
 		"SuccessDefaults": {
 			reason: "should return a RuntimeDocker with default fields set if no annotation are set",
 			args: args{
-				fn: v1beta1.Function{
+				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{},
 					},
-					Spec: v1beta1.FunctionSpec{
-						PackageSpec: v1.PackageSpec{
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
 							Package: "test-package",
 						},
 					},
@@ -107,14 +106,14 @@ func TestGetRuntimeDocker(t *testing.T) {
 		"ErrorUnknownAnnotationValueCleanup": {
 			reason: "should return an error if the supplied Function has an unknown cleanup annotation value",
 			args: args{
-				fn: v1beta1.Function{
+				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
 							AnnotationKeyRuntimeDockerCleanup: "wrong",
 						},
 					},
-					Spec: v1beta1.FunctionSpec{
-						PackageSpec: v1.PackageSpec{
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
 							Package: "test-package",
 						},
 					},
@@ -127,14 +126,14 @@ func TestGetRuntimeDocker(t *testing.T) {
 		"ErrorUnknownAnnotationPullPolicy": {
 			reason: "should return an error if the supplied Function has an unknown pull policy annotation value",
 			args: args{
-				fn: v1beta1.Function{
+				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
 							AnnotationKeyRuntimeDockerPullPolicy: "wrong",
 						},
 					},
-					Spec: v1beta1.FunctionSpec{
-						PackageSpec: v1.PackageSpec{
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
 							Package: "test-package",
 						},
 					},
@@ -147,14 +146,14 @@ func TestGetRuntimeDocker(t *testing.T) {
 		"AnnotationsCleanupSetToStop": {
 			reason: "should return a RuntimeDocker with all fields set according to the supplied Function's annotations",
 			args: args{
-				fn: v1beta1.Function{
+				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
 							AnnotationKeyRuntimeDockerCleanup: string(AnnotationValueRuntimeDockerCleanupStop),
 						},
 					},
-					Spec: v1beta1.FunctionSpec{
-						PackageSpec: v1.PackageSpec{
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
 							Package: "test-package",
 						},
 					},

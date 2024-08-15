@@ -19,9 +19,9 @@ syntax = "proto3";
 import "google/protobuf/struct.proto";
 import "google/protobuf/duration.proto";
 
-package apiextensions.fn.proto.v1beta1;
+package apiextensions.fn.proto.v1;
 
-option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1";
+option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1";
 
 // A FunctionRunnerService is a Composition Function.
 service FunctionRunnerService {

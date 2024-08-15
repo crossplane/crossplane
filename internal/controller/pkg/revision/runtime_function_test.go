@@ -33,9 +33,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -60,11 +59,11 @@ func TestFunctionPreHook(t *testing.T) {
 		"Success": {
 			reason: "Successful run of pre hook.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{},
+				pkg: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{},
 				},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
 						},
@@ -98,8 +97,8 @@ func TestFunctionPreHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
 						},
@@ -107,7 +106,7 @@ func TestFunctionPreHook(t *testing.T) {
 							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
-					Status: v1beta1.FunctionRevisionStatus{
+					Status: v1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(serviceEndpointFmt, "some-service", "some-namespace", servicePort),
 					},
 				},
@@ -157,9 +156,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"FunctionInactive": {
 			reason: "Should do nothing if function revision is inactive.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionInactive,
 						},
@@ -167,8 +166,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionInactive,
 						},
@@ -179,9 +178,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"ErrApplySA": {
 			reason: "Should return error if we fail to apply service account for active function revision.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -206,8 +205,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -220,9 +219,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"ErrApplyDeployment": {
 			reason: "Should return error if we fail to apply deployment for active function revision.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -250,8 +249,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -264,9 +263,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"ErrDeploymentNoAvailableConditionYet": {
 			reason: "Should return error if deployment for active function revision has no available condition yet.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -291,8 +290,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -305,9 +304,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"ErrUnavailableDeployment": {
 			reason: "Should return error if deployment is unavailable for function revision.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -340,8 +339,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -354,9 +353,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"Successful": {
 			reason: "Should not return error if successfully applied service account and deployment for active function revision and the deployment is ready.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -388,8 +387,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -401,9 +400,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"SuccessWithExtraSecret": {
 			reason: "Should not return error if successfully applied service account with additional secret.",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -438,8 +437,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -451,9 +450,9 @@ func TestFunctionPostHook(t *testing.T) {
 		"SuccessfulWithExternallyManagedSA": {
 			reason: "Should be successful without creating an SA, when the SA is managed externally",
 			args: args{
-				pkg: &pkgmetav1beta1.Function{},
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Function{},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -503,8 +502,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
@@ -636,8 +635,8 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 func TestGetFunctionImage(t *testing.T) {
 	type args struct {
-		functionMeta     *pkgmetav1beta1.Function
-		functionRevision *v1beta1.FunctionRevision
+		functionMeta     *pkgmetav1.Function
+		functionRevision *v1.FunctionRevision
 		defaultRegistry  string
 	}
 
@@ -654,13 +653,13 @@ func TestGetFunctionImage(t *testing.T) {
 		"NoOverrideFromMeta": {
 			reason: "Should use the image from the package revision and add default registry when no override is present.",
 			args: args{
-				functionMeta: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
+				functionMeta: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{
 						Image: nil,
 					},
 				},
-				functionRevision: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				functionRevision: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package: "crossplane/func-bar:v1.2.3",
 						},
@@ -676,13 +675,13 @@ func TestGetFunctionImage(t *testing.T) {
 		"WithOverrideFromMeta": {
 			reason: "Should use the override from the function meta when present and add default registry.",
 			args: args{
-				functionMeta: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
+				functionMeta: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{
 						Image: ptr.To("crossplane/func-bar-server:v1.2.3"),
 					},
 				},
-				functionRevision: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				functionRevision: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package: "crossplane/func-bar:v1.2.3",
 						},
@@ -698,13 +697,13 @@ func TestGetFunctionImage(t *testing.T) {
 		"RegistrySpecified": {
 			reason: "Should honor the registry as specified on the package, even if its different than the default registry.",
 			args: args{
-				functionMeta: &pkgmetav1beta1.Function{
-					Spec: pkgmetav1beta1.FunctionSpec{
+				functionMeta: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{
 						Image: nil,
 					},
 				},
-				functionRevision: &v1beta1.FunctionRevision{
-					Spec: v1beta1.FunctionRevisionSpec{
+				functionRevision: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
 						},

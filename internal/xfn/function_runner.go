@@ -30,9 +30,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 // Error strings.
@@ -127,7 +126,7 @@ func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOptio
 
 // RunFunction sends the supplied RunFunctionRequest to the named Function. The
 // function is expected to be an installed Function.pkg.crossplane.io package.
-func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	conn, err := r.getClientConn(ctx, name)
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtGetClientConn, name)
@@ -137,7 +136,7 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 	ctx, cancel := context.WithTimeout(ctx, runFunctionTimeout)
 	defer cancel()
 
-	rsp, err := v1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+	rsp, err := fnv1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
 }
 
@@ -167,12 +166,12 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string) (*grpc.ClientConn, error) {
 	log := r.log.WithValues("function", name)
 
-	l := &pkgv1beta1.FunctionRevisionList{}
+	l := &pkgv1.FunctionRevisionList{}
 	if err := r.client.List(ctx, l, client.MatchingLabels{pkgv1.LabelParentPackage: name}); err != nil {
 		return nil, errors.Wrapf(err, errListFunctionRevisions)
 	}
 
-	var active *pkgv1beta1.FunctionRevision
+	var active *pkgv1.FunctionRevision
 	for i := range l.Items {
 		if l.Items[i].GetDesiredState() == pkgv1.PackageRevisionActive {
 			active = &l.Items[i]
@@ -280,7 +279,7 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 	r.connsMx.Lock()
 	defer r.connsMx.Unlock()
 
-	l := &pkgv1beta1.FunctionList{}
+	l := &pkgv1.FunctionList{}
 	if err := r.client.List(ctx, l); err != nil {
 		return 0, errors.Wrap(err, errListFunctions)
 	}

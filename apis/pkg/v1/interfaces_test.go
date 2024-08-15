@@ -19,14 +19,17 @@ package v1
 var (
 	_ Package = &Provider{}
 	_ Package = &Configuration{}
+	_ Package = &Function{}
 )
 
 var (
 	_ PackageRevision = &ProviderRevision{}
 	_ PackageRevision = &ConfigurationRevision{}
+	_ PackageRevision = &FunctionRevision{}
 )
 
 var (
 	_ PackageRevisionList = &ProviderRevisionList{}
 	_ PackageRevisionList = &ConfigurationRevisionList{}
+	_ PackageRevisionList = &FunctionRevisionList{}
 )

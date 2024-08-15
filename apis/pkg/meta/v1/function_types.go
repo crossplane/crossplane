@@ -14,12 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
-import v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-
-var (
-	_ v1.Package             = &Function{}
-	_ v1.PackageRevision     = &FunctionRevision{}
-	_ v1.PackageRevisionList = &FunctionRevisionList{}
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// FunctionSpec specifies the configuration of a Function.
+type FunctionSpec struct {
+	MetaSpec `json:",inline"`
+
+	// Image is the packaged Function image.
+	Image *string `json:"image,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
+
+// A Function is the description of a Crossplane Function package.
+type Function struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec FunctionSpec `json:"spec"`
+}

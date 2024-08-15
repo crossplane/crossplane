@@ -19,6 +19,7 @@ package v1
 var (
 	_ Pkg = &Configuration{}
 	_ Pkg = &Provider{}
+	_ Pkg = &Function{}
 )
 
 // Pkg is a description of a Crossplane package.
@@ -48,4 +49,14 @@ func (p *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
 // GetDependencies gets the Provider package's dependencies.
 func (p *Provider) GetDependencies() []Dependency {
 	return p.Spec.MetaSpec.DependsOn
+}
+
+// GetCrossplaneConstraints gets the Function package's Crossplane version constraints.
+func (f *Function) GetCrossplaneConstraints() *CrossplaneConstraints {
+	return f.Spec.MetaSpec.Crossplane
+}
+
+// GetDependencies gets the Function package's dependencies.
+func (f *Function) GetDependencies() []Dependency {
+	return f.Spec.DependsOn
 }
