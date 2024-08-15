@@ -80,13 +80,14 @@ Each entry in the change log will contain the following data:
 |-------------------| ------- |
 | Timestamp | ISO 8601 format, e.g. `2023-04-01T12:34:56Z` |
 | Provider name | `xpkg.upbound.io/upbound/provider-aws-ec2:v1.8.0` |
-| Type (GVK) | `apiVersion: ec2.aws.upbound.io/v1beta2, kind: Instance` |
+| API Version | `ec2.aws.upbound.io/v1beta2` |
+| Kind | `Instance` |
 | Name | `dev-instance-bt66d` |
 | External Name | `vpc-4fa03d9fb92dfec50` |
 | Operation Type | `create\|update\|delete` |
 | Desired/observed state of resource before operation | `{full JSON dump of resource}` which includes desired `spec.forProvider` and observed `status.AtProvider` |
 | Result of operation | `success` or error object |
-| (optional) Additional information that Providers can set as they choose | `{JSON object of arbitrary data}` |
+| (optional) Additional information that Providers can set as they choose | `map[string]string` of arbitrary key value pairs |
 
 An additional information field is available in each change log entry for
 Providers to store any provider specific data they choose. Providers are not
