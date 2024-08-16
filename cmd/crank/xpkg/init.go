@@ -84,14 +84,14 @@ script without prompting.
 Examples:
 
   # Initialize a new Go Composition Function named function-example.
-  crossplane beta xpkg init function-example function-template-go
-
+  crossplane xpkg init function-example function-template-go
+  
   # Initialize a new Provider named provider-example from a custom template.
-  crossplane beta xpkg init provider-example https://github.com/crossplane/provider-template-custom
+  crossplane xpkg init provider-example https://github.com/crossplane/provider-template-custom
 
   # Initialize a new Go Composition Function named function-example and run
   # its init.sh script (if it exists) without prompting the user or displaying its contents.
-  crossplane beta xpkg init function-example function-template-go --run-init-script
+  crossplane xpkg init function-example function-template-go --run-init-script
 `
 
 	b := strings.Builder{}

@@ -21,3 +21,6 @@ func (p *Provider) Hub() {}
 
 // Hub marks this type as the conversion hub.
 func (c *Configuration) Hub() {}
+
+// Hub marks this type as the conversion hub.
+func (f *Function) Hub() {}

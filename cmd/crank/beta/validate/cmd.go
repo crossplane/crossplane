@@ -47,7 +47,7 @@ type Cmd struct {
 func (c *Cmd) Help() string {
 	return `
 This command validates the provided Crossplane resources against the schemas of the provided extensions like XRDs, 
-CRDs, providers, and configurations. The output of the "crossplane beta render" command can be 
+CRDs, providers, and configurations. The output of the "crossplane render" command can be 
 piped to this validate command in order to rapidly validate on the outputs of the composition development experience.
 
 If providers or configurations are provided as extensions, they will be downloaded and loaded as CRDs before performing
@@ -67,7 +67,7 @@ Examples:
   crossplane beta validate extensionsDir/ resourceDir/ --skip-success-results
  
   # Validate the output of the render command against the extensions in the extensionsDir folder
-  crossplane beta render xr.yaml composition.yaml func.yaml --include-full-xr | crossplane beta validate extensionsDir/ -
+  crossplane render xr.yaml composition.yaml func.yaml --include-full-xr | crossplane beta validate extensionsDir/ -
 
   # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder using provided
   # cache directory and clean the cache directory before downloading schemas

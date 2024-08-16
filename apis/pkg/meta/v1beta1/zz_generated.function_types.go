@@ -14,10 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Generated from pkg/meta/v1/function_types.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+
 package v1beta1
 
 import (
-	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ v1.Pkg = &Function{}
+// FunctionSpec specifies the configuration of a Function.
+type FunctionSpec struct {
+	MetaSpec `json:",inline"`
+
+	// Image is the packaged Function image.
+	Image *string `json:"image,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// A Function is the description of a Crossplane Function package.
+type Function struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec FunctionSpec `json:"spec"`
+}

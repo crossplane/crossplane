@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/cmd/crank/beta"
+	"github.com/crossplane/crossplane/cmd/crank/render"
 	"github.com/crossplane/crossplane/cmd/crank/version"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
 )
@@ -46,7 +47,8 @@ type cli struct {
 	// order they're specified here. Keep them in alphabetical order.
 
 	// Subcommands.
-	XPKG xpkg.Cmd `cmd:"" help:"Manage Crossplane packages."`
+	XPKG   xpkg.Cmd   `cmd:"" help:"Manage Crossplane packages."`
+	Render render.Cmd `cmd:"" help:"Render a composite resource (XR)."`
 
 	// The alpha and beta subcommands are intentionally in a separate block. We
 	// want them to appear after all other subcommands.

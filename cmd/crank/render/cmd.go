@@ -96,18 +96,18 @@ to the Docker daemon.
 Examples:
 
   # Simulate creating a new XR.
-  crossplane beta render xr.yaml composition.yaml functions.yaml
+  crossplane render xr.yaml composition.yaml functions.yaml
 
   # Simulate updating an XR that already exists.
-  crossplane beta render xr.yaml composition.yaml functions.yaml \
+  crossplane render xr.yaml composition.yaml functions.yaml \
     --observed-resources=existing-observed-resources.yaml
 
   # Pass context values to the Function pipeline.
-  crossplane beta render xr.yaml composition.yaml functions.yaml \
+  crossplane render xr.yaml composition.yaml functions.yaml \
     --context-values=apiextensions.crossplane.io/environment='{"key": "value"}'
 
   # Pass extra resources Functions in the pipeline can request.
-  crossplane beta render xr.yaml composition.yaml functions.yaml \
+  crossplane render xr.yaml composition.yaml functions.yaml \
 	--extra-resources=extra-resources.yaml
 `
 }

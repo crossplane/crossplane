@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -69,20 +70,21 @@ func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, er
 // a directory of manifests instead of a single stream.
 
 // LoadFunctions from a stream of YAML manifests.
-func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1beta1.Function, error) {
+func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1.Function, error) {
 	stream, err := LoadYAMLStream(filesys, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from file")
 	}
 
-	functions := make([]pkgv1beta1.Function, 0, len(stream))
+	// TODO(negz): This needs to support v1beta1 functions, too.
+	functions := make([]pkgv1.Function, 0, len(stream))
 	for _, y := range stream {
-		f := &pkgv1beta1.Function{}
+		f := &pkgv1.Function{}
 		if err := yaml.Unmarshal(y, f); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML Function manifest")
 		}
 		switch gvk := f.GroupVersionKind(); gvk {
-		case pkgv1beta1.FunctionGroupVersionKind:
+		case pkgv1.FunctionGroupVersionKind, pkgv1beta1.FunctionGroupVersionKind:
 			functions = append(functions, *f)
 		default:
 			return nil, errors.Errorf("not a function: %s/%s", gvk.Kind, f.GetName())

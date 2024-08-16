@@ -32,8 +32,8 @@ import (
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -95,7 +95,7 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 	}
 
 	// the root is a package type, get the lock file now
-	lock := &v1beta1.Lock{}
+	lock := &pkgv1beta1.Lock{}
 	if err := kc.client.Get(ctx, types.NamespacedName{Name: "lock"}, lock); err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resourc
 	}
 	// We try loading both as currently both are supported and if both are present they are merged.
 	controllerConfigRef := pkgv1.ControllerConfigReference{}
-	apiVersion, kind := v1alpha1.ControllerConfigGroupVersionKind.ToAPIVersionAndKind()
+	apiVersion, kind := pkgv1alpha1.ControllerConfigGroupVersionKind.ToAPIVersionAndKind()
 	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.controllerConfigRef", &runtimeConfigRef); err == nil {
 		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
 			APIVersion: apiVersion,
@@ -199,8 +199,8 @@ func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]
 		revisions.SetGroupVersionKind(pkgv1.ProviderRevisionGroupVersionKind)
 	case pkgv1.ConfigurationGroupVersionKind.GroupKind():
 		revisions.SetGroupVersionKind(pkgv1.ConfigurationRevisionGroupVersionKind)
-	case v1beta1.FunctionGroupVersionKind.GroupKind():
-		revisions.SetGroupVersionKind(v1beta1.FunctionRevisionGroupVersionKind)
+	case pkgv1.FunctionGroupVersionKind.GroupKind():
+		revisions.SetGroupVersionKind(pkgv1.FunctionRevisionGroupVersionKind)
 	default:
 		// If we didn't match any of the know types, we try to guess
 		revisions.SetGroupVersionKind(gvk.GroupVersion().WithKind(gvk.Kind + "RevisionList"))
@@ -221,14 +221,14 @@ func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]
 }
 
 // getPackageDetails returns the package details for the given package type.
-func getPackageDetails(t v1beta1.PackageType) (string, string, pkgv1.PackageRevision, error) {
+func getPackageDetails(t pkgv1beta1.PackageType) (string, string, pkgv1.PackageRevision, error) {
 	switch t {
-	case v1beta1.ProviderPackageType:
+	case pkgv1beta1.ProviderPackageType:
 		return pkgv1.ProviderKind, pkgv1.ProviderGroupVersionKind.GroupVersion().String(), &pkgv1.ProviderRevision{}, nil
-	case v1beta1.ConfigurationPackageType:
+	case pkgv1beta1.ConfigurationPackageType:
 		return pkgv1.ConfigurationKind, pkgv1.ConfigurationGroupVersionKind.GroupVersion().String(), &pkgv1.ConfigurationRevision{}, nil
-	case v1beta1.FunctionPackageType:
-		return v1beta1.FunctionKind, v1beta1.FunctionGroupVersionKind.GroupVersion().String(), &v1beta1.FunctionRevision{}, nil
+	case pkgv1beta1.FunctionPackageType:
+		return pkgv1.FunctionKind, pkgv1.FunctionGroupVersionKind.GroupVersion().String(), &pkgv1.FunctionRevision{}, nil
 	default:
 		return "", "", nil, errors.Errorf("unknown package dependency type %s", t)
 	}
@@ -236,7 +236,7 @@ func getPackageDetails(t v1beta1.PackageType) (string, string, pkgv1.PackageRevi
 
 // getDependencyRef returns the dependency reference for the given package,
 // based on the lock file.
-func (kc *Client) getDependencyRef(ctx context.Context, lock *v1beta1.Lock, pkgType v1beta1.PackageType, pkg string) (*v1.ObjectReference, error) {
+func (kc *Client) getDependencyRef(ctx context.Context, lock *pkgv1beta1.Lock, pkgType pkgv1beta1.PackageType, pkg string) (*v1.ObjectReference, error) {
 	// if we don't find a package to match the current dependency, which
 	// can happen during initial installation when dependencies are
 	// being discovered and fetched. We'd still like to show something
@@ -285,7 +285,7 @@ func (kc *Client) getDependencyRef(ctx context.Context, lock *v1beta1.Lock, pkgT
 }
 
 // getPackageDeps returns the dependencies for the given package resource.
-func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, lock *v1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
+func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, lock *pkgv1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
 	cr, _ := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
 	if cr == "" {
 		// we don't have a current package revision, so just return empty deps
@@ -293,7 +293,7 @@ func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, l
 	}
 
 	// find the lock file entry for the current revision
-	var lp *v1beta1.LockPackage
+	var lp *pkgv1beta1.LockPackage
 	for i := range lock.Packages {
 		if lock.Packages[i].Name == cr {
 			lp = &lock.Packages[i]

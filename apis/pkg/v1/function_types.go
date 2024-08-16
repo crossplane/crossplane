@@ -14,20 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
-	// TODO(negz): Ideally our v1beta1 package wouldn't import types from v1, as
-	// this strongly couples the types. This would make life difficult if we
-	// wanted to evolve this package in a different direction from the current
-	// v1 implementation. Unfortunately the package manager implementation
-	// requires any type that is reconciled as a package (or revision) to
-	// satisfy interfaces that involve returning v1 types.
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -56,15 +48,15 @@ type Function struct {
 
 // FunctionSpec specifies the configuration of a Function.
 type FunctionSpec struct {
-	v1.PackageSpec `json:",inline"`
+	PackageSpec `json:",inline"`
 
-	v1.PackageRuntimeSpec `json:",inline"`
+	PackageRuntimeSpec `json:",inline"`
 }
 
 // FunctionStatus represents the observed state of a Function.
 type FunctionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
-	v1.PackageStatus       `json:",inline"`
+	PackageStatus          `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -78,8 +70,8 @@ type FunctionList struct {
 
 // FunctionRevisionSpec specifies configuration for a FunctionRevision.
 type FunctionRevisionSpec struct {
-	v1.PackageRevisionSpec        `json:",inline"`
-	v1.PackageRevisionRuntimeSpec `json:",inline"`
+	PackageRevisionSpec        `json:",inline"`
+	PackageRevisionRuntimeSpec `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -111,7 +103,7 @@ type FunctionRevision struct {
 
 // FunctionRevisionStatus represents the observed state of a FunctionRevision.
 type FunctionRevisionStatus struct {
-	v1.PackageRevisionStatus `json:",inline"`
+	PackageRevisionStatus `json:",inline"`
 
 	// Endpoint is the gRPC endpoint where Crossplane will send
 	// RunFunctionRequests.

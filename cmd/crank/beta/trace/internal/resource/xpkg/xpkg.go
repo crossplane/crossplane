@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -54,7 +54,7 @@ const (
 func IsPackageType(gk schema.GroupKind) bool {
 	return gk == pkgv1.ProviderGroupVersionKind.GroupKind() ||
 		gk == pkgv1.ConfigurationGroupVersionKind.GroupKind() ||
-		gk == pkgv1beta1.FunctionGroupVersionKind.GroupKind()
+		gk == pkgv1.FunctionGroupVersionKind.GroupKind()
 }
 
 // IsPackageRevisionType returns true if the GroupKind is a Crossplane package
@@ -62,12 +62,12 @@ func IsPackageType(gk schema.GroupKind) bool {
 func IsPackageRevisionType(gk schema.GroupKind) bool {
 	return gk == pkgv1.ConfigurationRevisionGroupVersionKind.GroupKind() ||
 		gk == pkgv1.ProviderRevisionGroupVersionKind.GroupKind() ||
-		gk == pkgv1beta1.FunctionRevisionGroupVersionKind.GroupKind()
+		gk == pkgv1.FunctionRevisionGroupVersionKind.GroupKind()
 }
 
 // IsPackageRuntimeConfigType returns true if the GroupKind is a Crossplane runtime
 // config type.
 func IsPackageRuntimeConfigType(gk schema.GroupKind) bool {
 	return gk == pkgv1beta1.DeploymentRuntimeConfigGroupVersionKind.GroupKind() ||
-		gk == v1alpha1.ControllerConfigGroupVersionKind.GroupKind()
+		gk == pkgv1alpha1.ControllerConfigGroupVersionKind.GroupKind()
 }

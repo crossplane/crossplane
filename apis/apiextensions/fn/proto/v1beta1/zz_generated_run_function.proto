@@ -19,6 +19,8 @@ syntax = "proto3";
 import "google/protobuf/struct.proto";
 import "google/protobuf/duration.proto";
 
+// Generated from apiextensions/fn/proto/v1/run_function.proto by ../hack/duplicate_proto_type.sh. DO NOT EDIT.
+
 package apiextensions.fn.proto.v1beta1;
 
 option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1";

@@ -22,7 +22,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 // AnnotationKeyRuntime can be added to a Function to control what runtime is
@@ -63,7 +63,7 @@ type RuntimeContext struct {
 }
 
 // GetRuntime for the supplied Function, per its annotations.
-func GetRuntime(fn pkgv1beta1.Function, log logging.Logger) (Runtime, error) {
+func GetRuntime(fn pkgv1.Function, log logging.Logger) (Runtime, error) {
 	switch r := RuntimeType(fn.GetAnnotations()[AnnotationKeyRuntime]); r {
 	case AnnotationValueRuntimeDocker, "":
 		return GetRuntimeDocker(fn, log)

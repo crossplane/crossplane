@@ -21,9 +21,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 func TestIsPackageType(t *testing.T) {
@@ -42,7 +42,7 @@ func TestIsPackageType(t *testing.T) {
 		"V1ProviderOK": {
 			reason: "Should return true for a v1 Provider",
 			args: args{
-				gk: v1.ProviderGroupVersionKind.GroupKind(),
+				gk: pkgv1.ProviderGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -51,7 +51,7 @@ func TestIsPackageType(t *testing.T) {
 		"V1ConfigurationOK": {
 			reason: "Should return true for a v1 Configuration",
 			args: args{
-				gk: v1.ConfigurationGroupVersionKind.GroupKind(),
+				gk: pkgv1.ConfigurationGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -60,7 +60,7 @@ func TestIsPackageType(t *testing.T) {
 		"V1beta1FunctionOK": {
 			reason: "Should return true for a v1beta1 Function",
 			args: args{
-				gk: v1beta1.FunctionGroupVersionKind.GroupKind(),
+				gk: pkgv1.FunctionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -69,7 +69,7 @@ func TestIsPackageType(t *testing.T) {
 		"V1ProviderRevisionKO": {
 			reason: "Should return false for a v1 ProviderRevision",
 			args: args{
-				gk: v1.ProviderRevisionGroupVersionKind.GroupKind(),
+				gk: pkgv1.ProviderRevisionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: false,
@@ -78,7 +78,7 @@ func TestIsPackageType(t *testing.T) {
 		"V1ConfigurationRevisionKO": {
 			reason: "Should return false for a v1 ConfigurationRevision",
 			args: args{
-				gk: v1.ConfigurationRevisionGroupVersionKind.GroupKind(),
+				gk: pkgv1.ConfigurationRevisionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: false,
@@ -87,7 +87,7 @@ func TestIsPackageType(t *testing.T) {
 		"V1beta1FunctionRevisionKO": {
 			reason: "Should return false for a v1beta1 FunctionRevision",
 			args: args{
-				gk: v1beta1.FunctionRevisionGroupVersionKind.GroupKind(),
+				gk: pkgv1.FunctionRevisionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: false,
@@ -132,7 +132,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 		"V1ProviderKO": {
 			reason: "Should return false for a v1 Provider",
 			args: args{
-				gk: v1.ProviderGroupVersionKind.GroupKind(),
+				gk: pkgv1.ProviderGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: false,
@@ -141,7 +141,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 		"V1ConfigurationKO": {
 			reason: "Should return false for a v1 Configuration",
 			args: args{
-				gk: v1.ConfigurationGroupVersionKind.GroupKind(),
+				gk: pkgv1.ConfigurationGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: false,
@@ -150,7 +150,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 		"V1beta1FunctionKO": {
 			reason: "Should return false for a v1beta1 Function",
 			args: args{
-				gk: v1beta1.FunctionGroupVersionKind.GroupKind(),
+				gk: pkgv1.FunctionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: false,
@@ -159,7 +159,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 		"V1ProviderRevisionOK": {
 			reason: "Should return true for a v1 ProviderRevision",
 			args: args{
-				gk: v1.ProviderRevisionGroupVersionKind.GroupKind(),
+				gk: pkgv1.ProviderRevisionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -168,7 +168,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 		"V1ConfigurationRevisionOK": {
 			reason: "Should return true for a v1 ConfigurationRevision",
 			args: args{
-				gk: v1.ConfigurationRevisionGroupVersionKind.GroupKind(),
+				gk: pkgv1.ConfigurationRevisionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -177,7 +177,7 @@ func TestIsPackageRevisionType(t *testing.T) {
 		"V1beta1FunctionRevisionOK": {
 			reason: "Should return true for a v1beta1 FunctionRevision",
 			args: args{
-				gk: v1beta1.FunctionRevisionGroupVersionKind.GroupKind(),
+				gk: pkgv1.FunctionRevisionGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -221,7 +221,7 @@ func TestIsPackageRuntimeConfigType(t *testing.T) {
 		"V1Alpha1ControllerConfigOK": {
 			reason: "Should return true for a v1alpha1 ControllerConfig",
 			args: args{
-				gk: v1alpha1.ControllerConfigGroupVersionKind.GroupKind(),
+				gk: pkgv1alpha1.ControllerConfigGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,
@@ -230,7 +230,7 @@ func TestIsPackageRuntimeConfigType(t *testing.T) {
 		"V1Beta1DeploymentRuntimeConfigOK": {
 			reason: "Should return true for a v1beta1 DeploymentRuntimeConfig",
 			args: args{
-				gk: v1beta1.DeploymentRuntimeConfigGroupVersionKind.GroupKind(),
+				gk: pkgv1beta1.DeploymentRuntimeConfigGroupVersionKind.GroupKind(),
 			},
 			want: want{
 				ok: true,

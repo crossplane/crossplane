@@ -161,7 +161,7 @@ func TestGetDependencyRef(t *testing.T) {
 			want: want{
 				err: nil,
 				ref: &v1.ObjectReference{
-					APIVersion: "pkg.crossplane.io/v1beta1",
+					APIVersion: "pkg.crossplane.io/v1",
 					Kind:       "Function",
 					Name:       "function-1",
 				},

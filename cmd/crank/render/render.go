@@ -39,10 +39,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // Wait for the server to be ready before sending RPCs. Notably this gives
@@ -50,7 +51,7 @@ import (
 // https://grpc.io/docs/guides/wait-for-ready/
 const waitForReady = `{
 	"methodConfig":[{
-		"name": [{"service": "apiextensions.fn.proto.v1beta1.FunctionRunnerService"}],
+		"name": [{}],
 		"waitForReady": true
 	}]
 }`
@@ -67,7 +68,7 @@ const (
 type Inputs struct {
 	CompositeResource *ucomposite.Unstructured
 	Composition       *apiextensionsv1.Composition
-	Functions         []pkgv1beta1.Function
+	Functions         []pkgv1.Function
 	ObservedResources []composed.Unstructured
 	ExtraResources    []unstructured.Unstructured
 	Context           map[string][]byte
@@ -99,7 +100,7 @@ type RuntimeFunctionRunner struct {
 // NewRuntimeFunctionRunner returns a FunctionRunner that runs functions
 // locally, using the runtime configured in their annotations (e.g. Docker). It
 // starts all the functions and creates gRPC connections when called.
-func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkgv1beta1.Function) (*RuntimeFunctionRunner, error) {
+func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkgv1.Function) (*RuntimeFunctionRunner, error) {
 	contexts := map[string]RuntimeContext{}
 	conns := map[string]*grpc.ClientConn{}
 
@@ -127,7 +128,7 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 }
 
 // RunFunction runs the named function.
-func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
+func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -136,7 +137,7 @@ func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, re
 		return nil, errors.Errorf("unknown Function %q - does it exist in your Functions file?", name)
 	}
 
-	return fnv1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
+	return xfn.NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 }
 
 // Stop all of the runner's runtimes, and close its gRPC connections.
@@ -191,7 +192,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	}
 
 	// The Function pipeline starts with empty desired state.
-	d := &fnv1beta1.State{}
+	d := &fnv1.State{}
 
 	results := make([]unstructured.Unstructured, 0)
 
@@ -216,7 +217,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	// results.
 	for _, fn := range in.Composition.Spec.Pipeline {
 		// The request to send to the function, will be updated at each iteration if needed.
-		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
+		req := &fnv1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -241,7 +242,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
 			switch rs.GetSeverity() { //nolint:exhaustive // We intentionally have a broad default case.
-			case fnv1beta1.Severity_SEVERITY_FATAL:
+			case fnv1.Severity_SEVERITY_FATAL:
 				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
@@ -258,7 +259,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	desired := make([]composed.Unstructured, 0, len(d.GetResources()))
 	var unready []string
 	for name, dr := range d.GetResources() {
-		if dr.GetReady() != fnv1beta1.Ready_READY_TRUE {
+		if dr.GetReady() != fnv1.Ready_READY_TRUE {
 			unready = append(unready, name)
 		}
 
@@ -348,11 +349,11 @@ type FilteringFetcher struct {
 
 // Fetch returns all of the underlying extra resources that match the supplied
 // resource selector.
-func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1beta1.ResourceSelector) (*fnv1beta1.Resources, error) {
+func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 	if len(f.extra) == 0 || rs == nil {
 		return nil, nil
 	}
-	out := &fnv1beta1.Resources{}
+	out := &fnv1.Resources{}
 	for _, er := range f.extra {
 		if rs.GetApiVersion() != er.GetAPIVersion() {
 			continue
@@ -365,7 +366,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1beta1.ResourceSelect
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 			}
-			out.Items = []*fnv1beta1.Resource{{Resource: o}}
+			out.Items = []*fnv1.Resource{{Resource: o}}
 			return out, nil
 		}
 		if rs.GetMatchLabels() != nil {
@@ -374,7 +375,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1beta1.ResourceSelect
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 				}
-				out.Items = append(out.GetItems(), &fnv1beta1.Resource{Resource: o})
+				out.Items = append(out.GetItems(), &fnv1.Resource{Resource: o})
 			}
 		}
 	}

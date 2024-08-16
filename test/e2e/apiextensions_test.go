@@ -221,10 +221,6 @@ func TestCompositionRealtimeRevisionSelection(t *testing.T) {
 	)
 }
 
-// TODO(negz): How do we want to handle beta features? They're on by default.
-// Maybe in this case add a test suite that tests P&T when Functions are
-// disabled?
-
 func TestCompositionFunctions(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/functions"
 	environment.Test(t,

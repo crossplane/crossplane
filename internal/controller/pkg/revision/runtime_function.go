@@ -31,9 +31,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -91,7 +90,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	}
 
 	// N.B.: We expect the revision to be applied by the caller
-	fRev, ok := pr.(*v1beta1.FunctionRevision)
+	fRev, ok := pr.(*v1.FunctionRevision)
 	if !ok {
 		return errors.Errorf("cannot apply function package hooks to %T", pr)
 	}
@@ -113,8 +112,8 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 
 // Post performs operations meant to happen after establishing objects.
 func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
-	po, _ := xpkg.TryConvert(pkg, &pkgmetav1beta1.Function{})
-	functionMeta, ok := po.(*pkgmetav1beta1.Function)
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Function{})
+	functionMeta, ok := po.(*pkgmetav1.Function)
 	if !ok {
 		return errors.New(errNotFunction)
 	}
@@ -206,7 +205,7 @@ func functionServiceOverrides() []ServiceOverride {
 // getFunctionImage determines a complete function image, taking into account a
 // default registry. If the function meta specifies an image, we have a
 // preference for that image over what is specified in the package revision.
-func getFunctionImage(fm *pkgmetav1beta1.Function, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
+func getFunctionImage(fm *pkgmetav1.Function, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
 	image := pr.GetSource()
 	if fm.Spec.Image != nil {
 		image = *fm.Spec.Image

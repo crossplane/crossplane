@@ -160,7 +160,7 @@ func TestLoadFunctions(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
 
 	type want struct {
-		fns []pkgv1beta1.Function
+		fns []pkgv1.Function
 		err error
 	}
 	cases := map[string]struct {
@@ -170,11 +170,11 @@ func TestLoadFunctions(t *testing.T) {
 		"Success": {
 			file: "testdata/functions.yaml",
 			want: want{
-				fns: []pkgv1beta1.Function{
+				fns: []pkgv1.Function{
 					{
 						TypeMeta: metav1.TypeMeta{
-							Kind:       pkgv1beta1.FunctionKind,
-							APIVersion: pkgv1beta1.SchemeGroupVersion.String(),
+							Kind:       pkgv1.FunctionKind,
+							APIVersion: pkgv1.SchemeGroupVersion.String(),
 						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "function-auto-ready",
@@ -183,7 +183,7 @@ func TestLoadFunctions(t *testing.T) {
 								AnnotationKeyRuntimeDockerCleanup: string(AnnotationValueRuntimeDockerCleanupOrphan),
 							},
 						},
-						Spec: pkgv1beta1.FunctionSpec{
+						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
 								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
@@ -201,7 +201,7 @@ func TestLoadFunctions(t *testing.T) {
 								AnnotationKeyRuntimeDevelopmentTarget: "localhost:9444",
 							},
 						},
-						Spec: pkgv1beta1.FunctionSpec{
+						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
 								Package: "xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1",
 							},

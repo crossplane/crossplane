@@ -43,7 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 )
@@ -122,14 +122,14 @@ type xr struct {
 // A FunctionRunner runs a single Composition Function.
 type FunctionRunner interface {
 	// RunFunction runs the named Composition Function.
-	RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error)
+	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
 // A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error)
+type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 
 // RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	return fn(ctx, name, req)
 }
 
@@ -148,14 +148,14 @@ func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Contex
 
 // A ExtraResourcesFetcher gets extra resources matching a selector.
 type ExtraResourcesFetcher interface {
-	Fetch(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error)
+	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
 }
 
 // An ExtraResourcesFetcherFn gets extra resources matching the selector.
-type ExtraResourcesFetcherFn func(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error)
+type ExtraResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
 
 // Fetch gets extra resources matching the selector.
-func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *v1beta1.ResourceSelector) (*v1beta1.Resources, error) {
+func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
 	return fn(ctx, rs)
 }
 
@@ -274,7 +274,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	// The Function pipeline starts with empty desired state.
-	d := &v1beta1.State{}
+	d := &fnv1.State{}
 
 	events := []TargetedEvent{}
 	conditions := []TargetedCondition{}
@@ -295,7 +295,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
 	for _, fn := range req.Revision.Spec.Pipeline {
-		req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
+		req := &fnv1.RunFunctionRequest{Observed: o, Desired: d, Context: fctx}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -305,7 +305,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			req.Input = in
 		}
 
-		req.Credentials = map[string]*v1beta1.Credentials{}
+		req.Credentials = map[string]*fnv1.Credentials{}
 		for _, cs := range fn.Credentials {
 			// For now we only support loading credentials from secrets.
 			if cs.Source != v1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
@@ -316,9 +316,9 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			if err := c.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
 			}
-			req.Credentials[cs.Name] = &v1beta1.Credentials{
-				Source: &v1beta1.Credentials_CredentialData{
-					CredentialData: &v1beta1.CredentialData{
+			req.Credentials[cs.Name] = &fnv1.Credentials{
+				Source: &fnv1.Credentials_CredentialData{
+					CredentialData: &fnv1.CredentialData{
 						Data: s.Data,
 					},
 				},
@@ -342,11 +342,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		for _, c := range rsp.GetConditions() {
 			var status corev1.ConditionStatus
 			switch c.GetStatus() {
-			case v1beta1.Status_STATUS_CONDITION_TRUE:
+			case fnv1.Status_STATUS_CONDITION_TRUE:
 				status = corev1.ConditionTrue
-			case v1beta1.Status_STATUS_CONDITION_FALSE:
+			case fnv1.Status_STATUS_CONDITION_FALSE:
 				status = corev1.ConditionFalse
-			case v1beta1.Status_STATUS_CONDITION_UNKNOWN, v1beta1.Status_STATUS_CONDITION_UNSPECIFIED:
+			case fnv1.Status_STATUS_CONDITION_UNKNOWN, fnv1.Status_STATUS_CONDITION_UNSPECIFIED:
 				status = corev1.ConditionUnknown
 			}
 
@@ -373,15 +373,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			e := TargetedEvent{Target: convertTarget(rs.GetTarget())}
 
 			switch rs.GetSeverity() {
-			case v1beta1.Severity_SEVERITY_FATAL:
+			case fnv1.Severity_SEVERITY_FATAL:
 				return CompositionResult{Events: events, Conditions: conditions}, errors.Errorf(errFmtFatalResult, fn.Step, rs.GetMessage())
-			case v1beta1.Severity_SEVERITY_WARNING:
+			case fnv1.Severity_SEVERITY_WARNING:
 				e.Event = event.Warning(reason, errors.New(rs.GetMessage()))
 				e.Detail = fmt.Sprintf("Pipeline step %q", fn.Step)
-			case v1beta1.Severity_SEVERITY_NORMAL:
+			case fnv1.Severity_SEVERITY_NORMAL:
 				e.Event = event.Normal(reason, rs.GetMessage())
 				e.Detail = fmt.Sprintf("Pipeline step %q", fn.Step)
-			case v1beta1.Severity_SEVERITY_UNSPECIFIED:
+			case fnv1.Severity_SEVERITY_UNSPECIFIED:
 				// We could hit this case if a Function was built against a newer
 				// protobuf than this build of Crossplane, and the new protobuf
 				// introduced a severity that we don't know about.
@@ -435,7 +435,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		desired[ResourceName(name)] = ComposedResourceState{
 			Resource:          cd,
 			ConnectionDetails: dr.GetConnectionDetails(),
-			Ready:             dr.GetReady() == v1beta1.Ready_READY_TRUE,
+			Ready:             dr.GetReady() == fnv1.Ready_READY_TRUE,
 		}
 	}
 
@@ -650,25 +650,25 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
-func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*v1beta1.State, error) {
+func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
 	r, err := AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
 	}
 
-	oxr := &v1beta1.Resource{Resource: r, ConnectionDetails: xc}
+	oxr := &fnv1.Resource{Resource: r, ConnectionDetails: xc}
 
-	ocds := make(map[string]*v1beta1.Resource)
+	ocds := make(map[string]*fnv1.Resource)
 	for name, or := range rs {
 		r, err := AsStruct(or.Resource)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtCDAsStruct, name)
 		}
 
-		ocds[string(name)] = &v1beta1.Resource{Resource: r, ConnectionDetails: or.ConnectionDetails}
+		ocds[string(name)] = &fnv1.Resource{Resource: r, ConnectionDetails: or.ConnectionDetails}
 	}
 
-	return &v1beta1.State{Composite: oxr, Resources: ocds}, nil
+	return &fnv1.State{Composite: oxr, Resources: ocds}, nil
 }
 
 // AsStruct converts the supplied object to a protocol buffer Struct well-known
@@ -864,8 +864,8 @@ func (u *PatchingManagedFieldsUpgrader) Upgrade(ctx context.Context, obj client.
 	}
 }
 
-func convertTarget(t v1beta1.Target) CompositionTarget {
-	if t == v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM {
+func convertTarget(t fnv1.Target) CompositionTarget {
+	if t == fnv1.Target_TARGET_COMPOSITE_AND_CLAIM {
 		return CompositionTargetCompositeAndClaim
 	}
 	return CompositionTargetComposite

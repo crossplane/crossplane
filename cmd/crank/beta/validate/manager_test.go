@@ -187,7 +187,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			// config-meta
 			// └─►function-dep-1
 			// config-pkg
-			//└─►provider-dep-1
+			// └─►provider-dep-1
 			reason: "All dependencies should be successfully added from both Configuration.meta and Configuration.pkg",
 			args: args{
 				extensions: []*unstructured.Unstructured{

@@ -332,7 +332,7 @@ func (b *RuntimeManifestBuilder) packageName() string {
 }
 
 func (b *RuntimeManifestBuilder) packageType() string {
-	if _, ok := b.revision.(*v1beta1.FunctionRevision); ok {
+	if _, ok := b.revision.(*v1.FunctionRevision); ok {
 		return "function"
 	}
 	return "provider"

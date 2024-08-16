@@ -45,7 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -196,7 +196,7 @@ func TestFunctionCompose(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return nil, errBoom
 				}),
 				o: []FunctionComposerOption{
@@ -230,52 +230,52 @@ func TestFunctionCompose(t *testing.T) {
 		"FatalFunctionResultError": {
 			reason: "We should return any fatal function results as an error. Any conditions returned by the function should be passed up. Any results returned by the function prior to the fatal result should be passed up.",
 			params: params{
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					return &v1beta1.RunFunctionResponse{
-						Results: []*v1beta1.Result{
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					return &fnv1.RunFunctionResponse{
+						Results: []*fnv1.Result{
 							// This result should be passed up as it was sent before the fatal
 							// result. The reason should be defaulted. The target should be
 							// defaulted.
 							{
-								Severity: v1beta1.Severity_SEVERITY_NORMAL,
+								Severity: fnv1.Severity_SEVERITY_NORMAL,
 								Message:  "A result before the fatal result with the default Reason.",
 							},
 							// This result should be passed up as it was sent before the fatal
 							// result. The reason should be kept. The target should be kept.
 							{
-								Severity: v1beta1.Severity_SEVERITY_NORMAL,
+								Severity: fnv1.Severity_SEVERITY_NORMAL,
 								Reason:   ptr.To("SomeReason"),
 								Message:  "A result before the fatal result with a specific Reason.",
-								Target:   v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+								Target:   fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
 							// The fatal result
 							{
-								Severity: v1beta1.Severity_SEVERITY_FATAL,
+								Severity: fnv1.Severity_SEVERITY_FATAL,
 								Message:  "oh no",
 							},
 							// This result should not be passed up as it was sent after the
 							// fatal result.
 							{
-								Severity: v1beta1.Severity_SEVERITY_NORMAL,
+								Severity: fnv1.Severity_SEVERITY_NORMAL,
 								Message:  "a result after the fatal result",
 							},
 						},
-						Conditions: []*v1beta1.Condition{
+						Conditions: []*fnv1.Condition{
 							// A condition returned by the function with only the minimum
 							// necessary values.
 							{
 								Type:   "DatabaseReady",
-								Status: v1beta1.Status_STATUS_CONDITION_FALSE,
+								Status: fnv1.Status_STATUS_CONDITION_FALSE,
 								Reason: "Creating",
 							},
 							// A condition returned by the function with all optional values
 							// given.
 							{
 								Type:    "DeploymentReady",
-								Status:  v1beta1.Status_STATUS_CONDITION_TRUE,
+								Status:  fnv1.Status_STATUS_CONDITION_TRUE,
 								Reason:  "Available",
 								Message: ptr.To("The deployment is ready."),
-								Target:  v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+								Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
 						},
 					}, nil
@@ -356,9 +356,9 @@ func TestFunctionCompose(t *testing.T) {
 		"RenderComposedResourceMetadataError": {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					d := &v1beta1.State{
-						Resources: map[string]*v1beta1.Resource{
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
 							"cool-resource": {
 								Resource: MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
@@ -367,7 +367,7 @@ func TestFunctionCompose(t *testing.T) {
 							},
 						},
 					}
-					return &v1beta1.RunFunctionResponse{Desired: d}, nil
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -404,9 +404,9 @@ func TestFunctionCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					d := &v1beta1.State{
-						Resources: map[string]*v1beta1.Resource{
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
 							"cool-resource": {
 								Resource: MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
@@ -417,7 +417,7 @@ func TestFunctionCompose(t *testing.T) {
 							},
 						},
 					}
-					return &v1beta1.RunFunctionResponse{Desired: d}, nil
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -453,8 +453,8 @@ func TestFunctionCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockPatch: test.NewMockPatchFn(nil),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					return &v1beta1.RunFunctionResponse{}, nil
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					return &fnv1.RunFunctionResponse{}, nil
 				}),
 				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -501,8 +501,8 @@ func TestFunctionCompose(t *testing.T) {
 						return nil
 					}),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					return &v1beta1.RunFunctionResponse{}, nil
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					return &fnv1.RunFunctionResponse{}, nil
 				}),
 				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -542,9 +542,9 @@ func TestFunctionCompose(t *testing.T) {
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					d := &v1beta1.State{
-						Composite: &v1beta1.Resource{
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Composite: &fnv1.Resource{
 							Resource: MustStruct(map[string]any{
 								"status": map[string]any{
 									"widgets": 42,
@@ -552,7 +552,7 @@ func TestFunctionCompose(t *testing.T) {
 							}),
 						},
 					}
-					return &v1beta1.RunFunctionResponse{Desired: d}, nil
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -602,9 +602,9 @@ func TestFunctionCompose(t *testing.T) {
 					}),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (rsp *v1beta1.RunFunctionResponse, err error) {
-					d := &v1beta1.State{
-						Resources: map[string]*v1beta1.Resource{
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
 							"uncool-resource": {
 								Resource: MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
@@ -613,7 +613,7 @@ func TestFunctionCompose(t *testing.T) {
 							},
 						},
 					}
-					return &v1beta1.RunFunctionResponse{Desired: d}, nil
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -667,10 +667,10 @@ func TestFunctionCompose(t *testing.T) {
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
-					rsp := &v1beta1.RunFunctionResponse{
-						Desired: &v1beta1.State{
-							Composite: &v1beta1.Resource{
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					rsp := &fnv1.RunFunctionResponse{
+						Desired: &fnv1.State{
+							Composite: &fnv1.Resource{
 								Resource: MustStruct(map[string]any{
 									"status": map[string]any{
 										"widgets": 42,
@@ -678,13 +678,13 @@ func TestFunctionCompose(t *testing.T) {
 								}),
 								ConnectionDetails: map[string][]byte{"from": []byte("function-pipeline")},
 							},
-							Resources: map[string]*v1beta1.Resource{
+							Resources: map[string]*fnv1.Resource{
 								"observed-resource-a": {
 									Resource: MustStruct(map[string]any{
 										"apiVersion": "test.crossplane.io/v1",
 										"kind":       "CoolComposed",
 									}),
-									Ready: v1beta1.Ready_READY_TRUE,
+									Ready: fnv1.Ready_READY_TRUE,
 								},
 								"desired-resource-a": {
 									Resource: MustStruct(map[string]any{
@@ -694,42 +694,42 @@ func TestFunctionCompose(t *testing.T) {
 								},
 							},
 						},
-						Results: []*v1beta1.Result{
+						Results: []*fnv1.Result{
 							{
-								Severity: v1beta1.Severity_SEVERITY_NORMAL,
+								Severity: fnv1.Severity_SEVERITY_NORMAL,
 								Message:  "A normal result",
 							},
 							{
-								Severity: v1beta1.Severity_SEVERITY_WARNING,
+								Severity: fnv1.Severity_SEVERITY_WARNING,
 								Message:  "A warning result",
 							},
 							{
-								Severity: v1beta1.Severity_SEVERITY_UNSPECIFIED,
+								Severity: fnv1.Severity_SEVERITY_UNSPECIFIED,
 								Message:  "A result of unspecified severity",
 							},
 							{
-								Severity: v1beta1.Severity_SEVERITY_NORMAL,
+								Severity: fnv1.Severity_SEVERITY_NORMAL,
 								Reason:   ptr.To("SomeReason"),
 								Message:  "A result with all values explicitly set.",
-								Target:   v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+								Target:   fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
 						},
-						Conditions: []*v1beta1.Condition{
+						Conditions: []*fnv1.Condition{
 							// A condition returned by the function with only the minimum
 							// necessary values.
 							{
 								Type:   "DatabaseReady",
-								Status: v1beta1.Status_STATUS_CONDITION_FALSE,
+								Status: fnv1.Status_STATUS_CONDITION_FALSE,
 								Reason: "Creating",
 							},
 							// A condition returned by the function with all optional values
 							// given.
 							{
 								Type:    "DeploymentReady",
-								Status:  v1beta1.Status_STATUS_CONDITION_TRUE,
+								Status:  fnv1.Status_STATUS_CONDITION_TRUE,
 								Reason:  "Available",
 								Message: ptr.To("The deployment is ready."),
-								Target:  v1beta1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+								Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
 							},
 						},
 					}
@@ -1129,7 +1129,7 @@ func TestAsState(t *testing.T) {
 		rs ComposedResourceStates
 	}
 	type want struct {
-		d   *v1beta1.State
+		d   *fnv1.State
 		err error
 	}
 
@@ -1158,15 +1158,15 @@ func TestAsState(t *testing.T) {
 				},
 			},
 			want: want{
-				d: &v1beta1.State{
-					Composite: &v1beta1.Resource{
+				d: &fnv1.State{
+					Composite: &fnv1.Resource{
 						Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
 							"apiVersion": structpb.NewStringValue("example.org/v1"),
 							"kind":       structpb.NewStringValue("Composite"),
 						}},
 						ConnectionDetails: map[string][]byte{"a": []byte("b")},
 					},
-					Resources: map[string]*v1beta1.Resource{
+					Resources: map[string]*fnv1.Resource{
 						"cool-resource": {
 							Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
 								"apiVersion": structpb.NewStringValue("example.org/v2"),

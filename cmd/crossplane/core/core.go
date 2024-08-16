@@ -114,8 +114,6 @@ type startCommand struct {
 	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableSSAClaims            bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
 
-	EnableCompositionFunctions               bool `default:"true" group:"Beta Features:" help:"Enable support for Composition Functions."`
-	EnableCompositionFunctionsExtraResources bool `default:"true" group:"Beta Features:" help:"Enable support for Composition Functions Extra Resources. Only respected if --enable-composition-functions is set to true."`
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
 
@@ -123,11 +121,16 @@ type startCommand struct {
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
 	// folks who are passing them, but they do nothing. The flags are hidden so
 	// they don't show up in the help output.
-	EnableCompositionRevisions bool `default:"true" hidden:""`
+	EnableCompositionRevisions               bool `default:"true" hidden:""`
+	EnableCompositionFunctions               bool `default:"true" hidden:""`
+	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
 }
 
 // Run core Crossplane controllers.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocognit // Only slightly over.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot get config")
@@ -197,43 +200,37 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if !c.EnableCompositionRevisions {
-		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
+		log.Info("Composition Revisions are GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
+	}
+	if !c.EnableCompositionFunctions {
+		log.Info("Composition Functions are GA and cannot be disabled. The --enable-composition-functions flag will be removed in a future release.")
+	}
+	if !c.EnableCompositionFunctionsExtraResources {
+		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
 	}
 
-	var functionRunner *xfn.PackagedFunctionRunner
-	if c.EnableCompositionFunctions {
-		o.Features.Enable(features.EnableBetaCompositionFunctions)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctions)
-
-		if c.EnableCompositionFunctionsExtraResources {
-			o.Features.Enable(features.EnableBetaCompositionFunctionsExtraResources)
-			log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionFunctionsExtraResources)
-		}
-
-		clienttls, err := certificates.LoadMTLSConfig(
-			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
-			false)
-		if err != nil {
-			return errors.Wrap(err, "cannot load client TLS certificates")
-		}
-
-		m := xfn.NewMetrics()
-		metrics.Registry.MustRegister(m)
-
-		// We want all XR controllers to share the same gRPC clients.
-		functionRunner = xfn.NewPackagedFunctionRunner(mgr.GetClient(),
-			xfn.WithLogger(log),
-			xfn.WithTLSConfig(clienttls),
-			xfn.WithInterceptorCreators(m),
-		)
-
-		// Periodically remove clients for Functions that no longer exist.
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
+	clienttls, err := certificates.LoadMTLSConfig(
+		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
+		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
+		filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
+		false)
+	if err != nil {
+		return errors.Wrap(err, "cannot load client TLS certificates")
 	}
+
+	m := xfn.NewMetrics()
+	metrics.Registry.MustRegister(m)
+
+	// We want all XR controllers to share the same gRPC clients.
+	functionRunner := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+		xfn.WithLogger(log),
+		xfn.WithTLSConfig(clienttls),
+		xfn.WithInterceptorCreators(m),
+	)
+
+	// Periodically remove clients for Functions that no longer exist.
+	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
+
 	if c.EnableEnvironmentConfigs {
 		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
@@ -304,8 +301,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot create cache for API extension controllers")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	go func() {
 		// Don't start the cache until the manager is elected.
 		<-mgr.Elected()

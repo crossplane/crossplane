@@ -49,16 +49,6 @@ const (
 
 // Beta Feature Flags.
 const (
-	// EnableBetaCompositionFunctions enables alpha support for composition
-	// functions. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/863ff6/design/design-doc-composition-functions.md
-	EnableBetaCompositionFunctions feature.Flag = "EnableBetaCompositionFunctions"
-
-	// EnableBetaCompositionFunctionsExtraResources enables extra resources support for
-	// composition functions. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/863ff6/design/design-doc-composition-functions.md
-	EnableBetaCompositionFunctionsExtraResources feature.Flag = "EnableBetaCompositionFunctionsExtraResources"
-
 	// EnableBetaCompositionWebhookSchemaValidation enables alpha support for
 	// composition webhook schema validation. See the below design for more
 	// details.

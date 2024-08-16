@@ -85,7 +85,7 @@ func (c *updateCmd) Run(k *kong.Context, logger logging.Logger) error {
 	case "configuration":
 		pkg = &v1.Configuration{}
 	case "function":
-		pkg = &v1beta1.Function{}
+		pkg = &v1.Function{}
 	default:
 		// The enum struct tag on the Kind field should make this impossible.
 		return errors.Errorf("unsupported package kind %q", c.Kind)

@@ -585,48 +585,41 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 
 		o = append(o,
 			composite.WithConnectionPublishers(pc...),
-			composite.WithConfigurator(cc),
-			composite.WithComposer(composite.NewPTComposer(r.engine.GetClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))))
+			composite.WithConfigurator(cc))
 	}
 
-	// If Composition Functions are enabled we use two different Composer
-	// implementations. One supports P&T (aka 'Resources mode') and the other
-	// Functions (aka 'Pipeline mode').
-	if r.options.Features.Enabled(features.EnableBetaCompositionFunctions) {
-		ptc := composite.NewPTComposer(r.engine.GetClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))
+	// This composer is used for mode: Resources Compositions (the default).
+	ptc := composite.NewPTComposer(r.engine.GetClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))
 
-		fcopts := []composite.FunctionComposerOption{
-			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetClient(), fetcher)),
-			composite.WithCompositeConnectionDetailsFetcher(fetcher),
+	// Wrap the PackagedFunctionRunner setup in main with support for loading
+	// extra resources to satisfy function requirements.
+	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetClient()))
+
+	// This composer is used for mode: Pipeline Compositions.
+	fc := composite.NewFunctionComposer(r.engine.GetClient(), runner,
+		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetClient(), fetcher)),
+		composite.WithCompositeConnectionDetailsFetcher(fetcher),
+	)
+
+	// We use two different Composer implementations. One supports P&T (aka
+	// 'Resources mode') and the other Functions (aka 'Pipeline mode').
+	o = append(o, composite.WithComposer(composite.ComposerSelectorFn(func(cm *v1.CompositionMode) composite.Composer {
+		// Resources mode is the implicit default.
+		m := v1.CompositionModeResources
+		if cm != nil {
+			m = *cm
 		}
-
-		var runner composite.FunctionRunner = r.options.FunctionRunner
-		if r.options.Features.Enabled(features.EnableBetaCompositionFunctionsExtraResources) {
-			runner = composite.NewFetchingFunctionRunner(runner, composite.NewExistingExtraResourcesFetcher(r.engine.GetClient()))
+		switch m {
+		case v1.CompositionModeResources:
+			return ptc
+		case v1.CompositionModePipeline:
+			return fc
+		default:
+			// This shouldn't be possible, but just in case return the
+			// default Composer.
+			return ptc
 		}
-
-		fc := composite.NewFunctionComposer(r.engine.GetClient(), runner, fcopts...)
-
-		// Note that if external secret stores are enabled this will supersede
-		// the WithComposer option specified in that block.
-		o = append(o, composite.WithComposer(composite.ComposerSelectorFn(func(cm *v1.CompositionMode) composite.Composer {
-			// Resources mode is the implicit default.
-			m := v1.CompositionModeResources
-			if cm != nil {
-				m = *cm
-			}
-			switch m {
-			case v1.CompositionModeResources:
-				return ptc
-			case v1.CompositionModePipeline:
-				return fc
-			default:
-				// This shouldn't be possible, but just in case return the
-				// default Composer.
-				return ptc
-			}
-		})))
-	}
+	})))
 
 	// If realtime compositions are enabled we pass the ControllerEngine to the
 	// XR reconciler so that it can start watches for composed resources.
