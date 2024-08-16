@@ -200,7 +200,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if !c.EnableCompositionRevisions {
-		log.Info("Composition Revisions are is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
+		log.Info("Composition Revisions are GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
 	}
 	if !c.EnableCompositionFunctions {
 		log.Info("Composition Functions are GA and cannot be disabled. The --enable-composition-functions flag will be removed in a future release.")
