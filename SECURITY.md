@@ -85,7 +85,7 @@ and mentioned in the fixed versions' release notes.
 
 ## Supported Versions
 
-See [Crossplane's documentation](https://docs.crossplane.io/master/reference/release-cycle/)
+See [Crossplane's documentation](https://docs.crossplane.io/latest/learn/release-cycle/)
 for information on supported versions of crossplane. Any supported
 release branch may receive security updates. For any security issues discovered
 on older versions, non-core packages, or dependencies, please inform maintainers
