@@ -41,20 +41,20 @@ func NewMetrics() *Metrics {
 			Subsystem: "composition",
 			Name:      "run_function_request_total",
 			Help:      "Total number of RunFunctionRequests sent.",
-		}, []string{"function_name", "function_package", "grpc_target"}),
+		}, []string{"function_name", "function_package", "grpc_target", "grpc_method"}),
 
 		responses: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "composition",
 			Name:      "run_function_response_total",
 			Help:      "Total number of RunFunctionResponses received.",
-		}, []string{"function_name", "function_package", "grpc_target", "grpc_code", "result_severity"}),
+		}, []string{"function_name", "function_package", "grpc_target", "grpc_method", "grpc_code", "result_severity"}),
 
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: "composition",
 			Name:      "run_function_seconds",
 			Help:      "Histogram of RunFunctionResponse latency (seconds).",
 			Buckets:   prometheus.DefBuckets,
-		}, []string{"function_name", "function_package", "grpc_target", "grpc_code", "result_severity"}),
+		}, []string{"function_name", "function_package", "grpc_target", "grpc_method", "grpc_code", "result_severity"}),
 	}
 }
 
@@ -80,7 +80,7 @@ func (m *Metrics) Collect(ch chan<- prometheus.Metric) {
 // function. The supplied package (pkg) should be the package's OCI reference.
 func (m *Metrics) CreateInterceptor(name, pkg string) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		l := prometheus.Labels{"function_name": name, "function_package": pkg, "grpc_target": cc.Target()}
+		l := prometheus.Labels{"function_name": name, "function_package": pkg, "grpc_target": cc.Target(), "grpc_method": method}
 
 		m.requests.With(l).Inc()
 
