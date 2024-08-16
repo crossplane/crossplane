@@ -23,6 +23,7 @@ package xpkg
 type Cmd struct {
 	// Keep subcommands sorted alphabetically.
 	Build   buildCmd   `cmd:"" help:"Build a new package."`
+	Init    initCmd    `cmd:"" help:"Initialize a new package from a template."`
 	Install installCmd `cmd:"" help:"Install a package in a control plane."`
 	Login   loginCmd   `cmd:"" help:"Login to the default package registry."`
 	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry."`
