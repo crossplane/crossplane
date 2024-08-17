@@ -19,6 +19,7 @@ package validate
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -32,11 +33,13 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
 	packageFileName = "package.yaml"
 	baseLayerLabel  = "base"
+	xpImage         = xpkg.DefaultRegistry + "/crossplane/crossplane"
 
 	refFmt   = "%s@%s"
 	imageFmt = "%s:%s"
@@ -154,7 +157,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 }
 
 // CacheAndLoad finds and caches dependencies and loads them as CRDs.
-func (m *Manager) CacheAndLoad(cleanCache bool) error {
+func (m *Manager) CacheAndLoad(cleanCache bool, crossplaneImage string) error {
 	if cleanCache {
 		if err := m.cache.Flush(); err != nil {
 			return errors.Wrapf(err, "cannot flush cache directory")
@@ -165,11 +168,11 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	if err := m.addDependencies(m.confs); err != nil {
+	if err := m.addDependencies(m.confs, crossplaneImage); err != nil {
 		return errors.Wrapf(err, "cannot add package dependencies")
 	}
 
-	if err := m.cacheDependencies(); err != nil {
+	if err := m.cacheDependencies(crossplaneImage); err != nil {
 		return errors.Wrapf(err, "cannot cache package dependencies")
 	}
 
@@ -181,7 +184,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
-func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error {
+func (m *Manager) addDependencies(confs map[string]*metav1.Configuration, crossplaneImage string) error {
 	if len(confs) == 0 {
 		return nil
 	}
@@ -228,12 +231,17 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 				}
 			}
 		}
+
+		if len(crossplaneImage) > 0 {
+			image = crossplaneImage
+			m.deps[image] = true
+		}
 	}
 
-	return m.addDependencies(deepConfs)
+	return m.addDependencies(deepConfs, "")
 }
 
-func (m *Manager) cacheDependencies() error {
+func (m *Manager) cacheDependencies(crossplaneImage string) error {
 	if err := m.cache.Init(); err != nil {
 		return errors.Wrapf(err, "cannot initialize  cache directory")
 	}
@@ -248,10 +256,23 @@ func (m *Manager) cacheDependencies() error {
 			continue
 		}
 
-		if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
+		if _, err := fmt.Fprintln(m.writer, "schemas does not exist, downloading: ", image); err != nil {
 			return errors.Wrapf(err, errWriteOutput)
 		}
 
+		// handling for crossplane
+		if strings.Contains(image, crossplaneImage) {
+			schemas, err := m.fetcher.FetchImage(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot extract crds")
+			}
+			if err := m.cache.Store(schemas, path); err != nil {
+				return errors.Wrapf(err, "cannot store image")
+			}
+			continue
+		}
+
+		// handling for packages
 		layer, err := m.fetcher.FetchBaseLayer(image)
 		if err != nil {
 			return errors.Wrapf(err, "cannot download package %s", image)
