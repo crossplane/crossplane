@@ -10,7 +10,7 @@ on:
     types: [closed]
   # See also commands.yml for the /backport triggered variant of this workflow.
 
-permissions:  # added using https://github.com/step-security/secure-repo
+permissions:  
   contents: read
 
 jobs:
