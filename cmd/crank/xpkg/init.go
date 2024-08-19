@@ -24,11 +24,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -44,7 +46,7 @@ const (
 func WellKnownTemplates() map[string]string {
 	return map[string]string{
 		"provider-template":        "https://github.com/crossplane/provider-template",
-		"provider-template-upjet":  "https://github.com/upbound/upjet-provider-template",
+		"provider-template-upjet":  "https://github.com/crossplane/upjet-provider-template",
 		"function-template-go":     "https://github.com/crossplane/function-template-go",
 		"function-template-python": "https://github.com/crossplane/function-template-python",
 		"configuration-template":   "https://github.com/crossplane/configuration-template",
@@ -85,7 +87,7 @@ Examples:
 
   # Initialize a new Go Composition Function named function-example.
   crossplane xpkg init function-example function-template-go
-  
+
   # Initialize a new Provider named provider-example from a custom template.
   crossplane xpkg init provider-example https://github.com/crossplane/provider-template-custom
 
@@ -140,6 +142,75 @@ func (c *initCmd) Run(k *kong.Context, logger logging.Logger) error {
 	ref, err := r.Head()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get repository's HEAD from %q", repoURL)
+	}
+
+	repo, err := git.PlainInit(c.Directory, false)
+	if err != nil {
+		return errors.Wrapf(err, "could not initialize repository")
+	}
+
+	w, err := repo.Worktree()
+	if err != nil {
+		return errors.Wrapf(err, "could not initialize git worktree")
+	}
+
+	// Remove the build folder
+	err = os.RemoveAll(filepath.Join(filepath.Clean(c.Directory), "build"))
+	if err != nil {
+		return errors.Wrapf(err, "error removing build folder")
+	}
+
+	err = w.AddWithOptions(&git.AddOptions{All: true, SkipStatus: true})
+	if err != nil {
+		return errors.Wrapf(err, "error adding files")
+	}
+
+	_, err = w.Filesystem.Lstat(".gitmodules")
+	if err == nil {
+		// .gitmodules exists
+		sub, err := w.Submodule("build")
+		if err != nil {
+			return errors.Wrapf(err, "could not initialize sub module")
+		}
+
+		// Add the submodule
+		err = sub.Init()
+		if err != nil {
+			return errors.Wrapf(err, "could not initialize sub module")
+		}
+
+		sr, err := sub.Repository()
+		if err != nil {
+			return errors.Wrapf(err, "could not setup sub module")
+		}
+
+		sw, err := sr.Worktree()
+		if err != nil {
+			return errors.Wrapf(err, "could not setup sub module")
+		}
+
+		err = sw.Pull(&git.PullOptions{
+			RemoteName: "origin",
+		})
+		if err != nil {
+			return errors.Wrapf(err, "could not clone sub module")
+		}
+
+		_, err = w.Add("build")
+		if err != nil {
+			return errors.Wrapf(err, "error staging submodule")
+		}
+	}
+
+	_, err = w.Commit("first commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "crossplane-cli",
+			Email: "crossplane-cli@crossplane.io",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return errors.Wrapf(err, "error committing changes")
 	}
 
 	if _, err := fmt.Fprintf(k.Stdout, "Initialized package %q in directory %q from %s (%s)\n",
