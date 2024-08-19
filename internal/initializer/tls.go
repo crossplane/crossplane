@@ -174,7 +174,7 @@ func (e *TLSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	return parseCertificateSigner(caKeyByte, caCrtByte)
 }
 
-func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, kube client.Client, nn types.NamespacedName, signer *CertificateSigner) error {
+func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, kube client.Client, nn types.NamespacedName, signer *CertificateSigner) error { //nolint:gocyclo // slightly over the limit, 11 vs 10
 	sec := &corev1.Secret{}
 
 	err := kube.Get(ctx, nn, sec)
@@ -232,7 +232,7 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 	return errors.Wrapf(err, errFmtCannotCreateOrUpdate, nn.Name)
 }
 
-func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, kube client.Client, nn types.NamespacedName, signer *CertificateSigner) error {
+func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, kube client.Client, nn types.NamespacedName, signer *CertificateSigner) error { //nolint:gocyclo // slightly over the limit, 11 vs 10
 	sec := &corev1.Secret{}
 
 	err := kube.Get(ctx, nn, sec)
