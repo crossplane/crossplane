@@ -47,6 +47,7 @@ jobs:
         if: env.DOCKER_USR != ''
         run: |
           earthly --strict \
+            --push \
             --secret DOCKER_USER=${{ secrets.DOCKER_USR }} \
             --secret DOCKER_PASSWORD=${{ secrets.DOCKER_PSW }} \
             +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=docker.io/crossplane/crossplane
@@ -55,6 +56,7 @@ jobs:
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
         run: |
           earthly --strict \
+          --push \
           --secret DOCKER_USER=${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }} \
           --secret DOCKER_PASSWORD=${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }} \
           +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=xpkg.upbound.io/crossplane/crossplane
@@ -63,6 +65,7 @@ jobs:
         if: env.AWS_USR != ''
         run: |
           earthly --strict \
+            --push \
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
             --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
             +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CHANNEL=${{ inputs.channel }} --BUILD_DIR=${GITHUB_REF##*/} --PRERELEASE=${{ inputs.pre-release }} --CROSSPLANE_VERSION=${{ inputs.version }}
