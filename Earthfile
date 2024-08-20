@@ -389,7 +389,7 @@ ci-promote-image:
   ARG --required CHANNEL
   FROM alpine:3.20
   RUN apk add docker
-  RUN --secret DOCKER_USER --secret DOCKER_PASSWORD docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+  RUN --secret DOCKER_USER --secret DOCKER_PASSWORD docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD} ${CROSSPLANE_REPO}
   RUN --push docker buildx imagetools create \
     --tag ${CROSSPLANE_REPO}:${CHANNEL} \
     --tag ${CROSSPLANE_REPO}:${CROSSPLANE_VERSION}-${CHANNEL} \
