@@ -188,6 +188,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion, maxNameLength int64
 	xSpec := s.Properties["spec"]
 	cSpec := crdv.Schema.OpenAPIV3Schema.Properties["spec"]
 	cSpec.Required = append(cSpec.Required, xSpec.Required...)
+	cSpec.XPreserveUnknownFields = xSpec.XPreserveUnknownFields
 	cSpec.XValidations = append(cSpec.XValidations, xSpec.XValidations...)
 	cSpec.OneOf = append(cSpec.OneOf, xSpec.OneOf...)
 	cSpec.Description = xSpec.Description
