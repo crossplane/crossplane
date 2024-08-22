@@ -414,7 +414,7 @@ func TestDependencyTypeSupport(t *testing.T) {
 				},
 			},
 			want: want{
-				deps: 4, // config-dep-1 and config-dep-2
+				deps: 4, // config-dependson-config, config-dep-2, provider-dep-1, function-dep-1
 				err:  nil,
 			},
 		},
@@ -447,7 +447,7 @@ func TestDependencyTypeSupport(t *testing.T) {
 				},
 			},
 			want: want{
-				deps: 4, // provider-dependson-config and config-dep-2
+				deps: 4, // provider-dependson-config, config-dep-2, provider-dep-1, function-dep-1
 				err:  nil,
 			},
 		},
@@ -478,11 +478,11 @@ func TestDependencyTypeSupport(t *testing.T) {
 				},
 			},
 			want: want{
-				deps: 2, // function-dep-1 and provider-dep-1
+				deps: 2, // function-dependson-provider and provider-dep-1
 				err:  nil,
 			},
 		},
-		"AddAllDependencies": {
+		"AddAllTypesOfsDependencies": {
 			// function-dependson-provider
 			// └─►provider-dep-2
 			//     └─►config-dep-2

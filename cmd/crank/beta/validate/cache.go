@@ -115,3 +115,8 @@ func (c *LocalCache) Exists(image string) (string, error) {
 
 	return "", nil
 }
+
+// CacheDir returns the cache directory path for the image.
+func (c *LocalCache) CacheDir(image string) string {
+	return filepath.Join(c.cacheDir, strings.ReplaceAll(image, ":", "@"))
+}

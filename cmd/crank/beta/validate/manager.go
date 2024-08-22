@@ -19,6 +19,7 @@ package validate
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -31,7 +32,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	metav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -162,7 +162,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrap(err, "cannot marshal function to JSON")
 			}
 
-			f := &metav1beta1.Function{}
+			f := &metav1.Function{}
 			if err := yaml.Unmarshal(meta, f); err != nil {
 				return errors.Wrapf(err, "cannot unmarshal function YAML")
 			}
@@ -216,7 +216,7 @@ func (m *Manager) addDependencies(deps map[string]interface{}) error {
 
 		if pkg == nil {
 			var err error
-			pkg, err = m.downloadAndExtractPackageWithType(image)
+			pkg, err = m.getAndExtractPackageWithType(image)
 			if err != nil {
 				return err
 			}
@@ -275,12 +275,13 @@ func (m *Manager) cacheDependencies() error {
 			return errors.Wrapf(err, "cannot download package %s", image)
 		}
 
-		schemas, _, err := extractPackageContent(*layer)
+		schemas, meta, err := extractPackageContent(*layer)
 		if err != nil {
 			return errors.Wrapf(err, "cannot extract package file and meta")
 		}
 
-		if err := m.cache.Store(schemas, path); err != nil {
+		// Cache schemas with meta
+		if err := m.cache.Store(append([][]byte{meta}, schemas...), path); err != nil {
 			return errors.Wrapf(err, "cannot store base layer")
 		}
 	}
@@ -294,7 +295,7 @@ func getDependencies(pkg interface{}) ([]metav1.Dependency, error) {
 		return v.GetDependencies(), nil
 	case *metav1.Provider:
 		return v.GetDependencies(), nil
-	case *metav1beta1.Function:
+	case *metav1.Function:
 		return v.GetDependencies(), nil
 	default:
 		return nil, errors.New("unknown package type")
@@ -306,7 +307,7 @@ func findPackageYamlType(meta []byte) (interface{}, error) {
 	candidates := []interface{}{
 		&metav1.Configuration{},
 		&metav1.Provider{},
-		&metav1beta1.Function{},
+		&metav1.Function{},
 	}
 
 	// Try to unmarshal into each type
@@ -320,16 +321,50 @@ func findPackageYamlType(meta []byte) (interface{}, error) {
 	return nil, errors.New("cannot unmarshal dependency YAML")
 }
 
-func (m *Manager) downloadAndExtractPackageWithType(image string) (interface{}, error) {
-	layer, err := m.fetcher.FetchBaseLayer(image)
+func (m *Manager) getAndExtractPackageWithType(image string) (interface{}, error) {
+	path, err := m.cache.Exists(image) // returns the path if the image is not cached
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot download package %s", image)
+		return nil, errors.Wrapf(err, "cannot check if cache exists for %s", image)
 	}
 
-	_, meta, err := extractPackageContent(*layer)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot extract package file and meta")
+	var meta []byte
+	var schemas [][]byte
+
+	// If the image is not cached, download and store it
+	if path != "" {
+		if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
+			return nil, errors.Wrapf(err, errWriteOutput)
+		}
+
+		layer, err := m.fetcher.FetchBaseLayer(image)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot download package %s", image)
+		}
+
+		schemas, meta, err = extractPackageContent(*layer)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot extract package file and meta")
+		}
+
+		// Store schemas and meta
+		if err = m.cache.Store(append([][]byte{meta}, schemas...), path); err != nil {
+			return nil, errors.Wrapf(err, "cannot store base layer")
+		}
+	} else {
+		switch cache := m.cache.(type) {
+		case *LocalCache:
+			path = filepath.Join(cache.CacheDir(image), "package.yaml")
+			schemas, err = readFile(path)
+			if err != nil {
+				return nil, errors.Wrapf(err, "cannot read %s cache file", path)
+			}
+			meta = schemas[0]
+		default:
+			return nil, errors.New("unknown cache type")
+		}
 	}
+
+	// Find type of the package (provider/function/configuration)
 	pkg, err := findPackageYamlType(meta)
 	if err != nil {
 		return nil, err
