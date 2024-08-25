@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
+	"sync"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -51,6 +53,8 @@ type Manager struct {
 
 	crds []*extv1.CustomResourceDefinition
 	deps map[string]interface{} // Dependency images (providers, configurations, functions)
+
+	mu sync.Mutex
 }
 
 // NewManager returns a new Manager.
@@ -210,22 +214,26 @@ func (m *Manager) addDependencies(deps map[string]interface{}) error {
 		return nil
 	}
 
-	deepDeps := make(map[string]interface{})
-	for image := range deps {
-		pkg := m.deps[image]
-
-		if pkg == nil {
-			var err error
-			pkg, err = m.getAndExtractPackageWithType(image)
-			if err != nil {
-				return err
-			}
-			m.deps[image] = pkg
+	// We dont want to get pointer of the m.deps map but the values (deep copy) of it
+	if reflect.ValueOf(m.deps).Pointer() == reflect.ValueOf(deps).Pointer() {
+		deps = make(map[string]interface{})
+		for k, v := range m.deps {
+			deps[k] = v
 		}
+	}
+
+	_, err := m.getAndExtractAllPackagesWithType()
+	if err != nil {
+		return errors.Wrapf(err, "cannot get and extract all packages with type")
+	}
+
+	deepDeps := make(map[string]interface{})
+	for img := range deps {
+		pkg := m.deps[img]
 
 		dependsOn, err := getDependencies(pkg)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "cannot get dependencies for %s", img)
 		}
 
 		for _, dep := range dependsOn {
@@ -321,6 +329,8 @@ func findPackageYamlType(meta []byte) (interface{}, error) {
 	return nil, errors.New("cannot unmarshal dependency YAML")
 }
 
+// getAndExtractPackageWithType gets the package image from cache or remote
+// and returns the package with its type (provider/function/configuration).
 func (m *Manager) getAndExtractPackageWithType(image string) (interface{}, error) {
 	path, err := m.cache.Exists(image) // returns the path if the image is not cached
 	if err != nil {
@@ -370,4 +380,55 @@ func (m *Manager) getAndExtractPackageWithType(image string) (interface{}, error
 		return nil, err
 	}
 	return pkg, nil
+}
+
+// getAndExtractAllPackagesWithType gets the package images from cache or remote,
+// assigns them to the manager's deps map and returns the map with their types.
+func (m *Manager) getAndExtractAllPackagesWithType() (interface{}, error) {
+	pkgs := make(map[string]interface{})
+
+	// Getting images that are not assigned
+	for img, data := range m.deps {
+		if data == nil {
+			pkgs[img] = nil
+		}
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(pkgs))
+
+	// Get and extract packages concurrently
+	for image := range pkgs {
+		wg.Add(1)
+		go func(image string) {
+			defer wg.Done()
+
+			m.mu.Lock()
+			pkg := m.deps[image]
+			m.mu.Unlock()
+			if pkg == nil {
+				var err error
+				pkg, err = m.getAndExtractPackageWithType(image)
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				m.mu.Lock()
+				m.deps[image] = pkg
+				m.mu.Unlock()
+			}
+		}(image)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return pkgs, nil
 }
