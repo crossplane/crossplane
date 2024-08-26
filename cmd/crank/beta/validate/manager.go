@@ -153,9 +153,9 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 			if err != nil {
 				return errors.Wrap(err, "cannot marshal provider to JSON")
 			}
-			p := &metav1.Configuration{}
+			p := &metav1.Provider{}
 			if err := yaml.Unmarshal(meta, p); err != nil {
-				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
+				return errors.Wrapf(err, "cannot unmarshal provider YAML")
 			}
 
 			m.deps[p.Name] = p
@@ -375,11 +375,7 @@ func (m *Manager) getAndExtractPackageWithType(image string) (interface{}, error
 	}
 
 	// Find type of the package (provider/function/configuration)
-	pkg, err := findPackageYamlType(meta)
-	if err != nil {
-		return nil, err
-	}
-	return pkg, nil
+	return findPackageYamlType(meta)
 }
 
 // getAndExtractAllPackagesWithType gets the package images from cache or remote,
