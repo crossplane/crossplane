@@ -252,7 +252,11 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				t.Errorf("\n%s\nPrepExtensions(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = m.addDependencies(m.deps)
+			deps := make(map[string]interface{})
+			for k, v := range m.deps {
+				deps[k] = v
+			}
+			err = m.addDependencies(deps)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -335,7 +339,11 @@ func TestAddDependencies(t *testing.T) {
 			_ = m.PrepExtensions(tc.args.extensions)
 
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
-			err := m.addDependencies(m.deps)
+			deps := make(map[string]interface{})
+			for k, v := range m.deps {
+				deps[k] = v
+			}
+			err := m.addDependencies(deps)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -527,7 +535,11 @@ func TestDependencyTypeSupport(t *testing.T) {
 			_ = m.PrepExtensions(tc.args.extensions)
 
 			m.fetcher = &MockFetcher{tc.args.fetchMock}
-			err := m.addDependencies(m.deps)
+			deps := make(map[string]interface{})
+			for k, v := range m.deps {
+				deps[k] = v
+			}
+			err := m.addDependencies(deps)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)

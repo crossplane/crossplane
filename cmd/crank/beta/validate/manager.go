@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"reflect"
 	"sync"
 
 	"github.com/spf13/afero"
@@ -193,7 +192,11 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	if err := m.addDependencies(m.deps); err != nil {
+	deps := make(map[string]interface{})
+	for k, v := range m.deps {
+		deps[k] = v
+	}
+	if err := m.addDependencies(deps); err != nil {
 		return errors.Wrapf(err, "cannot add package dependencies")
 	}
 
@@ -209,17 +212,11 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
+// addDependencies recursively adds dependencies of the given dependencies.
+// do not pass a map (e.g. m.deps) to it directly, pass it's deep copy.
 func (m *Manager) addDependencies(deps map[string]interface{}) error {
 	if len(deps) == 0 {
 		return nil
-	}
-
-	// We dont want to get pointer of the m.deps map but the values (deep copy) of it
-	if reflect.ValueOf(m.deps).Pointer() == reflect.ValueOf(deps).Pointer() {
-		deps = make(map[string]interface{})
-		for k, v := range m.deps {
-			deps[k] = v
-		}
 	}
 
 	_, err := m.getAndExtractAllPackagesWithType()
@@ -332,49 +329,21 @@ func findPackageYamlType(meta []byte) (interface{}, error) {
 // getAndExtractPackageWithType gets the package image from cache or remote
 // and returns the package with its type (provider/function/configuration).
 func (m *Manager) getAndExtractPackageWithType(image string) (interface{}, error) {
-	path, err := m.cache.Exists(image) // returns the path if the image is not cached
+	// If package is already cached, get it from cache
+	path, _, meta, err := m.getPackageFromCache(image)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot check if cache exists for %s", image)
+		return nil, errors.Wrapf(err, "error getting package from cache for %s", image)
 	}
 
-	var meta []byte
-	var schemas [][]byte
-
-	// If the image is not cached, download and store it
+	// If package is not cached, download and cache it
 	if path != "" {
-		if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
-			return nil, errors.Wrapf(err, errWriteOutput)
-		}
-
-		layer, err := m.fetcher.FetchBaseLayer(image)
+		_, meta, err = m.downloadAndCachePackage(image)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot download package %s", image)
-		}
-
-		schemas, meta, err = extractPackageContent(*layer)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot extract package file and meta")
-		}
-
-		// Store schemas and meta
-		if err = m.cache.Store(append([][]byte{meta}, schemas...), path); err != nil {
-			return nil, errors.Wrapf(err, "cannot store base layer")
-		}
-	} else {
-		switch cache := m.cache.(type) {
-		case *LocalCache:
-			path = filepath.Join(cache.CacheDir(image), "package.yaml")
-			schemas, err = readFile(path)
-			if err != nil {
-				return nil, errors.Wrapf(err, "cannot read %s cache file", path)
-			}
-			meta = schemas[0]
-		default:
-			return nil, errors.New("unknown cache type")
+			return nil, errors.Wrapf(err, "error downloading and caching package for %s", image)
 		}
 	}
 
-	// Find type of the package (provider/function/configuration)
+	// Find type of the package (provider/function/configuration) and return
 	return findPackageYamlType(meta)
 }
 
@@ -427,4 +396,53 @@ func (m *Manager) getAndExtractAllPackagesWithType() (interface{}, error) {
 	}
 
 	return pkgs, nil
+}
+
+func (m *Manager) getPackageFromCache(image string) (string, [][]byte, []byte, error) {
+	path, err := m.cache.Exists(image) // returns the path if the image is not cached
+	if err != nil {
+		return path, nil, nil, errors.Wrapf(err, "cannot check if cache exists for %s", image)
+	}
+	if path == "" {
+		switch cache := m.cache.(type) {
+		case *LocalCache:
+			pkg := filepath.Join(cache.CacheDir(image), "package.yaml")
+			schemas, err := readFile(pkg)
+			if err != nil {
+				return path, nil, nil, errors.Wrapf(err, "cannot read %s cache file", path)
+			}
+			meta := schemas[0]
+			return path, schemas, meta, nil
+		default:
+			return path, nil, nil, errors.New("unknown cache type")
+		}
+	}
+	return path, nil, nil, nil
+}
+
+func (m *Manager) downloadAndCachePackage(image string) ([][]byte, []byte, error) {
+	if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
+		return nil, nil, errors.Wrapf(err, errWriteOutput)
+	}
+
+	layer, err := m.fetcher.FetchBaseLayer(image)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "cannot download package %s", image)
+	}
+
+	schemas, meta, err := extractPackageContent(*layer)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "cannot extract package file and meta")
+	}
+
+	path, err := m.cache.Exists(image) // Get path for storing the schemas and meta
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "cannot check if cache exists for %s", image)
+	}
+
+	if err = m.cache.Store(append([][]byte{meta}, schemas...), path); err != nil {
+		return nil, nil, errors.Wrapf(err, "cannot store base layer")
+	}
+
+	return schemas, meta, nil
 }
