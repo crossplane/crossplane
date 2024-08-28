@@ -389,7 +389,13 @@ ci-promote-image:
   ARG --required CHANNEL
   FROM alpine:3.20
   RUN apk add docker
-  RUN --secret DOCKER_USER --secret DOCKER_PASSWORD docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD} ${CROSSPLANE_REPO}
+  # We need to omit the registry argument when we're logging into Docker Hub.
+  # Otherwise login will appear to succeed, but buildx will fail on auth.
+  IF [[ "${CROSSPLANE_REPO}" == *docker.io/* ]]
+    RUN --secret DOCKER_USER --secret DOCKER_PASSWORD docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+  ELSE
+    RUN --secret DOCKER_USER --secret DOCKER_PASSWORD docker login -u ${DOCKER_USER} -p ${DOCKER_PASSWORD} ${CROSSPLANE_REPO}
+  END
   RUN --push docker buildx imagetools create \
     --tag ${CROSSPLANE_REPO}:${CHANNEL} \
     --tag ${CROSSPLANE_REPO}:${CROSSPLANE_VERSION}-${CHANNEL} \
