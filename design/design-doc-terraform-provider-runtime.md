@@ -372,7 +372,7 @@ between:
 1. specifying structured metadata describing references to the code generator
 2. add reference handling callbacks to the `plugin.Implementation` scheme. These
    could plug into the `Reconciler` via the
-   [ReferenceResolver](https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reconciler/managed/reconciler.go#L143)
+   [ReferenceResolver](https://github.com/crossplane/crossplane-runtime/blob/main/pkg/reconciler/managed/reconciler.go#L143)
    interface.
 3. building a reference implementation that does not need to know how resources
    can refer to each other
