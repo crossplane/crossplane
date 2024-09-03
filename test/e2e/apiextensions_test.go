@@ -60,10 +60,6 @@ var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReferen
 	Kind:       "NopResource",
 }))
 
-// TestCompositionMinimal tests Crossplane's Composition functionality,
-// checking that a claim using a very minimal Composition (with no patches,
-// transforms, or functions) will become available when its composed
-// resources do.
 func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
 
@@ -77,7 +73,7 @@ func TestCompositionMinimal(t *testing.T) {
 	}))
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality, checking that a claim using a very minimal Composition (with no patches, transforms, or functions) will become available when its composed resources do.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -104,9 +100,6 @@ func TestCompositionMinimal(t *testing.T) {
 	)
 }
 
-// TestCompositionInvalidComposed tests Crossplane's Composition functionality,
-// checking that although a composed resource is invalid, i.e. it didn't apply
-// successfully.
 func TestCompositionInvalidComposed(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/invalid-composed"
 
@@ -119,7 +112,7 @@ func TestCompositionInvalidComposed(t *testing.T) {
 	}))
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality, checking that although a composed resource is invalid, i.e. it didn't apply successfully.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -148,14 +141,10 @@ func TestCompositionInvalidComposed(t *testing.T) {
 	)
 }
 
-// TestCompositionPatchAndTransform tests Crossplane's Composition functionality,
-// checking that a claim using patch-and-transform Composition will become
-// available when its composed resources do, and have a field derived from
-// the patch.
 func TestCompositionPatchAndTransform(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/patch-and-transform"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality, checking that a claim using patch-and-transform Composition will become available when its composed resources do, and have a field derived from the patch.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -183,13 +172,10 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 	)
 }
 
-// TestCompositionRealtimeRevisionSelection tests Crossplane's Composition
-// functionality to react in realtime to changes in a Composition by selecting
-// the new CompositionRevision and reconcile the XRs.
 func TestCompositionRealtimeRevisionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality to react in realtime to changes in a Composition by selecting the new CompositionRevision and reconcile the XRs.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -224,7 +210,7 @@ func TestCompositionRealtimeRevisionSelection(t *testing.T) {
 func TestCompositionFunctions(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/functions"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of composition functions ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -255,7 +241,7 @@ func TestCompositionFunctions(t *testing.T) {
 func TestPropagateFieldsRemovalToXR(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that field removals in a claim are correctly propagated to the associated composite resource (XR), ensuring that updates and deletions are properly synchronized, and that the status from the XR is accurately reflected back to the claim.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
@@ -309,7 +295,7 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that field removals in a composite resource (XR) are correctly propagated after upgrading the field managers from CSA to SSA, verifying that the upgrade process does not interfere with the synchronization of fields between the claim and the XR.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
@@ -374,13 +360,10 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 	)
 }
 
-// TestPropagateFieldsRemovalToComposed tests Crossplane's end-to-end SSA syncing
-// functionality of clear propagation of fields from claim->XR->MR, when existing
-// composition and resources are migrated from native P-and-T to functions pipeline mode.
 func TestPropagateFieldsRemovalToComposed(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests Crossplane's end-to-end SSA syncing functionality of clear propagation of fields from claim->XR->MR, when existing composition and resources are migrated from native P-and-T to functions pipeline mode.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
@@ -426,7 +409,7 @@ func TestPropagateFieldsRemovalToComposed(t *testing.T) {
 func TestCompositionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/composition-selection"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that label selectors in a claim are correctly propagated to the composite resource (XR), ensuring that the appropriate composition is selected and remains consistent even after updates to the label selectors.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
@@ -485,7 +468,7 @@ func TestCompositionSelection(t *testing.T) {
 func TestBindToExistingXR(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/bind-existing-xr"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that a new claim can successfully bind to an existing composite resource (XR), ensuring that the XR’s fields are updated according to the claim’s specifications and that the XR is correctly managed when the claim is deleted.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).

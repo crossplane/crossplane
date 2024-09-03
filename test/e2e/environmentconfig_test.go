@@ -49,7 +49,7 @@ func TestEnvironmentConfigDefault(t *testing.T) {
 	subfolder := "default"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that environment config defaults are correctly applied and annotated in managed resources.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -101,7 +101,7 @@ func TestEnvironmentResolutionOptional(t *testing.T) {
 	subfolder := "resolutionOptional"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that optional environment resolution works correctly, ensuring that managed resources are properly annotated with values derived from environment config.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -153,7 +153,7 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 	subfolder := "resolveIfNotPresent"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that environment configurations are resolved and applied only if they are not already present, verifying that additional environment configurations do not override existing annotations.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -215,7 +215,7 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 	subfolder := "resolveAlways"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that environment configurations are always resolved and applied to managed resources, ensuring that any changes in environment configurations are reflected in the annotations of the managed resources.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -277,7 +277,7 @@ func TestEnvironmentConfigMultipleMaxMatchNil(t *testing.T) {
 	subfolder := "multipleModeMaxMatchNil"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that when multiple environment configurations are available, the correct maximum match is selected and applied, ensuring that the managed resources are annotated correctly.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -329,7 +329,7 @@ func TestEnvironmentConfigMultipleMaxMatch1(t *testing.T) {
 	subfolder := "multipleModeMaxMatch1"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that when multiple environment configurations are available, the configuration with the highest match is correctly selected and applied to the managed resources.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
