@@ -635,6 +635,6 @@ related discussion or issue._
 [Vault agent inject template]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar#apply-a-template-to-the-injected-secrets
 [ArgoCD cluster]: https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters
 [AWS secret manager]: https://aws.amazon.com/secrets-manager/
-[provider-aws Secret resource]: https://github.com/crossplane/provider-aws/blob/master/examples/secretsmanager/secret.yaml
+[provider-aws Secret resource]: https://github.com/crossplane-contrib/provider-aws/blob/master/examples/secretsmanager/secret.yaml
 [GenericSecret]: https://registry.terraform.io/providers/hashicorp/vault/latest/docs/resources/generic_secret
 [kubernetes-sigs/secrets-store-csi-driver]: https://github.com/kubernetes-sigs/secrets-store-csi-driver

@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
       - release-*
   pull_request: {}
   workflow_dispatch: {}
@@ -52,7 +52,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
@@ -98,7 +98,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
@@ -134,7 +134,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
@@ -198,7 +198,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
@@ -250,7 +250,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
@@ -322,11 +322,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/main'
         run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Configure Earthly to Push Artifacts
-        if: (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
+        if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
         run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
 
       - name: Set CROSSPLANE_VERSION GitHub Environment Variable
@@ -344,7 +344,7 @@ jobs:
             +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/}
 
       - name: Push Artifacts to https://releases.crossplane.io/master/ and https://charts.crossplane.io/master
-        if: env.AWS_USR != '' && github.ref == 'refs/heads/master'
+        if: env.AWS_USR != '' && github.ref == 'refs/heads/main'
         run: |
           earthly --strict \
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
@@ -405,14 +405,14 @@ jobs:
       # https://github.com/bufbuild/buf-push-action/issues/34
       - name: Detect Breaking Changes in Protocol Buffers
         uses: bufbuild/buf-breaking-action@a074e988ee34efcd4927079e79c611f428354c01 # v1
-        # We want to run this for the master branch, and PRs against master.
-        if: ${{ github.ref == 'refs/heads/master' || github.base_ref == 'master' }}
+        # We want to run this for the main branch, and PRs against main.
+        if: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
         with:
           input: apis
-          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,subdir=apis"
+          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=main,subdir=apis"
 
       - name: Push Protocol Buffers to Buf Schema Registry
-        if: ${{ github.repository == 'crossplane/crossplane' && github.ref == 'refs/heads/master' }}
+        if: ${{ github.repository == 'crossplane/crossplane' && github.ref == 'refs/heads/main' }}
         uses: bufbuild/buf-push-action@v1
         with:
           input: apis

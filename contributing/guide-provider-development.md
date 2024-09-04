@@ -644,7 +644,7 @@ feedback you may have about the development process!
 [reach out]: https://github.com/crossplane/crossplane#get-involved
 [crossplane org]: https://github.com/crossplane
 [`angryjet`]: https://github.com/crossplane/crossplane-tools
-[Managed Resource API Patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
+[Managed Resource API Patterns]: https://github.com/crossplane/crossplane/blob/main/design/one-pager-managed-resource-api-design.md
 [Crossplane CLI]: https://github.com/crossplane/crossplane-cli#quick-start-stacks
 [`angryjet` documentation]: https://github.com/crossplane/crossplane-tools/blob/master/README.md
 [code generation guide]: https://github.com/crossplane-contrib/provider-aws/blob/master/CODE_GENERATION.md

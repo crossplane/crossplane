@@ -26,8 +26,8 @@ clients/libraries for helm), **we will focus and only support Helm 3**.
 
 We will implement a Kubernetes controller watching `Release` custom resources and deploying helm charts with the desired
 configuration. Since this controller needs to interact with Kubernetes API server, it is a good fit for [Kubernetes
-native providers](https://github.com/crossplane/crossplane/blob/master/design/one-pager-k8s-native-providers.md#kubernetes-native-providers)
-concept in Crossplane. By using existing [Kubernetes Provider](https://github.com/crossplane/crossplane/blob/master/design/one-pager-k8s-native-providers.md#proposal-kubernetes-provider-kind)
+native providers](https://github.com/crossplane/crossplane/blob/main/design/one-pager-k8s-native-providers.md#kubernetes-native-providers)
+concept in Crossplane. By using existing [Kubernetes Provider](https://github.com/crossplane/crossplane/blob/main/design/one-pager-k8s-native-providers.md#proposal-kubernetes-provider-kind)
 Kind, we will be able to manage helm releases in **Crossplane provisioned external clusters**, **existing external
 clusters** and also **Crossplane control cluster** (a.k.a. local cluster).
 

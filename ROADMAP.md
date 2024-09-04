@@ -22,4 +22,4 @@ delivery timeline.
 [Crossplane Roadmap]
 
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
-[regular community meetings]: https://github.com/crossplane/crossplane/blob/master/README.md#get-involved
+[regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved

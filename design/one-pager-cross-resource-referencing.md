@@ -281,15 +281,15 @@ dependent objects are deleted first.
 * [Honoring inter-resource dependency when creating/deleting
   resources](https://github.com/crossplane/crossplane/issues/708)
 * [Resource
-  Connectivity](https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-connectivity-mvp.md)
+  Connectivity](https://github.com/crossplane/crossplane/blob/main/design/one-pager-resource-connectivity-mvp.md)
 
 [gitops doc]: (https://www.weave.works/blog/what-is-gitops-really) 
 [Subnet type]:
-(https://github.com/crossplane/provider-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
+(https://github.com/crossplane-contrib/provider-aws/blob/master/apis/network/v1alpha2/subnet_types.go#L25-L37)
 [Subnetwork type]:
-(https://github.com/crossplane/provider-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
+(https://github.com/crossplane-contrib/provider-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
 
 [Managed Reconciler]:
-https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reconciler/managed/reconciler.go
+https://github.com/crossplane/crossplane-runtime/blob/main/pkg/reconciler/managed/reconciler.go
 [Foreground cascading deletion]:
 (https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion)
