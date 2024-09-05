@@ -706,7 +706,7 @@ adding a field about that sync status and reconciler can mark the sync status in
 one of the `Condition`s we already have or add a new one.
 
 [package]: https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/eks
-[terminology]: https://github.com/crossplane/crossplane/blob/master/docs/concepts/terminology.md
+[terminology]: https://github.com/crossplane/crossplane/blob/main/docs/concepts/terminology.md
 [from crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
 [Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
 [managed reconciler]: https://github.com/crossplane/crossplane-runtime/blob/84e629b9589852df1322ff1eae4c6e7639cf6e99/pkg/reconciler/managed/reconciler.go#L637

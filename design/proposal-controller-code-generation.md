@@ -326,7 +326,7 @@ other supported languages inc javascript, python and .NET.
 [Magic Moduels]: https://github.com/GoogleCloudPlatform/magic-modules 
 [OpenAPI Directory]: https://github.com/APIs-guru/openapi-directory
 [Pulumi]: https://github.com/pulumi/pulumi 
-[Reference Resolvers]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
+[Reference Resolvers]: https://github.com/crossplane/crossplane/blob/main/design/one-pager-cross-resource-referencing.md
 [alibaba-ros]: https://www.alibabacloud.com/product/ros 
 [amazon-aso]: https://github.com/aws/aws-service-operator-k8s 
 [aso-v2-architecture]: https://github.com/jaypipes/aws-service-operator-k8s/blob/91e63414efb00564662adf6eaafc20e124a3b2d3/docs/code-generation.md

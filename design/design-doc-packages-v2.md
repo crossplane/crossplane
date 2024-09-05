@@ -11,21 +11,21 @@ there are many other packaging formats in the Kubernetes ecosystem, Crossplane
 supports its own for the following reasons:
 
 - Crossplane is [opinionated about the capabilities of a
-  controller](https://github.com/crossplane/crossplane/blob/master/design/one-pager-packages-security-isolation.md#allowed-resource-access)
+  controller](https://github.com/crossplane/crossplane/blob/main/design/one-pager-packages-security-isolation.md#allowed-resource-access)
   that can be installed to extend its functionality. For instance, controllers
   [may not run as
-  root](https://github.com/crossplane/crossplane/blob/master/design/one-pager-packages-security-isolation.md#package-deployment-privileges)
+  root](https://github.com/crossplane/crossplane/blob/main/design/one-pager-packages-security-isolation.md#package-deployment-privileges)
   or request cluster admin RBAC.
 - Crossplane [allocates and aggregates various
-  ClusterRoles](https://github.com/crossplane/crossplane/blob/master/design/one-pager-packages-security-isolation.md#crossplane-clusterroles--rbac)
+  ClusterRoles](https://github.com/crossplane/crossplane/blob/main/design/one-pager-packages-security-isolation.md#crossplane-clusterroles--rbac)
   to automatically provide permissions for users in the Kubernetes cluster to
   view / edit / create / delete CRDs installed by a package.
 - Crossplane guards against conflicting CRDs being installed into a cluster.
 - Crossplane adds [additional metadata to
-  CRDs](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-ui-metadata.md#crd-annotation-example)
+  CRDs](https://github.com/crossplane/crossplane/blob/main/design/one-pager-stack-ui-metadata.md#crd-annotation-example)
   to provide additional context for displaying their configuration in a UI.
 - Crossplane [adds labels to
-  CRDs](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stack-relationship-labels.md#example-wordpress-crdyaml-parented-by-stackinstall)
+  CRDs](https://github.com/crossplane/crossplane/blob/main/design/one-pager-stack-relationship-labels.md#example-wordpress-crdyaml-parented-by-stackinstall)
   in an attempt to establish parent-child relationships between CRDs.
 
 In addition, the following unimplemented features are goals of the Crossplane
@@ -56,12 +56,12 @@ effective than desired in practice.
 
 The current package infrastructure, though well thought out, has become somewhat
 convoluted and redundant with the introduction of
-[composition](https://github.com/crossplane/crossplane/blob/master/design/design-doc-composition.md)
+[composition](https://github.com/crossplane/crossplane/blob/main/design/design-doc-composition.md)
 into the Crossplane ecosystem.
 
 Composition solves the following goals originally intended to be addressed by a
 `PackageInstall` and [template
-stacks](https://github.com/crossplane/crossplane/blob/master/design/one-pager-resource-packs.md):
+stacks](https://github.com/crossplane/crossplane/blob/main/design/one-pager-resource-packs.md):
 
 - Ability to publish infrastructure abstractions to specific namespaces.
   - The `PackageInstall` allowed packages to install a namespace-scoped CRD and
@@ -175,7 +175,7 @@ workflow the package manager uses for installing a `Package`. We will use a
     [syncing](https://github.com/crossplane/crossplane/blob/6fc50822fbf11a7d31f8a9dabde5c8948c3b36ac/pkg/controller/packages/pkg/pkg.go#L696)
     the `Secret` for the `ServiceAccount` that are required for running the
     controller in [host aware
-    mode](https://github.com/crossplane/crossplane/blob/master/design/one-pager-host-aware-stack-manager.md).
+    mode](https://github.com/crossplane/crossplane/blob/main/design/one-pager-host-aware-stack-manager.md).
 
 The process for a `PackageInstall` is very similar, but the packages using the
 templating controller have the additional step of first producing a

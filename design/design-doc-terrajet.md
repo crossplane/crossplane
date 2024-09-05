@@ -553,9 +553,9 @@ license restrictions.
 [resolve-references-example]: https://github.com/crossplane/provider-aws/blob/c269977/apis/apigatewayv2/v1alpha1/referencers.go#L30
 [resolve-references]: https://github.com/crossplane/crossplane-runtime/blob/f2440d9/pkg/reference/reference.go#L105
 [dcl]: https://github.com/GoogleCloudPlatform/declarative-resource-client-library/blob/338dce1/services/google/compute/firewall_policy_rule.go#L321
-[ack-codegen]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
+[ack-codegen]: https://github.com/crossplane-contrib/provider-aws/blob/master/CODE_GENERATION.md
 [crossplane-tools]: https://github.com/crossplane/crossplane-tools/
-[ack-guide]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
+[ack-guide]: https://github.com/crossplane-contrib/provider-aws/blob/master/CODE_GENERATION.md
 [secret-key-selector]: https://github.com/crossplane/crossplane-runtime/blob/36fc69eff96ecb5856f156fec077ed3f3c3b30b1/apis/common/v1/resource.go#L72
 [instance-state]: https://github.com/hashicorp/terraform-plugin-sdk/blob/0e34772/helper/schema/resource.go#L859
 [resource-data]: https://github.com/hashicorp/terraform-plugin-sdk/blob/0e34772dad547d6b69148f57d95b324af9929542/helper/schema/resource_data.go#L22

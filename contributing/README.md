@@ -846,7 +846,7 @@ func TestExample(t *testing.T) {
 ```
 
 [Slack]: https://slack.crossplane.io/
-[code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
+[code of conduct]: https://github.com/cncf/foundation/blob/main/code-of-conduct.md
 [Earthly]: https://docs.earthly.dev
 [get-docker]: https://docs.docker.com/get-docker
 [get-earthly]: https://earthly.dev/get-earthly

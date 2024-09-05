@@ -15,7 +15,7 @@ maturity, and momentum.  Thank you to all adopters and contributors of the Cross
 To add your organization to this list, you can choose any of the following options:
 
 1. [Open a PR](https://github.com/crossplane/crossplane/pulls) to directly update this list, or
-   [edit this file](https://github.com/crossplane/crossplane/edit/master/ADOPTERS.md) directly in
+   [edit this file](https://github.com/crossplane/crossplane/edit/main/ADOPTERS.md) directly in
    Github
 1. Fill out the [adopters form](https://forms.gle/dBQhiyYkYSdzXovN6)
 1. Send an email to <steering@crossplane.io> with your information for the table below
