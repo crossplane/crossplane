@@ -116,8 +116,6 @@ func TestUsageStandalone(t *testing.T) {
 	)
 }
 
-// TestUsageComposition tests scenarios for Crossplane's `Usage` resource as part
-// of a composition.
 func TestUsageComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/composition"
 
