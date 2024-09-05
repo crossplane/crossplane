@@ -37,13 +37,11 @@ import (
 // Providers, Configurations, etc).
 const LabelAreaPkg = "pkg"
 
-// TestConfigurationPullFromPrivateRegistry tests that a Configuration can be
-// installed from a private registry using a package pull secret.
 func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/private"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that a Configuration can be installed from a private registry using a package pull secret.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -59,13 +57,11 @@ func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	)
 }
 
-// TestConfigurationWithDependency tests that a Configuration with a dependency
-// on a Provider will become healthy when the Provider becomes healthy.
 func TestConfigurationWithDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/dependency"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on a Provider will become healthy when the Provider becomes healthy.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -90,12 +86,10 @@ func TestConfigurationWithDependency(t *testing.T) {
 }
 
 func TestProviderUpgrade(t *testing.T) {
-	// Test that we can upgrade a provider to a new version, even when a managed
-	// resource has been created.
 	manifests := "test/e2e/manifests/pkg/provider"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that we can upgrade a provider to a new version, even when a managed resource has been created.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -126,7 +120,7 @@ func TestProviderUpgrade(t *testing.T) {
 func TestDeploymentRuntimeConfig(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/deployment-runtime-config"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that custom configurations in the deployment runtime do not disrupt the functionality of the resources, ensuring that deployments, services, and service accounts are created and configured correctly according to the specified runtime settings.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -193,7 +187,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 func TestExternallyManagedServiceAccount(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/externally-managed-service-account"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that an externally managed service account is not owned by the deployment while verifying that the deployment correctly references the service account as specified in the runtime configuration.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
