@@ -183,11 +183,6 @@ func (in *CompositionRevisionSpec) DeepCopyInto(out *CompositionRevisionSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.Environment != nil {
-		in, out := &in.Environment, &out.Environment
-		*out = new(EnvironmentConfiguration)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = make([]ComposedTemplate, len(*in))

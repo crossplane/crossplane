@@ -35,14 +35,6 @@ type Input struct {
 	// +optional
 	PatchSets []v1.PatchSet `json:"patchSets,omitempty"`
 
-	// Environment configures the environment in which resources are rendered.
-	//
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
-	// +optional
-	Environment *v1.EnvironmentConfiguration `json:"environment,omitempty"`
-
 	// Resources is a list of resource templates that will be used when a
 	// composite resource referring to this composition is created.
 	//
@@ -70,18 +62,6 @@ type ComposedTemplate struct {
 // Patch wrapper around v1.Patch with custom PatchPolicy.
 type Patch struct {
 	v1.Patch
-
-	Policy *PatchPolicy `json:"policy,omitempty"`
-}
-
-// Environment represents the Composition environment.
-type Environment struct {
-	Patches []EnvironmentPatch `json:"patches,omitempty"`
-}
-
-// EnvironmentPatch wrapper around v1.EnvironmentPatch with custom PatchPolicy.
-type EnvironmentPatch struct {
-	v1.EnvironmentPatch
 
 	Policy *PatchPolicy `json:"policy,omitempty"`
 }

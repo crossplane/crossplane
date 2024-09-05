@@ -210,6 +210,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
 	}
 
+	if c.EnableEnvironmentConfigs {
+		// TODO(negz): Include a link to a migration guide.
+		// TODO(negz): Perhaps this should return an error instead of logging?
+		log.Info("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
+	}
+
 	clienttls, err := certificates.LoadMTLSConfig(
 		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
@@ -232,10 +238,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// Periodically remove clients for Functions that no longer exist.
 	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
 
-	if c.EnableEnvironmentConfigs {
-		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
-	}
 	if c.EnableCompositionWebhookSchemaValidation {
 		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
