@@ -44,7 +44,7 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
-      serviceAccountName: {{ template "crossplane.name" . }}
+      serviceAccountName: {{ include "crossplane.serviceAccountName" . }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
         - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"

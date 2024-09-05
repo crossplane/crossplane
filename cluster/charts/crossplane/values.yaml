@@ -39,6 +39,10 @@ customAnnotations: {}
 serviceAccount:
   # -- Add custom `annotations` to the Crossplane ServiceAccount.
   customAnnotations: {}
+  # -- Create the Crossplane ServiceAccount automatically.
+  create: true
+  # -- Define the Crossplane ServiceAccount name.
+  name: ""
 
 # -- Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod.
 leaderElection: true

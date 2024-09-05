@@ -41,3 +41,12 @@ true
 false
 {{- end -}}
 {{- end -}}
+
+{{/* Create the name of service account to use */}}
+{{- define "crossplane.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+    {{ default (include "crossplane.name" .) .Values.serviceAccount.name }}
+{{- else -}}
+    {{ default "default" .Values.serviceAccount.name }}
+{{- end -}}
+{{- end -}}
