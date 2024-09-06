@@ -126,7 +126,11 @@ type CompositionRevisionSpec struct {
 	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 
 	// Revision number. Newer revisions have larger numbers.
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	//
+	// This number can change. When a Composition transitions from state A
+	// -> B -> A there will be only two CompositionRevisions. Crossplane will
+	// edit the original CompositionRevision to change its revision number from
+	// 0 to 2.
 	Revision int64 `json:"revision"`
 }
 

@@ -1587,12 +1587,16 @@ spec:
                   type: object
                 type: array
               revision:
-                description: Revision number. Newer revisions have larger numbers.
+                description: |-
+                  Revision number. Newer revisions have larger numbers.
+
+
+                  This number can change. When a Composition transitions from state A
+                  -> B -> A there will be only two CompositionRevisions. Crossplane will
+                  edit the original CompositionRevision to change its revision number from
+                  0 to 2.
                 format: int64
                 type: integer
-                x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
               writeConnectionSecretsToNamespace:
                 description: |-
                   WriteConnectionSecretsToNamespace specifies the namespace in which the
@@ -3234,12 +3238,16 @@ spec:
                   type: object
                 type: array
               revision:
-                description: Revision number. Newer revisions have larger numbers.
+                description: |-
+                  Revision number. Newer revisions have larger numbers.
+
+
+                  This number can change. When a Composition transitions from state A
+                  -> B -> A there will be only two CompositionRevisions. Crossplane will
+                  edit the original CompositionRevision to change its revision number from
+                  0 to 2.
                 format: int64
                 type: integer
-                x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
               writeConnectionSecretsToNamespace:
                 description: |-
                   WriteConnectionSecretsToNamespace specifies the namespace in which the
