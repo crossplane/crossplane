@@ -18,10 +18,12 @@ package initializer
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -111,6 +113,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		return errors.Wrap(err, "cannot parse files")
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
+	crdNames := []string{}
 	for _, obj := range pkg.GetObjects() {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
@@ -131,6 +134,45 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		if err := pa.Apply(ctx, crd); err != nil {
 			return errors.Wrap(err, "cannot apply crd")
 		}
+
+		crdNames = append(crdNames, crd.Name)
 	}
+
+	for _, crdName := range crdNames {
+		if err := waitForCRDEstablished(ctx, kube, crdName); err != nil {
+			return errors.Wrapf(err, "CRD %s not established", crdName)
+		}
+	}
+
 	return nil
+}
+
+func waitForCRDEstablished(ctx context.Context, kube client.Client, crdName string) error {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	timeout := time.After(60 * time.Second)
+
+	for {
+		select {
+		case <-ticker.C:
+			crd := &extv1.CustomResourceDefinition{}
+			err := kube.Get(ctx, client.ObjectKey{Name: crdName}, crd)
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					// CRD is not found, possibly not registered yet, continue retrying
+					continue
+				}
+				return errors.Wrap(err, "failed to get CRD")
+			}
+			for _, cond := range crd.Status.Conditions {
+				if cond.Type == extv1.Established {
+					return nil
+				}
+			}
+		case <-timeout:
+			return errors.New("timed out waiting for CRD to be established")
+		case <-ctx.Done():
+			return errors.Wrap(ctx.Err(), "context cancelled while waiting for CRD to be established")
+		}
+	}
 }
