@@ -48,9 +48,6 @@ const (
 	// CompositionModePipeline indicates that a Composition specifies a pipeline
 	// of Composition Functions, each of which is responsible for producing
 	// composed resources that Crossplane should create or update.
-	//
-	// THIS IS A BETA FEATURE. It is not honored if the relevant Crossplane
-	// feature flag is disabled.
 	CompositionModePipeline CompositionMode = "Pipeline"
 )
 
