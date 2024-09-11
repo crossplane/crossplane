@@ -137,6 +137,22 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		Dependencies: sources,
 	}
 
+	// Delete packages in lock with same name and distinct source
+	// This is a corner case when source is updated but image SHA is not (i.e. relocate same image
+	// to another registry)
+	for _, lp := range lock.Packages {
+		if self.Name == lp.Name && self.Type == lp.Type && self.Source != lp.Identifier() {
+			if err := m.RemoveSelf(ctx, pr); err != nil {
+				return found, installed, invalid, err
+			}
+			// refresh the lock to be in sync with the contents
+			if err = m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock); err != nil {
+				return found, installed, invalid, err
+			}
+			break
+		}
+	}
+
 	prExists := false
 	for _, lp := range lock.Packages {
 		if lp.Name == pr.GetName() {
