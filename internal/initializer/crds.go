@@ -162,7 +162,11 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		}
 		return len(pendingCRDs) == 0, nil
 	}); err != nil {
-		return errors.Wrap(err, "error waiting for CRDs to be established")
+		pendingCRDNames := make([]string, 0, len(pendingCRDs))
+		for crdName := range pendingCRDs {
+			pendingCRDNames = append(pendingCRDNames, crdName)
+		}
+		return errors.Wrapf(err, "error waiting for CRDs to be established: pending CRDs: %v", pendingCRDNames)
 	}
 
 	return nil
