@@ -114,7 +114,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		return errors.Wrap(err, "cannot parse files")
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
-	crdNames := []string{}
+	pendingCRDs := make(map[string]struct{})
 	for _, obj := range pkg.GetObjects() {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
@@ -136,33 +136,33 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 			return errors.Wrap(err, "cannot apply crd")
 		}
 
-		crdNames = append(crdNames, crd.Name)
+		pendingCRDs[crd.Name] = struct{}{}
 	}
 
 	// wait for crds to be established
 	pollInterval := 2 * time.Second
-	timeout := 60 * time.Second
-	for _, crdName := range crdNames {
-		if err := wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+	timeout := 2 * time.Minute
+	if err := wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		for crdName := range pendingCRDs {
 			crd := &extv1.CustomResourceDefinition{}
 			err := kube.Get(ctx, client.ObjectKey{Name: crdName}, crd)
 			if err != nil {
 				if kerrors.IsNotFound(err) {
 					return false, nil
 				}
-				return false, errors.Wrap(err, "failed to get CRD")
+				return false, errors.Wrapf(err, "failed to get CRD %s", crdName)
 			}
 
 			for _, cond := range crd.Status.Conditions {
 				if cond.Type == extv1.Established {
-					return true, nil
+					delete(pendingCRDs, crdName)
+					break
 				}
 			}
-
-			return false, nil
-		}); err != nil {
-			return errors.Wrapf(err, "CRD %s not established", crdName)
 		}
+		return len(pendingCRDs) == 0, nil
+	}); err != nil {
+		return errors.Wrap(err, "error waiting for CRDs to be established")
 	}
 
 	return nil
