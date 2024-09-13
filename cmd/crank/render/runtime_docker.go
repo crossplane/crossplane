@@ -22,6 +22,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/docker/cli/cli/command"
+	cliflags "github.com/docker/cli/cli/flags"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -91,6 +93,9 @@ const (
 
 // RuntimeDocker uses a Docker daemon to run a Function.
 type RuntimeDocker struct {
+	// Docker Cli
+	Cli command.Cli
+
 	// Image to run
 	Image string
 
@@ -143,7 +148,27 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get pull policy for Function %q", fn.GetName())
 	}
+
+	// Getting and initializing a dockerCli
+	dockerCli, err := command.NewDockerCli()
+	if err != nil {
+		return nil, fmt.Errorf("creating docker client: %w", err)
+	}
+
+	opts := cliflags.NewClientOptions()
+	err = dockerCli.Initialize(opts)
+	if err != nil {
+		return nil, fmt.Errorf("initializing docker client: %w", err)
+	}
+
+	// https://github.com/docker/cli/issues/4489
+	endpoint := dockerCli.DockerEndpoint()
+	if endpoint.Host == "" {
+		return nil, fmt.Errorf("initializing docker client: no valid endpoint")
+	}
+
 	r := &RuntimeDocker{
+		Cli:        dockerCli,
 		Image:      fn.Spec.Package,
 		Cleanup:    cleanup,
 		PullPolicy: pullPolicy,
@@ -189,9 +214,15 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		PortBindings: bind,
 	}
 
+	// Getting auth token from dockerCli
+	token, err := command.RetrieveAuthTokenFromImage(ctx, r.Cli, r.Image)
+	if err != nil {
+		return RuntimeContext{}, errors.Wrap(err, "cannot retrieve auth token from image")
+	}
+
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
-		err = PullImage(ctx, c, r.Image)
+		err = PullImage(ctx, c, r.Image, token)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
@@ -207,7 +238,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 
 		// The image was not found, but we're allowed to pull it.
 		r.log.Debug("Image not found, pulling", "image", r.Image)
-		err = PullImage(ctx, c, r.Image)
+		err = PullImage(ctx, c, r.Image, token)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
@@ -251,8 +282,11 @@ type pullClient interface {
 
 // PullImage pulls the supplied image using the supplied client. It blocks until
 // the image has either finished pulling or hit an error.
-func PullImage(ctx context.Context, p pullClient, image string) error {
-	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{})
+func PullImage(ctx context.Context, p pullClient, image string, token string) error {
+	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{
+		RegistryAuth: token,
+	})
+
 	if err != nil {
 		return err
 	}
