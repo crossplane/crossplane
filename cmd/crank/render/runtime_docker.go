@@ -93,9 +93,6 @@ const (
 
 // RuntimeDocker uses a Docker daemon to run a Function.
 type RuntimeDocker struct {
-	// Docker Cli
-	Cli command.Cli
-
 	// Image to run
 	Image string
 
@@ -149,20 +146,7 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 		return nil, errors.Wrapf(err, "cannot get pull policy for Function %q", fn.GetName())
 	}
 
-	// Getting and initializing a dockerCli
-	dockerCli, err := command.NewDockerCli()
-	if err != nil {
-		return nil, fmt.Errorf("creating docker client: %w", err)
-	}
-
-	opts := cliflags.NewClientOptions()
-	err = dockerCli.Initialize(opts)
-	if err != nil {
-		return nil, fmt.Errorf("initializing docker client: %w", err)
-	}
-
 	r := &RuntimeDocker{
-		Cli:        dockerCli,
 		Image:      fn.Spec.Package,
 		Cleanup:    cleanup,
 		PullPolicy: pullPolicy,
@@ -208,8 +192,20 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		PortBindings: bind,
 	}
 
+	// Getting and initializing a dockerCli
+	dockerCli, err := command.NewDockerCli()
+	if err != nil {
+		return RuntimeContext{}, errors.Wrap(err, "creating docker client")
+	}
+
+	opts := cliflags.NewClientOptions()
+	err = dockerCli.Initialize(opts)
+	if err != nil {
+		return RuntimeContext{}, errors.Wrap(err, "initializing docker client")
+	}
+
 	// Getting auth token from dockerCli, and create options for PullImage
-	token, _ := command.RetrieveAuthTokenFromImage(r.Cli.ConfigFile(), r.Image)
+	token, _ := command.RetrieveAuthTokenFromImage(dockerCli.ConfigFile(), r.Image)
 	options := types.ImagePullOptions{}
 	if token != "" {
 		options.RegistryAuth = token
@@ -279,7 +275,6 @@ type pullClient interface {
 // the image has either finished pulling or hit an error.
 func PullImage(ctx context.Context, p pullClient, image string, options types.ImagePullOptions) error {
 	out, err := p.ImagePull(ctx, image, options)
-
 	if err != nil {
 		return err
 	}
