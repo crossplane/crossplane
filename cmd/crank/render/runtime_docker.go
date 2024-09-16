@@ -192,7 +192,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		PortBindings: bind,
 	}
 
-	// Getting and initializing a dockerCli
+	// Getting and initializing a dockerCli to retrieve auth token
 	dockerCli, err := command.NewDockerCli()
 	if err != nil {
 		return RuntimeContext{}, errors.Wrap(err, "creating docker client")
@@ -204,11 +204,11 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		return RuntimeContext{}, errors.Wrap(err, "initializing docker client")
 	}
 
-	// Getting auth token from dockerCli, and create options for PullImage
-	token, _ := command.RetrieveAuthTokenFromImage(dockerCli.ConfigFile(), r.Image)
+	// Getting auth token from dockerCli, and create ImagePullOptions for PullImage
+	authToken, _ := command.RetrieveAuthTokenFromImage(dockerCli.ConfigFile(), r.Image)
 	options := types.ImagePullOptions{}
-	if token != "" {
-		options.RegistryAuth = token
+	if authToken != "" {
+		options.RegistryAuth = authToken
 	}
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
