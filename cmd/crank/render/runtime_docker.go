@@ -161,12 +161,6 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 		return nil, fmt.Errorf("initializing docker client: %w", err)
 	}
 
-	// https://github.com/docker/cli/issues/4489
-	endpoint := dockerCli.DockerEndpoint()
-	if endpoint.Host == "" {
-		return nil, fmt.Errorf("initializing docker client: no valid endpoint")
-	}
-
 	r := &RuntimeDocker{
 		Cli:        dockerCli,
 		Image:      fn.Spec.Package,
@@ -214,10 +208,10 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		PortBindings: bind,
 	}
 
-	// Getting auth token from dockerCli
-	token, err := command.RetrieveAuthTokenFromImage(ctx, r.Cli, r.Image)
+	// Getting auth token from dockerCli, and create options for PullImage
+	token, _ := command.RetrieveAuthTokenFromImage(r.Cli.ConfigFile(), r.Image)
 	options := types.ImagePullOptions{}
-	if err == nil {
+	if token != "" {
 		options.RegistryAuth = token
 	}
 
