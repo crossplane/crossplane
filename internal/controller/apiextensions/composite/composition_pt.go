@@ -509,9 +509,17 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			continue
 		}
 
-		// We want to garbage collect this resource, but we don't control it.
-		if c := metav1.GetControllerOf(cd); c == nil || c.UID != cr.GetUID() {
-			continue
+		// Don't garbage collect composed resources that someone else controls.
+		//
+		// We do garbage collect composed resources that no-one controls. If a
+		// composed resource appears in observed (i.e. appears in the XR's
+		// spec.resourceRefs) but doesn't have a controller ref, most likely we
+		// created it but its controller ref was stripped. In this situation it
+		// would be permissible for us to adopt the composed resource by setting
+		// our XR as the controller ref, then delete it. So we may as well just
+		// go straight to deleting it.
+		if c := metav1.GetControllerOf(cd); c != nil && c.UID != cr.GetUID() {
+			return nil, errors.Errorf(errFmtControllerMismatch, name, c.Kind, c.Name)
 		}
 
 		// This existing resource does not correspond to an extant template. It
