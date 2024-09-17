@@ -254,6 +254,45 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"SuccessfulNoMissingWithDigest": {
+			reason: "We should not return error and not requeue if no missing dependencies with digest.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1beta1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return nil, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"ErrorInvalidDependency": {
 			reason: "We should not requeue if dependency is invalid.",
 			args: args{
@@ -294,7 +333,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: false},
+				r:   reconcile.Result{Requeue: false},
+				err: errors.New(errInvalidDependency),
 			},
 		},
 		"ErrorFetchTags": {
@@ -341,7 +381,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errFetchTags),
+				err: errors.New(errInvalidDependency),
 			},
 		},
 		"ErrorNoValidVersion": {
@@ -440,6 +480,55 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errCreateDependency),
 			},
 		},
+		"ErrorCreateMissingDependencyWithDigest": {
+			reason: "We should return an error if unable to create missing dependency with digest.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1beta1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							})
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(errBoom),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     "hasheddan/config-nop-c",
+										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:        v1beta1.ConfigurationPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errCreateDependency),
+			},
+		},
 		"SuccessfulCreateMissingDependency": {
 			reason: "We should not requeue if able to create missing dependency.",
 			args: args{
@@ -482,6 +571,52 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulCreateMissingDependencyWithDigest": {
+			reason: "We should not requeue if able to create missing dependency with digest.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1beta1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     "hasheddan/provider-nop-c",
+										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:        v1beta1.ProviderPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
 					}),
 				},
 			},

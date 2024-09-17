@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -94,6 +95,33 @@ func TestPackageRevisioner(t *testing.T) {
 			},
 			want: want{
 				digest: "return-me",
+			},
+		},
+		"SuccessfulDigest": {
+			reason: "Should return the digest of the package source image.",
+			args: args{
+				pkg: &v1.Provider{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-nop",
+					},
+					Spec: v1.ProviderSpec{
+						PackageSpec: v1.PackageSpec{
+							Package:           "crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							PackagePullPolicy: &pullIfNotPresent,
+						},
+					},
+				},
+				f: &fake.MockFetcher{
+					MockHead: fake.NewMockHeadFn(&conregv1.Descriptor{
+						Digest: conregv1.Hash{
+							Algorithm: "sha256",
+							Hex:       "ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+						},
+					}, nil),
+				},
+			},
+			want: want{
+				digest: "provider-nop-ecc25c121431",
 			},
 		},
 		"ErrParseRef": {
