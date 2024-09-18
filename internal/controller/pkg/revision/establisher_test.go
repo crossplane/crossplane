@@ -69,12 +69,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"SuccessfulExistsEstablishControl": {
 			reason: "Establishment should be successful if we can establish control for a parent of existing objects.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
-						MockUpdate: test.NewMockUpdateFn(nil),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(nil),
+					MockUpdate: test.NewMockUpdateFn(nil),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -104,12 +102,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"SuccessfulNotExistsEstablishControl": {
 			reason: "Establishment should be successful if we can establish control for a parent of new objects.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(nil),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -139,22 +135,20 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"SuccessfulNotExistsEstablishControlWebhookEnabledActiveRevision": {
 			reason: "Establishment should be successful if we can establish control for a parent of new objects in case webhooks are enabled.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							if s, ok := obj.(*corev1.Secret); ok {
-								(&corev1.Secret{
-									Data: map[string][]byte{
-										"tls.crt": caBundle,
-									},
-								}).DeepCopyInto(s)
-								return nil
-							}
-							return kerrors.NewNotFound(schema.GroupResource{}, "")
-						},
-						MockCreate: test.NewMockCreateFn(nil),
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							(&corev1.Secret{
+								Data: map[string][]byte{
+									"tls.crt": caBundle,
+								},
+							}).DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-				},
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -223,12 +217,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"SuccessfulExistsEstablishOwnership": {
 			reason: "Establishment should be successful if we can establish ownership for a parent of existing objects.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
-						MockUpdate: test.NewMockUpdateFn(nil),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(nil),
+					MockUpdate: test.NewMockUpdateFn(nil),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -246,12 +238,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"SuccessfulNotExistsDoNotCreate": {
 			reason: "Establishment should be successful if we skip creating a resource we do not want to control.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(errBoom),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(errBoom),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -269,12 +259,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"FailedCreationWebhookDisabledConversionRequested": {
 			reason: "Establishment should fail if the CRD requires conversion webhook and Crossplane does not have the webhooks enabled.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(nil),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -309,11 +297,9 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"FailedGettingWebhookTLSSecretControl": {
 			reason: "Establishment of a controlling revision should fail if a webhook TLS secret is given but cannot be fetched",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errBoom),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				}),
 				parent: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
@@ -330,11 +316,9 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"NoErrGettingWebhookTLSSecretNoControl": {
 			reason: "Establishment of a revision should not fail if a webhook TLS secret is given but cannot be fetched if we don't want to control resources",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errBoom),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				}),
 				parent: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
@@ -351,15 +335,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"FailedEmptyWebhookTLSSecretControl": {
 			reason: "Establishment should fail for a controlling revision if a webhook TLS secret is given but empty if we want to control resources",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							s := &corev1.Secret{}
-							s.DeepCopyInto(obj.(*corev1.Secret))
-							return nil
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						s := &corev1.Secret{}
+						s.DeepCopyInto(obj.(*corev1.Secret))
+						return nil
 					},
-				},
+				}),
 				parent: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
@@ -376,15 +358,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"NoErrEmptyWebhookTLSSecretNoControl": {
 			reason: "Establishment should not fail for an revision if a webhook TLS secret is given but empty if we don't want to control resources",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							s := &corev1.Secret{}
-							s.DeepCopyInto(obj.(*corev1.Secret))
-							return nil
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						s := &corev1.Secret{}
+						s.DeepCopyInto(obj.(*corev1.Secret))
+						return nil
 					},
-				},
+				}),
 				parent: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
@@ -401,12 +381,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"FailedCreate": {
 			reason: "Cannot establish control of object if we cannot create it.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(errBoom),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(errBoom),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -428,12 +406,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 		"FailedUpdate": {
 			reason: "Cannot establish control of object if we cannot update it.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
-						MockUpdate: test.NewMockUpdateFn(errBoom),
-					},
-				},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet:    test.NewMockGetFn(nil),
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				}),
 				objs: []runtime.Object{
 					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
@@ -493,13 +469,11 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"CannotGetObject": {
 			reason: "Should return an error if we cannot get the owned object.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
-							return errBoom
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return errBoom
 					},
-				},
+				}),
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
@@ -522,13 +496,11 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"IgnoreOwnedObjectNotFound": {
 			reason: "Should ignore if we the owned object does not exist.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
-							return kerrors.NewNotFound(schema.GroupResource{}, "")
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
 					},
-				},
+				}),
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
@@ -551,33 +523,31 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"CannotUpdate": {
 			reason: "Should return an error if we cannot update the owned object.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							o := obj.(*unstructured.Unstructured)
-							o.SetOwnerReferences([]metav1.OwnerReference{
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "Provider",
-									Name:       "provider-helm",
-									UID:        "some-other-uid-1234",
-									Controller: &noControl,
-								},
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "ProviderRevision",
-									Name:       "provider-helm-ce18dd03e6e4",
-									UID:        "some-unique-uid-2312",
-									Controller: &controls,
-								},
-							})
-							return nil
-						},
-						MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
-							return errBoom
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						o := obj.(*unstructured.Unstructured)
+						o.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "Provider",
+								Name:       "provider-helm",
+								UID:        "some-other-uid-1234",
+								Controller: &noControl,
+							},
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "ProviderRevision",
+								Name:       "provider-helm-ce18dd03e6e4",
+								UID:        "some-unique-uid-2312",
+								Controller: &controls,
+							},
+						})
+						return nil
 					},
-				},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return errBoom
+					},
+				}),
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
@@ -600,16 +570,14 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"NoObjectsInStatus": {
 			reason: "Should not return an error if there are no objects in the status.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
-							return nil
-						},
-						MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
-							return nil
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return nil
 					},
-				},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
+				}),
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
@@ -623,34 +591,32 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"AlreadyReleased": {
 			reason: "ReleaseObjects should make no updates if the object is already released.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							o := obj.(*unstructured.Unstructured)
-							o.SetOwnerReferences([]metav1.OwnerReference{
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "Provider",
-									Name:       "provider-helm",
-									UID:        "some-other-uid-1234",
-									Controller: &noControl,
-								},
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "ProviderRevision",
-									Name:       "provider-helm-ce18dd03e6e4",
-									UID:        "some-unique-uid-2312",
-									Controller: &noControl,
-								},
-							})
-							return nil
-						},
-						MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
-							t.Errorf("should not have called update")
-							return nil
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						o := obj.(*unstructured.Unstructured)
+						o.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "Provider",
+								Name:       "provider-helm",
+								UID:        "some-other-uid-1234",
+								Controller: &noControl,
+							},
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "ProviderRevision",
+								Name:       "provider-helm-ce18dd03e6e4",
+								UID:        "some-unique-uid-2312",
+								Controller: &noControl,
+							},
+						})
+						return nil
 					},
-				},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						t.Errorf("should not have called update")
+						return nil
+					},
+				}),
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
@@ -673,42 +639,40 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"OwnedIfNotAlready": {
 			reason: "ReleaseObjects should put owner reference back if we are not already the owner.",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							o := obj.(*unstructured.Unstructured)
-							o.SetOwnerReferences([]metav1.OwnerReference{
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "Provider",
-									Name:       "provider-helm",
-									UID:        "some-other-uid-1234",
-									Controller: &noControl,
-								},
-							})
-							return nil
-						},
-						MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-							o := obj.(*unstructured.Unstructured)
-							if len(o.GetOwnerReferences()) != 2 {
-								t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
-							}
-							found := false
-							for _, ref := range o.GetOwnerReferences() {
-								if ref.Kind == "ProviderRevision" && ref.UID == "some-unique-uid-2312" {
-									found = true
-									if ptr.Deref(ref.Controller, false) {
-										t.Errorf("expected controller to be false, got %t", *ref.Controller)
-									}
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						o := obj.(*unstructured.Unstructured)
+						o.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "Provider",
+								Name:       "provider-helm",
+								UID:        "some-other-uid-1234",
+								Controller: &noControl,
+							},
+						})
+						return nil
+					},
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						o := obj.(*unstructured.Unstructured)
+						if len(o.GetOwnerReferences()) != 2 {
+							t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
+						}
+						found := false
+						for _, ref := range o.GetOwnerReferences() {
+							if ref.Kind == "ProviderRevision" && ref.UID == "some-unique-uid-2312" {
+								found = true
+								if ptr.Deref(ref.Controller, false) {
+									t.Errorf("expected controller to be false, got %t", *ref.Controller)
 								}
 							}
-							if !found {
-								t.Errorf("expected to find owner reference for revision with uid some-unique-uid-2312")
-							}
-							return nil
-						},
+						}
+						if !found {
+							t.Errorf("expected to find owner reference for revision with uid some-unique-uid-2312")
+						}
+						return nil
 					},
-				},
+				}),
 				parent: &v1.ProviderRevision{
 					TypeMeta: metav1.TypeMeta{
 						Kind: "ProviderRevision",
@@ -734,42 +698,40 @@ func TestAPIEstablisherReleaseObjects(t *testing.T) {
 		"SuccessfulRelease": {
 			reason: "ReleaseObjects should be successful if we can release control of existing objects",
 			args: args{
-				est: &APIEstablisher{
-					client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							o := obj.(*unstructured.Unstructured)
-							o.SetOwnerReferences([]metav1.OwnerReference{
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "Provider",
-									Name:       "provider-helm",
-									UID:        "some-other-uid-1234",
-									Controller: &noControl,
-								},
-								{
-									APIVersion: "pkg.crossplane.io/v1",
-									Kind:       "ProviderRevision",
-									Name:       "provider-helm-ce18dd03e6e4",
-									UID:        "some-unique-uid-2312",
-									Controller: &controls,
-								},
-							})
-							return nil
-						},
-						MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-							o := obj.(*unstructured.Unstructured)
-							if len(o.GetOwnerReferences()) != 2 {
-								t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
-							}
-							for _, ref := range o.GetOwnerReferences() {
-								if ref.UID == "some-unique-uid-2312" && *ref.Controller {
-									t.Errorf("expected controller to be false, got %t", *ref.Controller)
-								}
-							}
-							return nil
-						},
+				est: newAPIEstablisher(&test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						o := obj.(*unstructured.Unstructured)
+						o.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "Provider",
+								Name:       "provider-helm",
+								UID:        "some-other-uid-1234",
+								Controller: &noControl,
+							},
+							{
+								APIVersion: "pkg.crossplane.io/v1",
+								Kind:       "ProviderRevision",
+								Name:       "provider-helm-ce18dd03e6e4",
+								UID:        "some-unique-uid-2312",
+								Controller: &controls,
+							},
+						})
+						return nil
 					},
-				},
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						o := obj.(*unstructured.Unstructured)
+						if len(o.GetOwnerReferences()) != 2 {
+							t.Errorf("expected 2 owner references, got %d", len(o.GetOwnerReferences()))
+						}
+						for _, ref := range o.GetOwnerReferences() {
+							if ref.UID == "some-unique-uid-2312" && *ref.Controller {
+								t.Errorf("expected controller to be false, got %t", *ref.Controller)
+							}
+						}
+						return nil
+					},
+				}),
 				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "some-unique-uid-2312",
@@ -862,5 +824,12 @@ func TestGetPackageOwnerReference(t *testing.T) {
 				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+func newAPIEstablisher(client client.Client) *APIEstablisher {
+	return &APIEstablisher{
+		client:                           client,
+		MaxConcurrentPackageEstablishers: 10, // Use the current default
 	}
 }

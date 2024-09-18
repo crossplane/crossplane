@@ -97,9 +97,10 @@ type startCommand struct {
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
-	SyncInterval     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                    short:"s"`
-	PollInterval     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
-	MaxReconcileRate int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
+	SyncInterval                     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                      short:"s"`
+	PollInterval                     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
+	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
+	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
 	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
@@ -374,13 +375,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	po := pkgcontroller.Options{
-		Options:         o,
-		Cache:           xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
-		Namespace:       c.Namespace,
-		ServiceAccount:  c.ServiceAccount,
-		DefaultRegistry: c.Registry,
-		FetcherOptions:  []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-		PackageRuntime:  pr,
+		Options:                          o,
+		Cache:                            xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
+		Namespace:                        c.Namespace,
+		ServiceAccount:                   c.ServiceAccount,
+		DefaultRegistry:                  c.Registry,
+		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		PackageRuntime:                   pr,
+		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
 	}
 
 	if c.CABundlePath != "" {
