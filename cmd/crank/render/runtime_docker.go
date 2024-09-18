@@ -22,8 +22,6 @@ import (
 	"io"
 	"net"
 
-	"github.com/docker/cli/cli/command"
-	cliflags "github.com/docker/cli/cli/flags"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -193,23 +191,23 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 	}
 
 	// Getting and initializing a dockerCli to retrieve auth token
-	dockerCli, err := command.NewDockerCli()
-	if err != nil {
-		return RuntimeContext{}, errors.Wrap(err, "creating docker client")
-	}
+	// dockerCli, err := command.NewDockerCli()
+	// if err != nil {
+	// 	return RuntimeContext{}, errors.Wrap(err, "creating docker client")
+	// }
 
-	opts := cliflags.NewClientOptions()
-	err = dockerCli.Initialize(opts)
-	if err != nil {
-		return RuntimeContext{}, errors.Wrap(err, "initializing docker client")
-	}
+	// opts := cliflags.NewClientOptions()
+	// err = dockerCli.Initialize(opts)
+	// if err != nil {
+	// 	return RuntimeContext{}, errors.Wrap(err, "initializing docker client")
+	// }
 
 	// Getting auth token from dockerCli, and create ImagePullOptions for PullImage
-	authToken, _ := command.RetrieveAuthTokenFromImage(dockerCli.ConfigFile(), r.Image)
+	// authToken, _ := command.RetrieveAuthTokenFromImage(dockerCli.ConfigFile(), r.Image)
 	options := types.ImagePullOptions{}
-	if authToken != "" {
-		options.RegistryAuth = authToken
-	}
+	// if authToken != "" {
+	// 	options.RegistryAuth = authToken
+	// }
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
