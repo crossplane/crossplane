@@ -26,6 +26,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/name"
+	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -48,7 +49,8 @@ import (
 const (
 	reconcileTimeout = 1 * time.Minute
 
-	packageTagFmt = "%s:%s"
+	packageTagFmt    = "%s:%s"
+	packageDigestFmt = "%s@%s"
 )
 
 const (
@@ -235,42 +237,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, dep.Identifier()))
 		return reconcile.Result{Requeue: false}, nil
 	}
-	c, err := semver.NewConstraint(dep.Constraints)
-	if err != nil {
-		log.Debug(errInvalidConstraint, "error", err)
-		return reconcile.Result{Requeue: false}, nil
-	}
+
 	ref, err := name.ParseReference(dep.Package, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	// NOTE(hasheddan): we will be unable to fetch tags for private
-	// dependencies because we do not attach any secrets. Consider copying
-	// secrets from parent dependencies.
-	tags, err := r.fetcher.Tags(ctx, ref)
-	if err != nil {
-		log.Debug(errFetchTags, "error", err)
-		return reconcile.Result{}, errors.Wrap(err, errFetchTags)
-	}
-
-	vs := []*semver.Version{}
-	for _, r := range tags {
-		v, err := semver.NewVersion(r)
-		if err != nil {
-			// We skip any tags that are not valid semantic versions.
-			continue
-		}
-		vs = append(vs, v)
-	}
-
-	sort.Sort(semver.Collection(vs))
 	var addVer string
-	for _, v := range vs {
-		if c.Check(v) {
-			addVer = v.Original()
-		}
+	if addVer, err = r.findDependencyVersion(ctx, dep, log, ref); err != nil {
+		return reconcile.Result{Requeue: false}, errors.New(errInvalidDependency)
 	}
 
 	// NOTE(hasheddan): consider creating event on package revision
@@ -298,14 +274,63 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// no packagePullSecrets are set. Settings can be modified manually
 	// after dependency creation to address this.
 	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
-	pack.SetSource(fmt.Sprintf(packageTagFmt, ref.String(), addVer))
+
+	format := packageTagFmt
+	if strings.HasPrefix(addVer, "sha256:") {
+		format = packageDigestFmt
+	}
+
+	pack.SetSource(fmt.Sprintf(format, ref.String(), addVer))
 
 	// NOTE(hasheddan): consider making the lock the controller of packages
 	// it creates.
-	if err := r.client.Create(ctx, pack); err != nil {
+	if err := r.client.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
 		log.Debug(errCreateDependency, "error", err)
 		return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 	}
 
 	return reconcile.Result{Requeue: false}, nil
+}
+
+func (r *Reconciler) findDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, log logging.Logger, ref name.Reference) (string, error) {
+	var addVer string
+
+	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
+		log.Debug("package is pinned to a specific digest, skipping resolution")
+		return digest.String(), nil
+	}
+
+	c, err := semver.NewConstraint(dep.Constraints)
+	if err != nil {
+		log.Debug(errInvalidConstraint, "error", err)
+		return "", errors.New(errInvalidConstraint)
+	}
+
+	// NOTE(hasheddan): we will be unable to fetch tags for private
+	// dependencies because we do not attach any secrets. Consider copying
+	// secrets from parent dependencies.
+	tags, err := r.fetcher.Tags(ctx, ref)
+	if err != nil {
+		log.Debug(errFetchTags, "error", err)
+		return "", errors.New(errFetchTags)
+	}
+
+	vs := []*semver.Version{}
+	for _, r := range tags {
+		v, err := semver.NewVersion(r)
+		if err != nil {
+			// We skip any tags that are not valid semantic versions.
+			continue
+		}
+		vs = append(vs, v)
+	}
+
+	sort.Sort(semver.Collection(vs))
+	for _, v := range vs {
+		if c.Check(v) {
+			addVer = v.Original()
+		}
+	}
+
+	return addVer, nil
 }

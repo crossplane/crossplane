@@ -94,7 +94,7 @@ type Dependency struct {
 	// Type is the type of package. Can be either Configuration or Provider.
 	Type PackageType `json:"type"`
 
-	// Constraints is a valid semver range, which will be used to select a valid
+	// Constraints is a valid semver range or a digest, which will be used to select a valid
 	// dependency version.
 	Constraints string `json:"constraints"`
 }
