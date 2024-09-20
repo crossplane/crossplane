@@ -1,0 +1,13 @@
+# This is the package metadata for the Configuration installed by
+# configuration.yaml.
+#
+# This package is manually built/pushed to
+# xpkg.upbound.io/crossplane/e2e-configuration-digest
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-digest
+spec:
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-nop
+      version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904"

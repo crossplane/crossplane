@@ -69,10 +69,10 @@ func TestConfigurationWithDependency(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
-			Assess("ConfigurationIsHealthy",
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("RequiredProviderIsHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
@@ -81,6 +81,9 @@ func TestConfigurationWithDependency(t *testing.T) {
 			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision-dependency.yaml"),
 			)).Feature(),
 	)
 }
@@ -222,5 +225,36 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),
+	)
+}
+
+func TestConfigurationWithDigest(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/configuration/digest"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a Configuration with digest which depends on a Provider with digest will become healthy when the Provider becomes healthy").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision-dependency.yaml"),
+			)).Feature(),
 	)
 }

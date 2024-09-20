@@ -1,0 +1,9 @@
+# Note that we don't directly create this manifest, we just use it to check
+# whether the Provider was installed.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-contrib-provider-nop
+spec:
+  package: crossplane-contrib/provider-nop@sha256:de9047e10c479de78c5007fef708d4d21feae8be10b1c748a8276d52e068fcb0
+  ignoreCrossplaneConstraints: true
