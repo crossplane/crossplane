@@ -42,6 +42,7 @@ type Cmd struct {
 	CompositeResource string `arg:"" help:"A YAML file specifying the composite resource (XR) to render."                                        type:"existingfile"`
 	Composition       string `arg:"" help:"A YAML file specifying the Composition to use to render the XR. Must be mode: Pipeline."              type:"existingfile"`
 	Functions         string `arg:"" help:"A YAML file or directory of YAML files specifying the Composition Functions to use to render the XR." type:"path"`
+	FunctionSecrets   string `arg:"" help:"A YAML file or directory of YAML files specifying the Secrets to use for Functions to render the XR." type:"secrets"`
 
 	// Flags. Keep them in alphabetical order.
 	ContextFiles           map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be files containing JSON."                           mapsep:""`
@@ -149,6 +150,11 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
 
+	fsecrets, err := LoadSecrets(c.fs, c.FunctionSecrets)
+	if err != nil {
+		return errors.Wrapf(err, "cannot load secrets from %q", c.FunctionSecrets)
+	}
+
 	ors := []composed.Unstructured{}
 	if c.ObservedResources != "" {
 		ors, err = LoadObservedResources(c.fs, c.ObservedResources)
@@ -184,6 +190,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,
+		FunctionSecrets:   fsecrets,
 		ObservedResources: ors,
 		ExtraResources:    ers,
 		Context:           fctx,

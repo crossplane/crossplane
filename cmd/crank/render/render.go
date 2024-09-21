@@ -20,16 +20,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
-	"sync"
-	"time"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"sort"
+	"sync"
+	"time"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -69,6 +69,7 @@ type Inputs struct {
 	CompositeResource *ucomposite.Unstructured
 	Composition       *apiextensionsv1.Composition
 	Functions         []pkgv1.Function
+	FunctionSecrets   []corev1.Secret
 	ObservedResources []composed.Unstructured
 	ExtraResources    []unstructured.Unstructured
 	Context           map[string][]byte
@@ -159,6 +160,16 @@ func (r *RuntimeFunctionRunner) Stop(ctx context.Context) error {
 	return nil
 }
 
+// getSecret retrieves the secret with the specified name and namespace from the provided list of secrets.
+func getSecret(name string, nameSpace string, secrets []corev1.Secret) (*corev1.Secret, error) {
+	for _, s := range secrets {
+		if s.GetName() == name && s.GetNamespace() == nameSpace {
+			return &s, nil
+		}
+	}
+	return nil, errors.Errorf("secret %q not found", name)
+}
+
 // Render the desired XR and composed resources, sorted by resource name, given the supplied inputs.
 func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error) { //nolint:gocognit // TODO(negz): Should we refactor to break this up a bit?
 	runtimes, err := NewRuntimeFunctionRunner(ctx, log, in.Functions)
@@ -225,6 +236,26 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				return Outputs{}, errors.Wrapf(err, "cannot unmarshal input for Composition pipeline step %q", fn.Step)
 			}
 			req.Input = in
+		}
+
+		req.Credentials = map[string]*fnv1.Credentials{}
+		for _, cs := range fn.Credentials {
+			// For now we only support loading credentials from secrets.
+			if cs.Source != apiextensionsv1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
+				continue
+			}
+
+			s, err := getSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionSecrets)
+			if err != nil {
+				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
+			}
+			req.Credentials[cs.Name] = &fnv1.Credentials{
+				Source: &fnv1.Credentials_CredentialData{
+					CredentialData: &fnv1.CredentialData{
+						Data: s.Data,
+					},
+				},
+			}
 		}
 
 		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
