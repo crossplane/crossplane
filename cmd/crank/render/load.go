@@ -95,8 +95,8 @@ func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1.Function, error) {
 	return functions, nil
 }
 
-// LoadSecrets from a stream of YAML manifests.
-func LoadSecrets(fs afero.Fs, file string) ([]corev1.Secret, error) {
+// LoadCredentials from a stream of YAML manifests.
+func LoadCredentials(fs afero.Fs, file string) ([]corev1.Secret, error) {
 	stream, err := LoadYAMLStream(fs, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load YAML stream from file")

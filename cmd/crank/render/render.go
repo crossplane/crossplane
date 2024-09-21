@@ -67,13 +67,13 @@ const (
 
 // Inputs contains all inputs to the render process.
 type Inputs struct {
-	CompositeResource *ucomposite.Unstructured
-	Composition       *apiextensionsv1.Composition
-	Functions         []pkgv1.Function
-	FunctionSecrets   []corev1.Secret
-	ObservedResources []composed.Unstructured
-	ExtraResources    []unstructured.Unstructured
-	Context           map[string][]byte
+	CompositeResource   *ucomposite.Unstructured
+	Composition         *apiextensionsv1.Composition
+	Functions           []pkgv1.Function
+	FunctionCredentials []corev1.Secret
+	ObservedResources   []composed.Unstructured
+	ExtraResources      []unstructured.Unstructured
+	Context             map[string][]byte
 
 	// TODO(negz): Allow supplying observed XR and composed resource connection
 	// details. Maybe as Secrets? What if secret stores are in use?
@@ -246,7 +246,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				continue
 			}
 
-			s, err := getSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionSecrets)
+			s, err := getSecret(cs.SecretRef.Name, cs.SecretRef.Namespace, in.FunctionCredentials)
 			if err != nil {
 				return Outputs{}, errors.Wrapf(err, "cannot get credentials from secret %q", cs.SecretRef.Name)
 			}
