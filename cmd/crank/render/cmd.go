@@ -20,9 +20,10 @@ package render
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
 	"os"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
