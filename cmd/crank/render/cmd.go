@@ -20,6 +20,7 @@ package render
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
 	"os"
 	"time"
 
@@ -150,9 +151,12 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
 
-	fcreds, err := LoadCredentials(c.fs, c.FunctionCredentials)
-	if err != nil {
-		return errors.Wrapf(err, "cannot load secrets from %q", c.FunctionCredentials)
+	fcreds := []corev1.Secret{}
+	if c.FunctionCredentials != "" {
+		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load secrets from %q", c.FunctionCredentials)
+		}
 	}
 
 	ors := []composed.Unstructured{}
