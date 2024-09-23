@@ -23,6 +23,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/name"
+	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -216,6 +217,12 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		if !ok {
 			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
 		}
+
+		// Check if the constraint is a digest, and if so, skip constraint check.
+		if _, err := conregv1.NewHash(dep.Constraints); err == nil {
+			continue
+		}
+
 		c, err := semver.NewConstraint(dep.Constraints)
 		if err != nil {
 			return found, installed, invalid, err
