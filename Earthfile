@@ -161,9 +161,17 @@ go-build:
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY --dir apis/ cmd/ internal/ pkg/ .
   RUN go build -o crossplane${ext} ./cmd/crossplane
+  RUN sha256sum crossplane${ext} | head -c 64 > crossplane${ext}.sha256
   RUN go build -o crank${ext} ./cmd/crank
+  RUN sha256sum crank${ext} | head -c 64 > crank${ext}.sha256
+  RUN tar -czvf crank.tar.gz crank${ext} crank${ext}.sha256
+  RUN sha256sum crank.tar.gz | head -c 64 > crank.tar.gz.sha256
   SAVE ARTIFACT --keep-ts crossplane${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}
+  SAVE ARTIFACT --keep-ts crossplane${ext}.sha256 AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}.sha256
   SAVE ARTIFACT --keep-ts crank${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}
+  SAVE ARTIFACT --keep-ts crank${ext}.sha256 AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}.sha256
+  SAVE ARTIFACT --keep-ts crank.tar.gz AS LOCAL _output/bundle/${GOOS}_${GOARCH}/crank.tar.gz
+  SAVE ARTIFACT --keep-ts crank.tar.gz.sha256 AS LOCAL _output/bundle/${GOOS}_${GOARCH}/crank.tar.gz.sha256
 
 # go-multiplatform-build builds Crossplane binaries for all supported OS
 # and architectures.
