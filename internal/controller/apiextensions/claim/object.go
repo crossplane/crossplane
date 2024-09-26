@@ -32,7 +32,7 @@ const (
 func withoutReservedK8sEntries(a map[string]string) map[string]string {
 	for k := range a {
 		s := strings.Split(k, "/")
-		if strings.HasSuffix(s[0], "kubernetes.io") || strings.HasSuffix(s[0], "k8s.io") {
+		if s[0] != "app.kubernetes.io" && (strings.HasSuffix(s[0], "kubernetes.io") || strings.HasSuffix(s[0], "k8s.io")) {
 			delete(a, k)
 		}
 	}
