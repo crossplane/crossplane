@@ -464,6 +464,24 @@ func TestOrgDiffer(t *testing.T) {
 			b:        "cool/other-provider:v1.0.0",
 			want:     true,
 		},
+		"SameLocalOrg": {
+			registry: "xpkg.example.org",
+			a:        "provider-aws-config-v1.9.0-rc.0.2.g596f83b66.dirty.gz",
+			b:        "provider-aws-ec2-v1.9.0-rc.0.2.g596f83b66.dirty.gz",
+			want:     false,
+		},
+		"DifferentLocalOrgs": {
+			registry: "xpkg.example.org",
+			a:        "provider-aws-config-v1.9.0-rc.0.2.g596f83b66.dirty.gz",
+			b:        "provider-azure-config-v1.9.0-rc.0.2.g596f83b66.dirty.gz",
+			want:     true,
+		},
+		"OneLocalOneRemote": {
+			registry: "xpkg.example.org",
+			a:        "provider-aws-config-v1.9.0-rc.0.2.g596f83b66.dirty.gz",
+			b:        "xpkg.example.org/provider-aws-ec2:v1.9.0-rc.0.2.g596f83b66.dirty.gz",
+			want:     true,
+		},
 	}
 
 	for name, tc := range cases {
