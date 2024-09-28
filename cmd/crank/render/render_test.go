@@ -757,6 +757,207 @@ func TestRender(t *testing.T) {
 				},
 			},
 		},
+		"SuccessWithObservedConnectionSecrets": {
+			args: args{
+				ctx: context.Background(),
+				in: Inputs{
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"spec": {
+									"writeConnectionSecretToRef": {
+										"name": "secret1",
+										"namespace": "default"
+									}
+								}
+							}`),
+						},
+					},
+					Composition: &apiextensionsv1.Composition{
+						Spec: apiextensionsv1.CompositionSpec{
+							Mode: &pipeline,
+							Pipeline: []apiextensionsv1.PipelineStep{
+								{
+									Step:        "test",
+									FunctionRef: apiextensionsv1.FunctionReference{Name: "function-test"},
+								},
+							},
+						},
+					},
+					Functions: []pkgv1.Function{
+						func() pkgv1.Function {
+							lis := NewFunctionWithRunFunc(t, func(_ context.Context, request *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+								if request.Observed.Resources["missing-connectionsecret"].ConnectionDetails != nil {
+									t.Fatalf("expected no connectionDetails to be present")
+								}
+
+								coolConnectionDetails := request.Observed.Resources["a-cool-resource"].ConnectionDetails
+								if coolConnectionDetails == nil {
+									t.Fatalf("expected connectiondetails for observed managed resources \"a-cool-resource\"")
+								}
+								compositeConnectionDetails := request.Observed.Composite.ConnectionDetails
+								if compositeConnectionDetails == nil {
+									t.Fatalf("expected connectiondetails for observed composite")
+								}
+
+								return &fnv1.RunFunctionResponse{
+									Desired: &fnv1.State{
+										Composite: &fnv1.Resource{
+											Resource: MustStructJSON(`{
+												"status": {
+													"widgets": 9001
+												}
+											}`),
+											ConnectionDetails: map[string][]byte{
+												"foo": compositeConnectionDetails["foo"],
+												"boo": coolConnectionDetails["boo"],
+											},
+										},
+									},
+								}, nil
+							})
+							listeners = append(listeners, lis)
+
+							return pkgv1.Function{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "function-test",
+									Annotations: map[string]string{
+										AnnotationKeyRuntime:                  string(AnnotationValueRuntimeDevelopment),
+										AnnotationKeyRuntimeDevelopmentTarget: lis.Addr().String(),
+									},
+								},
+							}
+						}(),
+					},
+					Context: map[string][]byte{
+						"crossplane.io/context-key": []byte(`{}`),
+					},
+					ObservedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "v1",
+									"kind": "Secret",
+									"metadata": {
+										"name": "secret1",
+										"namespace": "default"
+									},
+									"data": {
+										"foo": "Zm9v"
+									}
+								}`),
+							},
+						}, {
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "v1",
+									"kind": "Secret",
+									"metadata": {
+										"name": "secret2",
+										"namespace": "default"
+									},
+									"data": {
+										"boo": "YnV6"
+									}
+								}`),
+							},
+						}, {
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"kind": "BComposed",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "a-cool-resource"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"spec": {
+										"widgets": 9002,
+										"writeConnectionSecretToRef": {
+											"name": "secret2",
+											"namespace": "default"
+										}
+									}
+								}`),
+							},
+						}, {
+							Unstructured: unstructured.Unstructured{
+								Object: MustLoadJSON(`{
+									"apiVersion": "btest.crossplane.io/v1",
+									"kind": "BComposed",
+									"metadata": {
+										"generateName": "test-render-",
+										"labels": {
+											"crossplane.io/composite": "test-render"
+										},
+										"annotations": {
+											"crossplane.io/composition-resource-name": "missing-connectionsecret"
+										},
+										"ownerReferences": [{
+											"apiVersion": "nop.example.org/v1alpha1",
+											"kind": "XNopResource",
+											"name": "test-render",
+											"blockOwnerDeletion": true,
+											"controller": true,
+											"uid": ""
+										}]
+									},
+									"spec": {
+										"widgets": 9002,
+										"writeConnectionSecretToRef": {
+											"name": "no-secret",
+											"namespace": "default"
+										}
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				out: Outputs{
+					// TODO: expect connectionDetails in composite when support is added
+					CompositeResource: &ucomposite.Unstructured{
+						Unstructured: unstructured.Unstructured{
+							Object: MustLoadJSON(`{
+								"apiVersion": "nop.example.org/v1alpha1",
+								"kind": "XNopResource",
+								"metadata": {
+									"name": "test-render"
+								},
+								"status": {
+									"widgets": 9001,
+									"conditions": [{
+										"lastTransitionTime": "2024-01-01T00:00:00Z",
+										"type": "Ready",
+										"status": "True",
+										"reason": "Available"
+									}]
+								}
+							}`),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {

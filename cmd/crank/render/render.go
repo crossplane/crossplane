@@ -31,11 +31,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -74,9 +77,6 @@ type Inputs struct {
 	ObservedResources   []composed.Unstructured
 	ExtraResources      []unstructured.Unstructured
 	Context             map[string][]byte
-
-	// TODO(negz): Allow supplying observed XR and composed resource connection
-	// details. Maybe as Secrets? What if secret stores are in use?
 }
 
 // Outputs contains all outputs from the render process.
@@ -199,19 +199,52 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
 
 	observed := composite.ComposedResourceStates{}
+	secretGvk := schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    "Secret",
+	}
+
+	observedConnectionDetails := map[xpv1.SecretReference]managed.ConnectionDetails{}
+
+	for _, cd := range in.ObservedResources {
+		if secretGvk != cd.GroupVersionKind() {
+			continue
+		}
+		secret := &corev1.Secret{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(cd.Object, secret); err != nil {
+			continue
+		}
+		observedConnectionDetails[xpv1.SecretReference{
+			Name:      secret.GetName(),
+			Namespace: secret.GetNamespace(),
+		}] = secret.Data
+	}
 
 	for i, cd := range in.ObservedResources {
-		name := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
+		name, ok := cd.GetAnnotations()[AnnotationKeyCompositionResourceName]
+		if !ok {
+			continue
+		}
+		var or resource.Composed = &in.ObservedResources[i]
+		var connectionDetails managed.ConnectionDetails
+		if connectionSecretRef := or.GetWriteConnectionSecretToReference(); connectionSecretRef != nil {
+			connectionDetails = observedConnectionDetails[*connectionSecretRef]
+		}
+
 		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
-			Resource:          &in.ObservedResources[i],
-			ConnectionDetails: nil, // We don't support passing in observed connection details.
+			Resource:          or,
+			ConnectionDetails: connectionDetails, // We don't support passing in observed connection details.
 			Ready:             false,
 		}
 	}
 
-	// TODO(negz): Support passing in optional observed connection details for
-	// both the XR and composed resources.
-	o, err := composite.AsState(in.CompositeResource, nil, observed)
+	var connectionDetails managed.ConnectionDetails
+	if connectionSecretRef := in.CompositeResource.GetWriteConnectionSecretToReference(); connectionSecretRef != nil {
+		connectionDetails = observedConnectionDetails[*connectionSecretRef]
+	}
+
+	o, err := composite.AsState(in.CompositeResource, connectionDetails, observed)
 	if err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot build observed composite and composed resources for RunFunctionRequest")
 	}
