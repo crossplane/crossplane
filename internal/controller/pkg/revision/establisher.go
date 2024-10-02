@@ -42,12 +42,6 @@ import (
 )
 
 const (
-	// maxConcurrentEstablishers specifies the maximum number of goroutines to use
-	// for establishing resources.
-	maxConcurrentEstablishers = 10
-)
-
-const (
 	errAssertResourceObj            = "cannot assert object to resource.Object"
 	errAssertClientObj              = "cannot assert object to client.Object"
 	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
@@ -86,15 +80,17 @@ func (*NopEstablisher) ReleaseObjects(_ context.Context, _ v1.PackageRevision) e
 // APIEstablisher establishes control or ownership of resources in the API
 // server for a parent.
 type APIEstablisher struct {
-	client    client.Client
-	namespace string
+	client                           client.Client
+	namespace                        string
+	MaxConcurrentPackageEstablishers int
 }
 
 // NewAPIEstablisher creates a new APIEstablisher.
-func NewAPIEstablisher(client client.Client, namespace string) *APIEstablisher {
+func NewAPIEstablisher(client client.Client, namespace string, maxConcurrentPackageEstablishers int) *APIEstablisher {
 	return &APIEstablisher{
-		client:    client,
-		namespace: namespace,
+		client:                           client,
+		namespace:                        namespace,
+		MaxConcurrentPackageEstablishers: maxConcurrentPackageEstablishers,
 	}
 }
 
@@ -143,7 +139,7 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConcurrentEstablishers)
+	g.SetLimit(e.MaxConcurrentPackageEstablishers)
 	for _, ref := range allObjs {
 		g.Go(func() error {
 			select {
@@ -231,7 +227,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConcurrentEstablishers)
+	g.SetLimit(e.MaxConcurrentPackageEstablishers)
 	out := make(chan currentDesired, len(objs))
 	for _, res := range objs {
 		g.Go(func() error {
@@ -388,7 +384,7 @@ func (e *APIEstablisher) getWebhookTLSCert(ctx context.Context, parentWithRuntim
 
 func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) {
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConcurrentEstablishers)
+	g.SetLimit(e.MaxConcurrentPackageEstablishers)
 	out := make(chan xpv1.TypedReference, len(allObjs))
 	for _, cd := range allObjs {
 		g.Go(func() error {
