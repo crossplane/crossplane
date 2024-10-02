@@ -40,6 +40,14 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
+// EnvironmentConfig type metadata.
+var (
+	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
+	EnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: EnvironmentConfigKind}.String()
+	EnvironmentConfigKindAPIVersion   = EnvironmentConfigKind + "." + SchemeGroupVersion.String()
+	EnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(EnvironmentConfigKind)
+)
+
 // Usage type metadata.
 var (
 	UsageKind             = reflect.TypeOf(Usage{}).Name()
@@ -50,4 +58,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&Usage{}, &UsageList{})
+	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
 }
