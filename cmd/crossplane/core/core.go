@@ -109,7 +109,6 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
 	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableUsages               bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
 	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
@@ -125,6 +124,12 @@ type startCommand struct {
 	EnableCompositionRevisions               bool `default:"true" hidden:""`
 	EnableCompositionFunctions               bool `default:"true" hidden:""`
 	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
+
+	// These are alpha features that we've removed support for. Crossplane
+	// returns an error when you enable them. This ensures you'll see an
+	// explicit and informative error on startup, instead of a potentially
+	// surprising one later.
+	EnableEnvironmentConfigs bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -210,10 +215,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
 	}
 
+	// TODO(negz): Include a link to a migration guide.
 	if c.EnableEnvironmentConfigs {
-		// TODO(negz): Include a link to a migration guide.
-		// TODO(negz): Perhaps this should return an error instead of logging?
-		log.Info("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
+		//nolint:revive // This is long. It's easier to read with punctuation.
+		return errors.New("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
 	}
 
 	clienttls, err := certificates.LoadMTLSConfig(
