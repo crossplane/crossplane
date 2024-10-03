@@ -123,7 +123,9 @@ and their default values.
 | `securityContextRBACManager.runAsGroup` | The group ID used by the RBAC Manager pod. | `65532` |
 | `securityContextRBACManager.runAsUser` | The user ID used by the RBAC Manager pod. | `65532` |
 | `service.customAnnotations` | Configure annotations on the service object. Only enabled when webhooks.enabled = true | `{}` |
+| `serviceAccount.create` | Create the Crossplane ServiceAccount automatically. | `true` |
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
+| `serviceAccount.name` | Define the Crossplane ServiceAccount name. | `""` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `topologySpreadConstraints` | Add `topologySpreadConstraints` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
