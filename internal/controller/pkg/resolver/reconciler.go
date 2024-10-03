@@ -69,6 +69,7 @@ const (
 	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
 	errInvalidPackageType   = "cannot create invalid package dependency type"
 	errCreateDependency     = "cannot create dependency package"
+	errUpdateDependency     = "cannot update dependency package"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -153,7 +154,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		client:  mgr.GetClient(),
 		lock:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 		log:     logging.NewNopLogger(),
-		newDag:  dag.NewMapDag,
+		newDag:  dag.NewUpgradableMapDag,
 		fetcher: xpkg.NewNopFetcher(),
 	}
 
@@ -211,6 +212,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	dag := r.newDag()
 	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
+
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
@@ -245,7 +247,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	var addVer string
-	if addVer, err = r.findDependencyVersion(ctx, dep, log, ref); err != nil {
+	if addVer, err = r.findDependencyVersionUpgrade(ctx, dep, log, ref, dag); err != nil {
 		return reconcile.Result{Requeue: false}, errors.New(errInvalidDependency)
 	}
 
@@ -280,16 +282,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		format = packageDigestFmt
 	}
 
-	pack.SetSource(fmt.Sprintf(format, ref.String(), addVer))
+	tarVer := fmt.Sprintf(format, ref.String(), addVer)
+	pack.SetSource(tarVer)
 
-	// NOTE(hasheddan): consider making the lock the controller of packages
-	// it creates.
-	if err := r.client.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
-		log.Debug(errCreateDependency, "error", err)
-		return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pack), pack); err != nil {
+		if !kerrors.IsNotFound(err) {
+			log.Debug(errCreateDependency, "error", err)
+			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+		}
+
+		// If the package does not exist, we create it.
+		if err := r.client.Create(ctx, pack); err != nil {
+			log.Debug(errCreateDependency, "error", err)
+			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+		}
 	}
 
-	return reconcile.Result{Requeue: false}, nil
+	if pack.GetSource() != tarVer {
+		pack.SetSource(tarVer)
+		if err := r.client.Update(ctx, pack); err != nil {
+			return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateDependency)
+		}
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (r *Reconciler) findDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, log logging.Logger, ref name.Reference) (string, error) {
@@ -329,6 +345,65 @@ func (r *Reconciler) findDependencyVersion(ctx context.Context, dep *v1beta1.Dep
 	for _, v := range vs {
 		if c.Check(v) {
 			addVer = v.Original()
+		}
+	}
+
+	return addVer, nil
+}
+
+func (r *Reconciler) findDependencyVersionUpgrade(ctx context.Context, dep *v1beta1.Dependency, log logging.Logger, ref name.Reference, dag dag.DAG) (string, error) {
+	var addVer string
+
+	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
+		log.Debug("package is pinned to a specific digest, skipping resolution")
+		return digest.String(), nil
+	}
+
+	// NOTE(hasheddan): we will be unable to fetch tags for private
+	// dependencies because we do not attach any secrets. Consider copying
+	// secrets from parent dependencies.
+	tags, err := r.fetcher.Tags(ctx, ref)
+	if err != nil {
+		log.Debug(errFetchTags, "error", err)
+		return "", errors.New(errFetchTags)
+	}
+
+	vs := []*semver.Version{}
+	for _, r := range tags {
+		v, err := semver.NewVersion(r)
+		if err != nil {
+			// We skip any tags that are not valid semantic versions.
+			continue
+		}
+		vs = append(vs, v)
+	}
+
+	sort.Sort(semver.Collection(vs))
+
+	n, err := dag.GetNode(dep.Identifier())
+	if err != nil {
+		return "", errors.New(errInvalidDependency)
+	}
+
+	for i := len(vs) - 1; i >= 0; i-- {
+		v := vs[i]
+		invalid := false
+
+		for _, constraint := range n.GetParentConstraints() {
+			c, err := semver.NewConstraint(constraint)
+			if err != nil {
+				log.Debug(errInvalidConstraint, "error", err)
+				return "", errors.New(errInvalidConstraint)
+			}
+			if !c.Check(v) {
+				invalid = true
+				break
+			}
+		}
+
+		if !invalid {
+			addVer = v.Original()
+			break
 		}
 	}
 
