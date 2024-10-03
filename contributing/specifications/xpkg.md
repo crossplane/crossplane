@@ -14,14 +14,14 @@ package content is commonly referred to as an `xpkg` ("ex-package"). This
 document provides the specification for a valid `xpkg`, which can be considered
 a superset of the requirements detailed in the [OCI image specification]. It is
 divided into two broad sections: requirements related to OCI image format and
-requirements related to Crossplane `package.yaml` contents.
+requirements related to Crossplane `crossplane.yaml` contents.
 
 - [OCI Image Format](#oci-image-format)
   - [Indexes](#indexes)
   - [Manifests](#manifests)
   - [Configuration](#configuration)
   - [Layers](#layers)
-- [package.yaml Contents](#packageyaml-contents)
+- [crossplane.yaml Contents](#packageyaml-contents)
   - [Configuration Package Requirements](#configuration-package-requirements)
   - [Provider Package Requirements](#provider-package-requirements)
   - [Object Annotations](#object-annotations)
@@ -123,10 +123,10 @@ distinguished. Crossplane imposes no additional restrictions on any other
 layers, including those with a `io.crossplane.xpkg` annotation but a value other
 than `base`, but does require the following of the `xpkg` base layer:
 
-- A single file with name `package.yaml` MUST exist in the root directory of the
+- A single file with name `crossplane.yaml` MUST exist in the root directory of the
   `xpkg` base layer if distinguished, or in the root of the image filesystem
   after all layer changesets are applied.
-- The `package.yaml` file MUST contain a valid [YAML stream].
+- The `crossplane.yaml` file MUST contain a valid [YAML stream].
 - All other content in either the `xpkg` base layer, or the full image
   filesystem is ignored by Crossplane.
 
@@ -136,16 +136,16 @@ than `base`, but does require the following of the `xpkg` base layer:
 > accidentally overwriting or modifying the `xpkg` layer contents in subsequent
 > layers when constructing an image could cause the package to be invalid.
 
-## package.yaml Contents
+## crossplane.yaml Contents
 
 Depending on the type of package, the YAML stream in the `xpkg` base layer
-`package.yaml` may contain different content. Additionally, the objects in the
+`crossplane.yaml` may contain different content. Additionally, the objects in the
 YAML stream may contain common annotations that are suitable for the given
 object type.
 
 ### Configuration Package Requirements
 
-The `package.yaml` for Configuration packages must adhere to the following
+The `crossplane.yaml` for Configuration packages must adhere to the following
 requirements:
 
 - One (1) and only one `Configuration.meta.pkg.crossplane.io` object MUST be
@@ -158,7 +158,7 @@ requirements:
 
 ### Provider Package Requirements
 
-The `package.yaml` for Provider packages must adhere to the following
+The `crossplane.yaml` for Provider packages must adhere to the following
 requirements:
 
 - One (1) and only one `Provider.meta.pkg.crossplane.io` object MUST be defined
@@ -173,7 +173,7 @@ requirements:
 
 ### Function Package Requirements
 
-The `package.yaml` for Function packages must adhere to the following
+The `crossplane.yaml` for Function packages must adhere to the following
 requirements:
 
 - One (1) and only one `Function.meta.pkg.crossplane.io` object MUST be defined
