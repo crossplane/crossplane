@@ -796,11 +796,11 @@ func TestRender(t *testing.T) {
 									t.Fatalf("expected no connectionDetails to be present")
 								}
 
-								coolConnectionDetails := request.Observed.Resources["a-cool-resource"].ConnectionDetails
+								coolConnectionDetails := request.GetObserved().GetResources()["a-cool-resource"].GetConnectionDetails()
 								if coolConnectionDetails == nil {
 									t.Fatalf("expected connectiondetails for observed managed resources \"a-cool-resource\"")
 								}
-								compositeConnectionDetails := request.Observed.Composite.ConnectionDetails
+								compositeConnectionDetails := request.GetObserved().GetComposite().GetConnectionDetails()
 								if compositeConnectionDetails == nil {
 									t.Fatalf("expected connectiondetails for observed composite")
 								}
