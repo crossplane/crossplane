@@ -226,7 +226,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		if !ok {
 			continue
 		}
-		var or resource.Composed = &in.ObservedResources[i]
+		or := &in.ObservedResources[i]
 		var connectionDetails managed.ConnectionDetails
 		if connectionSecretRef := or.GetWriteConnectionSecretToReference(); connectionSecretRef != nil {
 			connectionDetails = observedConnectionDetails[*connectionSecretRef]
