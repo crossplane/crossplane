@@ -199,16 +199,11 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	runner := composite.NewFetchingFunctionRunner(runtimes, &FilteringFetcher{extra: in.ExtraResources})
 
 	observed := composite.ComposedResourceStates{}
-	secretGvk := schema.GroupVersionKind{
-		Group:   "",
-		Version: "v1",
-		Kind:    "Secret",
-	}
 
 	observedConnectionDetails := map[xpv1.SecretReference]managed.ConnectionDetails{}
 
 	for _, cd := range in.ObservedResources {
-		if secretGvk != cd.GroupVersionKind() {
+		if cd.GroupVersionKind() != (schema.GroupVersionKind{Version: "v1", Kind: "Secret"}) {
 			continue
 		}
 		secret := &corev1.Secret{}
@@ -227,14 +222,15 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			continue
 		}
 		or := &in.ObservedResources[i]
+
 		var connectionDetails managed.ConnectionDetails
-		if connectionSecretRef := or.GetWriteConnectionSecretToReference(); connectionSecretRef != nil {
-			connectionDetails = observedConnectionDetails[*connectionSecretRef]
+		if ref := or.GetWriteConnectionSecretToReference(); ref != nil {
+			connectionDetails = observedConnectionDetails[*ref]
 		}
 
 		observed[composite.ResourceName(name)] = composite.ComposedResourceState{
 			Resource:          or,
-			ConnectionDetails: connectionDetails, // We don't support passing in observed connection details.
+			ConnectionDetails: connectionDetails,
 			Ready:             false,
 		}
 	}
