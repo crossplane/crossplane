@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -52,6 +53,7 @@ const (
 )
 
 const (
+	lockName  = "lock"
 	finalizer = "lock.pkg.crossplane.io"
 
 	errGetLock              = "cannot get package lock"
@@ -62,6 +64,8 @@ const (
 	errFmtMissingDependency = "missing package (%s) is not a dependency"
 	errInvalidConstraint    = "version constraint on dependency is invalid"
 	errInvalidDependency    = "dependency package is not valid"
+	errFindDependency       = "cannot find dependency version"
+	errGetPullConfig        = "cannot get image pull secret from config"
 	errFetchTags            = "cannot fetch dependency package tags"
 	errNoValidVersion       = "cannot find a valid version for package constraints"
 	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
@@ -100,6 +104,13 @@ func WithFetcher(f xpkg.Fetcher) ReconcilerOption {
 	}
 }
 
+// WithConfigStore specifies how the Reconciler should access image config store.
+func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.config = c
+	}
+}
+
 // WithDefaultRegistry sets the default registry to use.
 func WithDefaultRegistry(registry string) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -114,6 +125,7 @@ type Reconciler struct {
 	lock     resource.Finalizer
 	newDag   dag.NewDAGFn
 	fetcher  xpkg.Fetcher
+	config   xpkg.ConfigStore
 	registry string
 }
 
@@ -134,6 +146,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithFetcher(f),
 		WithDefaultRegistry(o.DefaultRegistry),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -141,6 +154,23 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.Lock{}).
 		Owns(&v1.ConfigurationRevision{}).
 		Owns(&v1.ProviderRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Ideally we should enqueue only if the ImageConfig applies to a
+			// package in the Lock which would require getting/parsing the Lock
+			// and checking the source of each package against the prefixes in
+			// the ImageConfig. However, this is a bit more complex than needed,
+			// and we don't expect to have many ImageConfigs so we just enqueue
+			// for all ImageConfigs with a pull secret.
+			return []reconcile.Request{{NamespacedName: client.ObjectKey{Name: lockName}}}
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -246,10 +276,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot get pull secret from image config store", "error", err)
+		return reconcile.Result{Requeue: false}, errors.Wrap(err, errGetPullConfig)
+	}
+
+	var s []string
+	if ps != "" {
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		s = append(s, ps)
+	}
+
 	// NOTE(hasheddan): we will be unable to fetch tags for private
 	// dependencies because we do not attach any secrets. Consider copying
 	// secrets from parent dependencies.
-	tags, err := r.fetcher.Tags(ctx, ref)
+	tags, err := r.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
 		return reconcile.Result{}, errors.Wrap(err, errFetchTags)
