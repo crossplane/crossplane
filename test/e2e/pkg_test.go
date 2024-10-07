@@ -230,3 +230,39 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestImageConfigAuth(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can install a private package as a dependency by providing registry pull credentials through ImageConfig API.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "pull-secret.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ProviderInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("ConfigurationInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				// We wait until the configuration revision is gone, otherwise
+				// the provider we will be deleting next might come back as a
+				// result of the configuration revision being reconciled again.
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-revision.yaml"),
+			)).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).Feature(),
+	)
+}
