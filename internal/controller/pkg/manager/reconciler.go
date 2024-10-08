@@ -69,6 +69,7 @@ const (
 	errUnpack               = "cannot unpack package"
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
+	errGetPullConfig        = "cannot get image pull secret from config"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
@@ -88,6 +89,7 @@ const (
 	reasonGarbageCollect     event.Reason = "GarbageCollect"
 	reasonInstall            event.Reason = "InstallPackageRevision"
 	reasonPaused             event.Reason = "ReconciliationPaused"
+	reasonImageConfig        event.Reason = "GetImageConfig"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -122,6 +124,13 @@ func WithRevisioner(d Revisioner) ReconcilerOption {
 	}
 }
 
+// WithConfigStore specifies the image config store to use.
+func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.config = c
+	}
+}
+
 // WithLogger specifies how the Reconciler should log messages.
 func WithLogger(log logging.Logger) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -140,6 +149,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 type Reconciler struct {
 	client resource.ClientApplicator
 	pkg    Revisioner
+	config xpkg.ConfigStore
 	log    logging.Logger
 	record event.Recorder
 
@@ -169,6 +179,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
@@ -202,6 +213,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -235,6 +247,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
@@ -303,7 +316,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	revisionName, err := r.pkg.Revision(ctx, p)
+	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetSource())
+	if err != nil {
+		err = errors.Wrap(err, errGetPullConfig)
+		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, p)
+
+		r.record.Event(p, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+
+	revisionName, err := r.pkg.Revision(ctx, p, pullSecretFromConfig)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
@@ -405,6 +429,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
 		p.SetConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
+	}
+
+	if pr.GetUID() == "" {
+		// TODO: Test this, ensure we only record this event if the revision is new
+
+		// We only record this event if the revision is new, as we don't want to
+		// spam the user with events if the revision already exists.
+		r.record.Event(pr, event.Normal(reasonImageConfig, "Selected ImageConfig for registry authentication", "name", imageConfig, "pull-secret", pullSecretFromConfig))
 	}
 
 	// Create the non-existent package revision.
