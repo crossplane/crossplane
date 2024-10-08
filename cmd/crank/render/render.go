@@ -124,7 +124,7 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		conns[fn.GetName()] = conn
 	}
 
-	return &RuntimeFunctionRunner{conns: conns}, nil
+	return &RuntimeFunctionRunner{contexts: contexts, conns: conns}, nil
 }
 
 // RunFunction runs the named function.
