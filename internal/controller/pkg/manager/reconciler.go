@@ -19,6 +19,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -89,7 +90,7 @@ const (
 	reasonGarbageCollect     event.Reason = "GarbageCollect"
 	reasonInstall            event.Reason = "InstallPackageRevision"
 	reasonPaused             event.Reason = "ReconciliationPaused"
-	reasonImageConfig        event.Reason = "GetImageConfig"
+	reasonImageConfig        event.Reason = "ImageConfigSelection"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -431,12 +432,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
-	if pr.GetUID() == "" {
+	if pr.GetUID() == "" && imageConfig != "" {
 		// TODO: Test this, ensure we only record this event if the revision is new
 
 		// We only record this event if the revision is new, as we don't want to
 		// spam the user with events if the revision already exists.
-		r.record.Event(pr, event.Normal(reasonImageConfig, "Selected ImageConfig for registry authentication", "name", imageConfig, "pull-secret", pullSecretFromConfig))
+		log.Debug("Selected pull secret from image config store", "image", p.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
+		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
 	}
 
 	// Create the non-existent package revision.
