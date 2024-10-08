@@ -76,6 +76,8 @@ const (
 	errAddFinalizer    = "cannot add package revision finalizer"
 	errRemoveFinalizer = "cannot remove package revision finalizer"
 
+	errGetPullConfig = "cannot get image pull secret from config"
+
 	errDeactivateRevision = "cannot deactivate package revision"
 
 	errInitParserBackend = "cannot initialize parser backend"
@@ -114,6 +116,7 @@ const (
 
 // Event reasons.
 const (
+	reasonImageConfig  event.Reason = "GetImageConfig"
 	reasonParse        event.Reason = "ParsePackage"
 	reasonLint         event.Reason = "LintPackage"
 	reasonDependencies event.Reason = "ResolveDependencies"
@@ -206,6 +209,14 @@ func WithParserBackend(p parser.Backend) ReconcilerOption {
 	}
 }
 
+// WithConfigStore specifies the ConfigStore to use for fetching image
+// configurations.
+func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.config = c
+	}
+}
+
 // WithLinter specifies how the Reconciler should lint a package.
 func WithLinter(l parser.Linter) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -261,6 +272,7 @@ type Reconciler struct {
 	linter         parser.Linter
 	versioner      version.Operations
 	backend        parser.Backend
+	config         xpkg.ConfigStore
 	log            logging.Logger
 	record         event.Recorder
 	features       *feature.Flags
@@ -293,6 +305,9 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	// TODO: Watch for ImageConfig and enqueue requests for all ProviderRevisions
+	//  if the image of the revision matches the image in the ImageConfig.
+	//  Do the same for ConfigurationRevisions and FunctionRevisions as well.
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
@@ -311,6 +326,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -363,6 +379,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -419,6 +436,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLinter(xpkg.NewFunctionLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -546,6 +564,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, pr.GetSource())
+	if err != nil {
+		err = errors.Wrap(err, errGetPullConfig)
+		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, pr)
+
+		r.record.Event(pr, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+
 	var runtimeManifestBuilder ManifestBuilder
 	pwr, hasRuntime := pr.(v1.PackageRevisionWithRuntime)
 	if hasRuntime && r.runtimeHook != nil {
@@ -560,6 +589,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(pr, event.Warning(reasonSync, err))
 
 			return reconcile.Result{}, err
+		}
+
+		if pullSecretFromConfig != "" {
+			opts = append(opts, RuntimeManifestBuilderWithPullSecretFromConfig(pullSecretFromConfig))
 		}
 
 		runtimeManifestBuilder = NewRuntimeManifestBuilder(pwr, r.namespace, opts...)
@@ -657,8 +690,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// If we didn't get a ReadCloser from cache, we need to get it from image.
 	if rc == nil {
+		bo := []parser.BackendOption{PackageRevision(pr)}
+		if imageConfig != "" {
+			bo = append(bo, PullSecretFromConfig(pullSecretFromConfig))
+			// We only record this event here, package is not in cache, and
+			// we are about to fetch the image. This way we avoid emitting
+			// excessive events in each reconcile, but once per image pull.
+			r.record.Event(pr, event.Normal(reasonImageConfig, "Selected ImageConfig for registry authentication", "name", imageConfig, "pull-secret", pullSecretFromConfig))
+		}
+
 		// Initialize parser backend to obtain package contents.
-		imgrc, err := r.backend.Init(ctx, PackageRevision(pr))
+		imgrc, err := r.backend.Init(ctx, bo...)
 		if err != nil {
 			err = errors.Wrap(err, errInitParserBackend)
 			pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))

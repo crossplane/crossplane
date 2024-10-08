@@ -67,7 +67,7 @@ func (s *ImageConfigStore) PullSecretFor(ctx context.Context, image string) (ima
 
 // bestMatch finds the best matching ImageConfig for an image based on the
 // longest prefix match.
-func (s *ImageConfigStore) bestMatch(ctx context.Context, image string, isValid isValidConfig) (*v1beta1.ImageConfig, error) {
+func (s *ImageConfigStore) bestMatch(ctx context.Context, image string, valid isValidConfig) (*v1beta1.ImageConfig, error) {
 	l := &v1beta1.ImageConfigList{}
 
 	if err := s.client.List(ctx, l); err != nil {
@@ -78,7 +78,7 @@ func (s *ImageConfigStore) bestMatch(ctx context.Context, image string, isValid 
 	var longest int
 
 	for _, c := range l.Items {
-		if !isValid(&c) {
+		if !valid(&c) {
 			continue
 		}
 

@@ -159,6 +159,14 @@ func DeploymentWithImagePullSecrets(secrets []corev1.LocalObjectReference) Deplo
 	}
 }
 
+// DeploymentWithAdditionalPullSecret adds additional image pull secret to
+// a Deployment.
+func DeploymentWithAdditionalPullSecret(secret corev1.LocalObjectReference) DeploymentOverride {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Template.Spec.ImagePullSecrets = append(d.Spec.Template.Spec.ImagePullSecrets, secret)
+	}
+}
+
 // DeploymentRuntimeWithOptionalImage set the image for the runtime container if
 // it is unset, e.g. not specified in the DeploymentRuntimeConfig. Note that if
 // the image was already set, we use it exactly as is (i.e., no default registry).
