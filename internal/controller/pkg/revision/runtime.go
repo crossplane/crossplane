@@ -101,6 +101,7 @@ type RuntimeManifestBuilder struct {
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 	controllerConfig          *v1alpha1.ControllerConfig
+	pullSecretFromConfig      string
 }
 
 // RuntimeManifestBuilderOption is used to configure a RuntimeManifestBuilder.
@@ -127,6 +128,14 @@ func RuntimeManifestBuilderWithControllerConfig(cc *v1alpha1.ControllerConfig) R
 func RuntimeManifestBuilderWithServiceAccountPullSecrets(secrets []corev1.LocalObjectReference) RuntimeManifestBuilderOption {
 	return func(b *RuntimeManifestBuilder) {
 		b.serviceAccountPullSecrets = secrets
+	}
+}
+
+// RuntimeManifestBuilderWithPullSecretFromConfig sets the image config
+// pull secret to use when building the runtime manifests.
+func RuntimeManifestBuilderWithPullSecretFromConfig(secret string) RuntimeManifestBuilderOption {
+	return func(b *RuntimeManifestBuilder) {
+		b.pullSecretFromConfig = secret
 	}
 }
 
@@ -222,6 +231,10 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 			},
 		}),
 	)
+
+	if b.pullSecretFromConfig != "" {
+		allOverrides = append(allOverrides, DeploymentWithAdditionalPullSecret(corev1.LocalObjectReference{Name: b.pullSecretFromConfig}))
+	}
 
 	if b.revision.GetPackagePullPolicy() != nil {
 		// If the package pull policy is set, it will override the default
