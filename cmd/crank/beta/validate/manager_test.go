@@ -33,7 +33,8 @@ import (
 
 var (
 	// config-pkg:v1.3.0.
-	configPkg = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+	configPkg = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: config-pkg
@@ -46,7 +47,8 @@ spec:
 `)
 
 	// provider-dep-1:v1.3.0.
-	providerYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+	providerYaml = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-dep-1
@@ -55,7 +57,8 @@ metadata:
 `)
 
 	// provider-dep-2:v1.3.0.
-	provider2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+	provider2Yaml = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-dep-2
@@ -68,7 +71,8 @@ spec:
 `)
 
 	// function-dep-1:v1.3.0.
-	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
+	funcYaml = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: function-dep-1
@@ -77,7 +81,8 @@ metadata:
 `)
 
 	// config-dep-1:v1.3.0.
-	configDep1Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+	configDep1Yaml = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: config-dep-1
@@ -90,7 +95,8 @@ spec:
 `)
 
 	// config-dep-2:v1.3.0.
-	configDep2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+	configDep2Yaml = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: config-dep-2

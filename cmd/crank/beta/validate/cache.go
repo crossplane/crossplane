@@ -23,17 +23,22 @@ import (
 
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
+const (
+	notFoundErrorFmt = "cache does not contain the image at: %s"
+)
+
 // Cache defines an interface for caching schemas.
 type Cache interface {
-	Store(schemas [][]byte, path string) error
+	Store(image string, schemas [][]byte) error
 	Flush() error
 	Init() error
 	Load() ([]*unstructured.Unstructured, error)
-	Exists(image string) (string, error)
+	Get(image string) ([]*unstructured.Unstructured, *unstructured.Unstructured, error)
 }
 
 // LocalCache implements the Cache interface.
@@ -43,7 +48,9 @@ type LocalCache struct {
 }
 
 // Store stores the schemas in the directory.
-func (c *LocalCache) Store(schemas [][]byte, path string) error {
+func (c *LocalCache) Store(image string, schemas [][]byte) error {
+	path := c.getCachePathOf(image)
+
 	if err := c.fs.MkdirAll(path, os.ModePerm); err != nil {
 		return errors.Wrapf(err, "cannot create directory %s", path)
 	}
@@ -101,22 +108,53 @@ func (c *LocalCache) Load() ([]*unstructured.Unstructured, error) {
 	return schemas, nil
 }
 
-// Exists checks if the cache contains the image and returns the path if it doesn't exist.
-func (c *LocalCache) Exists(image string) (string, error) {
-	fName := strings.ReplaceAll(image, ":", "@")
-	path := filepath.Join(c.cacheDir, fName)
+// Get checks if the cache contains the image and returns meta and schemas of image.
+func (c *LocalCache) Get(image string) ([]*unstructured.Unstructured, *unstructured.Unstructured, error) {
+	path := c.getCachePathOf(image)
 
+	ip := filepath.Join(path, packageFileName)
 	_, err := os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
-		return path, nil
+		return nil, nil, errors.Errorf(notFoundErrorFmt, path)
 	} else if err != nil {
-		return "", errors.Wrapf(err, "cannot stat file %s", path)
+		return nil, nil, errors.Wrapf(err, "cannot stat file %s", path)
+	}
+	schemas, err := readFile(ip)
+	if err != nil {
+		return nil, nil, errors.Wrapf(err, "cannot read cache file %s", path)
 	}
 
-	return "", nil
+	meta := &unstructured.Unstructured{}
+	unSchs := []*unstructured.Unstructured{}
+
+	for _, sch := range schemas {
+		u := &unstructured.Unstructured{}
+		if err = yaml.Unmarshal(sch, u); err != nil {
+			return nil, nil, errors.Wrapf(err, "cannot unmarshal package YAML")
+		}
+		if u.GroupVersionKind().Group == "meta.pkg.crossplane.io" {
+			meta = u
+			continue
+		}
+		unSchs = append(unSchs, u)
+	}
+	if meta.Object == nil {
+		return unSchs, nil, errors.New("cannot find meta package")
+	}
+
+	return unSchs, meta, nil
 }
 
-// CacheDir returns the cache directory path for the image.
-func (c *LocalCache) CacheDir(image string) string {
-	return filepath.Join(c.cacheDir, strings.ReplaceAll(image, ":", "@"))
+// IsNotCached checks if the error is a cache miss error.
+func IsNotCached(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), notFoundErrorFmt[:len(notFoundErrorFmt)-2])
+}
+
+func (c *LocalCache) getCachePathOf(image string) string {
+	fName := strings.ReplaceAll(image, ":", "@")
+	path := filepath.Join(c.cacheDir, fName)
+	return path
 }
