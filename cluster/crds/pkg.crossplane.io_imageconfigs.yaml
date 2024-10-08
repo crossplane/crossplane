@@ -50,8 +50,9 @@ spec:
             description: ImageConfigSpec contains the configuration for matching images.
             properties:
               matchImages:
-                description: MatchImages is a list of image matching rules that should
-                  be satisfied.
+                description: |-
+                  MatchImages is a list of image matching rules that should be satisfied.
+                  TODO: CEL rule to have this at least length of one.
                 items:
                   description: ImageMatch defines a rule for matching image.
                   properties:
