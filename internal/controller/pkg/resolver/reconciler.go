@@ -64,6 +64,8 @@ const (
 	errFmtMissingDependency = "missing package (%s) is not a dependency"
 	errInvalidConstraint    = "version constraint on dependency is invalid"
 	errInvalidDependency    = "dependency package is not valid"
+	errFindDependency       = "cannot find dependency version"
+	errGetPullConfig        = "cannot get image pull secret from config"
 	errFetchTags            = "cannot fetch dependency package tags"
 	errNoValidVersion       = "cannot find a valid version for package constraints"
 	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
@@ -102,6 +104,13 @@ func WithFetcher(f xpkg.Fetcher) ReconcilerOption {
 	}
 }
 
+// WithConfigStore specifies how the Reconciler should access image config store.
+func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.config = c
+	}
+}
+
 // WithDefaultRegistry sets the default registry to use.
 func WithDefaultRegistry(registry string) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -116,6 +125,7 @@ type Reconciler struct {
 	lock     resource.Finalizer
 	newDag   dag.NewDAGFn
 	fetcher  xpkg.Fetcher
+	config   xpkg.ConfigStore
 	registry string
 }
 
@@ -136,6 +146,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithFetcher(f),
 		WithDefaultRegistry(o.DefaultRegistry),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -246,7 +257,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	var addVer string
 	if addVer, err = r.findDependencyVersion(ctx, dep, log, ref); err != nil {
-		return reconcile.Result{Requeue: false}, errors.New(errInvalidDependency)
+		return reconcile.Result{Requeue: false}, errors.Wrap(err, errFindDependency)
 	}
 
 	// NOTE(hasheddan): consider creating event on package revision
@@ -306,10 +317,22 @@ func (r *Reconciler) findDependencyVersion(ctx context.Context, dep *v1beta1.Dep
 		return "", errors.New(errInvalidConstraint)
 	}
 
+	// TODO: Debug ref.String and ensure it returns full image with version
+	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot get pull secret from image config store", "error", err)
+		return "", errors.Wrap(err, errGetPullConfig)
+	}
+
+	var s []string
+	if ps != "" {
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		s = append(s, ps)
+	}
 	// NOTE(hasheddan): we will be unable to fetch tags for private
 	// dependencies because we do not attach any secrets. Consider copying
 	// secrets from parent dependencies.
-	tags, err := r.fetcher.Tags(ctx, ref)
+	tags, err := r.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
 		return "", errors.New(errFetchTags)

@@ -19,6 +19,7 @@ package revision
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -116,7 +117,7 @@ const (
 
 // Event reasons.
 const (
-	reasonImageConfig  event.Reason = "GetImageConfig"
+	reasonImageConfig  event.Reason = "ImageConfigSelection"
 	reasonParse        event.Reason = "ParsePackage"
 	reasonLint         event.Reason = "LintPackage"
 	reasonDependencies event.Reason = "ResolveDependencies"
@@ -696,7 +697,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// We only record this event here, package is not in cache, and
 			// we are about to fetch the image. This way we avoid emitting
 			// excessive events in each reconcile, but once per image pull.
-			r.record.Event(pr, event.Normal(reasonImageConfig, "Selected ImageConfig for registry authentication", "name", imageConfig, "pull-secret", pullSecretFromConfig))
+			log.Debug("Selected pull secret from image config store", "image", pr.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
+			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
 		}
 
 		// Initialize parser backend to obtain package contents.
