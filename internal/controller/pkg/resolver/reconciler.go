@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -54,6 +55,7 @@ const (
 )
 
 const (
+	lockName  = "lock"
 	finalizer = "lock.pkg.crossplane.io"
 
 	errGetLock              = "cannot get package lock"
@@ -154,6 +156,23 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.Lock{}).
 		Owns(&v1.ConfigurationRevision{}).
 		Owns(&v1.ProviderRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Ideally we should enqueue only if the ImageConfig applies to a
+			// package in the Lock which would require getting/parsing the Lock
+			// and checking the source of each package against the prefixes in
+			// the ImageConfig. However, this is a bit more complex than needed,
+			// and we don't expect to have many ImageConfigs so we just enqueue
+			// for all ImageConfigs with a pull secret.
+			return []reconcile.Request{{NamespacedName: client.ObjectKey{Name: lockName}}}
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
