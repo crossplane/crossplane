@@ -19,6 +19,7 @@ package validate
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -48,9 +49,10 @@ type Manager struct {
 	cache   Cache
 	writer  io.Writer
 
-	crds  []*extv1.CustomResourceDefinition
-	deps  map[string]bool                  // Dependency images
-	confs map[string]*metav1.Configuration // Configuration images
+	crds []*extv1.CustomResourceDefinition
+	deps map[string]interface{} // Dependency images (providers, configurations, functions)
+
+	mu sync.Mutex
 }
 
 // NewManager returns a new Manager.
@@ -65,8 +67,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m.fetcher = &Fetcher{}
 	m.writer = w
 	m.crds = make([]*extv1.CustomResourceDefinition, 0)
-	m.deps = make(map[string]bool)
-	m.confs = make(map[string]*metav1.Configuration)
+	m.deps = make(map[string]interface{})
 
 	return m
 }
@@ -121,7 +122,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get package image")
 			}
 
-			m.deps[image] = true
+			m.deps[image] = nil
 
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Configuration"}:
 			paved := fieldpath.Pave(e.Object)
@@ -130,7 +131,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot get package image")
 			}
 
-			m.confs[image] = nil
+			m.deps[image] = nil
 
 		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
 			meta, err := e.MarshalJSON()
@@ -143,7 +144,32 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
 			}
 
-			m.confs[cfg.Name] = cfg
+			m.deps[cfg.Name] = cfg
+
+		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Provider"}:
+			meta, err := e.MarshalJSON()
+			if err != nil {
+				return errors.Wrap(err, "cannot marshal provider to JSON")
+			}
+			p := &metav1.Provider{}
+			if err := yaml.Unmarshal(meta, p); err != nil {
+				return errors.Wrapf(err, "cannot unmarshal provider YAML")
+			}
+
+			m.deps[p.Name] = p
+
+		case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Function"}:
+			meta, err := e.MarshalJSON()
+			if err != nil {
+				return errors.Wrap(err, "cannot marshal function to JSON")
+			}
+
+			f := &metav1.Function{}
+			if err := yaml.Unmarshal(meta, f); err != nil {
+				return errors.Wrapf(err, "cannot unmarshal function YAML")
+			}
+
+			m.deps[f.Name] = f
 
 		default:
 			continue
@@ -165,7 +191,11 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	if err := m.addDependencies(m.confs); err != nil {
+	deps := make(map[string]interface{})
+	for k, v := range m.deps {
+		deps[k] = v
+	}
+	if err := m.addDependencies(deps); err != nil {
 		return errors.Wrapf(err, "cannot add package dependencies")
 	}
 
@@ -181,35 +211,28 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
-func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error {
-	if len(confs) == 0 {
+// addDependencies recursively adds dependencies of the given dependencies.
+// do not pass a map (e.g. m.deps) to it directly, pass it's deep copy.
+func (m *Manager) addDependencies(deps map[string]interface{}) error {
+	if len(deps) == 0 {
 		return nil
 	}
 
-	deepConfs := make(map[string]*metav1.Configuration)
-	for image := range confs {
-		cfg := m.confs[image]
+	err := m.getAndExtractAllPackagesWithType()
+	if err != nil {
+		return errors.Wrapf(err, "cannot get and extract all packages with type")
+	}
 
-		if cfg == nil {
-			m.deps[image] = true // we need to download the configuration package for the XRDs
+	deepDeps := make(map[string]interface{})
+	for img := range deps {
+		pkg := m.deps[img]
 
-			layer, err := m.fetcher.FetchBaseLayer(image)
-			if err != nil {
-				return errors.Wrapf(err, "cannot download package %s", image)
-			}
-
-			_, meta, err := extractPackageContent(*layer)
-			if err != nil {
-				return errors.Wrapf(err, "cannot extract package file and meta")
-			}
-			if err := yaml.Unmarshal(meta, &cfg); err != nil {
-				return errors.Wrapf(err, "cannot unmarshal configuration YAML")
-			}
-			m.confs[image] = cfg // update the configuration
+		dependsOn, err := getDependencies(pkg)
+		if err != nil {
+			return errors.Wrapf(err, "cannot get dependencies for %s", img)
 		}
 
-		deps := cfg.Spec.MetaSpec.DependsOn
-		for _, dep := range deps {
+		for _, dep := range dependsOn {
 			image := ""
 			if dep.Configuration != nil { //nolint:gocritic // switch is not suitable here
 				image = *dep.Configuration
@@ -220,52 +243,187 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 			}
 			if len(image) > 0 {
 				image = fmt.Sprintf(imageFmt, image, dep.Version)
-				m.deps[image] = true
 
-				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
-					deepConfs[image] = nil
-					m.confs[image] = nil
+				if _, ok := m.deps[image]; !ok {
+					deepDeps[image] = nil
+					m.deps[image] = nil
 				}
 			}
 		}
 	}
 
-	return m.addDependencies(deepConfs)
+	return m.addDependencies(deepDeps)
 }
 
 func (m *Manager) cacheDependencies() error {
 	if err := m.cache.Init(); err != nil {
-		return errors.Wrapf(err, "cannot initialize  cache directory")
+		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
 	for image := range m.deps {
-		path, err := m.cache.Exists(image) // returns the path if the image is not cached
-		if err != nil {
-			return errors.Wrapf(err, "cannot check if cache exists for %s", image)
-		}
+		_, _, err := m.cache.Get(image)
 
-		if path == "" {
-			continue
-		}
-
-		if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
-			return errors.Wrapf(err, errWriteOutput)
-		}
-
-		layer, err := m.fetcher.FetchBaseLayer(image)
-		if err != nil {
-			return errors.Wrapf(err, "cannot download package %s", image)
-		}
-
-		schemas, _, err := extractPackageContent(*layer)
-		if err != nil {
-			return errors.Wrapf(err, "cannot extract package file and meta")
-		}
-
-		if err := m.cache.Store(schemas, path); err != nil {
-			return errors.Wrapf(err, "cannot store base layer")
+		// If package is not cached, download and cache it
+		if IsNotCached(err) {
+			_, err = m.downloadAndCachePackage(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot download and cache package for %s", image)
+			}
+		} else if err != nil {
+			return errors.Wrapf(err, "error getting from cache for %s", image)
 		}
 	}
 
 	return nil
+}
+
+func getDependencies(pkg interface{}) ([]metav1.Dependency, error) {
+	switch v := pkg.(type) {
+	case *metav1.Configuration:
+		return v.GetDependencies(), nil
+	case *metav1.Provider:
+		return v.GetDependencies(), nil
+	case *metav1.Function:
+		return v.GetDependencies(), nil
+	default:
+		return nil, errors.New("unknown package type")
+	}
+}
+
+func findPackageYamlType(meta *unstructured.Unstructured) (interface{}, error) {
+	switch meta.GroupVersionKind().GroupKind() {
+	case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Configuration"}:
+		mj, err := meta.MarshalJSON()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot marshal function to JSON")
+		}
+
+		c := &metav1.Configuration{}
+		if err := yaml.Unmarshal(mj, c); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal function YAML")
+		}
+		return c, nil
+	case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Provider"}:
+		mj, err := meta.MarshalJSON()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot marshal function to JSON")
+		}
+
+		p := &metav1.Provider{}
+		if err := yaml.Unmarshal(mj, p); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal function YAML")
+		}
+		return p, nil
+	case schema.GroupKind{Group: "meta.pkg.crossplane.io", Kind: "Function"}:
+		mj, err := meta.MarshalJSON()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot marshal function to JSON")
+		}
+
+		f := &metav1.Function{}
+		if err = yaml.Unmarshal(mj, f); err != nil {
+			return nil, errors.Wrapf(err, "cannot unmarshal function YAML")
+		}
+		return f, nil
+	default:
+		return nil, errors.New("unknown package type")
+	}
+}
+
+// getAndExtractPackageWithType gets the package image from cache or remote
+// and returns the package with its type (provider/function/configuration).
+func (m *Manager) getAndExtractPackageWithType(image string) (interface{}, error) {
+	// If package is already cached, get it from cache
+	_, meta, err := m.cache.Get(image)
+
+	// If package is not cached, download and cache it
+	if IsNotCached(err) {
+		meta, err = m.downloadAndCachePackage(image)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error downloading and caching package for %s", image)
+		}
+	} else if err != nil {
+		return nil, errors.Wrapf(err, "error getting from cache for %s", image)
+	}
+
+	// Find type of the package (provider/function/configuration) and return
+	return findPackageYamlType(meta)
+}
+
+// getAndExtractAllPackagesWithType gets the package images from cache or remote,
+// assigns them to the manager's deps map.
+func (m *Manager) getAndExtractAllPackagesWithType() error {
+	pkgs := make(map[string]interface{})
+
+	// Getting images that are not assigned
+	for img, data := range m.deps {
+		if data == nil {
+			pkgs[img] = nil
+		}
+	}
+
+	var wg sync.WaitGroup
+	errChan := make(chan error, len(pkgs))
+
+	// Get and extract packages concurrently
+	for image := range pkgs {
+		wg.Add(1)
+		go func(image string) {
+			defer wg.Done()
+
+			m.mu.Lock()
+			pkg := m.deps[image]
+			m.mu.Unlock()
+			if pkg == nil {
+				var err error
+				pkg, err = m.getAndExtractPackageWithType(image)
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				m.mu.Lock()
+				m.deps[image] = pkg
+				m.mu.Unlock()
+			}
+		}(image)
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Manager) downloadAndCachePackage(image string) (*unstructured.Unstructured, error) {
+	if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
+		return nil, errors.Wrapf(err, errWriteOutput)
+	}
+
+	layer, err := m.fetcher.FetchBaseLayer(image)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot download package %s", image)
+	}
+
+	schemas, meta, err := extractPackageContent(*layer)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot extract package file and meta")
+	}
+
+	if err = m.cache.Store(image, append([][]byte{meta}, schemas...)); err != nil {
+		return nil, errors.Wrapf(err, "cannot store base layer")
+	}
+
+	unsMeta := &unstructured.Unstructured{}
+	if err = yaml.Unmarshal(meta, unsMeta); err != nil {
+		return nil, errors.Wrapf(err, "cannot unmarshal package meta YAML")
+	}
+
+	return unsMeta, nil
 }

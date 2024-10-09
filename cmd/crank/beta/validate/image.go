@@ -151,17 +151,26 @@ func extractPackageContent(layer conregv1.Layer) ([][]byte, []byte, error) {
 		return nil, nil, errors.Wrapf(err, "cannot read from layer")
 	}
 
-	// we need the meta object for identifying the dependencies
+	// the first line of the layer is not part of the object, so we need to remove it
+	o := string(objs[0])
+	ol := strings.Split(o, "\n")
+	o = strings.Join(ol[1:], "\n")
+
+	objs[0] = []byte(o)
+
+	// extract meta and schema objects
 	var metaObj []byte
+	var schemaObjs [][]byte
 	if len(objs) > 0 {
-		metaObj = objs[0]
+		for _, obj := range objs {
+			if strings.Contains(string(obj), "meta.pkg.crossplane.io") {
+				metaObj = obj
+				break
+			}
+			schemaObjs = append(schemaObjs, obj)
+		}
 	}
 
-	// the first line of the layer is not part of the meta object, so we need to remove it
-	metaStr := string(metaObj)
-	metaLines := strings.Split(metaStr, "\n")
-	metaStr = strings.Join(metaLines[1:], "\n")
-
 	// the last obj is not yaml, so we need to remove it
-	return objs[1 : len(objs)-1], []byte(metaStr), nil
+	return schemaObjs, metaObj, nil
 }
