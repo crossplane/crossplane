@@ -42,37 +42,13 @@ const (
 	errFmtExpandingArrayFieldPaths    = "cannot expand ToFieldPath %s"
 )
 
-// ApplyEnvironmentPatch executes a patching operation between the cp and env objects.
-func ApplyEnvironmentPatch(p v1.EnvironmentPatch, cp, env runtime.Object) error {
-	// TODO(negz): Should this take composite.Resource and *env.Environment as
-	// arguments rather than generic runtime.Objects?
-
-	regularPatch := p.ToPatch()
-	if regularPatch == nil {
-		// Should never happen, but just in case, nothing to do.
-		return nil
-	}
-	// To make thing easy, we are going to reuse the logic of a regular
-	// composition patch.
-	return ApplyToObjects(
-		*regularPatch,
-		cp,
-		env,
-		v1.PatchTypeFromCompositeFieldPath,
-		v1.PatchTypeCombineFromComposite,
-		v1.PatchTypeToCompositeFieldPath,
-		v1.PatchTypeCombineToComposite,
-	)
-}
-
 // Apply executes a patching operation between the from and to resources.
 // Applies all patch types unless an 'only' filter is supplied.
 func Apply(p v1.Patch, cp resource.Composite, cd resource.Composed, only ...v1.PatchType) error {
 	return ApplyToObjects(p, cp, cd, only...)
 }
 
-// ApplyToObjects works like c.Apply but accepts any kind of runtime.Object
-// (such as EnvironmentConfigs).
+// ApplyToObjects works like c.Apply but accepts any kind of runtime.Object.
 // It might be vulnerable to conversion panics
 // (see https://github.com/crossplane/crossplane/pull/3394 for details).
 func ApplyToObjects(p v1.Patch, cp, cd runtime.Object, only ...v1.PatchType) error {
@@ -81,13 +57,13 @@ func ApplyToObjects(p v1.Patch, cp, cd runtime.Object, only ...v1.PatchType) err
 	}
 
 	switch p.GetType() {
-	case v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeFromEnvironmentFieldPath:
+	case v1.PatchTypeFromCompositeFieldPath:
 		return ApplyFromFieldPathPatch(p, cp, cd)
-	case v1.PatchTypeToCompositeFieldPath, v1.PatchTypeToEnvironmentFieldPath:
+	case v1.PatchTypeToCompositeFieldPath:
 		return ApplyFromFieldPathPatch(p, cd, cp)
-	case v1.PatchTypeCombineFromComposite, v1.PatchTypeCombineFromEnvironment:
+	case v1.PatchTypeCombineFromComposite:
 		return ApplyCombineFromVariablesPatch(p, cp, cd)
-	case v1.PatchTypeCombineToComposite, v1.PatchTypeCombineToEnvironment:
+	case v1.PatchTypeCombineToComposite:
 		return ApplyCombineFromVariablesPatch(p, cd, cp)
 	case v1.PatchTypePatchSet:
 		// Already resolved - nothing to do.

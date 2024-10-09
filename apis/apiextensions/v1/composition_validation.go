@@ -32,7 +32,6 @@ func (c *Composition) Validate() (warns []string, errs field.ErrorList) {
 		c.validatePatchSets,
 		c.validateResources,
 		c.validatePipeline,
-		c.validateEnvironment,
 	}
 	for _, f := range validations {
 		errs = append(errs, f()...)
@@ -189,15 +188,4 @@ func (c *Composition) validateResourceNames() (errs field.ErrorList) {
 		seen[name] = true
 	}
 	return errs
-}
-
-// validateEnvironment checks that the environment is logically valid.
-func (c *Composition) validateEnvironment() field.ErrorList {
-	if c.Spec.Environment == nil {
-		return nil
-	}
-	if errs := verrors.WrapFieldErrorList(c.Spec.Environment.Validate(), field.NewPath("spec", "environment")); len(errs) > 0 {
-		return errs
-	}
-	return nil
 }

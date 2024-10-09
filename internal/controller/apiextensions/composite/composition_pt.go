@@ -48,9 +48,8 @@ const (
 	errInline       = "cannot inline Composition patch sets"
 
 	errFmtApplyComposed              = "cannot apply composed resource %q"
-	errFmtPatchEnvironment           = "cannot apply environment patch at index %d"
 	errFmtParseBase                  = "cannot parse base template of composed resource %q"
-	errFmtRenderFromCompositePatches = "cannot render FromComposite or environment patches for composed resource %q"
+	errFmtRenderFromCompositePatches = "cannot render FromComposite patches for composed resource %q"
 	errFmtRenderToCompositePatches   = "cannot render ToComposite patches for composed resource %q"
 	errFmtRenderMetadata             = "cannot render metadata for composed resource %q"
 	errFmtGenerateName               = "cannot generate a name for composed resource %q"
@@ -173,16 +172,6 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		return CompositionResult{}, errors.Wrap(err, errAssociate)
 	}
 
-	// If we have an environment, run all environment patches before composing
-	// resources.
-	if req.Environment != nil && req.Revision.Spec.Environment != nil {
-		for i, p := range req.Revision.Spec.Environment.Patches {
-			if err := ApplyEnvironmentPatch(p, xr, req.Environment); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtPatchEnvironment, i)
-			}
-		}
-	}
-
 	events := make([]TargetedEvent, 0)
 
 	// We optimistically render all composed resources that we are able to with
@@ -212,7 +201,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr *composite.Unstructured, re
 		// unblock it.
 
 		rendered := true
-		if err := RenderFromCompositeAndEnvironmentPatches(r, xr, req.Environment, ta.Template.Patches); err != nil {
+		if err := RenderFromCompositePatches(r, xr, ta.Template.Patches); err != nil {
 			events = append(events, TargetedEvent{
 				Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)),
 				Target: CompositionTargetComposite,

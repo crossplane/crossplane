@@ -298,60 +298,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"SelectEnvironmentError": {
-			reason: "We should return any error encountered while selecting the environment.",
-			args: args{
-				client: &test.MockClient{
-					MockGet:          test.NewMockGetFn(nil),
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-				},
-				opts: []ReconcilerOption{
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, _ resource.Composite) error {
-						return nil
-					})),
-					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{}}
-						return c, nil
-					})),
-					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error { return nil })),
-					WithEnvironmentSelector(EnvironmentSelectorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
-						return errBoom
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"FetchEnvironmentError": {
-			reason: "We should requeue on any error encountered while fetching the environment.",
-			args: args{
-				client: &test.MockClient{
-					MockGet:          test.NewMockGetFn(nil),
-					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
-				},
-				opts: []ReconcilerOption{
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, _ resource.Composite) error {
-						return nil
-					})),
-					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{}}
-						return c, nil
-					})),
-					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error { return nil })),
-					WithEnvironmentFetcher(EnvironmentFetcherFn(func(_ context.Context, _ EnvironmentFetcherRequest) (*Environment, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
 		"ComposeResourcesError": {
 			reason: "We should return any error encountered while composing resources.",
 			args: args{

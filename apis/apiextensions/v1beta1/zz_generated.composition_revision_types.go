@@ -75,14 +75,6 @@ type CompositionRevisionSpec struct {
 	// +optional
 	PatchSets []PatchSet `json:"patchSets,omitempty"`
 
-	// Environment configures the environment in which resources are rendered.
-	//
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
-	// +optional
-	Environment *EnvironmentConfiguration `json:"environment,omitempty"`
-
 	// Resources is a list of resource templates that will be used when a
 	// composite resource referring to this composition is created.
 	//

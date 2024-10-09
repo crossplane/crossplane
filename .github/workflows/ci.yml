@@ -220,7 +220,6 @@ jobs:
       matrix:
         test-suite:
           - base
-          - environment-configs
           - usage
           - ssa-claims
           - realtime-compositions

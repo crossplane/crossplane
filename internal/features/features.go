@@ -21,11 +21,6 @@ import "github.com/crossplane/crossplane-runtime/pkg/feature"
 
 // Alpha Feature flags.
 const (
-	// EnableAlphaEnvironmentConfigs enables alpha support for composition
-	// environments. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/c4bcbe/design/one-pager-composition-environment.md
-	EnableAlphaEnvironmentConfigs feature.Flag = "EnableAlphaEnvironmentConfigs"
-
 	// EnableAlphaExternalSecretStores enables alpha support for
 	// External Secret Stores. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md

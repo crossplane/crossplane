@@ -73,9 +73,10 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	steps = append(steps,
 		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, tlsGeneratorOpts...),
 		initializer.NewCoreCRDsMigrator("compositionrevisions.apiextensions.crossplane.io", "v1alpha1"),
-		initializer.NewCoreCRDsMigrator("locks.pkg.crossplane.io", "v1alpha1"),
+		initializer.NewCoreCRDsMigrator("environmentconfigs.apiextensions.crossplane.io", "v1alpha1"),
 		initializer.NewCoreCRDsMigrator("functions.pkg.crossplane.io", "v1beta1"),
 		initializer.NewCoreCRDsMigrator("functionrevisions.pkg.crossplane.io", "v1beta1"),
+		initializer.NewCoreCRDsMigrator("locks.pkg.crossplane.io", "v1alpha1"),
 	)
 	if c.WebhookEnabled {
 		nn := types.NamespacedName{
