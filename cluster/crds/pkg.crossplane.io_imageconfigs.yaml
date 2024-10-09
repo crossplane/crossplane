@@ -50,9 +50,8 @@ spec:
             description: ImageConfigSpec contains the configuration for matching images.
             properties:
               matchImages:
-                description: |-
-                  MatchImages is a list of image matching rules that should be satisfied.
-                  TODO: CEL rule to have this at least length of one.
+                description: MatchImages is a list of image matching rules that should
+                  be satisfied.
                 items:
                   description: ImageMatch defines a rule for matching image.
                   properties:
@@ -63,6 +62,9 @@ spec:
                   - prefix
                   type: object
                 type: array
+                x-kubernetes-validations:
+                - message: matchImages should have at least one element.
+                  rule: size(self) > 0
               registry:
                 description: Registry is the configuration for the registry.
                 properties:

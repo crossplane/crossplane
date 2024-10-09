@@ -317,7 +317,6 @@ func (r *Reconciler) findDependencyVersion(ctx context.Context, dep *v1beta1.Dep
 		return "", errors.New(errInvalidConstraint)
 	}
 
-	// TODO: Debug ref.String and ensure it returns full image with version
 	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot get pull secret from image config store", "error", err)
