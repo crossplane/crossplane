@@ -69,7 +69,7 @@ type RegistryConfig struct {
 // ImageConfigSpec contains the configuration for matching images.
 type ImageConfigSpec struct {
 	// MatchImages is a list of image matching rules that should be satisfied.
-	// TODO: CEL rule to have this at least length of one.
+	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
 	MatchImages []ImageMatch `json:"matchImages"`
 	// Registry is the configuration for the registry.
 	// +optional

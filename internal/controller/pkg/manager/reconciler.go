@@ -433,8 +433,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if pr.GetUID() == "" && imageConfig != "" {
-		// TODO: Test this, ensure we only record this event if the revision is new
-
 		// We only record this event if the revision is new, as we don't want to
 		// spam the user with events if the revision already exists.
 		log.Debug("Selected pull secret from image config store", "image", p.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
