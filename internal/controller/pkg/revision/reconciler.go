@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -306,9 +307,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
-	// TODO: Watch for ImageConfig and enqueue requests for all ProviderRevisions
-	//  if the image of the revision matches the image in the ImageConfig.
-	//  Do the same for ConfigurationRevisions and FunctionRevisions as well.
+	log := o.Logger.WithValues("controller", name)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
@@ -318,7 +317,35 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
 			client: mgr.GetClient(),
-		})
+		}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Enqueue all ProviderRevision matching the prefixes in the ImageConfig.
+			l := &v1.ProviderRevisionList{}
+			if err = mgr.GetClient().List(ctx, l); err != nil {
+				// Nothing we can do, except logging, if we can't list ProviderRevisions.
+				log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
+				return nil
+			}
+
+			var matches []reconcile.Request
+			for _, p := range l.Items {
+				for _, m := range ic.Spec.MatchImages {
+					if strings.HasPrefix(p.GetSource(), m.Prefix) {
+						log.Debug("Enqueuing provider revision for image config", "providerRevision", p.Name, "imageConfig", ic.Name)
+						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+					}
+				}
+			}
+			return matches
+		}))
 
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
@@ -329,7 +356,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLinter(xpkg.NewProviderLinter()),
-		WithLogger(o.Logger.WithValues("controller", name)),
+		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
@@ -373,6 +400,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	log := o.Logger.WithValues("controller", name)
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ConfigurationPackageType)),
@@ -382,7 +410,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLinter(xpkg.NewConfigurationLinter()),
-		WithLogger(o.Logger.WithValues("controller", name)),
+		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
@@ -392,6 +420,34 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Enqueue all ConfigurationRevision matching the prefixes in the ImageConfig.
+			l := &v1.ConfigurationRevisionList{}
+			if err = mgr.GetClient().List(ctx, l); err != nil {
+				// Nothing we can do, except logging, if we can't list ConfigurationRevisions.
+				log.Debug("Cannot list configuration revisions while attempting to enqueue from ImageConfig", "error", err)
+				return nil
+			}
+
+			var matches []reconcile.Request
+			for _, p := range l.Items {
+				for _, m := range ic.Spec.MatchImages {
+					if strings.HasPrefix(p.GetSource(), m.Prefix) {
+						log.Debug("Enqueuing configuration revision for image config", "configurationRevision", p.Name, "imageConfig", ic.Name)
+						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+					}
+				}
+			}
+			return matches
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -419,6 +475,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
+	log := o.Logger.WithValues("controller", name)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.FunctionRevision{}).
@@ -428,7 +485,35 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.ServiceAccount{}).
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
-		})
+		}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Enqueue all FunctionRevision matching the prefixes in the ImageConfig.
+			l := &v1.FunctionRevisionList{}
+			if err = mgr.GetClient().List(ctx, l); err != nil {
+				// Nothing we can do, except logging, if we can't list FunctionRevisions.
+				log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
+				return nil
+			}
+
+			var matches []reconcile.Request
+			for _, p := range l.Items {
+				for _, m := range ic.Spec.MatchImages {
+					if strings.HasPrefix(p.GetSource(), m.Prefix) {
+						log.Debug("Enqueuing function revision for image config", "functionRevision", p.Name, "imageConfig", ic.Name)
+						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+					}
+				}
+			}
+			return matches
+		}))
 
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
@@ -439,7 +524,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
 		WithLinter(xpkg.NewFunctionLinter()),
-		WithLogger(o.Logger.WithValues("controller", name)),
+		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
