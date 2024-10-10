@@ -18,14 +18,18 @@ package validate
 
 import (
 	"bufio"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // Loader interface defines the contract for different input sources.
@@ -151,6 +155,31 @@ func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error)
 		u := &unstructured.Unstructured{}
 		if err := yaml.Unmarshal(y, u); err != nil {
 			return nil, errors.Wrap(err, "cannot parse YAML manifest")
+		}
+		// extract pipeline input resources
+		if u.GetObjectKind().GroupVersionKind() == v1.CompositionGroupVersionKind {
+			// Convert the unstructured resource to a Composition
+			var comp v1.Composition
+			err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &comp)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to convert unstructured to Composition")
+			}
+			// Iterate over each step in the pipeline
+			for _, step := range comp.Spec.Pipeline {
+				// Create a new resource based on the input (we can use it for validation)
+				if step.Input != nil && step.Input.Raw != nil {
+					var inputMap map[string]interface{}
+					err := json.Unmarshal(step.Input.Raw, &inputMap)
+					if err != nil {
+						return nil, errors.Wrap(err, "failed to unmarshal raw input")
+					}
+					newInputResource := &unstructured.Unstructured{
+						Object: inputMap,
+					}
+					// Add the input as new manifest to the manifests slice that we can validate
+					manifests = append(manifests, newInputResource)
+				}
+			}
 		}
 		manifests = append(manifests, u)
 	}

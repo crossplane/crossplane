@@ -236,14 +236,14 @@ func TestConfigurationTypeSupport(t *testing.T) {
 
 		m := NewManager("", fs, w)
 		t.Run(name, func(t *testing.T) {
-			m.fetcher = &MockFetcher{tc.args.fetchMock}
+			m.fetcher = &MockFetcher{tc.args.fetchMock, nil}
 			err := m.PrepExtensions(tc.args.extensions)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPrepExtensions(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = m.addDependencies(m.confs)
+			err = m.addDependencies(m.confs, "")
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -263,6 +263,7 @@ func TestAddDependencies(t *testing.T) {
 	cd2 := static.NewLayer(configDep2Yaml, types.OCILayer)
 	pd1 := static.NewLayer(providerYaml, types.OCILayer)
 	fd1 := static.NewLayer(funcYaml, types.OCILayer)
+	crossplaneLayer := static.NewLayer([]byte("crossplane content"), types.OCILayer)
 
 	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
 		switch image {
@@ -274,14 +275,17 @@ func TestAddDependencies(t *testing.T) {
 			return &pd1, nil
 		case "function-dep-1:v1.3.0":
 			return &fd1, nil
+		case "xpkg.upbound.io/crossplane/crossplane:v1.16.0":
+			return &crossplaneLayer, nil
 		default:
 			return nil, fmt.Errorf("unknown image: %s", image)
 		}
 	}
 
 	type args struct {
-		extensions []*unstructured.Unstructured
-		fetchMock  func(image string) (*conregv1.Layer, error)
+		extensions      []*unstructured.Unstructured
+		fetchMock       func(image string) (*conregv1.Layer, error)
+		crossplaneImage string
 	}
 	type want struct {
 		confs int
@@ -293,12 +297,13 @@ func TestAddDependencies(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"SuccessfulDependenciesAddition": {
+		"SuccessfulDependenciesAdditionWithCrossplaneImage": {
 			// config-dep-1
 			// └─►config-dep-2
 			//   ├─►provider-dep-1
 			//   └─►function-dep-1
-			reason: "All dependencies should be successfully fetched and added",
+			// └─►crossplaneImage (xpkg.upbound.io/crossplane/crossplane:v1.16.0)
+			reason: "All dependencies including the crossplane image should be successfully fetched and added",
 			args: args{
 				fetchMock: fetchMockFunc,
 				extensions: []*unstructured.Unstructured{
@@ -315,6 +320,37 @@ func TestAddDependencies(t *testing.T) {
 						},
 					},
 				},
+				crossplaneImage: "xpkg.upbound.io/crossplane/crossplane:v1.16.0",
+			},
+			want: want{
+				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
+				deps:  5, // 2 configurations (config-dep-1, config-dep-2), 1 provider (provider-dep-1), 1 function (function-dep-1), 1 crossplaneImage
+				err:   nil,
+			},
+		},
+		"SuccessfulDependenciesAdditionWithoutCrossplaneImage": {
+			// config-dep-1
+			// └─►config-dep-2
+			//   ├─►provider-dep-1
+			//   └─►function-dep-1
+			reason: "All dependencies should be successfully fetched and added without specifying a crossplane image",
+			args: args{
+				fetchMock: fetchMockFunc,
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1alpha1",
+							"kind":       "Configuration",
+							"metadata": map[string]interface{}{
+								"name": "config-dep-1",
+							},
+							"spec": map[string]interface{}{
+								"package": "config-dep-1:v1.3.0",
+							},
+						},
+					},
+				},
+				crossplaneImage: "",
 			},
 			want: want{
 				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
@@ -331,8 +367,8 @@ func TestAddDependencies(t *testing.T) {
 			m := NewManager("", fs, w)
 			_ = m.PrepExtensions(tc.args.extensions)
 
-			m.fetcher = &MockFetcher{tc.args.fetchMock}
-			err := m.addDependencies(m.confs)
+			m.fetcher = &MockFetcher{tc.args.fetchMock, nil}
+			err := m.addDependencies(m.confs, tc.args.crossplaneImage)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -348,9 +384,17 @@ func TestAddDependencies(t *testing.T) {
 }
 
 type MockFetcher struct {
-	fetch func(image string) (*conregv1.Layer, error)
+	fetchBaseLayer func(image string) (*conregv1.Layer, error)
+	fetchImage     func(image string) ([][]byte, error)
 }
 
 func (m *MockFetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
-	return m.fetch(image)
+	return m.fetchBaseLayer(image)
+}
+
+func (m *MockFetcher) FetchImage(image string) ([][]byte, error) {
+	if m.fetchImage != nil {
+		return m.fetchImage(image)
+	}
+	return nil, nil // or a sensible default/mock behavior
 }

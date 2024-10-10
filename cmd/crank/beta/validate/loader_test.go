@@ -213,7 +213,96 @@ func TestStreamToUnstructured(t *testing.T) {
 				err:       cmpopts.AnyError,
 			},
 		},
+		"CompositionWithPipelineResources": {
+			reason: "Successfully parse Composition with pipeline input resources to unstructured resources",
+			args: args{
+				stream: [][]byte{
+					[]byte(`
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: example-composition
+spec:
+  compositeTypeRef:
+    apiVersion: example.crossplane.io/v1alpha1
+    kind: ExampleComposite
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: example-function
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: instanceNodeRole
+            base:
+              apiVersion: iam.aws.upbound.io/v1beta1
+              kind: Role
+              spec: {}
+`),
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pt.fn.crossplane.io/v1beta1",
+							"kind":       "Resources",
+							"resources": []interface{}{
+								map[string]interface{}{
+									"name": "instanceNodeRole",
+									"base": map[string]interface{}{
+										"apiVersion": "iam.aws.upbound.io/v1beta1",
+										"kind":       "Role",
+										"spec":       map[string]interface{}{},
+									},
+								},
+							},
+						},
+					},
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "Composition",
+							"metadata": map[string]interface{}{
+								"name": "example-composition",
+							},
+							"spec": map[string]interface{}{
+								"compositeTypeRef": map[string]interface{}{
+									"apiVersion": "example.crossplane.io/v1alpha1",
+									"kind":       "ExampleComposite",
+								},
+								"pipeline": []interface{}{
+									map[string]interface{}{
+										"step": "patch-and-transform",
+										"functionRef": map[string]interface{}{
+											"name": "example-function",
+										},
+										"input": map[string]interface{}{
+											"apiVersion": "pt.fn.crossplane.io/v1beta1",
+											"kind":       "Resources",
+											"resources": []interface{}{
+												map[string]interface{}{
+													"name": "instanceNodeRole",
+													"base": map[string]interface{}{
+														"apiVersion": "iam.aws.upbound.io/v1beta1",
+														"kind":       "Role",
+														"spec":       map[string]interface{}{},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				err: nil,
+			},
+		},
 	}
+
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := streamToUnstructured(tc.args.stream)
