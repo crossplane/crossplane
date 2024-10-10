@@ -1,0 +1,11 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: e2e-private-provider-auth
+spec:
+  matchImages:
+    - prefix: xpkg.upbound.io/crossplane/e2e-private-provider
+  registry:
+    authentication:
+      pullSecretRef:
+        name: e2e-private-provider-pull-secret
