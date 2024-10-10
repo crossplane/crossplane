@@ -248,6 +248,10 @@ func TestConfigurationWithDigest(t *testing.T) {
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				// We wait until the configuration revision is gone, otherwise
+				// the provider we will be deleting next might come back as a
+				// result of the configuration revision being reconciled again.
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-revision.yaml"),
 			)).
 			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
