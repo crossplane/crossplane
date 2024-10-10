@@ -98,7 +98,11 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		return nil, errors.Wrap(err, errBadReference)
 	}
 	// Fetch image from registry.
-	img, err := i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
+	ps := v1.RefNames(n.pr.GetPackagePullSecrets())
+	if n.pullSecretFromConfig != "" {
+		ps = append(ps, n.pullSecretFromConfig)
+	}
+	img, err := i.fetcher.Fetch(ctx, ref, ps...)
 	if err != nil {
 		return nil, errors.Wrap(err, errFetchPackage)
 	}
@@ -178,7 +182,8 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 // options.
 // NOTE(hasheddan): see usage in ImageBackend Init() for reasoning.
 type nestedBackend struct {
-	pr v1.PackageRevision
+	pr                   v1.PackageRevision
+	pullSecretFromConfig string
 }
 
 // Init is a nop because nestedBackend does not actually meant to act as a
@@ -195,5 +200,16 @@ func PackageRevision(pr v1.PackageRevision) parser.BackendOption {
 			return
 		}
 		i.pr = pr
+	}
+}
+
+// PullSecretFromConfig sets the image config pull secret for ImageBackend.
+func PullSecretFromConfig(secret string) parser.BackendOption {
+	return func(p parser.Backend) {
+		i, ok := p.(*nestedBackend)
+		if !ok {
+			return
+		}
+		i.pullSecretFromConfig = secret
 	}
 }

@@ -394,10 +394,45 @@ func TestReconcile(t *testing.T) {
 						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetCache),
+			},
+		},
+		"ErrGetPackagePullSecretFromImageConfigs": {
+			reason: "We should return an error if we cannot get package pull secret from image configs.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", errBoom),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetPullConfig),
 			},
 		},
 		"ErrGetFromCacheFailedDelete": {
@@ -428,6 +463,9 @@ func TestReconcile(t *testing.T) {
 						MockHas:    xpkgfake.NewMockCacheHasFn(true),
 						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -476,6 +514,9 @@ func TestReconcile(t *testing.T) {
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -517,6 +558,9 @@ func TestReconcile(t *testing.T) {
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
 					}),
 					WithParserBackend(&ErrBackend{err: errBoom}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -558,6 +602,9 @@ func TestReconcile(t *testing.T) {
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(true),
 						MockGet: xpkgfake.NewMockCacheGetFn(io.NopCloser(bytes.NewBuffer(providerBytes)), nil),
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -601,6 +648,9 @@ func TestReconcile(t *testing.T) {
 					WithCache(&xpkgfake.MockCache{
 						MockHas:   xpkgfake.NewMockCacheHasFn(false),
 						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -646,6 +696,9 @@ func TestReconcile(t *testing.T) {
 						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -689,6 +742,9 @@ func TestReconcile(t *testing.T) {
 						MockHas:    xpkgfake.NewMockCacheHasFn(false),
 						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -736,6 +792,9 @@ func TestReconcile(t *testing.T) {
 							_, err := io.ReadAll(rc)
 							return err
 						},
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -799,6 +858,9 @@ func TestReconcile(t *testing.T) {
 						MockInConstraints:    verfake.NewMockInConstraintsFn(false, errBoom),
 						MockGetVersionString: verfake.NewMockGetVersionStringFn("v0.11.0"),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -843,6 +905,9 @@ func TestReconcile(t *testing.T) {
 						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -892,6 +957,9 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -957,6 +1025,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1023,6 +1094,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1091,6 +1165,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1153,6 +1230,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1219,6 +1299,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(false, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1282,6 +1365,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1349,6 +1435,9 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						},
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1414,6 +1503,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1477,6 +1569,9 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithEstablisher(NewMockEstablisher()),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1596,6 +1691,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{

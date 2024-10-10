@@ -19,6 +19,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -26,10 +27,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -41,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -69,6 +73,7 @@ const (
 	errUnpack               = "cannot unpack package"
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
+	errGetPullConfig        = "cannot get image pull secret from config"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
@@ -88,6 +93,7 @@ const (
 	reasonGarbageCollect     event.Reason = "GarbageCollect"
 	reasonInstall            event.Reason = "InstallPackageRevision"
 	reasonPaused             event.Reason = "ReconciliationPaused"
+	reasonImageConfig        event.Reason = "ImageConfigSelection"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -122,6 +128,13 @@ func WithRevisioner(d Revisioner) ReconcilerOption {
 	}
 }
 
+// WithConfigStore specifies the image config store to use.
+func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.config = c
+	}
+}
+
 // WithLogger specifies how the Reconciler should log messages.
 func WithLogger(log logging.Logger) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -140,6 +153,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 type Reconciler struct {
 	client resource.ClientApplicator
 	pkg    Revisioner
+	config xpkg.ConfigStore
 	log    logging.Logger
 	record event.Recorder
 
@@ -164,12 +178,14 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errBuildFetcher)
 	}
 
+	log := o.Logger.WithValues("controller", name)
 	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
-		WithLogger(o.Logger.WithValues("controller", name)),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
@@ -177,6 +193,34 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Provider{}).
 		Owns(&v1.ProviderRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Enqueue all Providers matching the prefixes in the ImageConfig.
+			l := &v1.ProviderList{}
+			if err = mgr.GetClient().List(ctx, l); err != nil {
+				// Nothing we can do, except logging, if we can't list Providers.
+				log.Debug("Cannot list providers while attempting to enqueue from ImageConfig", "error", err)
+				return nil
+			}
+
+			var matches []reconcile.Request
+			for _, p := range l.Items {
+				for _, m := range ic.Spec.MatchImages {
+					if strings.HasPrefix(p.GetSource(), m.Prefix) {
+						log.Debug("Enqueuing provider for image config", "provider", p.Name, "imageConfig", ic.Name)
+						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+					}
+				}
+			}
+			return matches
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
 }
@@ -197,12 +241,14 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, "cannot build fetcher")
 	}
 
+	log := o.Logger.WithValues("controller", name)
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
-		WithLogger(o.Logger.WithValues("controller", name)),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
 
@@ -210,6 +256,34 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Configuration{}).
 		Owns(&v1.ConfigurationRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Enqueue all Configurations matching the prefixes in the ImageConfig.
+			l := &v1.ConfigurationList{}
+			if err = mgr.GetClient().List(ctx, l); err != nil {
+				// Nothing we can do, except logging, if we can't list Configurations.
+				log.Debug("Cannot list configurations while attempting to enqueue from ImageConfig", "error", err)
+				return nil
+			}
+
+			var matches []reconcile.Request
+			for _, c := range l.Items {
+				for _, m := range ic.Spec.MatchImages {
+					if strings.HasPrefix(c.GetSource(), m.Prefix) {
+						log.Debug("Enqueuing configuration for image config", "configuration", c.Name, "imageConfig", ic.Name)
+						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name}})
+					}
+				}
+			}
+			return matches
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -230,12 +304,14 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errBuildFetcher)
 	}
 
+	log := o.Logger.WithValues("controller", name)
 	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
-		WithLogger(o.Logger.WithValues("controller", name)),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
@@ -243,6 +319,34 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Function{}).
 		Owns(&v1.FunctionRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Enqueue all Functions matching the prefixes in the ImageConfig.
+			l := &v1.FunctionList{}
+			if err = mgr.GetClient().List(ctx, l); err != nil {
+				// Nothing we can do, except logging, if we can't list Functions.
+				log.Debug("Cannot list functions while attempting to enqueue from ImageConfig", "error", err)
+				return nil
+			}
+
+			var matches []reconcile.Request
+			for _, fn := range l.Items {
+				for _, m := range ic.Spec.MatchImages {
+					if strings.HasPrefix(fn.GetSource(), m.Prefix) {
+						log.Debug("Enqueuing function for image config", "function", fn.Name, "imageConfig", ic.Name)
+						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: fn.Name}})
+					}
+				}
+			}
+			return matches
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(NewReconciler(mgr, opts...)), o.GlobalRateLimiter))
 }
@@ -303,7 +407,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	revisionName, err := r.pkg.Revision(ctx, p)
+	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetSource())
+	if err != nil {
+		err = errors.Wrap(err, errGetPullConfig)
+		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, p)
+
+		r.record.Event(p, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+
+	revisionName, err := r.pkg.Revision(ctx, p, pullSecretFromConfig)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
@@ -405,6 +520,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
 		p.SetConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
+	}
+
+	if pr.GetUID() == "" && imageConfig != "" {
+		// We only record this event if the revision is new, as we don't want to
+		// spam the user with events if the revision already exists.
+		log.Debug("Selected pull secret from image config store", "image", p.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
+		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
 	}
 
 	// Create the non-existent package revision.

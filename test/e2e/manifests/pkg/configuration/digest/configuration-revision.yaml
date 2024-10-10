@@ -1,0 +1,7 @@
+# We don't install this directly, but we do use it to ensure the configuration is completely deleted.
+# Please note, its name will change if configuration package contents changes.
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-digest-127afe7f55ed
+spec: {}

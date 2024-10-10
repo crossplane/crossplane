@@ -1,0 +1,8 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: e2e-configuration-with-private-dependency
+spec:
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane/e2e-private-provider
+      version: ">=v0.0.1"
