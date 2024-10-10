@@ -1,0 +1,7 @@
+# This configuration has a private dependency. See package/crossplane.yaml.
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-configuration-with-private-dependency
+spec:
+  package: xpkg.upbound.io/crossplane/e2e-configuration-with-private-dependency:v0.1.0
