@@ -334,7 +334,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{Requeue: false},
-				err: errors.New(errInvalidDependency),
+				err: errors.Wrap(errors.New(errInvalidConstraint), errNoValidVersion),
 			},
 		},
 		"ErrorFetchTags": {
@@ -378,10 +378,11 @@ func TestReconcile(t *testing.T) {
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
 					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}}),
 				},
 			},
 			want: want{
-				err: errors.New(errInvalidDependency),
+				err: errors.Wrap(errors.New(errFetchTags), errNoValidVersion),
 			},
 		},
 		"ErrorNoValidVersion": {
@@ -437,10 +438,14 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							l, ok := o.(*v1beta1.Lock)
+							if !ok {
+								return kerrors.NewNotFound(schema.GroupResource{}, "")
+							}
+
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1beta1.Lock)
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    v1beta1.ProviderPackageType,
@@ -474,6 +479,7 @@ func TestReconcile(t *testing.T) {
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
 					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}}),
 				},
 			},
 			want: want{
@@ -486,16 +492,21 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							l, ok := o.(*v1beta1.Lock)
+							if !ok {
+								return kerrors.NewNotFound(schema.GroupResource{}, "")
+							}
+
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1beta1.Lock)
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 							})
+
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(errBoom),
@@ -584,16 +595,21 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							l, ok := o.(*v1beta1.Lock)
+							if !ok {
+								return kerrors.NewNotFound(schema.GroupResource{}, "")
+							}
+
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1beta1.Lock)
 							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
 								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
+
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil),
