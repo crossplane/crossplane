@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2024 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,55 +18,28 @@ limitations under the License.
 package dag
 
 import (
+	"github.com/Masterminds/semver"
+
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Node is a node in DAG.
-type Node interface { //nolint:interfacebloat // NOTE(ezgidemirel): Interface is extended to support package version update capability.
-	Identifier() string
-	Neighbors() []Node
-	GetConstraints() string
-	GetParentConstraints() []string
-	AddParentConstraints(c []string)
-
-	// Node implementations should be careful to establish uniqueness of
-	// neighbors in their AddNeighbors method or risk counting a neighbor
-	// multiple times.
-	AddNeighbors(ns ...Node) error
-}
-
-// DAG is a Directed Acyclic Graph.
-type DAG interface { //nolint:interfacebloat // TODO(negz): Could this be several smaller interfaces?
-	Init(ns []Node) ([]Node, error)
-	AddNode(n Node) error
-	AddNodes(ns ...Node) error
-	AddOrUpdateNodes(ns ...Node)
-	GetNode(identifier string) (Node, error)
-	AddEdge(from string, to Node) (bool, error)
-	AddEdges(edges map[string][]Node) ([]Node, error)
-	NodeExists(identifier string) bool
-	NodeNeighbors(identifier string) ([]Node, error)
-	TraceNode(identifier string) (map[string]Node, error)
-	Sort() ([]string, error)
-}
-
-// MapDag is a directed acyclic graph implementation that uses a map for its
-// underlying data structure.
-type MapDag struct {
+// MapUpdatableDag is a directed acyclic graph implementation that uses a map for its
+// underlying data structure and has the ability to distinguish upgradable nodes.
+type MapUpdatableDag struct {
 	nodes map[string]Node
 }
 
-// NewDAGFn is a function that returns a DAG.
-type NewDAGFn func() DAG
+// NewUpdatableDAGFn is a function that returns a DAG.
+type NewUpdatableDAGFn func() DAG
 
-// NewMapDag creates a new MapDag.
-func NewMapDag() DAG {
-	return &MapDag{nodes: map[string]Node{}}
+// NewUpdatableMapDag creates a new MapDag.
+func NewUpdatableMapDag() DAG {
+	return &MapUpdatableDag{nodes: map[string]Node{}}
 }
 
 // Init initializes a MapDag and implies missing destination nodes. Any implied
 // nodes are returned. Any existing nodes are cleared.
-func (d *MapDag) Init(nodes []Node) ([]Node, error) {
+func (d *MapUpdatableDag) Init(nodes []Node) ([]Node, error) {
 	d.nodes = map[string]Node{}
 	// Add all nodes before adding edges so we know what nodes were implied.
 	for _, node := range nodes {
@@ -84,11 +57,12 @@ func (d *MapDag) Init(nodes []Node) ([]Node, error) {
 		}
 		implied = append(implied, miss...)
 	}
+
 	return implied, nil
 }
 
 // AddNodes adds nodes to the graph.
-func (d *MapDag) AddNodes(nodes ...Node) error {
+func (d *MapUpdatableDag) AddNodes(nodes ...Node) error {
 	for _, n := range nodes {
 		if err := d.AddNode(n); err != nil {
 			return err
@@ -98,7 +72,7 @@ func (d *MapDag) AddNodes(nodes ...Node) error {
 }
 
 // AddNode adds a node to the graph.
-func (d *MapDag) AddNode(node Node) error {
+func (d *MapUpdatableDag) AddNode(node Node) error {
 	if _, ok := d.nodes[node.Identifier()]; ok {
 		return errors.Errorf("node %s already exists", node.Identifier())
 	}
@@ -108,20 +82,21 @@ func (d *MapDag) AddNode(node Node) error {
 
 // AddOrUpdateNodes adds new nodes or updates the existing ones with the same
 // identifier.
-func (d *MapDag) AddOrUpdateNodes(nodes ...Node) {
+func (d *MapUpdatableDag) AddOrUpdateNodes(nodes ...Node) {
 	for _, node := range nodes {
+		node.AddParentConstraints(d.nodes[node.Identifier()].GetParentConstraints())
 		d.nodes[node.Identifier()] = node
 	}
 }
 
 // NodeExists checks whether a node exists.
-func (d *MapDag) NodeExists(identifier string) bool {
+func (d *MapUpdatableDag) NodeExists(identifier string) bool {
 	_, exists := d.nodes[identifier]
 	return exists
 }
 
 // NodeNeighbors returns a node's neighbors.
-func (d *MapDag) NodeNeighbors(identifier string) ([]Node, error) {
+func (d *MapUpdatableDag) NodeNeighbors(identifier string) ([]Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
 		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
@@ -130,7 +105,7 @@ func (d *MapDag) NodeNeighbors(identifier string) ([]Node, error) {
 
 // TraceNode returns a node's neighbors and all transitive neighbors using depth
 // first search.
-func (d *MapDag) TraceNode(identifier string) (map[string]Node, error) {
+func (d *MapUpdatableDag) TraceNode(identifier string) (map[string]Node, error) {
 	tree := map[string]Node{}
 	if err := d.traceNode(identifier, tree); err != nil {
 		return nil, err
@@ -138,7 +113,7 @@ func (d *MapDag) TraceNode(identifier string) (map[string]Node, error) {
 	return tree, nil
 }
 
-func (d *MapDag) traceNode(identifier string, tree map[string]Node) error {
+func (d *MapUpdatableDag) traceNode(identifier string, tree map[string]Node) error {
 	if d.nodes[identifier] == nil {
 		return errors.New("missing node in tree")
 	}
@@ -157,7 +132,7 @@ func (d *MapDag) traceNode(identifier string, tree map[string]Node) error {
 }
 
 // GetNode returns a node in the dag.
-func (d *MapDag) GetNode(identifier string) (Node, error) {
+func (d *MapUpdatableDag) GetNode(identifier string) (Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
 		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
@@ -165,7 +140,7 @@ func (d *MapDag) GetNode(identifier string) (Node, error) {
 }
 
 // AddEdges adds edges to the graph.
-func (d *MapDag) AddEdges(edges map[string][]Node) ([]Node, error) {
+func (d *MapUpdatableDag) AddEdges(edges map[string][]Node) ([]Node, error) {
 	var missing []Node
 	for f, ne := range edges {
 		for _, e := range ne {
@@ -173,31 +148,45 @@ func (d *MapDag) AddEdges(edges map[string][]Node) ([]Node, error) {
 			if implied {
 				missing = append(missing, e)
 			}
+
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
+
 	return missing, nil
 }
 
-// AddEdge adds an edge to the graph.
-func (d *MapDag) AddEdge(from string, to Node) (bool, error) {
+// AddEdge adds an edge to the graph and returns if we need to check for updates.
+func (d *MapUpdatableDag) AddEdge(from string, to Node) (bool, error) {
 	if _, ok := d.nodes[from]; !ok {
 		return false, errors.Errorf("node %s does not exist", to)
 	}
+
 	implied := false
-	if _, ok := d.nodes[to.Identifier()]; !ok {
+	orgTo, ok := d.nodes[to.Identifier()]
+	if !ok {
 		implied = true
 		if err := d.AddNode(to); err != nil {
 			return implied, err
 		}
+	} else if !isValidConstraints(orgTo, to) { // check if upgrade is needed
+		err := d.nodes[from].AddNeighbors(to)
+		n := d.nodes[to.Identifier()]
+		n.AddParentConstraints(to.GetParentConstraints())
+
+		return true, err
 	}
-	return implied, d.nodes[from].AddNeighbors(to)
+
+	err := d.nodes[from].AddNeighbors(to)
+	d.nodes[to.Identifier()].AddParentConstraints(to.GetParentConstraints())
+
+	return implied, err
 }
 
 // Sort performs topological sort on the graph.
-func (d *MapDag) Sort() ([]string, error) {
+func (d *MapUpdatableDag) Sort() ([]string, error) {
 	visited := map[string]bool{}
 	results := make([]string, len(d.nodes))
 	for n, node := range d.nodes {
@@ -211,7 +200,7 @@ func (d *MapDag) Sort() ([]string, error) {
 	return results, nil
 }
 
-func (d *MapDag) visit(name string, neighbors []Node, stack map[string]bool, visited map[string]bool, results []string) error {
+func (d *MapUpdatableDag) visit(name string, neighbors []Node, stack map[string]bool, visited map[string]bool, results []string) error {
 	visited[name] = true
 	stack[name] = true
 	for _, n := range neighbors {
@@ -234,4 +223,27 @@ func (d *MapDag) visit(name string, neighbors []Node, stack map[string]bool, vis
 	}
 	stack[name] = false
 	return nil
+}
+
+func isValidConstraints(installed, wanted Node) bool {
+	// NOTE(ezgidemirel): This condition also satisfies digests
+	if installed.GetConstraints() == wanted.GetConstraints() {
+		return true
+	}
+
+	c, err := semver.NewConstraint(wanted.GetConstraints())
+	if err != nil {
+		return false
+	}
+
+	v, err := semver.NewVersion(installed.GetConstraints())
+	if err != nil {
+		return false
+	}
+
+	if !c.Check(v) {
+		return false
+	}
+
+	return true
 }

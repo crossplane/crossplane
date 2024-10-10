@@ -45,6 +45,10 @@ const (
 	// the claim controller. See the below issue for more details:
 	// https://github.com/crossplane/crossplane/issues/4581
 	EnableAlphaClaimSSA feature.Flag = "EnableAlphaClaimSSA"
+
+	// EnableAlphaDependencyVersionUpdate enables alpha support for updating the version of a package's dependencies
+	// when needed.
+	EnableAlphaDependencyVersionUpdate feature.Flag = "EnableAlphaDependencyVersionUpdate"
 )
 
 // Beta Feature Flags.
