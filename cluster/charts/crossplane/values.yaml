@@ -73,6 +73,8 @@ service:
 webhooks:
   # -- Enable webhooks for Crossplane and installed Provider packages.
   enabled: true
+  # -- The port the webhook server listens on.
+  port: ""
 
 rbacManager:
   # -- Deploy the RBAC Manager pod and its required roles.
@@ -154,6 +156,12 @@ securityContextRBACManager:
 metrics:
   # -- Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods.
   enabled: false
+  # -- The port the metrics server listens on.
+  port: ""
+
+readiness:
+  # -- The port the readyz server listens on.
+  port: ""
 
 # -- Add custom environmental variables to the Crossplane pod deployment.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
