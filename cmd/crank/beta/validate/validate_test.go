@@ -1071,8 +1071,9 @@ func TestConvertToCRDs(t *testing.T) {
 
 func TestValidateResources(t *testing.T) {
 	type args struct {
-		resources []*unstructured.Unstructured
-		crds      []*extv1.CustomResourceDefinition
+		resources             []*unstructured.Unstructured
+		crds                  []*extv1.CustomResourceDefinition
+		errorOnMissingSchemas bool
 	}
 	type want struct {
 		err error
@@ -1126,6 +1127,53 @@ func TestValidateResources(t *testing.T) {
 				crds: []*extv1.CustomResourceDefinition{
 					testCRDWithCEL,
 				},
+			},
+		},
+		"ValidWithMissingSchemasEnabled": {
+			reason: "Should not return an error if the resources are valid and schemas are not missing",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 1,
+							},
+						},
+					},
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					testCRD,
+				},
+				errorOnMissingSchemas: true,
+			},
+		},
+		"ErrorOnMissingSchemas": {
+			reason: "Should return an error if schemas are missing",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas": 1,
+							},
+						},
+					},
+				},
+				crds:                  []*extv1.CustomResourceDefinition{},
+				errorOnMissingSchemas: true,
+			},
+			want: want{
+				err: errors.New("could not validate all resources, schema(s) missing"),
 			},
 		},
 		"Invalid": {
@@ -1204,7 +1252,7 @@ func TestValidateResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			got := SchemaValidation(tc.args.resources, tc.args.crds, false, w)
+			got := SchemaValidation(tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)
