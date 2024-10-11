@@ -103,9 +103,12 @@ metadata:
   name: acme-packages
 spec:
   matchImages:
-    - prefix: registry1.com/acme-co/configuration-foo
-    - prefix: registry1.com/acme-co/configuration-bar
-    - prefix: registry1.com/acme-co/function-baz
+    - match: Prefix
+      prefix: registry1.com/acme-co/configuration-foo
+    - match: Prefix
+      prefix: registry1.com/acme-co/configuration-bar
+    - match: Prefix
+      prefix: registry1.com/acme-co/function-baz
   registry:
     authentication:
       pullSecretRef:
@@ -132,10 +135,11 @@ spec:
 
 The `ImageConfig` API `spec` has the following fields:
 
-- `matchImages`: A list of image prefixes to match. The package manager will
+- `matchImages`: A list of rules to match images. The package manager will
   apply the settings defined in the `ImageConfig` object to the images that
-  match the prefixes. The longest prefix match will be selected in case of
-  multiple matches.
+  match the rule. We will start with a single match type, `Prefix`, which
+  matches the image prefix. In the future, we may introduce more match types
+  like `Glob` or `Regex`.
 - `registry`: Configuration for interacting with the registry hosting the images.
   - `authentication`: Authentication settings for the registry.
     - `pullSecretRef`: Reference to the Kubernetes Secret containing the
@@ -177,7 +181,9 @@ package manager will select one arbitrarily. Similarly, after the image is
 pulled, the package manager will query the `ImageConfig` objects to find the
 best matching verification settings for the image. The selected `ImageConfig`
 may be different for authentication and verification settings if there are
-separate objects defined for these settings.
+separate objects defined for these settings. The pull secret from the selected
+`ImageConfig` object will be appended to the list of pull secrets used that
+might be provided by other means, e.g., the package installation APIs.
 
 Careful readers might have noticed that the `spec.verification.cosign` field
 closely follows the schema used in the _Policy Controller's_ `ClusterImagePolicy`
