@@ -146,14 +146,13 @@ The `ImageConfig` API `spec` has the following fields:
       credentials to pull images from the registry. This secret must be of type
       [`kubernetes.io/dockerconfigjson`].
   - `tls`: TLS settings for the registry.
-    - `enabled`: Whether to enable TLS for the registry. Default is `true`.
-    - `insecure`: Whether to skip verifying the server's certificate. Default is
-      `false`.
+    - `mode`: The TLS mode to use for connecting to the registry. The default
+      value is `Strict`. Other possible values are `Insecure` and `Disabled`.
     - `caBundleConfigMapRef`: Reference to the ConfigMap containing the CA
       certificate bundle to use for verifying the server's certificate.
 - `verification`: Configuration for verifying image signatures.
   - `provider`: The provider to use for verifying image signatures. In the
-    beginning, only `cosign` will be supported.
+    beginning, only `Cosign` will be supported.
   - `cosign`: Configuration for verifying images using cosign.
     - `authorities`: List of authorities to use for verifying images.
       - `name`: The name of the authority.
@@ -173,17 +172,15 @@ could be multiple `ImageConfig` objects in the cluster, each defining settings
 for different sets of images.
 
 When a package image needs to be pulled, either as a primary package or as a
-dependency, the package manager will search for `ImageConfig` objects in the
-cluster that match the image. The package manager selects the best match based
-on the longest prefix match with the image. If there are multiple matches with
-the same prefix length (i.e., identical prefixes across `ImageConfig`s), the
-package manager will select one arbitrarily. Similarly, after the image is
-pulled, the package manager will query the `ImageConfig` objects to find the
-best matching verification settings for the image. The selected `ImageConfig`
-may be different for authentication and verification settings if there are
-separate objects defined for these settings. The pull secret from the selected
-`ImageConfig` object will be appended to the list of pull secrets used that
-might be provided by other means, e.g., the package installation APIs.
+dependency, the package manager will look for `ImageConfig` objects with a pull
+secret defined and use the one matching the image (see 
+[selecting from multiple matches] for further details). The pull secret from the
+selected `ImageConfig` object will be appended to the list of pull secrets that
+might have been provided by other means, e.g., the package installation APIs.
+Similarly, after the image is pulled, the package manager will query the
+`ImageConfig` objects to find a matching verification settings for the image.
+The selected `ImageConfig` may be different for authentication and verification
+settings if there are separate objects defined for these settings. 
 
 Careful readers might have noticed that the `spec.verification.cosign` field
 closely follows the schema used in the _Policy Controller's_ `ClusterImagePolicy`
@@ -195,6 +192,39 @@ there's no better source of expertise for verifying Cosign-signed images. We
 plan to leverage this expertise, along with existing libraries from the Policy
 Controller project, to implement reliable image verification in the package
 manager.
+
+### Selecting from Multiple Matches
+
+For a given image and configuration, there may be multiple matching
+`ImageConfig` objects. We have the following options:
+
+- **Option A:** Error out if there is more than one match.
+- **Option B:** Choose the best match (e.g., "longest match" for prefix,
+  "undefined" for other match types).
+- **Option C:** Random selection.
+- **Option D:** Advanced API with weights/precedence.
+- **Option E:** Stack them together with best effort (e.g., append pull
+  secrets, validate with all verifications, error out if related to registry
+  TLS/proxy).
+
+We believe the best match option is the most intuitive and offers the best
+user experience by enabling users to define more specific settings
+for a subset of images while maintaining a fallback/default for the rest.
+However, we cannot define a clear "best match" for all possible match types
+we may introduce in the future.
+
+We propose a mixed approach between options (B) and (A). We will start with the
+best match option for the `Prefix` match type. If we introduce more match types
+in the future, we will error out if we cannot determine the best match
+(e.g., multiple matches where at least one is a non-prefix match). Even for the
+`Prefix` match type, we will error out if there is more than one best match,
+i.e. multiple `ImageConfig` objects with the same prefix and same configuration.
+
+Note that the best match will always be evaluated between `ImageConfig`
+objects with the configuration of interest. For example, when the package
+manager needs to pull the image, it will select the best match among those
+with a pull secret. So, there cloud be two `ImageConfig` objects with the same
+prefix—one with a pull secret, the other with verification, and this is fine.
 
 ### User Experience
 
@@ -375,3 +405,5 @@ spec:
 [`k8schain.New`]: https://github.com/crossplane/crossplane/blob/ed4e659c5c217fb69958eeb75ce8daa65b63823c/internal/xpkg/fetch.go#L131C15-L131C28
 [a previous proposal]: https://github.com/crossplane/crossplane/pull/3297
 [implementation PR]: https://github.com/crossplane/crossplane/pull/3552
+[selecting from multiple matches]: #selecting-from-multiple-matches
+
