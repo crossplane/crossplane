@@ -36,10 +36,33 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	fakedag "github.com/crossplane/crossplane/internal/dag/fake"
 	fakexpkg "github.com/crossplane/crossplane/internal/xpkg/fake"
+)
+
+const (
+	confPkgName = "hasheddan/config-nop-c"
+	proPkgName  = "hasheddan/provider-nop-c"
+	funcPkgName = "hasheddan/func-nop-c"
+)
+
+var (
+	coolPkg = v1beta1.LockPackage{
+		Name:    "cool-package",
+		Type:    v1beta1.ProviderPackageType,
+		Source:  "cool-repo/cool-image",
+		Version: "v1.0.0",
+	}
+
+	coolPkgWithDigest = v1beta1.LockPackage{
+		Name:    "cool-package",
+		Type:    v1beta1.ProviderPackageType,
+		Source:  "cool-repo/cool-image",
+		Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+	}
 )
 
 func TestReconcile(t *testing.T) {
@@ -118,12 +141,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 							// Populate package list so we attempt reconciliation.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -150,12 +168,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -186,12 +199,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -225,12 +233,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -264,12 +267,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
-							})
+							l.Packages = append(l.Packages, coolPkgWithDigest)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -303,12 +301,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -334,7 +327,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{Requeue: false},
-				err: errors.Wrap(errors.New(errInvalidConstraint), errNoValidVersion),
+				err: errors.New(errNoValidVersion),
 			},
 		},
 		"ErrorFetchTags": {
@@ -347,12 +340,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -382,7 +370,50 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.New(errFetchTags), errNoValidVersion),
+				err: errors.New(errNoValidVersion),
+			},
+		},
+		"ErrorFetchTagsUpdatable": {
+			reason: "We should return an error if fail to fetch tags to account for network issues.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, coolPkg)
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     "hasheddan/config-nop-b",
+										Constraints: "*",
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}}),
+				},
+			},
+			want: want{
+				err: errors.New(errNoValidVersion),
 			},
 		},
 		"ErrorNoValidVersion": {
@@ -395,12 +426,7 @@ func TestReconcile(t *testing.T) {
 							// reconciliation. This is overridden by the mock
 							// DAG.
 							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -429,7 +455,8 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: false},
+				r:   reconcile.Result{Requeue: false},
+				err: errors.New(errNoValidVersion),
 			},
 		},
 		"ErrorCreateMissingDependency": {
@@ -446,12 +473,7 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(errBoom),
@@ -465,7 +487,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     confPkgName,
 										Constraints: ">v1.0.0",
 										Type:        v1beta1.ConfigurationPackageType,
 									},
@@ -500,13 +522,7 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
-							})
-
+							l.Packages = append(l.Packages, coolPkgWithDigest)
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(errBoom),
@@ -520,7 +536,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     confPkgName,
 										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 										Type:        v1beta1.ConfigurationPackageType,
 									},
@@ -546,17 +562,16 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							// Populate package list so we attempt
-							// reconciliation. This is overridden by the mock
-							// DAG.
-							l := o.(*v1beta1.Lock)
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-							return nil
+							if _, ok := o.(*v1beta1.Lock); ok {
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								l := o.(*v1beta1.Lock)
+								l.Packages = append(l.Packages, coolPkg)
+								return nil
+							}
+
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}),
 						MockCreate: test.NewMockCreateFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -569,7 +584,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+										Package:     confPkgName,
 										Constraints: ">v1.0.0",
 										Type:        v1beta1.ConfigurationPackageType,
 									},
@@ -581,8 +596,9 @@ func TestReconcile(t *testing.T) {
 						}
 					}),
 					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
 					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}}),
 				},
 			},
 			want: want{
@@ -603,13 +619,7 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l.Packages = append(l.Packages, v1beta1.LockPackage{
-								Name:    "cool-package",
-								Type:    v1beta1.ProviderPackageType,
-								Source:  "cool-repo/cool-image",
-								Version: "v0.0.1",
-							})
-
+							l.Packages = append(l.Packages, coolPkg)
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil),
@@ -623,7 +633,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:     "hasheddan/provider-nop-c",
+										Package:     proPkgName,
 										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 										Type:        v1beta1.ProviderPackageType,
 									},
@@ -638,6 +648,439 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulUpdateDependencyVersion": {
+			reason: "We should not requeue if able to update dependency version.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1beta1.Lock:
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								obj.Packages = append(obj.Packages, coolPkg)
+								return nil
+							case *v1.Configuration:
+								obj.Spec.Package = "hasheddan/config-nop-c:v1.0.0"
+								return nil
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(client.Object) error { return nil }),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == confPkgName {
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulUpdateDependencyVersionWithDigest": {
+			reason: "We should not requeue if able to update dependency version with digest.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1beta1.Lock:
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								obj.Packages = append(obj.Packages, coolPkgWithDigest)
+								return nil
+							case *v1.Function:
+								obj.Spec.Package = "hasheddan/func-nop-c:v1.0.0"
+								return nil
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(client.Object) error { return nil }),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     funcPkgName,
+										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:        v1beta1.FunctionPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == funcPkgName {
+									return &v1beta1.Dependency{
+										Package:     funcPkgName,
+										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:        v1beta1.FunctionPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ErrorCannotGetPackage": {
+			reason: "We should return an error if getting package fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							if _, ok := o.(*v1beta1.Lock); ok {
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								l := o.(*v1beta1.Lock)
+								l.Packages = append(l.Packages, coolPkg)
+								return nil
+							}
+
+							return errBoom
+						}),
+						MockCreate: test.NewMockCreateFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: ">v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == confPkgName {
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: ">v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetDependency),
+			},
+		},
+		"ErrorCannotUpdatePackageVersion": {
+			reason: "We should return an error and requeue if updating package version fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1beta1.Lock:
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								obj.Packages = append(obj.Packages, coolPkg)
+								return nil
+							case *v1.Configuration:
+								c := o.(*v1.Configuration)
+								c.Spec.Package = "hasheddan/config-nop-c:v1.0.0"
+								return nil
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+							if _, ok := o.(*v1beta1.Lock); ok {
+								return nil
+							}
+
+							return errBoom
+						}),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == confPkgName {
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{Requeue: true},
+				err: errors.Wrap(errBoom, errUpdateDependency),
+			},
+		},
+		"ErrorNoValidVersionUpdatable": {
+			reason: "We should return an error if no valid version exists for updatable dependency.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1beta1.Lock:
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								obj.Packages = append(obj.Packages, coolPkg)
+								return nil
+							case *v1.Function:
+								obj.Spec.Package = "hasheddan/function-nop-c:v1.0.0"
+								return nil
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+							if _, ok := o.(*v1beta1.Lock); ok {
+								return nil
+							}
+
+							return errBoom
+						}),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:           "hasheddan/function-nop-c",
+										Constraints:       "v0.3.0",
+										Type:              v1beta1.FunctionPackageType,
+										ParentConstraints: []string{">=v0.2.0", "<v0.2.0"},
+									},
+									&v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									},
+									&v1beta1.Dependency{
+										Package:     proPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ProviderPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								switch identifier {
+								case confPkgName:
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								case funcPkgName:
+									return &v1beta1.Dependency{
+										Package:           funcPkgName,
+										Constraints:       "v0.3.0",
+										Type:              v1beta1.FunctionPackageType,
+										ParentConstraints: []string{">=v0.2.0", "<v0.2.0"},
+									}, nil
+								case proPkgName:
+									return &v1beta1.Dependency{
+										Package:     proPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ProviderPackageType,
+									}, nil
+								}
+								return nil, errors.New("not found")
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}}),
+				},
+			},
+			want: want{
+				err: errors.New(errNoValidVersion),
+			},
+		},
+		"ErrorNoValidVersionUpdatableWithDigest": {
+			reason: "We should return an error if no valid version exists for updatable dependency.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1beta1.Lock:
+								// Populate package list so we attempt
+								// reconciliation. This is overridden by the mock
+								// DAG.
+								obj.Packages = append(obj.Packages, coolPkg)
+								return nil
+							case *v1.Function:
+								obj.Spec.Package = "hasheddan/function-nop-c:v1.0.0"
+								return nil
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+							if _, ok := o.(*v1beta1.Lock); ok {
+								return nil
+							}
+
+							return errBoom
+						}),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:           "hasheddan/function-nop-c",
+										Constraints:       "v0.3.0",
+										Type:              v1beta1.FunctionPackageType,
+										ParentConstraints: []string{"sha256:dif25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904", "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904"},
+									},
+									&v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									},
+									&v1beta1.Dependency{
+										Package:     proPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ProviderPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								switch identifier {
+								case confPkgName:
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								case funcPkgName:
+									return &v1beta1.Dependency{
+										Package:           funcPkgName,
+										Constraints:       "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:              v1beta1.FunctionPackageType,
+										ParentConstraints: []string{"sha256:dif25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904", "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904"},
+									}, nil
+								case proPkgName:
+									return &v1beta1.Dependency{
+										Package:     proPkgName,
+										Constraints: "v1.0.0",
+										Type:        v1beta1.ProviderPackageType,
+									}, nil
+								}
+								return nil, errors.New("not found")
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904", "v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil),
+					}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}}),
+				},
+			},
+			want: want{
+				err: errors.New(errNoValidVersion),
 			},
 		},
 	}

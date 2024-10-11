@@ -25,7 +25,9 @@ import (
 type Node interface { //nolint:interfacebloat // NOTE(ezgidemirel): Interface is extended to support package version update capability.
 	Identifier() string
 	Neighbors() []Node
+	// GetConstraints Returns the version or constraint of the package.
 	GetConstraints() string
+	// GetParentConstraints Returns the version or constraint of the package which comes from its parents.
 	GetParentConstraints() []string
 	AddParentConstraints(c []string)
 

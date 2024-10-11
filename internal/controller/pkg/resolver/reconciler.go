@@ -69,6 +69,7 @@ const (
 	errNoValidVersion       = "cannot find a valid version for package constraints"
 	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
 	errInvalidPackageType   = "cannot create invalid package dependency type"
+	errGetDependency        = "cannot get dependency package"
 	errCreateDependency     = "cannot create dependency package"
 	errUpdateDependency     = "cannot update dependency package"
 )
@@ -268,7 +269,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	addVer, err := r.versionFinder.FindValidDependencyVersion(ctx, dep, ref, ndag, log)
 	if err != nil || addVer == "" {
 		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
-		return reconcile.Result{Requeue: false}, errors.Wrap(err, errNoValidVersion)
+		return reconcile.Result{Requeue: false}, errors.New(errNoValidVersion)
 	}
 
 	var pack v1.Package
@@ -300,8 +301,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pack), pack); err != nil {
 		if !kerrors.IsNotFound(err) {
-			log.Debug(errCreateDependency, "error", err)
-			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+			log.Debug(errGetDependency, "error", err)
+			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 
 		// If the package does not exist, we create it.
@@ -416,7 +417,7 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 
 	for i := len(vs) - 1; i >= 0; i-- {
 		v := vs[i]
-		invalid := false
+		valid := true
 
 		for _, constraint := range n.GetParentConstraints() {
 			c, err := semver.NewConstraint(constraint)
@@ -425,12 +426,12 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 				return "", errors.New(errInvalidConstraint)
 			}
 			if !c.Check(v) {
-				invalid = true
+				valid = false
 				break
 			}
 		}
 
-		if !invalid {
+		if valid {
 			addVer = v.Original()
 			break
 		}
