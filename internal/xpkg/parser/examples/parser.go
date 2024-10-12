@@ -20,11 +20,12 @@ package examples
 import (
 	"bufio"
 	"context"
-	"io"
-
+	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"reflect"
 	k8syaml "sigs.k8s.io/yaml"
 )
 
@@ -69,7 +70,11 @@ func (p *Parser) Parse(ctx context.Context, reader io.ReadCloser) (*Examples, er
 		}
 		var obj unstructured.Unstructured
 		if err := k8syaml.Unmarshal(bytes, &obj); err != nil {
-			return ex, err
+			// Annotate() is a struct from fsreader in crossplane-runtime.
+			// It tracks the corresponding file for the k8s yaml resource.
+			anno := reader.(parser.AnnotatedReadCloser).Annotate()
+			v := reflect.ValueOf(anno)
+			return ex, fmt.Errorf("%v, failed to parse file in %s\n", err, v.FieldByName("path"))
 		}
 		ex.objects = append(ex.objects, obj)
 	}
