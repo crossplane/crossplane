@@ -18,6 +18,7 @@ limitations under the License.
 package validate
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +28,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/internal/version"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -36,9 +40,10 @@ type Cmd struct {
 	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
-	CacheDir           string `default:"~/.crossplane/cache"                                        help:"Absolute path to the cache directory where downloaded schemas are stored."`
+	CacheDir           string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."`
 	CleanCache         bool   `help:"Clean the cache directory before downloading package schemas."`
 	SkipSuccessResults bool   `help:"Skip printing success results."`
+	CrossplaneImage    string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
 
 	fs afero.Fs
 }
@@ -46,15 +51,15 @@ type Cmd struct {
 // Help prints out the help for the validate command.
 func (c *Cmd) Help() string {
 	return `
-This command validates the provided Crossplane resources against the schemas of the provided extensions like XRDs, 
-CRDs, providers, and configurations. The output of the "crossplane render" command can be 
+This command validates the provided Crossplane resources against the schemas of the provided extensions like XRDs,
+CRDs, providers, and configurations. The output of the "crossplane render" command can be
 piped to this validate command in order to rapidly validate on the outputs of the composition development experience.
 
 If providers or configurations are provided as extensions, they will be downloaded and loaded as CRDs before performing
-validation. If the cache directory is not provided, it will default to "~/.crossplane/cache". 
+validation. If the cache directory is not provided, it will default to "~/.crossplane/cache".
 Cache directory can be cleaned before downloading schemas by setting the "clean-cache" flag.
 
-All validation is performed offline locally using the Kubernetes API server's validation library, so it does not require 
+All validation is performed offline locally using the Kubernetes API server's validation library, so it does not require
 any Crossplane instance or control plane to be running or configured.
 
 Examples:
@@ -62,10 +67,13 @@ Examples:
   # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file
   crossplane beta validate extensions.yaml resources.yaml
 
-  # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder and skip 
+  # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file using a specific Crossplane image version
+  crossplane beta validate extensions.yaml resources.yaml --crossplane-image=xpkg.upbound.io/crossplane/crossplane:v1.16.0
+
+  # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder and skip
   # success logs
   crossplane beta validate extensionsDir/ resourceDir/ --skip-success-results
- 
+
   # Validate the output of the render command against the extensions in the extensionsDir folder
   crossplane render xr.yaml composition.yaml func.yaml --include-full-xr | crossplane beta validate extensionsDir/ -
 
@@ -85,6 +93,10 @@ func (c *Cmd) AfterApply() error {
 func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	if c.Resources == "-" && c.Extensions == "-" {
 		return errors.New("cannot use stdin for both extensions and resources")
+	}
+
+	if len(c.CrossplaneImage) < 1 {
+		c.CrossplaneImage = fmt.Sprintf("%s/crossplane/crossplane:%s", xpkg.DefaultRegistry, version.New().GetVersionString())
 	}
 
 	// Load all extensions
@@ -114,7 +126,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CacheDir = filepath.Join(homeDir, c.CacheDir[2:])
 	}
 
-	m := NewManager(c.CacheDir, c.fs, k.Stdout)
+	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(c.CrossplaneImage))
 
 	// Convert XRDs/CRDs to CRDs and add package dependencies
 	if err := m.PrepExtensions(extensions); err != nil {
