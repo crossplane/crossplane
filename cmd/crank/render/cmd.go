@@ -86,10 +86,14 @@ the following annotations to each Function to change how they're run:
 
     Don't stop the Function's Docker container after rendering.
 
+  render.crossplane.io/runtime-docker-name: "<name>"
+
+    create a container with that name and also reuse it as long as it is running or can be restarted.
+
   render.crossplane.io/runtime-docker-pull-policy: "Always"
 
     Always pull the Function's package, even if it already exists locally.
-	Other supported values are Never, or IfNotPresent. 
+	Other supported values are Never, or IfNotPresent.
 
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
