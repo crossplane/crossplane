@@ -131,9 +131,9 @@ func RuntimeManifestBuilderWithServiceAccountPullSecrets(secrets []corev1.LocalO
 	}
 }
 
-// RuntimeManifestBuilderWithPullSecretFromConfig sets the image config
+// RuntimeManifestBuilderWithPullSecret sets the image config
 // pull secret to use when building the runtime manifests.
-func RuntimeManifestBuilderWithPullSecretFromConfig(secret string) RuntimeManifestBuilderOption {
+func RuntimeManifestBuilderWithPullSecret(secret string) RuntimeManifestBuilderOption {
 	return func(b *RuntimeManifestBuilder) {
 		b.pullSecretFromConfig = secret
 	}

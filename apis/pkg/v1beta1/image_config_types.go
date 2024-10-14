@@ -21,6 +21,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// MatchType is the method used to match the image.
+type MatchType string
+
+const (
+	// Prefix is used to match the prefix of the image.
+	Prefix MatchType = "Prefix"
+)
+
 // +kubebuilder:object:root=true
 // +genclient
 // +genclient:nonNamespaced
@@ -48,6 +56,11 @@ type ImageConfigList struct {
 
 // ImageMatch defines a rule for matching image.
 type ImageMatch struct {
+	// Match is the method used to match the image.
+	// +optional
+	// +kubebuilder:validation:Enum=Prefix
+	// +kubebuilder:default=Prefix
+	Match MatchType `json:"match,omitempty"`
 	// Prefix is the prefix that should be matched.
 	Prefix string `json:"prefix"`
 }

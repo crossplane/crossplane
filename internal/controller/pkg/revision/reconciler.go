@@ -318,34 +318,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
 			client: mgr.GetClient(),
 		}).
-		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-			ic, ok := o.(*v1beta1.ImageConfig)
-			if !ok {
-				return nil
-			}
-			// We only care about ImageConfigs that have a pull secret.
-			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
-				return nil
-			}
-			// Enqueue all ProviderRevision matching the prefixes in the ImageConfig.
-			l := &v1.ProviderRevisionList{}
-			if err = mgr.GetClient().List(ctx, l); err != nil {
-				// Nothing we can do, except logging, if we can't list ProviderRevisions.
-				log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
-				return nil
-			}
-
-			var matches []reconcile.Request
-			for _, p := range l.Items {
-				for _, m := range ic.Spec.MatchImages {
-					if strings.HasPrefix(p.GetSource(), m.Prefix) {
-						log.Debug("Enqueuing provider revision for image config", "providerRevision", p.Name, "imageConfig", ic.Name)
-						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-					}
-				}
-			}
-			return matches
-		}))
+		Watches(&v1beta1.ImageConfig{}, enqueueProviderRevisionsForImageConfig(mgr.GetClient(), log))
 
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
@@ -420,34 +393,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
-		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-			ic, ok := o.(*v1beta1.ImageConfig)
-			if !ok {
-				return nil
-			}
-			// We only care about ImageConfigs that have a pull secret.
-			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
-				return nil
-			}
-			// Enqueue all ConfigurationRevision matching the prefixes in the ImageConfig.
-			l := &v1.ConfigurationRevisionList{}
-			if err = mgr.GetClient().List(ctx, l); err != nil {
-				// Nothing we can do, except logging, if we can't list ConfigurationRevisions.
-				log.Debug("Cannot list configuration revisions while attempting to enqueue from ImageConfig", "error", err)
-				return nil
-			}
-
-			var matches []reconcile.Request
-			for _, p := range l.Items {
-				for _, m := range ic.Spec.MatchImages {
-					if strings.HasPrefix(p.GetSource(), m.Prefix) {
-						log.Debug("Enqueuing configuration revision for image config", "configurationRevision", p.Name, "imageConfig", ic.Name)
-						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-					}
-				}
-			}
-			return matches
-		})).
+		Watches(&v1beta1.ImageConfig{}, enqueueConfigurationRevisionsForImageConfig(mgr.GetClient(), log)).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -486,34 +432,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
 		}).
-		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-			ic, ok := o.(*v1beta1.ImageConfig)
-			if !ok {
-				return nil
-			}
-			// We only care about ImageConfigs that have a pull secret.
-			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
-				return nil
-			}
-			// Enqueue all FunctionRevision matching the prefixes in the ImageConfig.
-			l := &v1.FunctionRevisionList{}
-			if err = mgr.GetClient().List(ctx, l); err != nil {
-				// Nothing we can do, except logging, if we can't list FunctionRevisions.
-				log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
-				return nil
-			}
-
-			var matches []reconcile.Request
-			for _, p := range l.Items {
-				for _, m := range ic.Spec.MatchImages {
-					if strings.HasPrefix(p.GetSource(), m.Prefix) {
-						log.Debug("Enqueuing function revision for image config", "functionRevision", p.Name, "imageConfig", ic.Name)
-						matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-					}
-				}
-			}
-			return matches
-		}))
+		Watches(&v1beta1.ImageConfig{}, enqueueFunctionRevisionsForImageConfig(mgr.GetClient(), log))
 
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
@@ -678,7 +597,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if pullSecretFromConfig != "" {
-			opts = append(opts, RuntimeManifestBuilderWithPullSecretFromConfig(pullSecretFromConfig))
+			opts = append(opts, RuntimeManifestBuilderWithPullSecret(pullSecretFromConfig))
 		}
 
 		runtimeManifestBuilder = NewRuntimeManifestBuilder(pwr, r.namespace, opts...)
@@ -1064,4 +983,97 @@ func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.P
 	}
 
 	return opts, nil
+}
+
+func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+		ic, ok := o.(*v1beta1.ImageConfig)
+		if !ok {
+			return nil
+		}
+		// We only care about ImageConfigs that have a pull secret.
+		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+			return nil
+		}
+		// Enqueue all ProviderRevision matching the prefixes in the ImageConfig.
+		l := &v1.ProviderRevisionList{}
+		if err := kube.List(ctx, l); err != nil {
+			// Nothing we can do, except logging, if we can't list ProviderRevisions.
+			log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
+			return nil
+		}
+
+		var matches []reconcile.Request
+		for _, p := range l.Items {
+			for _, m := range ic.Spec.MatchImages {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+					log.Debug("Enqueuing provider revision for image config", "providerRevision", p.Name, "imageConfig", ic.Name)
+					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+				}
+			}
+		}
+		return matches
+	})
+}
+
+func enqueueConfigurationRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+		ic, ok := o.(*v1beta1.ImageConfig)
+		if !ok {
+			return nil
+		}
+		// We only care about ImageConfigs that have a pull secret.
+		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+			return nil
+		}
+		// Enqueue all ConfigurationRevision matching the prefixes in the ImageConfig.
+		l := &v1.ConfigurationRevisionList{}
+		if err := kube.List(ctx, l); err != nil {
+			// Nothing we can do, except logging, if we can't list ConfigurationRevisions.
+			log.Debug("Cannot list configuration revisions while attempting to enqueue from ImageConfig", "error", err)
+			return nil
+		}
+
+		var matches []reconcile.Request
+		for _, p := range l.Items {
+			for _, m := range ic.Spec.MatchImages {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+					log.Debug("Enqueuing configuration revision for image config", "configurationRevision", p.Name, "imageConfig", ic.Name)
+					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+				}
+			}
+		}
+		return matches
+	})
+}
+
+func enqueueFunctionRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+		ic, ok := o.(*v1beta1.ImageConfig)
+		if !ok {
+			return nil
+		}
+		// We only care about ImageConfigs that have a pull secret.
+		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+			return nil
+		}
+		// Enqueue all FunctionRevision matching the prefixes in the ImageConfig.
+		l := &v1.FunctionRevisionList{}
+		if err := kube.List(ctx, l); err != nil {
+			// Nothing we can do, except logging, if we can't list FunctionRevisions.
+			log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
+			return nil
+		}
+
+		var matches []reconcile.Request
+		for _, p := range l.Items {
+			for _, m := range ic.Spec.MatchImages {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+					log.Debug("Enqueuing function revision for image config", "functionRevision", p.Name, "imageConfig", ic.Name)
+					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
+				}
+			}
+		}
+		return matches
+	})
 }

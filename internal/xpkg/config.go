@@ -48,7 +48,7 @@ type ImageConfigStore struct {
 
 // PullSecretFor returns the pull secret name for a given image as
 // well as the name of the ImageConfig resource that contains the pull secret.
-func (s *ImageConfigStore) PullSecretFor(ctx context.Context, image string) (imageConfig string, pullSecret string, err error) {
+func (s *ImageConfigStore) PullSecretFor(ctx context.Context, image string) (imageConfig, pullSecret string, err error) {
 	config, err := s.bestMatch(ctx, image, func(c *v1beta1.ImageConfig) bool {
 		return c.Spec.Registry != nil && c.Spec.Registry.Authentication != nil && c.Spec.Registry.Authentication.PullSecretRef.Name != ""
 	})
