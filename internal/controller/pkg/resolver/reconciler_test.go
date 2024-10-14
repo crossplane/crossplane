@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/name"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	fakedag "github.com/crossplane/crossplane/internal/dag/fake"
+	"github.com/crossplane/crossplane/internal/xpkg"
 	fakexpkg "github.com/crossplane/crossplane/internal/xpkg/fake"
 )
 
@@ -63,12 +65,12 @@ var (
 		Source:  "cool-repo/cool-image",
 		Version: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 	}
+
+	errBoom = errors.New("boom")
+	testLog = logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 )
 
 func TestReconcile(t *testing.T) {
-	errBoom := errors.New("boom")
-	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
-
 	type args struct {
 		mgr manager.Manager
 		req reconcile.Request
@@ -318,6 +320,15 @@ func TestReconcile(t *testing.T) {
 									},
 								}, nil
 							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == "not.a.valid.package" {
+									return &v1beta1.Dependency{
+										Package: "not.a.valid.package",
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
 							},
@@ -357,6 +368,16 @@ func TestReconcile(t *testing.T) {
 										Constraints: "*",
 									},
 								}, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == "hasheddan/config-nop-b" {
+									return &v1beta1.Dependency{
+										Package:     "hasheddan/config-nop-b",
+										Constraints: "*",
+									}, nil
+								}
+
+								return nil, errors.New("not found")
 							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
@@ -401,6 +422,16 @@ func TestReconcile(t *testing.T) {
 									},
 								}, nil
 							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == "hasheddan/config-nop-b" {
+									return &v1beta1.Dependency{
+										Package:     "hasheddan/config-nop-b",
+										Constraints: "*",
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
 							},
@@ -443,6 +474,16 @@ func TestReconcile(t *testing.T) {
 										Constraints: ">v1.0.0",
 									},
 								}, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == "hasheddan/config-nop-b" {
+									return &v1beta1.Dependency{
+										Package:     "hasheddan/config-nop-b",
+										Constraints: ">v1.0.0",
+									}, nil
+								}
+
+								return nil, errors.New("not found")
 							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
@@ -493,6 +534,17 @@ func TestReconcile(t *testing.T) {
 									},
 								}, nil
 							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == confPkgName {
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: ">v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
 							},
@@ -542,6 +594,17 @@ func TestReconcile(t *testing.T) {
 									},
 								}, nil
 							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == confPkgName {
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
+							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
 							},
@@ -589,6 +652,17 @@ func TestReconcile(t *testing.T) {
 										Type:        v1beta1.ConfigurationPackageType,
 									},
 								}, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == confPkgName {
+									return &v1beta1.Dependency{
+										Package:     confPkgName,
+										Constraints: ">v1.0.0",
+										Type:        v1beta1.ConfigurationPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
 							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
@@ -638,6 +712,17 @@ func TestReconcile(t *testing.T) {
 										Type:        v1beta1.ProviderPackageType,
 									},
 								}, nil
+							},
+							MockGetNode: func(identifier string) (dag.Node, error) {
+								if identifier == proPkgName {
+									return &v1beta1.Dependency{
+										Package:     proPkgName,
+										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+										Type:        v1beta1.ProviderPackageType,
+									}, nil
+								}
+
+								return nil, errors.New("not found")
 							},
 							MockSort: func() ([]string, error) {
 								return nil, nil
@@ -1094,6 +1179,143 @@ func TestReconcile(t *testing.T) {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestUpdatableFindValidDependencyVersion(t *testing.T) {
+	type args struct {
+		fetcher xpkg.Fetcher
+		dep     *v1beta1.Dependency
+		ref     name.Reference
+		n       dag.Node
+	}
+	type want struct {
+		ver string
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"SuccessfulDigest": {
+			reason: "We should return the version if it is a digest.",
+			args: args{
+				dep: &v1beta1.Dependency{
+					Package:     "ezgidemirel/config-nop",
+					Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+				},
+			},
+			want: want{
+				ver: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+			},
+		},
+		"SuccessfulUpgradeMinValid": {
+			reason: "We should return the minimum valid version if upgrade is required",
+			args: args{
+				fetcher: &fakexpkg.MockFetcher{
+					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1.1.0", "v1.2.0"}, nil),
+				},
+				dep: &v1beta1.Dependency{
+					Package:           "ezgidemirel/config-nop",
+					ParentConstraints: []string{">=v1.1.0"},
+				},
+				n: &v1beta1.LockPackage{
+					Source:  "ezgidemirel/config-nop",
+					Version: "v1.0.0",
+				},
+			},
+			want: want{
+				ver: "v1.1.0",
+			},
+		},
+		"ErrorFetchTags": {
+			reason: "We should return an error if fail to fetch tags to account for network issues.",
+			args: args{
+				fetcher: &fakexpkg.MockFetcher{
+					MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
+				},
+				dep: &v1beta1.Dependency{
+					Package:     "ezgidemirel/config-nop",
+					Constraints: "*",
+				},
+			},
+			want: want{
+				ver: "",
+				err: errors.New(errFetchTags),
+			},
+		},
+		"ErrorInvalidParentConstraints": {
+			reason: "We should return an error if parent constraints are invalid.",
+			args: args{
+				fetcher: &fakexpkg.MockFetcher{
+					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0"}, nil),
+				},
+				dep: &v1beta1.Dependency{
+					Package:           "ezgidemirel/config-nop",
+					ParentConstraints: []string{"invalid"},
+				},
+			},
+			want: want{
+				ver: "",
+				err: errors.New(errInvalidConstraint),
+			},
+		},
+		"ErrorDowngradeNotAllowed": {
+			reason: "We should return an error if downgrade is not allowed.",
+			args: args{
+				fetcher: &fakexpkg.MockFetcher{
+					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.2.0", "v0.3.0"}, nil),
+				},
+				dep: &v1beta1.Dependency{
+					Package:           "ezgidemirel/config-nop",
+					ParentConstraints: []string{"v0.2.0"},
+				},
+				n: &v1beta1.LockPackage{
+					Source:  "ezgidemirel/config-nop",
+					Version: "v1.0.0",
+				},
+			},
+			want: want{
+				ver: "",
+				err: errors.New(errDowngradeNotAllowed),
+			},
+		},
+		"NoValidVersion": {
+			reason: "We should not requeue if valid version does not exist for dependency.",
+			args: args{
+				fetcher: &fakexpkg.MockFetcher{
+					MockTags: fakexpkg.NewMockTagsFn([]string{"abc", "v0.2.0", "v0.3.0", "v1.0.0"}, nil),
+				},
+				dep: &v1beta1.Dependency{
+					Package:           "ezgidemirel/config-nop",
+					ParentConstraints: []string{">v1.0.0"},
+				},
+				n: &v1beta1.LockPackage{
+					Source:  "ezgidemirel/config-nop",
+					Version: "v1.0.0",
+				},
+			},
+			want: want{
+				ver: "",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := &UpdatableVersionFinder{
+				fetcher: tc.args.fetcher,
+			}
+			got, err := u.FindValidDependencyVersion(context.Background(), tc.args.dep, tc.args.ref, tc.args.n, testLog)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.ver, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

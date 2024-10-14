@@ -64,6 +64,7 @@ const (
 	errSortDAG              = "cannot sort DAG"
 	errFmtMissingDependency = "missing package (%s) is not a dependency"
 	errInvalidConstraint    = "version constraint on dependency is invalid"
+	errDowngradeNotAllowed  = "downgrading package version is not allowed"
 	errInvalidDependency    = "dependency package is not valid"
 	errFetchTags            = "cannot fetch dependency package tags"
 	errNoValidVersion       = "cannot find a valid version for package constraints"
@@ -258,6 +259,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	n, _ := ndag.GetNode(dep.Identifier()) // nolint: errcheck // we know the node exists since it was implied
+
 	ref, err := name.ParseReference(dep.Package, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
@@ -266,7 +269,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// NOTE(hasheddan): consider creating event on package revision
 	// dictating constraints.
-	addVer, err := r.versionFinder.FindValidDependencyVersion(ctx, dep, ref, ndag, log)
+	addVer, err := r.versionFinder.FindValidDependencyVersion(ctx, dep, ref, n, log)
 	if err != nil || addVer == "" {
 		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
 		return reconcile.Result{Requeue: false}, errors.New(errNoValidVersion)
@@ -296,8 +299,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		format = packageDigestFmt
 	}
 
-	tarVer := fmt.Sprintf(format, ref.String(), addVer)
-	pack.SetSource(tarVer)
+	tarSource := fmt.Sprintf(format, ref.String(), addVer)
+	pack.SetSource(tarSource)
 
 	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pack), pack); err != nil {
 		if !kerrors.IsNotFound(err) {
@@ -312,8 +315,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if pack.GetSource() != tarVer {
-		pack.SetSource(tarVer)
+	// If the package exists and has a different version than the target we update it.
+	if pack.GetSource() != tarSource {
+		pack.SetSource(tarSource)
 		if err := r.client.Update(ctx, pack); err != nil {
 			return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateDependency)
 		}
@@ -323,7 +327,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 type versionFinder interface {
-	FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, dag dag.DAG, log logging.Logger) (string, error)
+	FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, node dag.Node, log logging.Logger) (string, error)
 }
 
 // DefaultVersionFinder is the default implementation of versionFinder.
@@ -332,7 +336,7 @@ type DefaultVersionFinder struct {
 }
 
 // FindValidDependencyVersion finds a valid version for the new dependency.
-func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, _ dag.DAG, log logging.Logger) (string, error) {
+func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, _ dag.Node, log logging.Logger) (string, error) {
 	var addVer string
 
 	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
@@ -381,9 +385,7 @@ type UpdatableVersionFinder struct {
 }
 
 // FindValidDependencyVersion finds a valid version with version upgrade/downgrade capability considering parent constraints.
-func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, dag dag.DAG, log logging.Logger) (string, error) {
-	var addVer string
-
+func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, n dag.Node, log logging.Logger) (string, error) {
 	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
 		log.Debug("package is pinned to a specific digest, skipping resolution")
 		return digest.String(), nil
@@ -408,26 +410,43 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 		vs = append(vs, v)
 	}
 
-	sort.Sort(semver.Collection(vs))
+	var cv *semver.Version
 
-	n, err := dag.GetNode(dep.Identifier())
-	if err != nil {
-		return "", errors.New(errInvalidDependency)
+	// If the node is a LockPackage, it means it's already installed.
+	if lp, ok := n.(*v1beta1.LockPackage); ok {
+		log.Debug("dependency found in lock, trying to find the minimum valid version which is greater than the current version")
+		sort.Sort(semver.Collection(vs))
+		cv = semver.MustParse(lp.Version)
 	}
 
-	for i := len(vs) - 1; i >= 0; i-- {
-		v := vs[i]
-		valid := true
+	// If the node is not a LockPackage, it means it's a new dependency that we need to install with the latest version.
+	if cv == nil {
+		log.Debug("dependency not found in lock, trying to find the maximum valid version")
+		sort.Sort(sort.Reverse(semver.Collection(vs)))
+	}
 
-		for _, constraint := range n.GetParentConstraints() {
+	var addVer string
+	for _, v := range vs {
+		valid := true
+		for _, constraint := range dep.GetParentConstraints() {
 			c, err := semver.NewConstraint(constraint)
 			if err != nil {
 				log.Debug(errInvalidConstraint, "error", err)
 				return "", errors.New(errInvalidConstraint)
 			}
+
 			if !c.Check(v) {
 				valid = false
 				break
+			}
+
+			// NOTE(ezgidemirel): If there is no valid version greater than the current version,
+			// we should not allow downgrade.
+			// Compare compares this version to another one. It returns -1, 0, or 1 if
+			// the version smaller, equal, or larger than the other version.
+			if cv != nil && v.Compare(cv) == -1 {
+				log.Debug(errDowngradeNotAllowed, "currentVersion", cv.String(), "newVersion", v.String())
+				return "", errors.New(errDowngradeNotAllowed)
 			}
 		}
 
