@@ -19,7 +19,6 @@ package validate
 import (
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -33,13 +32,11 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
 	packageFileName = "package.yaml"
 	baseLayerLabel  = "base"
-	xpImage         = xpkg.DefaultRegistry + "/crossplane/crossplane"
 
 	refFmt   = "%s@%s"
 	imageFmt = "%s:%s"
@@ -56,8 +53,21 @@ type Manager struct {
 	confs map[string]*metav1.Configuration // Configuration images
 }
 
+// Option defines an option for the Manager.
+type Option func(*Manager)
+
+// WithCrossplaneImage sets the Crossplane image to use for fetching CRDs.
+func WithCrossplaneImage(image string) Option {
+	return func(m *Manager) {
+		if image == "" {
+			return
+		}
+		m.deps[image] = true
+	}
+}
+
 // NewManager returns a new Manager.
-func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
+func NewManager(cacheDir string, fs afero.Fs, w io.Writer, opts ...Option) *Manager {
 	m := &Manager{}
 
 	m.cache = &LocalCache{
@@ -70,6 +80,10 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m.crds = make([]*extv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
 	m.confs = make(map[string]*metav1.Configuration)
+
+	for _, opt := range opts {
+		opt(m)
+	}
 
 	return m
 }
@@ -157,7 +171,7 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 }
 
 // CacheAndLoad finds and caches dependencies and loads them as CRDs.
-func (m *Manager) CacheAndLoad(cleanCache bool, crossplaneImage string) error {
+func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	if cleanCache {
 		if err := m.cache.Flush(); err != nil {
 			return errors.Wrapf(err, "cannot flush cache directory")
@@ -168,11 +182,11 @@ func (m *Manager) CacheAndLoad(cleanCache bool, crossplaneImage string) error {
 		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
-	if err := m.addDependencies(m.confs, crossplaneImage); err != nil {
+	if err := m.addDependencies(m.confs); err != nil {
 		return errors.Wrapf(err, "cannot add package dependencies")
 	}
 
-	if err := m.cacheDependencies(crossplaneImage); err != nil {
+	if err := m.cacheDependencies(); err != nil {
 		return errors.Wrapf(err, "cannot cache package dependencies")
 	}
 
@@ -184,7 +198,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool, crossplaneImage string) error {
 	return m.PrepExtensions(schemas)
 }
 
-func (m *Manager) addDependencies(confs map[string]*metav1.Configuration, crossplaneImage string) error {
+func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error {
 	if len(confs) == 0 {
 		return nil
 	}
@@ -231,17 +245,12 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration, crossp
 				}
 			}
 		}
-
-		if len(crossplaneImage) > 0 {
-			image = crossplaneImage
-			m.deps[image] = true
-		}
 	}
 
-	return m.addDependencies(deepConfs, "")
+	return m.addDependencies(deepConfs)
 }
 
-func (m *Manager) cacheDependencies(crossplaneImage string) error {
+func (m *Manager) cacheDependencies() error {
 	if err := m.cache.Init(); err != nil {
 		return errors.Wrapf(err, "cannot initialize  cache directory")
 	}
@@ -260,32 +269,33 @@ func (m *Manager) cacheDependencies(crossplaneImage string) error {
 			return errors.Wrapf(err, errWriteOutput)
 		}
 
-		// handling for crossplane
-		if strings.Contains(image, crossplaneImage) {
-			schemas, err := m.fetcher.FetchImage(image)
+		var schemas [][]byte
+		// handling for packages
+		layer, err := m.fetcher.FetchBaseLayer(image)
+		switch {
+		case IsErrBaseLayerNotFound(err):
+			// We fall back to fetching the image if the base layer is not found
+			layers, err := m.fetcher.FetchImage(image)
 			if err != nil {
 				return errors.Wrapf(err, "cannot extract crds")
 			}
-			if err := m.cache.Store(schemas, path); err != nil {
-				return errors.Wrapf(err, "cannot store image")
+			schemas, err = extractPackageCRDs(layers)
+			if err != nil {
+				return errors.Wrapf(err, "cannot find crds")
 			}
-			continue
-		}
-
-		// handling for packages
-		layer, err := m.fetcher.FetchBaseLayer(image)
-		if err != nil {
+		case err != nil:
 			return errors.Wrapf(err, "cannot download package %s", image)
-		}
-
-		schemas, _, err := extractPackageContent(*layer)
-		if err != nil {
-			return errors.Wrapf(err, "cannot extract package file and meta")
+		default:
+			schemas, _, err = extractPackageContent(*layer)
+			if err != nil {
+				return errors.Wrapf(err, "cannot extract package file and meta")
+			}
 		}
 
 		if err := m.cache.Store(schemas, path); err != nil {
 			return errors.Wrapf(err, "cannot store base layer")
 		}
+		return nil
 	}
 
 	return nil

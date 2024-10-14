@@ -126,7 +126,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CacheDir = filepath.Join(homeDir, c.CacheDir[2:])
 	}
 
-	m := NewManager(c.CacheDir, c.fs, k.Stdout)
+	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(c.CrossplaneImage))
 
 	// Convert XRDs/CRDs to CRDs and add package dependencies
 	if err := m.PrepExtensions(extensions); err != nil {
@@ -134,7 +134,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Download package base layers to cache and load them as CRDs
-	if err := m.CacheAndLoad(c.CleanCache, c.CrossplaneImage); err != nil {
+	if err := m.CacheAndLoad(c.CleanCache); err != nil {
 		return errors.Wrapf(err, "cannot download and load cache")
 	}
 
