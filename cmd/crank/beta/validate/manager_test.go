@@ -243,7 +243,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 				t.Errorf("\n%s\nPrepExtensions(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = m.addDependencies(m.confs, "")
+			err = m.addDependencies(m.confs)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -282,9 +282,18 @@ func TestAddDependencies(t *testing.T) {
 		}
 	}
 
+	fetchImageMockFunc := func(image string) ([]conregv1.Layer, error) {
+		switch image {
+		case "xpkg.upbound.io/crossplane/crossplane:v1.16.0":
+			return []conregv1.Layer{crossplaneLayer}, nil
+		default:
+			return nil, fmt.Errorf("unknown image: %s", image)
+		}
+	}
+
 	type args struct {
 		extensions      []*unstructured.Unstructured
-		fetchMock       func(image string) (*conregv1.Layer, error)
+		fetcher         ImageFetcher
 		crossplaneImage string
 	}
 	type want struct {
@@ -305,7 +314,10 @@ func TestAddDependencies(t *testing.T) {
 			// └─►crossplaneImage (xpkg.upbound.io/crossplane/crossplane:v1.16.0)
 			reason: "All dependencies including the crossplane image should be successfully fetched and added",
 			args: args{
-				fetchMock: fetchMockFunc,
+				fetcher: &MockFetcher{
+					fetchBaseLayer: fetchMockFunc,
+					fetchImage:     fetchImageMockFunc,
+				},
 				extensions: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
@@ -335,7 +347,7 @@ func TestAddDependencies(t *testing.T) {
 			//   └─►function-dep-1
 			reason: "All dependencies should be successfully fetched and added without specifying a crossplane image",
 			args: args{
-				fetchMock: fetchMockFunc,
+				fetcher: &MockFetcher{fetchMockFunc, nil},
 				extensions: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
@@ -364,11 +376,11 @@ func TestAddDependencies(t *testing.T) {
 			fs := afero.NewMemMapFs()
 			w := &bytes.Buffer{}
 
-			m := NewManager("", fs, w)
+			m := NewManager("", fs, w, WithCrossplaneImage(tc.args.crossplaneImage))
 			_ = m.PrepExtensions(tc.args.extensions)
 
-			m.fetcher = &MockFetcher{tc.args.fetchMock, nil}
-			err := m.addDependencies(m.confs, tc.args.crossplaneImage)
+			m.fetcher = tc.args.fetcher
+			err := m.addDependencies(m.confs)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\naddDependencies(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -385,14 +397,14 @@ func TestAddDependencies(t *testing.T) {
 
 type MockFetcher struct {
 	fetchBaseLayer func(image string) (*conregv1.Layer, error)
-	fetchImage     func(image string) ([][]byte, error)
+	fetchImage     func(image string) ([]conregv1.Layer, error)
 }
 
 func (m *MockFetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 	return m.fetchBaseLayer(image)
 }
 
-func (m *MockFetcher) FetchImage(image string) ([][]byte, error) {
+func (m *MockFetcher) FetchImage(image string) ([]conregv1.Layer, error) {
 	if m.fetchImage != nil {
 		return m.fetchImage(image)
 	}
