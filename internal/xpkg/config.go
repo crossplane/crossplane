@@ -17,8 +17,9 @@ const (
 
 // ConfigStore is a store for image configuration.
 type ConfigStore interface {
-	// PullSecretFor returns the pull secret configuration for a given image.
-	PullSecretFor(ctx context.Context, image string) (imageConfig string, pullSecret string, err error)
+	// PullSecretFor returns the name of the selected image config and
+	// name of the pull secret for a given image.
+	PullSecretFor(ctx context.Context, image string) (imageConfig, pullSecret string, err error)
 }
 
 // isValidConfig is a function that determines if an ImageConfig is valid while
@@ -43,7 +44,7 @@ func NewImageConfigStore(client client.Client, opts ...ImageConfigStoreOption) C
 
 // ImageConfigStore is a store for image configuration.
 type ImageConfigStore struct {
-	client client.Client
+	client client.Reader
 }
 
 // PullSecretFor returns the pull secret name for a given image as

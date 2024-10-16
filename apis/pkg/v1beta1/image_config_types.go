@@ -35,7 +35,6 @@ const (
 
 // The ImageConfig resource is used to configure settings for package images.
 //
-// +kubebuilder:printcolumn:name="FIRST_PREFIX",type="string",JSONPath=".spec.matchImages[0].prefix"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane}
 type ImageConfig struct {
@@ -56,11 +55,11 @@ type ImageConfigList struct {
 
 // ImageMatch defines a rule for matching image.
 type ImageMatch struct {
-	// Match is the method used to match the image.
+	// Type is the type of match.
 	// +optional
 	// +kubebuilder:validation:Enum=Prefix
 	// +kubebuilder:default=Prefix
-	Match MatchType `json:"match,omitempty"`
+	Type MatchType `json:"type,omitempty"`
 	// Prefix is the prefix that should be matched.
 	Prefix string `json:"prefix"`
 }

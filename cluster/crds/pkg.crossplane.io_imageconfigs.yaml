@@ -17,9 +17,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.matchImages[0].prefix
-      name: FIRST_PREFIX
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
@@ -55,14 +52,14 @@ spec:
                 items:
                   description: ImageMatch defines a rule for matching image.
                   properties:
-                    match:
-                      default: Prefix
-                      description: Match is the method used to match the image.
-                      enum:
-                      - Prefix
-                      type: string
                     prefix:
                       description: Prefix is the prefix that should be matched.
+                      type: string
+                    type:
+                      default: Prefix
+                      description: Type is the type of match.
+                      enum:
+                      - Prefix
                       type: string
                   required:
                   - prefix

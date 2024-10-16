@@ -597,7 +597,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if pullSecretFromConfig != "" {
-			opts = append(opts, RuntimeManifestBuilderWithPullSecret(pullSecretFromConfig))
+			opts = append(opts, RuntimeManifestBuilderWithPullSecrets(pullSecretFromConfig))
 		}
 
 		runtimeManifestBuilder = NewRuntimeManifestBuilder(pwr, r.namespace, opts...)
