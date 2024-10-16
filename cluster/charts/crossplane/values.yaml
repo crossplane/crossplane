@@ -5,7 +5,7 @@
 replicas: 1
 
 # -- The number of Crossplane Replisets to retain.
-revisionHistoryLimit: 10
+revisionHistoryLimit: null
 
 # -- The deployment strategy for the Crossplane and RBAC Manager pods.
 deploymentStrategy: RollingUpdate
@@ -85,7 +85,7 @@ rbacManager:
   # -- The number of RBAC Manager pod `replicas` to deploy.
   replicas: 1
   # -- The number of RBAC Manager Replisets to retain.
-  revisionHistoryLimit: 10
+  revisionHistoryLimit: null
   # -- Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the RBAC Manager pod.
   leaderElection: true
   # -- Add custom arguments to the RBAC Manager pod.
