@@ -543,16 +543,6 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 		composite.WithPollInterval(r.options.PollInterval),
 	}
 
-	// We only want to enable Composition environment support if the relevant
-	// feature flag is enabled. Otherwise we will default to noop selector and
-	// fetcher that will always return nil. All environment features are
-	// subsequently skipped if the environment is nil.
-	if r.options.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
-		o = append(o,
-			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(r.engine.GetClient())),
-			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(r.engine.GetClient())))
-	}
-
 	// If external secret stores aren't enabled we just fetch connection details
 	// from Kubernetes secrets.
 	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(r.engine.GetClient())

@@ -113,8 +113,6 @@ func TestSetMissingConnectionDetailFields(t *testing.T) {
 func TestConvertPnTToPipeline(t *testing.T) {
 	timeNow := metav1.NewTime(time.Now())
 	pipelineMode := v1.CompositionModePipeline
-	alwaysResolve := commonv1.ResolvePolicyAlways
-	typeFromCompositeFieldPath := v1.PatchTypeFromCompositeFieldPath
 	fieldPath := "spec.test"
 	stringFmt := "test1-%s"
 	intp := int64(1010)
@@ -197,50 +195,6 @@ func TestConvertPnTToPipeline(t *testing.T) {
 							},
 						},
 						Resources: []v1.ComposedTemplate{},
-						Environment: &v1.EnvironmentConfiguration{
-							EnvironmentConfigs: []v1.EnvironmentSource{
-								{
-									Type: "Reference",
-									Ref: &v1.EnvironmentSourceReference{
-										Name: "ref",
-									},
-								},
-							},
-							Patches: []v1.EnvironmentPatch{
-								{
-									Type:          typeFromCompositeFieldPath,
-									FromFieldPath: &fieldPath,
-									ToFieldPath:   &fieldPath,
-								},
-								{
-									Type:          typeFromCompositeFieldPath,
-									FromFieldPath: &fieldPath,
-									ToFieldPath:   &fieldPath,
-									Transforms: []v1.Transform{
-										{
-											Type: v1.TransformTypeString,
-											String: &v1.StringTransform{
-												Format: &stringFmt,
-											},
-										},
-										{
-											Type: v1.TransformTypeMath,
-											Math: &v1.MathTransform{
-												Multiply: &intp,
-											},
-										},
-									},
-									Policy: &v1.PatchPolicy{
-										MergeOptions: &commonv1.MergeOptions{
-											AppendSlice: ptr.To(true),
-										},
-									},
-								},
-							},
-							Policy: &commonv1.Policy{
-								Resolve: &alwaysResolve,
-							},
-						},
 					},
 				},
 			},
@@ -251,19 +205,6 @@ func TestConvertPnTToPipeline(t *testing.T) {
 					},
 					Spec: v1.CompositionSpec{
 						Mode: &pipelineMode,
-						Environment: &v1.EnvironmentConfiguration{
-							EnvironmentConfigs: []v1.EnvironmentSource{
-								{
-									Type: "Reference",
-									Ref: &v1.EnvironmentSourceReference{
-										Name: "ref",
-									},
-								},
-							},
-							Policy: &commonv1.Policy{
-								Resolve: &alwaysResolve,
-							},
-						},
 						Pipeline: []v1.PipelineStep{
 							{
 								FunctionRef: v1.FunctionReference{Name: "function-patch-and-transform"},
@@ -273,43 +214,6 @@ func TestConvertPnTToPipeline(t *testing.T) {
 										Object: map[string]any{
 											"apiVersion": string("pt.fn.crossplane.io/v1beta1"),
 											"kind":       string("Resources"),
-											"environment": &Environment{
-												Patches: []EnvironmentPatch{
-													{
-														EnvironmentPatch: v1.EnvironmentPatch{
-															Type:          typeFromCompositeFieldPath,
-															FromFieldPath: &fieldPath,
-															ToFieldPath:   &fieldPath,
-														},
-													},
-													{
-														EnvironmentPatch: v1.EnvironmentPatch{
-															Type:          typeFromCompositeFieldPath,
-															FromFieldPath: &fieldPath,
-															ToFieldPath:   &fieldPath,
-															Transforms: []v1.Transform{
-																{
-																	Type: v1.TransformTypeString,
-																	String: &v1.StringTransform{
-																		Format: &stringFmt,
-																		Type:   v1.StringTransformTypeFormat,
-																	},
-																},
-																{
-																	Type: v1.TransformTypeMath,
-																	Math: &v1.MathTransform{
-																		Multiply: &intp,
-																		Type:     v1.MathTransformTypeMultiply,
-																	},
-																},
-															},
-														},
-														Policy: &PatchPolicy{
-															ToFieldPath: ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays),
-														},
-													},
-												},
-											},
 											"patchSets": []PatchSet{
 												{
 													Name: "test-patchset",
@@ -498,7 +402,6 @@ func TestSetTransformTypeRequiredFields(t *testing.T) {
 }
 
 func TestProcessFunctionInput(t *testing.T) {
-	typeFromCompositeFieldPath := v1.PatchTypeFromCompositeFieldPath
 	fieldPath := "spec.test"
 	stringFmt := "test2-%s"
 	intp := int64(1010)
@@ -518,11 +421,10 @@ func TestProcessFunctionInput(t *testing.T) {
 			want: &runtime.RawExtension{
 				Object: &unstructured.Unstructured{
 					Object: map[string]any{
-						"apiVersion":  "pt.fn.crossplane.io/v1beta1",
-						"kind":        "Resources",
-						"environment": (*Environment)(nil),
-						"patchSets":   []PatchSet{},
-						"resources":   []ComposedTemplate{},
+						"apiVersion": "pt.fn.crossplane.io/v1beta1",
+						"kind":       "Resources",
+						"patchSets":  []PatchSet{},
+						"resources":  []ComposedTemplate{},
 					},
 				},
 			},
@@ -561,15 +463,6 @@ func TestProcessFunctionInput(t *testing.T) {
 						},
 					},
 					Resources: []v1.ComposedTemplate{},
-					Environment: &v1.EnvironmentConfiguration{
-						Patches: []v1.EnvironmentPatch{
-							{
-								Type:          typeFromCompositeFieldPath,
-								FromFieldPath: &fieldPath,
-								ToFieldPath:   &fieldPath,
-							},
-						},
-					},
 				},
 			},
 			want: &runtime.RawExtension{
@@ -577,17 +470,6 @@ func TestProcessFunctionInput(t *testing.T) {
 					Object: map[string]any{
 						"apiVersion": "pt.fn.crossplane.io/v1beta1",
 						"kind":       "Resources",
-						"environment": &Environment{
-							Patches: []EnvironmentPatch{
-								{
-									EnvironmentPatch: v1.EnvironmentPatch{
-										Type:          typeFromCompositeFieldPath,
-										FromFieldPath: &fieldPath,
-										ToFieldPath:   &fieldPath,
-									},
-								},
-							},
-						},
 						"patchSets": []PatchSet{
 							{
 								Name: "test-patchset",
@@ -722,99 +604,6 @@ func TestSetMissingPatchSetFields(t *testing.T) {
 			got := setMissingPatchSetFields(tc.args.patchSet)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("%s\nsetMissingPatchSetFields(...): -want i, +got i:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestSetMissingEnvironmentPatchFields(t *testing.T) {
-	fieldPath := "spec.id"
-	stringFmt := "test4-%s"
-	intp := int64(1010)
-	type args struct {
-		patch v1.EnvironmentPatch
-	}
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   v1.EnvironmentPatch
-	}{
-		"PatchWithoutTransforms": {
-			args: args{
-				v1.EnvironmentPatch{
-					Type:          v1.PatchTypeCombineFromComposite,
-					FromFieldPath: &fieldPath,
-					ToFieldPath:   &fieldPath,
-				},
-			},
-			want: v1.EnvironmentPatch{
-				Type:          v1.PatchTypeCombineFromComposite,
-				FromFieldPath: &fieldPath,
-				ToFieldPath:   &fieldPath,
-			},
-		},
-		"TransformArrayMissingFields": {
-			reason: "Nested missing Types are filled in for a transform array",
-			args: args{
-				v1.EnvironmentPatch{
-					Type:          v1.PatchTypeFromCompositeFieldPath,
-					FromFieldPath: &fieldPath,
-					ToFieldPath:   &fieldPath,
-					Transforms: []v1.Transform{
-						{
-							String: &v1.StringTransform{
-								Format: &stringFmt,
-							},
-						},
-						{
-							Math: &v1.MathTransform{
-								Multiply: &intp,
-							},
-						},
-					},
-				},
-			},
-			want: v1.EnvironmentPatch{
-				Type:          v1.PatchTypeFromCompositeFieldPath,
-				FromFieldPath: &fieldPath,
-				ToFieldPath:   &fieldPath,
-				Transforms: []v1.Transform{
-					{
-						Type: v1.TransformTypeString,
-						String: &v1.StringTransform{
-							Type:   v1.StringTransformTypeFormat,
-							Format: &stringFmt,
-						},
-					},
-					{
-						Type: v1.TransformTypeMath,
-						Math: &v1.MathTransform{
-							Type:     v1.MathTransformTypeMultiply,
-							Multiply: &intp,
-						},
-					},
-				},
-			},
-		},
-		"PatchWithoutType": {
-			args: args{
-				v1.EnvironmentPatch{
-					FromFieldPath: &fieldPath,
-					ToFieldPath:   &fieldPath,
-				},
-			},
-			want: v1.EnvironmentPatch{
-				Type:          v1.PatchTypeFromCompositeFieldPath,
-				FromFieldPath: &fieldPath,
-				ToFieldPath:   &fieldPath,
-			},
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := setMissingEnvironmentPatchFields(tc.args.patch)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("%s\nsetMissingEnvironmentPatchFields(...): -want i, +got i:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -1159,83 +948,6 @@ func TestMigratePatchPolicyInPatchSets(t *testing.T) {
 			got := MigratePatchPolicyInPatchSets(tc.args)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("MigratePatchPolicyInPatchSets() mismatch (-want +got):\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestMigratePatchPolicyInEnvironment(t *testing.T) {
-	cases := map[string]struct {
-		reason string
-		args   *v1.EnvironmentConfiguration
-		want   *Environment
-	}{
-		"EnvironmentNil": {
-			reason: "Environment is nil",
-			args:   nil,
-			want:   nil,
-		},
-		"EnvironmentHasNoPatches": {
-			reason: "Environment has no patches",
-			args:   &v1.EnvironmentConfiguration{Patches: []v1.EnvironmentPatch{}},
-			want:   nil,
-		},
-		"EnvironmentHasSimplePatches": {
-			reason: "Environment has simple patches",
-			args: &v1.EnvironmentConfiguration{
-				Patches: []v1.EnvironmentPatch{
-					{
-						Type:          v1.PatchTypeToCompositeFieldPath,
-						FromFieldPath: ptr.To("envVal"),
-						ToFieldPath:   ptr.To("spec.val"),
-						Policy:        nil,
-					},
-					{
-						Type:          v1.PatchTypeToCompositeFieldPath,
-						FromFieldPath: ptr.To("envVal"),
-						ToFieldPath:   ptr.To("spec.val"),
-						Policy: &v1.PatchPolicy{
-							FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
-							MergeOptions: &commonv1.MergeOptions{
-								KeepMapValues: ptr.To(true),
-							},
-						},
-					},
-				},
-			},
-			want: &Environment{
-				Patches: []EnvironmentPatch{
-					{
-						EnvironmentPatch: v1.EnvironmentPatch{
-							Type:          v1.PatchTypeToCompositeFieldPath,
-							FromFieldPath: ptr.To("envVal"),
-							ToFieldPath:   ptr.To("spec.val"),
-							Policy:        nil,
-						},
-						Policy: nil,
-					},
-					{
-						EnvironmentPatch: v1.EnvironmentPatch{
-							Type:          v1.PatchTypeToCompositeFieldPath,
-							FromFieldPath: ptr.To("envVal"),
-							ToFieldPath:   ptr.To("spec.val"),
-							Policy:        nil,
-						},
-						Policy: &PatchPolicy{
-							FromFieldPath: ptr.To(v1.FromFieldPathPolicyOptional),
-							ToFieldPath:   ptr.To(ToFieldPathPolicyMergeObjects),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := MigratePatchPolicyInEnvironment(tc.args)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("MigratePatchPolicyInEnvironment() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
