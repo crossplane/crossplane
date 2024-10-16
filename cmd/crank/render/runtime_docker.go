@@ -22,6 +22,8 @@ import (
 	"io"
 	"net"
 
+	"github.com/docker/cli/cli/command"
+	cliflags "github.com/docker/cli/cli/flags"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -143,6 +145,7 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get pull policy for Function %q", fn.GetName())
 	}
+
 	r := &RuntimeDocker{
 		Image:      fn.Spec.Package,
 		Cleanup:    cleanup,
@@ -189,9 +192,28 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 		PortBindings: bind,
 	}
 
+	// Getting and initializing a dockerCli to retrieve auth token
+	dockerCli, err := command.NewDockerCli()
+	if err != nil {
+		return RuntimeContext{}, errors.Wrap(err, "creating docker client")
+	}
+
+	opts := cliflags.NewClientOptions()
+	err = dockerCli.Initialize(opts)
+	if err != nil {
+		return RuntimeContext{}, errors.Wrap(err, "initializing docker client")
+	}
+
+	// Getting auth token from dockerCli, and create ImagePullOptions for PullImage
+	authToken, _ := command.RetrieveAuthTokenFromImage(dockerCli.ConfigFile(), r.Image)
+	options := types.ImagePullOptions{}
+	if authToken != "" {
+		options.RegistryAuth = authToken
+	}
+
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
-		err = PullImage(ctx, c, r.Image)
+		err = PullImage(ctx, c, r.Image, options)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
@@ -207,7 +229,7 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 
 		// The image was not found, but we're allowed to pull it.
 		r.log.Debug("Image not found, pulling", "image", r.Image)
-		err = PullImage(ctx, c, r.Image)
+		err = PullImage(ctx, c, r.Image, options)
 		if err != nil {
 			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
@@ -251,8 +273,8 @@ type pullClient interface {
 
 // PullImage pulls the supplied image using the supplied client. It blocks until
 // the image has either finished pulling or hit an error.
-func PullImage(ctx context.Context, p pullClient, image string) error {
-	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{})
+func PullImage(ctx context.Context, p pullClient, image string, options types.ImagePullOptions) error {
+	out, err := p.ImagePull(ctx, image, options)
 	if err != nil {
 		return err
 	}
