@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -994,7 +995,7 @@ func TestReconcile(t *testing.T) {
 								obj.Packages = append(obj.Packages, coolPkg)
 								return nil
 							case *v1.Function:
-								obj.Spec.Package = "hasheddan/function-nop-c:v1.0.0"
+								obj.Spec.Package = "hasheddan/func-nop-c:v1.0.0"
 								return nil
 							}
 							return nil
@@ -1015,7 +1016,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:           "hasheddan/function-nop-c",
+										Package:           "hasheddan/func-nop-c",
 										Constraints:       "v0.3.0",
 										Type:              v1beta1.FunctionPackageType,
 										ParentConstraints: []string{">=v0.2.0", "<v0.2.0"},
@@ -1084,7 +1085,7 @@ func TestReconcile(t *testing.T) {
 								obj.Packages = append(obj.Packages, coolPkg)
 								return nil
 							case *v1.Function:
-								obj.Spec.Package = "hasheddan/function-nop-c:v1.0.0"
+								obj.Spec.Package = "hasheddan/func-nop-c:v1.0.0"
 								return nil
 							}
 							return nil
@@ -1105,7 +1106,7 @@ func TestReconcile(t *testing.T) {
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
-										Package:           "hasheddan/function-nop-c",
+										Package:           "hasheddan/func-nop-c",
 										Constraints:       "v0.3.0",
 										Type:              v1beta1.FunctionPackageType,
 										ParentConstraints: []string{"sha256:dif25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904", "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904"},
@@ -1164,7 +1165,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
+			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog), WithRecorder(event.NewNopRecorder()))...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1211,12 +1212,12 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1.1.0", "v1.2.0"}, nil),
 				},
 				dep: &v1beta1.Dependency{
-					Package:           "ezgidemirel/config-nop",
-					ParentConstraints: []string{">=v1.1.0"},
+					Package: "ezgidemirel/config-nop",
 				},
 				n: &v1beta1.LockPackage{
-					Source:  "ezgidemirel/config-nop",
-					Version: "v1.0.0",
+					Source:            "ezgidemirel/config-nop",
+					Version:           "v1.0.0",
+					ParentConstraints: []string{">=v1.1.0"},
 				},
 			},
 			want: want{
@@ -1246,7 +1247,11 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0"}, nil),
 				},
 				dep: &v1beta1.Dependency{
-					Package:           "ezgidemirel/config-nop",
+					Package: "ezgidemirel/config-nop",
+				},
+				n: &v1beta1.LockPackage{
+					Source:            "ezgidemirel/config-nop",
+					Version:           "v1.0.0",
 					ParentConstraints: []string{"invalid"},
 				},
 			},
@@ -1259,15 +1264,16 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 			reason: "We should return an error if downgrade is not allowed.",
 			args: args{
 				fetcher: &fakexpkg.MockFetcher{
-					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.2.0", "v0.3.0"}, nil),
+					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v2.0.0", "v3.0.0"}, nil),
 				},
 				dep: &v1beta1.Dependency{
-					Package:           "ezgidemirel/config-nop",
-					ParentConstraints: []string{"v0.2.0"},
+					Package:     "ezgidemirel/config-nop",
+					Constraints: "v1.0.0",
 				},
 				n: &v1beta1.LockPackage{
-					Source:  "ezgidemirel/config-nop",
-					Version: "v1.0.0",
+					Source:            "ezgidemirel/config-nop",
+					Version:           "v2.0.0",
+					ParentConstraints: []string{">=v1.0.0"},
 				},
 			},
 			want: want{
@@ -1282,16 +1288,18 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 					MockTags: fakexpkg.NewMockTagsFn([]string{"abc", "v0.2.0", "v0.3.0", "v1.0.0"}, nil),
 				},
 				dep: &v1beta1.Dependency{
-					Package:           "ezgidemirel/config-nop",
-					ParentConstraints: []string{">v1.0.0"},
+					Package:     "ezgidemirel/config-nop",
+					Constraints: "v2.0.0",
 				},
 				n: &v1beta1.LockPackage{
-					Source:  "ezgidemirel/config-nop",
-					Version: "v1.0.0",
+					Source:            "ezgidemirel/config-nop",
+					Version:           "v1.0.0",
+					ParentConstraints: []string{">v1.0.0"},
 				},
 			},
 			want: want{
 				ver: "",
+				err: errors.Errorf(errFmtNoValidVersion, "ezgidemirel/config-nop", "[>v1.0.0]"),
 			},
 		},
 	}

@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -66,9 +67,8 @@ const (
 	errSortDAG              = "cannot sort DAG"
 	errFmtMissingDependency = "missing package (%s) is not a dependency"
 	errInvalidConstraint    = "version constraint on dependency is invalid"
-	errDowngradeNotAllowed  = "downgrading package version is not allowed"
+	errDowngradeNotAllowed  = "version downgrade is required to satisfy constraints, manual intervention required"
 	errInvalidDependency    = "dependency package is not valid"
-	errFindDependency       = "cannot find dependency version"
 	errGetPullConfig        = "cannot get image pull secret from config"
 	errFetchTags            = "cannot fetch dependency package tags"
 	errNoValidVersion       = "cannot find a valid version for package constraints"
@@ -77,6 +77,16 @@ const (
 	errGetDependency        = "cannot get dependency package"
 	errCreateDependency     = "cannot create dependency package"
 	errUpdateDependency     = "cannot update dependency package"
+)
+
+// Event reasons.
+const (
+	reasonErrBuildDAG       event.Reason = "BuildDAGError"
+	reasonCyclicDependency  event.Reason = "CyclicDependency"
+	reasonInvalidDependency event.Reason = "InvalidDependency"
+	reasonNoValidVersion    event.Reason = "NoValidVersion"
+	reasonErrCreate         event.Reason = "CreateError"
+	reasonErrUpdate         event.Reason = "UpdateError"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -117,6 +127,13 @@ func WithVersionFinder(vf versionFinder) ReconcilerOption {
 	}
 }
 
+// WithRecorder specifies how the Reconciler should record Kubernetes events.
+func WithRecorder(er event.Recorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.record = er
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client        client.Client
@@ -125,6 +142,7 @@ type Reconciler struct {
 	newDag        dag.NewDAGFn
 	registry      string
 	versionFinder versionFinder
+	record        event.Recorder
 }
 
 // Setup adds a controller that reconciles the Lock.
@@ -145,6 +163,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithDefaultRegistry(o.DefaultRegistry),
 		WithVersionFinder(&DefaultVersionFinder{fetcher: f, config: cfg}),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpdate) {
@@ -245,6 +264,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	implied, err := ndag.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
+		r.record.Event(lock, event.Warning(reasonErrBuildDAG, err))
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
 	}
 
@@ -253,6 +273,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	_, err = ndag.Sort()
 	if err != nil {
 		log.Debug(errSortDAG, "error", err)
+		r.record.Event(lock, event.Warning(reasonCyclicDependency, err))
 		return reconcile.Result{}, errors.Wrap(err, errSortDAG)
 	}
 
@@ -267,6 +288,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	dep, ok := implied[0].(*v1beta1.Dependency)
 	if !ok {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, dep.Identifier()))
+		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -275,6 +297,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ref, err := name.ParseReference(dep.Package, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
+		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -283,6 +306,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	addVer, err := r.versionFinder.FindValidDependencyVersion(ctx, dep, ref, n, log)
 	if err != nil || addVer == "" {
 		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
+		r.record.Event(lock, event.Warning(reasonNoValidVersion, err))
 		return reconcile.Result{Requeue: false}, errors.New(errNoValidVersion)
 	}
 
@@ -316,12 +340,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pack), pack); err != nil {
 		if !kerrors.IsNotFound(err) {
 			log.Debug(errGetDependency, "error", err)
+			r.record.Event(lock, event.Warning(reasonErrCreate, err))
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 
 		// If the package does not exist, we create it.
 		if err := r.client.Create(ctx, pack); err != nil {
 			log.Debug(errCreateDependency, "error", err)
+			r.record.Event(lock, event.Warning(reasonErrCreate, err))
 			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 		}
 	}
@@ -330,6 +356,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pack.GetSource() != tarSource {
 		pack.SetSource(tarSource)
 		if err := r.client.Update(ctx, pack); err != nil {
+			r.record.Event(lock, event.Warning(reasonErrUpdate, err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateDependency)
 		}
 	}
@@ -399,6 +426,11 @@ func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, d
 		}
 	}
 
+	if addVer == "" {
+		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
+		return "", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints)
+	}
+
 	return addVer, nil
 }
 
@@ -463,7 +495,7 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 	var addVer string
 	for _, v := range vs {
 		valid := true
-		for _, constraint := range dep.GetParentConstraints() {
+		for _, constraint := range n.GetParentConstraints() {
 			c, err := semver.NewConstraint(constraint)
 			if err != nil {
 				log.Debug(errInvalidConstraint, "error", err)
@@ -489,6 +521,11 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 			addVer = v.Original()
 			break
 		}
+	}
+
+	if addVer == "" {
+		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, n.Identifier(), n.GetParentConstraints()))
+		return "", errors.Errorf(errFmtNoValidVersion, n.Identifier(), n.GetParentConstraints())
 	}
 
 	return addVer, nil
