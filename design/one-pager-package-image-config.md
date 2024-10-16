@@ -103,11 +103,11 @@ metadata:
   name: acme-packages
 spec:
   matchImages:
-    - match: Prefix
+    - type: Prefix
       prefix: registry1.com/acme-co/configuration-foo
-    - match: Prefix
+    - type: Prefix
       prefix: registry1.com/acme-co/configuration-bar
-    - match: Prefix
+    - type: Prefix
       prefix: registry1.com/acme-co/function-baz
   registry:
     authentication:

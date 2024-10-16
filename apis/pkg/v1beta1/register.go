@@ -72,9 +72,18 @@ var (
 	DeploymentRuntimeConfigGroupVersionKind = SchemeGroupVersion.WithKind(DeploymentRuntimeConfigKind)
 )
 
+// ImageConfig type metadata.
+var (
+	ImageConfigKind             = reflect.TypeOf(ImageConfig{}).Name()
+	ImageConfigGroupKind        = schema.GroupKind{Group: Group, Kind: ImageConfigKind}.String()
+	ImageConfigKindAPIVersion   = ImageConfigKind + "." + SchemeGroupVersion.String()
+	ImageConfigGroupVersionKind = SchemeGroupVersion.WithKind(ImageConfigKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Lock{}, &LockList{})
 	SchemeBuilder.Register(&Function{}, &FunctionList{})
 	SchemeBuilder.Register(&FunctionRevision{}, &FunctionRevisionList{})
 	SchemeBuilder.Register(&DeploymentRuntimeConfig{}, &DeploymentRuntimeConfigList{})
+	SchemeBuilder.Register(&ImageConfig{}, &ImageConfigList{})
 }
