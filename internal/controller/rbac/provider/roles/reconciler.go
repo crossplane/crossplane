@@ -419,6 +419,12 @@ type OrgDiffer struct {
 // Differs returns true if the supplied references are not part of the same OCI
 // registry and org.
 func (d OrgDiffer) Differs(a, b string) bool {
+	if isLocalBuild(a) && isLocalBuild(b) {
+		oa := extractLocalOrg(a)
+		ob := extractLocalOrg(b)
+		return oa != ob
+	}
+
 	// If we can't parse either reference we can't compare them. Safest thing to
 	// do is to assume they're not part of the same org.
 	ra, err := name.ParseReference(a, name.WithDefaultRegistry(d.DefaultRegistry))
@@ -443,4 +449,18 @@ func (d OrgDiffer) Differs(a, b string) bool {
 	ob := strings.Split(cb.RepositoryStr(), "/")[0]
 
 	return oa != ob
+}
+
+// isLocalBuild checks if the reference is a local build without registry info
+func isLocalBuild(ref string) bool {
+	return !strings.Contains(ref, "/")
+}
+
+// extractLocalOrg extracts the organization part from a local build reference
+func extractLocalOrg(ref string) string {
+	parts := strings.Split(ref, "-")
+	if len(parts) > 2 {
+		return parts[1]
+	}
+	return ref
 }
