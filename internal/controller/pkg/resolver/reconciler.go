@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -55,6 +56,7 @@ const (
 )
 
 const (
+	lockName  = "lock"
 	finalizer = "lock.pkg.crossplane.io"
 
 	errGetLock              = "cannot get package lock"
@@ -66,6 +68,8 @@ const (
 	errInvalidConstraint    = "version constraint on dependency is invalid"
 	errDowngradeNotAllowed  = "downgrading package version is not allowed"
 	errInvalidDependency    = "dependency package is not valid"
+	errFindDependency       = "cannot find dependency version"
+	errGetPullConfig        = "cannot get image pull secret from config"
 	errFetchTags            = "cannot fetch dependency package tags"
 	errNoValidVersion       = "cannot find a valid version for package constraints"
 	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
@@ -99,13 +103,6 @@ func WithNewDagFn(f dag.NewDAGFn) ReconcilerOption {
 	}
 }
 
-// WithFetcher specifies how the Reconciler should fetch package tags.
-func WithFetcher(f xpkg.Fetcher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.fetcher = f
-	}
-}
-
 // WithDefaultRegistry sets the default registry to use.
 func WithDefaultRegistry(registry string) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -126,7 +123,6 @@ type Reconciler struct {
 	log           logging.Logger
 	lock          resource.Finalizer
 	newDag        dag.NewDAGFn
-	fetcher       xpkg.Fetcher
 	registry      string
 	versionFinder versionFinder
 }
@@ -143,17 +139,17 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
 	}
+	cfg := xpkg.NewImageConfigStore(mgr.GetClient())
 
 	opts := []ReconcilerOption{
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithFetcher(f),
 		WithDefaultRegistry(o.DefaultRegistry),
-		WithVersionFinder(&DefaultVersionFinder{fetcher: f}),
+		WithVersionFinder(&DefaultVersionFinder{fetcher: f, config: cfg}),
 	}
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpdate) {
 		opts = append(opts, WithNewDagFn(dag.NewUpdatableMapDag),
-			WithVersionFinder(&UpdatableVersionFinder{fetcher: f}))
+			WithVersionFinder(&UpdatableVersionFinder{fetcher: f, config: cfg}))
 	}
 
 	r := NewReconciler(mgr, opts...)
@@ -163,6 +159,23 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.Lock{}).
 		Owns(&v1.ConfigurationRevision{}).
 		Owns(&v1.ProviderRevision{}).
+		Watches(&v1beta1.ImageConfig{}, handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
+			ic, ok := o.(*v1beta1.ImageConfig)
+			if !ok {
+				return nil
+			}
+			// We only care about ImageConfigs that have a pull secret.
+			if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
+				return nil
+			}
+			// Ideally we should enqueue only if the ImageConfig applies to a
+			// package in the Lock which would require getting/parsing the Lock
+			// and checking the source of each package against the prefixes in
+			// the ImageConfig. However, this is a bit more complex than needed,
+			// and we don't expect to have many ImageConfigs so we just enqueue
+			// for all ImageConfigs with a pull secret.
+			return []reconcile.Request{{NamespacedName: client.ObjectKey{Name: lockName}}}
+		})).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -170,12 +183,10 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 // NewReconciler creates a new package revision reconciler.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client:        mgr.GetClient(),
-		lock:          resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
-		log:           logging.NewNopLogger(),
-		fetcher:       xpkg.NewNopFetcher(),
-		newDag:        dag.NewMapDag,
-		versionFinder: &DefaultVersionFinder{xpkg.NewNopFetcher()},
+		client: mgr.GetClient(),
+		lock:   resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		log:    logging.NewNopLogger(),
+		newDag: dag.NewMapDag,
 	}
 
 	for _, f := range opts {
@@ -333,6 +344,7 @@ type versionFinder interface {
 // DefaultVersionFinder is the default implementation of versionFinder.
 type DefaultVersionFinder struct {
 	fetcher xpkg.Fetcher
+	config  xpkg.ConfigStore
 }
 
 // FindValidDependencyVersion finds a valid version for the new dependency.
@@ -350,10 +362,21 @@ func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, d
 		return "", errors.New(errInvalidConstraint)
 	}
 
+	ic, ps, err := d.config.PullSecretFor(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot get pull secret from image config store", "error", err)
+		return "", errors.Wrap(err, errGetPullConfig)
+	}
+
+	var s []string
+	if ps != "" {
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		s = append(s, ps)
+	}
 	// NOTE(hasheddan): we will be unable to fetch tags for private
 	// dependencies because we do not attach any secrets. Consider copying
 	// secrets from parent dependencies.
-	tags, err := d.fetcher.Tags(ctx, ref)
+	tags, err := d.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
 		return "", errors.New(errFetchTags)
@@ -382,6 +405,7 @@ func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, d
 // UpdatableVersionFinder is an implementation of versionFinder that allows for version upgrade/downgrade capability considering parent constraints.
 type UpdatableVersionFinder struct {
 	fetcher xpkg.Fetcher
+	config  xpkg.ConfigStore
 }
 
 // FindValidDependencyVersion finds a valid version with version upgrade/downgrade capability considering parent constraints.
@@ -391,10 +415,21 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 		return digest.String(), nil
 	}
 
+	ic, ps, err := u.config.PullSecretFor(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot get pull secret from image config store", "error", err)
+		return "", errors.Wrap(err, errGetPullConfig)
+	}
+
+	var s []string
+	if ps != "" {
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		s = append(s, ps)
+	}
 	// NOTE(hasheddan): we will be unable to fetch tags for private
 	// dependencies because we do not attach any secrets. Consider copying
 	// secrets from parent dependencies.
-	tags, err := u.fetcher.Tags(ctx, ref)
+	tags, err := u.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
 		return "", errors.New(errFetchTags)

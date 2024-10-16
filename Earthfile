@@ -44,7 +44,7 @@ generate:
   BUILD +go-generate
   BUILD +helm-generate
 
-# e2e runs end-to-end tests. See test/e2e/README.md for details. 
+# e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
   ARG FLAGS="-test-suite=base"
   # Docker installs faster on Alpine, and we only need Go for go tool test2json.
@@ -151,7 +151,7 @@ go-build:
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
-  ARG GOFLAGS="-ldflags=-X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}"
+  ARG GOFLAGS="\"-ldflags=-s -w -X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}\""
   ARG CGO_ENABLED=0
   FROM +go-modules
   LET ext = ""
@@ -322,7 +322,7 @@ helm-docs-setup:
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
   IF [ "${TARGETARCH}" = "amd64" ]
     LET ARCH=x86_64
-  ELSE 
+  ELSE
     LET ARCH=${TARGETARCH}
   END
   RUN curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_${TARGETOS}_${ARCH}.tar.gz|tar zx>helm-docs

@@ -334,6 +334,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}}),
 				},
 			},
 			want: want{
@@ -384,10 +385,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
-					}),
-					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -437,10 +437,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
-					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -490,9 +489,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0"}, nil),
-					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -550,10 +549,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
-					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -610,9 +608,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -669,10 +667,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
-					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -729,6 +726,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
+					WithVersionFinder(&DefaultVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -786,10 +786,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil),
-					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -846,9 +845,6 @@ func TestReconcile(t *testing.T) {
 								return nil, errors.New("not found")
 							},
 						}
-					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil),
 					}),
 					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
 				},
@@ -907,10 +903,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
-					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -975,10 +970,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil),
-					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -1067,10 +1061,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil),
-					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -1158,10 +1151,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithFetcher(&fakexpkg.MockFetcher{
-						MockTags: fakexpkg.NewMockTagsFn([]string{"sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904", "v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil),
-					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}}),
+					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}}),
 				},
 			},
 			want: want{
@@ -1189,7 +1181,6 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 	type args struct {
 		fetcher xpkg.Fetcher
 		dep     *v1beta1.Dependency
-		ref     name.Reference
 		n       dag.Node
 	}
 	type want struct {
@@ -1305,12 +1296,16 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
+	for tcName, tc := range cases {
+		t.Run(tcName, func(t *testing.T) {
 			u := &UpdatableVersionFinder{
 				fetcher: tc.args.fetcher,
+				config: &fakexpkg.MockConfigStore{
+					MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+				},
 			}
-			got, err := u.FindValidDependencyVersion(context.Background(), tc.args.dep, tc.args.ref, tc.args.n, testLog)
+			r, _ := name.ParseReference(tc.args.dep.Package) // nolint: errcheck // we will catch anyways if r is nil
+			got, err := u.FindValidDependencyVersion(context.Background(), tc.args.dep, r, tc.args.n, testLog)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
