@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -59,6 +60,10 @@ type ServiceTemplate struct {
 	// Metadata contains the configurable metadata fields for the Service.
 	// +optional
 	Metadata *ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec contains the configurable spec fields for the Service object.
+	// +optional
+	Spec *corev1.ServiceSpec `json:"spec,omitempty"`
 }
 
 // ServiceAccountTemplate is the template for the ServiceAccount object.
