@@ -22,13 +22,14 @@ Today the package manager can't handle dependencies that have moved -
 dependencies that have a new OCI reference. Dependencies move for one of two
 reasons.
 
-The first reason is a package maintainer who wants to rename the package's
-authoritative organization or repository. For example the maintainer wants to
-move `crossplane-contrib/configuration-getting-started` to
-`crossplane-contrib/configuration-get-started`, or
-`crossplane/configuration-get-started`.
+**Reason one** is a package maintainer who wants to move the package's
+authoritative OCI reference. For example the maintainer wants to move
+`xpkg.upbound.io/crossplane-contrib/configuration-getting-started` to
+`xpkg.upbound.io/crossplane-contrib/configuration-get-started`, or
+`docker.io/crossplane/configuration-get-started`.
 
-The second reason is package replication. For example you want to replicate
+**Reason two** is a package consumer who wants to replicate a package from its
+authoritative OCI reference to another place. For example you want to replicate
 `xpkg.upbound.io/crossplane-contrib/configuration-getting-started` and all of
 its dependencies to `acme.co/crossplane-contrib/configuration-getting-started`.
 The authoritative OCI `xpkg.upbound.io` dependency references still exist, but
@@ -44,13 +45,7 @@ apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
   name: configuration-getting-started
-  annotations:
-    meta.crossplane.io/maintainer: Upbound <support@upbound.io>
-    meta.crossplane.io/source: github.com/upbound/configuration-getting-started
-    meta.crossplane.io/license: Apache-2.0
 spec:
-  crossplane:
-    version: ">=v1.15.2"
   dependsOn:
     - provider: xpkg.upbound.io/crossplane-contrib/provider-nop
       version: "v0.2.1"
@@ -194,10 +189,10 @@ registry to pull from. You can replicate a package from `xpkg.upbound.io` to
 
 ## Goals
 
-The goal of this proposal is to support:
+The goal of this proposal is to ensure dependencies don't break when you:
 
-1. Moving a dependency to a different registry, organization, or repository
-2. Replicating a dependency to a different, potentially private, registry
+1. Move a package to a different registry, organization, or repository
+2. Replicate a package to a different, potentially private, registry
 
 Handling private registry authentication for dependencies isn't in scope for
 this design. It's covered by the [package `ImageConfig` proposal][imageconfig].
@@ -235,13 +230,14 @@ spec:
 This tells Crossplane that the `crossplane-contrib/provider-family-aws` package
 replaces the `upbound/provider-family-aws` package.
 
-When the revision controller encounters a package with a replaces stanza, it'll
-deactivate the replaced package(s) before installing the new package.
+When the revision controller encounters a package with a `replaces` stanza,
+it'll deactivate the replaced package(s) before installing the replacement
+package.
 
-When the replaced package is deactivated, the new package can be installed
-without a conflict. A deactivated package [owns][owner-ref] but doesn't
-[control][controller-ref] its payload (e.g. a Provider's MR CRDs). This
-eliminates the controller reference conflict.
+After Crossplane deactivates the replaced package, it can install the
+replacement package without a conflict. A deactivated package [owns][owner-ref]
+but doesn't [control][controller-ref] its payload (e.g. a Provider's MR CRDs).
+This eliminates the controller reference conflict.
 
 A deactivated package exists, but in an inactive state. Specifically:
 
@@ -266,7 +262,7 @@ To deactivate a replaced packaged, the revision controller will:
 3. Set the package's `spec.revisionActivationPolicy` to `Manual`
 4. Set the package revision's `spec.desiredState` to `Inactive`
 
-One the replace source no longer appears in the Lock, the revision controller
+Once the replace source no longer appears in the Lock, the revision controller
 will proceed to install the new package.
 
 Dependency installation is ultimately handled by the revision controller - see
@@ -274,11 +270,11 @@ the sequence diagram in [the background section](#background). Handling the
 `replaces` stanza in the revision controller means the package manager will
 transparently handle `replaces` for dependencies, not only top level packages.
 
-A package can declare that it replaces another package without the replaced
+A package could declare that it replaces another package without the replaced
 package's consent. This means a malicious package could replace another package
 that wasn't actually moved. Making the `replaces` stanza part of the package
-metadata reduces this risk. Crossplane-aware package registries (e.g.
-https://marketplace.upbound.io) can use the package metadata to prominently
+metadata reduces this risk. Crossplane-aware package registries like
+https://marketplace.upbound.io can use the package metadata to prominently
 display the fact that a package will replace another package. This will help
 avoid unintentionally installing a package that replaces another.
 
@@ -287,17 +283,17 @@ avoid unintentionally installing a package that replaces another.
 I propose we support replicating a package by supporting partially qualified
 dependencies.
 
-For example, the maintainers of `xpkg.upbound.io/upbound/provider-family-aws`
+For example, the maintainers of `xpkg.upbound.io/upbound/provider-aws-s3`
 could express its dependencies like this:
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
-kind: provider-aws-s3
+kind: Provider
 metadata:
-  name: provider-family-aws
+  name: provider-aws-3
 spec:
   dependsOn:
-    - provider: crossplane-contrib/provider-family-aws
+    - provider: upbound/provider-family-aws
       version: "v1.15.0"
 ```
 
@@ -447,14 +443,15 @@ dependency, either at package install time or as part of Crossplane's control
 plane wide configuration. For example to rewrite any dependency that matches
 `xpkg.upbound.io/crossplane-contrib` with `pkg.acme.co/internal`.
 
-I have two concerns with this approach:
+I have two concerns with this approach.
 
-* As control-plane-wide configuration it's quite magic. If you didn't know the
-  configuration existed you could easily be surprised to have your seemingly
-  explicit, fully qualified dependencies rewritten.
-* As either control-plane-wide or package-specific configuration, it breaks if
-  the package changes its dependency prefix or adds new dependencies with a
-  different prefix.
+As control-plane-wide configuration it's quite magic. The fact that replacement
+is happening is not easily discoverable. If you didn't know the configuration
+existed you could easily be surprised to have your seemingly explicit, fully
+qualified dependencies rewritten.
+
+Rewriting dependencies by matching on prefixes also breaks if the package
+changes its dependency prefix or adds new dependencies with a different prefix.
 
 [imageconfig]: ./one-pager-package-image-config.md
 [controller-ref]: https://github.com/kubernetes/design-proposals-archive/blob/main/api-machinery/controller-ref.md
