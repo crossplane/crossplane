@@ -19,6 +19,9 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/apis"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // MatchType is the method used to match the image.
@@ -53,6 +56,19 @@ type ImageConfigList struct {
 	Items           []ImageConfig `json:"items"`
 }
 
+// ImageConfigSpec contains the configuration for matching images.
+type ImageConfigSpec struct {
+	// MatchImages is a list of image matching rules that should be satisfied.
+	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
+	MatchImages []ImageMatch `json:"matchImages"`
+	// Registry is the configuration for the registry.
+	// +optional
+	Registry *RegistryConfig `json:"registry,omitempty"`
+	// Verification contains the configuration for verifying the image.
+	// +optional
+	Verification *ImageVerification `json:"verification,omitempty"`
+}
+
 // ImageMatch defines a rule for matching image.
 type ImageMatch struct {
 	// Type is the type of match.
@@ -78,12 +94,185 @@ type RegistryConfig struct {
 	Authentication *RegistryAuthentication `json:"authentication,omitempty"`
 }
 
-// ImageConfigSpec contains the configuration for matching images.
-type ImageConfigSpec struct {
-	// MatchImages is a list of image matching rules that should be satisfied.
-	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
-	MatchImages []ImageMatch `json:"matchImages"`
-	// Registry is the configuration for the registry.
+// ImageVerification contains the configuration for verifying the image.
+type ImageVerification struct {
+	// Provider is the provider that should be used to verify the image.
+	// +kubebuilder:validation:Enum=Cosign
+	Provider string `json:"provider"`
+	// Cosign is the configuration for verifying the image using cosign.
 	// +optional
-	Registry *RegistryConfig `json:"registry,omitempty"`
+	Cosign *CosignVerificationConfig `json:"cosign,omitempty"`
+}
+
+// CosignVerificationConfig contains the configuration for verifying the image
+// using cosign.
+type CosignVerificationConfig struct {
+	// Authorities defines the rules for discovering and validating signatures.
+	Authorities []CosignAuthority `json:"authorities"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L118
+
+// CosignAuthority defines the rules for discovering and validating signatures.
+type CosignAuthority struct {
+	// Name is the name for this authority.
+	// verifications.
+	// If not specified, the name will be authority-<index in array>
+	Name string `json:"name"`
+	// Key defines the type of key to validate the image.
+	// +optional
+	Key *KeyRef `json:"key,omitempty"`
+	// Keyless sets the configuration to verify the authority against a Fulcio
+	// instance.
+	// +optional
+	Keyless *KeylessRef `json:"keyless,omitempty"`
+	// Static specifies that signatures / attestations are not validated but
+	// instead a static policy is applied against matching images.
+	// +optional
+	Static *StaticRef `json:"static,omitempty"`
+	// Sources sets the configuration to specify the sources from where to
+	// consume the signature and attestations.
+	// +optional
+	Sources []Source `json:"source,omitempty"`
+	// CTLog sets the configuration to verify the authority against a Rekor instance.
+	// +optional
+	CTLog *TLog `json:"ctlog,omitempty"`
+	// Attestations is a list of individual attestations for this authority,
+	// once the signature for this authority has been verified.
+	// +optional
+	Attestations []Attestation `json:"attestations,omitempty"`
+	// RFC3161Timestamp sets the configuration to verify the signature timestamp against a RFC3161 time-stamping instance.
+	// +optional
+	RFC3161Timestamp *RFC3161Timestamp `json:"rfc3161timestamp,omitempty"`
+}
+
+// Copied with below changes from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L152
+//   - Used xpv1.LocalSecretReference instead of corev1.LocalObjectReference
+//     to be consistent with other secret references where we read from the
+//     crossplane system namespace.
+//   - Removed `Data` and `KMS` fields as they are not in the scope of first
+//     iteration.
+//   - Marked `SecretRef` as required.
+
+// A KeyRef must specify a SecretRef and may specify a HashAlgorithm.
+type KeyRef struct {
+	// SecretRef sets a reference to a secret with the key.
+	SecretRef xpv1.LocalSecretReference `json:"secretRef"`
+	// HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
+	// +optional
+	HashAlgorithm *string `json:"hashAlgorithm,omitempty"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L210
+
+// KeylessRef contains location of the validating certificate and the identities
+// against which to verify. KeylessRef will contain either the URL to the verifying
+// certificate, or it will contain the certificate data inline or in a secret.
+type KeylessRef struct {
+	// URL defines a url to the keyless instance.
+	// +optional
+	URL *apis.URL `json:"url,omitempty"`
+	// Identities sets a list of identities.
+	Identities []Identity `json:"identities"`
+	// CACert sets a reference to CA certificate
+	// +optional
+	CACert *KeyRef `json:"ca-cert,omitempty"`
+	// Use the Certificate Chain from the referred TrustRoot.CertificateAuthorities and TrustRoot.CTLog
+	// +optional
+	TrustRootRef string `json:"trustRootRef,omitempty"`
+	// InsecureIgnoreSCT omits verifying if a certificate contains an embedded SCT
+	// +optional
+	InsecureIgnoreSCT *bool `json:"insecureIgnoreSCT,omitempty"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L322
+
+// Identity may contain the issuer and/or the subject found in the transparency
+// log.
+// Issuer/Subject uses a strict match, while IssuerRegExp and SubjectRegExp
+// apply a regexp for matching.
+type Identity struct {
+	// Issuer defines the issuer for this identity.
+	// +optional
+	Issuer string `json:"issuer,omitempty"`
+	// Subject defines the subject for this identity.
+	// +optional
+	Subject string `json:"subject,omitempty"`
+	// IssuerRegExp specifies a regular expression to match the issuer for this identity.
+	// +optional
+	IssuerRegExp string `json:"issuerRegExp,omitempty"`
+	// SubjectRegExp specifies a regular expression to match the subject for this identity.
+	// +optional
+	SubjectRegExp string `json:"subjectRegExp,omitempty"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L170
+
+// StaticRef specifies that signatures / attestations are not validated but
+// instead a static policy is applied against matching images.
+type StaticRef struct {
+	// Action defines how to handle a matching policy.
+	Action string `json:"action"`
+	// For fail actions, emit an optional custom message. This only makes
+	// sense for 'fail' action because on 'pass' there's no place to jot down
+	// the message.
+	Message string `json:"message,omitempty"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L180
+
+// Source specifies the location of the signature / attestations.
+type Source struct {
+	// OCI defines the registry from where to pull the signature / attestations.
+	// +optional
+	OCI string `json:"oci,omitempty"`
+	// SignaturePullSecrets is an optional list of references to secrets in the
+	// same namespace as the deploying resource for pulling any of the signatures
+	// used by this Source.
+	// +optional
+	SignaturePullSecrets []corev1.LocalObjectReference `json:"signaturePullSecrets,omitempty"`
+	// TagPrefix is an optional prefix that signature and attestations have.
+	// This is the 'tag based discovery' and in the future once references are
+	// fully supported that should likely be the preferred way to handle these.
+	// +optional
+	TagPrefix *string `json:"tagPrefix,omitempty"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L198
+
+// TLog specifies the URL to a transparency log that holds
+// the signature and public key information
+type TLog struct {
+	// URL sets the url to the rekor instance (by default the public rekor.sigstore.dev)
+	// +optional
+	URL *apis.URL `json:"url,omitempty"`
+	// Use the Public Key from the referred TrustRoot.TLog
+	// +optional
+	TrustRootRef string `json:"trustRootRef,omitempty"`
+}
+
+// Copied with below changes from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L231
+//   - Removed Policy field as it's no in the scope of first iteration.
+
+// Attestation defines the type of attestation to validate and optionally
+// apply a policy decision to it. Authority block is used to verify the
+// specified attestation types, and if Policy is specified, then it's applied
+// only after the validation of the Attestation signature has been verified.
+type Attestation struct {
+	// Name of the attestation. These can then be referenced at the CIP level
+	// policy.
+	Name string `json:"name"`
+	// PredicateType defines which predicate type to verify. Matches cosign
+	// verify-attestation options.
+	PredicateType string `json:"predicateType"`
+}
+
+// Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L337-L343
+
+// RFC3161Timestamp specifies the URL to a RFC3161 time-stamping server that holds
+// the time-stamped verification for the signature
+type RFC3161Timestamp struct {
+	// Use the Certificate Chain from the referred TrustRoot.TimeStampAuthorities
+	// +optional
+	TrustRootRef string `json:"trustRootRef,omitempty"`
 }
