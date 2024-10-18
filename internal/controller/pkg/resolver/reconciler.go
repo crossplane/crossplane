@@ -168,7 +168,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpdate) {
 		opts = append(opts, WithNewDagFn(dag.NewUpdatableMapDag),
-			WithVersionFinder(&UpdatableVersionFinder{fetcher: f, config: cfg}))
+			WithVersionFinder(&UpdatingVersionFinder{fetcher: f, config: cfg}))
 	}
 
 	r := NewReconciler(mgr, opts...)
@@ -286,13 +286,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// be requeued when it adds itself to the Lock, at which point we will
 	// check for missing nodes again.
 	dep, ok := implied[0].(*v1beta1.Dependency)
+	depID := dep.Identifier()
 	if !ok {
-		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, dep.Identifier()))
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
 		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	n, _ := ndag.GetNode(dep.Identifier()) // nolint: errcheck // we know the node exists since it was implied
+	n, err := ndag.GetNode(depID)
+	if err != nil {
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
+		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
+		return reconcile.Result{Requeue: false}, nil
+	}
 
 	ref, err := name.ParseReference(dep.Package, name.WithDefaultRegistry(r.registry))
 	if err != nil {
@@ -301,60 +307,98 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	// NOTE(hasheddan): consider creating event on package revision
-	// dictating constraints.
-	addVer, err := r.versionFinder.FindValidDependencyVersion(ctx, dep, ref, n, log)
-	if err != nil || addVer == "" {
-		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
-		r.record.Event(lock, event.Warning(reasonNoValidVersion, err))
-		return reconcile.Result{Requeue: false}, errors.New(errNoValidVersion)
-	}
-
+	// At this point, we know that a dependency is either not installed or does not satisfy at least one of the constraints.
 	var pack v1.Package
 	switch dep.Type {
 	case v1beta1.ConfigurationPackageType:
-		pack = &v1.Configuration{}
+		pack, err := getConfigurationWith(ctx, r.client, depID)
+		if err != nil {
+			log.Debug(errGetDependency, "error", err)
+			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+		}
+		if pack == nil {
+			pack = &v1.Configuration{}
+		}
 	case v1beta1.ProviderPackageType:
-		pack = &v1.Provider{}
+		pack, err := getProviderWith(ctx, r.client, depID)
+		if err != nil {
+			log.Debug(errGetDependency, "error", err)
+			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+		}
+		if pack == nil {
+			pack = &v1.Provider{}
+		}
 	case v1beta1.FunctionPackageType:
-		pack = &v1.Function{}
+		pack, err := getFunctionWith(ctx, r.client, depID)
+		if err != nil {
+			log.Debug(errGetDependency, "error", err)
+			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+		}
+		if pack == nil {
+			pack = &v1.Function{}
+		}
 	default:
 		log.Debug(errInvalidPackageType)
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	// NOTE(hasheddan): packages are currently created with default
-	// settings. This means that a dependency must be publicly available as
-	// no packagePullSecrets are set. Settings can be modified manually
-	// after dependency creation to address this.
-	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
+	var insVer string
+	if pack.GetSource() != "" {
+		s := strings.Split(pack.GetSource(), ":")
+		insVer = s[1]
+	}
+
+	// NOTE(hasheddan): consider creating event on package revision
+	// dictating constraints.
+	addVer, err := r.versionFinder.FindValidDependencyVersion(ctx, dep, ref, insVer, n, log)
+	if err != nil {
+		log.Debug(errNoValidVersion, "error", errors.Wrapf(err, depID, dep.Constraints))
+		r.record.Event(lock, event.Warning(reasonNoValidVersion, err))
+		return reconcile.Result{Requeue: false}, errors.New(errNoValidVersion)
+	}
 
 	format := packageTagFmt
 	if strings.HasPrefix(addVer, "sha256:") {
 		format = packageDigestFmt
 	}
 
-	tarSource := fmt.Sprintf(format, ref.String(), addVer)
-	pack.SetSource(tarSource)
+	desiredSource := fmt.Sprintf(format, ref.String(), addVer)
 
-	if err := r.client.Get(ctx, client.ObjectKeyFromObject(pack), pack); err != nil {
-		if !kerrors.IsNotFound(err) {
-			log.Debug(errGetDependency, "error", err)
-			r.record.Event(lock, event.Warning(reasonErrCreate, err))
-			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
-		}
+	if insVer == "" {
+		// NOTE(hasheddan): packages are currently created with default
+		// settings. This means that a dependency must be publicly available as
+		// no packagePullSecrets are set. Settings can be modified manually
+		// after dependency creation to address this.
+		pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
 
-		// If the package does not exist, we create it.
+		pack.SetSource(desiredSource)
 		if err := r.client.Create(ctx, pack); err != nil {
 			log.Debug(errCreateDependency, "error", err)
 			r.record.Event(lock, event.Warning(reasonErrCreate, err))
 			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 		}
+
+		return reconcile.Result{}, nil
 	}
 
+	//if err := r.client.Get(ctx, client.ObjectKeyFromObject(pack), pack); err != nil {
+	//	if !kerrors.IsNotFound(err) {
+	//		log.Debug(errGetDependency, "error", err)
+	//		r.record.Event(lock, event.Warning(reasonErrCreate, err))
+	//		return reconcile.Result{}, errors.Wrap(err, errGetDependency)
+	//	}
+	//
+	//	// If the package does not exist, we create it.
+	//	if err := r.client.Create(ctx, pack); err != nil {
+	//		log.Debug(errCreateDependency, "error", err)
+	//		r.record.Event(lock, event.Warning(reasonErrCreate, err))
+	//		return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+	//	}
+	//}
+
 	// If the package exists and has a different version than the target we update it.
-	if pack.GetSource() != tarSource {
-		pack.SetSource(tarSource)
+	if pack.GetSource() != desiredSource {
+		pack.SetSource(desiredSource)
 		if err := r.client.Update(ctx, pack); err != nil {
 			r.record.Event(lock, event.Warning(reasonErrUpdate, err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateDependency)
@@ -365,7 +409,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 type versionFinder interface {
-	FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, node dag.Node, log logging.Logger) (string, error)
+	FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, insVer string, node dag.Node, log logging.Logger) (string, error)
 }
 
 // DefaultVersionFinder is the default implementation of versionFinder.
@@ -375,7 +419,7 @@ type DefaultVersionFinder struct {
 }
 
 // FindValidDependencyVersion finds a valid version for the new dependency.
-func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, _ dag.Node, log logging.Logger) (string, error) {
+func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, _ string, _ dag.Node, log logging.Logger) (string, error) {
 	var addVer string
 
 	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
@@ -434,14 +478,14 @@ func (d *DefaultVersionFinder) FindValidDependencyVersion(ctx context.Context, d
 	return addVer, nil
 }
 
-// UpdatableVersionFinder is an implementation of versionFinder that allows for version upgrade/downgrade capability considering parent constraints.
-type UpdatableVersionFinder struct {
+// UpdatingVersionFinder is an implementation of versionFinder that allows for version upgrade capability considering parent constraints.
+type UpdatingVersionFinder struct {
 	fetcher xpkg.Fetcher
 	config  xpkg.ConfigStore
 }
 
-// FindValidDependencyVersion finds a valid version with version upgrade/downgrade capability considering parent constraints.
-func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, n dag.Node, log logging.Logger) (string, error) {
+// FindValidDependencyVersion finds a valid version with version upgrade capability considering parent constraints.
+func (u *UpdatingVersionFinder) FindValidDependencyVersion(ctx context.Context, dep *v1beta1.Dependency, ref name.Reference, insVer string, node dag.Node, log logging.Logger) (string, error) {
 	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
 		log.Debug("package is pinned to a specific digest, skipping resolution")
 		return digest.String(), nil
@@ -458,9 +502,7 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
 		s = append(s, ps)
 	}
-	// NOTE(hasheddan): we will be unable to fetch tags for private
-	// dependencies because we do not attach any secrets. Consider copying
-	// secrets from parent dependencies.
+
 	tags, err := u.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
@@ -478,24 +520,21 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 	}
 
 	var cv *semver.Version
-
-	// If the node is a LockPackage, it means it's already installed.
-	if lp, ok := n.(*v1beta1.LockPackage); ok {
-		log.Debug("dependency found in lock, trying to find the minimum valid version which is greater than the current version")
-		sort.Sort(semver.Collection(vs))
-		cv = semver.MustParse(lp.Version)
+	if insVer != "" {
+		cv = semver.MustParse(insVer)
 	}
 
-	// If the node is not a LockPackage, it means it's a new dependency that we need to install with the latest version.
+	// If there is no current version, it's a new dependency that we need to install with the latest version.
 	if cv == nil {
 		log.Debug("dependency not found in lock, trying to find the maximum valid version")
 		sort.Sort(sort.Reverse(semver.Collection(vs)))
 	}
 
 	var addVer string
+	requiresDowngrade := false
 	for _, v := range vs {
 		valid := true
-		for _, constraint := range n.GetParentConstraints() {
+		for _, constraint := range node.GetParentConstraints() {
 			c, err := semver.NewConstraint(constraint)
 			if err != nil {
 				log.Debug(errInvalidConstraint, "error", err)
@@ -507,14 +546,13 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 				break
 			}
 
-			// NOTE(ezgidemirel): If there is no valid version greater than the current version,
-			// we should not allow downgrade.
-			// Compare compares this version to another one. It returns -1, 0, or 1 if
-			// the version smaller, equal, or larger than the other version.
-			if cv != nil && v.Compare(cv) == -1 {
-				log.Debug(errDowngradeNotAllowed, "currentVersion", cv.String(), "newVersion", v.String())
-				return "", errors.New(errDowngradeNotAllowed)
-			}
+		}
+		// NOTE(ezgidemirel): If there is no valid version greater than the current version,
+		// we should not allow downgrade.
+		if valid && cv != nil && v.LessThan(cv) {
+			log.Debug(errDowngradeNotAllowed, "currentVersion", cv.String(), "newVersion", v.String())
+			valid = false
+			requiresDowngrade = true
 		}
 
 		if valid {
@@ -523,10 +561,62 @@ func (u *UpdatableVersionFinder) FindValidDependencyVersion(ctx context.Context,
 		}
 	}
 
+	if addVer == "" && requiresDowngrade {
+		return "", errors.New(errDowngradeNotAllowed)
+	}
+
 	if addVer == "" {
-		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, n.Identifier(), n.GetParentConstraints()))
-		return "", errors.Errorf(errFmtNoValidVersion, n.Identifier(), n.GetParentConstraints())
+		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, node.Identifier(), node.GetParentConstraints()))
+		return "", errors.Errorf(errFmtNoValidVersion, node.Identifier(), node.GetParentConstraints())
 	}
 
 	return addVer, nil
+}
+
+func getConfigurationWith(ctx context.Context, c client.Client, id string) (*v1.Configuration, error) {
+	l := &v1.ConfigurationList{}
+	if err := c.List(ctx, l); err != nil {
+		return nil, err
+	}
+
+	for _, c := range l.Items {
+		source := strings.Split(c.GetSource(), ":") // digestte baska
+		if source[0] == id {
+			return &c, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func getProviderWith(ctx context.Context, c client.Client, id string) (*v1.Provider, error) {
+	l := &v1.ProviderList{}
+	if err := c.List(ctx, l); err != nil {
+		return nil, err
+	}
+
+	for _, p := range l.Items {
+		source := strings.Split(p.GetSource(), ":") // digestte baska
+		if source[0] == id {
+			return &p, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func getFunctionWith(ctx context.Context, c client.Client, id string) (*v1.Function, error) {
+	l := &v1.FunctionList{}
+	if err := c.List(ctx, l); err != nil {
+		return nil, err
+	}
+
+	for _, f := range l.Items {
+		source := strings.Split(f.GetSource(), ":") // digestte baska
+		if source[0] == id {
+			return &f, nil
+		}
+	}
+
+	return nil, nil
 }

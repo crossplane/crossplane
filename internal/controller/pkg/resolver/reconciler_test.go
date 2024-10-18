@@ -438,7 +438,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}, config: &fakexpkg.MockConfigStore{
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn(nil, errBoom)}, config: &fakexpkg.MockConfigStore{
 						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}}),
 				},
@@ -787,7 +787,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}, config: &fakexpkg.MockConfigStore{
 						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}}),
 				},
@@ -847,7 +847,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}}),
 				},
 			},
 			want: want{
@@ -904,7 +904,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil)}, config: &fakexpkg.MockConfigStore{
 						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}}),
 				},
@@ -971,7 +971,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v2.0.0"}, nil)}, config: &fakexpkg.MockConfigStore{
 						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}}),
 				},
@@ -1062,7 +1062,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}, config: &fakexpkg.MockConfigStore{
 						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}}),
 				},
@@ -1152,7 +1152,7 @@ func TestReconcile(t *testing.T) {
 							},
 						}
 					}),
-					WithVersionFinder(&UpdatableVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}, config: &fakexpkg.MockConfigStore{
+					WithVersionFinder(&UpdatingVersionFinder{fetcher: &fakexpkg.MockFetcher{MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v0.3.0", "v0.2.0", "v0.1.0"}, nil)}, config: &fakexpkg.MockConfigStore{
 						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}}),
 				},
@@ -1183,6 +1183,7 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 		fetcher xpkg.Fetcher
 		dep     *v1beta1.Dependency
 		n       dag.Node
+		insVer  string
 	}
 	type want struct {
 		ver string
@@ -1209,19 +1210,19 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 			reason: "We should return the minimum valid version if upgrade is required",
 			args: args{
 				fetcher: &fakexpkg.MockFetcher{
-					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v1.1.0", "v1.2.0"}, nil),
+					MockTags: fakexpkg.NewMockTagsFn([]string{"v0.1.0", "v0.2.0", "v0.3.0"}, nil),
 				},
 				dep: &v1beta1.Dependency{
 					Package: "ezgidemirel/config-nop",
 				},
 				n: &v1beta1.LockPackage{
 					Source:            "ezgidemirel/config-nop",
-					Version:           "v1.0.0",
-					ParentConstraints: []string{">=v1.1.0"},
+					ParentConstraints: []string{">=v0.1.0", ">=v0.3.0"},
 				},
+				insVer: "v0.2.0",
 			},
 			want: want{
-				ver: "v1.1.0",
+				ver: "v0.3.0",
 			},
 		},
 		"ErrorFetchTags": {
@@ -1251,9 +1252,9 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 				},
 				n: &v1beta1.LockPackage{
 					Source:            "ezgidemirel/config-nop",
-					Version:           "v1.0.0",
 					ParentConstraints: []string{"invalid"},
 				},
+				insVer: "v1.0.0",
 			},
 			want: want{
 				ver: "",
@@ -1267,14 +1268,13 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 					MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v2.0.0", "v3.0.0"}, nil),
 				},
 				dep: &v1beta1.Dependency{
-					Package:     "ezgidemirel/config-nop",
-					Constraints: "v1.0.0",
+					Package: "ezgidemirel/config-nop",
 				},
 				n: &v1beta1.LockPackage{
 					Source:            "ezgidemirel/config-nop",
-					Version:           "v2.0.0",
-					ParentConstraints: []string{">=v1.0.0"},
+					ParentConstraints: []string{">=v1.0.0, v1.0.0"},
 				},
+				insVer: "v2.0.0",
 			},
 			want: want{
 				ver: "",
@@ -1293,9 +1293,9 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 				},
 				n: &v1beta1.LockPackage{
 					Source:            "ezgidemirel/config-nop",
-					Version:           "v1.0.0",
 					ParentConstraints: []string{">v1.0.0"},
 				},
+				insVer: "v1.0.0",
 			},
 			want: want{
 				ver: "",
@@ -1306,14 +1306,14 @@ func TestUpdatableFindValidDependencyVersion(t *testing.T) {
 
 	for tcName, tc := range cases {
 		t.Run(tcName, func(t *testing.T) {
-			u := &UpdatableVersionFinder{
+			u := &UpdatingVersionFinder{
 				fetcher: tc.args.fetcher,
 				config: &fakexpkg.MockConfigStore{
 					MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 				},
 			}
 			r, _ := name.ParseReference(tc.args.dep.Package) // nolint: errcheck // we will catch anyways if r is nil
-			got, err := u.FindValidDependencyVersion(context.Background(), tc.args.dep, r, tc.args.n, testLog)
+			got, err := u.FindValidDependencyVersion(context.Background(), tc.args.dep, r, tc.args.insVer, tc.args.n, testLog)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

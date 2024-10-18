@@ -78,7 +78,7 @@ func (l *LockPackage) GetConstraints() string {
 	return l.Version
 }
 
-// GetParentConstraints returns the version of a LockPackage.
+// GetParentConstraints returns the parent constraints of a LockPackage.
 func (l *LockPackage) GetParentConstraints() []string {
 	return l.ParentConstraints
 }
@@ -97,9 +97,8 @@ func (l *LockPackage) Neighbors() []dag.Node {
 	return nodes
 }
 
-// AddNeighbors adds dependencies to a LockPackage. A LockPackage should always
-// have all dependencies declared before being added to the Lock, so we no-op
-// when adding a neighbor.
+// AddNeighbors adds dependencies to a LockPackage and
+// updates the parent constraints of the dependencies in the DAG.
 func (l *LockPackage) AddNeighbors(nodes ...dag.Node) error {
 	for _, n := range nodes {
 		for _, dep := range l.Dependencies {
@@ -138,7 +137,7 @@ func (d *Dependency) GetConstraints() string {
 	return d.Constraints
 }
 
-// GetParentConstraints returns a dependency's constrain.
+// GetParentConstraints returns a dependency's parent constraints.
 func (d *Dependency) GetParentConstraints() []string {
 	return d.ParentConstraints
 }
@@ -154,8 +153,7 @@ func (d *Dependency) Neighbors() []dag.Node {
 	return nil
 }
 
-// AddNeighbors is a no-op for dependencies. We should never be adding neighbors
-// to a dependency.
+// AddNeighbors adds parent constraints to a dependency in the DAG.
 func (d *Dependency) AddNeighbors(nodes ...dag.Node) error {
 	for _, n := range nodes {
 		n.AddParentConstraints([]string{d.Constraints})

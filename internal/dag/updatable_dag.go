@@ -84,7 +84,9 @@ func (d *MapUpdatableDag) AddNode(node Node) error {
 // identifier.
 func (d *MapUpdatableDag) AddOrUpdateNodes(nodes ...Node) {
 	for _, node := range nodes {
-		node.AddParentConstraints(d.nodes[node.Identifier()].GetParentConstraints())
+		if _, ok := d.nodes[node.Identifier()]; ok {
+			node.AddParentConstraints(d.nodes[node.Identifier()].GetParentConstraints())
+		}
 		d.nodes[node.Identifier()] = node
 	}
 }
