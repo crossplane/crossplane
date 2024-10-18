@@ -113,6 +113,7 @@ type startCommand struct {
 	EnableUsages               bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
 	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableSSAClaims            bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableDependencyUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when a package is upgraded."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
@@ -279,6 +280,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableAlphaClaimSSA)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
+	}
+	if c.EnableDependencyUpgrades {
+		o.Features.Enable(features.EnableAlphaDependencyVersionUpdate)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpdate)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the

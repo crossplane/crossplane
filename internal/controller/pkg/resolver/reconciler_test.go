@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -334,7 +335,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{Requeue: false},
-				err: errors.Wrap(errors.New(errInvalidConstraint), errFindDependency),
+				err: errors.Wrap(errors.Wrap(errors.New("improper constraint: "), errInvalidConstraint), errFindDependency),
 			},
 		},
 		"ErrorGetPullSecretFromImageConfig": {
@@ -693,7 +694,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
+			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog), WithRecorder(event.NewNopRecorder()))...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
