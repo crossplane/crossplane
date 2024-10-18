@@ -64,6 +64,16 @@ func (s *SimpleFuzzNode) Neighbors() []Node {
 	return nodes
 }
 
+func (s *SimpleFuzzNode) GetConstraints() string {
+	return ""
+}
+
+func (s *SimpleFuzzNode) GetParentConstraints() []string {
+	return nil
+}
+
+func (s *SimpleFuzzNode) AddParentConstraints([]string) {}
+
 func FuzzDag(f *testing.F) {
 	f.Fuzz(func(_ *testing.T, data []byte) {
 		c := fuzz.NewConsumer(data)

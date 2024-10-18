@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2024 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,64 +24,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-type simpleNode struct {
-	identifier string
-	neighbors  map[string]simpleNode
-}
-
-func (s *simpleNode) Identifier() string {
-	return s.identifier
-}
-
-func (s *simpleNode) Neighbors() []Node {
-	nodes := make([]Node, len(s.neighbors))
-	i := 0
-	for _, r := range s.neighbors {
-		nodes[i] = &r
-		i++
-	}
-	return nodes
-}
-
-func (s *simpleNode) AddNeighbors(nodes ...Node) error {
-	for _, n := range nodes {
-		sn, ok := n.(*simpleNode)
-		if !ok {
-			return errors.New("not a simple node")
-		}
-		s.neighbors[sn.Identifier()] = *sn
-	}
-	return nil
-}
-
-func (s *simpleNode) GetConstraints() string {
-	return ""
-}
-
-func (s *simpleNode) GetParentConstraints() []string {
-	return nil
-}
-
-func (s *simpleNode) AddParentConstraints([]string) {}
-
-func toNodes(n []simpleNode) []Node {
-	nodes := make([]Node, len(n))
-	for i, r := range n {
-		nodes[i] = &r
-	}
-	return nodes
-}
-
 var (
-	_ DAG      = &MapDag{}
-	_ NewDAGFn = NewMapDag
+	_ DAG      = &MapUpdatableDag{}
+	_ NewDAGFn = NewUpdatableMapDag
 )
 
-func sortedFnNop([]simpleNode, []string) error {
-	return nil
-}
-
-func TestSort(t *testing.T) {
+func TestUpdatableSort(t *testing.T) {
 	one := "crossplane/one"
 	two := "crossplane/two"
 	three := "crossplane/three"
@@ -91,7 +39,7 @@ func TestSort(t *testing.T) {
 	seven := "crossplane/seven"
 	eight := "crossplane/eight"
 	nine := "crossplane/nine"
-	dag := NewMapDag()
+	dag := NewUpdatableMapDag()
 	type want struct {
 		numImplied int
 		numDeps    int
@@ -248,7 +196,7 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func TestDag(_ *testing.T) {
-	d := NewMapDag()
+func TestUpdatableDag(_ *testing.T) {
+	d := NewUpdatableMapDag()
 	d.AddNode(&simpleNode{identifier: "hi"})
 }
