@@ -23,6 +23,20 @@ type MetaSpec struct {
 
 	// Dependencies on other packages.
 	DependsOn []Dependency `json:"dependsOn,omitempty"`
+
+	// Replaces is a list of package sources that this package replaces.
+	//
+	// A package source is an OCI reference without a tag or digest. For example
+	// xpkg.upbound.io/example/provider-example.
+	//
+	// When this package is installed, Crossplane will automatically deactivate
+	// any packages that it replaces. The packages won't be uninstalled.
+	//
+	// Include all source variants that your package replaces. For example if
+	// the replaced package could be installed as either example/provider-eg or
+	// xpkg.upbound.io/example/provider-eg, you should include both of those.
+	//+optional
+	Replaces []string `json:"replaces,omitempty"`
 }
 
 // CrossplaneConstraints specifies a packages compatibility with Crossplane versions.

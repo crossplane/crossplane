@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	dagfake "github.com/crossplane/crossplane/internal/dag/fake"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 var _ DependencyManager = &PackageDependencyManager{}
@@ -196,60 +197,6 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{},
 		},
-		"ErrorSelfNotExistMissingDirectDependencies": {
-			reason: "Should return error if self does not exist and missing direct dependencies.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
-							return nil
-						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
-					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
-								return nil, nil
-							},
-							MockNodeExists: func(_ string) bool {
-								return false
-							},
-							MockAddNode: func(_ dag.Node) error {
-								return nil
-							},
-							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
-						}
-					},
-				},
-				meta: &pkgmetav1.Configuration{
-					Spec: pkgmetav1.ConfigurationSpec{
-						MetaSpec: pkgmetav1.MetaSpec{
-							DependsOn: []pkgmetav1.Dependency{
-								{
-									Provider: ptr.To("not-here-1"),
-								},
-								{
-									Provider: ptr.To("not-here-2"),
-								},
-							},
-						},
-					},
-				},
-				pr: &v1.ConfigurationRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "config-nop-a-abc123",
-					},
-					Spec: v1.PackageRevisionSpec{
-						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-			want: want{
-				total: 2,
-				err:   errors.Errorf(errFmtMissingDependencies, []string{"not-here-1", "not-here-2"}),
-			},
-		},
 		"ErrorSelfExistMissingDependencies": {
 			reason: "Should return error if self exists and missing dependencies.",
 			args: args{
@@ -290,19 +237,19 @@ func TestResolve(t *testing.T) {
 						return &dagfake.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package: "not-here-2",
+									&xpkg.Dependency{
+										Source: "not-here-2",
 									},
-									&v1beta1.Dependency{
-										Package: "not-here-3",
+									&xpkg.Dependency{
+										Source: "not-here-3",
 									},
 								}, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									"not-here-1": &xpkg.Dependency{},
+									"not-here-2": &xpkg.Dependency{},
+									"not-here-3": &xpkg.Dependency{},
 								}, nil
 							},
 						}
@@ -381,20 +328,20 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1": &v1beta1.Dependency{},
-									"not-here-2": &v1beta1.Dependency{},
-									"not-here-3": &v1beta1.Dependency{},
+									"not-here-1": &xpkg.Dependency{},
+									"not-here-2": &xpkg.Dependency{},
+									"not-here-3": &xpkg.Dependency{},
 								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
 								if s == "not-here-1" {
-									return &v1beta1.LockPackage{
+									return &xpkg.InstalledPackage{
 										Source:  "not-here-1",
 										Version: "v0.0.1",
 									}, nil
 								}
 								if s == "not-here-2" {
-									return &v1beta1.LockPackage{
+									return &xpkg.InstalledPackage{
 										Source:  "not-here-2",
 										Version: "v0.0.1",
 									}, nil
@@ -487,27 +434,27 @@ func TestResolve(t *testing.T) {
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
-									"not-here-1":          &v1beta1.Dependency{},
-									"not-here-2":          &v1beta1.Dependency{},
-									"not-here-3":          &v1beta1.Dependency{},
-									"function-not-here-1": &v1beta1.Dependency{},
+									"not-here-1":          &xpkg.Dependency{},
+									"not-here-2":          &xpkg.Dependency{},
+									"not-here-3":          &xpkg.Dependency{},
+									"function-not-here-1": &xpkg.Dependency{},
 								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
 								if s == "not-here-1" {
-									return &v1beta1.LockPackage{
+									return &xpkg.InstalledPackage{
 										Source:  "not-here-1",
 										Version: "v0.20.0",
 									}, nil
 								}
 								if s == "not-here-2" {
-									return &v1beta1.LockPackage{
+									return &xpkg.InstalledPackage{
 										Source:  "not-here-2",
 										Version: "v0.100.1",
 									}, nil
 								}
 								if s == "function-not-here-1" {
-									return &v1beta1.LockPackage{
+									return &xpkg.InstalledPackage{
 										Source:  "function-not-here-1",
 										Version: "v0.1.0",
 									}, nil
@@ -587,7 +534,7 @@ func TestResolve(t *testing.T) {
 							MockTraceNode: func(s string) (map[string]dag.Node, error) {
 								if s == "hasheddan/config-nop-a" {
 									return map[string]dag.Node{
-										s: &v1beta1.Dependency{},
+										s: &xpkg.Dependency{},
 									}, nil
 								}
 								return nil, errors.New("missing node in tree")

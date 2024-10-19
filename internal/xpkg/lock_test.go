@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Crossplane Authors.
+Copyright 2024 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,28 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package xpkg
+
+import "github.com/crossplane/crossplane/internal/dag"
 
 var (
-	_ Package = &Provider{}
-	_ Package = &Configuration{}
-	_ Package = &Function{}
-)
-
-var (
-	_ PackageList = &ProviderList{}
-	_ PackageList = &ConfigurationList{}
-	_ PackageList = &FunctionList{}
-)
-
-var (
-	_ PackageRevision = &ProviderRevision{}
-	_ PackageRevision = &ConfigurationRevision{}
-	_ PackageRevision = &FunctionRevision{}
-)
-
-var (
-	_ PackageRevisionList = &ProviderRevisionList{}
-	_ PackageRevisionList = &ConfigurationRevisionList{}
-	_ PackageRevisionList = &FunctionRevisionList{}
+	_ dag.Node = &Dependency{}
+	_ dag.Node = &InstalledPackage{}
 )

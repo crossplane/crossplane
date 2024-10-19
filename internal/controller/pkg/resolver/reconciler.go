@@ -270,7 +270,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	dag := r.newDag()
-	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
+	implied, err := dag.Init(xpkg.AsDAGNodes(lock.Packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
 		r.record.Event(lock, event.Warning(reasonErrBuildDAG, err))
@@ -290,11 +290,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
+	// TODO(negz): Pick an implied dependency at random. Otherwise the first
+	// implied dependency can block processing of others indefinitely.
+
 	// If we are missing a node, we want to create it. The resolver never
 	// modifies the Lock. We only create the first implied node as we will
 	// be requeued when it adds itself to the Lock, at which point we will
 	// check for missing nodes again.
-	dep, ok := implied[0].(*v1beta1.Dependency)
+	dep, ok := implied[0].(*xpkg.Dependency)
 	depID := dep.Identifier()
 	if !ok {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
@@ -339,11 +342,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		var pack v1.Package
 		switch dep.Type {
-		case v1beta1.ConfigurationPackageType:
+		case xpkg.DependencyTypeConfiguration:
 			pack = &v1.Configuration{}
-		case v1beta1.ProviderPackageType:
+		case xpkg.DependencyTypeProvider:
 			pack = &v1.Provider{}
-		case v1beta1.FunctionPackageType:
+		case xpkg.DependencyTypeFunction:
 			pack = &v1.Function{}
 		default:
 			log.Debug(errInvalidPackageType)
@@ -412,7 +415,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1beta1.Dependency, log logging.Logger, ref name.Reference) (string, error) {
+func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *xpkg.Dependency, log logging.Logger, ref name.Reference) (string, error) {
 	var addVer string
 
 	if digest, err := conregv1.NewHash(dep.Constraints); err == nil {
@@ -545,9 +548,15 @@ func (r *Reconciler) findDependencyVersionToUpgrade(ctx context.Context, ref nam
 	return "", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints())
 }
 
-func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.PackageType) (v1.Package, error) { //nolint:gocognit // TODO(ezgidemirel): This function can be simplified by using a single lister for all package types.
+// TODO(negz): This does the same thing as the ListResolver from the revision
+// controller. We should deduplicate them.
+
+// TODO(negz): This needs to support replaced packages. Perhaps a SourceResolver
+// implementation that can use the Lock to return the replacement package?
+
+func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t xpkg.DependencyType) (v1.Package, error) { //nolint:gocognit // TODO(ezgidemirel): This function can be simplified by using a single lister for all package types.
 	switch t {
-	case v1beta1.ProviderPackageType:
+	case xpkg.DependencyTypeProvider:
 		l := &v1.ProviderList{}
 		if err := r.client.List(ctx, l); err != nil {
 			return nil, err
@@ -562,7 +571,7 @@ func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.
 				return &p, nil
 			}
 		}
-	case v1beta1.ConfigurationPackageType:
+	case xpkg.DependencyTypeConfiguration:
 		l := &v1.ConfigurationList{}
 		if err := r.client.List(ctx, l); err != nil {
 			return nil, err
@@ -577,7 +586,7 @@ func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.
 				return &p, nil
 			}
 		}
-	case v1beta1.FunctionPackageType:
+	case xpkg.DependencyTypeFunction:
 		l := &v1.FunctionList{}
 		if err := r.client.List(ctx, l); err != nil {
 			return nil, err

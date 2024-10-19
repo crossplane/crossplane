@@ -75,6 +75,14 @@ spec:
                   description: Name corresponds to the name of the package revision
                     for this package.
                   type: string
+                replaces:
+                  description: |-
+                    Replaces are the list of package sources this package replaces. The
+                    package manager considers a dependency to be satisfied if the dependency
+                    is either installed, or replaced by a package that's installed.
+                  items:
+                    type: string
+                  type: array
                 source:
                   description: Source is the OCI image name without a tag or digest.
                   type: string
@@ -86,7 +94,6 @@ spec:
                   description: Version is the tag or digest of the OCI image.
                   type: string
               required:
-              - dependencies
               - name
               - source
               - type

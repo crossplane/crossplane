@@ -62,7 +62,7 @@ func newFuzzDag(ff *fuzz.ConsumeFuzzer) (func() dag.DAG, error) {
 	if err != nil {
 		return func() dag.DAG { return nil }, err
 	}
-	lp := &v1beta1.LockPackage{}
+	lp := &xpkg.InstalledPackage{}
 	err = ff.GenerateStruct(lp)
 	if err != nil {
 		return func() dag.DAG { return nil }, err

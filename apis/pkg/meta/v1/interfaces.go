@@ -16,6 +16,8 @@ limitations under the License.
 
 package v1
 
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 var (
 	_ Pkg = &Configuration{}
 	_ Pkg = &Provider{}
@@ -25,8 +27,10 @@ var (
 // Pkg is a description of a Crossplane package.
 // +k8s:deepcopy-gen=false
 type Pkg interface {
+	metav1.Object
 	GetCrossplaneConstraints() *CrossplaneConstraints
 	GetDependencies() []Dependency
+	GetReplaces() []string
 }
 
 // GetCrossplaneConstraints gets the Configuration package's Crossplane version
@@ -40,6 +44,11 @@ func (c *Configuration) GetDependencies() []Dependency {
 	return c.Spec.MetaSpec.DependsOn
 }
 
+// GetReplaces gets the package sources the Configuration replaces.
+func (c *Configuration) GetReplaces() []string {
+	return c.Spec.Replaces
+}
+
 // GetCrossplaneConstraints gets the Provider package's Crossplane version
 // constraints.
 func (p *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
@@ -51,6 +60,11 @@ func (p *Provider) GetDependencies() []Dependency {
 	return p.Spec.MetaSpec.DependsOn
 }
 
+// GetReplaces gets the package sources the Provider replaces.
+func (p *Provider) GetReplaces() []string {
+	return p.Spec.Replaces
+}
+
 // GetCrossplaneConstraints gets the Function package's Crossplane version constraints.
 func (f *Function) GetCrossplaneConstraints() *CrossplaneConstraints {
 	return f.Spec.MetaSpec.Crossplane
@@ -59,4 +73,9 @@ func (f *Function) GetCrossplaneConstraints() *CrossplaneConstraints {
 // GetDependencies gets the Function package's dependencies.
 func (f *Function) GetDependencies() []Dependency {
 	return f.Spec.DependsOn
+}
+
+// GetReplaces gets the package sources the Function replaces.
+func (f *Function) GetReplaces() []string {
+	return f.Spec.Replaces
 }

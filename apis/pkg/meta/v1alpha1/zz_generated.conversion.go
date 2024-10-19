@@ -99,6 +99,14 @@ func (c *GeneratedFromHubConverter) v1MetaSpecToV1alpha1MetaSpec(source v1.MetaS
 		}
 	}
 	v1alpha1MetaSpec.DependsOn = v1alpha1DependencyList
+	var stringList []string
+	if source.Replaces != nil {
+		stringList = make([]string, len(source.Replaces))
+		for j := 0; j < len(source.Replaces); j++ {
+			stringList[j] = source.Replaces[j]
+		}
+	}
+	v1alpha1MetaSpec.Replaces = stringList
 	return v1alpha1MetaSpec
 }
 func (c *GeneratedFromHubConverter) v1PolicyRuleToV1PolicyRule(source v11.PolicyRule) v11.PolicyRule {
@@ -298,6 +306,14 @@ func (c *GeneratedToHubConverter) v1alpha1MetaSpecToV1MetaSpec(source MetaSpec) 
 		}
 	}
 	v1MetaSpec.DependsOn = v1DependencyList
+	var stringList []string
+	if source.Replaces != nil {
+		stringList = make([]string, len(source.Replaces))
+		for j := 0; j < len(source.Replaces); j++ {
+			stringList[j] = source.Replaces[j]
+		}
+	}
+	v1MetaSpec.Replaces = stringList
 	return v1MetaSpec
 }
 func (c *GeneratedToHubConverter) v1alpha1ProviderSpecToV1ProviderSpec(source ProviderSpec) v1.ProviderSpec {

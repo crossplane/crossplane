@@ -133,6 +133,17 @@ func ParsePackageSourceFromReference(ref name.Reference) string {
 	return strings.TrimRight(strings.TrimSuffix(ref.String(), ref.Identifier()), identifierDelimeters)
 }
 
+// ParsePackageSourceFromString parses a package source from an OCI image
+// reference string. See ParsePackageSourceFromReference for more information.
+func ParsePackageSourceFromString(ref string) (string, error) {
+	p, err := name.ParseReference(ref, name.WithDefaultRegistry(""))
+	if err != nil {
+		return "", err // Intentionally unwrapped - nothing useful to add.
+	}
+
+	return ParsePackageSourceFromReference(p), nil
+}
+
 type metaPkg struct {
 	Metadata struct {
 		Name string `json:"name"`
