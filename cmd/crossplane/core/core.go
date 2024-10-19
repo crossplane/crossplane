@@ -397,6 +397,16 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
 	}
 
+	// We need to set the TUF_ROOT environment variable so that the TUF client
+	// knows where to store its data. A directory under CacheDir is a good place
+	// for this because it's a place that Crossplane has write access to, and
+	// we already use it for caching package images.
+	// Check the following to see how it defaults otherwise and where those
+	// ".sigstore/root" is coming from: https://github.com/sigstore/sigstore/blob/ecaaf75cf3a942cf224533ae15aee6eec19dc1e2/pkg/tuf/client.go#L558
+	if err = os.Setenv("TUF_ROOT", filepath.Join(c.CacheDir, ".sigstore", "root")); err != nil {
+		return errors.Wrap(err, "cannot set TUF_ROOT environment variable")
+	}
+
 	if c.CABundlePath != "" {
 		rootCAs, err := ParseCertificatesFromPath(c.CABundlePath)
 		if err != nil {

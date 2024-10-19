@@ -10,12 +10,17 @@ var _ xpkg.ConfigStore = &MockConfigStore{}
 
 // MockConfigStore is a mock ConfigStore.
 type MockConfigStore struct {
-	MockPullSecretFor func(ctx context.Context, image string) (imageConfig string, pullSecret string, err error)
+	MockPullSecretFor              func(ctx context.Context, image string) (imageConfig string, pullSecret string, err error)
+	MockImageVerificationConfigFor func(ctx context.Context, image string) (imageConfig string, verificationConfig *xpkg.ImageVerification, err error)
 }
 
 // PullSecretFor calls the underlying MockPullSecretFor.
 func (s *MockConfigStore) PullSecretFor(ctx context.Context, image string) (imageConfig string, pullSecret string, err error) {
 	return s.MockPullSecretFor(ctx, image)
+}
+
+func (s *MockConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *xpkg.ImageVerification, err error) {
+	return s.MockImageVerificationConfigFor(ctx, image)
 }
 
 // NewMockConfigStorePullSecretForFn creates a new MockPullSecretFor function for MockConfigStore.

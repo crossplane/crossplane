@@ -37,7 +37,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 		revision.SetupFunctionRevision,
-		signature.SetupProviderRevision,
+		signature.SetupProvider,
+		signature.SetupConfiguration,
+		signature.SetupFunction,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

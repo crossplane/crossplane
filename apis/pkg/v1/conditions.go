@@ -33,18 +33,20 @@ const (
 	TypeHealthy xpv1.ConditionType = "Healthy"
 
 	// A TypeSignatureVerificationComplete indicates whether a package's
-	// signature verification is complete.
+	// signature verification is complete. It could be either successful or
+	// skipped to be marked as complete.
 	TypeSignatureVerificationComplete xpv1.ConditionType = "SignatureVerificationComplete"
 )
 
 // Reasons a package is or is not installed.
 const (
-	ReasonUnpacking     xpv1.ConditionReason = "UnpackingPackage"
-	ReasonInactive      xpv1.ConditionReason = "InactivePackageRevision"
-	ReasonActive        xpv1.ConditionReason = "ActivePackageRevision"
-	ReasonUnhealthy     xpv1.ConditionReason = "UnhealthyPackageRevision"
-	ReasonHealthy       xpv1.ConditionReason = "HealthyPackageRevision"
-	ReasonUnknownHealth xpv1.ConditionReason = "UnknownPackageRevisionHealth"
+	ReasonWaitingSignatureVerification xpv1.ConditionReason = "WaitingSignatureVerification"
+	ReasonUnpacking                    xpv1.ConditionReason = "UnpackingPackage"
+	ReasonInactive                     xpv1.ConditionReason = "InactivePackageRevision"
+	ReasonActive                       xpv1.ConditionReason = "ActivePackageRevision"
+	ReasonUnhealthy                    xpv1.ConditionReason = "UnhealthyPackageRevision"
+	ReasonHealthy                      xpv1.ConditionReason = "HealthyPackageRevision"
+	ReasonUnknownHealth                xpv1.ConditionReason = "UnknownPackageRevisionHealth"
 )
 
 // Reasons a package's signature is or is not verified.
@@ -63,6 +65,17 @@ const (
 	// verification failed.
 	ReasonVerificationFailed xpv1.ConditionReason = "VerificationFailed"
 )
+
+// WaitingVerification indicates that the package manager is waiting for
+// a package's signature to be verified.
+func WaitingVerification() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeInstalled,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWaitingSignatureVerification,
+	}
+}
 
 // Unpacking indicates that the package manager is waiting for a package
 // revision to be unpacked.
@@ -162,9 +175,9 @@ func VerificationSkipped() xpv1.Condition {
 	}
 }
 
-// VerificationInComplete returns a condition indicating that signature
+// VerificationIncomplete returns a condition indicating that signature
 // verification is not yet complete for a package.
-func VerificationInComplete(err error) xpv1.Condition {
+func VerificationIncomplete(err error) xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeSignatureVerificationComplete,
 		Status:             corev1.ConditionFalse,

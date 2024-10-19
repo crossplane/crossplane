@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-configuration-signed-with-key
+spec:
+  package: xpkg.upbound.io/crossplane/e2e-configuration-signed-with-key:v0.2.0

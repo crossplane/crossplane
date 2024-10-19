@@ -356,6 +356,7 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 			)).Feature(),
 	)
 }
+<<<<<<< HEAD
 
 func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/already-exists"
@@ -477,6 +478,8 @@ func TestNoDowngrade(t *testing.T) {
 			)).Feature(),
 	)
 }
+||||||| parent of fe2357d53 (Add signature verification controller)
+=======
 
 func TestImageConfigAuth(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
@@ -577,3 +580,4 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 			)).Feature(),
 	)
 }
+>>>>>>> fe2357d53 (Add signature verification controller)

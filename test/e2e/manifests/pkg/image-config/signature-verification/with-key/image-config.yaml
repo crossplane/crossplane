@@ -4,7 +4,7 @@ metadata:
   name: e2e-signed-with-key
 spec:
   matchImages:
-    - prefix: "xpkg.upbound.io/crossplane/e2e-provider-signed-with-key:"
+    - prefix: "xpkg.upbound.io/crossplane/e2e-configuration-signed-with-key:"
   verification:
     provider: Cosign
     cosign:

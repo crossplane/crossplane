@@ -147,20 +147,25 @@ type CosignAuthority struct {
 }
 
 // Copied with below changes from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L152
-//   - Used xpv1.LocalSecretReference instead of corev1.LocalObjectReference
+//   - Used LocalSecretKeySelector instead of corev1.SecretReference
 //     to be consistent with other secret references where we read from the
-//     crossplane system namespace.
-//   - Removed `Data` and `KMS` fields as they are not in the scope of first
-//     iteration.
-//   - Marked `SecretRef` as required.
+//     crossplane system namespace. It also includes the key to select to
+//     avoid randomly choosing one key different from the policy controller.
 
 // A KeyRef must specify a SecretRef and may specify a HashAlgorithm.
 type KeyRef struct {
 	// SecretRef sets a reference to a secret with the key.
-	SecretRef xpv1.LocalSecretReference `json:"secretRef"`
+	SecretRef *LocalSecretKeySelector `json:"secretRef"`
+	// Data contains the inline public key
+	// +optional
+	Data string `json:"data,omitempty"`
+	// KMS contains the KMS url of the public key
+	// Supported formats differ based on the KMS system used.
+	// +optional
+	KMS string `json:"kms,omitempty"`
 	// HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
 	// +optional
-	HashAlgorithm *string `json:"hashAlgorithm,omitempty"`
+	HashAlgorithm string `json:"hashAlgorithm,omitempty"`
 }
 
 // Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L210
@@ -275,4 +280,13 @@ type RFC3161Timestamp struct {
 	// Use the Certificate Chain from the referred TrustRoot.TimeStampAuthorities
 	// +optional
 	TrustRootRef string `json:"trustRootRef,omitempty"`
+}
+
+// A LocalSecretKeySelector is a reference to a secret key in a predefined
+// namespace.
+type LocalSecretKeySelector struct {
+	xpv1.LocalSecretReference `json:",inline"`
+
+	// The key to select.
+	Key string `json:"key"`
 }
