@@ -75,12 +75,6 @@ spec:
                   description: Name corresponds to the name of the package revision
                     for this package.
                   type: string
-                parentConstraints:
-                  description: ParentConstraints is a list of constraints that are
-                    passed down from the parent package to the dependency.
-                  items:
-                    type: string
-                  type: array
                 source:
                   description: Source is the OCI image name without a tag or digest.
                   type: string

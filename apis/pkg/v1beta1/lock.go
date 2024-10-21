@@ -56,7 +56,7 @@ type LockPackage struct {
 	Dependencies []Dependency `json:"dependencies"`
 
 	// ParentConstraints is a list of constraints that are passed down from the parent package to the dependency.
-	ParentConstraints []string `json:"parentConstraints,omitempty"`
+	ParentConstraints []string `json:"-"` // NOTE(ezgidemirel): We don't want to expose this field in the API.
 }
 
 // ToNodes converts LockPackages to DAG nodes.

@@ -89,6 +89,7 @@ const (
 	reasonInvalidDependency event.Reason = "InvalidDependency"
 	reasonNoValidVersion    event.Reason = "NoValidVersion"
 	reasonErrCreate         event.Reason = "CreateError"
+	reasonErrGet            event.Reason = "GetError"
 	reasonErrUpdate         event.Reason = "UpdateError"
 )
 
@@ -322,6 +323,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pkg, err = r.getPackageWithID(ctx, depID, dep.Type)
 		if err != nil {
 			log.Debug("cannot get package", "error", err)
+			r.record.Event(lock, event.Warning(reasonErrGet, err))
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 	}
@@ -357,10 +359,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, nil
 		}
 
-		// NOTE(hasheddan): packages are currently created with default
-		// settings. This means that a dependency must be publicly available as
-		// no packagePullSecrets are set. Settings can be modified manually
-		// after dependency creation to address this.
 		pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
 
 		format := packageTagFmt
