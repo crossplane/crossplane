@@ -25,11 +25,11 @@ import (
 )
 
 var (
-	_ DAG      = &MapUpdatableDag{}
-	_ NewDAGFn = NewUpdatableMapDag
+	_ DAG      = &MapUpgradingDag{}
+	_ NewDAGFn = NewUpgradingMapDag
 )
 
-func TestUpdatableSort(t *testing.T) {
+func TestUpgradingSort(t *testing.T) {
 	one := "crossplane/one"
 	two := "crossplane/two"
 	three := "crossplane/three"
@@ -39,7 +39,7 @@ func TestUpdatableSort(t *testing.T) {
 	seven := "crossplane/seven"
 	eight := "crossplane/eight"
 	nine := "crossplane/nine"
-	dag := NewUpdatableMapDag()
+	dag := NewUpgradingMapDag()
 	type want struct {
 		numImplied int
 		numDeps    int
@@ -196,7 +196,7 @@ func TestUpdatableSort(t *testing.T) {
 	}
 }
 
-func TestUpdatableDag(_ *testing.T) {
-	d := NewUpdatableMapDag()
+func TestUpgradingDag(_ *testing.T) {
+	d := NewUpgradingMapDag()
 	d.AddNode(&simpleNode{identifier: "hi"})
 }

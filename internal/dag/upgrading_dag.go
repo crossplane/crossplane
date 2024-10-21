@@ -23,23 +23,23 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// MapUpdatableDag is a directed acyclic graph implementation that uses a map for its
+// MapUpgradingDag is a directed acyclic graph implementation that uses a map for its
 // underlying data structure and has the ability to distinguish upgradable nodes.
-type MapUpdatableDag struct {
+type MapUpgradingDag struct {
 	nodes map[string]Node
 }
 
-// NewUpdatableDAGFn is a function that returns a DAG.
-type NewUpdatableDAGFn func() DAG
+// NewUpgradingDAGFn is a function that returns a DAG.
+type NewUpgradingDAGFn func() DAG
 
-// NewUpdatableMapDag creates a new MapDag.
-func NewUpdatableMapDag() DAG {
-	return &MapUpdatableDag{nodes: map[string]Node{}}
+// NewUpgradingMapDag creates a new MapDag.
+func NewUpgradingMapDag() DAG {
+	return &MapUpgradingDag{nodes: map[string]Node{}}
 }
 
 // Init initializes a MapDag and implies missing destination nodes. Any implied
 // nodes are returned. Any existing nodes are cleared.
-func (d *MapUpdatableDag) Init(nodes []Node) ([]Node, error) {
+func (d *MapUpgradingDag) Init(nodes []Node) ([]Node, error) {
 	d.nodes = map[string]Node{}
 	// Add all nodes before adding edges so we know what nodes were implied.
 	for _, node := range nodes {
@@ -62,7 +62,7 @@ func (d *MapUpdatableDag) Init(nodes []Node) ([]Node, error) {
 }
 
 // AddNodes adds nodes to the graph.
-func (d *MapUpdatableDag) AddNodes(nodes ...Node) error {
+func (d *MapUpgradingDag) AddNodes(nodes ...Node) error {
 	for _, n := range nodes {
 		if err := d.AddNode(n); err != nil {
 			return err
@@ -72,7 +72,7 @@ func (d *MapUpdatableDag) AddNodes(nodes ...Node) error {
 }
 
 // AddNode adds a node to the graph.
-func (d *MapUpdatableDag) AddNode(node Node) error {
+func (d *MapUpgradingDag) AddNode(node Node) error {
 	if _, ok := d.nodes[node.Identifier()]; ok {
 		return errors.Errorf("node %s already exists", node.Identifier())
 	}
@@ -82,7 +82,7 @@ func (d *MapUpdatableDag) AddNode(node Node) error {
 
 // AddOrUpdateNodes adds new nodes or updates the existing ones with the same
 // identifier.
-func (d *MapUpdatableDag) AddOrUpdateNodes(nodes ...Node) {
+func (d *MapUpgradingDag) AddOrUpdateNodes(nodes ...Node) {
 	for _, node := range nodes {
 		if _, ok := d.nodes[node.Identifier()]; ok {
 			node.AddParentConstraints(d.nodes[node.Identifier()].GetParentConstraints())
@@ -92,13 +92,13 @@ func (d *MapUpdatableDag) AddOrUpdateNodes(nodes ...Node) {
 }
 
 // NodeExists checks whether a node exists.
-func (d *MapUpdatableDag) NodeExists(identifier string) bool {
+func (d *MapUpgradingDag) NodeExists(identifier string) bool {
 	_, exists := d.nodes[identifier]
 	return exists
 }
 
 // NodeNeighbors returns a node's neighbors.
-func (d *MapUpdatableDag) NodeNeighbors(identifier string) ([]Node, error) {
+func (d *MapUpgradingDag) NodeNeighbors(identifier string) ([]Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
 		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
@@ -107,7 +107,7 @@ func (d *MapUpdatableDag) NodeNeighbors(identifier string) ([]Node, error) {
 
 // TraceNode returns a node's neighbors and all transitive neighbors using depth
 // first search.
-func (d *MapUpdatableDag) TraceNode(identifier string) (map[string]Node, error) {
+func (d *MapUpgradingDag) TraceNode(identifier string) (map[string]Node, error) {
 	tree := map[string]Node{}
 	if err := d.traceNode(identifier, tree); err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (d *MapUpdatableDag) TraceNode(identifier string) (map[string]Node, error) 
 	return tree, nil
 }
 
-func (d *MapUpdatableDag) traceNode(identifier string, tree map[string]Node) error {
+func (d *MapUpgradingDag) traceNode(identifier string, tree map[string]Node) error {
 	if d.nodes[identifier] == nil {
 		return errors.New("missing node in tree")
 	}
@@ -134,7 +134,7 @@ func (d *MapUpdatableDag) traceNode(identifier string, tree map[string]Node) err
 }
 
 // GetNode returns a node in the dag.
-func (d *MapUpdatableDag) GetNode(identifier string) (Node, error) {
+func (d *MapUpgradingDag) GetNode(identifier string) (Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
 		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
@@ -142,7 +142,7 @@ func (d *MapUpdatableDag) GetNode(identifier string) (Node, error) {
 }
 
 // AddEdges adds edges to the graph.
-func (d *MapUpdatableDag) AddEdges(edges map[string][]Node) ([]Node, error) {
+func (d *MapUpgradingDag) AddEdges(edges map[string][]Node) ([]Node, error) {
 	var missing []Node
 	for f, ne := range edges {
 		for _, e := range ne {
@@ -161,7 +161,7 @@ func (d *MapUpdatableDag) AddEdges(edges map[string][]Node) ([]Node, error) {
 }
 
 // AddEdge adds an edge to the graph and returns if we need to check for updates.
-func (d *MapUpdatableDag) AddEdge(from string, to Node) (bool, error) {
+func (d *MapUpgradingDag) AddEdge(from string, to Node) (bool, error) {
 	if _, ok := d.nodes[from]; !ok {
 		return false, errors.Errorf("node %s does not exist", to)
 	}
@@ -188,7 +188,7 @@ func (d *MapUpdatableDag) AddEdge(from string, to Node) (bool, error) {
 }
 
 // Sort performs topological sort on the graph.
-func (d *MapUpdatableDag) Sort() ([]string, error) {
+func (d *MapUpgradingDag) Sort() ([]string, error) {
 	visited := map[string]bool{}
 	results := make([]string, len(d.nodes))
 	for n, node := range d.nodes {
@@ -202,7 +202,7 @@ func (d *MapUpdatableDag) Sort() ([]string, error) {
 	return results, nil
 }
 
-func (d *MapUpdatableDag) visit(name string, neighbors []Node, stack map[string]bool, visited map[string]bool, results []string) error {
+func (d *MapUpgradingDag) visit(name string, neighbors []Node, stack map[string]bool, visited map[string]bool, results []string) error {
 	visited[name] = true
 	stack[name] = true
 	for _, n := range neighbors {

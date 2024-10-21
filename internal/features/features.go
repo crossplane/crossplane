@@ -41,9 +41,9 @@ const (
 	// https://github.com/crossplane/crossplane/issues/4581
 	EnableAlphaClaimSSA feature.Flag = "EnableAlphaClaimSSA"
 
-	// EnableAlphaDependencyVersionUpgrade enables alpha support for upgrading the version of a package's dependencies
+	// EnableAlphaDependencyVersionUpgrades enables alpha support for upgrading the version of a package's dependencies
 	// when needed.
-	EnableAlphaDependencyVersionUpgrade feature.Flag = "EnableAlphaDependencyVersionUpgrade"
+	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
 )
 
 // Beta Feature Flags.

@@ -186,8 +186,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
-	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrade) {
-		opts = append(opts, WithUpgradesEnabled(), WithNewDagFn(internaldag.NewUpdatableMapDag))
+	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
+		opts = append(opts, WithUpgradesEnabled(), WithNewDagFn(internaldag.NewUpgradingMapDag))
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
