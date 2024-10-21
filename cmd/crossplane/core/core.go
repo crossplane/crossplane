@@ -109,10 +109,11 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableUsages               bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
-	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
-	EnableSSAClaims            bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableUsages                    bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableRealtimeCompositions      bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
+	EnableSSAClaims                 bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
@@ -279,6 +280,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableAlphaClaimSSA)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
+	}
+	if c.EnableDependencyVersionUpgrades {
+		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the

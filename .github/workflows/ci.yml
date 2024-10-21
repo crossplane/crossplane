@@ -51,7 +51,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
@@ -97,7 +97,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
@@ -133,7 +133,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
@@ -197,7 +197,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
@@ -223,6 +223,7 @@ jobs:
           - usage
           - ssa-claims
           - realtime-compositions
+          - package-dependency-upgrades
 
     steps:
       - name: Checkout
@@ -248,7 +249,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         run: |
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
@@ -320,7 +321,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
+      - name: Configure Earthly to Push Cache to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 

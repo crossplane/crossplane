@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-depends-on-digest
+spec:
+  package: xpkg.upbound.io/ezgiorg/ezgi-configuration-nop:v0.1.1-dod
