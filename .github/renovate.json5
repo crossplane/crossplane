@@ -13,7 +13,7 @@
   // The branches renovate should target
   // PLEASE UPDATE THIS WHEN RELEASING.
   "baseBranches": [
-    "master",
+    "main",
     "release-1.15",
     "release-1.16",
     "release-1.17"
@@ -166,12 +166,12 @@
   // be at the beginning, high priority at the end
   "packageRules": [
     {
-      "description": "Generate code after upgrading go dependencies (master)",
+      "description": "Generate code after upgrading go dependencies (main)",
       "matchDatasources": [
         "go"
       ],
-      // Currently we only have an Earthfile on master.
-      matchBaseBranches: ["master"],
+      // Currently we only have an Earthfile on main.
+      matchBaseBranches: ["main"],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -188,7 +188,7 @@
       "matchDatasources": [
         "go"
       ],
-      // Currently we only have an Earthfile on master.
+      // Currently we only have an Earthfile on main.
       matchBaseBranches: ["release-.+"],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
@@ -202,12 +202,12 @@
       },
     },
     {
-      "description": "Lint code after upgrading golangci-lint (master)",
+      "description": "Lint code after upgrading golangci-lint (main)",
       "matchDepNames": [
         "golangci/golangci-lint"
       ],
-      // Currently we only have an Earthfile on master.
-      matchBaseBranches: ["master"],
+      // Currently we only have an Earthfile on main.
+      matchBaseBranches: ["main"],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -224,7 +224,7 @@
       "matchDepNames": [
         "golangci/golangci-lint"
       ],
-      // Currently we only have an Earthfile on master.
+      // Currently we only have an Earthfile on main.
       matchBaseBranches: ["release-.+"],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.

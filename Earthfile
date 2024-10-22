@@ -44,7 +44,7 @@ generate:
   BUILD +go-generate
   BUILD +helm-generate
 
-# e2e runs end-to-end tests. See test/e2e/README.md for details. 
+# e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
   ARG FLAGS="-test-suite=base"
   # Docker installs faster on Alpine, and we only need Go for go tool test2json.
@@ -151,7 +151,7 @@ go-build:
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
-  ARG GOFLAGS="-ldflags=-X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}"
+  ARG GOFLAGS="\"-ldflags=-s -w -X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}\""
   ARG CGO_ENABLED=0
   FROM +go-modules
   LET ext = ""
@@ -161,9 +161,17 @@ go-build:
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY --dir apis/ cmd/ internal/ pkg/ .
   RUN go build -o crossplane${ext} ./cmd/crossplane
+  RUN sha256sum crossplane${ext} | head -c 64 > crossplane${ext}.sha256
   RUN go build -o crank${ext} ./cmd/crank
-  SAVE ARTIFACT crossplane${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}
-  SAVE ARTIFACT crank${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}
+  RUN sha256sum crank${ext} | head -c 64 > crank${ext}.sha256
+  RUN tar -czvf crank.tar.gz crank${ext} crank${ext}.sha256
+  RUN sha256sum crank.tar.gz | head -c 64 > crank.tar.gz.sha256
+  SAVE ARTIFACT --keep-ts crossplane${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}
+  SAVE ARTIFACT --keep-ts crossplane${ext}.sha256 AS LOCAL _output/bin/${GOOS}_${GOARCH}/crossplane${ext}.sha256
+  SAVE ARTIFACT --keep-ts crank${ext} AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}
+  SAVE ARTIFACT --keep-ts crank${ext}.sha256 AS LOCAL _output/bin/${GOOS}_${GOARCH}/crank${ext}.sha256
+  SAVE ARTIFACT --keep-ts crank.tar.gz AS LOCAL _output/bundle/${GOOS}_${GOARCH}/crank.tar.gz
+  SAVE ARTIFACT --keep-ts crank.tar.gz.sha256 AS LOCAL _output/bundle/${GOOS}_${GOARCH}/crank.tar.gz.sha256
 
 # go-multiplatform-build builds Crossplane binaries for all supported OS
 # and architectures.
@@ -314,7 +322,7 @@ helm-docs-setup:
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
   IF [ "${TARGETARCH}" = "amd64" ]
     LET ARCH=x86_64
-  ELSE 
+  ELSE
     LET ARCH=${TARGETARCH}
   END
   RUN curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_${TARGETOS}_${ARCH}.tar.gz|tar zx>helm-docs

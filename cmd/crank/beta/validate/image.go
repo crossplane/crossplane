@@ -17,7 +17,12 @@ limitations under the License.
 package validate
 
 import (
+	"archive/tar"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -29,25 +34,59 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
+const maxDecompressedSize = 200 * 1024 * 1024 // 200 MB
+
 // ImageFetcher defines an interface for fetching images.
 type ImageFetcher interface {
 	FetchBaseLayer(image string) (*conregv1.Layer, error)
+	FetchImage(image string) ([]conregv1.Layer, error)
 }
 
 // Fetcher implements the ImageFetcher interface.
 type Fetcher struct{}
 
+// FetchImage pulls the full image and extracts the CRDs folder to fetch .yaml files.
+func (f *Fetcher) FetchImage(image string) ([]conregv1.Layer, error) {
+	image, err := prepareImageReference(image)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare image reference")
+	}
+
+	// Pull the image
+	img, err := crane.Pull(image)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to pull image")
+	}
+
+	// Extract the layers of the image into the temporary directory
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get image layers")
+	}
+
+	return layers, nil
+}
+
+// ErrBaseLayerNotFound is returned when the base layer of the image could not be found.
+type ErrBaseLayerNotFound struct {
+	error
+}
+
+// NewErrBaseLayerNotFound returns a new ErrBaseLayerNotFound error.
+func NewErrBaseLayerNotFound(image string) error {
+	return &ErrBaseLayerNotFound{errors.Errorf("no base layer found for image %s", image)}
+}
+
+// IsErrBaseLayerNotFound checks if the error is of type ErrBaseLayerNotFound.
+func IsErrBaseLayerNotFound(err error) bool {
+	return errors.Is(err, &ErrBaseLayerNotFound{})
+}
+
 // FetchBaseLayer fetches the base layer of the image which contains the 'package.yaml' file.
 func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
-	if strings.Contains(image, "@") {
-		// Strip the digest before fetching the image
-		image = strings.SplitN(image, "@", 2)[0]
-	} else if strings.Contains(image, ":") {
-		var err error
-		image, err = findImageTagForVersionConstraint(image)
-		if err != nil {
-			return nil, errors.Wrapf(err, "cannot find image tag for version constraint")
-		}
+	image, err := prepareImageReference(image)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to prepare image reference")
 	}
 
 	cBytes, err := crane.Config(image)
@@ -71,6 +110,9 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 		if k == baseLayerLabel {
 			label = v // e.g.: io.crossplane.xpkg:sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
 		}
+	}
+	if label == "" {
+		return nil, NewErrBaseLayerNotFound(image)
 	}
 
 	lDigest := strings.SplitN(label, ":", 2)[1] // e.g.: sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
@@ -164,4 +206,130 @@ func extractPackageContent(layer conregv1.Layer) ([][]byte, []byte, error) {
 
 	// the last obj is not yaml, so we need to remove it
 	return objs[1 : len(objs)-1], []byte(metaStr), nil
+}
+
+func extractPackageCRDs(layers []conregv1.Layer) ([][]byte, error) {
+	// Create a temporary directory to extract the files
+	tmpDir, err := os.MkdirTemp("", "image-extract")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create temporary directory")
+	}
+	defer func() {
+		if err := os.RemoveAll(tmpDir); err != nil {
+			log.Printf("Failed to remove temporary directory: %v", err)
+		}
+	}()
+
+	for _, layer := range layers {
+		if err := extractLayer(layer, tmpDir); err != nil {
+			return nil, errors.Wrapf(err, "failed to extract layer")
+		}
+	}
+
+	// Search for .yaml files in the "crds" directory
+	var yamlFiles [][]byte
+	err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Check if the file is in the "crds" directory and has a .yaml extension
+		if strings.Contains(path, "/crds/") && strings.HasSuffix(info.Name(), ".yaml") {
+			content, err := os.ReadFile(filepath.Clean(path))
+			if err != nil {
+				return errors.Wrapf(err, "failed to read file: %s", path)
+			}
+			yamlFiles = append(yamlFiles, content)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to walk through extracted files")
+	}
+
+	return yamlFiles, nil
+}
+
+// extractLayer extracts the contents of a layer to the specified directory.
+func extractLayer(layer conregv1.Layer, destDir string) error { //nolint:gocognit // no extra func
+	r, err := layer.Uncompressed()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Printf("Failed to close reader: %v", err)
+		}
+	}()
+
+	tr := tar.NewReader(r)
+
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break // End of tar archive
+		}
+		if err != nil {
+			return err
+		}
+
+		// Resolve the target path
+		target := filepath.Join(destDir, filepath.Clean(hdr.Name))
+		targetPath, err := filepath.Abs(target)
+		if err != nil {
+			return errors.Wrap(err, "failed to get absolute path")
+		}
+
+		// Skip entries that are the same as the destination directory or just "./"
+		if targetPath == filepath.Clean(destDir) || hdr.Name == "./" {
+			continue
+		}
+
+		// Ensure the target path is within the destination directory
+		if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) {
+			return errors.Errorf("invalid file path: %s", targetPath)
+		}
+
+		// Create the file or directory
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(targetPath, 0o750); err != nil {
+				return errors.Wrapf(err, "cannot create directory: %s", targetPath)
+			}
+		case tar.TypeReg:
+			dir := filepath.Dir(targetPath)
+			if err := os.MkdirAll(dir, 0o750); err != nil {
+				return errors.Wrapf(err, "cannot create directory: %s", dir)
+			}
+			file, err := os.Create(filepath.Clean(targetPath))
+			if err != nil {
+				return errors.Wrapf(err, "cannot create file: %s", targetPath)
+			}
+			defer func() {
+				if err := file.Close(); err != nil {
+					log.Printf("Failed to close file: %v", err)
+				}
+			}()
+
+			// Limit the decompression size to avoid DoS attacks
+			limitedReader := io.LimitReader(tr, maxDecompressedSize)
+			if _, err := io.Copy(file, limitedReader); err != nil {
+				return errors.Wrapf(err, "cannot decompress file: %s", targetPath)
+			}
+		}
+	}
+
+	return nil
+}
+
+// prepareImageReference prepares the image reference by stripping the digest or resolving the tag if necessary.
+func prepareImageReference(image string) (string, error) {
+	if strings.Contains(image, "@") {
+		return strings.SplitN(image, "@", 2)[0], nil
+	}
+	if strings.Contains(image, ":") {
+		return findImageTagForVersionConstraint(image)
+	}
+	return image, nil
 }

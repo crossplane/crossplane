@@ -45,4 +45,8 @@ type Options struct {
 
 	// PackageRuntime specifies the runtime to use for package runtime.
 	PackageRuntime PackageRuntime
+
+	// MaxConcurrentPackageEstablishers is the maximum number of goroutines to use
+	// for establishing Providers, Configurations and Functions.
+	MaxConcurrentPackageEstablishers int
 }

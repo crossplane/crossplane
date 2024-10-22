@@ -38,7 +38,7 @@ To report a vulnerability, either:
 The reporter(s) can typically expect a response within 24 hours acknowledging
 the issue was received. If a response is not received within 24 hours, please
 reach out to any
-[maintainer](https://github.com/crossplane/crossplane/blob/master/OWNERS.md#maintainers)
+[maintainer](https://github.com/crossplane/crossplane/blob/main/OWNERS.md#maintainers)
 directly to confirm receipt of the issue.
 
 ### Report Content

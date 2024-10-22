@@ -24,12 +24,12 @@ documentation].
 
 | Release | Release Date  |   EOL    |
 |:-------:|:-------------:|:--------:|
-|  v1.14  | Nov 1, 2023   | Aug 2024 |
 |  v1.15  | Feb 15, 2024  | Nov 2024 |
 |  v1.16  | May 15, 2024  | Feb 2025 |
-|  v1.17  | Early Aug '24 | May 2025 |
+|  v1.17  | Aug 29, 2024  | May 2025 |
 |  v1.18  | Early Nov '24 | Aug 2025 |
 |  v1.19  | Early Feb '25 | Nov 2025 |
+|  v1.20  | Early May '25 | Feb 2026 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
@@ -135,7 +135,7 @@ Crossplane is under the Apache 2.0 license.
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
-[regular community meetings]: https://github.com/crossplane/crossplane/blob/master/README.md#get-involved
+[regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
 [sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE

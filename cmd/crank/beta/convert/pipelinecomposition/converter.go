@@ -72,21 +72,6 @@ func convertPnTToPipeline(c *v1.Composition, functionRefName string) (*v1.Compos
 		Resources: []v1.ComposedTemplate{},
 	}
 
-	// Most EnvironmentConfig settings remain at the Composition Level, but
-	// Environment Patches are handled at the Function level
-	if c.Spec.Environment != nil {
-		cp.Spec.Environment = &v1.EnvironmentConfiguration{
-			DefaultData:        c.Spec.Environment.DefaultData,
-			EnvironmentConfigs: c.Spec.Environment.EnvironmentConfigs,
-			Policy:             c.Spec.Environment.Policy,
-		}
-		if len(c.Spec.Environment.Patches) > 0 {
-			input.Environment = &v1.EnvironmentConfiguration{
-				Patches: c.Spec.Environment.Patches,
-			}
-		}
-	}
-
 	if len(c.Spec.PatchSets) > 0 {
 		input.PatchSets = c.Spec.PatchSets
 	}
@@ -119,17 +104,6 @@ func convertPnTToPipeline(c *v1.Composition, functionRefName string) (*v1.Compos
 func processFunctionInput(input *Input) *runtime.RawExtension {
 	processedInput := &Input{}
 
-	// process Environment Patches
-	if input.Environment != nil && len(input.Environment.Patches) > 0 {
-		processedEnvPatches := []v1.EnvironmentPatch{}
-		for _, envPatch := range input.Environment.Patches {
-			processedEnvPatches = append(processedEnvPatches, setMissingEnvironmentPatchFields(envPatch))
-		}
-		processedInput.Environment = &v1.EnvironmentConfiguration{
-			Patches: processedEnvPatches,
-		}
-	}
-
 	// process PatchSets
 	processedPatchSet := []v1.PatchSet{}
 	for _, patchSet := range input.PatchSets {
@@ -146,11 +120,10 @@ func processFunctionInput(input *Input) *runtime.RawExtension {
 
 	// Wrap the input in a RawExtension
 	inputType := map[string]any{
-		"apiVersion":  "pt.fn.crossplane.io/v1beta1",
-		"kind":        "Resources",
-		"environment": MigratePatchPolicyInEnvironment(processedInput.Environment.DeepCopy()),
-		"patchSets":   MigratePatchPolicyInPatchSets(processedInput.PatchSets),
-		"resources":   MigratePatchPolicyInResources(processedInput.Resources),
+		"apiVersion": "pt.fn.crossplane.io/v1beta1",
+		"kind":       "Resources",
+		"patchSets":  MigratePatchPolicyInPatchSets(processedInput.PatchSets),
+		"resources":  MigratePatchPolicyInResources(processedInput.Resources),
 	}
 
 	return &runtime.RawExtension{
@@ -190,18 +163,6 @@ func MigratePatchPolicyInPatchSets(patchset []v1.PatchSet) []PatchSet {
 	return newPatchSets
 }
 
-// MigratePatchPolicyInEnvironment processes all the patches in the given
-// environment configuration to migrate their patch policies.
-func MigratePatchPolicyInEnvironment(ec *v1.EnvironmentConfiguration) *Environment {
-	if ec == nil || len(ec.Patches) == 0 {
-		return nil
-	}
-
-	return &Environment{
-		Patches: migrateEnvPatches(ec.Patches),
-	}
-}
-
 func migratePatches(patches []v1.Patch) []Patch {
 	newPatches := []Patch{}
 
@@ -221,27 +182,6 @@ func migratePatches(patches []v1.Patch) []Patch {
 	}
 
 	return newPatches
-}
-
-func migrateEnvPatches(envPatches []v1.EnvironmentPatch) []EnvironmentPatch {
-	newEnvPatches := []EnvironmentPatch{}
-
-	for _, envPatch := range envPatches {
-		newEnvPatch := EnvironmentPatch{}
-		newEnvPatch.EnvironmentPatch = envPatch
-
-		if envPatch.Policy != nil {
-			newEnvPatch.Policy = migratePatchPolicy(envPatch.Policy)
-			// Conversion function above overrides the patch policy in the new type,
-			// so after conversion we set underlying policy to nil to make sure
-			// there's no conflict in the serialized output.
-			newEnvPatch.EnvironmentPatch.Policy = nil
-		}
-
-		newEnvPatches = append(newEnvPatches, newEnvPatch)
-	}
-
-	return newEnvPatches
 }
 
 func migratePatchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
@@ -302,21 +242,6 @@ func setMissingPatchSetFields(patchSet v1.PatchSet) v1.PatchSet {
 	}
 	patchSet.Patches = p
 	return patchSet
-}
-
-func setMissingEnvironmentPatchFields(patch v1.EnvironmentPatch) v1.EnvironmentPatch {
-	if patch.Type == "" {
-		patch.Type = v1.PatchTypeFromCompositeFieldPath
-	}
-	if len(patch.Transforms) == 0 {
-		return patch
-	}
-	t := []v1.Transform{}
-	for _, transform := range patch.Transforms {
-		t = append(t, setTransformTypeRequiredFields(transform))
-	}
-	patch.Transforms = t
-	return patch
 }
 
 func setMissingPatchFields(patch v1.Patch) v1.Patch {

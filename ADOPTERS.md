@@ -15,7 +15,7 @@ maturity, and momentum.  Thank you to all adopters and contributors of the Cross
 To add your organization to this list, you can choose any of the following options:
 
 1. [Open a PR](https://github.com/crossplane/crossplane/pulls) to directly update this list, or
-   [edit this file](https://github.com/crossplane/crossplane/edit/master/ADOPTERS.md) directly in
+   [edit this file](https://github.com/crossplane/crossplane/edit/main/ADOPTERS.md) directly in
    Github
 1. Fill out the [adopters form](https://forms.gle/dBQhiyYkYSdzXovN6)
 1. Send an email to <steering@crossplane.io> with your information for the table below
@@ -33,7 +33,7 @@ This list is sorted in the order that organizations were added to it.
 | [RunWhen](https://runwhen.com) | @stewartshea | Builds production and developer environments that power the RunWhen Social Reliability Platform.|
 | [Nethopper](https://nethopper.io) | @ddonahuex | Main IaC component in Nethopper's [Cloud Management Platform](https://www.nethopper.io/platform). Nethopper's Cloud Management Platform combines Crossplane with Continuous Delivery to allow DevOps to create, update, and destroy infrastructure in any cloud.|
 | [Renault](https://www.renaultgroup.com/) | @smileisak | Building Renault Kubernetes Platform resources using XRDs and compositions for an additional layer of abstraction to provide end-user services. |
-| [Gympass](https://gympass.com) | @caiofralmeida | Builds a self-service platform so engineers can be more productive in resource provisioning. |
+| [Wellhub (formerly Gympass)](https://wellhub.com) | @caiofralmeida @LCaparelli | Builds a self-service platform so engineers can be more productive in resource provisioning. |
 | [Deutsche Kreditbank AG](https://www.dkb.de/) | @akesser | At DKB, we have fully integrated Crossplane into our DKB Standard Operating Platform. Starting to move to production in mid-2023, all our clusters now use Crossplane to manage thousands of resources. |
 | [Akuity](https://akuity.io) | @wanghong230 | Control plane and infrastructure management solution for [Akuity Platform - Managed Argo CD](https://akuity.io/akuity-platform/). Crossplane manages some infrastructure part of dev, staging, and production environments. |
 | [Neux](https://neux.io) | @styk-tv | In production, running dynamic Crossplane control plane for auto-adjusting kafka/connect/telegraf payload transformations, filtering to/from sources/destinations. |
@@ -91,3 +91,5 @@ This list is sorted in the order that organizations were added to it.
 | [Sopra Steria NO](https://www.soprasteria.no/) | [Eirik Holgernes](mailto:eirik.holgernes@soprasteria.com) | As a consultant agency, [Sopra Steria NO](https://www.soprasteria.no/) is leveraging the benefits of [Crossplane](https://www.crossplane.io/) to create self-service backends to increase speed and agility for the developers and engineers of our customers.<br />With the power of the compositions and composite resource definitions, the life cycle management of resources in [Kubernetes](https://kubernetes.io/) and deployment using GitOps tools like [Flux](https://fluxcd.io/) or [Argo CD](https://argoproj.github.io/cd/), our customers are taking giant strides into the future! |
 | [Zuru Tech Italy](https://zuru.tech/) | [@nello1992](https://github.com/nello1992) | We currently use Crossplane in production environments to deploy workload clusters, with more use cases across the organization to come. |
 | [Rogo](https://rogodata.com/) | [@aiell0](https://github.com/aiell0) | We use Crossplane to deploy application-specific infrastructure to multiple cloud providers in our production environments. |
+| [Arcfield](https://arcfield.com/) | [@DE-Wizard](https://github.com/DE-Wizard) | Our entire cloud architecture was redesigned from the ground up using [Crossplane](https://www.crossplane.io/) to manage the cloud resources and [Flux](https://fluxcd.io/) to manage feeding [Crossplane](https://www.crossplane.io/) with its configurations. We have architected a Control - Workload cluster configuration that spans multiple regions and providers. The combination of the 2 controllers allowed us to more tightly control environment changes and apply drift correction to mitigate manual configuration changes that may be unauthorized. Our combination covers both dev and production environments with the production environment Master Control Cluster having dominion over both in the end. |
+| [Jove](https://www.jove.com/) | [@arturkasperek](https://github.com/arturkasperek) | We use Crossplane in production environments to build a Heroku like Internal Developer Platform on top of AWS and AWS EKS. |

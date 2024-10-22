@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
@@ -33,17 +34,32 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
-// LabelAreaPkg is applied to all features pertaining to packages, (i.e.
-// Providers, Configurations, etc).
-const LabelAreaPkg = "pkg"
+const (
+	// LabelAreaPkg is applied to all features pertaining to packages, (i.e.
+	// Providers, Configurations, etc).
+	LabelAreaPkg = "pkg"
+	// SuitePackageDependencyUpgrades is the value for the config.LabelTestSuite
+	// label to be assigned to tests that should be part of the Package Upgrade
+	// test suite.
+	SuitePackageDependencyUpgrades = "package-dependency-upgrades"
+)
 
-// TestConfigurationPullFromPrivateRegistry tests that a Configuration can be
-// installed from a private registry using a package pull secret.
+func init() {
+	environment.AddTestSuite(SuitePackageDependencyUpgrades,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-dependency-version-upgrades}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuitePackageDependencyUpgrades, config.TestSuiteDefault},
+		}),
+	)
+}
+
 func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/private"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that a Configuration can be installed from a private registry using a package pull secret.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -59,13 +75,11 @@ func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	)
 }
 
-// TestConfigurationWithDependency tests that a Configuration with a dependency
-// on a Provider will become healthy when the Provider becomes healthy.
 func TestConfigurationWithDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/dependency"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on a Provider will become healthy when the Provider becomes healthy.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -73,10 +87,10 @@ func TestConfigurationWithDependency(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
-			Assess("ConfigurationIsHealthy",
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("RequiredProviderIsHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
@@ -85,17 +99,18 @@ func TestConfigurationWithDependency(t *testing.T) {
 			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision-dependency.yaml"),
 			)).Feature(),
 	)
 }
 
 func TestProviderUpgrade(t *testing.T) {
-	// Test that we can upgrade a provider to a new version, even when a managed
-	// resource has been created.
 	manifests := "test/e2e/manifests/pkg/provider"
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that we can upgrade a provider to a new version, even when a managed resource has been created.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -126,7 +141,7 @@ func TestProviderUpgrade(t *testing.T) {
 func TestDeploymentRuntimeConfig(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/deployment-runtime-config"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that custom configurations in the deployment runtime do not disrupt the functionality of the resources, ensuring that deployments, services, and service accounts are created and configured correctly according to the specified runtime settings.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -193,7 +208,7 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 func TestExternallyManagedServiceAccount(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/externally-managed-service-account"
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests that an externally managed service account is not owned by the deployment while verifying that the deployment correctly references the service account as specified in the runtime configuration.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -228,5 +243,152 @@ func TestExternallyManagedServiceAccount(t *testing.T) {
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),
+	)
+}
+
+func TestConfigurationWithDigest(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/configuration/digest"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a Configuration with digest which depends on a Provider with digest will become healthy when the Provider becomes healthy").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				// We wait until the configuration revision is gone, otherwise
+				// the provider we will be deleting next might come back as a
+				// result of the configuration revision being reconciled again.
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-revision.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision-dependency.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestImageConfigAuth(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can install a private package as a dependency by providing registry pull credentials through ImageConfig API.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "pull-secret.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ProviderInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("ConfigurationInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				// We wait until the configuration revision is gone, otherwise
+				// the provider we will be deleting next might come back as a
+				// result of the configuration revision being reconciled again.
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-revision.yaml"),
+			)).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestUpgradeDependencyVersion(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/version"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on provider with version upgrades when dependency changes to another version.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-initial.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-initial.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("UpdateConfiguration",
+				funcs.ApplyResources(FieldManager, manifests, "configuration-updated.yaml")).
+			Assess("ProviderUpgradedToNewVersionAndHealthy", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
+			Assess("ConfigurationStillHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-updated.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-updated.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestUpgradeDependencyDigest(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/digest"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on provider with digest upgrades when dependency changes to another digest.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-initial.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-initial.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("UpdateConfiguration",
+				funcs.ApplyResources(FieldManager, manifests, "configuration-updated.yaml")).
+			Assess("ProviderUpgradedToNewDigestAndHealthy", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
+			Assess("ConfigurationStillHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-updated.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-updated.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
+			)).Feature(),
 	)
 }

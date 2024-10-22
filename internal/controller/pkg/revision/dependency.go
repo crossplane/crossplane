@@ -23,6 +23,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/name"
+	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -137,6 +138,22 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		Dependencies: sources,
 	}
 
+	// Delete packages in lock with same name and distinct source
+	// This is a corner case when source is updated but image SHA is not (i.e. relocate same image
+	// to another registry)
+	for _, lp := range lock.Packages {
+		if self.Name == lp.Name && self.Type == lp.Type && self.Source != lp.Identifier() {
+			if err := m.RemoveSelf(ctx, pr); err != nil {
+				return found, installed, invalid, err
+			}
+			// refresh the lock to be in sync with the contents
+			if err = m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock); err != nil {
+				return found, installed, invalid, err
+			}
+			break
+		}
+	}
+
 	prExists := false
 	for _, lp := range lock.Packages {
 		if lp.Name == pr.GetName() {
@@ -200,6 +217,15 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		if !ok {
 			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
 		}
+
+		// Check if the constraint is a digest, if so, compare it directly.
+		if d, err := conregv1.NewHash(dep.Constraints); err == nil {
+			if lp.Version != d.String() {
+				return found, installed, invalid, errors.Errorf("existing package %s@%s is incompatible with constraint %s", lp.Identifier(), lp.Version, strings.TrimSpace(dep.Constraints))
+			}
+			continue
+		}
+
 		c, err := semver.NewConstraint(dep.Constraints)
 		if err != nil {
 			return found, installed, invalid, err

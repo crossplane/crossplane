@@ -53,8 +53,21 @@ type Manager struct {
 	confs map[string]*metav1.Configuration // Configuration images
 }
 
+// Option defines an option for the Manager.
+type Option func(*Manager)
+
+// WithCrossplaneImage sets the Crossplane image to use for fetching CRDs.
+func WithCrossplaneImage(image string) Option {
+	return func(m *Manager) {
+		if image == "" {
+			return
+		}
+		m.deps[image] = true
+	}
+}
+
 // NewManager returns a new Manager.
-func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
+func NewManager(cacheDir string, fs afero.Fs, w io.Writer, opts ...Option) *Manager {
 	m := &Manager{}
 
 	m.cache = &LocalCache{
@@ -67,6 +80,10 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer) *Manager {
 	m.crds = make([]*extv1.CustomResourceDefinition, 0)
 	m.deps = make(map[string]bool)
 	m.confs = make(map[string]*metav1.Configuration)
+
+	for _, opt := range opts {
+		opt(m)
+	}
 
 	return m
 }
@@ -248,23 +265,37 @@ func (m *Manager) cacheDependencies() error {
 			continue
 		}
 
-		if _, err := fmt.Fprintln(m.writer, "package schemas does not exist, downloading: ", image); err != nil {
+		if _, err := fmt.Fprintln(m.writer, "schemas does not exist, downloading: ", image); err != nil {
 			return errors.Wrapf(err, errWriteOutput)
 		}
 
+		var schemas [][]byte
+		// handling for packages
 		layer, err := m.fetcher.FetchBaseLayer(image)
-		if err != nil {
+		switch {
+		case IsErrBaseLayerNotFound(err):
+			// We fall back to fetching the image if the base layer is not found
+			layers, err := m.fetcher.FetchImage(image)
+			if err != nil {
+				return errors.Wrapf(err, "cannot extract crds")
+			}
+			schemas, err = extractPackageCRDs(layers)
+			if err != nil {
+				return errors.Wrapf(err, "cannot find crds")
+			}
+		case err != nil:
 			return errors.Wrapf(err, "cannot download package %s", image)
-		}
-
-		schemas, _, err := extractPackageContent(*layer)
-		if err != nil {
-			return errors.Wrapf(err, "cannot extract package file and meta")
+		default:
+			schemas, _, err = extractPackageContent(*layer)
+			if err != nil {
+				return errors.Wrapf(err, "cannot extract package file and meta")
+			}
 		}
 
 		if err := m.cache.Store(schemas, path); err != nil {
 			return errors.Wrapf(err, "cannot store base layer")
 		}
+		return nil
 	}
 
 	return nil

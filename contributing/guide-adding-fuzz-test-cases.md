@@ -102,12 +102,12 @@ put in place a few configurations across different repositories:
 
 
 [CIFuzz]: https://google.github.io/oss-fuzz/getting-started/continuous-integration/
-[fuzz-audit-report]: https://github.com/crossplane/crossplane/blob/master/security/ADA-fuzzing-audit-22.pdf
+[fuzz-audit-report]: https://github.com/crossplane/crossplane/blob/main/security/ADA-fuzzing-audit-22.pdf
 [go-fuzz]: https://go.dev/security/fuzz/
 [oss-fuzz-arch]: https://google.github.io/oss-fuzz/architecture/
 [oss-fuzz-folder]: https://github.com/google/oss-fuzz/tree/master/projects/crossplane
 [oss-fuzz]: https://github.com/google/oss-fuzz
-[xp-ci]: https://github.com/crossplane/crossplane/blob/master/.github/workflows/ci.yml
+[xp-ci]: https://github.com/crossplane/crossplane/blob/main/.github/workflows/ci.yml
 [xp-fuzz-tests]: https://github.com/search?q=repo%3Acrossplane%2Fcrossplane+%22func+Fuzz%22&type=code
-[xp-fuzz_oss_build]: https://github.com/crossplane/crossplane/blob/master/test/fuzz/oss_fuzz_build.sh
-[xp-r-fuzz_oss_build]: https://github.com/crossplane/crossplane-runtime/blob/master/test/fuzz/oss_fuzz_build.sh
+[xp-fuzz_oss_build]: https://github.com/crossplane/crossplane/blob/main/test/fuzz/oss_fuzz_build.sh
+[xp-r-fuzz_oss_build]: https://github.com/crossplane/crossplane-runtime/blob/main/test/fuzz/oss_fuzz_build.sh

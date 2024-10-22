@@ -31,15 +31,11 @@ type PatchType string
 
 // Patch types.
 const (
-	PatchTypeFromCompositeFieldPath   PatchType = "FromCompositeFieldPath" // Default
-	PatchTypeFromEnvironmentFieldPath PatchType = "FromEnvironmentFieldPath"
-	PatchTypePatchSet                 PatchType = "PatchSet"
-	PatchTypeToCompositeFieldPath     PatchType = "ToCompositeFieldPath"
-	PatchTypeToEnvironmentFieldPath   PatchType = "ToEnvironmentFieldPath"
-	PatchTypeCombineFromEnvironment   PatchType = "CombineFromEnvironment"
-	PatchTypeCombineFromComposite     PatchType = "CombineFromComposite"
-	PatchTypeCombineToComposite       PatchType = "CombineToComposite"
-	PatchTypeCombineToEnvironment     PatchType = "CombineToEnvironment"
+	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
+	PatchTypePatchSet               PatchType = "PatchSet"
+	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
+	PatchTypeCombineFromComposite   PatchType = "CombineFromComposite"
+	PatchTypeCombineToComposite     PatchType = "CombineToComposite"
 )
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -79,18 +75,18 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;FromEnvironmentFieldPath;PatchSet;ToCompositeFieldPath;ToEnvironmentFieldPath;CombineFromEnvironment;CombineFromComposite;CombineToComposite;CombineToEnvironment
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
 	// FromFieldPath is the path of the field on the resource whose value is
-	// to be used as input. Required when type is FromCompositeFieldPath,
-	// FromEnvironmentFieldPath, ToCompositeFieldPath, ToEnvironmentFieldPath.
+	// to be used as input. Required when type is FromCompositeFieldPath or
+	// ToCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
-	// Combine is the patch configuration for a CombineFromComposite,
-	// CombineFromEnvironment, CombineToComposite or CombineToEnvironment patch.
+	// Combine is the patch configuration for a CombineFromComposite or
+	// CombineToComposite patch.
 	// +optional
 	Combine *Combine `json:"combine,omitempty"`
 
@@ -141,7 +137,7 @@ func (p *Patch) GetType() PatchType {
 // Validate the Patch object.
 func (p *Patch) Validate() *field.Error {
 	switch p.GetType() {
-	case PatchTypeFromCompositeFieldPath, PatchTypeFromEnvironmentFieldPath, PatchTypeToCompositeFieldPath, PatchTypeToEnvironmentFieldPath:
+	case PatchTypeFromCompositeFieldPath, PatchTypeToCompositeFieldPath:
 		if p.FromFieldPath == nil {
 			return field.Required(field.NewPath("fromFieldPath"), fmt.Sprintf("fromFieldPath must be set for patch type %s", p.Type))
 		}
@@ -149,7 +145,7 @@ func (p *Patch) Validate() *field.Error {
 		if p.PatchSetName == nil {
 			return field.Required(field.NewPath("patchSetName"), fmt.Sprintf("patchSetName must be set for patch type %s", p.Type))
 		}
-	case PatchTypeCombineFromEnvironment, PatchTypeCombineFromComposite, PatchTypeCombineToComposite, PatchTypeCombineToEnvironment:
+	case PatchTypeCombineFromComposite, PatchTypeCombineToComposite:
 		if p.Combine == nil {
 			return field.Required(field.NewPath("combine"), fmt.Sprintf("combine must be set for patch type %s", p.Type))
 		}

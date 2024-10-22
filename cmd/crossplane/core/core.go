@@ -97,9 +97,10 @@ type startCommand struct {
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
-	SyncInterval     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                    short:"s"`
-	PollInterval     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
-	MaxReconcileRate int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
+	SyncInterval                     time.Duration `default:"1h"  help:"How often all resources will be double-checked for drift from the desired state."                      short:"s"`
+	PollInterval                     time.Duration `default:"1m"  help:"How often individual resources will be checked for drift from the desired state."`
+	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
+	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
 	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
@@ -108,11 +109,11 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
-	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableUsages               bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
-	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
-	EnableSSAClaims            bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableUsages                    bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableRealtimeCompositions      bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
+	EnableSSAClaims                 bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
@@ -124,6 +125,12 @@ type startCommand struct {
 	EnableCompositionRevisions               bool `default:"true" hidden:""`
 	EnableCompositionFunctions               bool `default:"true" hidden:""`
 	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
+
+	// These are alpha features that we've removed support for. Crossplane
+	// returns an error when you enable them. This ensures you'll see an
+	// explicit and informative error on startup, instead of a potentially
+	// surprising one later.
+	EnableEnvironmentConfigs bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -209,6 +216,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
 	}
 
+	// TODO(negz): Include a link to a migration guide.
+	if c.EnableEnvironmentConfigs {
+		//nolint:revive // This is long. It's easier to read with punctuation.
+		return errors.New("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
+	}
+
 	clienttls, err := certificates.LoadMTLSConfig(
 		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
@@ -231,10 +244,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// Periodically remove clients for Functions that no longer exist.
 	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
 
-	if c.EnableEnvironmentConfigs {
-		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
-	}
 	if c.EnableCompositionWebhookSchemaValidation {
 		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
@@ -271,6 +280,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableAlphaClaimSSA)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
+	}
+	if c.EnableDependencyVersionUpgrades {
+		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the
@@ -374,13 +387,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	po := pkgcontroller.Options{
-		Options:         o,
-		Cache:           xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
-		Namespace:       c.Namespace,
-		ServiceAccount:  c.ServiceAccount,
-		DefaultRegistry: c.Registry,
-		FetcherOptions:  []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-		PackageRuntime:  pr,
+		Options:                          o,
+		Cache:                            xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
+		Namespace:                        c.Namespace,
+		ServiceAccount:                   c.ServiceAccount,
+		DefaultRegistry:                  c.Registry,
+		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		PackageRuntime:                   pr,
+		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
 	}
 
 	if c.CABundlePath != "" {

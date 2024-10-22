@@ -22,9 +22,14 @@ import (
 )
 
 // Node is a node in DAG.
-type Node interface {
+type Node interface { //nolint:interfacebloat // NOTE(ezgidemirel): Interface is extended to support package version update capability.
 	Identifier() string
 	Neighbors() []Node
+	// GetConstraints Returns the version or constraint of the package.
+	GetConstraints() string
+	// GetParentConstraints Returns the version or constraint of the package which comes from its parents.
+	GetParentConstraints() []string
+	AddParentConstraints(c []string)
 
 	// Node implementations should be careful to establish uniqueness of
 	// neighbors in their AddNeighbors method or risk counting a neighbor

@@ -54,6 +54,9 @@ type LockPackage struct {
 	// Dependencies are the list of dependencies of this package. The order of
 	// the dependencies will dictate the order in which they are resolved.
 	Dependencies []Dependency `json:"dependencies"`
+
+	// ParentConstraints is a list of constraints that are passed down from the parent package to the dependency.
+	ParentConstraints []string `json:"-"` // NOTE(ezgidemirel): We don't want to expose this field in the API.
 }
 
 // ToNodes converts LockPackages to DAG nodes.
@@ -70,6 +73,21 @@ func (l *LockPackage) Identifier() string {
 	return l.Source
 }
 
+// GetConstraints returns the version of a LockPackage.
+func (l *LockPackage) GetConstraints() string {
+	return l.Version
+}
+
+// GetParentConstraints returns the parent constraints of a LockPackage.
+func (l *LockPackage) GetParentConstraints() []string {
+	return l.ParentConstraints
+}
+
+// AddParentConstraints appends passed constraints to the existing parent constraints.
+func (l *LockPackage) AddParentConstraints(pc []string) {
+	l.ParentConstraints = append(l.ParentConstraints, pc...)
+}
+
 // Neighbors returns dependencies of a LockPackage.
 func (l *LockPackage) Neighbors() []dag.Node {
 	nodes := make([]dag.Node, len(l.Dependencies))
@@ -79,10 +97,17 @@ func (l *LockPackage) Neighbors() []dag.Node {
 	return nodes
 }
 
-// AddNeighbors adds dependencies to a LockPackage. A LockPackage should always
-// have all dependencies declared before being added to the Lock, so we no-op
-// when adding a neighbor.
-func (l *LockPackage) AddNeighbors(_ ...dag.Node) error {
+// AddNeighbors adds dependencies to a LockPackage and
+// updates the parent constraints of the dependencies in the DAG.
+func (l *LockPackage) AddNeighbors(nodes ...dag.Node) error {
+	for _, n := range nodes {
+		for _, dep := range l.Dependencies {
+			if dep.Identifier() == n.Identifier() {
+				n.AddParentConstraints([]string{dep.Constraints})
+				break
+			}
+		}
+	}
 	return nil
 }
 
@@ -94,14 +119,32 @@ type Dependency struct {
 	// Type is the type of package. Can be either Configuration or Provider.
 	Type PackageType `json:"type"`
 
-	// Constraints is a valid semver range, which will be used to select a valid
+	// Constraints is a valid semver range or a digest, which will be used to select a valid
 	// dependency version.
 	Constraints string `json:"constraints"`
+
+	// ParentConstraints is a list of constraints that are passed down from the parent package to the dependency.
+	ParentConstraints []string `json:"-"` // NOTE(ezgidemirel): We don't want to expose this field in the API.
 }
 
 // Identifier returns a dependency's source.
 func (d *Dependency) Identifier() string {
 	return d.Package
+}
+
+// GetConstraints returns a dependency's constrain.
+func (d *Dependency) GetConstraints() string {
+	return d.Constraints
+}
+
+// GetParentConstraints returns a dependency's parent constraints.
+func (d *Dependency) GetParentConstraints() []string {
+	return d.ParentConstraints
+}
+
+// AddParentConstraints appends passed constraints to the existing parent constraints.
+func (d *Dependency) AddParentConstraints(pc []string) {
+	d.ParentConstraints = append(d.ParentConstraints, pc...)
 }
 
 // Neighbors in is a no-op for dependencies because we are not yet aware of its
@@ -110,9 +153,11 @@ func (d *Dependency) Neighbors() []dag.Node {
 	return nil
 }
 
-// AddNeighbors is a no-op for dependencies. We should never be adding neighbors
-// to a dependency.
-func (d *Dependency) AddNeighbors(...dag.Node) error {
+// AddNeighbors adds parent constraints to a dependency in the DAG.
+func (d *Dependency) AddNeighbors(nodes ...dag.Node) error {
+	for _, n := range nodes {
+		n.AddParentConstraints([]string{d.Constraints})
+	}
 	return nil
 }
 

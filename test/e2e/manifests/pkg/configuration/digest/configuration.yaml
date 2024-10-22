@@ -1,0 +1,7 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-digest
+spec:
+  # NOTE(ezgidemirel): This package is manually built and pushed to the registry.
+  package: xpkg.upbound.io/crossplane/e2e-depends-on-digest@sha256:127afe7f55edf62f1c39321c39f6e74df954362d3c451ea5491cce251059d45b

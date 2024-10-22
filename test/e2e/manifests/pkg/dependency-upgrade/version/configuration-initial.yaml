@@ -1,0 +1,7 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: configuration-depends-on-version
+spec:
+  # TODO: Push these to xpkg.upbound.io/crossplane/e2e-... and include package/crossplane.yaml
+  package: xpkg.upbound.io/ezgiorg/ezgi-configuration-nop:v0.1.0

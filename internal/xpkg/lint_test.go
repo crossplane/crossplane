@@ -61,7 +61,7 @@ kind: Configuration
 metadata:
   name: test`)
 
-	v1alpha1FuncBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+	v1beta1FuncBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
   kind: Function
   metadata:
     name: test`)
@@ -73,6 +73,11 @@ metadata:
 
 	v1ConfBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
+metadata:
+  name: test`)
+
+	v1FuncBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+kind: Function
 metadata:
   name: test`)
 
@@ -94,12 +99,14 @@ metadata:
 	_                = yaml.Unmarshal(v1alpha1ProvBytes, v1alpha1ProvMeta)
 	v1alpha1ConfMeta = &pkgmetav1alpha1.Configuration{}
 	_                = yaml.Unmarshal(v1alpha1ConfBytes, v1alpha1ConfMeta)
-	v1alpha1FuncMeta = &pkgmetav1beta1.Function{}
-	_                = yaml.Unmarshal(v1alpha1FuncBytes, v1alpha1FuncMeta)
+	v1beta1FuncMeta  = &pkgmetav1beta1.Function{}
+	_                = yaml.Unmarshal(v1beta1FuncBytes, v1beta1FuncMeta)
 	v1ProvMeta       = &pkgmetav1.Provider{}
 	_                = yaml.Unmarshal(v1ProvBytes, v1ProvMeta)
 	v1ConfMeta       = &pkgmetav1.Configuration{}
 	_                = yaml.Unmarshal(v1ConfBytes, v1ConfMeta)
+	v1FuncMeta       = &pkgmetav1.Function{}
+	_                = yaml.Unmarshal(v1FuncBytes, v1FuncMeta)
 	v1XRD            = &v1.CompositeResourceDefinition{}
 	_                = yaml.Unmarshal(v1XRDBytes, v1XRD)
 	v1Comp           = &v1.Composition{}
@@ -220,9 +227,15 @@ func TestIsFunction(t *testing.T) {
 		obj    runtime.Object
 		err    error
 	}{
-		"v1alpha1": {
-			reason: "Should not return error if object is a v1alpha1 function.",
-			obj:    v1alpha1FuncMeta,
+		// Function packages were introduced at v1beta1. There was never a
+		// v1alpha1 version of the package metadata.
+		"v1beta1": {
+			reason: "Should not return error if object is a v1beta1 function.",
+			obj:    v1beta1FuncMeta,
+		},
+		"v1": {
+			reason: "Should not return error if object is a v1 function.",
+			obj:    v1FuncMeta,
 		},
 		"ErrNotFunction": {
 			reason: "Should return error if object is not function.",
