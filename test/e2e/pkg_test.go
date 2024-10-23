@@ -22,6 +22,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
@@ -281,42 +282,6 @@ func TestConfigurationWithDigest(t *testing.T) {
 	)
 }
 
-func TestImageConfigAuth(t *testing.T) {
-	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
-
-	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that we can install a private package as a dependency by providing registry pull credentials through ImageConfig API.").
-			WithLabel(LabelArea, LabelAreaPkg).
-			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-			WithSetup("ApplyImageConfig", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "pull-secret.yaml"),
-				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
-				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
-				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
-			)).
-			Assess("ProviderInstalledAndHealthy", funcs.AllOf(
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
-			)).
-			Assess("ConfigurationInstalledAndHealthy", funcs.AllOf(
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
-			)).
-			WithTeardown("DeleteConfiguration", funcs.AllOf(
-				funcs.DeleteResources(manifests, "configuration.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
-				// We wait until the configuration revision is gone, otherwise
-				// the provider we will be deleting next might come back as a
-				// result of the configuration revision being reconciled again.
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-revision.yaml"),
-			)).
-			// Dependencies are not automatically deleted.
-			WithTeardown("DeleteProvider", funcs.AllOf(
-				funcs.DeleteResources(manifests, "provider.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
-			)).Feature(),
-	)
-}
-
 func TestUpgradeDependencyVersion(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/version"
 
@@ -389,6 +354,150 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 			)).
 			WithTeardown("DeleteProviderRevision", funcs.AllOf(
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestImageConfigAuth(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can install a private package as a dependency by providing registry pull credentials through ImageConfig API.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "pull-secret.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ProviderInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("ConfigurationInstalledAndHealthy", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+				// We wait until the configuration revision is gone, otherwise
+				// the provider we will be deleting next might come back as a
+				// result of the configuration revision being reconciled again.
+				funcs.ResourceDeletedWithin(1*time.Minute, &pkgv1.ConfigurationRevision{ObjectMeta: metav1.ObjectMeta{Name: "e2e-configuration-with-private-dependency-e5b6aa4500c3"}}),
+			)).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+				// Provider is a copy of provider-nop, so waiting until nop
+				// CRD is gone is sufficient to ensure the provider completely
+				// deleted including all revisions.
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
+
+func TestImageConfigVerificationWithKey(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/with-key"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can verify signature on a configuration when signed with a key.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
+			)).
+			WithSetup("ApplyUnsignedPackage", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-unsigned.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-unsigned.yaml"),
+			)).
+			Assess("SignatureVerificationFailed", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "configuration-unsigned.yaml", pkgv1.WaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
+			)).
+			Assess("SignatureVerificationSucceeded", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration-signed.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-signed.yaml"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "configuration-signed.yaml", pkgv1.Active(), pkgv1.Healthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+			)).
+			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
+				funcs.DeleteResources(manifests, "image-config.yaml"),
+				funcs.DeleteResources(manifests, "configuration-signed.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-signed.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestImageConfigVerificationKeyless(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can verify signature on a provider when signed keyless.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
+			)).
+			WithSetup("ApplyUnsignedPackage", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-unsigned.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
+			)).
+			Assess("SignatureVerificationFailed", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-unsigned.yaml", pkgv1.WaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
+			)).
+			Assess("SignatureVerificationSucceeded", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-signed.yaml"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-signed.yaml", pkgv1.Active(), pkgv1.Healthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+			)).
+			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
+				funcs.DeleteResources(manifests, "image-config.yaml"),
+				funcs.DeleteResources(manifests, "provider-signed.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-signed.yaml"),
+				// Providers are a copy of provider-nop, so waiting until nop
+				// CRD is gone is sufficient to ensure the provider completely
+				// deleted including all revisions.
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
+			)).Feature(),
+	)
+}
+
+func TestImageConfigVerificationPrivateKeyless(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that we can verify signature on a private provider when signed keyless.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("ApplyImageConfig", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
+			)).
+			WithSetup("ApplyUnsignedPackage", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-unsigned.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
+			)).
+			Assess("SignatureVerificationFailed", funcs.AllOf(
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-unsigned.yaml", pkgv1.WaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
+			)).
+			Assess("SignatureVerificationSucceeded", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-signed.yaml"),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-signed.yaml", pkgv1.Active(), pkgv1.Healthy(), pkgv1.VerificationSucceeded("").WithMessage("")),
+			)).
+			WithTeardown("DeletePackageAndImageConfig", funcs.AllOf(
+				funcs.DeleteResources(manifests, "image-config.yaml"),
+				funcs.DeleteResources(manifests, "provider-signed.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-signed.yaml"),
+				// Providers are a copy of provider-nop, so waiting until nop
+				// CRD is gone is sufficient to ensure the provider completely
+				// deleted including all revisions.
+				funcs.ResourceDeletedWithin(2*time.Minute, &k8sapiextensionsv1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "nopresources.nop.crossplane.io"}}),
 			)).Feature(),
 	)
 }

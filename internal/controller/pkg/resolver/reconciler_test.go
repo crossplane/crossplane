@@ -1135,7 +1135,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog), WithRecorder(event.NewNopRecorder()))...)
-			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier()) // nolint: errcheck // we will catch anyways if r is nil
+			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier())
 			got, err := r.findDependencyVersionToUpgrade(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

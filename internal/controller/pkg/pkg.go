@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/pkg/manager"
 	"github.com/crossplane/crossplane/internal/controller/pkg/resolver"
 	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
+	"github.com/crossplane/crossplane/internal/controller/pkg/signature"
 )
 
 // Setup package controllers.
@@ -36,6 +37,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 		revision.SetupFunctionRevision,
+		signature.SetupProvider,
+		signature.SetupConfiguration,
+		signature.SetupFunction,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

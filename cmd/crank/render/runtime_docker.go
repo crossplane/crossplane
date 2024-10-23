@@ -22,8 +22,8 @@ import (
 	"io"
 	"net"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	typesimage "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
@@ -246,13 +246,13 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 }
 
 type pullClient interface {
-	ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
+	ImagePull(ctx context.Context, ref string, options typesimage.PullOptions) (io.ReadCloser, error)
 }
 
 // PullImage pulls the supplied image using the supplied client. It blocks until
 // the image has either finished pulling or hit an error.
 func PullImage(ctx context.Context, p pullClient, image string) error {
-	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{})
+	out, err := p.ImagePull(ctx, image, typesimage.PullOptions{})
 	if err != nil {
 		return err
 	}

@@ -184,7 +184,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
@@ -220,7 +220,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -256,7 +256,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
@@ -316,6 +316,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	if c := p.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
 		p.CleanConditions()
+		// Persist the removal of conditions and return. We'll be requeued
+		// with the updated status and resume reconciliation.
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	}
+
+	// Wait for signature verification to complete before proceeding.
+	if cond := p.GetCondition(v1.TypeSignatureVerificationComplete); cond.Status != corev1.ConditionTrue {
+		log.Debug("Waiting for signature verification to be complete.", "condition", cond)
+		// Initialize the installed and healthy conditions if they are not
+		// already set to communicate the status of the package.
+		if p.GetCondition(v1.TypeInstalled).Status == corev1.ConditionUnknown {
+			p.SetConditions(v1.WaitingVerification())
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with waiting verification")
+		}
+		return reconcile.Result{}, nil
 	}
 
 	// Get existing package revisions.

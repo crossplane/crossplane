@@ -1,0 +1,19 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: e2e-signed-keyless
+spec:
+  matchImages:
+    - prefix: "xpkg.upbound.io/crossplane/e2e-provider-signed-keyless:"
+  verification:
+    provider: Cosign
+    cosign:
+      authorities:
+        - name: verify e2e signed keyless
+          keyless:
+            url: https://fulcio.sigstore.dev
+            identities:
+              - issuer: https://github.com/login/oauth
+                subject: turkenh@gmail.com
+          ctlog:
+            url: https://rekor.sigstore.dev

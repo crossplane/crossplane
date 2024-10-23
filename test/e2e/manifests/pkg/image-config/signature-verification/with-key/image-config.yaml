@@ -1,0 +1,25 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: e2e-signed-with-key
+spec:
+  matchImages:
+    - prefix: "xpkg.upbound.io/crossplane/e2e-configuration-signed-with-key:"
+  verification:
+    provider: Cosign
+    cosign:
+      authorities:
+        - name: verify e2e signed with key
+          key:
+            secretRef:
+              name: cosign-public-key
+              key: cosign.pub
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cosign-public-key
+  namespace: crossplane-system
+data:
+  cosign.pub: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFRGpWa3o2dGJKZDFSR3pBZHgxaG1aSFdoNTJKNApWRzF4R3piRmZERWhvalhtRm9kRVhMb3R6OHFlMW9rZVNwUDB5WnhqTTBhOHowOGxqcnhMZ2lGYVBnPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==
+type: Opaque

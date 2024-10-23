@@ -229,7 +229,7 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 		is[i] = r.interceptors[i].CreateInterceptor(name, active.Spec.Package)
 	}
 
-	conn, err := grpc.DialContext(ctx, active.Status.Endpoint,
+	conn, err := grpc.DialContext(ctx, active.Status.Endpoint, //nolint:staticcheck // Figure out how to replace with grpc.NewClient and still pass the dialFunctionTimeout.
 		grpc.WithTransportCredentials(r.creds),
 		grpc.WithDefaultServiceConfig(lbRoundRobin),
 		grpc.WithChainUnaryInterceptor(is...))

@@ -182,7 +182,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithFetcher(f),
 		WithDefaultRegistry(o.DefaultRegistry),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
