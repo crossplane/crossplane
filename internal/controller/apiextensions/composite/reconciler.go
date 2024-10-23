@@ -158,6 +158,11 @@ type CompositionResult struct {
 	ConnectionDetails managed.ConnectionDetails
 	Events            []TargetedEvent
 	Conditions        []TargetedCondition
+
+	// ConditionsOverride allows the composition process to force
+	// a specific condition status, unlike Conditions which does not allow
+	// setting system conditions.
+	ConditionsOverride []xpv1.Condition
 }
 
 // A CompositionTarget is the target of a composition event or condition.
@@ -753,6 +758,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 			_ = xr.SetClaimConditionTypes(c.Condition.Type)
 		}
 	}
+	xr.SetConditions(res.ConditionsOverride...)
 
 	return compositionResultMeta{
 		numWarningEvents:   numWarningEvents,

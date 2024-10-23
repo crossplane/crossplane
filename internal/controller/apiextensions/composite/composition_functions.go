@@ -423,6 +423,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
+	conditionsOverride := []xpv1.Condition{}
+	// Consider the explicit composite unready state in the function response:
+	switch d.GetComposite().GetReady() { //nolint:exhaustive
+	case fnv1.Ready_READY_TRUE:
+		conditionsOverride = append(conditionsOverride, xpv1.Available())
+	case fnv1.Ready_READY_FALSE:
+		conditionsOverride = append(conditionsOverride, xpv1.Creating())
+	}
+
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
@@ -537,7 +546,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events, Conditions: conditions}, nil
+	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events, Conditions: conditions, ConditionsOverride: conditionsOverride}, nil
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
