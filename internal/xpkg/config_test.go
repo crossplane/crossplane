@@ -3,19 +3,19 @@ package xpkg
 import (
 	"context"
 	"crypto"
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/sigstore/policy-controller/pkg/apis/policy/v1alpha1"
-	cosign "github.com/sigstore/policy-controller/pkg/webhook/clusterimagepolicy"
-	"knative.dev/pkg/apis"
 	"net/url"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/sigstore/policy-controller/pkg/apis/policy/v1alpha1"
+	cosign "github.com/sigstore/policy-controller/pkg/webhook/clusterimagepolicy"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -571,10 +571,7 @@ VG1xGzbFfDEhojXmFodEXLotz8qe1okeSpP0yZxjM0a8z08ljrxLgiFaPg==
 
 func ignorePublicKeys() cmp.Option {
 	return cmp.FilterPath(func(p cmp.Path) bool {
-		if p.String() == "Authorities.Key.PublicKeys" {
-			return true
-		}
-		return false
+		return p.String() == "Authorities.Key.PublicKeys"
 	}, cmp.Ignore())
 }
 

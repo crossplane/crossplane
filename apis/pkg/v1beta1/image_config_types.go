@@ -181,13 +181,13 @@ type KeylessRef struct {
 	Identities []Identity `json:"identities"`
 	// CACert sets a reference to CA certificate
 	// +optional
-	CACert *KeyRef `json:"ca-cert,omitempty"`
+	CACert *KeyRef `json:"ca-cert,omitempty"` //nolint:tagliatelle // we need to stick to policy controller's tag as it is used in the webhook internal type as well which we rely on: https://github.com/sigstore/policy-controller/blob/dc9960d8c045d360d43c8a03401f3ad7b2357258/pkg/webhook/clusterimagepolicy/clusterimagepolicy_types.go#L116
 	// Use the Certificate Chain from the referred TrustRoot.CertificateAuthorities and TrustRoot.CTLog
 	// +optional
 	TrustRootRef string `json:"trustRootRef,omitempty"`
 	// InsecureIgnoreSCT omits verifying if a certificate contains an embedded SCT
 	// +optional
-	InsecureIgnoreSCT *bool `json:"insecureIgnoreSCT,omitempty"`
+	InsecureIgnoreSCT *bool `json:"insecureIgnoreSCT,omitempty"` //nolint:tagliatelle // we need to stick to policy controller's tag as it is used in the webhook internal type as well which we rely on: https://github.com/sigstore/policy-controller/blob/dc9960d8c045d360d43c8a03401f3ad7b2357258/pkg/webhook/clusterimagepolicy/clusterimagepolicy_types.go#L122
 }
 
 // Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L322
@@ -246,7 +246,7 @@ type Source struct {
 // Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L198
 
 // TLog specifies the URL to a transparency log that holds
-// the signature and public key information
+// the signature and public key information.
 type TLog struct {
 	// URL sets the url to the rekor instance (by default the public rekor.sigstore.dev)
 	// +optional
@@ -275,7 +275,7 @@ type Attestation struct {
 // Copied from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L337-L343
 
 // RFC3161Timestamp specifies the URL to a RFC3161 time-stamping server that holds
-// the time-stamped verification for the signature
+// the time-stamped verification for the signature.
 type RFC3161Timestamp struct {
 	// Use the Certificate Chain from the referred TrustRoot.TimeStampAuthorities
 	// +optional

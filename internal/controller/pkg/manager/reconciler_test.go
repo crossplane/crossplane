@@ -121,7 +121,7 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error { return nil }),
+							MockGet: test.NewMockGetFn(nil, func(_ client.Object) error { return nil }),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetConditions(v1.WaitingVerification())

@@ -24,6 +24,8 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
 	cosign "github.com/sigstore/policy-controller/pkg/webhook"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -276,7 +278,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, errParseReference)
 	}
 
-	var pullSecrets []string
+	pullSecrets := make([]string, 0, 2)
 	for _, s := range p.GetPackagePullSecrets() {
 		pullSecrets = append(pullSecrets, s.Name)
 	}
@@ -297,12 +299,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		ServiceAccountName: r.serviceAccount,
 		ImagePullSecrets:   pullSecrets,
 	})
+	if err != nil {
+		log.Debug("Cannot create k8s auth chain", "error", err)
+		p.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot create k8s auth chain")))
+		_ = r.client.Status().Update(ctx, p)
+		return reconcile.Result{}, errors.Wrap(err, "cannot create k8s auth chain")
+	}
 
 	// Validate the signature using the policy controller.
+	// TODO(turkenh): Define an interface and hide the cosign package behind it.
+	//  I need to do this anyways for unit tests.
 	// TODO(turkenh): Don't disable the cosign logging if debug is enabled.
 	// TODO(turkenh): Consider leveraging the policy controller's caching
 	//  mechanism.
-	res, errs := cosign.ValidatePolicy(klogging.WithLogger(ctx, zap.NewNop().Sugar()), r.namespace, ref, *vc.CosignConfig, auth)
+	res, errs := cosign.ValidatePolicy(klogging.WithLogger(ctx, zap.NewNop().Sugar()), r.namespace, ref, *vc.CosignConfig, auth, ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(auth)))
 	if res != nil {
 		// Ignore the errors for other authorities if we got a policy result.
 		if len(errs) > 0 {

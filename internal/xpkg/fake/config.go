@@ -19,6 +19,7 @@ func (s *MockConfigStore) PullSecretFor(ctx context.Context, image string) (imag
 	return s.MockPullSecretFor(ctx, image)
 }
 
+// ImageVerificationConfigFor calls the underlying MockImageVerificationConfigFor.
 func (s *MockConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *xpkg.ImageVerification, err error) {
 	return s.MockImageVerificationConfigFor(ctx, image)
 }

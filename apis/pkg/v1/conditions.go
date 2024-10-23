@@ -18,6 +18,7 @@ package v1
 
 import (
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -183,6 +184,6 @@ func VerificationIncomplete(err error) xpv1.Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonVerificationIncomplete,
-		Message:            fmt.Sprintf("Error occured during signature verification %s", err),
+		Message:            fmt.Sprintf("Error occurred during signature verification %s", err),
 	}
 }

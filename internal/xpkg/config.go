@@ -3,15 +3,14 @@ package xpkg
 import (
 	"context"
 	"encoding/json"
+	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	cosign "github.com/sigstore/policy-controller/pkg/webhook/clusterimagepolicy"
 	"github.com/sigstore/sigstore/pkg/cryptoutils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"strings"
-
-	cosign "github.com/sigstore/policy-controller/pkg/webhook/clusterimagepolicy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -30,6 +29,8 @@ type ConfigStore interface {
 	ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *ImageVerification, err error)
 }
 
+// ImageVerification is a struct that contains the image verification
+// configuration.
 type ImageVerification struct {
 	// CosignConfig is image verification configuration for cosign.
 	CosignConfig *cosign.ClusterImagePolicy
@@ -165,6 +166,8 @@ func cosignPolicy(ctx context.Context, client client.Reader, namespace string, f
 			from.Authorities[i].Key.Data = string(v)
 			from.Authorities[i].Key.SecretRef = nil
 		}
+
+		// TODO: Inline keyless CA cert data if any.
 	}
 
 	cip.Authorities = make([]cosign.Authority, 0, len(from.Authorities))

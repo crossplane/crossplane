@@ -18,13 +18,13 @@ limitations under the License.
 package pkg
 
 import (
-	"github.com/crossplane/crossplane/internal/controller/pkg/signature"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg/manager"
 	"github.com/crossplane/crossplane/internal/controller/pkg/resolver"
 	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
+	"github.com/crossplane/crossplane/internal/controller/pkg/signature"
 )
 
 // Setup package controllers.

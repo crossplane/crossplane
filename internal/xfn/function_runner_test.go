@@ -346,7 +346,7 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 	target := strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1)
 
 	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("gRPC dial failed: %s", err)
 	}
