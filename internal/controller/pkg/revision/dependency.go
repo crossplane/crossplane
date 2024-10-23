@@ -122,7 +122,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	}
 
 	d := m.newDag()
-	implied, err := d.Init(v1beta1.ToNodes(lock.Packages...))
+	implied, err := d.Init(xpkg.AsDAGNodes(lock.Packages...))
 	if err != nil {
 		return found, installed, invalid, errors.Wrap(err, errInitDAG)
 	}
@@ -136,13 +136,14 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		Source:       lockRef,
 		Version:      prRef.Identifier(),
 		Dependencies: sources,
+		Replaces:     pack.GetReplaces(),
 	}
 
 	// Delete packages in lock with same name and distinct source
 	// This is a corner case when source is updated but image SHA is not (i.e. relocate same image
 	// to another registry)
 	for _, lp := range lock.Packages {
-		if self.Name == lp.Name && self.Type == lp.Type && self.Source != lp.Identifier() {
+		if self.Name == lp.Name && self.Type == lp.Type && self.Source != lp.Source {
 			if err := m.RemoveSelf(ctx, pr); err != nil {
 				return found, installed, invalid, err
 			}
@@ -170,21 +171,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		}
 		// Package may exist in the graph as a dependency, or may not exist at
 		// all. We need to either convert it to a full node or add it.
-		d.AddOrUpdateNodes(&self)
-
-		// If any direct dependencies are missing we skip checking for
-		// transitive ones.
-		var missing []string
-		for _, dep := range self.Dependencies {
-			if d.NodeExists(dep.Identifier()) {
-				installed++
-				continue
-			}
-			missing = append(missing, dep.Identifier())
-		}
-		if installed != found {
-			return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, missing)
-		}
+		d.AddOrUpdateNodes(xpkg.AsDAGNodes(self)...)
 	}
 
 	tree, err := d.TraceNode(lockRef)
@@ -213,7 +200,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		if err != nil {
 			return found, installed, invalid, errors.New(errDependencyNotInGraph)
 		}
-		lp, ok := n.(*v1beta1.LockPackage)
+		lp, ok := n.(*xpkg.InstalledPackage)
 		if !ok {
 			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
 		}

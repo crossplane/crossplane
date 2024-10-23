@@ -44,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	fakedag "github.com/crossplane/crossplane/internal/dag/fake"
+	"github.com/crossplane/crossplane/internal/xpkg"
 	fakexpkg "github.com/crossplane/crossplane/internal/xpkg/fake"
 )
 
@@ -332,8 +333,8 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package: "not.a.valid.package",
+									&xpkg.Dependency{
+										Source: "not.a.valid.package",
 									},
 								}, nil
 							},
@@ -376,8 +377,8 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "registry1.com/acme-co/configuration-foo",
+									&xpkg.Dependency{
+										Source:      "registry1.com/acme-co/configuration-foo",
 										Constraints: "v0.0.1",
 									},
 								}, nil
@@ -426,8 +427,8 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-b",
+									&xpkg.Dependency{
+										Source:      "hasheddan/config-nop-b",
 										Constraints: "*",
 									},
 								}, nil
@@ -476,8 +477,8 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-b",
+									&xpkg.Dependency{
+										Source:      "hasheddan/config-nop-b",
 										Constraints: ">v1.0.0",
 									},
 								}, nil
@@ -527,10 +528,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+									&xpkg.Dependency{
+										Source:      "hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
-										Type:        v1beta1.ConfigurationPackageType,
+										Type:        xpkg.DependencyTypeConfiguration,
 									},
 								}, nil
 							},
@@ -579,10 +580,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+									&xpkg.Dependency{
+										Source:      "hasheddan/config-nop-c",
 										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
-										Type:        v1beta1.ConfigurationPackageType,
+										Type:        xpkg.DependencyTypeConfiguration,
 									},
 								}, nil
 							},
@@ -631,10 +632,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "hasheddan/config-nop-c",
+									&xpkg.Dependency{
+										Source:      "hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
-										Type:        v1beta1.ConfigurationPackageType,
+										Type:        xpkg.DependencyTypeConfiguration,
 									},
 								}, nil
 							},
@@ -683,10 +684,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "hasheddan/provider-nop-c",
+									&xpkg.Dependency{
+										Source:      "hasheddan/provider-nop-c",
 										Constraints: "sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
-										Type:        v1beta1.ProviderPackageType,
+										Type:        xpkg.DependencyTypeProvider,
 									},
 								}, nil
 							},
@@ -746,10 +747,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "cool-repo/cool-image",
+									&xpkg.Dependency{
+										Source:      "cool-repo/cool-image",
 										Constraints: ">v1.0.0",
-										Type:        v1beta1.ProviderPackageType,
+										Type:        xpkg.DependencyTypeProvider,
 									},
 								}, nil
 							},
@@ -757,12 +758,12 @@ func TestReconcile(t *testing.T) {
 								return nil, nil
 							},
 							MockGetNode: func(_ string) (dag.Node, error) {
-								return &v1beta1.Dependency{
-									Package: "cool-repo/cool-image",
+								return &xpkg.Dependency{
+									Source: "cool-repo/cool-image",
 									ParentConstraints: []string{
 										">v1.0.0",
 									},
-									Type: v1beta1.ProviderPackageType,
+									Type: xpkg.DependencyTypeProvider,
 								}, nil
 							},
 						}
@@ -815,10 +816,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1beta1.Dependency{
-										Package:     "cool-repo/cool-image",
+									&xpkg.Dependency{
+										Source:      "cool-repo/cool-image",
 										Constraints: ">v1.0.0",
-										Type:        v1beta1.ProviderPackageType,
+										Type:        xpkg.DependencyTypeProvider,
 									},
 								}, nil
 							},
@@ -826,13 +827,13 @@ func TestReconcile(t *testing.T) {
 								return nil, nil
 							},
 							MockGetNode: func(_ string) (dag.Node, error) {
-								return &v1beta1.Dependency{
-									Package: "cool-repo/cool-image",
+								return &xpkg.Dependency{
+									Source: "cool-repo/cool-image",
 									ParentConstraints: []string{
 										digest1,
 										digest1,
 									},
-									Type: v1beta1.ProviderPackageType,
+									Type: xpkg.DependencyTypeProvider,
 								}, nil
 							},
 						}
@@ -935,8 +936,8 @@ func TestFindDigestToUpdate(t *testing.T) {
 		"AllSameDigests": {
 			reason: "We should be able to find the digest to update.",
 			args: args{
-				node: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				node: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						digest1,
@@ -950,8 +951,8 @@ func TestFindDigestToUpdate(t *testing.T) {
 		"DifferentDigests": {
 			reason: "We should return an error if digests are different.",
 			args: args{
-				node: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				node: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						digest2,
@@ -965,8 +966,8 @@ func TestFindDigestToUpdate(t *testing.T) {
 		"AllVersions": {
 			reason: "We should return an empty string if all parent constraints are versions.",
 			args: args{
-				node: &v1beta1.Dependency{
-					Package:           "cool-repo/cool-image",
+				node: &xpkg.Dependency{
+					Source:            "cool-repo/cool-image",
 					ParentConstraints: []string{"v0.0.1", "v0.0.2"},
 				},
 			},
@@ -978,8 +979,8 @@ func TestFindDigestToUpdate(t *testing.T) {
 		"MixedConstraintTypes": {
 			reason: "We should return an error if both versions and digests are present.",
 			args: args{
-				node: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				node: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						"v0.0.1",
 						digest1,
@@ -1027,8 +1028,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v0.0.1",
-				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				dep: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						digest1,
@@ -1044,8 +1045,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v0.0.1",
-				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				dep: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						digest1,
 						"v0.0.1",
@@ -1061,8 +1062,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
-				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				dep: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						">=v1.0.0",
 						"v2.0.0",
@@ -1086,8 +1087,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
-				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				dep: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						">=v1.0.0",
 						"v2.0.0",
@@ -1111,8 +1112,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
-				dep: &v1beta1.Dependency{
-					Package: "cool-repo/cool-image",
+				dep: &xpkg.Dependency{
+					Source: "cool-repo/cool-image",
 					ParentConstraints: []string{
 						"<=v1.0.0",
 						"v0.0.1",
@@ -1152,7 +1153,7 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 	type args struct {
 		mgr manager.Manager
 		id  string
-		t   v1beta1.PackageType
+		t   xpkg.DependencyType
 		rec []ReconcilerOption
 	}
 	type want struct {
@@ -1187,7 +1188,7 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 					},
 				},
 				id: "cool-repo/cool-image",
-				t:  v1beta1.ProviderPackageType,
+				t:  xpkg.DependencyTypeProvider,
 			},
 			want: want{
 				pkg: &v1.Provider{
@@ -1214,7 +1215,7 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 					},
 				},
 				id: "cool-repo/cool-image",
-				t:  v1beta1.ConfigurationPackageType,
+				t:  xpkg.DependencyTypeConfiguration,
 			},
 			want: want{
 				pkg: nil,
@@ -1243,7 +1244,7 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 					},
 				},
 				id: "cool-repo/cool-image",
-				t:  v1beta1.FunctionPackageType,
+				t:  xpkg.DependencyTypeFunction,
 			},
 			want: want{
 				pkg: &v1.Function{

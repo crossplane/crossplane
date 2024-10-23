@@ -75,6 +75,14 @@ func (c *GeneratedFromHubConverter) v1MetaSpecToV1beta1MetaSpec(source v1.MetaSp
 		}
 	}
 	v1beta1MetaSpec.DependsOn = v1beta1DependencyList
+	var stringList []string
+	if source.Replaces != nil {
+		stringList = make([]string, len(source.Replaces))
+		for j := 0; j < len(source.Replaces); j++ {
+			stringList[j] = source.Replaces[j]
+		}
+	}
+	v1beta1MetaSpec.Replaces = stringList
 	return v1beta1MetaSpec
 }
 func (c *GeneratedFromHubConverter) v1TypeMetaToV1TypeMeta(source v11.TypeMeta) v11.TypeMeta {
@@ -157,5 +165,13 @@ func (c *GeneratedToHubConverter) v1beta1MetaSpecToV1MetaSpec(source MetaSpec) v
 		}
 	}
 	v1MetaSpec.DependsOn = v1DependencyList
+	var stringList []string
+	if source.Replaces != nil {
+		stringList = make([]string, len(source.Replaces))
+		for j := 0; j < len(source.Replaces); j++ {
+			stringList[j] = source.Replaces[j]
+		}
+	}
+	v1MetaSpec.Replaces = stringList
 	return v1MetaSpec
 }

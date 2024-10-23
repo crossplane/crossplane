@@ -141,6 +141,7 @@ go-generate:
     && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
   SAVE ARTIFACT apis/ AS LOCAL apis
   SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
+  SAVE ARTIFACT cluster/meta AS LOCAL cluster/meta
 
 # go-build builds Crossplane binaries for your native OS and architecture.
 go-build:

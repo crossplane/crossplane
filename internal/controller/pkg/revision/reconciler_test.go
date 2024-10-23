@@ -19,6 +19,7 @@ package revision
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"testing"
 
@@ -161,7 +162,9 @@ func (m *MockDependencyManager) RemoveSelf(_ context.Context, _ v1.PackageRevisi
 	return m.MockRemoveSelf()
 }
 
-var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+var (
+	providerBytes = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: test
@@ -172,6 +175,22 @@ spec:
     image: crossplane/provider-test-controller:v0.0.1
   crossplane:
     version: ">v0.13.0"`)
+
+	replacementProviderBytes = []byte(`
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: test
+  annotations:
+    author: crossplane
+spec:
+  replaces:
+  - crossplane/provider-replaced
+  controller:
+    image: crossplane/provider-replacement:v0.0.1
+  crossplane:
+    version: ">v0.13.0"`)
+)
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -1032,6 +1051,147 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errResolveDeps),
+			},
+		},
+		"ErrResolveSource": {
+			reason: "We should return an error if we can't resolve a replaced source.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								if pr, ok := o.(*v1.ProviderRevision); ok {
+									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+									pr.SetDesiredState(v1.PackageRevisionActive)
+									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetConditions(v1.Unhealthy().WithMessage(fmt.Sprintf(errFmtResolveReplaced, "crossplane/provider-replaced") + ": boom"))
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(replacementProviderBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(_ string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
+					WithSourceResolver(SourceResolverFn(func(_ context.Context, _ string) (v1.Package, error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtResolveReplaced, "crossplane/provider-replaced"),
+			},
+		},
+		"ErrDeactivateReplacedProvider": {
+			reason: "We should return an error if we can't deactivate a replaced provider.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								if pr, ok := o.(*v1.ProviderRevision); ok {
+									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+									pr.SetDesiredState(v1.PackageRevisionActive)
+									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetConditions(v1.Unhealthy().WithMessage(fmt.Sprintf(errFmtDeactivateReplaced, &v1.Provider{}, "replaced", "crossplane/provider-replaced") + ": boom"))
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(replacementProviderBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(_ string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
+					WithSourceResolver(SourceResolverFn(func(_ context.Context, _ string) (v1.Package, error) {
+						return &v1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "replaced"}}, nil
+					})),
+					WithPackageDeactivator(PackageDeactivatorFn(func(_ context.Context, _ v1.Package) (bool, error) {
+						return false, errBoom
+					})),
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtDeactivateReplaced, &v1.Provider{}, "replaced", "crossplane/provider-replaced"),
 			},
 		},
 		"ErrPreHook": {

@@ -376,6 +376,42 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// PackageList is the interface satisfied by package list types.
+// +k8s:deepcopy-gen=false
+type PackageList interface {
+	client.ObjectList
+
+	// GetPackages gets the list of Packages in a PackageList.
+	GetPackages() []Package
+}
+
+// GetPackages of this ProviderList.
+func (p *ProviderList) GetPackages() []Package {
+	ps := make([]Package, len(p.Items))
+	for i, p := range p.Items {
+		ps[i] = &p
+	}
+	return ps
+}
+
+// GetPackages of this ConfigurationList.
+func (p *ConfigurationList) GetPackages() []Package {
+	ps := make([]Package, len(p.Items))
+	for i, p := range p.Items {
+		ps[i] = &p
+	}
+	return ps
+}
+
+// GetPackages of this FunctionList.
+func (p *FunctionList) GetPackages() []Package {
+	ps := make([]Package, len(p.Items))
+	for i, p := range p.Items {
+		ps[i] = &p
+	}
+	return ps
+}
+
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
