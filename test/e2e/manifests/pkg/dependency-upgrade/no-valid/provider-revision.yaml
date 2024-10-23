@@ -5,3 +5,11 @@ kind: ProviderRevision
 metadata:
   name: crossplane-contrib-provider-nop-552a394a8acc
 spec: {}
+
+---
+
+apiVersion: pkg.crossplane.io/v1
+kind: ProviderRevision
+metadata:
+  name: crossplane-contrib-provider-nop-ecc25c121431
+spec: {}

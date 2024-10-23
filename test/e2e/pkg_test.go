@@ -423,6 +423,13 @@ func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
+			WithTeardown("DeleteRequiredConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-nop.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop.yaml"),
+			)).
+			WithTeardown("DeleteConfigurationRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop-revision.yaml"),
+			)).
 			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
@@ -453,19 +460,19 @@ func TestNoValidVersion(t *testing.T) {
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
-			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
-				funcs.DeleteResources(manifests, "provider.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
-			)).
-			WithTeardown("DeleteProviderRevision", funcs.AllOf(
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
-			)).
 			WithTeardown("DeleteRequiredConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration-nop.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop.yaml"),
 			)).
 			WithTeardown("DeleteConfigurationRevision", funcs.AllOf(
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop-revision.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
 			)).Feature(),
 	)
 }
@@ -490,19 +497,19 @@ func TestNoDowngrade(t *testing.T) {
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
-			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
-				funcs.DeleteResources(manifests, "provider.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
-			)).
-			WithTeardown("DeleteProviderRevision", funcs.AllOf(
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
-			)).
 			WithTeardown("DeleteRequiredConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration-nop.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop.yaml"),
 			)).
 			WithTeardown("DeleteConfigurationRevision", funcs.AllOf(
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop-revision.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
 			)).Feature(),
 	)
 }

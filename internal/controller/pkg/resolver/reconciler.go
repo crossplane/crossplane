@@ -563,7 +563,8 @@ func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.
 		}
 
 		for _, p := range l.Items {
-			s, _, err := splitPackage(p.GetSource())
+			ref, _ := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
+			s, _, err := splitPackage(ref.Name())
 			if err != nil {
 				return nil, err
 			}
@@ -578,7 +579,8 @@ func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.
 		}
 
 		for _, p := range l.Items {
-			s, _, err := splitPackage(p.GetSource())
+			ref, _ := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
+			s, _, err := splitPackage(ref.Name())
 			if err != nil {
 				return nil, err
 			}
@@ -593,7 +595,8 @@ func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.
 		}
 
 		for _, p := range l.Items {
-			s, _, err := splitPackage(p.GetSource())
+			ref, _ := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
+			s, _, err := splitPackage(ref.Name())
 			if err != nil {
 				return nil, err
 			}
