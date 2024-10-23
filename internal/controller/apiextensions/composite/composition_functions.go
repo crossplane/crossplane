@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -423,6 +424,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
+	compositeRes := CompositeResource{}
+
+	// Consider the explicit composite unready state in the function response:
+	switch d.GetComposite().GetReady() { //nolint:exhaustive // only check for false or true
+	case fnv1.Ready_READY_TRUE:
+		compositeRes.Ready = ptr.To(true)
+	case fnv1.Ready_READY_FALSE:
+		compositeRes.Ready = ptr.To(false)
+	}
+
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
@@ -537,7 +548,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events, Conditions: conditions}, nil
+	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composite: compositeRes, Composed: resources, Events: events, Conditions: conditions}, nil
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
