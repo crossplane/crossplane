@@ -169,15 +169,17 @@ func cosignPolicy(ctx context.Context, client client.Reader, namespace string, f
 
 	cip.Authorities = make([]cosign.Authority, 0, len(from.Authorities))
 	// Convert Authorities field from API type to cosign type.
-	if err := convert(from.Authorities, &cip.Authorities); err != nil {
+	if err := convertAuthorities(from.Authorities, &cip.Authorities); err != nil {
 		return nil, errors.Wrap(err, "cannot convert authorities to cosign authorities")
 	}
 
 	return cip, nil
 }
 
-// convert converts from one type to another by marshalling and unmarshalling.
-func convert(from interface{}, to interface{}) error {
+// convertAuthorities converts the authorities from API type to cosign type.
+// Following a similar approach as policy controller to convert API types to
+// internal types:https://github.com/sigstore/policy-controller/blob/dc9960d8c045d360d43c8a03401f3ad7b2357258/pkg/policy/parse.go#L105
+func convertAuthorities(from []v1beta1.CosignAuthority, to *[]cosign.Authority) error {
 	bs, err := json.Marshal(from)
 	if err != nil {
 		return errors.Wrap(err, "cannot marshal to JSON")
