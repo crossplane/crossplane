@@ -1068,8 +1068,11 @@ type Resource struct {
 	//   - A Function should set this field to READY_TRUE in a RunFunctionResponse
 	//     to indicate that a desired composed resource is ready.
 	//
-	//   - A Function should not set this field in a RunFunctionResponse to indicate
-	//     that the desired composite resource is ready. This will be ignored.
+	//   - A Function should set this field to READY_TRUE in a RunFunctionResponse
+	//     to indicate that a desired composite resource is ready.
+	//     This overwrites the standard readiness detection that determines the
+	//     ready state of the composite by the ready state of the the
+	//     composed resources.
 	Ready Ready `protobuf:"varint,3,opt,name=ready,proto3,enum=apiextensions.fn.proto.v1beta1.Ready" json:"ready,omitempty"`
 }
 

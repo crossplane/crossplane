@@ -154,6 +154,7 @@ type CompositionRequest struct {
 
 // A CompositionResult is the result of the composition process.
 type CompositionResult struct {
+	Composite         CompositeResource
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
 	Events            []TargetedEvent
@@ -665,7 +666,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if updateXRConditions(xr, unsynced, unready) {
+	if updateXRConditions(xr, unsynced, unready, res) {
 		// This requeue is subject to rate limiting. Requeues will exponentially
 		// backoff from 1 to 30 seconds. See the 'definition' (XRD) reconciler
 		// that sets up the ratelimiter.
@@ -681,7 +682,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // updateXRConditions updates the conditions of the supplied composite resource
 // based on the supplied composed resources. It returns true if the XR should be
 // requeued immediately.
-func updateXRConditions(xr *composite.Unstructured, unsynced, unready []ComposedResource) (requeueImmediately bool) {
+func updateXRConditions(xr *composite.Unstructured, unsynced, unready []ComposedResource, res CompositionResult) (requeueImmediately bool) {
 	readyCond := xpv1.Available()
 	syncedCond := xpv1.ReconcileSuccess()
 	if len(unsynced) > 0 {
@@ -695,6 +696,15 @@ func updateXRConditions(xr *composite.Unstructured, unsynced, unready []Composed
 		// become ready, since we can't watch them.
 		readyCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unready))))
 		requeueImmediately = true
+	}
+	if res.Composite.Ready != nil {
+		if *res.Composite.Ready {
+			readyCond = xpv1.Available()
+		} else if readyCond.Status != corev1.ConditionFalse {
+			// To keep information about unready resources only set this status
+			// if the composite would be otherwise marked as ready.
+			readyCond = xpv1.Creating().WithMessage("Composite resource was explicitly marked as unready by the composer")
+		}
 	}
 	xr.SetConditions(syncedCond, readyCond)
 	return requeueImmediately
