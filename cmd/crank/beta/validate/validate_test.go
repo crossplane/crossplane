@@ -426,20 +426,6 @@ func TestConvertToCRDs(t *testing.T) {
 																{Raw: []byte(`"Manual"`)},
 															},
 														},
-														"environmentConfigRefs": {
-															Type: "array",
-															Items: &extv1.JSONSchemaPropsOrArray{
-																Schema: &extv1.JSONSchemaProps{
-																	Type: "object",
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"apiVersion": {Type: "string"},
-																		"name":       {Type: "string"},
-																		"kind":       {Type: "string"},
-																	},
-																	Required: []string{"apiVersion", "kind"},
-																},
-															},
-														},
 														"publishConnectionDetailsTo": {
 															Type:     "object",
 															Required: []string{"name"},
@@ -776,20 +762,6 @@ func TestConvertToCRDs(t *testing.T) {
 															Enum: []extv1.JSON{
 																{Raw: []byte(`"Automatic"`)},
 																{Raw: []byte(`"Manual"`)},
-															},
-														},
-														"environmentConfigRefs": {
-															Type: "array",
-															Items: &extv1.JSONSchemaPropsOrArray{
-																Schema: &extv1.JSONSchemaProps{
-																	Type: "object",
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"apiVersion": {Type: "string"},
-																		"name":       {Type: "string"},
-																		"kind":       {Type: "string"},
-																	},
-																	Required: []string{"apiVersion", "kind"},
-																},
 															},
 														},
 														"publishConnectionDetailsTo": {
