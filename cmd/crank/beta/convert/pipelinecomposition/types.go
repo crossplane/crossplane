@@ -18,54 +18,6 @@ package pipelinecomposition
 
 import v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 
-// Input represents the input to the patch-and-transform function. This struct
-// originates from function patch and transform, as we can't import it directly
-// https://github.com/crossplane-contrib/function-patch-and-transform/blob/main/input/v1beta1/resources.go
-// Note that it does not exactly match the target type with full fidelity.
-// This type is used during the processing and conversion of the given input,
-// but the final converted output is written in an unstructured manner without a
-// static type definition for more flexibility.
-type Input struct {
-	// PatchSets define a named set of patches that may be included by any
-	// resource in this Composition. PatchSets cannot themselves refer to other
-	// PatchSets.
-	//
-	// PatchSets are only used by the "Resources" mode of Composition. They
-	// are ignored by other modes.
-	// +optional
-	PatchSets []v1.PatchSet `json:"patchSets,omitempty"`
-
-	// Resources is a list of resource templates that will be used when a
-	// composite resource referring to this composition is created.
-	//
-	// Resources are only used by the "Resources" mode of Composition. They are
-	// ignored by other modes.
-	// +optional
-	Resources []v1.ComposedTemplate `json:"resources,omitempty"`
-}
-
-// PatchSet wrapper around v1.PatchSet with custom Patch.
-type PatchSet struct {
-	// Name of this PatchSet.
-	Name string `json:"name"`
-
-	Patches []Patch `json:"patches"`
-}
-
-// ComposedTemplate wrapper around v1.ComposedTemplate with custom Patch.
-type ComposedTemplate struct {
-	v1.ComposedTemplate
-
-	Patches []Patch `json:"patches,omitempty"`
-}
-
-// Patch wrapper around v1.Patch with custom PatchPolicy.
-type Patch struct {
-	v1.Patch
-
-	Policy *PatchPolicy `json:"policy,omitempty"`
-}
-
 // A ToFieldPathPolicy determines how to patch to a field path.
 type ToFieldPathPolicy string
 

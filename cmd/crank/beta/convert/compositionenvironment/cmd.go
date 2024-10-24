@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package pipelinecomposition is a package for converting
-// patch-and-transform Compositions to a function pipeline.
-package pipelinecomposition
+// Package compositionenvironment is a package for converting Pipeline Compositions using native Composition Environment
+// capabilities to use function-environment-configs.
+package compositionenvironment
 
 import (
 	"bufio"
@@ -24,16 +24,16 @@ import (
 	"os"
 
 	"github.com/alecthomas/kong"
-	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/convert/compositionenvironment"
-	commonio "github.com/crossplane/crossplane/cmd/crank/beta/convert/io"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	commonIO "github.com/crossplane/crossplane/cmd/crank/beta/convert/io"
 )
 
-// Cmd arguments and flags for converting a patch-and-transform to a function pipeline composition.
+// Cmd arguments and flags for converting a Composition to use function-environment-configs.
 type Cmd struct {
 	// Arguments.
 	InputFile string `arg:"" default:"-" help:"The Composition file to be converted. If not specified or '-', stdin will be used." optional:"" type:"path"`
@@ -41,39 +41,31 @@ type Cmd struct {
 	// Flags.
 	OutputFile string `help:"The file to write the generated Composition to. If not specified, stdout will be used." placeholder:"PATH" short:"o" type:"path"`
 
-	FunctionPatchAndTransformRef string `default:"function-patch-and-transform" help:"Name of the existing function-patch-and-transform Function, to be used to reference it." name:"function-patch-and-transform-ref"`
 	FunctionEnvironmentConfigRef string `default:"function-environment-configs" help:"Name of the existing function-environment-configs Function, to be used to reference it." name:"function-environment-configs-ref"`
 
 	fs afero.Fs
 }
 
-// Help returns help message for the migrate pipeline-composition command.
+// Help returns help message for the migrate composition-environment command.
 func (c *Cmd) Help() string {
 	return `
-This command converts a Crossplane Composition to use a Composition function pipeline.
+This command converts a Crossplane Composition to use function-environment-configs, if needed.
 
-By default it transforms the Composition using the classic patch-and-transform approach
-to a function pipeline using crossplane-contrib/function-patch-and-transform, but the
-function ref name can be overridden with the --function-patch-and-transform-ref flag.
-
-If native Composition Environment was used it will also convert the Composition to use
-function-environment-configs, by default it'll reference the function as
-function-environment-configs, but it can be overridden with the --function-environment-configs-ref flag.
-
+It adds a function pipeline step using crossplane-contrib/function-environment-configs, if needed.
+By default it'll reference the function as function-environment-configs, but it can be overridden
+with the -f flag.
 
 Examples:
 
-  # Convert an existing Composition to use Pipelines
-  crossplane beta convert pipeline-composition composition.yaml -o pipeline-composition.yaml
+  # Convert an existing Composition (Pipeline mode) leveraging native
+  # Composition Environment to use function-environment-configs.
+  crossplane beta convert composition-environment composition.yaml -o composition-environment.yaml
 
-  # Use a different functionRef for function-patch-and-transform and output to stdout
-  crossplane beta convert pipeline-composition composition.yaml --function-patch-and-transform-ref local-function-patch-and-transform
+  # Use a different functionRef and output to stdout.
+  crossplane beta convert composition-environment composition.yaml --function-environment-configs-ref local-function-environment-configs
 
-  # Use a different functionRef for function-environment-configs and output to stdout
-  crossplane beta convert pipeline-composition composition.yaml --function-environment-configs-ref local-function-environment-configs
-
-  # Stdin to stdout
-  cat composition.yaml | ./crossplane beta convert pipeline-composition 
+  # Stdin to stdout.
+  cat composition.yaml | ./crossplane beta convert composition-environment
 
 `
 }
@@ -86,7 +78,7 @@ func (c *Cmd) AfterApply() error {
 
 // Run converts a classic Composition to a function pipeline Composition.
 func (c *Cmd) Run(k *kong.Context) error {
-	data, err := commonio.Read(c.fs, c.InputFile)
+	data, err := commonIO.Read(c.fs, c.InputFile)
 	if err != nil {
 		return err
 	}
@@ -97,21 +89,13 @@ func (c *Cmd) Run(k *kong.Context) error {
 		return errors.Wrap(err, "Unmarshalling Error")
 	}
 
-	out, err := convertPnTToPipeline(u, c.FunctionPatchAndTransformRef)
+	out, err := ConvertToFunctionEnvironmentConfigs(u, c.FunctionEnvironmentConfigRef)
 	if err != nil {
 		return errors.Wrap(err, "Error generating new Composition")
 	}
 	if out == nil {
 		_, err = fmt.Fprintf(k.Stderr, "No changes needed.\n")
 		return errors.Wrap(err, "unable to write to stderr")
-	}
-
-	outWithEnv, err := compositionenvironment.ConvertToFunctionEnvironmentConfigs(out, c.FunctionEnvironmentConfigRef)
-	if err != nil {
-		return errors.Wrap(err, "Error generating new Composition")
-	}
-	if outWithEnv != nil {
-		out = outWithEnv
 	}
 
 	b, err := yaml.Marshal(out)

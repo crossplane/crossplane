@@ -26,5 +26,5 @@ gitlab/
 *.xpkg
 
 # go build output (from go build ./cmd/crank etc)
-crank
-crossplane
+/crank
+/crossplane
