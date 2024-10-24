@@ -1,0 +1,13 @@
+# This is the package metadata for the Configuration installed by
+# configuration.yaml.
+#
+# This package is manually built and pushed to
+# xpkg.upbound.io/crossplane/e2e-depends-on-digest
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-depends-on-digest
+spec:
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-nop
+      version: "sha256:552a394a8accd2b4d37fc5858abe93d311e727eafb3c00636e11c72572873e48"

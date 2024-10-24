@@ -338,7 +338,7 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 			Assess("ProviderUpgradedToNewVersionAndHealthy", funcs.AllOf(
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
-			Assess("ConfigurationStillHealthy",
+			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
@@ -376,12 +376,133 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 			Assess("ProviderUpgradedToNewDigestAndHealthy", funcs.AllOf(
 				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
-			Assess("ConfigurationStillHealthy",
+			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration-updated.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-updated.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestUpgradeAlreadyExistsDependency(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/already-exists"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a newly installed Configuration updates to existing dependency to the minimal valid version.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithSetup("ApplyDependency", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ProviderUpgradedToNewVersionAndHealthy", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "cool-provider"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
+			Assess("ConfigurationIsStillHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteRequiredConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-nop.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop.yaml"),
+			)).
+			WithTeardown("DeleteConfigurationRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop-revision.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestNoValidVersion(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/no-valid"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a Configuration will not become healthy if there is no valid version for its dependency.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("RequiredConfigurationIsUnhealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-nop.yaml", pkgv1.UnknownHealth(), pkgv1.Active())).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteRequiredConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-nop.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop.yaml"),
+			)).
+			WithTeardown("DeleteConfigurationRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop-revision.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider.yaml"),
+			)).
+			WithTeardown("DeleteProviderRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-revision.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestNoDowngrade(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/no-downgrade"
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that a Configuration will not become healthy and dependency version will not be downgraded even though there is a valid version.").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("RequiredConfigurationIsUnhealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-nop.yaml", pkgv1.UnknownHealth(), pkgv1.Active())).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteRequiredConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration-nop.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop.yaml"),
+			)).
+			WithTeardown("DeleteConfigurationRevision", funcs.AllOf(
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration-nop-revision.yaml"),
 			)).
 			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider.yaml"),
