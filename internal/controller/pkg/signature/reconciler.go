@@ -22,17 +22,14 @@ import (
 	"strings"
 	"time"
 
+
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	ociremote "github.com/sigstore/cosign/v2/pkg/oci/remote"
-	cosign "github.com/sigstore/policy-controller/pkg/webhook"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	klogging "knative.dev/pkg/logging"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -105,11 +102,19 @@ func WithServiceAccount(sa string) ReconcilerOption {
 	}
 }
 
+// WithValidator specifies the Validator to use for verifying signatures.
+func WithValidator(v Validator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.validator = v
+	}
+}
+
 // Reconciler reconciles package for signature verification.
 type Reconciler struct {
 	client         client.Client
 	clientset      kubernetes.Interface
 	config         xpkg.ConfigStore
+	validator      Validator
 	log            logging.Logger
 	serviceAccount string
 	namespace      string
@@ -128,6 +133,11 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errNewKubernetesClient)
 	}
 
+	cosignValidator, err := NewCosignValidator(mgr.GetClient(), o.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "cannot create cosign validator")
+	}
+
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
@@ -140,6 +150,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
+		WithValidator(cosignValidator),
 		WithLogger(log),
 	}
 
@@ -157,6 +168,11 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errNewKubernetesClient)
 	}
 
+	cosignValidator, err := NewCosignValidator(mgr.GetClient(), o.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "cannot create cosign validator")
+	}
+
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
@@ -169,6 +185,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
+		WithValidator(cosignValidator),
 		WithLogger(log),
 	}
 
@@ -186,6 +203,11 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errNewKubernetesClient)
 	}
 
+	cosignValidator, err := NewCosignValidator(mgr.GetClient(), o.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "cannot create cosign validator")
+	}
+
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
@@ -198,6 +220,7 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
+		WithValidator(cosignValidator),
 		WithLogger(log),
 	}
 
@@ -262,7 +285,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		_ = r.client.Status().Update(ctx, p)
 		return reconcile.Result{}, errors.Wrap(err, "cannot get image verification config")
 	}
-	if vc == nil || vc.CosignConfig == nil {
+	if vc == nil || vc.Cosign == nil {
 		// No verification config found for this image, so, we will skip
 		// verification.
 		log.Debug("No signature verification config found for image, skipping verification")
@@ -306,29 +329,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, "cannot create k8s auth chain")
 	}
 
-	// Validate the signature using the policy controller.
-	// TODO(turkenh): Define an interface and hide the cosign package behind it.
-	//  I need to do this anyways for unit tests.
-	// TODO(turkenh): Don't disable the cosign logging if debug is enabled.
-	// TODO(turkenh): Consider leveraging the policy controller's caching
-	//  mechanism.
-	res, errs := cosign.ValidatePolicy(klogging.WithLogger(ctx, zap.NewNop().Sugar()), r.namespace, ref, *vc.CosignConfig, auth, ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(auth)))
-	if res != nil {
-		// Ignore the errors for other authorities if we got a policy result.
-		if len(errs) > 0 {
-			log.Debug("Ignoring errors as we got a policy result", "errors", errs)
+	if err = r.validator.Validate(ctx, ref, vc, remote.WithAuthFromKeychain(auth)); err != nil {
+		log.Debug("Signature verification failed", "error", err)
+		p.SetConditions(v1.VerificationFailed(ic, []error{err}))
+		if err = r.client.Status().Update(ctx, p); err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "cannot update status with failed verification")
 		}
-
-		p.SetConditions(v1.VerificationSucceeded(ic))
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with successful verification")
+		return reconcile.Result{}, errors.Wrap(err, "signature verification failed")
 	}
 
-	log.Debug("Signature verification failed", "errors", errs)
-	p.SetConditions(v1.VerificationFailed(ic, errs))
-	if err = r.client.Status().Update(ctx, p); err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "cannot update status with failed verification")
-	}
-	return reconcile.Result{}, errors.Errorf("signature verification failed: %v", errs)
+	p.SetConditions(v1.VerificationSucceeded(ic))
+	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with successful verification")
 }
 
 func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {

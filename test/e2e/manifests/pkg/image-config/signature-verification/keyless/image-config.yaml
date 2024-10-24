@@ -11,9 +11,6 @@ spec:
       authorities:
         - name: verify e2e signed keyless
           keyless:
-            url: https://fulcio.sigstore.dev
             identities:
               - issuer: https://github.com/login/oauth
                 subject: turkenh@gmail.com
-          ctlog:
-            url: https://rekor.sigstore.dev

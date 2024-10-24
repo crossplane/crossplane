@@ -32,6 +32,16 @@ const (
 	Prefix MatchType = "Prefix"
 )
 
+// ImageVerificationProvider is the provider that should be used to verify the
+// image.
+type ImageVerificationProvider string
+
+const (
+	// ImageVerificationProviderCosign is the cosign provider that should be
+	// used to verify the image.
+	ImageVerificationProviderCosign ImageVerificationProvider = "Cosign"
+)
+
 // +kubebuilder:object:root=true
 // +genclient
 // +genclient:nonNamespaced
@@ -98,7 +108,7 @@ type RegistryConfig struct {
 type ImageVerification struct {
 	// Provider is the provider that should be used to verify the image.
 	// +kubebuilder:validation:Enum=Cosign
-	Provider string `json:"provider"`
+	Provider ImageVerificationProvider `json:"provider"`
 	// Cosign is the configuration for verifying the image using cosign.
 	// +optional
 	Cosign *CosignVerificationConfig `json:"cosign,omitempty"`
@@ -126,24 +136,10 @@ type CosignAuthority struct {
 	// instance.
 	// +optional
 	Keyless *KeylessRef `json:"keyless,omitempty"`
-	// Static specifies that signatures / attestations are not validated but
-	// instead a static policy is applied against matching images.
-	// +optional
-	Static *StaticRef `json:"static,omitempty"`
-	// Sources sets the configuration to specify the sources from where to
-	// consume the signature and attestations.
-	// +optional
-	Sources []Source `json:"source,omitempty"`
-	// CTLog sets the configuration to verify the authority against a Rekor instance.
-	// +optional
-	CTLog *TLog `json:"ctlog,omitempty"`
 	// Attestations is a list of individual attestations for this authority,
 	// once the signature for this authority has been verified.
 	// +optional
 	Attestations []Attestation `json:"attestations,omitempty"`
-	// RFC3161Timestamp sets the configuration to verify the signature timestamp against a RFC3161 time-stamping instance.
-	// +optional
-	RFC3161Timestamp *RFC3161Timestamp `json:"rfc3161timestamp,omitempty"`
 }
 
 // Copied with below changes from https://github.com/sigstore/policy-controller/blob/d73e188a4669780af82d3d168f40a6fff438345a/pkg/apis/policy/v1alpha1/clusterimagepolicy_types.go#L152
@@ -155,16 +151,9 @@ type CosignAuthority struct {
 // A KeyRef must specify a SecretRef and may specify a HashAlgorithm.
 type KeyRef struct {
 	// SecretRef sets a reference to a secret with the key.
-	SecretRef *LocalSecretKeySelector `json:"secretRef"`
-	// Data contains the inline public key
-	// +optional
-	Data string `json:"data,omitempty"`
-	// KMS contains the KMS url of the public key
-	// Supported formats differ based on the KMS system used.
-	// +optional
-	KMS string `json:"kms,omitempty"`
+	SecretRef LocalSecretKeySelector `json:"secretRef"`
 	// HashAlgorithm always defaults to sha256 if the algorithm hasn't been explicitly set
-	// +optional
+	// +kubebuilder:default="sha256"
 	HashAlgorithm string `json:"hashAlgorithm,omitempty"`
 }
 
@@ -174,17 +163,8 @@ type KeyRef struct {
 // against which to verify. KeylessRef will contain either the URL to the verifying
 // certificate, or it will contain the certificate data inline or in a secret.
 type KeylessRef struct {
-	// URL defines a url to the keyless instance.
-	// +optional
-	URL *apis.URL `json:"url,omitempty"`
 	// Identities sets a list of identities.
 	Identities []Identity `json:"identities"`
-	// CACert sets a reference to CA certificate
-	// +optional
-	CACert *KeyRef `json:"ca-cert,omitempty"` //nolint:tagliatelle // we need to stick to policy controller's tag as it is used in the webhook internal type as well which we rely on: https://github.com/sigstore/policy-controller/blob/dc9960d8c045d360d43c8a03401f3ad7b2357258/pkg/webhook/clusterimagepolicy/clusterimagepolicy_types.go#L116
-	// Use the Certificate Chain from the referred TrustRoot.CertificateAuthorities and TrustRoot.CTLog
-	// +optional
-	TrustRootRef string `json:"trustRootRef,omitempty"`
 	// InsecureIgnoreSCT omits verifying if a certificate contains an embedded SCT
 	// +optional
 	InsecureIgnoreSCT *bool `json:"insecureIgnoreSCT,omitempty"` //nolint:tagliatelle // we need to stick to policy controller's tag as it is used in the webhook internal type as well which we rely on: https://github.com/sigstore/policy-controller/blob/dc9960d8c045d360d43c8a03401f3ad7b2357258/pkg/webhook/clusterimagepolicy/clusterimagepolicy_types.go#L122

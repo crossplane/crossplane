@@ -3,6 +3,8 @@ package fake
 import (
 	"context"
 
+
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -11,7 +13,7 @@ var _ xpkg.ConfigStore = &MockConfigStore{}
 // MockConfigStore is a mock ConfigStore.
 type MockConfigStore struct {
 	MockPullSecretFor              func(ctx context.Context, image string) (imageConfig string, pullSecret string, err error)
-	MockImageVerificationConfigFor func(ctx context.Context, image string) (imageConfig string, verificationConfig *xpkg.ImageVerification, err error)
+	MockImageVerificationConfigFor func(ctx context.Context, image string) (imageConfig string, verificationConfig *v1beta1.ImageVerification, err error)
 }
 
 // PullSecretFor calls the underlying MockPullSecretFor.
@@ -20,7 +22,7 @@ func (s *MockConfigStore) PullSecretFor(ctx context.Context, image string) (imag
 }
 
 // ImageVerificationConfigFor calls the underlying MockImageVerificationConfigFor.
-func (s *MockConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *xpkg.ImageVerification, err error) {
+func (s *MockConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *v1beta1.ImageVerification, err error) {
 	return s.MockImageVerificationConfigFor(ctx, image)
 }
 
