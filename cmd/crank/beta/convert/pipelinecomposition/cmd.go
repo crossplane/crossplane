@@ -20,9 +20,10 @@ package pipelinecomposition
 
 import (
 	"bufio"
-	"io"
+	"fmt"
 	"os"
 
+	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -84,7 +85,7 @@ func (c *Cmd) AfterApply() error {
 }
 
 // Run converts a classic Composition to a function pipeline Composition.
-func (c *Cmd) Run() error {
+func (c *Cmd) Run(k *kong.Context) error {
 	data, err := commonio.Read(c.fs, c.InputFile)
 	if err != nil {
 		return err
@@ -101,7 +102,8 @@ func (c *Cmd) Run() error {
 		return errors.Wrap(err, "Error generating new Composition")
 	}
 	if out == nil {
-		return nil
+		_, err = fmt.Fprintf(k.Stderr, "No changes needed.\n")
+		return errors.Wrap(err, "unable to write to stderr")
 	}
 
 	outWithEnv, err := compositionenvironment.ConvertToFunctionEnvironmentConfigs(out, c.FunctionEnvironmentConfigRef)
@@ -117,7 +119,7 @@ func (c *Cmd) Run() error {
 		return errors.Wrap(err, "Unable to marshal back to yaml")
 	}
 
-	var output io.Writer = os.Stdout
+	var output = k.Stdout
 	if outputFileName := c.OutputFile; outputFileName != "" {
 		f, err := c.fs.OpenFile(outputFileName, os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
