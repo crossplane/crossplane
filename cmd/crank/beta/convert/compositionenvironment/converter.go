@@ -80,11 +80,6 @@ func ConvertToFunctionEnvironmentConfigs(in *unstructured.Unstructured, function
 		return nil, errors.Wrap(err, "failed to delete environment")
 	}
 
-	// We can drop environmentConfigRefs as well
-	if err := out.DeleteField("spec.environmentConfigRefs"); err != nil && !fieldpath.IsNotFound(err) {
-		return nil, errors.Wrap(err, "failed to delete environmentConfigRefs")
-	}
-
 	// Add function-environment-configs to the pipeline
 	var pipeline []map[string]any
 	if err := out.GetValueInto("spec.pipeline", &pipeline); err != nil {

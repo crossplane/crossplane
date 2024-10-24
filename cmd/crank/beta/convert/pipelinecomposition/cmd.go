@@ -90,7 +90,6 @@ func (c *Cmd) Run() error {
 		return err
 	}
 
-	// Set up schemes for our API types
 	u := &unstructured.Unstructured{}
 
 	if err := yaml.Unmarshal(data, u); err != nil {

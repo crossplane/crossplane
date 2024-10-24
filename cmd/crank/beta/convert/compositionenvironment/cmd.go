@@ -50,19 +50,20 @@ func (c *Cmd) Help() string {
 	return `
 This command converts a Crossplane Composition to use function-environment-configs, if needed.
 
-By default it adds a function pipeline step using 
-crossplane-contrib/function-environment-configs, by default it'll reference the function as
-function-environment-configs, but it can be overridden with the -f flag.
+It adds a function pipeline step using crossplane-contrib/function-environment-configs, if needed.
+By default it'll reference the function as function-environment-configs, but it can be overridden
+with the -f flag.
 
 Examples:
 
-  # Convert an existing Composition to use Pipelines
+  # Convert an existing Composition (Pipeline mode) leveraging native
+  # Composition Environment to use function-environment-configs.
   crossplane beta convert composition-environment composition.yaml -o composition-environment.yaml
 
-  # Use a different functionRef and output to stdout
+  # Use a different functionRef and output to stdout.
   crossplane beta convert composition-environment composition.yaml --function-environment-configs-ref local-function-environment-configs
 
-  # Stdin to stdout
+  # Stdin to stdout.
   cat composition.yaml | ./crossplane beta convert composition-environment
 
 `
@@ -81,7 +82,6 @@ func (c *Cmd) Run() error {
 		return err
 	}
 
-	// Set up schemes for our API types
 	u := &unstructured.Unstructured{}
 
 	if err := yaml.Unmarshal(data, u); err != nil {

@@ -87,7 +87,7 @@ func convertPnTToPipeline(in *unstructured.Unstructured, functionRefName string)
 		return nil, errors.Wrap(err, "failed to migrate patchSets")
 	}
 
-	// Copy spec.resources, if
+	// Copy spec.resources, if any, and migrate all patches
 	if err := migrateResources(out, fptInputPaved); err != nil {
 		return nil, errors.Wrap(err, "failed to migrate resources")
 	}

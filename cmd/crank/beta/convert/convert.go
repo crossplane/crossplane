@@ -48,7 +48,7 @@ Examples:
   crossplane beta convert pipeline-composition composition.yaml -o pipeline-composition.yaml
 
   # Convert an existing Composition to use function-environment-configs instead of native Composition Environment,
-  # requires the composition to be in pipeline mode already.
+  # requires the composition to be in Pipeline mode already.
   crossplane beta convert composition-environment composition.yaml -o composition-environment.yaml
 `
 }
