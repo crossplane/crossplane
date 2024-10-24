@@ -1,8 +1,6 @@
 module github.com/crossplane/crossplane
 
-go 1.21
-
-toolchain go1.21.6
+go 1.21.13
 
 require (
 	dario.cat/mergo v1.0.0
