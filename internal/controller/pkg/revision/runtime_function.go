@@ -94,7 +94,19 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	if !ok {
 		return errors.Errorf("cannot apply function package hooks to %T", pr)
 	}
-	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
+
+	endpointPort := servicePort
+	for _, port := range svc.Spec.Ports {
+		if port.Name == webhookPortName {
+			portAsInt := port.TargetPort.IntValue()
+			if portAsInt == 0 {
+				return errors.Errorf("cannot determine target port of service from value %s", port.TargetPort.String())
+			}
+			endpointPort = portAsInt
+		}
+	}
+
+	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, endpointPort)
 
 	secServer := build.TLSServerSecret()
 	if err := h.client.Apply(ctx, secServer); err != nil {
