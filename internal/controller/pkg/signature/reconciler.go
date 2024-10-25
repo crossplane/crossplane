@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"

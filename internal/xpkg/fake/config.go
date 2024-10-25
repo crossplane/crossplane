@@ -3,7 +3,6 @@ package fake
 import (
 	"context"
 
-
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )

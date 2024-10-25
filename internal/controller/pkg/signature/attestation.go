@@ -13,32 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Note(turkenh): This file is copied from https://github.com/sigstore/cosign/blob/ad478088320a3c04a96b3c183bbde2205fff7bbb/pkg/policy/attestation.go#L59
+// with little modification to remove the dependency on "github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
+// which brings in a lot of dependencies. Keeping the original license above.
+
 package signature
 
 import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/in-toto/in-toto-golang/in_toto"
+	slsa02 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v0.2"
+	slsa1 "github.com/in-toto/in-toto-golang/in_toto/slsa_provenance/v1"
+	"github.com/sigstore/cosign/v2/pkg/cosign/attestation"
 	"github.com/sigstore/cosign/v2/pkg/oci"
 
-	"github.com/sigstore/cosign/v2/cmd/cosign/cli/options"
-	"github.com/sigstore/cosign/v2/pkg/cosign/attestation"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// PayloadProvider is a subset of oci.Signature that only provides the
-// Payload() method.
-type PayloadProvider interface {
-	// Payload fetches the opaque data that is being signed.
-	// This will always return data when there is no error.
-	Payload() ([]byte, error)
-}
-
-// Assert that oci.Signature implements PayloadProvider
-var _ PayloadProvider = (oci.Signature)(nil)
+const (
+	predicateCustom    = "custom"
+	predicateSLSA      = "slsaprovenance"
+	predicateSLSA02    = "slsaprovenance02"
+	predicateSLSA1     = "slsaprovenance1"
+	predicateSPDX      = "spdx"
+	predicateSPDXJSON  = "spdxjson"
+	predicateCycloneDX = "cyclonedx"
+	predicateLink      = "link"
+	predicateVuln      = "vuln"
+	predicateOpenVEX   = "openvex"
+)
 
 // AttestationToPayloadJSON takes in a verified Attestation (oci.Signature) and
 // marshals it into a JSON depending on the payload that's then consumable
@@ -56,11 +63,25 @@ var _ PayloadProvider = (oci.Signature)(nil)
 // or the predicateType is not the one they are looking for. Without returning
 // this, it's hard for users to know which attestations/predicateTypes were
 // inspected.
-func AttestationToPayloadJSON(_ context.Context, predicateType string, verifiedAttestation PayloadProvider) ([]byte, string, error) {
+func attestationToPayloadJSON(_ context.Context, predicateType string, verifiedAttestation oci.Signature) ([]byte, string, error) { //nolint:gocognit // Copied from cosign, see the above note.
+	// PredicateTypeMap is the mapping between the predicate `type` option to predicate URI.
+	PredicateTypeMap := map[string]string{
+		predicateCustom:    attestation.CosignCustomProvenanceV01,
+		predicateSLSA:      slsa02.PredicateSLSAProvenance,
+		predicateSLSA02:    slsa02.PredicateSLSAProvenance,
+		predicateSLSA1:     slsa1.PredicateSLSAProvenance,
+		predicateSPDX:      in_toto.PredicateSPDX,
+		predicateSPDXJSON:  in_toto.PredicateSPDX,
+		predicateCycloneDX: in_toto.PredicateCycloneDX,
+		predicateLink:      in_toto.PredicateLinkV1,
+		predicateVuln:      attestation.CosignVulnProvenanceV01,
+		predicateOpenVEX:   attestation.OpenVexNamespace,
+	}
+
 	if predicateType == "" {
 		return nil, "", errors.New("missing predicate type")
 	}
-	predicateURI, ok := options.PredicateTypeMap[predicateType]
+	predicateURI, ok := PredicateTypeMap[predicateType]
 	if !ok {
 		// Not a custom one, use it as is.
 		predicateURI = predicateType
@@ -102,12 +123,12 @@ func AttestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 	// with more meaningful error message.
 	var payload []byte
 	switch predicateType {
-	case options.PredicateCustom:
+	case predicateCustom:
 		payload, err = json.Marshal(statement)
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("generating CosignStatement: %w", err)
 		}
-	case options.PredicateLink:
+	case predicateLink:
 		var linkStatement in_toto.LinkStatement
 		if err := json.Unmarshal(decodedPayload, &linkStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling LinkStatement: %w", err)
@@ -116,7 +137,7 @@ func AttestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling LinkStatement: %w", err)
 		}
-	case options.PredicateSLSA:
+	case predicateSLSA:
 		var slsaProvenanceStatement in_toto.ProvenanceStatementSLSA02
 		if err := json.Unmarshal(decodedPayload, &slsaProvenanceStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling ProvenanceStatementSLSA02): %w", err)
@@ -125,7 +146,7 @@ func AttestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling ProvenanceStatementSLSA02: %w", err)
 		}
-	case options.PredicateSPDX, options.PredicateSPDXJSON:
+	case predicateSPDX, predicateSPDXJSON:
 		var spdxStatement in_toto.SPDXStatement
 		if err := json.Unmarshal(decodedPayload, &spdxStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling SPDXStatement: %w", err)
@@ -134,7 +155,7 @@ func AttestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling SPDXStatement: %w", err)
 		}
-	case options.PredicateCycloneDX:
+	case predicateCycloneDX:
 		var cyclonedxStatement in_toto.CycloneDXStatement
 		if err := json.Unmarshal(decodedPayload, &cyclonedxStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling CycloneDXStatement: %w", err)
@@ -143,7 +164,7 @@ func AttestationToPayloadJSON(_ context.Context, predicateType string, verifiedA
 		if err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("marshaling CycloneDXStatement: %w", err)
 		}
-	case options.PredicateVuln:
+	case predicateVuln:
 		var vulnStatement attestation.CosignVulnStatement
 		if err := json.Unmarshal(decodedPayload, &vulnStatement); err != nil {
 			return nil, statement.PredicateType, fmt.Errorf("unmarshaling CosignVulnStatement: %w", err)

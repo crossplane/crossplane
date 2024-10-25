@@ -587,11 +587,11 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 	)
 }
 
-func TestImageConfigVerificationPrivateKeyless(t *testing.T) {
-	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private"
+func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private-with-attestation"
 
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that we can verify signature on a private provider when signed keyless.").
+		features.NewWithDescription(t.Name(), "Tests that we can verify signature and attestations on a private provider when signed keyless.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).

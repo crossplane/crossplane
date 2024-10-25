@@ -162,6 +162,7 @@ spec:
                                   - name
                                   type: object
                               required:
+                              - hashAlgorithm
                               - secretRef
                               type: object
                             keyless:

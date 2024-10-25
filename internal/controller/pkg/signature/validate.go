@@ -79,44 +79,60 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 
 	var errs []error
 	for _, a := range config.Cosign.Authorities {
+		c.checkOpts.ClaimVerifier = cosign.SimpleClaimVerifier
+		verify := cosign.VerifyImageSignatures
+		if len(a.Attestations) > 0 {
+			c.checkOpts.ClaimVerifier = cosign.IntotoSubjectClaimVerifier
+			verify = cosign.VerifyImageAttestations
+		}
+
 		if err := c.buildCosignCheckOpts(ctx, a, ociremote.WithRemoteOptions(opts...)); err != nil {
 			errs = append(errs, errors.Errorf("authority %q: cannot build cosign check options %v", a.Name, err))
 			continue
 		}
-		if a.Keyless != nil {
-			_, ok, err := cosign.VerifyImageSignatures(ctx, ref, c.checkOpts)
-			if err != nil {
-				errs = append(errs, errors.Errorf("authority %q: keyless signature verification failed with %v", a.Name, err))
-				continue
-			}
 
-			if !ok {
-				errs = append(errs, errors.Errorf("authority %q: keyless signature verification failed", a.Name))
-				continue
-			}
+		res, ok, err := verify(ctx, ref, c.checkOpts)
+		if err != nil {
+			errs = append(errs, errors.Errorf("authority %q: signature verification failed with %v", a.Name, err))
+			continue
+		}
 
-			// If verification is successful for at least one of the authorities,
-			// return nil. Otherwise, continue with the next authority.
+		if !ok {
+			errs = append(errs, errors.Errorf("authority %q: signature verification failed", a.Name))
+			continue
+		}
+
+		// If there are no attestations, return success given that the signature
+		// verification was successful for this authority.
+		if len(a.Attestations) == 0 {
 			return nil
 		}
-		if a.Key != nil {
-			_, ok, err := cosign.VerifyImageSignatures(ctx, ref, c.checkOpts)
-			if err != nil {
-				errs = append(errs, errors.Errorf("authority %q: signature verification with provided key failed with %v", a.Name, err))
-				continue
-			}
 
-			if !ok {
-				errs = append(errs, errors.Errorf("authority %q: signature verification with provided key failed", a.Name))
-				continue
+		// If there are attestations to be verified, check if the attestation
+		// is valid for at least one of the resulting/checked
+		// signatures/attestations.
+		for _, att := range a.Attestations {
+			for _, s := range res {
+				b, _, err := attestationToPayloadJSON(ctx, att.PredicateType, s)
+				if err != nil {
+					errs = append(errs, errors.Errorf("authority %q: cannot convert attestation %q to payload JSON: %v", a.Name, att.Name, err))
+					continue
+				}
+				if len(b) == 0 {
+					errs = append(errs, errors.Errorf("authority %q: no attestation of type %q found for %q", a.Name, att.PredicateType, att.Name))
+					continue
+				}
+				// If the attestation is valid for at least one of the resulting
+				// payloads, return nil. Otherwise, continue with the next
+				// signature.
+				return nil
 			}
-
-			// If verification is successful for at least one of the authorities,
-			// return nil. Otherwise, continue with the next authority.
-			return nil
 		}
 	}
 
+	// If we reach this point, none of the authorities were able to verify the
+	// image signature or attestations. So, return an error with all the errors
+	// encountered.
 	return errors.Join(errs...)
 }
 

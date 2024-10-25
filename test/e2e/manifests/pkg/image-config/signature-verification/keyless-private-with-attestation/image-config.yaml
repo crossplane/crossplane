@@ -18,6 +18,9 @@ spec:
             identities:
               - issuer: https://github.com/login/oauth
                 subject: turkenh@gmail.com
+          attestations:
+            - name: verify attestations
+              predicateType: spdxjson
 ---
 # Checking in the credentials in plaintext is intentional as the token only has permission to pull the private image
 # used in the e2e tests, i.e. "xpkg.upbound.io/crossplane/e2e-private-provider".
