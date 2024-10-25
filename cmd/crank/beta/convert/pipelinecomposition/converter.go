@@ -62,7 +62,7 @@ func convertPnTToPipeline(in *unstructured.Unstructured, functionRefName string)
 		return nil, errors.Wrap(err, "failed to get composition mode")
 	case mode == v1.CompositionModePipeline:
 		// nothing to do
-		return in, nil
+		return nil, nil
 	}
 
 	// Set up the pipeline step
