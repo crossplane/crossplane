@@ -64,8 +64,8 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 	}
 }
 
-// WithNewPackageFn determines the type of package being reconciled.
-func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
+// WithNewPackageRevisionFn determines the type of package being reconciled.
+func WithNewPackageRevisionFn(f func() v1.PackageRevision) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackage = f
 	}
@@ -119,13 +119,13 @@ type Reconciler struct {
 	namespace      string
 	registry       string
 
-	newPackage func() v1.Package
+	newPackage func() v1.PackageRevision
 }
 
-// SetupProvider adds a controller that reconciles Providers.
-func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
-	n := "package-signature-verification/" + strings.ToLower(v1.ProviderGroupKind)
-	np := func() v1.Package { return &v1.Provider{} }
+// SetupProviderRevision adds a controller that reconciles ProviderRevisions.
+func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
+	n := "package-signature-verification/" + strings.ToLower(v1.ProviderRevisionGroupKind)
+	np := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -140,11 +140,11 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
-		For(&v1.Provider{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueProvidersForImageConfig(mgr.GetClient(), log))
+		For(&v1.ProviderRevision{}).
+		Watches(&v1beta1.ImageConfig{}, enqueueProviderRevisionsForImageConfig(mgr.GetClient(), log))
 
 	ro := []ReconcilerOption{
-		WithNewPackageFn(np),
+		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
@@ -157,10 +157,10 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), clientset, ro...)), o.GlobalRateLimiter))
 }
 
-// SetupConfiguration adds a controller that reconciles Configurations.
-func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
-	n := "package-signature-verification/" + strings.ToLower(v1.ConfigurationGroupKind)
-	np := func() v1.Package { return &v1.Configuration{} }
+// SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
+func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
+	n := "package-signature-verification/" + strings.ToLower(v1.ConfigurationRevisionGroupKind)
+	np := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -175,11 +175,11 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
-		For(&v1.Configuration{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueConfigurationsForImageConfig(mgr.GetClient(), log))
+		For(&v1.ConfigurationRevision{}).
+		Watches(&v1beta1.ImageConfig{}, enqueueConfigurationRevisionsForImageConfig(mgr.GetClient(), log))
 
 	ro := []ReconcilerOption{
-		WithNewPackageFn(np),
+		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
@@ -192,10 +192,10 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), clientset, ro...)), o.GlobalRateLimiter))
 }
 
-// SetupFunction adds a controller that reconciles Functions.
-func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
-	n := "package-signature-verification/" + strings.ToLower(v1.FunctionGroupKind)
-	np := func() v1.Package { return &v1.Function{} }
+// SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
+func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
+	n := "package-signature-verification/" + strings.ToLower(v1.FunctionRevisionGroupKind)
+	np := func() v1.PackageRevision { return &v1.FunctionRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -210,11 +210,11 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
-		For(&v1.Function{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueFunctionsForImageConfig(mgr.GetClient(), log))
+		For(&v1.FunctionRevision{}).
+		Watches(&v1beta1.ImageConfig{}, enqueueFunctionRevisionsForImageConfig(mgr.GetClient(), log))
 
 	ro := []ReconcilerOption{
-		WithNewPackageFn(np),
+		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
@@ -341,7 +341,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with successful verification")
 }
 
-func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 		ic, ok := o.(*v1beta1.ImageConfig)
 		if !ok {
@@ -351,11 +351,11 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 		if ic.Spec.Verification == nil {
 			return nil
 		}
-		// Enqueue all Providers matching the prefixes in the ImageConfig.
-		l := &v1.ProviderList{}
+		// Enqueue all ProviderRevisions matching the prefixes in the ImageConfig.
+		l := &v1.ProviderRevisionList{}
 		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list Providers.
-			log.Debug("Cannot list providers while attempting to enqueue from ImageConfig", "error", err)
+			// Nothing we can do, except logging, if we can't list ProviderRevisions.
+			log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
 			return nil
 		}
 
@@ -363,7 +363,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(p.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing provider for image config", "provider", p.Name, "imageConfig", ic.Name)
+					log.Debug("Enqueuing provider revisions for image config", "provider-revision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
 			}
@@ -372,7 +372,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 	})
 }
 
-func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+func enqueueConfigurationRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 		ic, ok := o.(*v1beta1.ImageConfig)
 		if !ok {
@@ -382,11 +382,11 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 		if ic.Spec.Verification == nil {
 			return nil
 		}
-		// Enqueue all Configurations matching the prefixes in the ImageConfig.
-		l := &v1.ConfigurationList{}
+		// Enqueue all ConfigurationRevisions matching the prefixes in the ImageConfig.
+		l := &v1.ConfigurationRevisionList{}
 		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list Configurations.
-			log.Debug("Cannot list configurations while attempting to enqueue from ImageConfig", "error", err)
+			// Nothing we can do, except logging, if we can't list ConfigurationRevisions.
+			log.Debug("Cannot list configuration revisions while attempting to enqueue from ImageConfig", "error", err)
 			return nil
 		}
 
@@ -394,7 +394,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 		for _, c := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(c.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing configuration for image config", "configuration", c.Name, "imageConfig", ic.Name)
+					log.Debug("Enqueuing configuration revisions for image config", "configuration-revision", c.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name}})
 				}
 			}
@@ -403,7 +403,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 	})
 }
 
-func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+func enqueueFunctionRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 		ic, ok := o.(*v1beta1.ImageConfig)
 		if !ok {
@@ -413,11 +413,11 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 		if ic.Spec.Verification == nil {
 			return nil
 		}
-		// Enqueue all Functions matching the prefixes in the ImageConfig.
-		l := &v1.FunctionList{}
+		// Enqueue all FunctionRevisions matching the prefixes in the ImageConfig.
+		l := &v1.FunctionRevisionList{}
 		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list Functions.
-			log.Debug("Cannot list functions while attempting to enqueue from ImageConfig", "error", err)
+			// Nothing we can do, except logging, if we can't list FunctionRevisions.
+			log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
 			return nil
 		}
 
@@ -425,7 +425,7 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 		for _, fn := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(fn.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing function for image config", "function", fn.Name, "imageConfig", ic.Name)
+					log.Debug("Enqueuing function revisions for image config", "function-revision", fn.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: fn.Name}})
 				}
 			}

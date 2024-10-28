@@ -321,18 +321,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	// Wait for signature verification to complete before proceeding.
-	if cond := p.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
-		log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-		// Initialize the installed condition if they are not already set to
-		// communicate the status of the package.
-		if p.GetCondition(v1.TypeInstalled).Status == corev1.ConditionUnknown {
-			p.SetConditions(v1.AwaitingVerification())
-			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with waiting verification")
-		}
-		return reconcile.Result{}, nil
-	}
-
 	// Get existing package revisions.
 	prs := r.newPackageRevisionList()
 	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {

@@ -235,35 +235,23 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 	}
 }
 
-// ResourcesHaveConditionWithin fails a test if the supplied resources do not
-// have (i.e. become) the supplied conditions within the supplied duration.
-// Comparison of conditions is modulo messages.
-func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
+// ResourceHasConditionWithin checks if a single resource becomes the supplied
+// conditions within the supplied duration. Comparison of conditions is modulo
+// messages.
+func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
-
-		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
-		if err != nil {
-			t.Error(err)
-			return ctx
-		}
 
 		reasons := make([]string, len(cds))
 		for i := range cds {
 			reasons[i] = string(cds[i].Reason)
 			if cds[i].Message != "" {
-				t.Errorf("message must not be set in ResourcesHaveConditionWithin: %s", cds[i].Message)
+				t.Errorf("message must not be set in ResourceHasConditionWithin: %s", cds[i].Message)
 			}
 		}
 		desired := strings.Join(reasons, ", ")
 
-		list := &unstructured.UnstructuredList{}
-		for _, o := range rs {
-			u := asUnstructured(o)
-			list.Items = append(list.Items, *u)
-			t.Logf("Waiting %s for %s to become %s...", d, identifier(u), desired)
-		}
-
+		t.Logf("Waiting %s for %s to become %s...", d, identifier(o), desired)
 		old := make([]xpv1.Condition, len(cds))
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
@@ -289,16 +277,37 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		}
 
 		start := time.Now()
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
-			objs := itemsToObjects(list.Items)
-			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), objs...)
-			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), o)
+			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(related, o)...))
 
-			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(objs...), events, toYAML(related...))
+			t.Errorf("resource did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(o), events, toYAML(related...))
 			return ctx
 		}
 
-		t.Logf("%d resources have desired conditions after %s: %s", len(rs), since(start), desired)
+		t.Logf("Resource has desired conditions after %s: %s", since(start), desired)
+		return ctx
+	}
+}
+
+// ResourcesHaveConditionWithin fails a test if the supplied resources do not
+// have (i.e. become) the supplied conditions within the supplied duration.
+// Comparison of conditions is modulo messages.
+func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
+		if err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		for _, o := range rs {
+			u := asUnstructured(o)
+			ctx = ResourceHasConditionWithin(d, u, cds...)(ctx, t, c)
+		}
+
 		return ctx
 	}
 }

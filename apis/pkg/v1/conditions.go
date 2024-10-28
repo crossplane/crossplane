@@ -70,7 +70,7 @@ const (
 // a package's signature to be verified.
 func AwaitingVerification() xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeInstalled,
+		Type:               TypeHealthy,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonAwaitingVerification,

@@ -558,6 +558,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if c := pr.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
 		pr.CleanConditions()
+		// Persist the removal of conditions and return. We'll be requeued
+		// with the updated status and resume reconciliation.
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
+	// Wait for signature verification to complete before proceeding.
+	if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
+		log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
+		// Initialize the installed condition if they are not already set to
+		// communicate the status of the package.
+		if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
+			pr.SetConditions(v1.AwaitingVerification())
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
+		}
+		return reconcile.Result{}, nil
 	}
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
