@@ -1,0 +1,15 @@
+# We don't install this directly, but we do use it to ensure the configuration is completely deleted.
+# Please note, its name will change if provider package contents changes.
+apiVersion: pkg.crossplane.io/v1
+kind: ProviderRevision
+metadata:
+  name: crossplane-contrib-provider-nop-552a394a8acc
+spec: {}
+
+---
+
+apiVersion: pkg.crossplane.io/v1
+kind: ProviderRevision
+metadata:
+  name: crossplane-contrib-provider-nop-ecc25c121431
+spec: {}
