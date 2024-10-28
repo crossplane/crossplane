@@ -189,31 +189,31 @@ func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (
 		return "", ""
 	}
 
-	for _, Container := range containers {
+	for _, c := range containers {
 		// Check if the container is running
-		if Container.State == "running" {
-			r.log.Debug("reusing Docker container", "name", Container.Names, "ID", Container.ID, "image", Container.Image)
-			addr := fmt.Sprintf("%s:%d", Container.Ports[0].IP, Container.Ports[0].PublicPort)
-			return Container.ID, addr
+		if c.State == "running" {
+			r.log.Debug("reusing Docker container", "name", c.Names, "ID", c.ID, "image", c.Image)
+			addr := fmt.Sprintf("%s:%d", c.Ports[0].IP, c.Ports[0].PublicPort)
+			return c.ID, addr
 		}
 	}
 	// trying to start the first container
-	Container := containers[0]
-	if err := cli.ContainerStart(ctx, Container.ID, container.StartOptions{}); err == nil {
-		inspect, err := cli.ContainerInspect(ctx, Container.ID)
+	c := containers[0]
+	if err := cli.ContainerStart(ctx, c.ID, container.StartOptions{}); err == nil {
+		inspect, err := cli.ContainerInspect(ctx, c.ID)
 		if err != nil {
-			r.log.Debug("could not start container", "name", Container.Names[0])
+			r.log.Debug("could not start container", "name", c.Names[0])
 			return "", ""
 		}
 		for _, bindings := range inspect.NetworkSettings.Ports {
 			if len(bindings) > 0 {
 				addr := fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort)
-				r.log.Debug("restarted Docker container", "name", Container.Names, "ID", Container.ID, "image", Container.Image)
-				return Container.ID, addr
+				r.log.Debug("restarted Docker container", "name", c.Names, "ID", c.ID, "image", c.Image)
+				return c.ID, addr
 			}
 		}
 	}
-	r.log.Debug("Container was not started", "name", Container.Names[0])
+	r.log.Debug("Container was not started", "name", c.Names[0])
 	return "", ""
 }
 
