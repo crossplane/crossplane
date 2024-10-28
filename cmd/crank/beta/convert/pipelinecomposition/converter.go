@@ -17,186 +17,188 @@ limitations under the License.
 package pipelinecomposition
 
 import (
-	"errors"
 	"fmt"
-	"strings"
-	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
-const (
-	defaultFunctionRefName = "function-patch-and-transform"
-	errNilComposition      = "provided Composition is empty"
-)
-
-// convertPnTToPipeline takes a patch-and-transform composition and returns
-// a composition where the built-in patch & transform has been moved to a
-// function. If the existing composition has PipelineMode enabled, it will
-// not change anything.
-func convertPnTToPipeline(c *v1.Composition, functionRefName string) (*v1.Composition, error) {
-	if c == nil {
-		return nil, errors.New(errNilComposition)
+func convertPnTToPipeline(in *unstructured.Unstructured, functionRefName string) (*unstructured.Unstructured, error) {
+	if in == nil {
+		return nil, errors.New("input is nil")
 	}
 
-	// If Composition is already set to run in a Pipeline, return immediately
-	if c.Spec.Mode != nil && *c.Spec.Mode == v1.CompositionModePipeline {
-		return c, nil
+	gvk := in.GetObjectKind().GroupVersionKind()
+
+	if gvk.Empty() {
+		return nil, errors.New("GroupVersionKind is empty")
 	}
 
-	// prevent null timestamps in the output. k8s apply ignores this field
-	if c.ObjectMeta.CreationTimestamp.IsZero() {
-		c.ObjectMeta.CreationTimestamp = metav1.NewTime(time.Now())
+	if gvk.Group != v1.Group {
+		return nil, errors.Errorf("GroupVersionKind Group is not %s", v1.Group)
 	}
 
-	cp := &v1.Composition{
-		TypeMeta:   c.TypeMeta,
-		ObjectMeta: c.ObjectMeta,
-		Spec: v1.CompositionSpec{
-			CompositeTypeRef:                           c.Spec.CompositeTypeRef,
-			WriteConnectionSecretsToNamespace:          c.Spec.DeepCopy().WriteConnectionSecretsToNamespace,
-			PublishConnectionDetailsWithStoreConfigRef: c.Spec.PublishConnectionDetailsWithStoreConfigRef.DeepCopy(),
-		},
+	if gvk.Kind != v1.CompositionKind {
+		return nil, errors.Errorf("GroupVersionKind Kind is not %s", v1.CompositionKind)
 	}
 
-	// Migrate existing input
-	input := &Input{
-		PatchSets: []v1.PatchSet{},
-		Resources: []v1.ComposedTemplate{},
+	out, err := fieldpath.PaveObject(in)
+	if err != nil {
+		return nil, err
 	}
 
-	if len(c.Spec.PatchSets) > 0 {
-		input.PatchSets = c.Spec.PatchSets
+	var mode v1.CompositionMode
+	err = out.GetValueInto("spec.mode", &mode)
+	switch {
+	case fieldpath.IsNotFound(err):
+		mode = v1.CompositionModeResources
+	case err != nil:
+		return nil, errors.Wrap(err, "failed to get composition mode")
+	case mode == v1.CompositionModePipeline:
+		// nothing to do
+		return nil, nil
 	}
-	if len(c.Spec.Resources) > 0 {
-		input.Resources = c.Spec.Resources
+
+	// Set up the pipeline step
+	if err := out.SetValue("spec.mode", v1.CompositionModePipeline); err != nil {
+		return nil, errors.Wrap(err, "failed to set Composition mode to Pipeline")
+	}
+
+	// Composition Environment settings are now handled by both function-patch-and-transform and function-environment-configs
+	// Prepare function-patch-and-transform input
+	fptInputPaved := fieldpath.Pave(map[string]any{
+		"apiVersion": "pt.fn.crossplane.io/v1beta1",
+		"kind":       "Resources",
+	})
+
+	// Copy spec.environment.patches to function-patch-and-transform, if any
+	if err := migrateEnvironmentPatches(out, fptInputPaved); err != nil {
+		return nil, errors.Wrap(err, "failed to migrate environment")
+	}
+
+	// Copy spec.patchSets, if any, and migrate all patches
+	if err := migratePatchSets(out, fptInputPaved); err != nil {
+		return nil, errors.Wrap(err, "failed to migrate patchSets")
+	}
+
+	// Copy spec.resources, if any, and migrate all patches
+	if err := migrateResources(out, fptInputPaved); err != nil {
+		return nil, errors.Wrap(err, "failed to migrate resources")
 	}
 
 	// Override function name if provided
-	fr := v1.FunctionReference{Name: defaultFunctionRefName}
-	if functionRefName != "" {
-		fr.Name = functionRefName
+	if functionRefName == "" {
+		functionRefName = "function-patch-and-transform"
 	}
 
-	// Set up the pipeline
-	pipelineMode := v1.CompositionModePipeline
-	cp.Spec.Mode = &pipelineMode
-
-	cp.Spec.Pipeline = []v1.PipelineStep{
-		{
-			Step:        "patch-and-transform",
-			FunctionRef: fr,
-			Input:       processFunctionInput(input),
-		},
+	if err := out.SetValue("spec.pipeline[0].step", "patch-and-transform"); err != nil {
+		return nil, errors.Wrap(err, "failed to set pipeline step")
 	}
-	return cp, nil
+
+	if err := out.SetValue("spec.pipeline[0].functionRef.name", functionRefName); err != nil {
+		return nil, errors.Wrap(err, "failed to set pipeline functionRef name")
+	}
+
+	if err := out.SetValue("spec.pipeline[0].input", fptInputPaved.UnstructuredContent()); err != nil {
+		return nil, errors.Wrap(err, "failed to set pipeline input")
+	}
+
+	return &unstructured.Unstructured{Object: out.UnstructuredContent()}, nil
 }
 
-// processFunctionInput populates any missing fields in the input to the function
-// that are required by the function but were optional in the built-in engine.
-func processFunctionInput(input *Input) *runtime.RawExtension {
-	processedInput := &Input{}
-
-	// process PatchSets
-	processedPatchSet := []v1.PatchSet{}
-	for _, patchSet := range input.PatchSets {
-		processedPatchSet = append(processedPatchSet, setMissingPatchSetFields(patchSet))
-	}
-	processedInput.PatchSets = processedPatchSet
-
-	// process Resources
-	processedResources := []v1.ComposedTemplate{}
-	for idx, resource := range input.Resources {
-		processedResources = append(processedResources, setMissingResourceFields(idx, resource))
-	}
-	processedInput.Resources = processedResources
-
-	// Wrap the input in a RawExtension
-	inputType := map[string]any{
-		"apiVersion": "pt.fn.crossplane.io/v1beta1",
-		"kind":       "Resources",
-		"patchSets":  MigratePatchPolicyInPatchSets(processedInput.PatchSets),
-		"resources":  MigratePatchPolicyInResources(processedInput.Resources),
-	}
-
-	return &runtime.RawExtension{
-		Object: &unstructured.Unstructured{Object: inputType},
-	}
-}
-
-// MigratePatchPolicyInResources processes all the patches in the given resources to migrate their patch policies.
-func MigratePatchPolicyInResources(resources []v1.ComposedTemplate) []ComposedTemplate {
-	composedTemplates := []ComposedTemplate{}
-
-	for _, resource := range resources {
-		composedTemplate := ComposedTemplate{}
-		composedTemplate.ComposedTemplate = resource
-		composedTemplate.Patches = migratePatches(resource.Patches)
-		// Conversion function above overrides the patches in the new type,
-		// so after conversion we set the underlying patches to nil to make sure
-		// there's no conflict in the serialized output.
-		composedTemplate.ComposedTemplate.Patches = nil
-		composedTemplates = append(composedTemplates, composedTemplate)
-	}
-	return composedTemplates
-}
-
-// MigratePatchPolicyInPatchSets processes all the patches in the given patch set to migrate their patch policies.
-func MigratePatchPolicyInPatchSets(patchset []v1.PatchSet) []PatchSet {
-	newPatchSets := []PatchSet{}
-
-	for _, patchSet := range patchset {
-		newpatchset := PatchSet{}
-		newpatchset.Name = patchSet.Name
-		newpatchset.Patches = migratePatches(patchSet.Patches)
-
-		newPatchSets = append(newPatchSets, newpatchset)
-	}
-
-	return newPatchSets
-}
-
-func migratePatches(patches []v1.Patch) []Patch {
-	newPatches := []Patch{}
-
-	for _, patch := range patches {
-		newpatch := Patch{}
-		newpatch.Patch = patch
-
-		if patch.Policy != nil {
-			newpatch.Policy = migratePatchPolicy(patch.Policy)
-			// Conversion function above overrides the patch policy in the new type,
-			// so after conversion we set underlying policy to nil to make sure
-			// there's no conflict in the serialized output.
-			newpatch.Patch.Policy = nil
+func migrateResources(out *fieldpath.Paved, fptInputPaved *fieldpath.Paved) error {
+	var resources []map[string]any
+	if err := out.GetValueInto("spec.resources", &resources); err == nil {
+		for idx, resource := range resources {
+			r, err := migrateResource(resource, idx)
+			if err != nil {
+				return errors.Wrap(err, "failed to migrate resource")
+			}
+			resources[idx] = r.UnstructuredContent()
 		}
-
-		newPatches = append(newPatches, newpatch)
+		if err := fptInputPaved.SetValue("resources", resources); err != nil {
+			return errors.Wrap(err, "failed to copy resources")
+		}
 	}
-
-	return newPatches
+	if err := out.DeleteField("spec.resources"); err != nil {
+		return errors.Wrap(err, "failed to delete resources")
+	}
+	return nil
 }
 
-func migratePatchPolicy(policy *v1.PatchPolicy) *PatchPolicy {
-	to := migrateMergeOptions(policy.MergeOptions)
+func migratePatchSets(out *fieldpath.Paved, fptInputPaved *fieldpath.Paved) error {
+	var patchSets []map[string]any
+	if err := out.GetValueInto("spec.patchSets", &patchSets); err == nil {
+		if err := fptInputPaved.SetValue("patchSets", patchSets); err != nil {
+			return errors.Wrap(err, "failed to copy patchSets")
+		}
+		if err := out.DeleteField("spec.patchSets"); err != nil {
+			return errors.Wrap(err, "failed to delete patchSets")
+		}
+		paths, err := fptInputPaved.ExpandWildcards("patchSets[*].patches[*]")
+		if err != nil {
+			return errors.Wrap(err, "failed to expand patchSets")
+		}
+		for _, path := range paths {
+			p := map[string]any{}
+			if err := fptInputPaved.GetValueInto(path, &p); err != nil {
+				return errors.Wrap(err, "failed to get patch")
+			}
+			paved, err := migratePatch(p)
+			if err != nil {
+				return errors.Wrap(err, "failed to migrate patch")
+			}
+			if err := fptInputPaved.SetValue(path, paved.UnstructuredContent()); err != nil {
+				return errors.Wrap(err, "failed to set patch")
+			}
+		}
+	}
+	return nil
+}
 
-	if to == nil && policy.FromFieldPath == nil {
-		// neither To nor From has been set, just return nil to use defaults for
-		// everything
+func migrateEnvironmentPatches(out *fieldpath.Paved, fptInputPaved *fieldpath.Paved) error {
+	var envPatches []map[string]any
+	if err := out.GetValueInto("spec.environment.patches", &envPatches); err == nil {
+		for idx, patch := range envPatches {
+			p, err := migratePatch(patch)
+			if err != nil {
+				return errors.Wrap(err, "failed to set environment patch type")
+			}
+			envPatches[idx] = p.UnstructuredContent()
+		}
+		if err := fptInputPaved.SetValue("environment.patches", envPatches); err != nil {
+			return errors.Wrap(err, "failed to set environment patches")
+		}
+		if err := out.DeleteField("spec.environment.patches"); err != nil {
+			return errors.Wrap(err, "failed to delete environment patches")
+		}
+	}
+
+	if err := out.DeleteField("spec.environment.patches"); err != nil && !fieldpath.IsNotFound(err) {
+		return errors.Wrap(err, "failed to delete environment")
+	}
+
+	env := map[string]any{}
+	if err := out.GetValueInto("spec.environment", &env); err != nil {
+		return errors.Wrap(err, "failed to get environment")
+	}
+
+	if len(env) != 0 {
+		// other fields left in environment, nothing to do
 		return nil
 	}
 
-	return &PatchPolicy{
-		FromFieldPath: policy.FromFieldPath,
-		ToFieldPath:   to,
+	if err := out.DeleteField("spec.environment"); err != nil {
+		return errors.Wrap(err, "failed to delete empty environment")
 	}
+
+	return nil
 }
 
 // migrateMergeOptions implements the conversion of mergeOptions to the new
@@ -208,8 +210,8 @@ func migrateMergeOptions(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
 		return nil
 	}
 
-	if isTrue(mo.KeepMapValues) {
-		if isNilOrFalse(mo.AppendSlice) {
+	if ptr.Deref(mo.KeepMapValues, false) {
+		if !ptr.Deref(mo.AppendSlice, false) {
 			// { appendSlice: nil/false, keepMapValues: true}
 			return ptr.To(ToFieldPathPolicyMergeObjects)
 		}
@@ -218,85 +220,13 @@ func migrateMergeOptions(mo *commonv1.MergeOptions) *ToFieldPathPolicy {
 		return ptr.To(ToFieldPathPolicyMergeObjectsAppendArrays)
 	}
 
-	if isTrue(mo.AppendSlice) {
+	if ptr.Deref(mo.AppendSlice, false) {
 		// { appendSlice: true, keepMapValues: nil/false }
 		return ptr.To(ToFieldPathPolicyForceMergeObjectsAppendArrays)
 	}
 
 	// { appendSlice: nil/false, keepMapValues: nil/false }
 	return ptr.To(ToFieldPathPolicyForceMergeObjects)
-}
-
-func isNilOrFalse(b *bool) bool {
-	return b == nil || !*b
-}
-
-func isTrue(b *bool) bool {
-	return b != nil && *b
-}
-
-func setMissingPatchSetFields(patchSet v1.PatchSet) v1.PatchSet {
-	p := []v1.Patch{}
-	for _, patch := range patchSet.Patches {
-		p = append(p, setMissingPatchFields(patch))
-	}
-	patchSet.Patches = p
-	return patchSet
-}
-
-func setMissingPatchFields(patch v1.Patch) v1.Patch {
-	if patch.Type == "" {
-		patch.Type = v1.PatchTypeFromCompositeFieldPath
-	}
-	if len(patch.Transforms) == 0 {
-		return patch
-	}
-	t := []v1.Transform{}
-	for _, transform := range patch.Transforms {
-		t = append(t, setTransformTypeRequiredFields(transform))
-	}
-	patch.Transforms = t
-	return patch
-}
-
-func setMissingResourceFields(idx int, rs v1.ComposedTemplate) v1.ComposedTemplate {
-	if rs.Name == nil || *rs.Name == "" {
-		rs.Name = ptr.To(strings.ToLower(fmt.Sprintf("resource-%d", idx)))
-	}
-
-	cd := []v1.ConnectionDetail{}
-	for _, detail := range rs.ConnectionDetails {
-		cd = append(cd, setMissingConnectionDetailFields(detail))
-	}
-	rs.ConnectionDetails = cd
-
-	patches := []v1.Patch{}
-	for _, patch := range rs.Patches {
-		patches = append(patches, setMissingPatchFields(patch))
-	}
-	rs.Patches = patches
-	return rs
-}
-
-// setTransformTypeRequiredFields sets fields that are required with
-// function-patch-and-transform but were optional with the built-in engine.
-func setTransformTypeRequiredFields(tt v1.Transform) v1.Transform {
-	if tt.Type == "" {
-		if tt.Math != nil {
-			tt.Type = v1.TransformTypeMath
-		}
-		if tt.String != nil {
-			tt.Type = v1.TransformTypeString
-		}
-	}
-	if tt.Type == v1.TransformTypeMath && tt.Math.Type == "" {
-		tt.Math.Type = getMathTransformType(tt)
-	}
-
-	if tt.Type == v1.TransformTypeString && tt.String.Type == "" {
-		tt.String.Type = getStringTransformType(tt)
-	}
-	return tt
 }
 
 func getMathTransformType(tt v1.Transform) v1.MathTransformType {
@@ -327,6 +257,90 @@ func getStringTransformType(tt v1.Transform) v1.StringTransformType {
 	return ""
 }
 
+// migratePatch will perform all migration steps required to ensure that the
+// given patch is in the correct format for function-patch-and-transform:
+// - default the type to FromCompositeFieldPath if it is not set
+// - migrate the patch policy to the new format
+// - enforce that all transforms have a type set.
+func migratePatch(patch map[string]any) (*fieldpath.Paved, error) {
+	p := fieldpath.Pave(patch)
+	_, err := p.GetString("type")
+	if fieldpath.IsNotFound(err) {
+		if err := p.SetValue("type", v1.PatchTypeFromCompositeFieldPath); err != nil {
+			return nil, errors.Wrap(err, "failed to set patch type")
+		}
+	}
+
+	var mo *commonv1.MergeOptions
+	if err := p.GetValueInto("policy.mergeOptions", &mo); err != nil && !fieldpath.IsNotFound(err) {
+		return nil, errors.Wrap(err, "failed to get mergeOptions")
+	}
+
+	if newPolicy := migrateMergeOptions(mo); newPolicy != nil {
+		if err := p.SetValue("policy.toFieldPath", newPolicy); err != nil {
+			return nil, errors.Wrap(err, "failed to set policy.toFieldPath")
+		}
+	}
+
+	if err := p.DeleteField("policy.mergeOptions"); err != nil && !fieldpath.IsNotFound(err) {
+		return nil, errors.Wrap(err, "failed to delete policy.mergeOptions")
+	}
+
+	var transforms []v1.Transform
+	if err := p.GetValueInto("transforms", &transforms); err == nil {
+		for idx, transform := range transforms {
+			transforms[idx] = setTransformTypeRequiredFields(transform)
+		}
+		if err := p.SetValue("transforms", transforms); err != nil {
+			return nil, errors.Wrap(err, "failed to set transforms")
+		}
+	}
+
+	return p, nil
+}
+
+// migrateResources will perform all migration steps required to ensure that the
+// given resource is in the correct format for function-patch-and-transform:
+// - set a resource name, if not set
+// - defaulting connection details, if needed
+// - migrate all patches, if needed.
+func migrateResource(resource map[string]any, idx int) (*fieldpath.Paved, error) {
+	r := fieldpath.Pave(resource)
+
+	_, err := r.GetString("name")
+	if fieldpath.IsNotFound(err) {
+		if err := r.SetValue("name", fmt.Sprintf("resource-%d", idx)); err != nil {
+			return nil, errors.Wrap(err, "failed to set resource name")
+		}
+	}
+
+	var connectionDetails []v1.ConnectionDetail
+	if err := r.GetValueInto("connectionDetails", &connectionDetails); err == nil {
+		for idx, cd := range connectionDetails {
+			connectionDetails[idx] = setMissingConnectionDetailFields(cd)
+		}
+		if err := r.SetValue("connectionDetails", connectionDetails); err != nil {
+			return nil, errors.Wrap(err, "failed to set connectionDetails")
+		}
+	}
+
+	var patches []map[string]any
+	if err := r.GetValueInto("patches", &patches); err == nil {
+		for idx, patch := range patches {
+			p, err := migratePatch(patch)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to migrate patch")
+			}
+			patches[idx] = p.UnstructuredContent()
+		}
+		if err := r.SetValue("patches", patches); err != nil {
+			return nil, errors.Wrap(err, "failed to set patches")
+		}
+	}
+
+	return r, nil
+}
+
 func setMissingConnectionDetailFields(sk v1.ConnectionDetail) v1.ConnectionDetail {
 	// Only one of the values should be set, but we are not validating it here
 	nsk := v1.ConnectionDetail{
@@ -355,4 +369,25 @@ func setMissingConnectionDetailFields(sk v1.ConnectionDetail) v1.ConnectionDetai
 		// FromValue and FromFieldPath should have a name, skip implementation for now
 	}
 	return nsk
+}
+
+// setTransformTypeRequiredFields sets fields that are required with
+// function-patch-and-transform but were optional with the built-in engine.
+func setTransformTypeRequiredFields(tt v1.Transform) v1.Transform {
+	if tt.Type == "" {
+		if tt.Math != nil {
+			tt.Type = v1.TransformTypeMath
+		}
+		if tt.String != nil {
+			tt.Type = v1.TransformTypeString
+		}
+	}
+	if tt.Type == v1.TransformTypeMath && tt.Math.Type == "" {
+		tt.Math.Type = getMathTransformType(tt)
+	}
+
+	if tt.Type == v1.TransformTypeString && tt.String.Type == "" {
+		tt.String.Type = getStringTransformType(tt)
+	}
+	return tt
 }
