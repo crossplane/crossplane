@@ -36,7 +36,7 @@ func NewCosignValidator(c client.Reader, namespace string) (*CosignValidator, er
 	defer cancel()
 
 	var err error
-	opts := &cosign.CheckOpts{}
+	opts := cosign.CheckOpts{}
 	opts.RootCerts, err = fulcioroots.Get()
 	if err != nil {
 		return nil, errors.Errorf("cannot fetch Fulcio roots: %w", err)
@@ -59,7 +59,7 @@ func NewCosignValidator(c client.Reader, namespace string) (*CosignValidator, er
 		client:    c,
 		namespace: namespace,
 
-		checkOpts: opts,
+		baseCheckOpts: opts,
 	}, nil
 }
 
@@ -68,7 +68,7 @@ type CosignValidator struct {
 	client    client.Reader
 	namespace string
 
-	checkOpts *cosign.CheckOpts
+	baseCheckOpts cosign.CheckOpts
 }
 
 // Validate validates the image signature.
@@ -79,19 +79,20 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 
 	var errs []error
 	for _, a := range config.Cosign.Authorities {
-		c.checkOpts.ClaimVerifier = cosign.SimpleClaimVerifier
-		verify := cosign.VerifyImageSignatures
-		if len(a.Attestations) > 0 {
-			c.checkOpts.ClaimVerifier = cosign.IntotoSubjectClaimVerifier
-			verify = cosign.VerifyImageAttestations
-		}
-
-		if err := c.buildCosignCheckOpts(ctx, a, ociremote.WithRemoteOptions(opts...)); err != nil {
+		co, err := c.buildCosignCheckOpts(ctx, a, ociremote.WithRemoteOptions(opts...))
+		if err != nil {
 			errs = append(errs, errors.Errorf("authority %q: cannot build cosign check options %v", a.Name, err))
 			continue
 		}
 
-		res, ok, err := verify(ctx, ref, c.checkOpts)
+		verify := cosign.VerifyImageSignatures
+		co.ClaimVerifier = cosign.SimpleClaimVerifier
+		if len(a.Attestations) > 0 {
+			verify = cosign.VerifyImageAttestations
+			co.ClaimVerifier = cosign.IntotoSubjectClaimVerifier
+		}
+
+		res, ok, err := verify(ctx, ref, co)
 		if err != nil {
 			errs = append(errs, errors.Errorf("authority %q: signature verification failed with %v", a.Name, err))
 			continue
@@ -136,12 +137,13 @@ func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, conf
 	return errors.Join(errs...)
 }
 
-func (c *CosignValidator) buildCosignCheckOpts(ctx context.Context, a v1beta1.CosignAuthority, remoteOpts ...ociremote.Option) error {
-	c.checkOpts.RegistryClientOpts = remoteOpts
+func (c *CosignValidator) buildCosignCheckOpts(ctx context.Context, a v1beta1.CosignAuthority, remoteOpts ...ociremote.Option) (*cosign.CheckOpts, error) {
+	opts := c.baseCheckOpts
 
+	opts.RegistryClientOpts = remoteOpts
 	if kl := a.Keyless; kl != nil {
 		for _, id := range kl.Identities {
-			c.checkOpts.Identities = append(c.checkOpts.Identities, cosign.Identity{
+			opts.Identities = append(opts.Identities, cosign.Identity{
 				Issuer:        id.Issuer,
 				Subject:       id.Subject,
 				IssuerRegExp:  id.IssuerRegExp,
@@ -149,36 +151,36 @@ func (c *CosignValidator) buildCosignCheckOpts(ctx context.Context, a v1beta1.Co
 			})
 		}
 		if kl.InsecureIgnoreSCT != nil {
-			c.checkOpts.IgnoreSCT = *kl.InsecureIgnoreSCT
+			opts.IgnoreSCT = *kl.InsecureIgnoreSCT
 		}
 	}
 
 	if kr := a.Key; kr != nil {
 		s := &corev1.Secret{}
 		if err := c.client.Get(ctx, types.NamespacedName{Name: kr.SecretRef.Name, Namespace: c.namespace}, s); err != nil {
-			return errors.Wrap(err, "cannot get secret")
+			return nil, errors.Wrap(err, "cannot get secret")
 		}
 		v := s.Data[kr.SecretRef.Key]
 		if len(v) == 0 {
-			return errors.Errorf("no data found for key %q in secret %q", kr.SecretRef.Key, kr.SecretRef.Name)
+			return nil, errors.Errorf("no data found for key %q in secret %q", kr.SecretRef.Key, kr.SecretRef.Name)
 		}
 		publicKey, err := cryptoutils.UnmarshalPEMToPublicKey(v)
 		if err != nil || publicKey == nil {
-			return errors.Errorf("secret %q contains an invalid public key: %w", kr.SecretRef.Key, err)
+			return nil, errors.Errorf("secret %q contains an invalid public key: %w", kr.SecretRef.Key, err)
 		}
 
 		ha, err := hashAlgorithm(a.Key.HashAlgorithm)
 		if err != nil {
-			return errors.Wrap(err, "invalid hash algorithm")
+			return nil, errors.Wrap(err, "invalid hash algorithm")
 		}
 
-		c.checkOpts.SigVerifier, err = signature.LoadVerifier(publicKey, ha)
+		opts.SigVerifier, err = signature.LoadVerifier(publicKey, ha)
 		if err != nil {
-			return errors.Wrap(err, "cannot load signature verifier")
+			return nil, errors.Wrap(err, "cannot load signature verifier")
 		}
 	}
 
-	return nil
+	return &opts, nil
 }
 
 func hashAlgorithm(algorithm string) (crypto.Hash, error) {

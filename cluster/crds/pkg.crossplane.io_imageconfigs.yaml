@@ -124,9 +124,7 @@ spec:
                                   only after the validation of the Attestation signature has been verified.
                                 properties:
                                   name:
-                                    description: |-
-                                      Name of the attestation. These can then be referenced at the CIP level
-                                      policy.
+                                    description: Name of the attestation.
                                     type: string
                                   predicateType:
                                     description: |-
@@ -184,18 +182,18 @@ spec:
                                           this identity.
                                         type: string
                                       issuerRegExp:
-                                        description: IssuerRegExp specifies a regular
-                                          expression to match the issuer for this
-                                          identity.
+                                        description: |-
+                                          IssuerRegExp specifies a regular expression to match the issuer for this identity.
+                                          This has precedence over the Issuer field.
                                         type: string
                                       subject:
                                         description: Subject defines the subject for
                                           this identity.
                                         type: string
                                       subjectRegExp:
-                                        description: SubjectRegExp specifies a regular
-                                          expression to match the subject for this
-                                          identity.
+                                        description: |-
+                                          SubjectRegExp specifies a regular expression to match the subject for this identity.
+                                          This has precedence over the Subject field.
                                         type: string
                                     type: object
                                   type: array
@@ -207,10 +205,7 @@ spec:
                               - identities
                               type: object
                             name:
-                              description: |-
-                                Name is the name for this authority.
-                                verifications.
-                                If not specified, the name will be authority-<index in array>
+                              description: Name is the name for this authority.
                               type: string
                           required:
                           - name

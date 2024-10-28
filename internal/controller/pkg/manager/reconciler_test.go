@@ -124,7 +124,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(_ client.Object) error { return nil }),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
-								want.SetConditions(v1.WaitingVerification())
+								want.SetConditions(v1.AwaitingVerification())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -151,13 +151,13 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
-								p.SetConditions(v1.VerificationFailed("foo", []error{errBoom}))
+								p.SetConditions(v1.VerificationFailed("foo", errBoom))
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
-								want.SetConditions(v1.VerificationFailed("foo", []error{errBoom}))
-								want.SetConditions(v1.WaitingVerification())
+								want.SetConditions(v1.VerificationFailed("foo", errBoom))
+								want.SetConditions(v1.AwaitingVerification())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -190,7 +190,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetConditions(v1.VerificationIncomplete(errBoom))
-								want.SetConditions(v1.WaitingVerification())
+								want.SetConditions(v1.AwaitingVerification())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}

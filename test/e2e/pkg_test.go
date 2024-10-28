@@ -536,7 +536,7 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-unsigned.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
-				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "configuration-unsigned.yaml", pkgv1.WaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "configuration-unsigned.yaml", pkgv1.AwaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-signed.yaml"),
@@ -568,7 +568,7 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
-				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-unsigned.yaml", pkgv1.WaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-unsigned.yaml", pkgv1.AwaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),
@@ -604,7 +604,7 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-unsigned.yaml"),
 			)).
 			Assess("SignatureVerificationFailed", funcs.AllOf(
-				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-unsigned.yaml", pkgv1.WaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "provider-unsigned.yaml", pkgv1.AwaitingVerification(), pkgv1.VerificationFailed("", nil).WithMessage("")),
 			)).
 			Assess("SignatureVerificationSucceeded", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-signed.yaml"),

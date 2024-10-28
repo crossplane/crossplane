@@ -22,7 +22,7 @@ type ConfigStore interface {
 	// name of the pull secret for a given image.
 	PullSecretFor(ctx context.Context, image string) (imageConfig, pullSecret string, err error)
 	// ImageVerificationConfigFor returns the ImageConfig for a given image.
-	ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *v1beta1.ImageVerification, err error)
+	ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, iv *v1beta1.ImageVerification, err error)
 }
 
 // isValidConfig is a function that determines if an ImageConfig is valid while
@@ -72,7 +72,7 @@ func (s *ImageConfigStore) PullSecretFor(ctx context.Context, image string) (ima
 }
 
 // ImageVerificationConfigFor returns the ImageConfig for a given image.
-func (s *ImageConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, verificationConfig *v1beta1.ImageVerification, err error) {
+func (s *ImageConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, iv *v1beta1.ImageVerification, err error) {
 	config, err := s.bestMatch(ctx, image, func(c *v1beta1.ImageConfig) bool {
 		return c.Spec.Verification != nil
 	})

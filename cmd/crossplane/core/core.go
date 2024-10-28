@@ -403,6 +403,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// we already use it for caching package images.
 	// Check the following to see how it defaults otherwise and where those
 	// ".sigstore/root" is coming from: https://github.com/sigstore/sigstore/blob/ecaaf75cf3a942cf224533ae15aee6eec19dc1e2/pkg/tuf/client.go#L558
+	// Check the following to read more about what TUF is and why it exists
+	// in this context: https://blog.sigstore.dev/the-update-framework-and-you-2f5cbaa964d5/
 	if err = os.Setenv("TUF_ROOT", filepath.Join(c.CacheDir, ".sigstore", "root")); err != nil {
 		return errors.Wrap(err, "cannot set TUF_ROOT environment variable")
 	}

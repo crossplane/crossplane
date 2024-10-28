@@ -322,12 +322,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Wait for signature verification to complete before proceeding.
-	if cond := p.GetCondition(v1.TypeSignatureVerificationComplete); cond.Status != corev1.ConditionTrue {
-		log.Debug("Waiting for signature verification to be complete.", "condition", cond)
-		// Initialize the installed and healthy conditions if they are not
-		// already set to communicate the status of the package.
+	if cond := p.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
+		log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
+		// Initialize the installed condition if they are not already set to
+		// communicate the status of the package.
 		if p.GetCondition(v1.TypeInstalled).Status == corev1.ConditionUnknown {
-			p.SetConditions(v1.WaitingVerification())
+			p.SetConditions(v1.AwaitingVerification())
 			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with waiting verification")
 		}
 		return reconcile.Result{}, nil

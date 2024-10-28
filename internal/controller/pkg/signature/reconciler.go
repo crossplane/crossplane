@@ -273,7 +273,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// either the verification skipped or succeeded. Once we have this condition,
 	// it doesn't make sense to verify the signature again since the package is
 	// already deployed.
-	if cond := p.GetCondition(v1.TypeSignatureVerificationComplete); cond.Status == corev1.ConditionTrue {
+	if cond := p.GetCondition(v1.TypeVerified); cond.Status == corev1.ConditionTrue {
 		return reconcile.Result{}, nil
 	}
 
@@ -330,7 +330,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err = r.validator.Validate(ctx, ref, vc, remote.WithAuthFromKeychain(auth)); err != nil {
 		log.Debug("Signature verification failed", "error", err)
-		p.SetConditions(v1.VerificationFailed(ic, []error{err}))
+		p.SetConditions(v1.VerificationFailed(ic, err))
 		if err = r.client.Status().Update(ctx, p); err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "cannot update status with failed verification")
 		}
