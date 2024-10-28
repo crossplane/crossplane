@@ -55,7 +55,7 @@ delighting the community.
     fill this gap in the ecosystem.
   * The [Upjet framework] has become very popular for creating and maintaining
     Providers, and has lots of functionality to invest in.
-    * The special interested group for Upjet is a great place to meet and
+    * The special interest group for Upjet is a great place to meet and
       collaborate with other Upjet contributors: [#sig-upjet][sig-upjet-slack]
   * [`provider-kubernetes`] and [`provider-helm`] are very popular utility
     Providers and thus contributions to these Providers have a lot of impact.
