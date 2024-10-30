@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sigstore/cosign/v2/pkg/cosign"
@@ -16,6 +17,7 @@ import (
 	"github.com/sigstore/sigstore/pkg/signature"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -27,11 +29,11 @@ const fetchCertTimeout = 30 * time.Second
 
 // Validator validates image signatures.
 type Validator interface {
-	Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, opts ...remote.Option) error
+	Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, pullSecrets ...string) error
 }
 
 // NewCosignValidator returns a new CosignValidator.
-func NewCosignValidator(c client.Reader, namespace string) (*CosignValidator, error) {
+func NewCosignValidator(c client.Reader, k kubernetes.Interface, namespace, serviceAccount string) (*CosignValidator, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), fetchCertTimeout)
 	defer cancel()
 
@@ -56,8 +58,10 @@ func NewCosignValidator(c client.Reader, namespace string) (*CosignValidator, er
 	}
 
 	return &CosignValidator{
-		client:    c,
-		namespace: namespace,
+		client:         c,
+		clientset:      k,
+		namespace:      namespace,
+		serviceAccount: serviceAccount,
 
 		baseCheckOpts: opts,
 	}, nil
@@ -65,21 +69,32 @@ func NewCosignValidator(c client.Reader, namespace string) (*CosignValidator, er
 
 // CosignValidator validates image signatures using cosign.
 type CosignValidator struct {
-	client    client.Reader
-	namespace string
+	client         client.Reader
+	clientset      kubernetes.Interface
+	namespace      string
+	serviceAccount string
 
 	baseCheckOpts cosign.CheckOpts
 }
 
 // Validate validates the image signature.
-func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, opts ...remote.Option) error {
+func (c *CosignValidator) Validate(ctx context.Context, ref name.Reference, config *v1beta1.ImageVerification, pullSecrets ...string) error {
 	if config.Provider != v1beta1.ImageVerificationProviderCosign {
 		return errors.New("unsupported image verification provider")
 	}
 
+	auth, err := k8schain.New(ctx, c.clientset, k8schain.Options{
+		Namespace:          c.namespace,
+		ServiceAccountName: c.serviceAccount,
+		ImagePullSecrets:   pullSecrets,
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot create k8s auth chain")
+	}
+
 	var errs []error
 	for _, a := range config.Cosign.Authorities {
-		co, err := c.buildCosignCheckOpts(ctx, a, ociremote.WithRemoteOptions(opts...))
+		co, err := c.buildCosignCheckOpts(ctx, a, ociremote.WithRemoteOptions(remote.WithAuthFromKeychain(auth)))
 		if err != nil {
 			errs = append(errs, errors.Errorf("authority %q: cannot build cosign check options %v", a.Name, err))
 			continue

@@ -31,3 +31,10 @@ func NewMockConfigStorePullSecretForFn(imageConfig, pullSecret string, err error
 		return imageConfig, pullSecret, err
 	}
 }
+
+// NewMockConfigStoreImageVerificationConfigForFn creates a new MockImageVerificationConfigFor function for MockConfigStore.
+func NewMockConfigStoreImageVerificationConfigForFn(imageConfig string, verificationConfig *v1beta1.ImageVerification, err error) func(context.Context, string) (string, *v1beta1.ImageVerification, error) {
+	return func(context.Context, string) (string, *v1beta1.ImageVerification, error) {
+		return imageConfig, verificationConfig, err
+	}
+}

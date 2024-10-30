@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -187,7 +186,6 @@ func TestReconcile(t *testing.T) {
 
 	type args struct {
 		mgr manager.Manager
-		req reconcile.Request
 		rec []ReconcilerOption
 	}
 	type want struct {
@@ -204,7 +202,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not return and error and not requeue if package not found.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -220,7 +217,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if getting package fails.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -236,7 +232,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if revision is deleted and we fail to clear image cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithCache(&xpkgfake.MockCache{
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
@@ -262,7 +257,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if revision is deleted and we fail to remove it from package Lock.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -292,7 +286,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if revision is deleted and we fail to remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -321,7 +314,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if revision is deleted and we successfully remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -350,7 +342,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to add finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -371,7 +362,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if package content is in cache, we cannot get it, but we remove it successfully.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -409,7 +399,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get package pull secret from image configs.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -441,7 +430,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if package content is in cache, we cannot get it, and we fail to remove it.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -479,7 +467,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if package content is not in cache and pull policy is Never.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ConfigurationRevision{
@@ -529,7 +516,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to initialize parser backend.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -573,7 +559,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if fail to parse the package from the cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -618,7 +603,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to parse the package from the image.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -664,7 +648,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to parse the package from the image and fail to cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -711,7 +694,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to parse the package from the image, fail to cache, and fail to delete from cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -758,7 +740,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if fail to lint the package.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -808,7 +789,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if Crossplane version is incompatible.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -873,7 +853,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if not exactly one meta package type.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -920,7 +899,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to update our annotations.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -972,7 +950,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to resolve dependencies.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -1040,7 +1017,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if pre establishment runtimeHook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1109,7 +1085,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if post establishment runtimeHook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1180,7 +1155,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1245,7 +1219,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision with incompatible Crossplane version should install successfully when constraints ignored.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1314,7 +1287,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision that fails to establish control should return an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1380,7 +1352,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An inactive revision that fails to establish ownership should return an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ConfigurationRevision{
@@ -1450,7 +1421,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An inactive revision without ObjectRefs should be deactivated successfully by pulling/parsing the package again.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -1518,7 +1488,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An inactive revision with ObjectRefs should be deactivated successfully without pulling/parsing the package again.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ConfigurationRevision{
@@ -1584,7 +1553,6 @@ func TestReconcile(t *testing.T) {
 			reason: "Pause reconciliation if the pause annotation is set.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1639,7 +1607,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1705,7 +1672,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should wait until signature verification is complete before proceeding and communicate this with the Healthy condition.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithFeatureFlags(signatureVerificationEnabled()),
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
@@ -1731,7 +1697,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should keep waiting if signature verification failed and communicate this with the Healthy condition.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithFeatureFlags(signatureVerificationEnabled()),
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
@@ -1760,7 +1725,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should keep waiting if signature verification incomplete and communicate this with the Healthy condition.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithFeatureFlags(signatureVerificationEnabled()),
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
@@ -1789,7 +1753,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithFeatureFlags(signatureVerificationEnabled()),
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),

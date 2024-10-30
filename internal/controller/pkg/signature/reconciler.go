@@ -22,9 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,9 +47,12 @@ const (
 )
 
 const (
-	errGetPackage          = "cannot get package"
-	errParseReference      = "cannot parse package image reference"
-	errNewKubernetesClient = "cannot create new Kubernetes clientset"
+	errGetRevision           = "cannot get package revision"
+	errParseReference        = "cannot parse package image reference"
+	errNewKubernetesClient   = "cannot create new Kubernetes clientset"
+	errGetVerificationConfig = "cannot get image verification config"
+	errGetConfigPullSecret   = "cannot get image config pull secret for image"
+	errFailedVerification    = "signature verification failed"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -111,7 +112,6 @@ func WithValidator(v Validator) ReconcilerOption {
 // Reconciler reconciles package for signature verification.
 type Reconciler struct {
 	client         client.Client
-	clientset      kubernetes.Interface
 	config         xpkg.ConfigStore
 	validator      Validator
 	log            logging.Logger
@@ -132,7 +132,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errNewKubernetesClient)
 	}
 
-	cosignValidator, err := NewCosignValidator(mgr.GetClient(), o.Namespace)
+	cosignValidator, err := NewCosignValidator(mgr.GetClient(), clientset, o.Namespace, o.ServiceAccount)
 	if err != nil {
 		return errors.Wrap(err, "cannot create cosign validator")
 	}
@@ -154,7 +154,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), clientset, ro...)), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), ro...)), o.GlobalRateLimiter))
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
@@ -167,7 +167,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errNewKubernetesClient)
 	}
 
-	cosignValidator, err := NewCosignValidator(mgr.GetClient(), o.Namespace)
+	cosignValidator, err := NewCosignValidator(mgr.GetClient(), clientset, o.Namespace, o.ServiceAccount)
 	if err != nil {
 		return errors.Wrap(err, "cannot create cosign validator")
 	}
@@ -189,7 +189,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), clientset, ro...)), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), ro...)), o.GlobalRateLimiter))
 }
 
 // SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
@@ -202,7 +202,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errNewKubernetesClient)
 	}
 
-	cosignValidator, err := NewCosignValidator(mgr.GetClient(), o.Namespace)
+	cosignValidator, err := NewCosignValidator(mgr.GetClient(), clientset, o.Namespace, o.ServiceAccount)
 	if err != nil {
 		return errors.Wrap(err, "cannot create cosign validator")
 	}
@@ -224,15 +224,14 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), clientset, ro...)), o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(n, errors.WithSilentRequeueOnConflict(NewReconciler(mgr.GetClient(), ro...)), o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package reconciler for signature verification.
-func NewReconciler(client client.Client, clientset kubernetes.Interface, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(client client.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client:    client,
-		clientset: clientset,
-		log:       logging.NewNopLogger(),
+		client: client,
+		log:    logging.NewNopLogger(),
 	}
 
 	for _, f := range opts {
@@ -256,10 +255,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, nil
 		}
 
-		log.Debug(errGetPackage, "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetPackage)))
+		log.Debug(errGetRevision, "error", err)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetRevision)))
 		_ = r.client.Status().Update(ctx, pr)
-		return reconcile.Result{}, errors.Wrap(err, errGetPackage)
+		return reconcile.Result{}, errors.Wrap(err, errGetRevision)
 	}
 
 	log = log.WithValues(
@@ -286,9 +285,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, pr.GetSource())
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot get image verification config")))
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
 		_ = r.client.Status().Update(ctx, pr)
-		return reconcile.Result{}, errors.Wrap(err, "cannot get image verification config")
+		return reconcile.Result{}, errors.Wrap(err, errGetVerificationConfig)
 	}
 	if vc == nil || vc.Cosign == nil {
 		// No verification config found for this image, so, we will skip
@@ -314,33 +313,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	_, s, err := r.config.PullSecretFor(ctx, pr.GetSource())
 	if err != nil {
 		log.Debug("Cannot get image config pull secret for image", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot get image config pull secret for image")))
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetConfigPullSecret)))
 		_ = r.client.Status().Update(ctx, pr)
-		return reconcile.Result{}, errors.Wrap(err, "cannot get image config pull secret for image")
+		return reconcile.Result{}, errors.Wrap(err, errGetConfigPullSecret)
 	}
 	if s != "" {
 		pullSecrets = append(pullSecrets, s)
 	}
 
-	auth, err := k8schain.New(ctx, r.clientset, k8schain.Options{
-		Namespace:          r.namespace,
-		ServiceAccountName: r.serviceAccount,
-		ImagePullSecrets:   pullSecrets,
-	})
-	if err != nil {
-		log.Debug("Cannot create k8s auth chain", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot create k8s auth chain")))
-		_ = r.client.Status().Update(ctx, pr)
-		return reconcile.Result{}, errors.Wrap(err, "cannot create k8s auth chain")
-	}
-
-	if err = r.validator.Validate(ctx, ref, vc, remote.WithAuthFromKeychain(auth)); err != nil {
+	if err = r.validator.Validate(ctx, ref, vc, pullSecrets...); err != nil {
 		log.Debug("Signature verification failed", "error", err)
 		pr.SetConditions(v1.VerificationFailed(ic, err))
-		if err = r.client.Status().Update(ctx, pr); err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "cannot update status with failed verification")
+		if sErr := r.client.Status().Update(ctx, pr); sErr != nil {
+			return reconcile.Result{}, errors.Wrap(sErr, "cannot update status with failed verification")
 		}
-		return reconcile.Result{}, errors.Wrap(err, "signature verification failed")
+		return reconcile.Result{}, errors.Wrap(err, errFailedVerification)
 	}
 
 	pr.SetConditions(v1.VerificationSucceeded(ic))
