@@ -43,6 +43,10 @@ const (
 	// label to be assigned to tests that should be part of the Package Upgrade
 	// test suite.
 	SuitePackageDependencyUpgrades = "package-dependency-upgrades"
+	// SuitePackageSignatureVerification is the value for the config.LabelTestSuite
+	// label to be assigned to tests that should be part of the Signature
+	// Verification test suite.
+	SuitePackageSignatureVerification = "package-signature-verification"
 )
 
 func init() {
@@ -52,6 +56,14 @@ func init() {
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuitePackageDependencyUpgrades, config.TestSuiteDefault},
+		}),
+	)
+	environment.AddTestSuite(SuitePackageSignatureVerification,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-signature-verification}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuitePackageSignatureVerification, config.TestSuiteDefault},
 		}),
 	)
 }
@@ -526,7 +538,7 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that we can verify signature on a configuration when signed with a key.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(config.LabelTestSuite, SuitePackageSignatureVerification).
 			WithSetup("ApplyImageConfig", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
@@ -559,7 +571,7 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that we can verify signature on a provider when signed keyless.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(config.LabelTestSuite, SuitePackageSignatureVerification).
 			WithSetup("ApplyImageConfig", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),
@@ -596,7 +608,7 @@ func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that we can verify signature and attestations on a private provider when signed keyless.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(config.LabelTestSuite, SuitePackageSignatureVerification).
 			WithSetup("ApplyImageConfig", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "image-config.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "image-config.yaml"),

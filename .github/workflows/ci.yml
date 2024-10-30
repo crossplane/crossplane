@@ -224,6 +224,7 @@ jobs:
           - ssa-claims
           - realtime-compositions
           - package-dependency-upgrades
+          - package-signature-verification
 
     steps:
       - name: Checkout

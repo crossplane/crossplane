@@ -67,7 +67,7 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 // WithNewPackageRevisionFn determines the type of package being reconciled.
 func WithNewPackageRevisionFn(f func() v1.PackageRevision) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.newPackage = f
+		r.newRevision = f
 	}
 }
 
@@ -119,7 +119,7 @@ type Reconciler struct {
 	namespace      string
 	registry       string
 
-	newPackage func() v1.PackageRevision
+	newRevision func() v1.PackageRevision
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
@@ -141,7 +141,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
 		For(&v1.ProviderRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueProviderRevisionsForImageConfig(mgr.GetClient(), log))
+		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ProviderRevisionList{}))
 
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionFn(np),
@@ -176,7 +176,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
 		For(&v1.ConfigurationRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueConfigurationRevisionsForImageConfig(mgr.GetClient(), log))
+		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ConfigurationRevisionList{}))
 
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionFn(np),
@@ -211,7 +211,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
 		For(&v1.FunctionRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueFunctionRevisionsForImageConfig(mgr.GetClient(), log))
+		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.FunctionRevisionList{}))
 
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionFn(np),
@@ -250,66 +250,72 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
-	p := r.newPackage()
-	if err := r.client.Get(ctx, req.NamespacedName, p); err != nil {
+	pr := r.newRevision()
+	if err := r.client.Get(ctx, req.NamespacedName, pr); err != nil {
 		if kerrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 
 		log.Debug(errGetPackage, "error", err)
-		p.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetPackage)))
-		_ = r.client.Status().Update(ctx, p)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetPackage)))
+		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errGetPackage)
 	}
 
 	log = log.WithValues(
-		"uid", p.GetUID(),
-		"version", p.GetResourceVersion(),
-		"name", p.GetName(),
+		"uid", pr.GetUID(),
+		"version", pr.GetResourceVersion(),
+		"name", pr.GetName(),
 	)
+
+	// Only verify signatures for active revisions.
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		log.Debug("Skipping signature verification for inactive package revision")
+		return reconcile.Result{}, nil
+	}
 
 	// If signature verification is already complete, nothing to do here.
 	// A package is deployed once signature verification is complete which means
 	// either the verification skipped or succeeded. Once we have this condition,
 	// it doesn't make sense to verify the signature again since the package is
 	// already deployed.
-	if cond := p.GetCondition(v1.TypeVerified); cond.Status == corev1.ConditionTrue {
+	if cond := pr.GetCondition(v1.TypeVerified); cond.Status == corev1.ConditionTrue {
 		return reconcile.Result{}, nil
 	}
 
-	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, p.GetSource())
+	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, pr.GetSource())
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
-		p.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot get image verification config")))
-		_ = r.client.Status().Update(ctx, p)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot get image verification config")))
+		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, "cannot get image verification config")
 	}
 	if vc == nil || vc.Cosign == nil {
 		// No verification config found for this image, so, we will skip
 		// verification.
 		log.Debug("No signature verification config found for image, skipping verification")
-		p.SetConditions(v1.VerificationSkipped())
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update package status")
+		pr.SetConditions(v1.VerificationSkipped())
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update package status")
 	}
 
-	ref, err := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
+	ref, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug("Cannot parse package image reference", "error", err)
-		p.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
-		_ = r.client.Status().Update(ctx, p)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
+		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errParseReference)
 	}
 
 	pullSecrets := make([]string, 0, 2)
-	for _, s := range p.GetPackagePullSecrets() {
+	for _, s := range pr.GetPackagePullSecrets() {
 		pullSecrets = append(pullSecrets, s.Name)
 	}
 
-	_, s, err := r.config.PullSecretFor(ctx, p.GetSource())
+	_, s, err := r.config.PullSecretFor(ctx, pr.GetSource())
 	if err != nil {
 		log.Debug("Cannot get image config pull secret for image", "error", err)
-		p.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot get image config pull secret for image")))
-		_ = r.client.Status().Update(ctx, p)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot get image config pull secret for image")))
+		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, "cannot get image config pull secret for image")
 	}
 	if s != "" {
@@ -323,25 +329,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	})
 	if err != nil {
 		log.Debug("Cannot create k8s auth chain", "error", err)
-		p.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot create k8s auth chain")))
-		_ = r.client.Status().Update(ctx, p)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, "cannot create k8s auth chain")))
+		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, "cannot create k8s auth chain")
 	}
 
 	if err = r.validator.Validate(ctx, ref, vc, remote.WithAuthFromKeychain(auth)); err != nil {
 		log.Debug("Signature verification failed", "error", err)
-		p.SetConditions(v1.VerificationFailed(ic, err))
-		if err = r.client.Status().Update(ctx, p); err != nil {
+		pr.SetConditions(v1.VerificationFailed(ic, err))
+		if err = r.client.Status().Update(ctx, pr); err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "cannot update status with failed verification")
 		}
 		return reconcile.Result{}, errors.Wrap(err, "signature verification failed")
 	}
 
-	p.SetConditions(v1.VerificationSucceeded(ic))
-	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), "cannot update status with successful verification")
+	pr.SetConditions(v1.VerificationSucceeded(ic))
+	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with successful verification")
 }
 
-func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
+func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logger, list v1.PackageRevisionList) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 		ic, ok := o.(*v1beta1.ImageConfig)
 		if !ok {
@@ -352,7 +358,7 @@ func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logg
 			return nil
 		}
 		// Enqueue all ProviderRevisions matching the prefixes in the ImageConfig.
-		l := &v1.ProviderRevisionList{}
+		l := list.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Guaranteed to be this type.
 		if err := kube.List(ctx, l); err != nil {
 			// Nothing we can do, except logging, if we can't list ProviderRevisions.
 			log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
@@ -360,73 +366,11 @@ func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logg
 		}
 
 		var matches []reconcile.Request
-		for _, p := range l.Items {
+		for _, p := range l.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
 				if strings.HasPrefix(p.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing provider revisions for image config", "provider-revision", p.Name, "imageConfig", ic.Name)
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-				}
-			}
-		}
-		return matches
-	})
-}
-
-func enqueueConfigurationRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		ic, ok := o.(*v1beta1.ImageConfig)
-		if !ok {
-			return nil
-		}
-		// We only care about ImageConfigs with Cosign verification configured.
-		if ic.Spec.Verification == nil {
-			return nil
-		}
-		// Enqueue all ConfigurationRevisions matching the prefixes in the ImageConfig.
-		l := &v1.ConfigurationRevisionList{}
-		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list ConfigurationRevisions.
-			log.Debug("Cannot list configuration revisions while attempting to enqueue from ImageConfig", "error", err)
-			return nil
-		}
-
-		var matches []reconcile.Request
-		for _, c := range l.Items {
-			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(c.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing configuration revisions for image config", "configuration-revision", c.Name, "imageConfig", ic.Name)
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name}})
-				}
-			}
-		}
-		return matches
-	})
-}
-
-func enqueueFunctionRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		ic, ok := o.(*v1beta1.ImageConfig)
-		if !ok {
-			return nil
-		}
-		// We only care about ImageConfigs with Cosign verification configured.
-		if ic.Spec.Verification == nil {
-			return nil
-		}
-		// Enqueue all FunctionRevisions matching the prefixes in the ImageConfig.
-		l := &v1.FunctionRevisionList{}
-		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list FunctionRevisions.
-			log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
-			return nil
-		}
-
-		var matches []reconcile.Request
-		for _, fn := range l.Items {
-			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(fn.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing function revisions for image config", "function-revision", fn.Name, "imageConfig", ic.Name)
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: fn.Name}})
+					log.Debug("Enqueuing provider revisions for image config", "provider-revision", p.GetName(), "imageConfig", ic.Name)
+					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.GetName()}})
 				}
 			}
 		}

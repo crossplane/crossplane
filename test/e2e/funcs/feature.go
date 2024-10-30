@@ -305,7 +305,7 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 
 		for _, o := range rs {
 			u := asUnstructured(o)
-			ctx = ResourceHasConditionWithin(d, u, cds...)(ctx, t, c)
+			ResourceHasConditionWithin(d, u, cds...)(ctx, t, c)
 		}
 
 		return ctx
