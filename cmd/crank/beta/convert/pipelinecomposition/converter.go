@@ -78,12 +78,12 @@ func convertPnTToPipeline(in *unstructured.Unstructured, functionRefName string)
 	})
 
 	// Copy spec.environment.patches to function-patch-and-transform, if any
-	if err := migrateEnvironmentPatches(out, fptInputPaved); err != nil {
+	if err := migrateEnvironmentPatches(out, fptInputPaved); err != nil && !fieldpath.IsNotFound(err) {
 		return nil, errors.Wrap(err, "failed to migrate environment")
 	}
 
 	// Copy spec.patchSets, if any, and migrate all patches
-	if err := migratePatchSets(out, fptInputPaved); err != nil {
+	if err := migratePatchSets(out, fptInputPaved); err != nil && !fieldpath.IsNotFound(err) {
 		return nil, errors.Wrap(err, "failed to migrate patchSets")
 	}
 
@@ -134,29 +134,30 @@ func migrateResources(out *fieldpath.Paved, fptInputPaved *fieldpath.Paved) erro
 
 func migratePatchSets(out *fieldpath.Paved, fptInputPaved *fieldpath.Paved) error {
 	var patchSets []map[string]any
-	if err := out.GetValueInto("spec.patchSets", &patchSets); err == nil {
-		if err := fptInputPaved.SetValue("patchSets", patchSets); err != nil {
-			return errors.Wrap(err, "failed to copy patchSets")
+	if err := out.GetValueInto("spec.patchSets", &patchSets); err != nil {
+		return errors.Wrap(err, "failed to get patchSets")
+	}
+	if err := fptInputPaved.SetValue("patchSets", patchSets); err != nil {
+		return errors.Wrap(err, "failed to copy patchSets")
+	}
+	if err := out.DeleteField("spec.patchSets"); err != nil {
+		return errors.Wrap(err, "failed to delete patchSets")
+	}
+	paths, err := fptInputPaved.ExpandWildcards("patchSets[*].patches[*]")
+	if err != nil {
+		return errors.Wrap(err, "failed to expand patchSets")
+	}
+	for _, path := range paths {
+		p := map[string]any{}
+		if err := fptInputPaved.GetValueInto(path, &p); err != nil {
+			return errors.Wrap(err, "failed to get patch")
 		}
-		if err := out.DeleteField("spec.patchSets"); err != nil {
-			return errors.Wrap(err, "failed to delete patchSets")
-		}
-		paths, err := fptInputPaved.ExpandWildcards("patchSets[*].patches[*]")
+		paved, err := migratePatch(p)
 		if err != nil {
-			return errors.Wrap(err, "failed to expand patchSets")
+			return errors.Wrap(err, "failed to migrate patch")
 		}
-		for _, path := range paths {
-			p := map[string]any{}
-			if err := fptInputPaved.GetValueInto(path, &p); err != nil {
-				return errors.Wrap(err, "failed to get patch")
-			}
-			paved, err := migratePatch(p)
-			if err != nil {
-				return errors.Wrap(err, "failed to migrate patch")
-			}
-			if err := fptInputPaved.SetValue(path, paved.UnstructuredContent()); err != nil {
-				return errors.Wrap(err, "failed to set patch")
-			}
+		if err := fptInputPaved.SetValue(path, paved.UnstructuredContent()); err != nil {
+			return errors.Wrap(err, "failed to set patch")
 		}
 	}
 	return nil
