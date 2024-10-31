@@ -31,7 +31,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
-func TestConvertToFunctionEnvironmentConfigs(t *testing.T) {
+func TestConvertPnTToPipeline(t *testing.T) {
 	type args struct {
 		in           *unstructured.Unstructured
 		functionName string
@@ -46,8 +46,127 @@ func TestConvertToFunctionEnvironmentConfigs(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Success": {
-			reason: "Should successfully convert a Composition to use function-environment-configs.",
+		"SuccessWithNoEnvironment": {
+			reason: "Should successfully convert a Composition not using the environment.",
+			args: args{
+				in: fromYAML(t, `
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+   name: foo
+spec:
+   compositeTypeRef:
+      apiVersion: example.crossplane.io/v1
+      kind: XR
+   mode: Resources
+   patchSets:
+   - name: patchset-0
+     patches:
+     - type: FromCompositeFieldPath
+       fromFieldPath: "envVal"
+       toFieldPath: "spec.val"
+     - type: ToCompositeFieldPath
+       fromFieldPath: "envVal"
+       toFieldPath: "spec.val"
+       policy:
+         fromFieldPath: optional
+         mergeOptions:
+           keepMapValues: true
+   resources:
+   - name: bucket
+     base:
+       apiVersion: s3.aws.upbound.io/v1beta1
+       kind: Bucket
+       spec:
+         forProvider:
+           region: us-east-2
+     patches:
+       - type: FromEnvironmentFieldPath
+         fromFieldPath: "someFieldInTheEnvironment"
+         toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+       - type: ToEnvironmentFieldPath
+         fromFieldPath: "status.someOtherFieldInTheResource"
+         toFieldPath: "someOtherFieldInTheEnvironment"
+   - # name: resource-1 # this should be defaulted
+     base:
+       apiVersion: s3.aws.upbound.io/v1beta1
+       kind: Bucket
+       spec:
+         forProvider:
+           region: us-east-2
+     patches:
+       - type: FromEnvironmentFieldPath
+         fromFieldPath: "someFieldInTheEnvironment"
+         toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+       - # type: FromCompositeFieldPath # this should be defaulted
+         fromFieldPath: "status.someOtherFieldInTheResource"
+         toFieldPath: "someOtherFieldInTheEnvironment"
+`),
+			},
+			want: want{
+				out: fromYAML(t, `
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+   name: foo
+spec:
+  compositeTypeRef:
+    apiVersion: example.crossplane.io/v1
+    kind: XR
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      patchSets:
+      - name: patchset-0
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: "envVal"
+          toFieldPath: "spec.val"
+        - type: ToCompositeFieldPath
+          fromFieldPath: "envVal"
+          toFieldPath: "spec.val"
+          policy:
+            fromFieldPath: optional
+            toFieldPath: MergeObjects
+      resources:
+      - name: bucket
+        base:
+          apiVersion: s3.aws.upbound.io/v1beta1
+          kind: Bucket
+          spec:
+            forProvider:
+              region: us-east-2
+        patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+        - type: ToEnvironmentFieldPath
+          fromFieldPath: "status.someOtherFieldInTheResource"
+          toFieldPath: "someOtherFieldInTheEnvironment"
+      - name: resource-1
+        base:
+          apiVersion: s3.aws.upbound.io/v1beta1
+          kind: Bucket
+          spec:
+            forProvider:
+              region: us-east-2
+        patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "status.someOtherFieldInTheResource"
+          toFieldPath: "someOtherFieldInTheEnvironment"
+`),
+			},
+		},
+		"SuccessWithEnvironmentPatches": {
+			reason: "Should successfully convert a Composition using environment patches, preserving other fields in the environment.",
 			args: args{
 				in: fromYAML(t, `
 apiVersion: apiextensions.crossplane.io/v1
@@ -73,6 +192,8 @@ spec:
          mergeOptions:
            keepMapValues: true
    environment:
+      defaultData:
+        foo: bar
       environmentConfigs:
       - type: Reference
         ref:
@@ -126,6 +247,8 @@ spec:
     apiVersion: example.crossplane.io/v1
     kind: XR
   environment:
+    defaultData:
+      foo: bar
     environmentConfigs:
     - type: Reference
       ref:
@@ -195,10 +318,10 @@ spec:
 		t.Run(name, func(t *testing.T) {
 			got, err := convertPnTToPipeline(tt.args.in, tt.args.functionName)
 			if diff := cmp.Diff(tt.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("convertToFunctionEnvironmentConfigs() %s error -want, +got:\n%s", tt.reason, diff)
+				t.Errorf("convertPnTToPipeline() %s error -want, +got:\n%s", tt.reason, diff)
 			}
 			if diff := cmp.Diff(tt.want.out, got); diff != "" {
-				t.Errorf("convertToFunctionEnvironmentConfigs() %s -want, +got:\n%s", tt.reason, diff)
+				t.Errorf("convertPnTToPipeline() %s -want, +got:\n%s", tt.reason, diff)
 			}
 		})
 	}
