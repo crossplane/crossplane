@@ -78,7 +78,7 @@ func convertPnTToPipeline(in *unstructured.Unstructured, functionRefName string)
 	})
 
 	// Copy spec.environment.patches to function-patch-and-transform, if any
-	if err := migrateEnvironmentPatches(out, fptInputPaved); err != nil {
+	if err := migrateEnvironmentPatches(out, fptInputPaved); err != nil && !fieldpath.IsNotFound(err) {
 		return nil, errors.Wrap(err, "failed to migrate environment")
 	}
 

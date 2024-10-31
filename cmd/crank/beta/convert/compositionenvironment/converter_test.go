@@ -135,6 +135,51 @@ spec:
 `),
 			},
 		},
+		"SuccessWithNoEnvironment": {
+			reason: "Should do nothing if the Composition has no environment defined.",
+			args: args{
+				in: fromYAML(t, `
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+   name: foo
+spec:
+  compositeTypeRef:
+    apiVersion: example.crossplane.io/v1
+    kind: XR
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      environment:
+        patches:
+        - type: ToCompositeFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "status.someFieldFromTheEnvironment"
+      resources:
+      - name: bucket
+        base:
+          apiVersion: s3.aws.upbound.io/v1beta1
+          kind: Bucket
+          spec:
+            forProvider:
+              region: us-east-2
+        patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+        - type: ToEnvironmentFieldPath
+          fromFieldPath: "status.someOtherFieldInTheResource"
+          toFieldPath: "someOtherFieldInTheEnvironment"`),
+			},
+			want: want{
+				out: nil,
+			},
+		},
 		"FailWithResources": {
 			reason: "Should refuse to convert a Composition that still uses Resources mode.",
 			args: args{
