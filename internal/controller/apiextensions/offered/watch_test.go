@@ -123,9 +123,9 @@ func TestIsClaimCRD(t *testing.T) {
 	}
 }
 
-type addFn func(item any)
+type addFn func(item reconcile.Request)
 
-func (fn addFn) Add(item any) {
+func (fn addFn) Add(item reconcile.Request) {
 	fn(item)
 }
 
@@ -138,11 +138,11 @@ func TestAddClaim(t *testing.T) {
 		queue adder
 	}{
 		"ObjectIsNotAComposite": {
-			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ reconcile.Request) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasNilClaimReference": {
 			obj:   composite.New(),
-			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ reconcile.Request) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasClaimReference": {
 			obj: func() runtime.Object {
@@ -150,7 +150,7 @@ func TestAddClaim(t *testing.T) {
 				cp.SetClaimReference(&claim.Reference{Namespace: ns, Name: name})
 				return &cp.Unstructured
 			}(),
-			queue: addFn(func(got any) {
+			queue: addFn(func(got reconcile.Request) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s", diff)

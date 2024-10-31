@@ -478,7 +478,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// {Requeue: true}. The XR reconciler returns {Requeue: true} while waiting
 	// for composed resources to become ready, and we don't want to back off as
 	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
-	ko.RateLimiter = workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 30*time.Second)
+	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	xrGVK := d.GetCompositeGroupVersionKind()

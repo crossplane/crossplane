@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: usages.apiextensions.crossplane.io
 spec:
   group: apiextensions.crossplane.io
@@ -32,10 +32,8 @@ spec:
         description: |-
           A Usage defines a deletion blocking relationship between two resources.
 
-
           Usages prevent accidental deletion of a single resource or deletion of
           resources with dependent resources.
-
 
           Read the Crossplane documentation for
           [more information about Compositions](https://docs.crossplane.io/latest/concepts/usages).
