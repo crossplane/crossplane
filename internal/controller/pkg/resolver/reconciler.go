@@ -36,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -80,17 +79,7 @@ const (
 	errFmtSplit               = "package should have 2 segments after split but has %d"
 	errFmtDiffConstraintTypes = "a dependency package has different types of parent constraints (%v)"
 	errFmtDiffDigests         = "a dependency package has different digests in parent constraints (%v)"
-)
-
-// Event reasons.
-const (
-	reasonErrBuildDAG       event.Reason = "BuildDAGError"
-	reasonCyclicDependency  event.Reason = "CyclicDependency"
-	reasonInvalidDependency event.Reason = "InvalidDependency"
-	reasonNoValidVersion    event.Reason = "NoValidVersion"
-	reasonErrCreate         event.Reason = "CreateError"
-	reasonErrGet            event.Reason = "GetError"
-	reasonErrUpdate         event.Reason = "UpdateError"
+	errCannotUpdateStatus     = "cannot update status"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -145,13 +134,6 @@ func WithUpgradesEnabled() ReconcilerOption {
 	}
 }
 
-// WithRecorder specifies how the Reconciler should record Kubernetes events.
-func WithRecorder(er event.Recorder) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.record = er
-	}
-}
-
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client   client.Client
@@ -161,7 +143,6 @@ type Reconciler struct {
 	fetcher  xpkg.Fetcher
 	config   xpkg.ConfigStore
 	registry string
-	record   event.Recorder
 
 	upgradesEnabled bool
 }
@@ -183,7 +164,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		WithFetcher(f),
 		WithDefaultRegistry(o.DefaultRegistry),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
@@ -261,7 +241,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 			return reconcile.Result{}, errors.Wrap(err, errRemoveFinalizer)
 		}
-		return reconcile.Result{}, nil
+		lock.CleanConditions()
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	if err := r.lock.AddFinalizer(ctx, lock); err != nil {
@@ -282,7 +263,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
 		log.Debug(errBuildDAG, "error", err)
-		r.record.Event(lock, event.Warning(reasonErrBuildDAG, err))
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errBuildDAG)))
+		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
 	}
 
@@ -291,12 +273,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	_, err = dag.Sort()
 	if err != nil {
 		log.Debug(errSortDAG, "error", err)
-		r.record.Event(lock, event.Warning(reasonCyclicDependency, err))
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errSortDAG)))
+		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errSortDAG)
 	}
 
 	if len(implied) == 0 {
-		return reconcile.Result{}, nil
+		lock.SetConditions(v1beta1.ResolutionSucceeded())
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	// If we are missing a node, we want to create it. The resolver never
@@ -307,23 +291,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	depID := dep.Identifier()
 	if !ok {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
-		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
-		return reconcile.Result{}, nil
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	ref, err := name.ParseReference(depID, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
-		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
-		return reconcile.Result{}, nil
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errInvalidDependency)))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	var pkg v1.Package
 	if r.upgradesEnabled {
-		pkg, err = r.getPackageWithID(ctx, depID, dep.Type)
+		pkg, err = r.getPackageWithRef(ctx, ref.Name(), dep.Type)
 		if err != nil {
 			log.Debug("cannot get package", "error", err)
-			r.record.Event(lock, event.Warning(reasonErrGet, err))
+			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errGetDependency)))
+			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, errors.Wrap(err, errGetDependency)
 		}
 	}
@@ -334,7 +319,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		var addVer string
 		if addVer, err = r.findDependencyVersionToInstall(ctx, dep, log, ref); err != nil {
 			log.Debug(errFindDependency, "error", errors.Wrapf(err, depID, dep.Constraints))
-			r.record.Event(lock, event.Warning(reasonNoValidVersion, err))
+			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependency)))
+			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{Requeue: false}, errors.Wrap(err, errFindDependency)
 		}
 
@@ -342,8 +328,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// dictating constraints.
 		if addVer == "" {
 			log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints))
-			r.record.Event(lock, event.Warning(reasonNoValidVersion, errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
-			return reconcile.Result{Requeue: false}, nil
+			lock.SetConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtNoValidVersion, depID, dep.Constraints)))
+			return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 		}
 
 		var pack v1.Package
@@ -372,11 +358,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// it creates.
 		if err := r.client.Create(ctx, pack); err != nil && !kerrors.IsAlreadyExists(err) {
 			log.Debug(errCreateDependency, "error", err)
-			r.record.Event(lock, event.Warning(reasonErrCreate, err))
+			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
+			_ = r.client.Status().Update(ctx, lock)
 			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 		}
 
-		return reconcile.Result{}, nil
+		lock.SetConditions(v1beta1.ResolutionSucceeded())
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 	}
 
 	if !r.upgradesEnabled {
@@ -394,14 +382,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	n, err := dag.GetNode(depID)
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, depID))
-		r.record.Event(lock, event.Warning(reasonInvalidDependency, err))
-		return reconcile.Result{}, nil
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Errorf(errFmtMissingDependency, depID)))
+		_ = r.client.Status().Update(ctx, lock)
+		return reconcile.Result{}, errors.Errorf(errFmtMissingDependency, depID)
 	}
 
 	newVer, err := r.findDependencyVersionToUpgrade(ctx, ref, insVer, n, log)
 	if err != nil {
 		log.Debug(errFindDependencyUpgrade, "error", errors.Wrapf(err, depID, dep.Constraints))
-		r.record.Event(lock, event.Warning(reasonNoValidVersion, err))
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependencyUpgrade)))
+		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errFindDependencyUpgrade)
 	}
 
@@ -414,11 +404,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pkg.SetSource(fmt.Sprintf(format, ref.String(), newVer))
 	if err := r.client.Update(ctx, pkg); err != nil {
 		log.Debug(errUpdateDependency, "error", err)
-		r.record.Event(lock, event.Warning(reasonErrUpdate, err))
+		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errUpdateDependency)))
+		_ = r.client.Status().Update(ctx, lock)
 		return reconcile.Result{}, errors.Wrap(err, errUpdateDependency)
 	}
 
-	return reconcile.Result{}, nil
+	lock.SetConditions(v1beta1.ResolutionSucceeded())
+	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, lock), errCannotUpdateStatus)
 }
 
 func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1beta1.Dependency, log logging.Logger, ref name.Reference) (string, error) {
@@ -554,7 +546,12 @@ func (r *Reconciler) findDependencyVersionToUpgrade(ctx context.Context, ref nam
 	return "", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints())
 }
 
-func (r *Reconciler) getPackageWithID(ctx context.Context, id string, t v1beta1.PackageType) (v1.Package, error) { //nolint:gocognit // TODO(ezgidemirel): This function can be simplified by using a single lister for all package types.
+func (r *Reconciler) getPackageWithRef(ctx context.Context, pkgRef string, t v1beta1.PackageType) (v1.Package, error) { //nolint:gocognit // TODO(ezgidemirel): This function can be simplified by using a single lister for all package types.
+	id, _, err := splitPackage(pkgRef)
+	if err != nil {
+		return nil, err
+	}
+
 	switch t {
 	case v1beta1.ProviderPackageType:
 		l := &v1.ProviderList{}
