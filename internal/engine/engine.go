@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	kcache "k8s.io/client-go/tools/cache"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -176,6 +177,14 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 	for _, fn := range o {
 		fn(co)
 	}
+	// Note(turkenh): Controller-runtime introduced a name validation
+	// with: https://github.com/kubernetes-sigs/controller-runtime/pull/2902
+	// This makes the Start method non-idempotent, which prevents
+	// calling it in the reconcilers multiple times. We disable this
+	// validation to keep the reconcilers idempotent and given that
+	// controllers named with claim/<GR> or composite/<GR> which are
+	// already unique in the engine.
+	co.runtime.SkipNameValidation = ptr.To(true)
 
 	c, err := co.nc(name, e.mgr, co.runtime)
 	if err != nil {
