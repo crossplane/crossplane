@@ -313,6 +313,129 @@ spec:
 `),
 			},
 		},
+		"SuccessWithNoPatchSets": {
+			reason: "Should successfully convert a Composition not using PatchSets.",
+			args: args{
+				in: fromYAML(t, `
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+   name: foo
+spec:
+   compositeTypeRef:
+      apiVersion: example.crossplane.io/v1
+      kind: XR
+   mode: Resources
+   environment:
+      defaultData:
+        foo: bar
+      environmentConfigs:
+      - type: Reference
+        ref:
+           name: example-config
+      patches:
+      - type: ToCompositeFieldPath
+        fromFieldPath: "someFieldInTheEnvironment"
+        toFieldPath: "status.someFieldFromTheEnvironment"
+      - # type: FromCompositeFieldPath # this should be defaulted
+        fromFieldPath: "spec.someFieldInTheXR"
+        toFieldPath: "someFieldFromTheXR"
+   resources:
+   - name: bucket
+     base:
+       apiVersion: s3.aws.upbound.io/v1beta1
+       kind: Bucket
+       spec:
+         forProvider:
+           region: us-east-2
+     patches:
+       - type: FromEnvironmentFieldPath
+         fromFieldPath: "someFieldInTheEnvironment"
+         toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+       - type: ToEnvironmentFieldPath
+         fromFieldPath: "status.someOtherFieldInTheResource"
+         toFieldPath: "someOtherFieldInTheEnvironment"
+   - # name: resource-1 # this should be defaulted
+     base:
+       apiVersion: s3.aws.upbound.io/v1beta1
+       kind: Bucket
+       spec:
+         forProvider:
+           region: us-east-2
+     patches:
+       - type: FromEnvironmentFieldPath
+         fromFieldPath: "someFieldInTheEnvironment"
+         toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+       - # type: FromCompositeFieldPath # this should be defaulted
+         fromFieldPath: "status.someOtherFieldInTheResource"
+         toFieldPath: "someOtherFieldInTheEnvironment"
+`),
+			},
+			want: want{
+				out: fromYAML(t, `
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+   name: foo
+spec:
+  compositeTypeRef:
+    apiVersion: example.crossplane.io/v1
+    kind: XR
+  environment:
+    defaultData:
+      foo: bar
+    environmentConfigs:
+    - type: Reference
+      ref:
+        name: example-config
+  mode: Pipeline
+  pipeline:
+  - step: patch-and-transform
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      environment:
+        patches:
+        - type: ToCompositeFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "status.someFieldFromTheEnvironment"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "spec.someFieldInTheXR"
+          toFieldPath: "someFieldFromTheXR"
+      resources:
+      - name: bucket
+        base:
+          apiVersion: s3.aws.upbound.io/v1beta1
+          kind: Bucket
+          spec:
+            forProvider:
+              region: us-east-2
+        patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+        - type: ToEnvironmentFieldPath
+          fromFieldPath: "status.someOtherFieldInTheResource"
+          toFieldPath: "someOtherFieldInTheEnvironment"
+      - name: resource-1
+        base:
+          apiVersion: s3.aws.upbound.io/v1beta1
+          kind: Bucket
+          spec:
+            forProvider:
+              region: us-east-2
+        patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: "someFieldInTheEnvironment"
+          toFieldPath: "spec.forProvider.someFieldFromTheEnvironment"
+        - type: FromCompositeFieldPath
+          fromFieldPath: "status.someOtherFieldInTheResource"
+          toFieldPath: "someOtherFieldInTheEnvironment"
+`),
+			},
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
