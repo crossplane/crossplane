@@ -44,6 +44,51 @@ earthly -i -P +e2e --FLAGS="-test.failfast -destroy-kind-cluster=false"
 earthly -P +e2e --FLAGS="-test.v -test-suite=composition-webhook-schema-validation"
 ```
 
+### Accessing the Test Cluster
+
+Earthly runs e2e tests in a buildkit container, which is not directly accessible
+from host via regular `docker ps` and `docker exec` commands. To access the
+cluster, you can use the following commands:
+
+0. Make sure you have started the tests with the `-i` flag. For example:
+
+```bash
+earthly -i -P +e2e --FLAGS="-v=4"
+```
+
+1. Get the container ID of the buildkit container
+```bash
+$ docker ps | grep earthly/buildkitd
+$ export EARTHLY_CONTAINER_ID=<container_id>
+```
+
+2. Find the id of the runc container running in earthly
+```bash
+$ docker exec $EARTHLY_CONTAINER_ID buildkit-runc list
+# Export the container id of the runc container
+$ export RUNC_CONTAINER_ID=<container_id>
+```
+
+In case you have only one earthly job running, you can use the following
+shortcut to get the runc container id:
+
+```bash
+$ export RUNC_CONTAINER_ID=$(docker exec $EARTHLY_CONTAINER_ID buildkit-runc list -q)
+```
+
+3. Exec into the runc container and access the cluster
+
+```bash
+# Exec into the runc container
+$ docker exec -ti $EARTHLY_CONTAINER_ID buildkit-runc exec -t $RUNC_CONTAINER_ID sh
+# See the kind cluster
+$ kind get clusters
+crossplane-e2e-7eda80e167ed36325
+# Install kubectl
+$ apk add kubectl
+# Now you can use kubectl to access the cluster
+```
+
 ## Test Parallelism
 
 `earthly -P +e2e` runs all defined E2E tests serially. Tests do not run in
