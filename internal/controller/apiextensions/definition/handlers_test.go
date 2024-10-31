@@ -228,10 +228,10 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 }
 
 type rateLimitingQueueMock struct {
-	workqueue.RateLimitingInterface
+	workqueue.TypedRateLimitingInterface[reconcile.Request]
 	added []interface{}
 }
 
-func (f *rateLimitingQueueMock) Add(item interface{}) {
+func (f *rateLimitingQueueMock) Add(item reconcile.Request) {
 	f.added = append(f.added, item)
 }

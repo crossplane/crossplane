@@ -62,7 +62,7 @@ func IsClaimCRD() resource.PredicateFn {
 }
 
 type adder interface {
-	Add(item any)
+	Add(item reconcile.Request)
 }
 
 // EnqueueRequestForClaim enqueues a reconcile.Request for the
@@ -71,26 +71,26 @@ type EnqueueRequestForClaim struct{}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is a
 // ClaimReferencer.
-func (e *EnqueueRequestForClaim) Create(_ context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Create(_ context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	addClaim(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
 // ClaimReferencers.
-func (e *EnqueueRequestForClaim) Update(_ context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Update(_ context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	addClaim(evt.ObjectOld, q)
 	addClaim(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
 // ClaimReferencer.
-func (e *EnqueueRequestForClaim) Delete(_ context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Delete(_ context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	addClaim(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // a ClaimReferencer.
-func (e *EnqueueRequestForClaim) Generic(_ context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Generic(_ context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	addClaim(evt.Object, q)
 }
 
