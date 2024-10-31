@@ -19,6 +19,8 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // MatchType is the method used to match the image.
@@ -27,6 +29,16 @@ type MatchType string
 const (
 	// Prefix is used to match the prefix of the image.
 	Prefix MatchType = "Prefix"
+)
+
+// ImageVerificationProvider is the provider that should be used to verify the
+// image.
+type ImageVerificationProvider string
+
+const (
+	// ImageVerificationProviderCosign is the cosign provider that should be
+	// used to verify the image.
+	ImageVerificationProviderCosign ImageVerificationProvider = "Cosign"
 )
 
 // +kubebuilder:object:root=true
@@ -51,6 +63,19 @@ type ImageConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []ImageConfig `json:"items"`
+}
+
+// ImageConfigSpec contains the configuration for matching images.
+type ImageConfigSpec struct {
+	// MatchImages is a list of image matching rules that should be satisfied.
+	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
+	MatchImages []ImageMatch `json:"matchImages"`
+	// Registry is the configuration for the registry.
+	// +optional
+	Registry *RegistryConfig `json:"registry,omitempty"`
+	// Verification contains the configuration for verifying the image.
+	// +optional
+	Verification *ImageVerification `json:"verification,omitempty"`
 }
 
 // ImageMatch defines a rule for matching image.
@@ -78,12 +103,28 @@ type RegistryConfig struct {
 	Authentication *RegistryAuthentication `json:"authentication,omitempty"`
 }
 
-// ImageConfigSpec contains the configuration for matching images.
-type ImageConfigSpec struct {
-	// MatchImages is a list of image matching rules that should be satisfied.
-	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
-	MatchImages []ImageMatch `json:"matchImages"`
-	// Registry is the configuration for the registry.
+// ImageVerification contains the configuration for verifying the image.
+type ImageVerification struct {
+	// Provider is the provider that should be used to verify the image.
+	// +kubebuilder:validation:Enum=Cosign
+	Provider ImageVerificationProvider `json:"provider"`
+	// Cosign is the configuration for verifying the image using cosign.
 	// +optional
-	Registry *RegistryConfig `json:"registry,omitempty"`
+	Cosign *CosignVerificationConfig `json:"cosign,omitempty"`
+}
+
+// CosignVerificationConfig contains the configuration for verifying the image
+// using cosign.
+type CosignVerificationConfig struct {
+	// Authorities defines the rules for discovering and validating signatures.
+	Authorities []CosignAuthority `json:"authorities"`
+}
+
+// A LocalSecretKeySelector is a reference to a secret key in a predefined
+// namespace.
+type LocalSecretKeySelector struct {
+	xpv1.LocalSecretReference `json:",inline"`
+
+	// The key to select.
+	Key string `json:"key"`
 }

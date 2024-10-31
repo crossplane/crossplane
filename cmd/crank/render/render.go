@@ -117,7 +117,7 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 		}
 		contexts[fn.GetName()] = rctx
 
-		conn, err := grpc.DialContext(ctx, rctx.Target,
+		conn, err := grpc.NewClient(rctx.Target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultServiceConfig(waitForReady))
 		if err != nil {

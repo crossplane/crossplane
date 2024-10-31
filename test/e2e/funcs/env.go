@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -96,6 +97,14 @@ func AddCrossplaneTypesToScheme() env.Func {
 		_ = apiextensionsv1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = pkgv1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = secretsv1alpha1.AddToScheme(c.Client().Resources().GetScheme())
+		return ctx, nil
+	}
+}
+
+// AddCRDsToScheme adds CustomResourceDefinitions to the environment's scheme.
+func AddCRDsToScheme() env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		_ = k8sapiextensionsv1.AddToScheme(c.Client().Resources().GetScheme())
 		return ctx, nil
 	}
 }

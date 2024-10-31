@@ -883,10 +883,8 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(v1.UnknownHealth())
-								want.SetConditions(v1.Active())
+								want.Status.Conditions = []commonv1.Condition{}
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}

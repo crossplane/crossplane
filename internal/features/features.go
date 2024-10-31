@@ -44,6 +44,9 @@ const (
 	// EnableAlphaDependencyVersionUpgrades enables alpha support for upgrading the version of a package's dependencies
 	// when needed.
 	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
+
+	// EnableAlphaSignatureVerification enables alpha support for verifying the package signatures via ImageConfig API.
+	EnableAlphaSignatureVerification feature.Flag = "EnableAlphaSignatureVerification"
 )
 
 // Beta Feature Flags.

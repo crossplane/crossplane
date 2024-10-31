@@ -1,0 +1,34 @@
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: e2e-private-signed-keyless
+spec:
+  matchImages:
+    - prefix: "xpkg.upbound.io/crossplane/e2e-private-provider-signed-keyless:"
+  registry:
+    authentication:
+      pullSecretRef:
+        name: e2e-private-provider-pull-secret
+  verification:
+    provider: Cosign
+    cosign:
+      authorities:
+        - name: verify e2e signed keyless
+          keyless:
+            identities:
+              - issuer: https://github.com/login/oauth
+                subject: turkenh@gmail.com
+          attestations:
+            - name: verify attestations
+              predicateType: spdxjson
+---
+# Checking in the credentials in plaintext is intentional as the token only has permission to pull the private image
+# used in the e2e tests, i.e. "xpkg.upbound.io/crossplane/e2e-private-provider".
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: crossplane-system
+  name: e2e-private-provider-pull-secret
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJ4cGtnLnVwYm91bmQuaW8iOnsidXNlcm5hbWUiOiI4YzhlMGQyMi01YTgzLTQyMTctODk4NS1kOGVlNTNkOTFiMGIiLCJwYXNzd29yZCI6ImV5SmhiR2NpT2lKU1V6STFOaUlzSW10cFpDSTZJbFJmSWl3aWRIbHdJam9pU2xkVUluMC5leUpoZFdRaU9pSjFjR0p2ZFc1a0xtbHZJaXdpWlhod0lqb3lNRFF6T1RBd016RTBMQ0pxZEdraU9pSTRZemhsTUdReU1pMDFZVGd6TFRReU1UY3RPRGs0TlMxa09HVmxOVE5rT1RGaU1HSWlMQ0pwYzNNaU9pSm9kSFJ3Y3pvdkwyRndhUzUxY0dKdmRXNWtMbWx2TDNZeElpd2ljM1ZpSWpvaWNtOWliM1I4T0RrelpqVmxaamt0T1RJMFpTMDBZalE1TFdJMU1tWXRZek13TkdRNVpqQTVNR00xSW4wLlQzNjBBclpEMjJzNU5FV3M2cEdMU3kxRHVKc190RFVsTzZNNHpTYnF4b292QVgtWDNEb3FUc0ZBd20tVTg3VWJaZVBDX21FWGl6R1NYQTJ5MkNtaVB2RXpWdGNEMl9EbEJkd18weTVVRGNfWjhBdVhETWdpQThYSXNPSjZaSEZNVE0walY1bF9jQ25qTEx4ZUw0Q0hCcF9seTN3Z3dDVEFXT2tNN3N5WG9LUG9vY0wtRFlVei1NR2s3ZlVFTGlmOUFXYnd4WndHVTFVVnVyTFlJMzBvYXdiWnFDV3BTTmhPd0hUZFJobF9ZTmFsRnhQUVI3clUtQjNwVGdsQ1ZyVExYelhaM1hzZFZhUTU5UjdFUmNaZkRqLUdFY0RxNkRVS29VQnJPbEZvdjM0bFo0a1FzbjRTZEtLTFpzRDF2eEw3R0hhR2djX21NSHBIWGR3dHd0WklXdyIsImF1dGgiOiJPR000WlRCa01qSXROV0U0TXkwME1qRTNMVGc1T0RVdFpEaGxaVFV6WkRreFlqQmlPbVY1U21oaVIyTnBUMmxLVTFWNlNURk9hVWx6U1cxMGNGcERTVFpKYkZKbVNXbDNhV1JJYkhkSmFtOXBVMnhrVlVsdU1DNWxlVXBvWkZkUmFVOXBTakZqUjBwMlpGYzFhMHh0YkhaSmFYZHBXbGhvZDBscWIzbE5SRkY2VDFSQmQwMTZSVEJNUTBweFpFZHJhVTlwU1RSWmVtaHNUVWRSZVUxcE1ERlpWR2Q2VEZSUmVVMVVZM1JQUkdzMFRsTXhhMDlIVm14T1ZFNXJUMVJHYVUxSFNXbE1RMHB3WXpOTmFVOXBTbTlrU0ZKM1kzcHZka3d5Um5kaFV6VXhZMGRLZG1SWE5XdE1iV3gyVEROWmVFbHBkMmxqTTFacFNXcHZhV050T1dsaU0xSTRUMFJyZWxwcVZteGFhbXQwVDFSSk1GcFRNREJaYWxFMVRGZEpNVTF0V1hSWmVrMTNUa2RSTlZwcVFUVk5SMDB4U1c0d0xsUXpOakJCY2xwRU1qSnpOVTVGVjNNMmNFZE1VM2t4UkhWS2MxOTBSRlZzVHpaTk5IcFRZbkY0YjI5MlFWZ3RXRE5FYjNGVWMwWkJkMjB0VlRnM1ZXSmFaVkJEWDIxRldHbDZSMU5ZUVRKNU1rTnRhVkIyUlhwV2RHTkVNbDlFYkVKa2QxOHdlVFZWUkdOZldqaEJkVmhFVFdkcFFUaFlTWE5QU2paYVNFWk5WRTB3YWxZMWJGOWpRMjVxVEV4NFpVdzBRMGhDY0Y5c2VUTjNaM2REVkVGWFQydE5OM041V0c5TFVHOXZZMHd0UkZsVmVpMU5SMnMzWmxWRlRHbG1PVUZYWW5kNFduZEhWVEZWVm5WeVRGbEpNekJ2WVhkaVduRkRWM0JUVG1oUGQwaFVaRkpvYkY5WlRtRnNSbmhRVVZJM2NsVXRRak53Vkdkc1ExWnlWRXhZZWxoYU0xaHpaRlpoVVRVNVVqZEZVbU5hWmtScUxVZEZZMFJ4TmtSVlMyOVZRbkpQYkVadmRqTTBiRm8wYTFGemJqUlRaRXRMVEZwelJERjJlRXczUjBoaFIyZGpYMjFOU0hCSVdHUjNkSGQwV2tsWGR3PT0ifX19
