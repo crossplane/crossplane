@@ -97,6 +97,7 @@ func AddCrossplaneTypesToScheme() env.Func {
 		_ = apiextensionsv1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = pkgv1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = secretsv1alpha1.AddToScheme(c.Client().Resources().GetScheme())
+
 		return ctx, nil
 	}
 }

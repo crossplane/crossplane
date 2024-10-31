@@ -31,6 +31,7 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
@@ -104,6 +105,8 @@ func TestConfigurationWithDependency(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("ConfigurationIsHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
@@ -275,6 +278,8 @@ func TestConfigurationWithDigest(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			Assess("ConfigurationIsHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
@@ -317,6 +322,8 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
 			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration-updated.yaml"),
@@ -355,6 +362,8 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
 			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration-updated.yaml"),
@@ -395,6 +404,8 @@ func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
 			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("LockConditionDependencyResolutionSucceeded",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "lock.yaml", v1beta1.ResolutionSucceeded())). // TODO(ezgidemirel): use ResourceHasConditionWithin instead
 			// Dependencies are not automatically deleted.
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),

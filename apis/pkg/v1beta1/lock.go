@@ -19,6 +19,8 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	"github.com/crossplane/crossplane/internal/dag"
 )
 
@@ -175,6 +177,9 @@ type Lock struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Packages []LockPackage `json:"packages,omitempty"`
+
+	// Status of the Lock.
+	Status LockStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -184,4 +189,24 @@ type LockList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Lock `json:"items"`
+}
+
+// LockStatus represents the status of the Lock.
+type LockStatus struct {
+	xpv1.ConditionedStatus `json:",inline"`
+}
+
+// GetCondition of this Lock.
+func (l *Lock) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return l.Status.GetCondition(ct)
+}
+
+// SetConditions of this Lock.
+func (l *Lock) SetConditions(c ...xpv1.Condition) {
+	l.Status.SetConditions(c...)
+}
+
+// CleanConditions removes all conditions.
+func (l *Lock) CleanConditions() {
+	l.Status.Conditions = []xpv1.Condition{}
 }
