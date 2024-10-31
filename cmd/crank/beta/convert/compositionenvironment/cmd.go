@@ -103,7 +103,7 @@ func (c *Cmd) Run(k *kong.Context) error {
 		return errors.Wrap(err, "Unable to marshal back to yaml")
 	}
 
-	var output = k.Stdout
+	output := k.Stdout
 	if outputFileName := c.OutputFile; outputFileName != "" {
 		f, err := c.fs.OpenFile(outputFileName, os.O_CREATE|os.O_WRONLY, 0o644)
 		if err != nil {
