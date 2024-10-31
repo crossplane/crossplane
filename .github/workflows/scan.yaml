@@ -117,7 +117,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         with:
           name: trivy-${{ env.escaped_filename }}.sarif
           path: trivy-results.sarif
