@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.9.0
 	github.com/crossplane/crossplane-runtime v1.19.0-rc.0
-	github.com/docker/docker v27.0.3+incompatible
+	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.6.2
 	github.com/go-git/go-billy/v5 v5.5.0
