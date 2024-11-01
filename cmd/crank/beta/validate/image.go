@@ -67,19 +67,25 @@ func (f *Fetcher) FetchImage(image string) ([]conregv1.Layer, error) {
 	return layers, nil
 }
 
-// ErrBaseLayerNotFound is returned when the base layer of the image could not be found.
-type ErrBaseLayerNotFound struct {
-	error
+// BaseLayerNotFoundError is returned when the base layer of the image could not be found.
+type BaseLayerNotFoundError struct {
+	image string
 }
 
-// NewErrBaseLayerNotFound returns a new ErrBaseLayerNotFound error.
-func NewErrBaseLayerNotFound(image string) error {
-	return &ErrBaseLayerNotFound{errors.Errorf("no base layer found for image %s", image)}
+// Error implements the error interface.
+func (e *BaseLayerNotFoundError) Error() string {
+	return fmt.Sprintf("base layer not found for the image %s", e.image)
 }
 
-// IsErrBaseLayerNotFound checks if the error is of type ErrBaseLayerNotFound.
+// NewBaseLayerNotFoundError returns a new BaseLayerNotFoundError error.
+func NewBaseLayerNotFoundError(image string) error {
+	return &BaseLayerNotFoundError{image: image}
+}
+
+// IsErrBaseLayerNotFound checks if the error is of type BaseLayerNotFoundError.
 func IsErrBaseLayerNotFound(err error) bool {
-	return errors.Is(err, &ErrBaseLayerNotFound{})
+	var e *BaseLayerNotFoundError
+	return errors.As(err, &e)
 }
 
 // FetchBaseLayer fetches the base layer of the image which contains the 'package.yaml' file.
@@ -112,7 +118,7 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 		}
 	}
 	if label == "" {
-		return nil, NewErrBaseLayerNotFound(image)
+		return nil, NewBaseLayerNotFoundError(image)
 	}
 
 	lDigest := strings.SplitN(label, ":", 2)[1] // e.g.: sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
