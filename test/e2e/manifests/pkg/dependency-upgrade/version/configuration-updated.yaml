@@ -3,5 +3,5 @@ kind: Configuration
 metadata:
   name: configuration-depends-on-version
 spec:
-  # TODO: Push these to xpkg.upbound.io/crossplane/e2e-... and include package/crossplane.yaml
-  package: xpkg.upbound.io/ezgiorg/ezgi-configuration-nop:v0.1.1
+  # NOTE(ezgidemirel): This package is manually built and pushed to the registry.
+  package: xpkg.upbound.io/crossplane/e2e-depends-on-provider-nop:v0.2.1

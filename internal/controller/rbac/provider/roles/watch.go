@@ -31,7 +31,7 @@ import (
 )
 
 type adder interface {
-	Add(item any)
+	Add(item reconcile.Request)
 }
 
 // EnqueueRequestForAllRevisionsWithRequests enqueues a request for all provider
@@ -44,26 +44,26 @@ type EnqueueRequestForAllRevisionsWithRequests struct {
 
 // Create enqueues a request for all provider revisions with permission requests
 // if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsWithRequests) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions with permission requests
 // if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsWithRequests) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.ObjectOld, q)
 	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions with permission requests
 // if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsWithRequests) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions with permission
 // requests if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsWithRequests) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
@@ -100,23 +100,23 @@ type EnqueueRequestForAllRevisionsInFamily struct {
 }
 
 // Create enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsInFamily) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsInFamily) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.ObjectOld, q)
 	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsInFamily) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForAllRevisionsInFamily) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 

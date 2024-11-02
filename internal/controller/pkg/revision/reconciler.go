@@ -327,7 +327,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -381,7 +381,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry))),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -441,7 +441,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
-		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient())),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLinter(xpkg.NewFunctionLinter()),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -558,6 +558,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if c := pr.GetCondition(xpv1.ReconcilePaused().Type); c.Reason == xpv1.ReconcilePaused().Reason {
 		pr.CleanConditions()
+		// Persist the removal of conditions and return. We'll be requeued
+		// with the updated status and resume reconciliation.
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
+	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
+		// Wait for signature verification to complete before proceeding.
+		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
+			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
+			// Initialize the installed condition if they are not already set to
+			// communicate the status of the package.
+			if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
+				pr.SetConditions(v1.AwaitingVerification())
+				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
+			}
+			return reconcile.Result{}, nil
+		}
 	}
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {

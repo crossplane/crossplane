@@ -32,7 +32,7 @@ import (
 )
 
 type adder interface {
-	Add(item any)
+	Add(item reconcile.Request)
 }
 
 // EnqueueRequestForReferencingProviderRevisions enqueues a request for all
@@ -44,26 +44,26 @@ type EnqueueRequestForReferencingProviderRevisions struct {
 
 // Create enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingProviderRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingProviderRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.ObjectOld, q)
 	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingProviderRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingProviderRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
@@ -106,26 +106,26 @@ type EnqueueRequestForReferencingFunctionRevisions struct {
 
 // Create enqueues a request for all function revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingFunctionRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingFunctionRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all function revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingFunctionRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingFunctionRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.ObjectOld, q)
 	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all function revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingFunctionRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingFunctionRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all function revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingFunctionRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForReferencingFunctionRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 

@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -30,17 +32,50 @@ const (
 
 	// A TypeHealthy indicates whether a package is healthy.
 	TypeHealthy xpv1.ConditionType = "Healthy"
+
+	// A TypeVerified indicates whether a package's signature is verified.
+	// It could be either successful or skipped to be marked as complete.
+	TypeVerified xpv1.ConditionType = "Verified"
 )
 
 // Reasons a package is or is not installed.
 const (
-	ReasonUnpacking     xpv1.ConditionReason = "UnpackingPackage"
-	ReasonInactive      xpv1.ConditionReason = "InactivePackageRevision"
-	ReasonActive        xpv1.ConditionReason = "ActivePackageRevision"
-	ReasonUnhealthy     xpv1.ConditionReason = "UnhealthyPackageRevision"
-	ReasonHealthy       xpv1.ConditionReason = "HealthyPackageRevision"
-	ReasonUnknownHealth xpv1.ConditionReason = "UnknownPackageRevisionHealth"
+	ReasonAwaitingVerification xpv1.ConditionReason = "AwaitingSignatureVerification"
+	ReasonUnpacking            xpv1.ConditionReason = "UnpackingPackage"
+	ReasonInactive             xpv1.ConditionReason = "InactivePackageRevision"
+	ReasonActive               xpv1.ConditionReason = "ActivePackageRevision"
+	ReasonUnhealthy            xpv1.ConditionReason = "UnhealthyPackageRevision"
+	ReasonHealthy              xpv1.ConditionReason = "HealthyPackageRevision"
+	ReasonUnknownHealth        xpv1.ConditionReason = "UnknownPackageRevisionHealth"
 )
+
+// Reasons a package's signature is or is not verified.
+const (
+	// ReasonVerificationIncomplete indicates that signature verification is
+	// not yet complete for a package. This can occur if some error was
+	// encountered during verification.
+	ReasonVerificationIncomplete xpv1.ConditionReason = "SignatureVerificationIncomplete"
+	// ReasonVerificationSkipped indicates that signature verification was
+	// skipped for a package since no verification configuration was provided.
+	ReasonVerificationSkipped xpv1.ConditionReason = "SignatureVerificationSkipped"
+	// ReasonVerificationSucceeded indicates that a package's signature has
+	// been successfully verified.
+	ReasonVerificationSucceeded xpv1.ConditionReason = "SignatureVerificationSucceeded"
+	// ReasonVerificationFailed indicates that a package's signature
+	// verification failed.
+	ReasonVerificationFailed xpv1.ConditionReason = "SignatureVerificationFailed"
+)
+
+// AwaitingVerification indicates that the package manager is waiting for
+// a package's signature to be verified.
+func AwaitingVerification() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeHealthy,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonAwaitingVerification,
+	}
+}
 
 // Unpacking indicates that the package manager is waiting for a package
 // revision to be unpacked.
@@ -102,5 +137,52 @@ func UnknownHealth() xpv1.Condition {
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonUnknownHealth,
+	}
+}
+
+// VerificationSucceeded returns a condition indicating that a package's
+// signature has been successfully verified using the supplied image config.
+func VerificationSucceeded(imageConfig string) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeVerified,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonVerificationSucceeded,
+		Message:            fmt.Sprintf("Signature verification succeeded using ImageConfig named %q", imageConfig),
+	}
+}
+
+// VerificationFailed returns a condition indicating that a package's
+// signature verification failed using the supplied image config.
+func VerificationFailed(imageConfig string, err error) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeVerified,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonVerificationFailed,
+		Message:            fmt.Sprintf("Signature verification failed using ImageConfig named %q: %v", imageConfig, err),
+	}
+}
+
+// VerificationSkipped returns a condition indicating that signature
+// verification was skipped for a package.
+func VerificationSkipped() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeVerified,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonVerificationSkipped,
+	}
+}
+
+// VerificationIncomplete returns a condition indicating that signature
+// verification is not yet complete for a package.
+func VerificationIncomplete(err error) xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeVerified,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonVerificationIncomplete,
+		Message:            fmt.Sprintf("Error occurred during signature verification %s", err),
 	}
 }

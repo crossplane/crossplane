@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: e2e-provider-signed-keyless
+spec:
+  package: xpkg.upbound.io/crossplane/e2e-provider-signed-keyless:v0.3.0

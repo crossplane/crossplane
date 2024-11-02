@@ -34,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -170,7 +169,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -206,7 +206,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -245,7 +246,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -284,7 +286,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -323,7 +326,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -367,7 +371,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -417,7 +422,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -467,7 +473,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -517,8 +524,9 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockCreate: test.NewMockCreateFn(errBoom),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockCreate:       test.NewMockCreateFn(errBoom),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -569,8 +577,9 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockCreate: test.NewMockCreateFn(errBoom),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockCreate:       test.NewMockCreateFn(errBoom),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -621,8 +630,9 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockCreate: test.NewMockCreateFn(nil),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockCreate:       test.NewMockCreateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -673,8 +683,9 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockCreate: test.NewMockCreateFn(nil),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockCreate:       test.NewMockCreateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -716,7 +727,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							l := obj.(*v1.ProviderList)
 							l.Items = append(l.Items, v1.Provider{
@@ -785,7 +797,8 @@ func TestReconcile(t *testing.T) {
 							})
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							l := obj.(*v1.ProviderList)
 							l.Items = append(l.Items, v1.Provider{
@@ -844,7 +857,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog), WithRecorder(event.NewNopRecorder()))...)
+			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1134,8 +1147,8 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog), WithRecorder(event.NewNopRecorder()))...)
-			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier()) // nolint: errcheck // we will catch anyways if r is nil
+			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
+			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier())
 			got, err := r.findDependencyVersionToUpgrade(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1148,12 +1161,12 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 	}
 }
 
-func TestReconcilerGetPackageWithID(t *testing.T) {
+func TestReconcilerGetPackageWithRef(t *testing.T) {
 	type args struct {
-		mgr manager.Manager
-		id  string
-		t   v1beta1.PackageType
-		rec []ReconcilerOption
+		mgr    manager.Manager
+		pkgRef string
+		t      v1beta1.PackageType
+		rec    []ReconcilerOption
 	}
 	type want struct {
 		pkg v1.Package
@@ -1169,6 +1182,7 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							l := obj.(*v1.ProviderList)
 							l.Items = append(l.Items, v1.Provider{
@@ -1186,8 +1200,8 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 						}),
 					},
 				},
-				id: "cool-repo/cool-image",
-				t:  v1beta1.ProviderPackageType,
+				pkgRef: "cool-repo/cool-image:v0.0.1",
+				t:      v1beta1.ProviderPackageType,
 			},
 			want: want{
 				pkg: &v1.Provider{
@@ -1208,13 +1222,14 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
 							return nil
 						}),
 					},
 				},
-				id: "cool-repo/cool-image",
-				t:  v1beta1.ConfigurationPackageType,
+				pkgRef: "cool-repo/cool-image:v1.2.3",
+				t:      v1beta1.ConfigurationPackageType,
 			},
 			want: want{
 				pkg: nil,
@@ -1225,6 +1240,7 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							l := obj.(*v1.FunctionList)
 							l.Items = append(l.Items, v1.Function{
@@ -1242,8 +1258,8 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 						}),
 					},
 				},
-				id: "cool-repo/cool-image",
-				t:  v1beta1.FunctionPackageType,
+				pkgRef: "cool-repo/cool-image@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+				t:      v1beta1.FunctionPackageType,
 			},
 			want: want{
 				pkg: &v1.Function{
@@ -1262,14 +1278,14 @@ func TestReconcilerGetPackageWithID(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog), WithRecorder(event.NewNopRecorder()))...)
-			got, err := r.getPackageWithID(context.Background(), tc.args.id, tc.args.t)
+			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
+			got, err := r.getPackageWithRef(context.Background(), tc.args.pkgRef, tc.args.t)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nr.getPackageWithID(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.getPackageWithRef(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.pkg, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nr.getPackageWithID(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.getPackageWithRef(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -1,0 +1,7 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  annotations:
+    meta.crossplane.io/description: unsigned # change this for signed, they mush have different hashes for the test case.
+  name: e2e-configuration-signed-with-key
+spec: {}

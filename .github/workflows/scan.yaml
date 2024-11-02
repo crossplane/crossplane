@@ -99,7 +99,7 @@ jobs:
 
       # we log to DockerHub to avoid rate limiting
       - name: Login To DockerHub
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
@@ -117,7 +117,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
         with:
           name: trivy-${{ env.escaped_filename }}.sarif
           path: trivy-results.sarif

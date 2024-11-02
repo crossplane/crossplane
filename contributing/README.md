@@ -10,6 +10,97 @@ us on [Slack]. Please also take a look at our [code of conduct], which details
 how contributors are expected to conduct themselves as part of the Crossplane
 community.
 
+## Getting Started Contributing to Crossplane
+
+There is always lots of exciting work going on in the Crossplane project and
+there are many places where new contributors can start to get more involved.
+This section will help you understand the various opportunities across the
+community and where you can start contributing.
+
+To see all of the ways to connect with the rest of the community (community
+meetings, special interest groups, Slack discussions, etc.), please refer to the
+[Get Involved] section of the main README.
+
+The CNCF also maintains a very helpful [contributor
+guide][cncf-contributor-guide] that gives an excellent overview on how to get
+into open source in general and start making your first contributions. We highly
+recommend browsing this guide to kick start your contributor journey.
+
+### Crossplane Core Contributions
+
+The roadmap for improvements, fixes, and work items for Crossplane's [core] and
+[runtime] are triaged and tracked in a single [GitHub project]. Here are a few
+useful views of that project to help new contributors find areas where help is
+needed:
+
+* Issues that are useful for the project, but have lower complexity, are a great
+  fit for folks just beginning to get involved in the code base. These issues
+  are identified by the `good first issue` label.
+  * [Good first issues]
+* High priority work items are marked as P0/P1. These issues tend to have the
+  biggest impact on the project, but also tend to be complex and challenging.
+  * [P0/P1 issues with no owner]
+  * [All P0/P1 issues]
+
+### Extensions Ecosystem Contributions
+
+Now that the core functionality of Crossplane is considered fairly mature and
+stable, the vibrant ecosystem of Crossplane extensions has the most
+opportunities for contributors to get involved.  There is a wide range of
+Providers and Functions that could use your help to continue maturing and
+delighting the community.
+
+* Providers
+  * If a Provider you need doesn't exist yet, you can create a [new provider] to
+    fill this gap in the ecosystem.
+  * The [Upjet framework] has become very popular for creating and maintaining
+    Providers, and has lots of functionality to invest in.
+    * The special interest group for Upjet is a great place to meet and
+      collaborate with other Upjet contributors: [#sig-upjet][sig-upjet-slack]
+  * [`provider-kubernetes`] and [`provider-helm`] are very popular utility
+    Providers and thus contributions to these Providers have a lot of impact.
+  * Some existing Providers need new maintainers to step up from the community
+    to continue keeping them up to date and fix user reported issues. Feel free
+    to reach out to current maintainers or the [steering committee] if you want
+    to get involved with an existing Provider that you'd like to see more
+    active.
+* Functions
+  * The community is creating new Functions all the time, but there are still
+    many creative ideas left to fill unmet needs in the ecosystem that are just
+    waiting for your contribution. Get inspired with your own ideas by browsing
+    all the existing [`crossplane-contrib` Functions].
+  * [`function-patch-and-transform`] and [`function-go-templating`] are very
+    popular functions that have lots of interesting features and fixes to
+    contribute to.
+  * [`golang`][golang-sdk] and [`python`][python-sdk] have SDKs to accelerate
+    Function developers to write functions using these languages and both
+    welcome contributions. Additionally, new SDKs created by particularly
+    motivated contributors to help Function developers work in other languages
+    would be very welcomed.
+
+### Docs Contributions
+
+The [Crossplane docs] are seen by a large number of users both getting started
+with Crossplane and referencing more nuanced details after they are running in
+production. There's a large surface area of material to cover in the docs and
+therefore many ways to contribute. The docs is also a great place to start
+contributing because it does not require a highly technical software developer
+and coding skill set.
+
+* The [docs contributing guide] is very thorough and an excellent resource to
+  help you understand everything needed to contribute to the docs yourself. You
+  can learn about the style recommendations, how to utilize advanced
+  functionality to create a rich experience, and how to build and test the docs
+  locally.
+* Browse the existing backlog of [docs issues] to see if there's any knowledge
+  or requests there you can already help with.
+* Documentation improvements are always welcome, no matter the size, both big
+  and small
+  * If you can't find the information you're looking for in the docs, consider
+    [opening an issue][open-docs-issue] to request it.
+  * If you find something incorrect or misleading, consider [opening an
+    PR][open-docs-pr] to contribute the fix yourself.
+
 ## Establishing a Development Environment
 
 > The Crossplane project consists of several repositories under the crossplane
@@ -872,3 +963,27 @@ func TestExample(t *testing.T) {
 [Reviewers]: ../OWNERS.md#reviewers
 [Maintainers]: ../OWNERS.md#maintainers
 [#4514]: https://github.com/crossplane/crossplane/issues/4514
+[Get Involved]: ../README.md#get-involved
+[GitHub project]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
+[P0/P1 issues with no owner]: https://github.com/orgs/crossplane/projects/20/views/1?filterQuery=priority%3AP0%2CP1+no%3Aassignee+-status%3ADone%2CIcebox+&layout=table
+[All P0/P1 issues]: https://github.com/orgs/crossplane/projects/20/views/6
+[Good first issues]: https://github.com/crossplane/crossplane/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22
+[core]: https://github.com/crossplane/crossplane
+[runtime]: https://github.com/crossplane/crossplane-runtime
+[new provider]: https://github.com/crossplane/crossplane/discussions/5194
+[Upjet framework]: https://github.com/crossplane/upjet/issues
+[sig-upjet-slack]: https://crossplane.slack.com/archives/C05T19TB729
+[steering committee]: ../GOVERNANCE.md#contact-info
+[`provider-helm`]: https://github.com/crossplane-contrib/provider-helm/issues
+[`provider-kubernetes`]: https://github.com/crossplane-contrib/provider-kubernetes/issues
+[`crossplane-contrib` Functions]: https://github.com/orgs/crossplane-contrib/repositories?language=&q=function-+in%3Aname&sort=&type=all
+[`function-patch-and-transform`]: https://github.com/crossplane-contrib/function-patch-and-transform/issues
+[`function-go-templating`]: https://github.com/crossplane-contrib/function-go-templating/issues
+[golang-sdk]: https://github.com/crossplane/function-sdk-go/issues
+[python-sdk]: https://github.com/crossplane/function-sdk-python/issues
+[cncf-contributor-guide]: https://contribute.cncf.io/contributors/getting-started/
+[Crossplane docs]: https://docs.crossplane.io/
+[open-docs-issue]: https://github.com/crossplane/docs/issues/new/choose
+[open-docs-pr]: https://github.com/crossplane/docs/compare
+[docs issues]: https://github.com/crossplane/docs/issues
+[docs contributing guide]: https://docs.crossplane.io/contribute/

@@ -1,0 +1,7 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: crossplane-e2e-depends-on-provider-nop
+spec:
+  # NOTE(ezgidemirel): This package is manually built and pushed to the registry.
+  package: crossplane-e2e-depends-on-provider-nop:v0.2.0

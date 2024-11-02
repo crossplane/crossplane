@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -51,7 +52,7 @@ type StoppableSource struct {
 
 // Start is internal and should be called only by the Controller to register
 // an EventHandler with the Informer to enqueue reconcile.Requests.
-func (s *StoppableSource) Start(ctx context.Context, q workqueue.RateLimitingInterface) error {
+func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
 	i, err := s.infs.GetInformer(ctx, s.Type, cache.BlockUntilSynced(true))
 	if err != nil {
 		return errors.Wrapf(err, "cannot get informer for %T", s.Type)
@@ -87,7 +88,7 @@ func (s *StoppableSource) Stop(ctx context.Context) error {
 }
 
 // NewEventHandler creates a new EventHandler.
-func NewEventHandler(ctx context.Context, q workqueue.RateLimitingInterface, h handler.EventHandler, ps ...predicate.Predicate) *EventHandler {
+func NewEventHandler(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request], h handler.EventHandler, ps ...predicate.Predicate) *EventHandler {
 	return &EventHandler{
 		ctx:        ctx,
 		handler:    h,
@@ -104,7 +105,7 @@ type EventHandler struct {
 	ctx context.Context //nolint:containedctx // Kept for compatibility with controller-runtime.
 
 	handler    handler.EventHandler
-	queue      workqueue.RateLimitingInterface
+	queue      workqueue.TypedRateLimitingInterface[reconcile.Request]
 	predicates []predicate.Predicate
 }
 

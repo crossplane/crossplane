@@ -13,6 +13,7 @@ import (
 
 const (
 	errListImageConfigs = "cannot list ImageConfigs"
+	errFindBestMatch    = "cannot find best matching ImageConfig"
 )
 
 // ConfigStore is a store for image configuration.
@@ -20,6 +21,8 @@ type ConfigStore interface {
 	// PullSecretFor returns the name of the selected image config and
 	// name of the pull secret for a given image.
 	PullSecretFor(ctx context.Context, image string) (imageConfig, pullSecret string, err error)
+	// ImageVerificationConfigFor returns the ImageConfig for a given image.
+	ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, iv *v1beta1.ImageVerification, err error)
 }
 
 // isValidConfig is a function that determines if an ImageConfig is valid while
@@ -30,9 +33,10 @@ type isValidConfig func(c *v1beta1.ImageConfig) bool
 type ImageConfigStoreOption func(*ImageConfigStore)
 
 // NewImageConfigStore creates a new image configuration store.
-func NewImageConfigStore(client client.Client, opts ...ImageConfigStoreOption) ConfigStore {
+func NewImageConfigStore(client client.Client, namespace string, opts ...ImageConfigStoreOption) ConfigStore {
 	s := &ImageConfigStore{
-		client: client,
+		client:    client,
+		namespace: namespace,
 	}
 
 	for _, opt := range opts {
@@ -44,7 +48,8 @@ func NewImageConfigStore(client client.Client, opts ...ImageConfigStoreOption) C
 
 // ImageConfigStore is a store for image configuration.
 type ImageConfigStore struct {
-	client client.Reader
+	client    client.Reader
+	namespace string
 }
 
 // PullSecretFor returns the pull secret name for a given image as
@@ -54,7 +59,7 @@ func (s *ImageConfigStore) PullSecretFor(ctx context.Context, image string) (ima
 		return c.Spec.Registry != nil && c.Spec.Registry.Authentication != nil && c.Spec.Registry.Authentication.PullSecretRef.Name != ""
 	})
 	if err != nil {
-		return "", "", errors.Wrap(err, errListImageConfigs)
+		return "", "", errors.Wrap(err, errFindBestMatch)
 	}
 
 	if config == nil {
@@ -63,7 +68,30 @@ func (s *ImageConfigStore) PullSecretFor(ctx context.Context, image string) (ima
 		return "", "", nil
 	}
 
-	return config.GetName(), config.Spec.Registry.Authentication.PullSecretRef.Name, nil
+	return config.Name, config.Spec.Registry.Authentication.PullSecretRef.Name, nil
+}
+
+// ImageVerificationConfigFor returns the ImageConfig for a given image.
+func (s *ImageConfigStore) ImageVerificationConfigFor(ctx context.Context, image string) (imageConfig string, iv *v1beta1.ImageVerification, err error) {
+	config, err := s.bestMatch(ctx, image, func(c *v1beta1.ImageConfig) bool {
+		return c.Spec.Verification != nil
+	})
+	if err != nil {
+		return "", nil, errors.Wrap(err, errFindBestMatch)
+	}
+
+	if config == nil {
+		// No ImageConfig with a verification config found for this image, this
+		// is not an error.
+		return "", nil, nil
+	}
+
+	if config.Spec.Verification.Cosign == nil {
+		// Only cosign verification is supported for now.
+		return config.Name, nil, errors.New("cosign verification config is missing")
+	}
+
+	return config.Name, config.Spec.Verification, nil
 }
 
 // bestMatch finds the best matching ImageConfig for an image based on the
@@ -72,7 +100,7 @@ func (s *ImageConfigStore) bestMatch(ctx context.Context, image string, valid is
 	l := &v1beta1.ImageConfigList{}
 
 	if err := s.client.List(ctx, l); err != nil {
-		return nil, errors.Wrap(err, "cannot list ImageConfigs")
+		return nil, errors.Wrap(err, errListImageConfigs)
 	}
 
 	var config *v1beta1.ImageConfig
