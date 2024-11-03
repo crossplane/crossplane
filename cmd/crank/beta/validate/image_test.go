@@ -111,3 +111,36 @@ func TestFindImageTagForVersionConstraint(t *testing.T) {
 		})
 	}
 }
+
+func TestIsErrBaseLayerNotFound(t *testing.T) {
+	type args struct {
+		err error
+	}
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"BaseLayerNotFound": {
+			reason: "Should return true if the error is a BaseLayerNotFound error",
+			args: args{
+				err: NewBaseLayerNotFoundError("foo"),
+			},
+			want: true,
+		},
+		"NotBaseLayerNotFound": {
+			reason: "Should return false if the error is not a BaseLayerNotFound error",
+			args: args{
+				err: fmt.Errorf("foo"),
+			},
+			want: false,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := IsErrBaseLayerNotFound(tt.args.err); got != tt.want {
+				t.Errorf("IsErrBaseLayerNotFound() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
