@@ -678,7 +678,6 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 
 		uxr := unstructured.Unstructured{}
 		uxr.SetName(xrRef.Name)
-		uxr.SetNamespace(xrRef.Namespace)
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
 
 		list.Items = append(list.Items, uxr)
@@ -807,7 +806,7 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 		uxr := &composite.Unstructured{}
 
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
-		if err := c.Client().Resources().Get(ctx, xrRef.Name, xrRef.Namespace, uxr); err != nil {
+		if err := c.Client().Resources().Get(ctx, xrRef.Name, "", uxr); err != nil {
 			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
 			return ctx
 		}

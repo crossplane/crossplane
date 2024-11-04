@@ -26,8 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
@@ -147,7 +147,7 @@ func TestAddClaim(t *testing.T) {
 		"ObjectHasClaimReference": {
 			obj: func() runtime.Object {
 				cp := composite.New()
-				cp.SetClaimReference(&claim.Reference{Namespace: ns, Name: name})
+				cp.SetClaimReference(&reference.Claim{Namespace: ns, Name: name})
 				return &cp.Unstructured
 			}(),
 			queue: addFn(func(got reconcile.Request) {
