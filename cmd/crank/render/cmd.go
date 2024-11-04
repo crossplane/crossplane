@@ -135,7 +135,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
-	// TODO(negz): Should we do some simple validations, e.g. that the
 	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
