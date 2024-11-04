@@ -28,13 +28,14 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
 	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)
 
-func withXRCRef(ref *v1.ObjectReference) xrcOpt {
+func withXRCRef(ref *reference.Composite) xrcOpt {
 	return func(c *claim.Unstructured) {
 		c.SetResourceReference(ref)
 	}
@@ -96,7 +97,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 			reason: "Should return the XR child for an XRC.",
 			args: args{
 				resource: &resource2.Resource{
-					Unstructured: *buildXRC("ns-1", "xrc", withXRCRef(&v1.ObjectReference{
+					Unstructured: *buildXRC("ns-1", "xrc", withXRCRef(&reference.Composite{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
 						Name:       "xr-1",
@@ -171,7 +172,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 				resource: &resource2.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
-					}), withXRCRef(&v1.ObjectReference{
+					}), withXRCRef(&reference.Composite{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
 						Name:       "xr-1",
@@ -201,7 +202,7 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 				resource: &resource2.Resource{
 					Unstructured: *buildXRC("ns-1", "xrc", withXRCSecretRef(&xpv1.LocalSecretReference{
 						Name: "secret-1",
-					}), withXRCRef(&v1.ObjectReference{
+					}), withXRCRef(&reference.Composite{
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
 						Name:       "xr-1",

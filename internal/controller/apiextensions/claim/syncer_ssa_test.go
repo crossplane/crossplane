@@ -31,6 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/internal/names"
@@ -127,7 +128,7 @@ func TestServerSideSync(t *testing.T) {
 					cm.SetName("cool-claim")
 
 					// To make sure the claim spec is an object.
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 				}),
@@ -142,7 +143,7 @@ func TestServerSideSync(t *testing.T) {
 				cm: NewClaim(func(cm *claim.Unstructured) {
 					cm.SetNamespace("default")
 					cm.SetName("cool-claim")
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 
@@ -180,7 +181,7 @@ func TestServerSideSync(t *testing.T) {
 					cm.SetName("cool-claim")
 
 					// To make sure the claim spec is an object.
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 				}),
@@ -195,7 +196,7 @@ func TestServerSideSync(t *testing.T) {
 				cm: NewClaim(func(cm *claim.Unstructured) {
 					cm.SetNamespace("default")
 					cm.SetName("cool-claim")
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 
@@ -238,7 +239,7 @@ func TestServerSideSync(t *testing.T) {
 					cm.SetName("cool-claim")
 
 					// To make sure the claim spec is an object.
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 				}),
@@ -250,7 +251,7 @@ func TestServerSideSync(t *testing.T) {
 				cm: NewClaim(func(cm *claim.Unstructured) {
 					cm.SetNamespace("default")
 					cm.SetName("cool-claim")
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 				}),
@@ -260,7 +261,7 @@ func TestServerSideSync(t *testing.T) {
 						xcrd.LabelKeyClaimNamespace: "default",
 						xcrd.LabelKeyClaimName:      "cool-claim",
 					})
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
@@ -295,7 +296,7 @@ func TestServerSideSync(t *testing.T) {
 					cm.SetName("cool-claim")
 
 					// To make sure the claim spec is an object.
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 				}),
@@ -307,7 +308,7 @@ func TestServerSideSync(t *testing.T) {
 				cm: NewClaim(func(cm *claim.Unstructured) {
 					cm.SetNamespace("default")
 					cm.SetName("cool-claim")
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "existing-composite",
 					})
 					cm.Object["status"] = map[string]any{}
@@ -318,7 +319,7 @@ func TestServerSideSync(t *testing.T) {
 						xcrd.LabelKeyClaimNamespace: "default",
 						xcrd.LabelKeyClaimName:      "cool-claim",
 					})
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
@@ -393,7 +394,7 @@ func TestServerSideSync(t *testing.T) {
 					cm.Object["spec"] = map[string]any{
 						"userDefinedField": "spec",
 					}
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "cool-claim-random",
 					})
 					cm.Object["status"] = map[string]any{
@@ -416,7 +417,7 @@ func TestServerSideSync(t *testing.T) {
 					xr.Object["spec"] = map[string]any{
 						"userDefinedField": "spec",
 					}
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
