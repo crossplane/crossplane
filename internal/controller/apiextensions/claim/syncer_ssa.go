@@ -245,7 +245,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// apply the claim before we create it. This ensures we don't leak an XR. We
 	// could leak an XR if we created an XR then crashed before saving a
 	// reference to it. We'd create another XR on the next reconcile.
-	cm.SetResourceReference(meta.ReferenceTo(xrPatch, xrPatch.GroupVersionKind()))
+	cm.SetResourceReference(xrPatch.GetReference())
 
 	// Propagate the actual external name back from the composite to the
 	// claim if it's set. The name we're propagating here will may be a name

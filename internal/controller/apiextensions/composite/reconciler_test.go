@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -675,7 +676,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
-							xr.SetClaimReference(&claim.Reference{})
+							xr.SetClaimReference(&reference.Claim{})
 							return nil
 						}
 						if cm, ok := obj.(*claim.Unstructured); ok {
@@ -705,7 +706,7 @@ func TestReconcile(t *testing.T) {
 							xpv1.Available(),
 						)
 						cr.(*composite.Unstructured).SetClaimConditionTypes("DatabaseReady")
-						cr.SetClaimReference(&claim.Reference{})
+						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -833,7 +834,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
-							xr.SetClaimReference(&claim.Reference{})
+							xr.SetClaimReference(&reference.Claim{})
 							xr.SetConditions(xpv1.Condition{
 								Type:    "DatabaseReady",
 								Status:  corev1.ConditionTrue,
@@ -882,7 +883,7 @@ func TestReconcile(t *testing.T) {
 							"DatabaseReady",
 							"BucketReady",
 						)
-						cr.SetClaimReference(&claim.Reference{})
+						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -1024,7 +1025,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
-							xr.SetClaimReference(&claim.Reference{})
+							xr.SetClaimReference(&reference.Claim{})
 							// The database condition already exists on the XR.
 							xr.SetConditions(xpv1.Condition{
 								Type:    "DatabaseReady",
@@ -1087,7 +1088,7 @@ func TestReconcile(t *testing.T) {
 							"DatabaseReady",
 							"BucketReady",
 						)
-						cr.SetClaimReference(&claim.Reference{})
+						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -1169,7 +1170,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
-							xr.SetClaimReference(&claim.Reference{})
+							xr.SetClaimReference(&reference.Claim{})
 							return nil
 						}
 						if cm, ok := obj.(*claim.Unstructured); ok {
@@ -1184,7 +1185,7 @@ func TestReconcile(t *testing.T) {
 							xpv1.ReconcileSuccess(),
 							xpv1.Creating().WithMessage("Composite resource was explicitly marked as unready by the composer"),
 						)
-						cr.SetClaimReference(&claim.Reference{})
+						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
 				opts: []ReconcilerOption{
@@ -1244,7 +1245,7 @@ func TestReconcile(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
-							xr.SetClaimReference(&claim.Reference{})
+							xr.SetClaimReference(&reference.Claim{})
 							return nil
 						}
 						if _, ok := obj.(*claim.Unstructured); ok {
@@ -1256,7 +1257,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
-						cr.SetClaimReference(&claim.Reference{})
+						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
 				opts: []ReconcilerOption{

@@ -120,7 +120,6 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 				APIVersion: ref.APIVersion,
 				Kind:       ref.Kind,
 				Name:       ref.Name,
-				Namespace:  ref.Namespace,
 			})
 		}
 		if getConnectionSecrets {
