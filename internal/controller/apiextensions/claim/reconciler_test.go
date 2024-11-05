@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -141,7 +142,7 @@ func TestReconcile(t *testing.T) {
 						case *claim.Unstructured:
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						case *composite.Unstructured:
 							// Return an error getting the XR.
 							return errBoom
@@ -150,7 +151,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errGetComposite)))
 					})),
 				},
@@ -168,18 +169,18 @@ func TestReconcile(t *testing.T) {
 						case *claim.Unstructured:
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						case *composite.Unstructured:
 							// This XR was created, and references another
 							//  claim.
 							o.SetCreationTimestamp(now)
-							o.SetClaimReference(&claim.Reference{Name: "some-other-claim"})
+							o.SetClaimReference(&reference.Claim{Name: "some-other-claim"})
 						}
 						return nil
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConditions(xpv1.ReconcileError(errors.Errorf(errFmtUnbound, "", "some-other-claim")))
 					})),
 				},
@@ -198,7 +199,7 @@ func TestReconcile(t *testing.T) {
 							o.SetDeletionTimestamp(&now)
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						case *composite.Unstructured:
 							// Pretend the XR exists.
 							o.SetCreationTimestamp(now)
@@ -209,7 +210,7 @@ func TestReconcile(t *testing.T) {
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
 						cm.SetDeletionTimestamp(&now)
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConditions(xpv1.Deleting())
 						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errDeleteComposite)))
 					})),
@@ -312,14 +313,14 @@ func TestReconcile(t *testing.T) {
 							o.SetDeletionTimestamp(&now)
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 							// We want to foreground delete.
 							fg := xpv1.CompositeDeleteForeground
 							o.SetCompositeDeletePolicy(&fg)
 						case *composite.Unstructured:
 							// Pretend the XR exists and is bound.
 							o.SetCreationTimestamp(now)
-							o.SetClaimReference(&claim.Reference{})
+							o.SetClaimReference(&reference.Claim{})
 						}
 						return nil
 					}),
@@ -345,7 +346,7 @@ func TestReconcile(t *testing.T) {
 							o.SetDeletionTimestamp(&now)
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 							// We want to foreground delete.
 							fg := xpv1.CompositeDeleteForeground
 							o.SetCompositeDeletePolicy(&fg)
@@ -354,12 +355,12 @@ func TestReconcile(t *testing.T) {
 							// being deleted.
 							o.SetCreationTimestamp(now)
 							o.SetDeletionTimestamp(&now)
-							o.SetClaimReference(&claim.Reference{})
+							o.SetClaimReference(&reference.Claim{})
 						}
 						return nil
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						// We want to foreground delete.
 						fg := xpv1.CompositeDeleteForeground
 						cm.SetCompositeDeletePolicy(&fg)
@@ -429,19 +430,19 @@ func TestReconcile(t *testing.T) {
 						case *claim.Unstructured:
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						case *composite.Unstructured:
 							// Pretend the XR exists and is bound, but is
 							// still being created.
 							o.SetCreationTimestamp(now)
-							o.SetClaimReference(&claim.Reference{})
+							o.SetClaimReference(&reference.Claim{})
 							o.SetConditions(xpv1.Creating())
 						}
 						return nil
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConditions(xpv1.ReconcileSuccess())
 						cm.SetConditions(Waiting())
 					})),
@@ -466,18 +467,18 @@ func TestReconcile(t *testing.T) {
 						case *claim.Unstructured:
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						case *composite.Unstructured:
 							// Pretend the XR exists and is available.
 							o.SetCreationTimestamp(now)
-							o.SetClaimReference(&claim.Reference{})
+							o.SetClaimReference(&reference.Claim{})
 							o.SetConditions(xpv1.Available())
 						}
 						return nil
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPropagateCDs)))
 					})),
 				},
@@ -504,18 +505,18 @@ func TestReconcile(t *testing.T) {
 						case *claim.Unstructured:
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						case *composite.Unstructured:
 							// Pretend the XR exists and is available.
 							o.SetCreationTimestamp(now)
-							o.SetClaimReference(&claim.Reference{})
+							o.SetClaimReference(&reference.Claim{})
 							o.SetConditions(xpv1.Available())
 						}
 						return nil
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConnectionDetailsLastPublishedTime(&now)
 						cm.SetConditions(xpv1.ReconcileSuccess())
 						cm.SetConditions(xpv1.Available())
@@ -544,7 +545,7 @@ func TestReconcile(t *testing.T) {
 						case *claim.Unstructured:
 							// We won't try to get an XR unless the claim
 							// references one.
-							o.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+							o.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 							// The system conditions are already set.
 							o.SetConditions(xpv1.ReconcileSuccess())
 							o.SetConditions(xpv1.Available())
@@ -557,7 +558,7 @@ func TestReconcile(t *testing.T) {
 						case *composite.Unstructured:
 							// Pretend the XR exists and is available.
 							o.SetCreationTimestamp(now)
-							o.SetClaimReference(&claim.Reference{})
+							o.SetClaimReference(&reference.Claim{})
 							o.SetConditions(xpv1.Available())
 							o.SetConditions(
 								// Database has become ready.
@@ -588,7 +589,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					MockStatusUpdate: WantClaim(t, NewClaim(func(cm *claim.Unstructured) {
 						// Check that we set our status condition.
-						cm.SetResourceReference(&corev1.ObjectReference{Name: "cool-composite"})
+						cm.SetResourceReference(&reference.Composite{Name: "cool-composite"})
 						cm.SetConnectionDetailsLastPublishedTime(&now)
 						cm.SetConditions(xpv1.ReconcileSuccess())
 						cm.SetConditions(xpv1.Available())

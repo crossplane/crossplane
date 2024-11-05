@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/internal/names"
@@ -118,7 +119,7 @@ func TestClientSideSync(t *testing.T) {
 						xcrd.LabelKeyClaimNamespace: "default",
 						xcrd.LabelKeyClaimName:      "cool-claim",
 					})
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
@@ -159,7 +160,7 @@ func TestClientSideSync(t *testing.T) {
 					cm.SetCompositionReference(&corev1.ObjectReference{
 						Name: "some-composition",
 					})
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "cool-claim-random",
 					})
 				}),
@@ -170,7 +171,7 @@ func TestClientSideSync(t *testing.T) {
 						xcrd.LabelKeyClaimNamespace: "default",
 						xcrd.LabelKeyClaimName:      "cool-claim",
 					})
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
@@ -214,7 +215,7 @@ func TestClientSideSync(t *testing.T) {
 					cm.SetCompositionReference(&corev1.ObjectReference{
 						Name: "some-composition",
 					})
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "cool-claim-random",
 					})
 				}),
@@ -225,7 +226,7 @@ func TestClientSideSync(t *testing.T) {
 						xcrd.LabelKeyClaimNamespace: "default",
 						xcrd.LabelKeyClaimName:      "cool-claim",
 					})
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
@@ -271,7 +272,7 @@ func TestClientSideSync(t *testing.T) {
 					cm.SetCompositionReference(&corev1.ObjectReference{
 						Name: "some-composition",
 					})
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "cool-claim-random",
 					})
 				}),
@@ -282,7 +283,7 @@ func TestClientSideSync(t *testing.T) {
 						xcrd.LabelKeyClaimNamespace: "default",
 						xcrd.LabelKeyClaimName:      "cool-claim",
 					})
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})
@@ -358,7 +359,7 @@ func TestClientSideSync(t *testing.T) {
 					cm.SetCompositionReference(&corev1.ObjectReference{
 						Name: "some-composition",
 					})
-					cm.SetResourceReference(&corev1.ObjectReference{
+					cm.SetResourceReference(&reference.Composite{
 						Name: "cool-claim-random",
 					})
 
@@ -377,7 +378,7 @@ func TestClientSideSync(t *testing.T) {
 						"example.org/propagate-me": "true",
 					})
 
-					xr.SetClaimReference(&claim.Reference{
+					xr.SetClaimReference(&reference.Claim{
 						Namespace: "default",
 						Name:      "cool-claim",
 					})

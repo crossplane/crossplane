@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -147,7 +148,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	// Just fetch and return the selected revision.
 	if current != nil && pol != nil && *pol == xpv1.UpdateManual {
 		rev := &v1.CompositionRevision{}
-		err := f.ca.Get(ctx, meta.NamespacedNameOf(current), rev)
+		err := f.ca.Get(ctx, types.NamespacedName{Name: current.Name}, rev)
 		return rev, errors.Wrap(err, errGetCompositionRevision)
 	}
 
@@ -170,7 +171,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	}
 
 	if current == nil || current.Name != latest.GetName() {
-		cr.SetCompositionRevisionReference(meta.ReferenceTo(latest, v1.CompositionRevisionGroupVersionKind))
+		cr.SetCompositionRevisionReference(&corev1.LocalObjectReference{Name: latest.GetName()})
 		if err := f.ca.Apply(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}

@@ -224,7 +224,7 @@ func TestFetchRevision(t *testing.T) {
 			}},
 			args: args{
 				cr: &fake.Composite{
-					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{Ref: &corev1.ObjectReference{}},
+					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{Ref: &corev1.LocalObjectReference{}},
 					CompositionUpdater:            fake.CompositionUpdater{Policy: &manual},
 				},
 			},
@@ -243,7 +243,7 @@ func TestFetchRevision(t *testing.T) {
 			}},
 			args: args{
 				cr: &fake.Composite{
-					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{Ref: &corev1.ObjectReference{}},
+					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{Ref: &corev1.LocalObjectReference{}},
 					CompositionUpdater:            fake.CompositionUpdater{Policy: &manual},
 				},
 			},
@@ -332,7 +332,7 @@ func TestFetchRevision(t *testing.T) {
 					},
 					// We're already using the latest revision.
 					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
-						Ref: &corev1.ObjectReference{Name: rev2.GetName()},
+						Ref: &corev1.LocalObjectReference{Name: rev2.GetName()},
 					},
 				},
 			},
@@ -366,10 +366,8 @@ func TestFetchRevision(t *testing.T) {
 							Ref: &corev1.ObjectReference{Name: comp.GetName()},
 						},
 						CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
-							Ref: &corev1.ObjectReference{
-								APIVersion: v1.SchemeGroupVersion.String(),
-								Kind:       v1.CompositionRevisionKind,
-								Name:       rev2.GetName(),
+							Ref: &corev1.LocalObjectReference{
+								Name: rev2.GetName(),
 							},
 						},
 						CompositionUpdater: fake.CompositionUpdater{Policy: &manual},
@@ -423,10 +421,8 @@ func TestFetchRevision(t *testing.T) {
 							Ref: &corev1.ObjectReference{Name: comp.GetName()},
 						},
 						CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
-							Ref: &corev1.ObjectReference{
-								APIVersion: v1.SchemeGroupVersion.String(),
-								Kind:       v1.CompositionRevisionKind,
-								Name:       rev2.GetName(),
+							Ref: &corev1.LocalObjectReference{
+								Name: rev2.GetName(),
 							},
 						},
 					}
@@ -443,10 +439,8 @@ func TestFetchRevision(t *testing.T) {
 					},
 					// We reference the outdated revision.
 					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
-						Ref: &corev1.ObjectReference{
-							APIVersion: v1.SchemeGroupVersion.String(),
-							Kind:       v1.CompositionRevisionKind,
-							Name:       rev1.GetName(),
+						Ref: &corev1.LocalObjectReference{
+							Name: rev1.GetName(),
 						},
 					},
 				},
