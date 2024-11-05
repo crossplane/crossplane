@@ -101,6 +101,7 @@ type RuntimeManifestBuilder struct {
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
 	controllerConfig          *v1alpha1.ControllerConfig
+	pullSecrets               []string
 }
 
 // RuntimeManifestBuilderOption is used to configure a RuntimeManifestBuilder.
@@ -127,6 +128,14 @@ func RuntimeManifestBuilderWithControllerConfig(cc *v1alpha1.ControllerConfig) R
 func RuntimeManifestBuilderWithServiceAccountPullSecrets(secrets []corev1.LocalObjectReference) RuntimeManifestBuilderOption {
 	return func(b *RuntimeManifestBuilder) {
 		b.serviceAccountPullSecrets = secrets
+	}
+}
+
+// RuntimeManifestBuilderWithPullSecrets sets the pull secrets to use when
+// building the runtime manifests.
+func RuntimeManifestBuilderWithPullSecrets(secrets ...string) RuntimeManifestBuilderOption {
+	return func(b *RuntimeManifestBuilder) {
+		b.pullSecrets = secrets
 	}
 }
 
@@ -185,7 +194,7 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 		d = deploymentFromRuntimeConfig(b.runtimeConfig.Spec.DeploymentTemplate)
 	}
 
-	var allOverrides []DeploymentOverride
+	allOverrides := make([]DeploymentOverride, 0, len(overrides)+20) // 20 is just a reasonable guess at the number of overrides we'll add.
 	allOverrides = append(allOverrides,
 		// This will ensure that the runtime container exists and always the
 		// first one.
@@ -222,6 +231,10 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 			},
 		}),
 	)
+
+	for _, s := range b.pullSecrets {
+		allOverrides = append(allOverrides, DeploymentWithAdditionalPullSecret(corev1.LocalObjectReference{Name: s}))
+	}
 
 	if b.revision.GetPackagePullPolicy() != nil {
 		// If the package pull policy is set, it will override the default

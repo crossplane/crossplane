@@ -35,7 +35,7 @@ const (
 
 // Revisioner extracts a revision name for a package source.
 type Revisioner interface {
-	Revision(ctx context.Context, p v1.Package) (string, error)
+	Revision(ctx context.Context, p v1.Package, extraPullSecrets ...string) (string, error)
 }
 
 // PackageRevisioner extracts a revision name for a package source.
@@ -66,7 +66,7 @@ func NewPackageRevisioner(fetcher xpkg.Fetcher, opts ...PackageRevisionerOption)
 }
 
 // Revision extracts a revision name for a package source.
-func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string, error) {
+func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package, extraPullSecrets ...string) (string, error) {
 	pullPolicy := p.GetPackagePullPolicy()
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
 		return xpkg.FriendlyID(p.GetName(), p.GetSource()), nil
@@ -80,7 +80,12 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string,
 	if err != nil {
 		return "", errors.Wrap(err, errBadReference)
 	}
-	d, err := r.fetcher.Head(ctx, ref, v1.RefNames(p.GetPackagePullSecrets())...)
+
+	ps := v1.RefNames(p.GetPackagePullSecrets())
+	if len(extraPullSecrets) > 0 {
+		ps = append(ps, extraPullSecrets...)
+	}
+	d, err := r.fetcher.Head(ctx, ref, ps...)
 	if err != nil || d == nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}
@@ -96,6 +101,6 @@ func NewNopRevisioner() *NopRevisioner {
 }
 
 // Revision returns an empty revision name and no error.
-func (d *NopRevisioner) Revision(context.Context, v1.Package) (string, error) {
+func (d *NopRevisioner) Revision(context.Context, v1.Package, ...string) (string, error) {
 	return "", nil
 }
