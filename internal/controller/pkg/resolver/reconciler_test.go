@@ -297,6 +297,56 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"ErrorGetPullSecretFromImageConfig": {
+			reason: "We should return an error if fail to get pull secret from configs.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1beta1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1beta1.Dependency{
+										Package:     "registry1.com/acme-co/configuration-foo",
+										Constraints: "v0.0.1",
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", errBoom),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetPullConfig),
+			},
+		},
 		"ErrorFetchTags": {
 			reason: "We should return an error if fail to fetch tags to account for network issues.",
 			args: args{
@@ -337,6 +387,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -384,6 +437,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0"}, nil),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
@@ -434,6 +490,9 @@ func TestReconcile(t *testing.T) {
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
 					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -482,6 +541,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithFetcher(&fakexpkg.MockFetcher{
 						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
 					}),
 				},
 			},
