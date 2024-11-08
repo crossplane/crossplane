@@ -158,7 +158,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 			if !exists {
 				return fmt.Errorf("composition %q is missing required label %q", comp.GetName(), key)
 			}
-			fmt.Println("compValue: ", compValue, "value: ", value)
 			if compValue != value {
 				return fmt.Errorf("composition %q has incorrect value for label %q: want %q, got %q",
 					comp.GetName(), key, value, compValue)
