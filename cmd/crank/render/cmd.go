@@ -148,7 +148,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Errorf("composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
 	}
 
-	if compRef.APIVersion != fmt.Sprintf("%s/%s", xrGVK.Group, xrGVK.Version) {
+	if compRef.APIVersion != xrGVK.GroupVersion().String() {
 		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s/%s)", compRef.APIVersion, xrGVK.Group, xrGVK.Version)
 	}
 
