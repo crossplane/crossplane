@@ -149,7 +149,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	if compRef.APIVersion != xrGVK.GroupVersion().String() {
-		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s/%s)", compRef.APIVersion, xrGVK.Group, xrGVK.Version)
+		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
 	warns, errs := comp.Validate()
