@@ -76,6 +76,7 @@ hack:
   # TODO(negz): This could run an interactive shell inside a temporary container
   # once https://github.com/earthly/earthly/issues/3206 is fixed.
   ARG USERPLATFORM
+  ARG XPARGS="--debug"
   LOCALLY
   WAIT
     BUILD +unhack
@@ -89,7 +90,7 @@ hack:
       .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:hack && \
       .hack/helm install --create-namespace --namespace crossplane-system crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
         --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=hack" \
-        --set "args={--debug}"
+        --set "args={${XPARGS}}"
   END
   RUN docker image rm crossplane-hack/crossplane:hack
   RUN rm -rf .hack
