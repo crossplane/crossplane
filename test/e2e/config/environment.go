@@ -199,7 +199,7 @@ func (e *Environment) HelmInstallPriorCrossplane(namespace, release string) env.
 		helm.WithChart("crossplane-stable/crossplane"),
 		helm.WithArgs("--create-namespace", "--wait"),
 	}
-	if e.priorCrossplaneVersion != nil {
+	if e.priorCrossplaneVersion != nil && *e.priorCrossplaneVersion != "" {
 		opts = append(opts, helm.WithArgs("--version", *e.priorCrossplaneVersion))
 	}
 	return funcs.EnvFuncs(
