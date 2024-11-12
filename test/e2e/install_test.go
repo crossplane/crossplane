@@ -129,8 +129,8 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
-			Assess("CoreDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).
-			Assess("RBACManagerDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
+			Assess("CoreDeploymentIsAvailable", funcs.DeploymentRolledOutWithin(1*time.Minute, namespace, "crossplane")).
+			Assess("RBACManagerDeploymentIsAvailable", funcs.DeploymentRolledOutWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
 			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
