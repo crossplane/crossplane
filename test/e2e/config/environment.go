@@ -43,12 +43,13 @@ const testSuiteFlag = "test-suite"
 // Environment is these e2e test configuration, wraps the e2e-framework
 // environment.
 type Environment struct {
-	createKindCluster     *bool
-	destroyKindCluster    *bool
-	preinstallCrossplane  *bool
-	loadImagesKindCluster *bool
-	kindClusterName       *string
-	kindLogsLocation      *string
+	createKindCluster      *bool
+	destroyKindCluster     *bool
+	preinstallCrossplane   *bool
+	loadImagesKindCluster  *bool
+	priorCrossplaneVersion *string
+	kindClusterName        *string
+	kindLogsLocation       *string
 
 	selectedTestSuite *selectedTestSuite
 
@@ -107,6 +108,7 @@ func NewEnvironmentFromFlags() Environment {
 	c.createKindCluster = flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests, if the cluster does not already exist with the same name")
 	c.destroyKindCluster = flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
 	c.preinstallCrossplane = flag.Bool("preinstall-crossplane", true, "install Crossplane before running tests")
+	c.priorCrossplaneVersion = flag.String("prior-crossplane-version", "", "prior Crossplane version to test upgrade from")
 	c.loadImagesKindCluster = flag.Bool("load-images-kind-cluster", true, "load Crossplane images into the kind cluster before running tests")
 	c.selectedTestSuite = &selectedTestSuite{}
 	flag.Var(c.selectedTestSuite, testSuiteFlag, "test suite defining environment setup and tests to run")
@@ -186,6 +188,30 @@ func (e *Environment) HelmUpgradeCrossplaneToBase() env.Func {
 // the default suite's helm install options.
 func (e *Environment) HelmInstallBaseCrossplane() env.Func {
 	return funcs.HelmInstall(e.getSuiteInstallOpts(e.selectedTestSuite.String())...)
+}
+
+// HelmInstallPriorCrossplane returns a features.Func that installs prior
+// Crossplane version from the stable Helm chart repository.
+func (e *Environment) HelmInstallPriorCrossplane(namespace, release string) env.Func {
+	opts := []helm.Option{
+		helm.WithNamespace(namespace),
+		helm.WithName(release),
+		helm.WithChart("crossplane-stable/crossplane"),
+		helm.WithArgs("--create-namespace", "--wait"),
+	}
+	if e.priorCrossplaneVersion != nil && *e.priorCrossplaneVersion != "" {
+		opts = append(opts, helm.WithArgs("--version", *e.priorCrossplaneVersion))
+	}
+	return funcs.EnvFuncs(
+		funcs.HelmRepo(
+			helm.WithArgs("add"),
+			helm.WithArgs("crossplane-stable"),
+			helm.WithArgs("https://charts.crossplane.io/stable"),
+		),
+		funcs.HelmInstall(
+			opts...,
+		),
+	)
 }
 
 // getSuiteInstallOpts returns the helm install options for the specified
