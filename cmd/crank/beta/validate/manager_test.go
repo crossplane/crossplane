@@ -54,11 +54,29 @@ metadata:
 
 `)
 
+	// provider-test:v1.3.0.
+	provider2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-test
+---
+
+`)
+
 	// function-dep-1:v1.3.0.
 	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: function-dep-1
+---
+
+`)
+
+	// function-test:v1.3.0.
+	func2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-test
 ---
 
 `)
@@ -95,7 +113,9 @@ spec:
 func TestConfigurationTypeSupport(t *testing.T) {
 	confpkg := static.NewLayer(configPkg, types.OCILayer)
 	pd := static.NewLayer(providerYaml, types.OCILayer)
+	p2 := static.NewLayer(provider2Yaml, types.OCILayer)
 	fd := static.NewLayer(funcYaml, types.OCILayer)
+	f2 := static.NewLayer(func2Yaml, types.OCILayer)
 
 	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
 		switch image {
@@ -103,8 +123,13 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			return &confpkg, nil
 		case "provider-dep-1:v1.3.0":
 			return &pd, nil
+		case "provider-test:v1.3.0":
+			return &p2, nil
 		case "function-dep-1:v1.3.0":
 			return &fd, nil
+		case "function-test:v1.3.0":
+			return &f2, nil
+
 		default:
 			return nil, fmt.Errorf("unknown image: %s", image)
 		}
@@ -204,6 +229,14 @@ func TestConfigurationTypeSupport(t *testing.T) {
 										"function": "function-dep-1",
 										"version":  "v1.3.0",
 									},
+									{
+										"function": "function-test",
+										"version":  "v1.3.0",
+									},
+									{
+										"function": "provider-test",
+										"version":  "v1.3.0",
+									},
 								},
 							},
 						},
@@ -226,7 +259,71 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			want: want{
 				err:   nil,
 				confs: 2, // Configuration.meta and Configuration.pkg
-				deps:  3, // 1 Configuration.pkg, 1 provider, 1 function
+				deps:  5, // 1 Configuration.pkg, 2 provider, 2 function
+			},
+		},
+		"FunctionPkg": {
+			// function-test
+			reason: "Function pkg added",
+			args: args{
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-test",
+							},
+							"spec": map[string]interface{}{
+								"package": "function-test:v1.3.0",
+							},
+						},
+					},
+				},
+				fetchMock: fetchMockFunc,
+			},
+			want: want{
+				err:   nil,
+				confs: 0,
+				deps:  1, // Function.pkg from remote
+			},
+		},
+		"MultipleFunctionPkg": {
+			// function-test
+			reason: "Function pkg added",
+			args: args{
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-test",
+							},
+							"spec": map[string]interface{}{
+								"package": "function-test:v1.3.0",
+							},
+						},
+					},
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-dep-1",
+							},
+							"spec": map[string]interface{}{
+								"package": "function-dep-1:v1.3.0",
+							},
+						},
+					},
+				},
+				fetchMock: fetchMockFunc,
+			},
+			want: want{
+				err:   nil,
+				confs: 0,
+				deps:  2, // 2 Function.pkg from remote
 			},
 		},
 	}
