@@ -256,10 +256,34 @@ jobs:
           echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
+      - name: Set CROSSPLANE_PRIOR_VERSION GitHub Environment Variable
+        # We want to run this for the release branches, and PRs against release branches.
+        if: startsWith(github.ref, 'refs/heads/release-') || startsWith(github.base_ref, 'release-')
+        run: |
+          # Extract the version part from the branch name
+          if [[ "${GITHUB_REF}" == refs/heads/release-* ]]; then
+            VERSION=${GITHUB_REF#refs/heads/release-}
+          elif [[ "${GITHUB_BASE_REF}" == release-* ]]; then
+            VERSION=${GITHUB_BASE_REF#release-}
+          fi
+          # Extract the major and minor parts of the version
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          # Decrement the MINOR version
+          if [[ "$MINOR" -gt 0 ]]; then
+            MINOR=$((MINOR - 1))
+          else
+            echo "Error: Minor version cannot be decremented below 0"
+            exit 1
+          fi
+          
+          echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> $GITHUB_ENV
+
+
       - name: Run E2E Tests
         run: |
           earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-suite}} \
-            +e2e --FLAGS="-test.failfast -fail-fast --test-suite ${{ matrix.test-suite }}"
+            +e2e --FLAGS="-test.failfast -fail-fast -prior-crossplane-version=${CROSSPLANE_PRIOR_VERSION} --test-suite ${{ matrix.test-suite }}"
 
       - name: Publish E2E Test Flakes
         if: '!cancelled()'
