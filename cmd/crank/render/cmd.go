@@ -135,11 +135,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
-	// TODO(negz): Should we do some simple validations, e.g. that the
-	// Composition's compositeTypeRef matches the XR's type?
 	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
+	}
+
+	// Validate that Composition's compositeTypeRef matches the XR's GroupVersionKind.
+	xrGVK := xr.GetObjectKind().GroupVersionKind()
+	compRef := comp.Spec.CompositeTypeRef
+
+	if compRef.Kind != xrGVK.Kind {
+		return errors.Errorf("composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
+	}
+
+	if compRef.APIVersion != xrGVK.GroupVersion().String() {
+		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
 	warns, errs := comp.Validate()
