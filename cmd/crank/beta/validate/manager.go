@@ -135,7 +135,16 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 			paved := fieldpath.Pave(e.Object)
 			image, err := paved.GetString("spec.package")
 			if err != nil {
-				return errors.Wrapf(err, "cannot get package image")
+				return errors.Wrapf(err, "cannot get provider package image")
+			}
+
+			m.deps[image] = true
+
+		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Function"}:
+			paved := fieldpath.Pave(e.Object)
+			image, err := paved.GetString("spec.package")
+			if err != nil {
+				return errors.Wrapf(err, "cannot get function package image")
 			}
 
 			m.deps[image] = true
