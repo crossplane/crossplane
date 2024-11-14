@@ -304,7 +304,6 @@ func (m *Manager) cacheDependencies() error {
 		if err := m.cache.Store(schemas, path); err != nil {
 			return errors.Wrapf(err, "cannot store base layer")
 		}
-		return nil
 	}
 
 	return nil
