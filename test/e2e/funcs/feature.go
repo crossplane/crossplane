@@ -491,7 +491,7 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 		// TODO(negz): Only two functions seem to read this key. Either adopt it
 		// everywhere it would be relevant, or drop it.
 		f := func(o k8s.Object) {
-			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)})
+			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)}) //nolint:fatcontext // TODO(phisco): we accept multiple files, this could run multiple times... we should fix it.
 		}
 		if err := decoder.DecodeEachFile(ctx, dfs, cm, ApplyHandler(c.Client().Resources(), manager, f)); err != nil {
 			t.Fatal(err)
@@ -869,17 +869,17 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 // ListedResourcesValidatedWithin fails a test if the supplied list of resources
 // does not have the supplied number of resources that pass the supplied
 // validation function within the supplied duration.
-func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
+func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, minObjects int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, min, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, minObjects, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources didn't pass validation: %v:\n\n%s\n\n", err, y)
 			return ctx
 		}
 
-		t.Logf("at least %d resource(s) have desired conditions", min)
+		t.Logf("at least %d resource(s) have desired conditions", minObjects)
 		return ctx
 	}
 }
@@ -907,7 +907,7 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 // ListedResourcesModifiedWith modifies the supplied list of resources with the
 // supplied function and fails a test if the supplied number of resources were
 // not modified within the supplied duration.
-func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
+func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -932,8 +932,8 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 				return ctx
 			}
 		}
-		if found < min {
-			t.Errorf("expected minimum %d resources to be modified, found %d", min, found)
+		if found < minObjects {
+			t.Errorf("expected minimum %d resources to be modified, found %d", minObjects, found)
 			return ctx
 		}
 

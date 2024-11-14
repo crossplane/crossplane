@@ -382,14 +382,14 @@ func validateFieldPathSegmentIndex(parent *apiextensions.JSONSchemaProps, segmen
 		return nil, errors.New("no items found in array")
 	}
 	// if there is a limit on max items and the index is above that, return an error
-	if parent.MaxItems != nil && *parent.MaxItems < int64(segment.Index+1) {
+	if parent.MaxItems != nil && *parent.MaxItems < int64(segment.Index+1) { //nolint:gosec // NOTE(phisco): we are iterating other segments, we'll get to maxItems before overflowing
 		return nil, errors.Errorf(errFmtArrayIndexAboveMax, segment.Index, *parent.MaxItems-1)
 	}
 	if s := parent.Items.Schema; s != nil {
 		return s, nil
 	}
 	schemas := parent.Items.JSONSchemas
-	if len(schemas) < int(segment.Index) {
+	if uint(len(schemas)) < segment.Index {
 		return nil, errors.Errorf("no schema for item requested at index %d", segment.Index)
 	}
 
