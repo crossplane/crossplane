@@ -5,8 +5,13 @@
     'helpers:pinGitHubActionDigests',
     ':semanticCommits',
   ],
+  // We only want renovate to rebase PRs when they have conflicts, default
+  // "auto" mode is not required.
   rebaseWhen: 'conflicted',
+  // The maximum number of PRs to be created in parallel
   prConcurrentLimit: 5,
+  // The branches renovate should target
+  // PLEASE UPDATE THIS WHEN RELEASING.
   baseBranches: [
     'main',
     'release-1.16',
@@ -15,11 +20,13 @@
   ],
   ignorePaths: [
     'design/**',
+    // We test upgrades, so leave it on an older version on purpose.
     'test/e2e/manifests/pkg/provider/provider-initial.yaml',
   ],
   postUpdateOptions: [
     'gomodTidy',
   ],
+  // All PRs should have a label
   labels: [
     'automated',
   ],
@@ -137,6 +144,9 @@
       extractVersionTemplate: '^codeql-bundle-(?<version>.*)$',
     },
   ],
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
   dockerfile: {
     fileMatch: [
       '(^|/)Earthfile$',
@@ -147,18 +157,23 @@
       '(^|/)test/e2e/.*\\.ya?ml$',
     ],
   },
+  // PackageRules disabled below should be enabled in case of vulnerabilities
   vulnerabilityAlerts: {
     enabled: true,
   },
   osvVulnerabilityAlerts: true,
+  // Renovate evaluates all packageRules in order, so low priority rules should
+  // be at the beginning, high priority at the end
   packageRules: [
     {
       description: 'Generate code after upgrading go dependencies (main)',
       matchDatasources: [
         'go',
       ],
+      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
-        'main',
+        '!/release-1\.16/',
+        '!/release-1\.17/',
       ],
       postUpgradeTasks: {
         commands: [
@@ -175,10 +190,13 @@
       matchDatasources: [
         'go',
       ],
+      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
       matchBaseBranches: [
-        'release-.+',
+        'release-1.16',
+        'release-1.17'
       ],
       postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
         commands: [
           'make go.generate',
         ],
@@ -193,10 +211,13 @@
       matchDepNames: [
         'golangci/golangci-lint',
       ],
+      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
-        'main',
+        '!/release-1\.16/',
+        '!/release-1\.17/',
       ],
       postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
         commands: [
           'earthly --strict +go-lint',
         ],
@@ -211,10 +232,13 @@
       matchDepNames: [
         'golangci/golangci-lint',
       ],
+      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
       matchBaseBranches: [
-        'release-.+',
+        'release-1.16',
+        'release-1.17',
       ],
       postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
         commands: [
           'make go.lint',
         ],
