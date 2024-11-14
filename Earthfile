@@ -297,7 +297,7 @@ kubectl-setup:
 
 # kind-setup is used by other targets to setup kind.
 kind-setup:
-  ARG KIND_VERSION=v0.23.0
+  ARG KIND_VERSION=v0.25.0
   ARG NATIVEPLATFORM
   ARG TARGETOS
   ARG TARGETARCH
