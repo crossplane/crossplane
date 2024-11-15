@@ -522,6 +522,11 @@ func TestNoDowngrade(t *testing.T) {
 	)
 }
 
+// TestImageConfigAuth tests that we can install a private package as a dependency by providing registry pull
+// credentials through ImageConfig API.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found at
+// test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency/package.
 func TestImageConfigAuth(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
 
@@ -562,6 +567,9 @@ func TestImageConfigAuth(t *testing.T) {
 	)
 }
 
+// TestImageConfigVerificationWithKey tests that we can verify signature on a configuration when signed with a key.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
 func TestImageConfigVerificationWithKey(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/with-key"
 
@@ -595,6 +603,9 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 	)
 }
 
+// TestImageConfigVerificationKeyless tests that we can verify signature on a provider when signed keyless.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
 func TestImageConfigVerificationKeyless(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless"
 
@@ -632,6 +643,10 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 	)
 }
 
+// TestImageConfigAttestationVerificationPrivateKeyless tests that we can verify signature and attestations on a private
+// provider when signed keyless.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
 func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private-with-attestation"
 
