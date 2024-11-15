@@ -317,7 +317,7 @@ gotestsum-setup:
 
 # helm-docs-setup is used by other targets to setup helm-docs.
 helm-docs-setup:
-  ARG HELM_DOCS_VERSION=1.13.1
+  ARG HELM_DOCS_VERSION=1.14.2
   ARG NATIVEPLATFORM
   ARG TARGETOS
   ARG TARGETARCH
