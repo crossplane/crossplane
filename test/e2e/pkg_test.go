@@ -299,6 +299,10 @@ func TestConfigurationWithDigest(t *testing.T) {
 	)
 }
 
+// TestUpgradeDependencyVersion tests that a dependency version is upgraded when the parent configuration is updated.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken.Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/version/package folder.
 func TestUpgradeDependencyVersion(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/version"
 
@@ -339,6 +343,10 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 	)
 }
 
+// TestUpgradeDependencyDigest tests that a dependency digest is upgraded when the parent configuration is updated.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/digest/package folder.
 func TestUpgradeDependencyDigest(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/digest"
 
@@ -379,6 +387,10 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 	)
 }
 
+// TestUpgradeAlreadyExistsDependency tests that a previously installed dependency is upgraded to the minimal valid version when the parent configuration is updated.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/already-exists/package folder.
 func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/already-exists"
 
@@ -428,6 +440,10 @@ func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 	)
 }
 
+// TestNoValidVersion tests that a Configuration will not become healthy if there is no valid version for its dependency.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/no-valid/package folder.
 func TestNoValidVersion(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/no-valid"
 
@@ -465,6 +481,10 @@ func TestNoValidVersion(t *testing.T) {
 	)
 }
 
+// TestNoDowngrade tests that a Configuration will not become healthy because automatic downgrades are not allowed.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/no-downgrade/package folder.
 func TestNoDowngrade(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/no-downgrade"
 

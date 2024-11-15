@@ -21,7 +21,9 @@
   ignorePaths: [
     'design/**',
     // We test upgrades, so leave it on an older version on purpose.
-    'test/e2e/manifests/pkg/provider/provider-initial.yaml',
+    "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+    // Manifests must remain unchanged to ensure the test scenario is not broken.
+    "test/e2e/manifests/pkg/dependency-upgrade/**",
   ],
   postUpdateOptions: [
     'gomodTidy',
