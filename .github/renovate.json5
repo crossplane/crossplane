@@ -22,8 +22,10 @@
     'design/**',
     // We test upgrades, so leave it on an older version on purpose.
     "test/e2e/manifests/pkg/provider/provider-initial.yaml",
-    // Manifests must remain unchanged to ensure the test scenario is not broken.
+    // We test dependencies' upgrades, manifests must remain unchanged to avoid breaking tests.
     "test/e2e/manifests/pkg/dependency-upgrade/**",
+    // We test packages signature verifications also on upgrades, manifests must remain unchanged to avoid breaking tests.
+    "test/e2e/manifests/pkg/image-config/signature-verification/**"
   ],
   postUpdateOptions: [
     'gomodTidy',
