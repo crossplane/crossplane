@@ -241,7 +241,7 @@ type CompositeResourceDefinitionList struct {
 
 // GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for
 // the composite resource this CompositeResourceDefinition defines.
-func (c CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
+func (c *CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	v := ""
 	for _, vr := range c.Spec.Versions {
 		if vr.Referenceable {
@@ -254,7 +254,7 @@ func (c CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.Group
 
 // OffersClaim is true when a CompositeResourceDefinition offers a claim for the
 // composite resource it defines.
-func (c CompositeResourceDefinition) OffersClaim() bool {
+func (c *CompositeResourceDefinition) OffersClaim() bool {
 	return c.Spec.ClaimNames != nil
 }
 
@@ -262,7 +262,7 @@ func (c CompositeResourceDefinition) OffersClaim() bool {
 // the composite resource claim this CompositeResourceDefinition defines. An
 // empty GroupVersionKind is returned if the CompositeResourceDefinition does
 // not offer a claim.
-func (c CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVersionKind {
+func (c *CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVersionKind {
 	if !c.OffersClaim() {
 		return schema.GroupVersionKind{}
 	}

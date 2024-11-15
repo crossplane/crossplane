@@ -48,6 +48,15 @@ var (
 	CompositionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionRevisionKind)
 )
 
+// EnvironmentConfig type metadata.
+var (
+	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
+	EnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: EnvironmentConfigKind}.String()
+	EnvironmentConfigKindAPIVersion   = EnvironmentConfigKind + "." + SchemeGroupVersion.String()
+	EnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(EnvironmentConfigKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&CompositionRevision{}, &CompositionRevisionList{})
+	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
 }

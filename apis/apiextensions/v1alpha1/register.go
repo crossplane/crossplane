@@ -57,6 +57,6 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
 	SchemeBuilder.Register(&Usage{}, &UsageList{})
+	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
 }

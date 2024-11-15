@@ -69,8 +69,6 @@ const (
 	errUnpublish              = "cannot unpublish connection details"
 	errValidate               = "refusing to use invalid Composition"
 	errAssociate              = "cannot associate composed resources with Composition resource templates"
-	errFetchEnvironment       = "cannot fetch environment"
-	errSelectEnvironment      = "cannot select environment"
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
 	errRenderCD               = "cannot render composed resource"
@@ -135,42 +133,6 @@ func (fn CompositionRevisionFetcherFn) Fetch(ctx context.Context, cr resource.Co
 	return fn(ctx, cr)
 }
 
-// EnvironmentSelector selects environment references for a composition environment.
-type EnvironmentSelector interface {
-	SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
-}
-
-// A EnvironmentSelectorFn selects a composition reference.
-type EnvironmentSelectorFn func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
-
-// SelectEnvironment for the supplied composite resource.
-func (fn EnvironmentSelectorFn) SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
-	return fn(ctx, cr, rev)
-}
-
-// EnvironmentFetcherRequest describes the payload for an
-// EnvironmentFetcher.
-type EnvironmentFetcherRequest struct {
-	Composite resource.Composite
-	Revision  *v1.CompositionRevision
-	Required  bool
-}
-
-// An EnvironmentFetcher fetches an appropriate environment for the supplied
-// composite resource.
-type EnvironmentFetcher interface {
-	Fetch(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error)
-}
-
-// An EnvironmentFetcherFn fetches an appropriate environment for the supplied
-// composite resource.
-type EnvironmentFetcherFn func(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error)
-
-// Fetch an appropriate environment for the supplied Composite resource.
-func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error) {
-	return fn(ctx, req)
-}
-
 // A Configurator configures a composite resource using its composition.
 type Configurator interface {
 	Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
@@ -187,12 +149,12 @@ func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, r
 // A CompositionRequest is a request to compose resources.
 // It should be treated as immutable.
 type CompositionRequest struct {
-	Revision    *v1.CompositionRevision
-	Environment *Environment
+	Revision *v1.CompositionRevision
 }
 
 // A CompositionResult is the result of the composition process.
 type CompositionResult struct {
+	Composite         CompositeResource
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
 	Events            []TargetedEvent
@@ -337,22 +299,6 @@ func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	}
 }
 
-// WithEnvironmentSelector specifies how the environment to be used should be
-// selected.
-func WithEnvironmentSelector(s EnvironmentSelector) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.composite.EnvironmentSelector = s
-	}
-}
-
-// WithEnvironmentFetcher specifies how the environment to be used should be
-// fetched.
-func WithEnvironmentFetcher(f EnvironmentFetcher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.environment.EnvironmentFetcher = f
-	}
-}
-
 // WithConfigurator specifies how the Reconciler should configure
 // composite resources using their composition.
 func WithConfigurator(c Configurator) ReconcilerOption {
@@ -426,14 +372,9 @@ func (fn WatchStarterFn) StartWatches(name string, ws ...engine.Watch) error {
 	return fn(name, ws...)
 }
 
-type environment struct {
-	EnvironmentFetcher
-}
-
 type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
-	EnvironmentSelector
 	Configurator
 	managed.ConnectionPublisher
 }
@@ -460,14 +401,9 @@ func NewReconciler(c client.Client, of resource.CompositeKind, opts ...Reconcile
 			}),
 		},
 
-		environment: environment{
-			EnvironmentFetcher: NewNilEnvironmentFetcher(),
-		},
-
 		composite: compositeResource{
 			Finalizer:           resource.NewAPIFinalizer(c, finalizer),
 			CompositionSelector: NewAPILabelSelectorResolver(c),
-			EnvironmentSelector: NewNoopEnvironmentSelector(),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(c), NewAPIConfigurator(c)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
@@ -499,8 +435,6 @@ type Reconciler struct {
 	client client.Client
 
 	gvk schema.GroupVersionKind
-
-	environment environment
 
 	revision  revision
 	composite compositeResource
@@ -630,30 +564,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	// Prepare the environment.
-	// Note that environments are optional, so env can be nil.
-	if err := r.composite.SelectEnvironment(ctx, xr, rev); err != nil {
-		log.Debug(errSelectEnvironment, "error", err)
-		err = errors.Wrap(err, errSelectEnvironment)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-	}
-
-	env, err := r.environment.Fetch(ctx, EnvironmentFetcherRequest{
-		Composite: xr,
-		Revision:  rev,
-		Required:  rev.Spec.Environment.IsRequired(),
-	})
-	if err != nil {
-		log.Debug(errFetchEnvironment, "error", err)
-		err = errors.Wrap(err, errFetchEnvironment)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-	}
-
-	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev, Environment: env})
+	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
 		if kerrors.IsConflict(err) {
@@ -755,7 +666,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if updateXRConditions(xr, unsynced, unready) {
+	if updateXRConditions(xr, unsynced, unready, res) {
 		// This requeue is subject to rate limiting. Requeues will exponentially
 		// backoff from 1 to 30 seconds. See the 'definition' (XRD) reconciler
 		// that sets up the ratelimiter.
@@ -771,7 +682,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 // updateXRConditions updates the conditions of the supplied composite resource
 // based on the supplied composed resources. It returns true if the XR should be
 // requeued immediately.
-func updateXRConditions(xr *composite.Unstructured, unsynced, unready []ComposedResource) (requeueImmediately bool) {
+func updateXRConditions(xr *composite.Unstructured, unsynced, unready []ComposedResource, res CompositionResult) (requeueImmediately bool) {
 	readyCond := xpv1.Available()
 	syncedCond := xpv1.ReconcileSuccess()
 	if len(unsynced) > 0 {
@@ -785,6 +696,15 @@ func updateXRConditions(xr *composite.Unstructured, unsynced, unready []Composed
 		// become ready, since we can't watch them.
 		readyCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, getComposerResourcesNames(unready))))
 		requeueImmediately = true
+	}
+	if res.Composite.Ready != nil {
+		if *res.Composite.Ready {
+			readyCond = xpv1.Available()
+		} else if readyCond.Status != corev1.ConditionFalse {
+			// To keep information about unready resources only set this status
+			// if the composite would be otherwise marked as ready.
+			readyCond = xpv1.Creating().WithMessage("Composite resource was explicitly marked as unready by the composer")
+		}
 	}
 	xr.SetConditions(syncedCond, readyCond)
 	return requeueImmediately

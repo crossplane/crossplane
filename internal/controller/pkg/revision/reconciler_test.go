@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -37,6 +36,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -45,6 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/features"
 	verfake "github.com/crossplane/crossplane/internal/version/fake"
 	"github.com/crossplane/crossplane/internal/xpkg"
 	xpkgfake "github.com/crossplane/crossplane/internal/xpkg/fake"
@@ -185,7 +186,6 @@ func TestReconcile(t *testing.T) {
 
 	type args struct {
 		mgr manager.Manager
-		req reconcile.Request
 		rec []ReconcilerOption
 	}
 	type want struct {
@@ -202,7 +202,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not return and error and not requeue if package not found.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -218,7 +217,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if getting package fails.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -234,7 +232,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if revision is deleted and we fail to clear image cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithCache(&xpkgfake.MockCache{
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
@@ -260,7 +257,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if revision is deleted and we fail to remove it from package Lock.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -290,7 +286,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if revision is deleted and we fail to remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -319,7 +314,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if revision is deleted and we successfully remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -348,7 +342,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to add finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -369,7 +362,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if package content is in cache, we cannot get it, but we remove it successfully.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -394,17 +386,50 @@ func TestReconcile(t *testing.T) {
 						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetCache),
 			},
 		},
+		"ErrGetPackagePullSecretFromImageConfigs": {
+			reason: "We should return an error if we cannot get package pull secret from image configs.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(_ client.Object) error {
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", errBoom),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetPullConfig),
+			},
+		},
 		"ErrGetFromCacheFailedDelete": {
 			reason: "We should return an error if package content is in cache, we cannot get it, and we fail to remove it.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -429,6 +454,9 @@ func TestReconcile(t *testing.T) {
 						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -439,7 +467,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if package content is not in cache and pull policy is Never.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ConfigurationRevision{
@@ -476,6 +503,9 @@ func TestReconcile(t *testing.T) {
 					WithCache(&xpkgfake.MockCache{
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -486,7 +516,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to initialize parser backend.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -517,6 +546,9 @@ func TestReconcile(t *testing.T) {
 						MockHas: xpkgfake.NewMockCacheHasFn(false),
 					}),
 					WithParserBackend(&ErrBackend{err: errBoom}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -527,7 +559,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if fail to parse the package from the cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -559,6 +590,9 @@ func TestReconcile(t *testing.T) {
 						MockHas: xpkgfake.NewMockCacheHasFn(true),
 						MockGet: xpkgfake.NewMockCacheGetFn(io.NopCloser(bytes.NewBuffer(providerBytes)), nil),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -569,7 +603,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to parse the package from the image.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -602,6 +635,9 @@ func TestReconcile(t *testing.T) {
 						MockHas:   xpkgfake.NewMockCacheHasFn(false),
 						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -612,7 +648,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to parse the package from the image and fail to cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -646,6 +681,9 @@ func TestReconcile(t *testing.T) {
 						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -656,7 +694,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to parse the package from the image, fail to cache, and fail to delete from cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -690,6 +727,9 @@ func TestReconcile(t *testing.T) {
 						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
 						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -700,7 +740,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if fail to lint the package.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -737,6 +776,9 @@ func TestReconcile(t *testing.T) {
 							return err
 						},
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -747,7 +789,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if Crossplane version is incompatible.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -799,6 +840,9 @@ func TestReconcile(t *testing.T) {
 						MockInConstraints:    verfake.NewMockInConstraintsFn(false, errBoom),
 						MockGetVersionString: verfake.NewMockGetVersionStringFn("v0.11.0"),
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -809,7 +853,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if not exactly one meta package type.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -843,6 +886,9 @@ func TestReconcile(t *testing.T) {
 						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -853,7 +899,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to update our annotations.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -892,6 +937,9 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -902,7 +950,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we fail to resolve dependencies.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -957,6 +1004,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -967,7 +1017,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if pre establishment runtimeHook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1023,6 +1072,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1033,7 +1085,6 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if post establishment runtimeHook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1091,6 +1142,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1101,7 +1155,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1153,6 +1206,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1163,7 +1219,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision with incompatible Crossplane version should install successfully when constraints ignored.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1219,6 +1274,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(false, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1229,7 +1287,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision that fails to establish control should return an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1282,6 +1339,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1292,7 +1352,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An inactive revision that fails to establish ownership should return an error.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ConfigurationRevision{
@@ -1349,6 +1408,9 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						},
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1359,7 +1421,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An inactive revision without ObjectRefs should be deactivated successfully by pulling/parsing the package again.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithDependencyManager(&MockDependencyManager{
@@ -1414,6 +1475,9 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1424,7 +1488,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An inactive revision with ObjectRefs should be deactivated successfully without pulling/parsing the package again.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision {
 						return &v1.ConfigurationRevision{
@@ -1477,6 +1540,9 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithEstablisher(NewMockEstablisher()),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1487,7 +1553,6 @@ func TestReconcile(t *testing.T) {
 			reason: "Pause reconciliation if the pause annotation is set.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1542,7 +1607,6 @@ func TestReconcile(t *testing.T) {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
 				mgr: &fake.Manager{},
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
@@ -1558,8 +1622,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Healthy())
+								want.Status.Conditions = []xpv1.Condition{}
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1596,6 +1659,158 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"WaitForSignatureVerifiedCondition": {
+			reason: "We should wait until signature verification is complete before proceeding and communicate this with the Healthy condition.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithFeatureFlags(signatureVerificationEnabled()),
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetConditions(v1.AwaitingVerification())
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+		},
+		"WaitForSignatureVerifiedConditionIfFailed": {
+			reason: "We should keep waiting if signature verification failed and communicate this with the Healthy condition.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithFeatureFlags(signatureVerificationEnabled()),
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetConditions(v1.VerificationFailed("foo", errBoom))
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetConditions(v1.VerificationFailed("foo", errBoom))
+								want.SetConditions(v1.AwaitingVerification())
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+		},
+		"WaitForSignatureVerifiedConditionIfIncomplete": {
+			reason: "We should keep waiting if signature verification incomplete and communicate this with the Healthy condition.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithFeatureFlags(signatureVerificationEnabled()),
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetConditions(v1.VerificationIncomplete(errBoom))
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetConditions(v1.VerificationIncomplete(errBoom))
+								want.SetConditions(v1.AwaitingVerification())
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+		},
+		"SuccessfulActiveRevisionSuccessfulVerification": {
+			reason: "An active revision should establish control of all of its resources.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithFeatureFlags(signatureVerificationEnabled()),
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								pr.SetConditions(v1.VerificationSucceeded("foo"))
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetConditions(v1.VerificationSucceeded("foo"))
+								want.SetConditions(v1.Healthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetConditions(v1.VerificationSucceeded("foo"))
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithEstablisher(NewMockEstablisher()),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(_ string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1617,4 +1832,10 @@ func TestReconcile(t *testing.T) {
 			}
 		})
 	}
+}
+
+func signatureVerificationEnabled() *feature.Flags {
+	f := &feature.Flags{}
+	f.Enable(features.EnableAlphaSignatureVerification)
+	return f
 }

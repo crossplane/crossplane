@@ -54,11 +54,29 @@ metadata:
 
 `)
 
+	// provider-test:v1.3.0.
+	provider2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-test
+---
+
+`)
+
 	// function-dep-1:v1.3.0.
 	funcYaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
   name: function-dep-1
+---
+
+`)
+
+	// function-test:v1.3.0.
+	func2Yaml = []byte(`apiVersion: meta.pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-test
 ---
 
 `)
@@ -95,7 +113,9 @@ spec:
 func TestConfigurationTypeSupport(t *testing.T) {
 	confpkg := static.NewLayer(configPkg, types.OCILayer)
 	pd := static.NewLayer(providerYaml, types.OCILayer)
+	p2 := static.NewLayer(provider2Yaml, types.OCILayer)
 	fd := static.NewLayer(funcYaml, types.OCILayer)
+	f2 := static.NewLayer(func2Yaml, types.OCILayer)
 
 	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
 		switch image {
@@ -103,8 +123,13 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			return &confpkg, nil
 		case "provider-dep-1:v1.3.0":
 			return &pd, nil
+		case "provider-test:v1.3.0":
+			return &p2, nil
 		case "function-dep-1:v1.3.0":
 			return &fd, nil
+		case "function-test:v1.3.0":
+			return &f2, nil
+
 		default:
 			return nil, fmt.Errorf("unknown image: %s", image)
 		}
@@ -204,6 +229,14 @@ func TestConfigurationTypeSupport(t *testing.T) {
 										"function": "function-dep-1",
 										"version":  "v1.3.0",
 									},
+									{
+										"function": "function-test",
+										"version":  "v1.3.0",
+									},
+									{
+										"function": "provider-test",
+										"version":  "v1.3.0",
+									},
 								},
 							},
 						},
@@ -226,7 +259,71 @@ func TestConfigurationTypeSupport(t *testing.T) {
 			want: want{
 				err:   nil,
 				confs: 2, // Configuration.meta and Configuration.pkg
-				deps:  3, // 1 Configuration.pkg, 1 provider, 1 function
+				deps:  5, // 1 Configuration.pkg, 2 provider, 2 function
+			},
+		},
+		"FunctionPkg": {
+			// function-test
+			reason: "Function pkg added",
+			args: args{
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-test",
+							},
+							"spec": map[string]interface{}{
+								"package": "function-test:v1.3.0",
+							},
+						},
+					},
+				},
+				fetchMock: fetchMockFunc,
+			},
+			want: want{
+				err:   nil,
+				confs: 0,
+				deps:  1, // Function.pkg from remote
+			},
+		},
+		"MultipleFunctionPkg": {
+			// function-test
+			reason: "Function pkg added",
+			args: args{
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-test",
+							},
+							"spec": map[string]interface{}{
+								"package": "function-test:v1.3.0",
+							},
+						},
+					},
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1",
+							"kind":       "Function",
+							"metadata": map[string]interface{}{
+								"name": "function-dep-1",
+							},
+							"spec": map[string]interface{}{
+								"package": "function-dep-1:v1.3.0",
+							},
+						},
+					},
+				},
+				fetchMock: fetchMockFunc,
+			},
+			want: want{
+				err:   nil,
+				confs: 0,
+				deps:  2, // 2 Function.pkg from remote
 			},
 		},
 	}
@@ -236,7 +333,7 @@ func TestConfigurationTypeSupport(t *testing.T) {
 
 		m := NewManager("", fs, w)
 		t.Run(name, func(t *testing.T) {
-			m.fetcher = &MockFetcher{tc.args.fetchMock}
+			m.fetcher = &MockFetcher{tc.args.fetchMock, nil}
 			err := m.PrepExtensions(tc.args.extensions)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -263,6 +360,7 @@ func TestAddDependencies(t *testing.T) {
 	cd2 := static.NewLayer(configDep2Yaml, types.OCILayer)
 	pd1 := static.NewLayer(providerYaml, types.OCILayer)
 	fd1 := static.NewLayer(funcYaml, types.OCILayer)
+	crossplaneLayer := static.NewLayer([]byte("crossplane content"), types.OCILayer)
 
 	fetchMockFunc := func(image string) (*conregv1.Layer, error) {
 		switch image {
@@ -274,14 +372,26 @@ func TestAddDependencies(t *testing.T) {
 			return &pd1, nil
 		case "function-dep-1:v1.3.0":
 			return &fd1, nil
+		case "xpkg.upbound.io/crossplane/crossplane:v1.16.0":
+			return &crossplaneLayer, nil
+		default:
+			return nil, fmt.Errorf("unknown image: %s", image)
+		}
+	}
+
+	fetchImageMockFunc := func(image string) ([]conregv1.Layer, error) {
+		switch image {
+		case "xpkg.upbound.io/crossplane/crossplane:v1.16.0":
+			return []conregv1.Layer{crossplaneLayer}, nil
 		default:
 			return nil, fmt.Errorf("unknown image: %s", image)
 		}
 	}
 
 	type args struct {
-		extensions []*unstructured.Unstructured
-		fetchMock  func(image string) (*conregv1.Layer, error)
+		extensions      []*unstructured.Unstructured
+		fetcher         ImageFetcher
+		crossplaneImage string
 	}
 	type want struct {
 		confs int
@@ -293,14 +403,18 @@ func TestAddDependencies(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"SuccessfulDependenciesAddition": {
+		"SuccessfulDependenciesAdditionWithCrossplaneImage": {
 			// config-dep-1
 			// └─►config-dep-2
 			//   ├─►provider-dep-1
 			//   └─►function-dep-1
-			reason: "All dependencies should be successfully fetched and added",
+			// └─►crossplaneImage (xpkg.upbound.io/crossplane/crossplane:v1.16.0)
+			reason: "All dependencies including the crossplane image should be successfully fetched and added",
 			args: args{
-				fetchMock: fetchMockFunc,
+				fetcher: &MockFetcher{
+					fetchBaseLayer: fetchMockFunc,
+					fetchImage:     fetchImageMockFunc,
+				},
 				extensions: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
@@ -315,6 +429,37 @@ func TestAddDependencies(t *testing.T) {
 						},
 					},
 				},
+				crossplaneImage: "xpkg.upbound.io/crossplane/crossplane:v1.16.0",
+			},
+			want: want{
+				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
+				deps:  5, // 2 configurations (config-dep-1, config-dep-2), 1 provider (provider-dep-1), 1 function (function-dep-1), 1 crossplaneImage
+				err:   nil,
+			},
+		},
+		"SuccessfulDependenciesAdditionWithoutCrossplaneImage": {
+			// config-dep-1
+			// └─►config-dep-2
+			//   ├─►provider-dep-1
+			//   └─►function-dep-1
+			reason: "All dependencies should be successfully fetched and added without specifying a crossplane image",
+			args: args{
+				fetcher: &MockFetcher{fetchMockFunc, nil},
+				extensions: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "pkg.crossplane.io/v1alpha1",
+							"kind":       "Configuration",
+							"metadata": map[string]interface{}{
+								"name": "config-dep-1",
+							},
+							"spec": map[string]interface{}{
+								"package": "config-dep-1:v1.3.0",
+							},
+						},
+					},
+				},
+				crossplaneImage: "",
 			},
 			want: want{
 				confs: 2, // 1 Base configuration (config-dep-1), 1 child configuration (config-dep-2)
@@ -328,10 +473,10 @@ func TestAddDependencies(t *testing.T) {
 			fs := afero.NewMemMapFs()
 			w := &bytes.Buffer{}
 
-			m := NewManager("", fs, w)
+			m := NewManager("", fs, w, WithCrossplaneImage(tc.args.crossplaneImage))
 			_ = m.PrepExtensions(tc.args.extensions)
 
-			m.fetcher = &MockFetcher{tc.args.fetchMock}
+			m.fetcher = tc.args.fetcher
 			err := m.addDependencies(m.confs)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -348,9 +493,17 @@ func TestAddDependencies(t *testing.T) {
 }
 
 type MockFetcher struct {
-	fetch func(image string) (*conregv1.Layer, error)
+	fetchBaseLayer func(image string) (*conregv1.Layer, error)
+	fetchImage     func(image string) ([]conregv1.Layer, error)
 }
 
 func (m *MockFetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
-	return m.fetch(image)
+	return m.fetchBaseLayer(image)
+}
+
+func (m *MockFetcher) FetchImage(image string) ([]conregv1.Layer, error) {
+	if m.fetchImage != nil {
+		return m.fetchImage(image)
+	}
+	return nil, nil // or a sensible default/mock behavior
 }

@@ -513,7 +513,7 @@ type ConvertTransform struct {
 }
 
 // Validate returns an error if the ConvertTransform is invalid.
-func (t ConvertTransform) Validate() *field.Error {
+func (t *ConvertTransform) Validate() *field.Error {
 	if !t.GetFormat().IsValid() {
 		return field.Invalid(field.NewPath("format"), t.Format, "invalid format")
 	}

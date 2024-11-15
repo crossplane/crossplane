@@ -65,7 +65,7 @@ const (
 // ClusterRoleBinding that binds a provider's service account to its system
 // ClusterRole.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
+	name := "rbac-bindings/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),

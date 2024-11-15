@@ -22,8 +22,8 @@ import (
 
 const (
 	// SuiteRealtimeCompositions is the value for the config.LabelTestSuite
-	// label to be assigned to tests that should be part of the Usage test
-	// suite.
+	// label to be assigned to tests that should be part of the Realtime
+	// Compositions test suite.
 	SuiteRealtimeCompositions = "realtime-compositions"
 )
 

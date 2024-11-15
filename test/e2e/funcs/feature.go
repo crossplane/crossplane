@@ -235,35 +235,23 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 	}
 }
 
-// ResourcesHaveConditionWithin fails a test if the supplied resources do not
-// have (i.e. become) the supplied conditions within the supplied duration.
-// Comparison of conditions is modulo messages.
-func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
+// ResourceHasConditionWithin checks if a single resource becomes the supplied
+// conditions within the supplied duration. Comparison of conditions is modulo
+// messages.
+func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
-
-		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
-		if err != nil {
-			t.Error(err)
-			return ctx
-		}
 
 		reasons := make([]string, len(cds))
 		for i := range cds {
 			reasons[i] = string(cds[i].Reason)
 			if cds[i].Message != "" {
-				t.Errorf("message must not be set in ResourcesHaveConditionWithin: %s", cds[i].Message)
+				t.Errorf("message must not be set in ResourceHasConditionWithin: %s", cds[i].Message)
 			}
 		}
 		desired := strings.Join(reasons, ", ")
 
-		list := &unstructured.UnstructuredList{}
-		for _, o := range rs {
-			u := asUnstructured(o)
-			list.Items = append(list.Items, *u)
-			t.Logf("Waiting %s for %s to become %s...", d, identifier(u), desired)
-		}
-
+		t.Logf("Waiting %s for %s to become %s...", d, identifier(o), desired)
 		old := make([]xpv1.Condition, len(cds))
 		match := func(o k8s.Object) bool {
 			u := asUnstructured(o)
@@ -289,16 +277,37 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		}
 
 		start := time.Now()
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
-			objs := itemsToObjects(list.Items)
-			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), objs...)
-			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(objs, related...)...))
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			related, _ := RelatedObjects(ctx, t, c.Client().RESTConfig(), o)
+			events := valueOrError(eventString(ctx, c.Client().RESTConfig(), append(related, o)...))
 
-			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(objs...), events, toYAML(related...))
+			t.Errorf("resource did not have desired conditions: %s: %v:\n\n%s\n%s\nRelated objects:\n\n%s\n", desired, err, toYAML(o), events, toYAML(related...))
 			return ctx
 		}
 
-		t.Logf("%d resources have desired conditions after %s: %s", len(rs), since(start), desired)
+		t.Logf("Resource has desired conditions after %s: %s", since(start), desired)
+		return ctx
+	}
+}
+
+// ResourcesHaveConditionWithin fails a test if the supplied resources do not
+// have (i.e. become) the supplied conditions within the supplied duration.
+// Comparison of conditions is modulo messages.
+func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
+		if err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		for _, o := range rs {
+			u := asUnstructured(o)
+			ResourceHasConditionWithin(d, u, cds...)(ctx, t, c)
+		}
+
 		return ctx
 	}
 }
@@ -482,7 +491,7 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 		// TODO(negz): Only two functions seem to read this key. Either adopt it
 		// everywhere it would be relevant, or drop it.
 		f := func(o k8s.Object) {
-			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)})
+			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)}) //nolint:fatcontext // We know we have a single claim.
 		}
 		if err := decoder.DecodeEachFile(ctx, dfs, cm, ApplyHandler(c.Client().Resources(), manager, f)); err != nil {
 			t.Fatal(err)
@@ -669,7 +678,6 @@ func CompositeResourceMustMatchWithin(d time.Duration, dir, claimFile string, ma
 
 		uxr := unstructured.Unstructured{}
 		uxr.SetName(xrRef.Name)
-		uxr.SetNamespace(xrRef.Namespace)
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
 
 		list.Items = append(list.Items, uxr)
@@ -798,7 +806,7 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 		uxr := &composite.Unstructured{}
 
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
-		if err := c.Client().Resources().Get(ctx, xrRef.Name, xrRef.Namespace, uxr); err != nil {
+		if err := c.Client().Resources().Get(ctx, xrRef.Name, "", uxr); err != nil {
 			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
 			return ctx
 		}
@@ -861,17 +869,17 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 // ListedResourcesValidatedWithin fails a test if the supplied list of resources
 // does not have the supplied number of resources that pass the supplied
 // validation function within the supplied duration.
-func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
+func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, minObjects int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, min, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, minObjects, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources didn't pass validation: %v:\n\n%s\n\n", err, y)
 			return ctx
 		}
 
-		t.Logf("at least %d resource(s) have desired conditions", min)
+		t.Logf("at least %d resource(s) have desired conditions", minObjects)
 		return ctx
 	}
 }
@@ -899,7 +907,7 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 // ListedResourcesModifiedWith modifies the supplied list of resources with the
 // supplied function and fails a test if the supplied number of resources were
 // not modified within the supplied duration.
-func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
+func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -924,8 +932,8 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 				return ctx
 			}
 		}
-		if found < min {
-			t.Errorf("expected minimum %d resources to be modified, found %d", min, found)
+		if found < minObjects {
+			t.Errorf("expected minimum %d resources to be modified, found %d", minObjects, found)
 			return ctx
 		}
 

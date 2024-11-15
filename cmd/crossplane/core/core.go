@@ -109,11 +109,12 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
-	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableUsages               bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
-	EnableRealtimeCompositions bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
-	EnableSSAClaims            bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableUsages                    bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableRealtimeCompositions      bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
+	EnableSSAClaims                 bool `group:"Alpha Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
+	EnableSignatureVerification     bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
@@ -125,6 +126,12 @@ type startCommand struct {
 	EnableCompositionRevisions               bool `default:"true" hidden:""`
 	EnableCompositionFunctions               bool `default:"true" hidden:""`
 	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
+
+	// These are alpha features that we've removed support for. Crossplane
+	// returns an error when you enable them. This ensures you'll see an
+	// explicit and informative error on startup, instead of a potentially
+	// surprising one later.
+	EnableEnvironmentConfigs bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -210,6 +217,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
 	}
 
+	// TODO(negz): Include a link to a migration guide.
+	if c.EnableEnvironmentConfigs {
+		//nolint:revive // This is long. It's easier to read with punctuation.
+		return errors.New("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
+	}
+
 	clienttls, err := certificates.LoadMTLSConfig(
 		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
@@ -232,10 +245,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// Periodically remove clients for Functions that no longer exist.
 	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
 
-	if c.EnableEnvironmentConfigs {
-		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
-	}
 	if c.EnableCompositionWebhookSchemaValidation {
 		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
@@ -272,6 +281,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableSSAClaims {
 		o.Features.Enable(features.EnableAlphaClaimSSA)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaClaimSSA)
+	}
+	if c.EnableDependencyVersionUpgrades {
+		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
+	}
+	if c.EnableSignatureVerification {
+		o.Features.Enable(features.EnableAlphaSignatureVerification)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaSignatureVerification)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the
@@ -383,6 +400,18 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		PackageRuntime:                   pr,
 		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
+	}
+
+	// We need to set the TUF_ROOT environment variable so that the TUF client
+	// knows where to store its data. A directory under CacheDir is a good place
+	// for this because it's a place that Crossplane has write access to, and
+	// we already use it for caching package images.
+	// Check the following to see how it defaults otherwise and where those
+	// ".sigstore/root" is coming from: https://github.com/sigstore/sigstore/blob/ecaaf75cf3a942cf224533ae15aee6eec19dc1e2/pkg/tuf/client.go#L558
+	// Check the following to read more about what TUF is and why it exists
+	// in this context: https://blog.sigstore.dev/the-update-framework-and-you-2f5cbaa964d5/
+	if err = os.Setenv("TUF_ROOT", filepath.Join(c.CacheDir, ".sigstore", "root")); err != nil {
+		return errors.Wrap(err, "cannot set TUF_ROOT environment variable")
 	}
 
 	if c.CABundlePath != "" {

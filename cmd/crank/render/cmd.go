@@ -86,10 +86,14 @@ the following annotations to each Function to change how they're run:
 
     Don't stop the Function's Docker container after rendering.
 
+  render.crossplane.io/runtime-docker-name: "<name>"
+
+    create a container with that name and also reuse it as long as it is running or can be restarted.
+
   render.crossplane.io/runtime-docker-pull-policy: "Always"
 
     Always pull the Function's package, even if it already exists locally.
-	Other supported values are Never, or IfNotPresent. 
+	Other supported values are Never, or IfNotPresent.
 
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
@@ -131,11 +135,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
-	// TODO(negz): Should we do some simple validations, e.g. that the
-	// Composition's compositeTypeRef matches the XR's type?
 	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
+	}
+
+	// Validate that Composition's compositeTypeRef matches the XR's GroupVersionKind.
+	xrGVK := xr.GetObjectKind().GroupVersionKind()
+	compRef := comp.Spec.CompositeTypeRef
+
+	if compRef.Kind != xrGVK.Kind {
+		return errors.Errorf("composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
+	}
+
+	if compRef.APIVersion != xrGVK.GroupVersion().String() {
+		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
 	warns, errs := comp.Validate()

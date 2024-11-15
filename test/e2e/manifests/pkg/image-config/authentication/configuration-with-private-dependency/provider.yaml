@@ -1,0 +1,7 @@
+# We don't install this directly, but we do install the configuration that depends on it.
+# We will only use this manifest to verify that the private dependency is installed.
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-e2e-private-provider
+spec: {}

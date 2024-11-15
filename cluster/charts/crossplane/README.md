@@ -100,6 +100,7 @@ and their default values.
 | `rbacManager.leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the RBAC Manager pod. | `true` |
 | `rbacManager.nodeSelector` | Add `nodeSelectors` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.replicas` | The number of RBAC Manager pod `replicas` to deploy. | `1` |
+| `rbacManager.revisionHistoryLimit` | The number of RBAC Manager ReplicaSets to retain. | `nil` |
 | `rbacManager.skipAggregatedClusterRoles` | Don't install aggregated Crossplane ClusterRoles. | `false` |
 | `rbacManager.tolerations` | Add `tolerations` to the RBAC Manager pod deployment. | `[]` |
 | `rbacManager.topologySpreadConstraints` | Add `topologySpreadConstraints` to the RBAC Manager pod deployment. | `[]` |
@@ -114,6 +115,7 @@ and their default values.
 | `resourcesRBACManager.limits.memory` | Memory resource limits for the RBAC Manager pod. | `"512Mi"` |
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for the RBAC Manager pod. | `"100m"` |
 | `resourcesRBACManager.requests.memory` | Memory resource requests for the RBAC Manager pod. | `"256Mi"` |
+| `revisionHistoryLimit` | The number of Crossplane ReplicaSets to retain. | `nil` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the Crossplane pod. | `false` |
 | `securityContextCrossplane.readOnlyRootFilesystem` | Set the Crossplane pod root file system as read-only. | `true` |
 | `securityContextCrossplane.runAsGroup` | The group ID used by the Crossplane pod. | `65532` |

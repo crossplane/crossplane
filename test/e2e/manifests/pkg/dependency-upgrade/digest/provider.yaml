@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-contrib-provider-nop
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop@sha256:552a394a8accd2b4d37fc5858abe93d311e727eafb3c00636e11c72572873e48

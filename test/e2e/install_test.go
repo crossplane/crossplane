@@ -100,17 +100,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesDeletedWithin(3*time.Minute, crdsDir, "*.yaml"),
 			)).
 			Assess("InstallStableCrossplane", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmRepo(
-					helm.WithArgs("add"),
-					helm.WithArgs("crossplane-stable"),
-					helm.WithArgs("https://charts.crossplane.io/stable"),
-				)),
-				funcs.AsFeaturesFunc(funcs.HelmInstall(
-					helm.WithNamespace(namespace),
-					helm.WithName(helmReleaseName),
-					helm.WithChart("crossplane-stable/crossplane"),
-					helm.WithArgs("--create-namespace", "--wait"),
-				)),
+				funcs.AsFeaturesFunc(environment.HelmInstallPriorCrossplane(namespace, helmReleaseName)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace))).
 			Assess("CreateClaimPrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),

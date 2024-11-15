@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane/crossplane
 
-ARG --global GO_VERSION=1.22.3
+ARG --global GO_VERSION=1.22.8
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -44,7 +44,7 @@ generate:
   BUILD +go-generate
   BUILD +helm-generate
 
-# e2e runs end-to-end tests. See test/e2e/README.md for details. 
+# e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
   ARG FLAGS="-test-suite=base"
   # Docker installs faster on Alpine, and we only need Go for go tool test2json.
@@ -76,6 +76,7 @@ hack:
   # TODO(negz): This could run an interactive shell inside a temporary container
   # once https://github.com/earthly/earthly/issues/3206 is fixed.
   ARG USERPLATFORM
+  ARG XPARGS="--debug"
   LOCALLY
   WAIT
     BUILD +unhack
@@ -89,7 +90,7 @@ hack:
       .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:hack && \
       .hack/helm install --create-namespace --namespace crossplane-system crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
         --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=hack" \
-        --set "args={--debug}"
+        --set "args={${XPARGS}}"
   END
   RUN docker image rm crossplane-hack/crossplane:hack
   RUN rm -rf .hack
@@ -141,6 +142,7 @@ go-generate:
     && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
   SAVE ARTIFACT apis/ AS LOCAL apis
   SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
+  SAVE ARTIFACT cluster/meta AS LOCAL cluster/meta
 
 # go-build builds Crossplane binaries for your native OS and architecture.
 go-build:
@@ -151,7 +153,7 @@ go-build:
   ARG TARGETOS
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
-  ARG GOFLAGS="-ldflags=-X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}"
+  ARG GOFLAGS="\"-ldflags=-s -w -X=github.com/crossplane/crossplane/internal/version.version=${CROSSPLANE_VERSION}\""
   ARG CGO_ENABLED=0
   FROM +go-modules
   LET ext = ""
@@ -205,7 +207,7 @@ go-test:
 
 # go-lint lints Go code.
 go-lint:
-  ARG GOLANGCI_LINT_VERSION=v1.59.0
+  ARG GOLANGCI_LINT_VERSION=v1.62.0
   FROM +go-modules
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint
@@ -231,7 +233,7 @@ image:
   ARG TARGETPLATFORM
   ARG TARGETARCH
   ARG TARGETOS
-  FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static@sha256:41972110a1c1a5c0b6adb283e8aa092c43c31f7c5d79b8656fbffff2c3e61f05
+  FROM --platform=${TARGETPLATFORM} gcr.io/distroless/static@sha256:f4a57e8ffd7ba407bdd0eb315bb54ef1f21a2100a7f032e9102e4da34fe7c196
   COPY --platform=${NATIVEPLATFORM} (+go-build/crossplane --GOOS=${TARGETOS} --GOARCH=${TARGETARCH}) /usr/local/bin/
   COPY --dir cluster/crds/ /crds
   COPY --dir cluster/webhookconfigurations/ /webhookconfigurations
@@ -295,7 +297,7 @@ kubectl-setup:
 
 # kind-setup is used by other targets to setup kind.
 kind-setup:
-  ARG KIND_VERSION=v0.23.0
+  ARG KIND_VERSION=v0.25.0
   ARG NATIVEPLATFORM
   ARG TARGETOS
   ARG TARGETARCH
@@ -315,14 +317,14 @@ gotestsum-setup:
 
 # helm-docs-setup is used by other targets to setup helm-docs.
 helm-docs-setup:
-  ARG HELM_DOCS_VERSION=1.13.1
+  ARG HELM_DOCS_VERSION=1.14.2
   ARG NATIVEPLATFORM
   ARG TARGETOS
   ARG TARGETARCH
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
   IF [ "${TARGETARCH}" = "amd64" ]
     LET ARCH=x86_64
-  ELSE 
+  ELSE
     LET ARCH=${TARGETARCH}
   END
   RUN curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_${TARGETOS}_${ARCH}.tar.gz|tar zx>helm-docs
@@ -330,7 +332,7 @@ helm-docs-setup:
 
 # helm-setup is used by other targets to setup helm.
 helm-setup:
-  ARG HELM_VERSION=v3.15.1
+  ARG HELM_VERSION=v3.16.3
   ARG NATIVEPLATFORM
   ARG TARGETOS
   ARG TARGETARCH
@@ -364,7 +366,7 @@ ci-artifacts:
 
 # ci-codeql-setup sets up CodeQL for the ci-codeql target.
 ci-codeql-setup:
-  ARG CODEQL_VERSION=v2.17.3
+  ARG CODEQL_VERSION=v2.19.3
   FROM curlimages/curl:8.8.0
   RUN curl -fsSL https://github.com/github/codeql-action/releases/download/codeql-bundle-${CODEQL_VERSION}/codeql-bundle-linux64.tar.gz|tar zx
   SAVE ARTIFACT codeql

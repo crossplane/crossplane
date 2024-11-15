@@ -218,8 +218,11 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
 		}
 
-		// Check if the constraint is a digest, and if so, skip constraint check.
-		if _, err := conregv1.NewHash(dep.Constraints); err == nil {
+		// Check if the constraint is a digest, if so, compare it directly.
+		if d, err := conregv1.NewHash(dep.Constraints); err == nil {
+			if lp.Version != d.String() {
+				return found, installed, invalid, errors.Errorf("existing package %s@%s is incompatible with constraint %s", lp.Identifier(), lp.Version, strings.TrimSpace(dep.Constraints))
+			}
 			continue
 		}
 
