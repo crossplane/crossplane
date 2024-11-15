@@ -491,7 +491,7 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 		// TODO(negz): Only two functions seem to read this key. Either adopt it
 		// everywhere it would be relevant, or drop it.
 		f := func(o k8s.Object) {
-			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)}) //nolint:fatcontext // TODO(phisco): we accept multiple files, this could run multiple times... we should fix it.
+			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)}) //nolint:fatcontext // We know we have a single claim.
 		}
 		if err := decoder.DecodeEachFile(ctx, dfs, cm, ApplyHandler(c.Client().Resources(), manager, f)); err != nil {
 			t.Fatal(err)
