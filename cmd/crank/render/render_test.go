@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -32,7 +33,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -249,6 +252,15 @@ func TestRender(t *testing.T) {
 										},
 									},
 								},
+								Conditions: []*fnv1.Condition{
+									{
+										Type:    "ProvisioningSuccess",
+										Status:  fnv1.Status_STATUS_CONDITION_TRUE,
+										Reason:  "Provisioned",
+										Message: ptr.To("Provisioned successfully"),
+										Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+									},
+								},
 							})
 							listeners = append(listeners, lis)
 
@@ -346,6 +358,20 @@ func TestRender(t *testing.T) {
 										"widgets": 9003
 									}
 								}`),
+							},
+						},
+					},
+					Conditions: []unstructured.Unstructured{
+						{
+							Object: map[string]any{
+								"apiVersion":         "render.crossplane.io/v1beta1",
+								"kind":               "Condition",
+								"type":               "ProvisioningSuccess",
+								"status":             corev1.ConditionTrue,
+								"reason":             xpv1.ConditionReason("Provisioned"),
+								"message":            "Provisioned successfully",
+								"target":             CompositionTargetCompositeAndClaim,
+								"lastTransitionTime": metav1.Now(),
 							},
 						},
 					},
@@ -745,7 +771,7 @@ func TestRender(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			out, err := Render(tc.args.ctx, logging.NewNopLogger(), tc.args.in)
 
-			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.EquateApproxTime(time.Second)); diff != "" {
 				t.Errorf("%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
