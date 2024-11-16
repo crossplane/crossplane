@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -49,8 +49,8 @@ func Predictors() map[string]complete.Predictor {
 // It uses the Kubernetes client to retrieve the available resources and filters them based on the
 // last completed argument.
 func kubernetesResourcePredictor() complete.PredictFunc {
-	return func(a complete.Args) (prediction []string) {
-		_, kubeconfig, err := kubernetesClient()
+	return func(a complete.Args) []string {
+		_, kubeconfig, _, err := kubernetesClient(parseConfigOverride(a))
 		if err != nil {
 			return nil
 		}
@@ -102,8 +102,8 @@ func kubernetesResourcePredictor() complete.PredictFunc {
 // It uses the Kubernetes client to retrieve the available resources and filters them based on the
 // last completed argument.
 func kubernetesResourceNamePredictor() complete.PredictFunc {
-	return func(a complete.Args) (prediction []string) {
-		client, kubeconfig, err := kubernetesClient()
+	return func(a complete.Args) []string {
+		client, kubeconfig, clientconfig, err := kubernetesClient(parseConfigOverride(a))
 		if err != nil {
 			return nil
 		}
@@ -128,11 +128,23 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 			Group:   mapping.GroupVersionKind.Group,
 			Version: mapping.GroupVersionKind.Version,
 		})
-		err = client.List(context.Background(), u)
+
+		// Limit the search results to the current context and namespace or the context and namespace specified in the command line arguments.
+		// If no namespace is specified, it will try to use the current context namespace.
+		// If that fails, it will use the default namespace.
+		namespace := parseNamespaceOverride(a)
+		if namespace == "" {
+			namespace, _, err = clientconfig.Namespace()
+			if err != nil || namespace == "" {
+				namespace = metav1.NamespaceDefault
+			}
+		}
+		err = client.List(context.Background(), u, controllerClient.InNamespace(namespace))
 		if err != nil {
 			return nil
 		}
 
+		// Find predictions by filtering the resource names that start with the currently completed argument.
 		var predictions []string
 		for _, res := range u.Items {
 			if strings.HasPrefix(res.GetName(), a.Last) {
@@ -143,6 +155,7 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 	}
 }
 
+// contextPredictor returns a predictor that suggests Kubernetes contexts from the KUBECONFIG.
 func contextPredictor() complete.PredictFunc {
 	return func(a complete.Args) []string {
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -175,7 +188,7 @@ func namespacePredictor() complete.PredictFunc {
 			return nil
 		}
 
-		namespaceList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+		namespaceList, err := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return nil
 		}
@@ -205,24 +218,50 @@ func kubernetesClientset() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(kubeConfig)
 }
 
-func kubernetesClient() (client.Client, *rest.Config, error) {
-	// TODO: It's possible to specify context overrides using command line params. We could also try to read those.
+// kubernetesClient returns a Kubernetes client and a rest.Config using the provided config overrides.
+func kubernetesClient(configOverrides *clientcmd.ConfigOverrides) (controllerClient.Client, *rest.Config, clientcmd.ClientConfig, error) {
 	clientconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
+		configOverrides,
 	)
 
 	kubeconfig, err := clientconfig.ClientConfig()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	client, err := client.New(rest.CopyConfig(kubeconfig), client.Options{})
+	client, err := controllerClient.New(rest.CopyConfig(kubeconfig), controllerClient.Options{})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return client, rest.CopyConfig(kubeconfig), nil
+	return client, rest.CopyConfig(kubeconfig), clientconfig, nil
+}
+
+// parseConfigOverride parses ConfigOverrides for the k8s client from the completed command line arguments.
+func parseConfigOverride(a complete.Args) *clientcmd.ConfigOverrides {
+	context := ""
+	for i, arg := range a.All {
+		if (arg == "--context" || arg == "-c") && i < len(a.All) {
+			context = a.All[i+1]
+			break
+		}
+	}
+	return &clientcmd.ConfigOverrides{
+		CurrentContext: context,
+	}
+}
+
+// parseNamespaceOverride parses the namespace override from the completed command line arguments.
+func parseNamespaceOverride(a complete.Args) string {
+	namespace := ""
+	for i, arg := range a.All {
+		if (arg == "--namespace" || arg == "-n") && i < len(a.All) {
+			namespace = a.All[i+1]
+			break
+		}
+	}
+	return namespace
 }
 
 // Copied over from cli-runtime pkg/resource Builder,
