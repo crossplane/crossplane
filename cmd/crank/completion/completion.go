@@ -45,24 +45,24 @@ func Predictors() map[string]complete.Predictor {
 }
 
 func kubernetesResourcePredictor() complete.PredictFunc {
-	return func(a complete.Args) (prediction []string) {
+	return func(a complete.Args) []string {
 		_, kubeconfig, err := kubernetesClient(parseConfigOverride(a))
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		resources, err := discoveryClient.ServerPreferredResources()
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		if len(resources) == 0 {
-			return make([]string, 0)
+			return nil
 		}
 
 		var predictions []string
@@ -89,22 +89,22 @@ func kubernetesResourcePredictor() complete.PredictFunc {
 }
 
 func kubernetesResourceNamePredictor() complete.PredictFunc {
-	return func(a complete.Args) (prediction []string) {
+	return func(a complete.Args) []string {
 		client, kubeconfig, err := kubernetesClient(parseConfigOverride(a))
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		discoveryClient, err := discovery.NewDiscoveryClientForConfig(kubeconfig)
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		d := memory.NewMemCacheClient(discoveryClient)
 		rmapper := restmapper.NewShortcutExpander(restmapper.NewDeferredDiscoveryRESTMapper(d), d, nil)
 		mapping, err := mappingFor(rmapper, a.LastCompleted)
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		// Get Resource object. Contains k8s resource and all its children, also as Resource.
@@ -116,7 +116,7 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 		})
 		err = client.List(context.Background(), u)
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		var predictions []string
@@ -130,7 +130,7 @@ func kubernetesResourceNamePredictor() complete.PredictFunc {
 }
 
 func contextPredictor() complete.PredictFunc {
-	return func(a complete.Args) (prediction []string) {
+	return func(a complete.Args) []string {
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 			clientcmd.NewDefaultClientConfigLoadingRules(),
 			&clientcmd.ConfigOverrides{},
@@ -138,7 +138,7 @@ func contextPredictor() complete.PredictFunc {
 
 		kubeConfig, err := clientConfig.RawConfig()
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		var predictions []string
@@ -152,15 +152,15 @@ func contextPredictor() complete.PredictFunc {
 }
 
 func namespacePredictor() complete.PredictFunc {
-	return func(a complete.Args) (prediction []string) {
+	return func(a complete.Args) []string {
 		client, err := kubernetesClientset()
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		namespaceList, err := client.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
-			return make([]string, 0)
+			return nil
 		}
 
 		var predictions []string
