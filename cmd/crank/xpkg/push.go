@@ -63,7 +63,7 @@ type pushCmd struct {
 	Package string `arg:"" help:"Where to push the package."`
 
 	// Flags. Keep sorted alphabetically.
-	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" short:"f" type:"existingfile"`
+	PackageFiles []string `help:"A comma-separated list of xpkg files to push." placeholder:"PATH" predictor:"xpkg_file" short:"f" type:"existingfile"`
 
 	// Common Upbound API configuration.
 	upbound.Flags `embed:""`
