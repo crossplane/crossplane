@@ -46,7 +46,7 @@ func Predictors() map[string]complete.Predictor {
 
 func kubernetesResourcePredictor() complete.PredictFunc {
 	return func(a complete.Args) (prediction []string) {
-		_, kubeconfig, err := kubernetesClient()
+		_, kubeconfig, err := kubernetesClient(parseConfigOverride(a))
 		if err != nil {
 			return make([]string, 0)
 		}
@@ -90,7 +90,7 @@ func kubernetesResourcePredictor() complete.PredictFunc {
 
 func kubernetesResourceNamePredictor() complete.PredictFunc {
 	return func(a complete.Args) (prediction []string) {
-		client, kubeconfig, err := kubernetesClient()
+		client, kubeconfig, err := kubernetesClient(parseConfigOverride(a))
 		if err != nil {
 			return make([]string, 0)
 		}
@@ -187,11 +187,10 @@ func kubernetesClientset() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(kubeConfig)
 }
 
-func kubernetesClient() (client.Client, *rest.Config, error) {
-	// TODO: It's possible to specify context overrides using command line params. We could also try to read those.
+func kubernetesClient(configOverrides *clientcmd.ConfigOverrides) (client.Client, *rest.Config, error) {
 	clientconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
-		&clientcmd.ConfigOverrides{},
+		configOverrides,
 	)
 
 	kubeconfig, err := clientconfig.ClientConfig()
@@ -205,6 +204,18 @@ func kubernetesClient() (client.Client, *rest.Config, error) {
 	}
 
 	return client, rest.CopyConfig(kubeconfig), nil
+}
+
+func parseConfigOverride(a complete.Args) *clientcmd.ConfigOverrides {
+	context := ""
+	for i, arg := range a.All {
+		if arg == "--context" && i < len(a.All) {
+			context = a.All[i+1]
+		}
+	}
+	return &clientcmd.ConfigOverrides{
+		CurrentContext: context,
+	}
 }
 
 // Copied over from cli-runtime pkg/resource Builder,
