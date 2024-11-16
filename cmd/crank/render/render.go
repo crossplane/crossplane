@@ -85,6 +85,7 @@ type Outputs struct {
 	ComposedResources []composed.Unstructured
 	Results           []unstructured.Unstructured
 	Context           *unstructured.Unstructured
+	Conditions        []unstructured.Unstructured
 
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
@@ -98,6 +99,15 @@ type RuntimeFunctionRunner struct {
 	conns    map[string]*grpc.ClientConn
 	mx       sync.Mutex
 }
+
+// A CompositionTarget is the target of a composition event or condition.
+type CompositionTarget string
+
+// Composition event and condition targets.
+const (
+	CompositionTargetComposite         CompositionTarget = "Composite"
+	CompositionTargetCompositeAndClaim CompositionTarget = "CompositeAndClaim"
+)
 
 // NewRuntimeFunctionRunner returns a FunctionRunner that runs functions
 // locally, using the runtime configured in their annotations (e.g. Docker). It
@@ -207,6 +217,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	d := &fnv1.State{}
 
 	results := make([]unstructured.Unstructured, 0)
+	conditions := make([]unstructured.Unstructured, 0)
 
 	// The Function context starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -270,6 +281,29 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		// Pass the Function context returned by this Function to the next one.
 		// We intentionally discard/ignore this after the last Function runs.
 		fctx = rsp.GetContext()
+
+		for _, c := range rsp.GetConditions() {
+			var status corev1.ConditionStatus
+			switch c.GetStatus() {
+			case fnv1.Status_STATUS_CONDITION_TRUE:
+				status = corev1.ConditionTrue
+			case fnv1.Status_STATUS_CONDITION_FALSE:
+				status = corev1.ConditionFalse
+			case fnv1.Status_STATUS_CONDITION_UNKNOWN, fnv1.Status_STATUS_CONDITION_UNSPECIFIED:
+				status = corev1.ConditionUnknown
+			}
+
+			conditions = append(conditions, unstructured.Unstructured{Object: map[string]any{
+				"apiVersion":         "render.crossplane.io/v1beta1",
+				"kind":               "Condition",
+				"type":               c.GetType(),
+				"status":             status,
+				"lastTransitionTime": metav1.Now(),
+				"reason":             xpv1.ConditionReason(c.GetReason()),
+				"message":            c.GetMessage(),
+				"target":             convertTarget(c.GetTarget()),
+			}})
+		}
 
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
@@ -340,7 +374,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	xrCond.LastTransitionTime = metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
 	xr.SetConditions(xrCond)
 
-	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
+	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results, Conditions: conditions}
 	if fctx != nil {
 		out.Context = &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "render.crossplane.io/v1beta1",
@@ -413,4 +447,11 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	}
 
 	return out, nil
+}
+
+func convertTarget(t fnv1.Target) CompositionTarget {
+	if t == fnv1.Target_TARGET_COMPOSITE_AND_CLAIM {
+		return CompositionTargetCompositeAndClaim
+	}
+	return CompositionTargetComposite
 }
