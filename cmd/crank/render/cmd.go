@@ -20,7 +20,6 @@ package render
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -251,13 +250,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	_, _ = fmt.Fprintln(k.Stdout, "---")
-	if err := s.Encode(out.CompositeResource, os.Stdout); err != nil {
+	if err := s.Encode(out.CompositeResource, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot marshal composite resource %q to YAML", xr.GetName())
 	}
 
 	for i := range out.ComposedResources {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(&out.ComposedResources[i], os.Stdout); err != nil {
+		if err := s.Encode(&out.ComposedResources[i], k.Stdout); err != nil {
 			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetAnnotations()[AnnotationKeyCompositionResourceName])
 		}
 	}
@@ -265,7 +264,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if c.IncludeFunctionResults {
 		for i := range out.Results {
 			_, _ = fmt.Fprintln(k.Stdout, "---")
-			if err := s.Encode(&out.Results[i], os.Stdout); err != nil {
+			if err := s.Encode(&out.Results[i], k.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
 		}
@@ -273,7 +272,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 
 	if c.IncludeContext {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(out.Context, os.Stdout); err != nil {
+		if err := s.Encode(out.Context, k.Stdout); err != nil {
 			return errors.Wrap(err, "cannot marshal context to YAML")
 		}
 	}
