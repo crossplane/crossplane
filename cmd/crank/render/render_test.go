@@ -21,7 +21,6 @@ import (
 	"io"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -35,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -292,13 +290,22 @@ func TestRender(t *testing.T) {
 								},
 								"status": {
 									"widgets": 9001,
-									"conditions": [{
-										"lastTransitionTime": "2024-01-01T00:00:00Z",
-										"type": "Ready",
-										"status": "False",
-										"reason": "Creating",
-										"message": "Unready resources: a-cool-resource, b-cool-resource"
-									}]
+									"conditions": [
+										{
+											"lastTransitionTime": "2024-01-01T00:00:00Z",
+											"type": "Ready",
+											"status": "False",
+											"reason": "Creating",
+											"message": "Unready resources: a-cool-resource, b-cool-resource"
+										},
+										{
+											"lastTransitionTime": "2024-01-01T00:00:00Z",
+											"type": "ProvisioningSuccess",
+											"status": "True",
+											"reason": "Provisioned",
+											"message": "Provisioned successfully"
+										}
+									]
 								}
 							}`),
 						},
@@ -358,20 +365,6 @@ func TestRender(t *testing.T) {
 										"widgets": 9003
 									}
 								}`),
-							},
-						},
-					},
-					Conditions: []unstructured.Unstructured{
-						{
-							Object: map[string]any{
-								"apiVersion":         "render.crossplane.io/v1beta1",
-								"kind":               "Condition",
-								"type":               "ProvisioningSuccess",
-								"status":             corev1.ConditionTrue,
-								"reason":             xpv1.ConditionReason("Provisioned"),
-								"message":            "Provisioned successfully",
-								"target":             CompositionTargetCompositeAndClaim,
-								"lastTransitionTime": metav1.Now(),
 							},
 						},
 					},
@@ -771,7 +764,7 @@ func TestRender(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			out, err := Render(tc.args.ctx, logging.NewNopLogger(), tc.args.in)
 
-			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty(), cmpopts.EquateApproxTime(time.Second)); diff != "" {
+			if diff := cmp.Diff(tc.want.out, out, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
