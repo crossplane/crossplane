@@ -85,7 +85,6 @@ type Outputs struct {
 	ComposedResources []composed.Unstructured
 	Results           []unstructured.Unstructured
 	Context           *unstructured.Unstructured
-	Conditions        []unstructured.Unstructured
 
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
@@ -99,15 +98,6 @@ type RuntimeFunctionRunner struct {
 	conns    map[string]*grpc.ClientConn
 	mx       sync.Mutex
 }
-
-// A CompositionTarget is the target of a composition event or condition.
-type CompositionTarget string
-
-// Composition event and condition targets.
-const (
-	CompositionTargetComposite         CompositionTarget = "Composite"
-	CompositionTargetCompositeAndClaim CompositionTarget = "CompositeAndClaim"
-)
 
 // NewRuntimeFunctionRunner returns a FunctionRunner that runs functions
 // locally, using the runtime configured in their annotations (e.g. Docker). It
@@ -217,7 +207,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	d := &fnv1.State{}
 
 	results := make([]unstructured.Unstructured, 0)
-	conditions := make([]unstructured.Unstructured, 0)
+	conditions := make([]xpv1.Condition, 0)
 
 	// The Function context starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -293,16 +283,13 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 				status = corev1.ConditionUnknown
 			}
 
-			conditions = append(conditions, unstructured.Unstructured{Object: map[string]any{
-				"apiVersion":         "render.crossplane.io/v1beta1",
-				"kind":               "Condition",
-				"type":               c.GetType(),
-				"status":             status,
-				"lastTransitionTime": metav1.Now(),
-				"reason":             xpv1.ConditionReason(c.GetReason()),
-				"message":            c.GetMessage(),
-				"target":             convertTarget(c.GetTarget()),
-			}})
+			conditions = append(conditions, xpv1.Condition{
+				Type:               xpv1.ConditionType(c.GetType()),
+				Status:             status,
+				LastTransitionTime: conditionTime(),
+				Reason:             xpv1.ConditionReason(c.GetReason()),
+				Message:            c.GetMessage(),
+			})
 		}
 
 		// Results of fatal severity stop the Composition process.
@@ -369,12 +356,21 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	if len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
-	// lastTransitionTime would just be noise, but we can't drop it as it's a
-	// required field and null is not allowed, so we set a random time.
-	xrCond.LastTransitionTime = metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
+	xrCond.LastTransitionTime = conditionTime()
 	xr.SetConditions(xrCond)
 
-	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results, Conditions: conditions}
+	for _, c := range conditions {
+		if xpv1.IsSystemConditionType(c.Type) {
+			// Do not let users update system conditions.
+			continue
+		}
+		// update the XR with the current condition. If it targets the claim, we
+		// could also set it on the claim here, but we don't support Claims in
+		// render yet.
+		xr.SetConditions(c)
+	}
+
+	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
 	if fctx != nil {
 		out.Context = &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "render.crossplane.io/v1beta1",
@@ -449,9 +445,8 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	return out, nil
 }
 
-func convertTarget(t fnv1.Target) CompositionTarget {
-	if t == fnv1.Target_TARGET_COMPOSITE_AND_CLAIM {
-		return CompositionTargetCompositeAndClaim
-	}
-	return CompositionTargetComposite
+func conditionTime() metav1.Time {
+	// lastTransitionTime for conditions would just be noise, but we can't drop it
+	// as it's a required field and null is not allowed, so we set a random time.
+	return metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
 }
