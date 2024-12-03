@@ -533,6 +533,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1alpha1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
+									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1alpha1.Resource{
 										APIVersion:  "v1",
@@ -563,6 +564,47 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetUsing),
+			},
+		},
+		"ShouldNotGetUsingOnDeleteIfNotComposed": {
+			reason: "We should not get using resource on delete if the usage is not composed.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1alpha1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1alpha1.Resource{
+										APIVersion:  "v1",
+										Kind:        "AnotherKind",
+										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+									}
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == "using" {
+										return errors.New("unexpected call, should not get using resource")
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockList:   test.NewMockListFn(nil),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
 			},
 		},
 		"CannotListUsagesOnDelete": {
