@@ -38,14 +38,16 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 // Error strings.
 const (
-	errGetComposed  = "cannot get composed resource"
-	errGCComposed   = "cannot garbage collect composed resource"
-	errFetchDetails = "cannot fetch connection details"
-	errInline       = "cannot inline Composition patch sets"
+	errGetComposed     = "cannot get composed resource"
+	errGCCleanupLabels = "cannot cleanup composed resource labels before garbage collection"
+	errGCComposed      = "cannot garbage collect composed resource"
+	errFetchDetails    = "cannot fetch connection details"
+	errInline          = "cannot inline Composition patch sets"
 
 	errFmtApplyComposed              = "cannot apply composed resource %q"
 	errFmtParseBase                  = "cannot parse base template of composed resource %q"
@@ -520,6 +522,14 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 
 		// This existing resource does not correspond to an extant template. It
 		// should be garbage collected.
+		// Remove the labels that indicate this resource was owned by a
+		// Composition. This helps differentiate whether a resource was deleted
+		// due to garbage collection or because its owning composite was deleted.
+		meta.RemoveLabels(cd, xcrd.LabelKeyNamePrefixForComposed, xcrd.LabelKeyClaimName, xcrd.LabelKeyClaimNamespace)
+		if err := a.client.Update(ctx, cd); resource.IgnoreNotFound(err) != nil {
+			return nil, errors.Wrap(err, errGCCleanupLabels)
+		}
+		// Delete the composed resource.
 		if err := a.client.Delete(ctx, cd); resource.IgnoreNotFound(err) != nil {
 			return nil, errors.Wrap(err, errGCComposed)
 		}
