@@ -132,7 +132,7 @@ func TestMain(m *testing.M) {
 	}
 
 	// We always want to add our types to the scheme.
-	setup = append(setup, funcs.AddCrossplaneTypesToScheme())
+	setup = append(setup, funcs.AddCrossplaneTypesToScheme(), funcs.AddCRDsToScheme())
 
 	if environment.ShouldCollectKindLogsOnFailure() {
 		finish = append(finish, envfuncs.ExportClusterLogs(environment.GetKindClusterName(), environment.GetKindClusterLogsLocation()))

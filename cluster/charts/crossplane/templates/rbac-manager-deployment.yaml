@@ -19,6 +19,9 @@ spec:
       release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
+  {{- if .Values.rbacManager.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ .Values.rbacManager.revisionHistoryLimit }}
+  {{- end }}
   template:
     metadata:
       {{- if or .Values.metrics.enabled .Values.customAnnotations }}

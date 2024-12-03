@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: functions.pkg.crossplane.io
 spec:
   group: pkg.crossplane.io
@@ -36,7 +36,6 @@ spec:
         description: |-
           A Function installs an OCI compatible Crossplane package, extending
           Crossplane with support for a new kind of composition function.
-
 
           Read the Crossplane documentation for
           [more information about Functions](https://docs.crossplane.io/latest/concepts/composition-functions).
@@ -108,10 +107,13 @@ spec:
                     referenced object inside the same namespace.
                   properties:
                     name:
+                      default: ""
                       description: |-
                         Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        TODO: Add other useful fields. apiVersion, kind, uid?
                       type: string
                   type: object
                   x-kubernetes-map-type: atomic
@@ -253,7 +255,6 @@ spec:
           A Function installs an OCI compatible Crossplane package, extending
           Crossplane with support for a new kind of composition function.
 
-
           Read the Crossplane documentation for
           [more information about Functions](https://docs.crossplane.io/latest/concepts/composition-functions).
         properties:
@@ -324,10 +325,13 @@ spec:
                     referenced object inside the same namespace.
                   properties:
                     name:
+                      default: ""
                       description: |-
                         Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
                         More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                        TODO: Add other useful fields. apiVersion, kind, uid?
                       type: string
                   type: object
                   x-kubernetes-map-type: atomic

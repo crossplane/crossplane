@@ -40,7 +40,7 @@ import (
 // newly created CompositionRevision.
 func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
-		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.RateLimitingInterface) {
+		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			rev, ok := e.Object.(*v1.CompositionRevision)
 			if !ok {
 				// should not happen
@@ -93,7 +93,7 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 // updated composed resource.
 func EnqueueCompositeResources(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
-		UpdateFunc: func(ctx context.Context, ev kevent.UpdateEvent, q workqueue.RateLimitingInterface) {
+		UpdateFunc: func(ctx context.Context, ev kevent.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			xrGVK := schema.GroupVersionKind(of)
 			cdGVK := ev.ObjectNew.GetObjectKind().GroupVersionKind()
 			key := refKey(ev.ObjectNew.GetNamespace(), ev.ObjectNew.GetName(), cdGVK.Kind, cdGVK.GroupVersion().String())

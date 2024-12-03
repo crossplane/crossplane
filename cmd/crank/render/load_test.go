@@ -34,7 +34,6 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 //go:embed testdata
@@ -191,8 +190,8 @@ func TestLoadFunctions(t *testing.T) {
 					},
 					{
 						TypeMeta: metav1.TypeMeta{
-							Kind:       pkgv1beta1.FunctionKind,
-							APIVersion: pkgv1beta1.SchemeGroupVersion.String(),
+							Kind:       pkgv1.FunctionKind,
+							APIVersion: pkgv1.SchemeGroupVersion.String(),
 						},
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "function-dummy",
@@ -204,6 +203,25 @@ func TestLoadFunctions(t *testing.T) {
 						Spec: pkgv1.FunctionSpec{
 							PackageSpec: pkgv1.PackageSpec{
 								Package: "xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1",
+							},
+						},
+					},
+					{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       pkgv1.FunctionKind,
+							APIVersion: pkgv1.SchemeGroupVersion.String(),
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-auto-ready",
+							Annotations: map[string]string{
+								AnnotationKeyRuntime:               string(AnnotationValueRuntimeDocker),
+								AnnotationKeyRuntimeDockerCleanup:  string(AnnotationValueRuntimeDockerCleanupOrphan),
+								AnnotationKeyRuntimeNamedContainer: "function-auto-ready",
+							},
+						},
+						Spec: pkgv1.FunctionSpec{
+							PackageSpec: pkgv1.PackageSpec{
+								Package: "xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.1.2",
 							},
 						},
 					},

@@ -39,7 +39,7 @@ welcome from any member of the Crossplane community, but feedback from the
 elected reviewers carries extra weight.
 
 The __document status__ reflects the lifecycle of the design. Designs may be
-committed to master at any stage in their lifecycle as long as the status is
+committed to `main` at any stage in their lifecycle as long as the status is
 indicated clearly. Use one of the following statuses:
 
 * _Speculative_ designs explore an idea without _yet_ explicitly proposing a

@@ -42,6 +42,7 @@ var _ DependencyManager = &PackageDependencyManager{}
 
 func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
+	mockUpdateCallCount := 0
 
 	type args struct {
 		dep  *PackageDependencyManager
@@ -553,9 +554,68 @@ func TestResolve(t *testing.T) {
 				invalid:   0,
 			},
 		},
+		"SuccessfulLockPackageSourceMismatch": {
+			reason: "Should not return error if source in packages does not match provider revision package.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							l := obj.(*v1beta1.Lock)
+							if mockUpdateCallCount < 1 {
+								l.Packages = []v1beta1.LockPackage{
+									{
+										Name: "config-nop-a-abc123",
+										// Source mistmatch provider revision package
+										Source: "hasheddan/config-nop-b",
+									},
+								}
+							} else {
+								l.Packages = []v1beta1.LockPackage{}
+							}
+							return nil
+						}),
+						MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+							mockUpdateCallCount++
+							return nil
+						},
+					},
+					newDag: func() dag.DAG {
+						return &dagfake.MockDag{
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return []dag.Node{}, nil
+							},
+							MockTraceNode: func(s string) (map[string]dag.Node, error) {
+								if s == "hasheddan/config-nop-a" {
+									return map[string]dag.Node{
+										s: &v1beta1.Dependency{},
+									}, nil
+								}
+								return nil, errors.New("missing node in tree")
+							},
+							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
+						}
+					},
+				},
+				meta: &pkgmetav1.Configuration{},
+				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
+					Spec: v1.PackageRevisionSpec{
+						Package:      "hasheddan/config-nop-a:v0.0.1",
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				total:     1,
+				installed: 1,
+			},
+		},
 	}
 
 	for name, tc := range cases {
+		mockUpdateCallCount = 0
 		t.Run(name, func(t *testing.T) {
 			total, installed, invalid, err := tc.args.dep.Resolve(context.TODO(), tc.args.meta, tc.args.pr)
 

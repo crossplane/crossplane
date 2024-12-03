@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: functions.meta.pkg.crossplane.io
 spec:
   group: meta.pkg.crossplane.io
@@ -14,7 +14,7 @@ spec:
     singular: function
   scope: Namespaced
   versions:
-  - name: v1beta1
+  - name: v1
     schema:
       openAPIV3Schema:
         description: A Function is the description of a Crossplane Function package.
@@ -83,3 +83,72 @@ spec:
         type: object
     served: true
     storage: true
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: A Function is the description of a Crossplane Function package.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: FunctionSpec specifies the configuration of a Function.
+            properties:
+              crossplane:
+                description: Semantic version constraints of Crossplane that package
+                  is compatible with.
+                properties:
+                  version:
+                    description: Semantic version constraints of Crossplane that package
+                      is compatible with.
+                    type: string
+                required:
+                - version
+                type: object
+              dependsOn:
+                description: Dependencies on other packages.
+                items:
+                  description: Dependency is a dependency on another package. One
+                    of Provider or Configuration may be supplied.
+                  properties:
+                    configuration:
+                      description: Configuration is the name of a Configuration package
+                        image.
+                      type: string
+                    function:
+                      description: Function is the name of a Function package image.
+                      type: string
+                    provider:
+                      description: Provider is the name of a Provider package image.
+                      type: string
+                    version:
+                      description: Version is the semantic version constraints of
+                        the dependency image.
+                      type: string
+                  required:
+                  - version
+                  type: object
+                type: array
+              image:
+                description: Image is the packaged Function image.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: false

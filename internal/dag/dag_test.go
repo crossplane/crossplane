@@ -54,6 +54,16 @@ func (s *simpleNode) AddNeighbors(nodes ...Node) error {
 	return nil
 }
 
+func (s *simpleNode) GetConstraints() string {
+	return ""
+}
+
+func (s *simpleNode) GetParentConstraints() []string {
+	return nil
+}
+
+func (s *simpleNode) AddParentConstraints([]string) {}
+
 func toNodes(n []simpleNode) []Node {
 	nodes := make([]Node, len(n))
 	for i, r := range n {

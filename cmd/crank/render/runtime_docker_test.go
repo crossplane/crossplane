@@ -21,7 +21,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,10 +32,10 @@ import (
 )
 
 type mockPullClient struct {
-	MockPullImage func(_ context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
+	MockPullImage func(_ context.Context, ref string, options image.PullOptions) (io.ReadCloser, error)
 }
 
-func (m *mockPullClient) ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error) {
+func (m *mockPullClient) ImagePull(ctx context.Context, ref string, options image.PullOptions) (io.ReadCloser, error) {
 	return m.MockPullImage(ctx, ref, options)
 }
 
@@ -78,6 +78,33 @@ func TestGetRuntimeDocker(t *testing.T) {
 					Image:      "test-image-from-annotation",
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyAlways,
+				},
+			},
+		},
+		"SuccessNamedContainer": {
+			reason: "should return a RuntimeDocker with the correct name.",
+			args: args{
+				fn: pkgv1.Function{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							AnnotationKeyRuntimeDockerCleanup:  string(AnnotationValueRuntimeDockerCleanupOrphan),
+							AnnotationKeyRuntimeNamedContainer: "test-container-name-function",
+							AnnotationKeyRuntimeDockerImage:    "test-image-from-annotation",
+						},
+					},
+					Spec: pkgv1.FunctionSpec{
+						PackageSpec: pkgv1.PackageSpec{
+							Package: "test-package",
+						},
+					},
+				},
+			},
+			want: want{
+				rd: &RuntimeDocker{
+					Image:      "test-image-from-annotation",
+					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
+					Name:       "test-container-name-function",
+					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
 				},
 			},
 		},

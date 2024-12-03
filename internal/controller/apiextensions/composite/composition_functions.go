@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -59,7 +60,6 @@ const (
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
-	errEnvAsStruct              = "cannot encode environment to protocol buffer Struct well-known type"
 	errStructFromUnstructured   = "cannot create Struct"
 	errGetExtraResourceByName   = "cannot get extra resource by name"
 	errNilResourceSelector      = "resource selector should not be nil"
@@ -94,12 +94,6 @@ const (
 	// FieldOwnerComposedPrefix owns the fields this controller mutates on composed
 	// resources.
 	FieldOwnerComposedPrefix = "apiextensions.crossplane.io/composed"
-)
-
-const (
-	// FunctionContextKeyEnvironment is used to store the Composition
-	// Environment in the Function context.
-	FunctionContextKeyEnvironment = "apiextensions.crossplane.io/environment"
 )
 
 // A FunctionComposer supports composing resources using a pipeline of
@@ -279,17 +273,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	events := []TargetedEvent{}
 	conditions := []TargetedCondition{}
 
-	// The Function context starts empty...
+	// The Function context always starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
-
-	// ...but we bootstrap it with the Composition environment, if there is one.
-	if req.Environment != nil {
-		e, err := AsStruct(req.Environment)
-		if err != nil {
-			return CompositionResult{}, errors.Wrap(err, errEnvAsStruct)
-		}
-		fctx.Fields[FunctionContextKeyEnvironment] = structpb.NewStructValue(e)
-	}
 
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
@@ -439,6 +424,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
+	compositeRes := CompositeResource{}
+
+	// Consider the explicit composite unready state in the function response:
+	switch d.GetComposite().GetReady() { //nolint:exhaustive // only check for false or true
+	case fnv1.Ready_READY_TRUE:
+		compositeRes.Ready = ptr.To(true)
+	case fnv1.Ready_READY_FALSE:
+		compositeRes.Ready = ptr.To(false)
+	}
+
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
@@ -553,7 +548,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composed: resources, Events: events, Conditions: conditions}, nil
+	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composite: compositeRes, Composed: resources, Events: events, Conditions: conditions}, nil
 }
 
 // ComposedFieldOwnerName generates a unique field owner name

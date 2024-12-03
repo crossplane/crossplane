@@ -44,6 +44,51 @@ earthly -i -P +e2e --FLAGS="-test.failfast -destroy-kind-cluster=false"
 earthly -P +e2e --FLAGS="-test.v -test-suite=composition-webhook-schema-validation"
 ```
 
+### Accessing the Test Cluster
+
+Earthly runs e2e tests in a buildkit container, which is not directly accessible
+from host via regular `docker ps` and `docker exec` commands. To access the
+cluster, you can use the following commands:
+
+0. Make sure you have started the tests with the `-i` flag. For example:
+
+```bash
+earthly -i -P +e2e --FLAGS="-v=4"
+```
+
+1. Get the container ID of the buildkit container
+```bash
+$ docker ps | grep earthly/buildkitd
+$ export EARTHLY_CONTAINER_ID=<container_id>
+```
+
+2. Find the id of the runc container running in earthly
+```bash
+$ docker exec $EARTHLY_CONTAINER_ID buildkit-runc list
+# Export the container id of the runc container
+$ export RUNC_CONTAINER_ID=<container_id>
+```
+
+In case you have only one earthly job running, you can use the following
+shortcut to get the runc container id:
+
+```bash
+$ export RUNC_CONTAINER_ID=$(docker exec $EARTHLY_CONTAINER_ID buildkit-runc list -q)
+```
+
+3. Exec into the runc container and access the cluster
+
+```bash
+# Exec into the runc container
+$ docker exec -ti $EARTHLY_CONTAINER_ID buildkit-runc exec -t $RUNC_CONTAINER_ID sh
+# See the kind cluster
+$ kind get clusters
+crossplane-e2e-7eda80e167ed36325
+# Install kubectl
+$ apk add kubectl
+# Now you can use kubectl to access the cluster
+```
+
 ## Test Parallelism
 
 `earthly -P +e2e` runs all defined E2E tests serially. Tests do not run in
@@ -115,7 +160,7 @@ We try to follow this pattern when adding a new test:
    `github.com/crossplane/crossplane/test/e2e/funcs`, or add new ones there if
    needed.
 1. Prefer using the Fluent APIs to define features
-   (`features.New(...).WithSetup(...).Assess(...).WithTeardown(...).Feature()`).
+   (`features.NewWithDescription(...).WithSetup(...).AssessWithDescription(...).WithTeardown(...).Feature()`).
    1. `features.Table` should be used only to define multiple self-contained
       assessments to be run sequentially, but without assuming any ordering among
       them, similarly to the usual table driven style we adopt for unit testing.
@@ -124,8 +169,8 @@ We try to follow this pattern when adding a new test:
    a feature, as they allow to provide a description.
 1. Use short but explicative `CamelCase` sentences as descriptions for
    everything used to define the name of tests/subtests, e.g.
-   `features.New("CrossplaneUpgrade", ...)` `WithSetup("InstallProviderNop",
-   ...)`, `Assess("ProviderNopIsInstalled", ...)`,
+   `features.NewWithDescription("CrossplaneUpgrade", ...)` `WithSetup("InstallProviderNop",
+   ...)`, `AssessWithDescription("ProviderNopIsInstalled", ...)`,
    `WithTeardown("UninstallProviderNop", ...)`.
 1. Use the `Setup` and `Teardown` phases to define respectively actions that are
    not strictly part of the feature being tested, but are needed to make it
@@ -163,29 +208,31 @@ Here an example of a test following the above guidelines:
 ```go
 package e2e
 
+import "sigs.k8s.io/e2e-framework/pkg/features"
+
 // ...
 
 // TestSomeFeature ...
 func TestSomeFeature(t *testing.T) {
-	manifests := "test/e2e/manifests/pkg/some-area/some-feature"
-	namespace := "some-namespace"
-	// ... other variables or constants ...
+   manifests := "test/e2e/manifests/pkg/some-area/some-feature"
+   namespace := "some-namespace"
+   // ... other variables or constants ...
 
-	environment.Test(t,
-		features.New(t.Name()).
-			WithLabel(LabelArea, ...).
-			WithLabel(LabelSize, ...).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-			// ...
-			WithSetup("ReadyPrerequisites", ... ).
-			// ... other setup steps ...
-			Assess("DoSomething", ... ).
-			Assess("SomethingElseIsInSomeState", ... ).
-			// ... other assess steps ...
-			WithTeardown("DeleteCreatedResources", ...).
-			// ... other teardown steps ...
-			Feature(),
-	)
+   environment.Test(t,
+      features.NewWithDescription(t.Name(), ...).
+         WithLabel(LabelArea, ...).
+         WithLabel(LabelSize, ...).
+         WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+         // ...
+         WithSetup("ReadyPrerequisites", ...).
+         // ... other setup steps ...
+         AssessWithDescription("DoSomething", ...).
+         AssessWithDescription("SomethingElseIsInSomeState", ...).
+         // ... other assess steps ...
+         WithTeardown("DeleteCreatedResources", ...).
+         // ... other teardown steps ...
+         Feature(),
+   )
 }
 
 // ...

@@ -98,7 +98,7 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []R
 // series of opinionated ClusterRoles that may be bound to allow access to the
 // resources it defines.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
+	name := "rbac-roles/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 
 	if o.AllowClusterRole == "" {
 		r := NewReconciler(mgr,

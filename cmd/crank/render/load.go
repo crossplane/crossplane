@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -92,6 +93,25 @@ func LoadFunctions(filesys afero.Fs, file string) ([]pkgv1.Function, error) {
 	}
 
 	return functions, nil
+}
+
+// LoadCredentials from a stream of YAML manifests.
+func LoadCredentials(fs afero.Fs, file string) ([]corev1.Secret, error) {
+	stream, err := LoadYAMLStream(fs, file)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot load YAML stream from file")
+	}
+
+	secrets := make([]corev1.Secret, 0, len(stream))
+	for _, y := range stream {
+		s := &corev1.Secret{}
+		if err := yaml.Unmarshal(y, s); err != nil {
+			return nil, errors.Wrap(err, "cannot parse YAML secret manifest")
+		}
+		secrets = append(secrets, *s)
+	}
+
+	return secrets, nil
 }
 
 // LoadExtraResources from a stream of YAML manifests.

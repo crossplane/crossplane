@@ -73,14 +73,6 @@ type CompositionRevisionSpec struct {
 	// +optional
 	PatchSets []PatchSet `json:"patchSets,omitempty"`
 
-	// Environment configures the environment in which resources are rendered.
-	//
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
-	// +optional
-	Environment *EnvironmentConfiguration `json:"environment,omitempty"`
-
 	// Resources is a list of resource templates that will be used when a
 	// composite resource referring to this composition is created.
 	//
@@ -126,7 +118,11 @@ type CompositionRevisionSpec struct {
 	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 
 	// Revision number. Newer revisions have larger numbers.
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	//
+	// This number can change. When a Composition transitions from state A
+	// -> B -> A there will be only two CompositionRevisions. Crossplane will
+	// edit the original CompositionRevision to change its revision number from
+	// 0 to 2.
 	Revision int64 `json:"revision"`
 }
 

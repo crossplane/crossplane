@@ -27,7 +27,7 @@ I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 
 Need help with this checklist? See the [cheat sheet].
 
-[contribution process]: https://github.com/crossplane/crossplane/tree/master/contributing
+[contribution process]: https://github.com/crossplane/crossplane/tree/main/contributing
 [docs tracking issue]: https://github.com/crossplane/docs/issues/new
 [document this change]: https://docs.crossplane.io/contribute/contribute
-[cheat sheet]: https://github.com/crossplane/crossplane/tree/master/contributing#checklist-cheat-sheet
+[cheat sheet]: https://github.com/crossplane/crossplane/tree/main/contributing#checklist-cheat-sheet

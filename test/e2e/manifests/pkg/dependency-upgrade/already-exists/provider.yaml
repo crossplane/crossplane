@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: cool-provider
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.0

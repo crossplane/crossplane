@@ -124,7 +124,7 @@ requires some dirty work as we need to this for all types:
 You can check [this commit as an example for changes in Setup functions] as an
 example.
 
-[External Secret Stores]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-external-secret-stores.md
+[External Secret Stores]: https://github.com/crossplane/crossplane/blob/main/design/design-doc-external-secret-stores.md
 [this PR as a complete example]: https://github.com/crossplane/provider-gcp/pull/421
 [this PR instead]: https://github.com/crossplane-contrib/provider-jet-template/pull/23/commits
 [this commit as an example on how to add the type]: https://github.com/crossplane-contrib/provider-aws/pull/1242/commits/d8a2df323fa2489d82bf1843d2fe338de033c61d

@@ -40,13 +40,6 @@ const LabelAreaLifecycle = "lifecycle"
 
 const TestSuiteLifecycle = "lifecycle"
 
-// TestCrossplaneLifecycle tests two features expecting them to be run in order:
-//   - CrossplaneUninstall: Test that it's possible to cleanly uninstall Crossplane, even
-//     after having created and deleted a claim.
-//   - CrossplaneUpgrade: Test that it's possible to upgrade Crossplane from the most recent
-//     stable Helm chart to the one we're testing, even when a claim exists. This
-//     expects Crossplane not to be installed.
-//
 // Note: First time Installation is tested as part of the environment setup,
 // if not disabled explicitly.
 func TestCrossplaneLifecycle(t *testing.T) {
@@ -54,7 +47,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 	environment.Test(t,
 		// Test that it's possible to cleanly uninstall Crossplane, even after
 		// having created and deleted a claim.
-		features.New(t.Name()+"Uninstall").
+		features.NewWithDescription(t.Name()+"Uninstall", "Test that it's possible to cleanly uninstall Crossplane, even after having created and deleted a claim.").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
@@ -97,7 +90,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourceDeletedWithin(3*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
 			)).
 			Feature(),
-		features.New(t.Name()+"Upgrade").
+		features.NewWithDescription(t.Name()+"Upgrade", "Test that it's possible to upgrade Crossplane from the most recent stable Helm chart to the one we're testing, even when a claim exists. This expects Crossplane not to be installed.").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -107,17 +100,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesDeletedWithin(3*time.Minute, crdsDir, "*.yaml"),
 			)).
 			Assess("InstallStableCrossplane", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmRepo(
-					helm.WithArgs("add"),
-					helm.WithArgs("crossplane-stable"),
-					helm.WithArgs("https://charts.crossplane.io/stable"),
-				)),
-				funcs.AsFeaturesFunc(funcs.HelmInstall(
-					helm.WithNamespace(namespace),
-					helm.WithName(helmReleaseName),
-					helm.WithChart("crossplane-stable/crossplane"),
-					helm.WithArgs("--create-namespace", "--wait"),
-				)),
+				funcs.AsFeaturesFunc(environment.HelmInstallPriorCrossplane(namespace, helmReleaseName)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace))).
 			Assess("CreateClaimPrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),

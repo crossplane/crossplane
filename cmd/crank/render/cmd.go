@@ -20,11 +20,11 @@ package render
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 
@@ -48,9 +48,10 @@ type Cmd struct {
 	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
 	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
-	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" short:"o" type:"path"`
-	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e" type:"path"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" short:"o"   type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
+	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" type:"path"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 
@@ -84,10 +85,14 @@ the following annotations to each Function to change how they're run:
 
     Don't stop the Function's Docker container after rendering.
 
+  render.crossplane.io/runtime-docker-name: "<name>"
+
+    create a container with that name and also reuse it as long as it is running or can be restarted.
+
   render.crossplane.io/runtime-docker-pull-policy: "Always"
 
     Always pull the Function's package, even if it already exists locally.
-	Other supported values are Never, or IfNotPresent. 
+	Other supported values are Never, or IfNotPresent.
 
 Use the standard DOCKER_HOST, DOCKER_API_VERSION, DOCKER_CERT_PATH, and
 DOCKER_TLS_VERIFY environment variables to configure how this command connects
@@ -109,6 +114,10 @@ Examples:
   # Pass extra resources Functions in the pipeline can request.
   crossplane render xr.yaml composition.yaml functions.yaml \
 	--extra-resources=extra-resources.yaml
+
+  # Pass credentials to Functions in the pipeline that need them.
+  crossplane render xr.yaml composition.yaml functions.yaml \
+	--function-credentials=credentials.yaml
 `
 }
 
@@ -125,11 +134,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
-	// TODO(negz): Should we do some simple validations, e.g. that the
-	// Composition's compositeTypeRef matches the XR's type?
 	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
+	}
+
+	// Validate that Composition's compositeTypeRef matches the XR's GroupVersionKind.
+	xrGVK := xr.GetObjectKind().GroupVersionKind()
+	compRef := comp.Spec.CompositeTypeRef
+
+	if compRef.Kind != xrGVK.Kind {
+		return errors.Errorf("composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
+	}
+
+	if compRef.APIVersion != xrGVK.GroupVersion().String() {
+		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
 	warns, errs := comp.Validate()
@@ -147,6 +166,14 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	fns, err := LoadFunctions(c.fs, c.Functions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
+	}
+
+	fcreds := []corev1.Secret{}
+	if c.FunctionCredentials != "" {
+		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load secrets from %q", c.FunctionCredentials)
+		}
 	}
 
 	ors := []composed.Unstructured{}
@@ -181,12 +208,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	defer cancel()
 
 	out, err := Render(ctx, log, Inputs{
-		CompositeResource: xr,
-		Composition:       comp,
-		Functions:         fns,
-		ObservedResources: ors,
-		ExtraResources:    ers,
-		Context:           fctx,
+		CompositeResource:   xr,
+		Composition:         comp,
+		Functions:           fns,
+		FunctionCredentials: fcreds,
+		ObservedResources:   ors,
+		ExtraResources:      ers,
+		Context:             fctx,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot render composite resource")
@@ -222,13 +250,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	_, _ = fmt.Fprintln(k.Stdout, "---")
-	if err := s.Encode(out.CompositeResource, os.Stdout); err != nil {
+	if err := s.Encode(out.CompositeResource, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot marshal composite resource %q to YAML", xr.GetName())
 	}
 
 	for i := range out.ComposedResources {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(&out.ComposedResources[i], os.Stdout); err != nil {
+		if err := s.Encode(&out.ComposedResources[i], k.Stdout); err != nil {
 			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetAnnotations()[AnnotationKeyCompositionResourceName])
 		}
 	}
@@ -236,7 +264,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if c.IncludeFunctionResults {
 		for i := range out.Results {
 			_, _ = fmt.Fprintln(k.Stdout, "---")
-			if err := s.Encode(&out.Results[i], os.Stdout); err != nil {
+			if err := s.Encode(&out.Results[i], k.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
 		}
@@ -244,7 +272,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 
 	if c.IncludeContext {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(out.Context, os.Stdout); err != nil {
+		if err := s.Encode(out.Context, k.Stdout); err != nil {
 			return errors.Wrap(err, "cannot marshal context to YAML")
 		}
 	}

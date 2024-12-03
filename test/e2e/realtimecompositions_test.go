@@ -22,8 +22,8 @@ import (
 
 const (
 	// SuiteRealtimeCompositions is the value for the config.LabelTestSuite
-	// label to be assigned to tests that should be part of the Usage test
-	// suite.
+	// label to be assigned to tests that should be part of the Realtime
+	// Compositions test suite.
 	SuiteRealtimeCompositions = "realtime-compositions"
 )
 
@@ -54,7 +54,7 @@ func TestRealtimeCompositions(t *testing.T) {
 	withTestLabels := resources.WithLabelSelector(labels.FormatLabels(map[string]string{"realtime-compositions": "true"}))
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests scenarios for compositions with realtime reconciles through MR updates.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).

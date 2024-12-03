@@ -116,8 +116,6 @@ func TestUsageStandalone(t *testing.T) {
 	)
 }
 
-// TestUsageComposition tests scenarios for Crossplane's `Usage` resource as part
-// of a composition.
 func TestUsageComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/composition"
 
@@ -127,7 +125,7 @@ func TestUsageComposition(t *testing.T) {
 	}))
 
 	environment.Test(t,
-		features.New(t.Name()).
+		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition.").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).

@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ cache.Informer = &MockInformer{}
@@ -58,7 +59,7 @@ func TestStartSource(t *testing.T) {
 	}
 	type args struct {
 		ctx context.Context
-		q   workqueue.RateLimitingInterface
+		q   workqueue.TypedRateLimitingInterface[reconcile.Request]
 	}
 	type want struct {
 		err error
@@ -161,7 +162,7 @@ func TestStopSource(t *testing.T) {
 	}
 	type args struct {
 		ctx context.Context
-		q   workqueue.RateLimitingInterface
+		q   workqueue.TypedRateLimitingInterface[reconcile.Request]
 	}
 	type want struct {
 		err error

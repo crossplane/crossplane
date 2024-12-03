@@ -28,6 +28,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1041,6 +1042,58 @@ func TestFilterExtraResources(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nfilterExtraResources(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetSecret(t *testing.T) {
+	secrets := []corev1.Secret{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret1",
+				Namespace: "namespace1",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret2",
+				Namespace: "namespace2",
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		name      string
+		namespace string
+		secrets   []corev1.Secret
+		wantErr   bool
+	}{
+		"SecretFound": {
+			name:      "secret1",
+			namespace: "namespace1",
+			secrets:   secrets,
+			wantErr:   false,
+		},
+		"SecretNotFound": {
+			name:      "secret3",
+			namespace: "namespace3",
+			secrets:   secrets,
+			wantErr:   true,
+		},
+		"SecretWrongNamespace": {
+			name:      "secret1",
+			namespace: "namespace2",
+			secrets:   secrets,
+			wantErr:   true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, err := getSecret(tc.name, tc.namespace, tc.secrets)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("getSecret() error = %v, wantErr %v", err, tc.wantErr)
 			}
 		})
 	}

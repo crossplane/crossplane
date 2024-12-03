@@ -22,6 +22,15 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
+// A CompositeResource is an output of the composition process.
+type CompositeResource struct { //nolint:revive // stick with CompositeResource
+	// Ready indicated whether the composite resource should be marked as
+	// ready or unready regardless of the state of the composed resoureces.
+	// If it is nil the readiness of the composite is determined by the
+	// readiness of the composed resources.
+	Ready *bool
+}
+
 // A ResourceName uniquely identifies the composed resource within a Composition
 // and within Composition Function gRPC calls. This is not the metadata.name of
 // the actual composed resource instance; rather it is the name of an entry in a

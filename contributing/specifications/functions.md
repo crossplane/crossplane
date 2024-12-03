@@ -15,7 +15,7 @@ A Function MUST implement a gRPC `FunctionRunnerService` server. A Function
 SHOULD implement the latest available version of this service - e.g. `v1beta1`.
 The authoritative definition of this service can be found at the following URL.
 
-https://github.com/crossplane/crossplane/tree/master/apis/apiextensions/fn/proto
+https://github.com/crossplane/crossplane/tree/main/apis/apiextensions/fn/proto
 
 A Function MUST copy the tag field from a RunFunctionRequest's RequestMeta
 message to the ResponseMeta tag field of the corresponding RunFunctionResponse.

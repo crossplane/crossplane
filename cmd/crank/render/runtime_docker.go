@@ -22,8 +22,9 @@ import (
 	"io"
 	"net"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	typesimage "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
@@ -44,6 +45,11 @@ const (
 	// used to run the Function. By default render assumes the Function package
 	// (i.e. spec.package) can be used to run the Function.
 	AnnotationKeyRuntimeDockerImage = "render.crossplane.io/runtime-docker-image"
+
+	// AnnotationKeyRuntimeNamedContainer sets the Docker container name that will
+	// be used for the container. it will also reuse the same container as long as
+	// it is available and also try to restart if it is not running.
+	AnnotationKeyRuntimeNamedContainer = "render.crossplane.io/runtime-docker-name"
 )
 
 // DockerCleanup specifies what Docker should do with a Function container after
@@ -93,6 +99,9 @@ const (
 type RuntimeDocker struct {
 	// Image to run
 	Image string
+
+	// Container name
+	Name string
 
 	// Cleanup controls how the containers are handled after rendering.
 	Cleanup DockerCleanup
@@ -145,6 +154,7 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	}
 	r := &RuntimeDocker{
 		Image:      fn.Spec.Package,
+		Name:       "",
 		Cleanup:    cleanup,
 		PullPolicy: pullPolicy,
 		log:        log,
@@ -152,32 +162,77 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
 		r.Image = i
 	}
+	if i := fn.GetAnnotations()[AnnotationKeyRuntimeNamedContainer]; i != "" {
+		r.Name = i
+	}
 	return r, nil
 }
 
 var _ Runtime = &RuntimeDocker{}
 
-// Start a Function as a Docker container.
-func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
-	r.log.Debug("Starting Docker container runtime", "image", r.Image)
-	c, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+func (r *RuntimeDocker) findContainer(ctx context.Context, cli *client.Client) (string, string) {
+	r.log.Debug("searching for Docker container", "name", r.Name)
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("name", r.Name)
+
+	containers, err := cli.ContainerList(ctx, container.ListOptions{
+		Filters: filterArgs,
+		All:     true, // Include stopped containers
+	})
 	if err != nil {
-		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")
+		return "", ""
 	}
 
+	if len(containers) == 0 || containers[0].ID == "" {
+		r.log.Debug("no valid named container found", "name", r.Name)
+		return "", ""
+	}
+
+	for _, c := range containers {
+		// Check if the container is running
+		if c.State == "running" {
+			r.log.Debug("reusing Docker container", "name", c.Names, "ID", c.ID, "image", c.Image)
+			addr := fmt.Sprintf("%s:%d", c.Ports[0].IP, c.Ports[0].PublicPort)
+			return c.ID, addr
+		}
+	}
+	// trying to start the first container
+	c := containers[0]
+	if err := cli.ContainerStart(ctx, c.ID, container.StartOptions{}); err == nil {
+		inspect, err := cli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			r.log.Debug("could not start container", "name", c.Names[0])
+			return "", ""
+		}
+		for _, bindings := range inspect.NetworkSettings.Ports {
+			if len(bindings) > 0 {
+				addr := fmt.Sprintf("%s:%s", bindings[0].HostIP, bindings[0].HostPort)
+				r.log.Debug("restarted Docker container", "name", c.Names, "ID", c.ID, "image", c.Image)
+				return c.ID, addr
+			}
+		}
+	}
+	r.log.Debug("Container was not started", "name", c.Names[0])
+	return "", ""
+}
+
+func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client) (string, string, error) {
+	r.log.Debug("Starting Docker container runtime setup", "image", r.Image)
 	// Find a random, available port. There's a chance of a race here, where
 	// something else binds to the port before we start our container.
+
 	lis, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
-		return RuntimeContext{}, errors.Wrap(err, "cannot get available TCP port")
+		return "", "", errors.Wrap(err, "cannot get available TCP port")
 	}
-	addr := lis.Addr().String()
+	containerAddr := lis.Addr().String()
 	_ = lis.Close()
 
-	spec := fmt.Sprintf("%s:9443/tcp", addr)
+	spec := fmt.Sprintf("%s:9443/tcp", containerAddr)
 	expose, bind, err := nat.ParsePortSpecs([]string{spec})
 	if err != nil {
-		return RuntimeContext{}, errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
+		return "", "", errors.Wrapf(err, "cannot parse Docker port spec %q", spec)
 	}
 
 	cfg := &container.Config{
@@ -191,68 +246,89 @@ func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
-		err = PullImage(ctx, c, r.Image)
+		err = PullImage(ctx, cli, r.Image)
 		if err != nil {
-			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
+			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
 	}
 
 	// TODO(negz): Set a container name? Presumably unique across runs.
-	r.log.Debug("Creating Docker container", "image", r.Image, "address", addr)
-	rsp, err := c.ContainerCreate(ctx, cfg, hcfg, nil, nil, "")
+	r.log.Debug("Creating Docker container", "image", r.Image, "address", containerAddr, "name", r.Name)
+	rsp, err := cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
 	if err != nil {
 		if !errdefs.IsNotFound(err) || r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyNever {
-			return RuntimeContext{}, errors.Wrap(err, "cannot create Docker container")
+			return "", "", errors.Wrap(err, "cannot create Docker container")
 		}
 
 		// The image was not found, but we're allowed to pull it.
 		r.log.Debug("Image not found, pulling", "image", r.Image)
-		err = PullImage(ctx, c, r.Image)
+		err = PullImage(ctx, cli, r.Image)
 		if err != nil {
-			return RuntimeContext{}, errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
+			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
 
-		rsp, err = c.ContainerCreate(ctx, cfg, hcfg, nil, nil, "")
+		rsp, err = cli.ContainerCreate(ctx, cfg, hcfg, nil, nil, r.Name)
 		if err != nil {
-			return RuntimeContext{}, errors.Wrap(err, "cannot create Docker container")
+			return "", "", errors.Wrap(err, "cannot create Docker container")
 		}
 	}
+	if err := cli.ContainerStart(ctx, rsp.ID, container.StartOptions{}); err != nil {
+		return "", "", errors.Wrap(err, "cannot start Docker container")
+	}
+	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
+}
 
-	if err := c.ContainerStart(ctx, rsp.ID, container.StartOptions{}); err != nil {
-		return RuntimeContext{}, errors.Wrap(err, "cannot start Docker container")
+// Start a Function as a Docker container.
+func (r *RuntimeDocker) Start(ctx context.Context) (RuntimeContext, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return RuntimeContext{}, errors.Wrap(err, "cannot create Docker client using environment variables")
+	}
+	containerAddr := ""
+	containerID := ""
+
+	if r.Name != "" {
+		// Check if the container is already running
+		containerID, containerAddr = r.findContainer(ctx, cli)
+	}
+	// no preexisting container?
+	if containerID == "" {
+		containerID, containerAddr, err = r.createContainer(ctx, cli)
+		if err != nil {
+			return RuntimeContext{}, err
+		}
 	}
 
 	stop := func(ctx context.Context) error {
 		switch r.Cleanup {
 		case AnnotationValueRuntimeDockerCleanupOrphan:
-			r.log.Debug("Container left running", "container", rsp.ID, "image", r.Image)
+			r.log.Debug("Container left running", "container", containerID, "image", r.Image)
 			return nil
 		case AnnotationValueRuntimeDockerCleanupStop:
-			if err := c.ContainerStop(ctx, rsp.ID, container.StopOptions{}); err != nil {
+			if err := cli.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
 				return errors.Wrap(err, "cannot stop Docker container")
 			}
 		case AnnotationValueRuntimeDockerCleanupRemove:
-			if err := c.ContainerStop(ctx, rsp.ID, container.StopOptions{}); err != nil {
+			if err := cli.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
 				return errors.Wrap(err, "cannot stop Docker container")
 			}
-			if err := c.ContainerRemove(ctx, rsp.ID, container.RemoveOptions{}); err != nil {
+			if err := cli.ContainerRemove(ctx, containerID, container.RemoveOptions{}); err != nil {
 				return errors.Wrap(err, "cannot remove Docker container")
 			}
 		}
 		return nil
 	}
-
-	return RuntimeContext{Target: addr, Stop: stop}, nil
+	return RuntimeContext{Target: containerAddr, Stop: stop}, nil
 }
 
 type pullClient interface {
-	ImagePull(ctx context.Context, ref string, options types.ImagePullOptions) (io.ReadCloser, error)
+	ImagePull(ctx context.Context, ref string, options typesimage.PullOptions) (io.ReadCloser, error)
 }
 
 // PullImage pulls the supplied image using the supplied client. It blocks until
 // the image has either finished pulling or hit an error.
 func PullImage(ctx context.Context, p pullClient, image string) error {
-	out, err := p.ImagePull(ctx, image, types.ImagePullOptions{})
+	out, err := p.ImagePull(ctx, image, typesimage.PullOptions{})
 	if err != nil {
 		return err
 	}

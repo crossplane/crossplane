@@ -19,6 +19,9 @@ spec:
       release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
+  {{- if .Values.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  {{- end }}
   template:
     metadata:
       {{- if or .Values.metrics.enabled .Values.customAnnotations }}
@@ -44,7 +47,11 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
+      {{- if not .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- else }}
       serviceAccountName: {{ template "crossplane.name" . }}
+      {{- end }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
         - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"

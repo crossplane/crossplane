@@ -478,7 +478,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// {Requeue: true}. The XR reconciler returns {Requeue: true} while waiting
 	// for composed resources to become ready, and we don't want to back off as
 	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
-	ko.RateLimiter = workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 30*time.Second)
+	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
 	xrGVK := d.GetCompositeGroupVersionKind()
@@ -541,16 +541,6 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
-	}
-
-	// We only want to enable Composition environment support if the relevant
-	// feature flag is enabled. Otherwise we will default to noop selector and
-	// fetcher that will always return nil. All environment features are
-	// subsequently skipped if the environment is nil.
-	if r.options.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
-		o = append(o,
-			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(r.engine.GetClient())),
-			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(r.engine.GetClient())))
 	}
 
 	// If external secret stores aren't enabled we just fetch connection details

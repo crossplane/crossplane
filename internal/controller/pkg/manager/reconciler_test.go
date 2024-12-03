@@ -40,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xpkg/fake"
 )
 
 var _ Revisioner = &MockRevisioner{}
@@ -54,7 +55,7 @@ func NewMockRevisionFn(hash string, err error) func() (string, error) {
 	}
 }
 
-func (m *MockRevisioner) Revision(context.Context, v1.Package) (string, error) {
+func (m *MockRevisioner) Revision(context.Context, v1.Package, ...string) (string, error) {
 	return m.MockRevision()
 }
 
@@ -132,6 +133,44 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errListRevisions),
 			},
 		},
+		"ErrGetPullConfig": {
+			reason: "We should return an error if getting the pull secret from image configs.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackage:             func() v1.Package { return &v1.Configuration{} },
+					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:  test.NewMockGetFn(nil),
+							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.Configuration{}
+								want.SetConditions(v1.Unpacking().WithMessage(errors.Wrap(errBoom, errGetPullConfig).Error()))
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					},
+					log:    testLog,
+					record: event.NewNopRecorder(),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("", errBoom),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", errBoom),
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetPullConfig),
+			},
+		},
 		"ErrFetchRevision": {
 			reason: "We should return an error if fetching the revision for a package fails.",
 			args: args{
@@ -160,6 +199,9 @@ func TestReconcile(t *testing.T) {
 					record: event.NewNopRecorder(),
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("", errBoom),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 				},
 			},
@@ -205,6 +247,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
@@ -255,6 +300,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
+					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
@@ -301,6 +349,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
@@ -359,6 +410,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
@@ -438,6 +492,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
+					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
@@ -496,6 +553,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
@@ -556,6 +616,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
@@ -654,6 +717,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
+					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
@@ -733,6 +799,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
+					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
@@ -780,6 +849,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
+					},
 					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
@@ -811,10 +883,8 @@ func TestReconcile(t *testing.T) {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(v1.UnknownHealth())
-								want.SetConditions(v1.Active())
+								want.Status.Conditions = []commonv1.Condition{}
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -827,6 +897,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					config: &fake.MockConfigStore{
+						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 					},
 					log:    testLog,
 					record: event.NewNopRecorder(),

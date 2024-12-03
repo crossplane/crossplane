@@ -716,5 +716,5 @@ it as a migration path to Crossplane.
 [most recent AMI]: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami#most_recent
 [desired tags]: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/vpc#tags
 [passing sensitive configuration]: https://github.com/crossplane/crossplane/pull/2886#discussion_r862615416
-[`type: Webhook` composition function]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-composition-functions.md#using-webhooks-to-run-functions
+[`type: Webhook` composition function]: https://github.com/crossplane/crossplane/blob/main/design/design-doc-composition-functions.md#using-webhooks-to-run-functions
 [ignore changes]: https://github.com/crossplane/crossplane/blob/ad0ff7d6d0e4850168883905ed8e1509089cea15/design/one-pager-ignore-changes.md

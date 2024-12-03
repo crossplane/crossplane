@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: compositions.apiextensions.crossplane.io
 spec:
   group: apiextensions.crossplane.io
@@ -34,7 +34,6 @@ spec:
         description: |-
           A Composition defines a collection of managed resources or functions that
           Crossplane uses to create and manage new composite resources.
-
 
           Read the Crossplane documentation for
           [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).
@@ -77,521 +76,18 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
-              environment:
-                description: |-
-                  Environment configures the environment in which resources are rendered.
-
-
-                  THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-                  unless the relevant Crossplane feature flag is enabled, and may be
-                  changed or removed without notice.
-                properties:
-                  defaultData:
-                    additionalProperties:
-                      x-kubernetes-preserve-unknown-fields: true
-                    description: |-
-                      DefaultData statically defines the initial state of the environment.
-                      It has the same schema-less structure as the data field in
-                      environment configs.
-                      It is overwritten by the selected environment configs.
-                    type: object
-                  environmentConfigs:
-                    description: |-
-                      EnvironmentConfigs selects a list of `EnvironmentConfig`s. The resolved
-                      resources are stored in the composite resource at
-                      `spec.environmentConfigRefs` and is only updated if it is null.
-
-
-                      The list of references is used to compute an in-memory environment at
-                      compose time. The data of all object is merged in the order they are
-                      listed, meaning the values of EnvironmentConfigs with a larger index take
-                      priority over ones with smaller indices.
-
-
-                      The computed environment can be accessed in a composition using
-                      `FromEnvironmentFieldPath` and `CombineFromEnvironment` patches.
-                    items:
-                      description: EnvironmentSource selects a EnvironmentConfig resource.
-                      properties:
-                        ref:
-                          description: |-
-                            Ref is a named reference to a single EnvironmentConfig.
-                            Either Ref or Selector is required.
-                          properties:
-                            name:
-                              description: The name of the object.
-                              type: string
-                          required:
-                          - name
-                          type: object
-                        selector:
-                          description: Selector selects EnvironmentConfig(s) via labels.
-                          properties:
-                            matchLabels:
-                              description: MatchLabels ensures an object with matching
-                                labels is selected.
-                              items:
-                                description: |-
-                                  An EnvironmentSourceSelectorLabelMatcher acts like a k8s label selector but
-                                  can draw the label value from a different path.
-                                properties:
-                                  fromFieldPathPolicy:
-                                    default: Required
-                                    description: |-
-                                      FromFieldPathPolicy specifies the policy for the valueFromFieldPath.
-                                      The default is Required, meaning that an error will be returned if the
-                                      field is not found in the composite resource.
-                                      Optional means that if the field is not found in the composite resource,
-                                      that label pair will just be skipped. N.B. other specified label
-                                      matchers will still be used to retrieve the desired
-                                      environment config, if any.
-                                    enum:
-                                    - Optional
-                                    - Required
-                                    type: string
-                                  key:
-                                    description: Key of the label to match.
-                                    type: string
-                                  type:
-                                    default: FromCompositeFieldPath
-                                    description: Type specifies where the value for
-                                      a label comes from.
-                                    enum:
-                                    - FromCompositeFieldPath
-                                    - Value
-                                    type: string
-                                  value:
-                                    description: Value specifies a literal label value.
-                                    type: string
-                                  valueFromFieldPath:
-                                    description: ValueFromFieldPath specifies the
-                                      field path to look for the label value.
-                                    type: string
-                                required:
-                                - key
-                                type: object
-                              type: array
-                            maxMatch:
-                              description: MaxMatch specifies the number of extracted
-                                EnvironmentConfigs in Multiple mode, extracts all
-                                if nil.
-                              format: int64
-                              type: integer
-                            minMatch:
-                              description: MinMatch specifies the required minimum
-                                of extracted EnvironmentConfigs in Multiple mode.
-                              format: int64
-                              type: integer
-                            mode:
-                              default: Single
-                              description: 'Mode specifies retrieval strategy: "Single"
-                                or "Multiple".'
-                              enum:
-                              - Single
-                              - Multiple
-                              type: string
-                            sortByFieldPath:
-                              default: metadata.name
-                              description: SortByFieldPath is the path to the field
-                                based on which list of EnvironmentConfigs is alphabetically
-                                sorted.
-                              type: string
-                          type: object
-                        type:
-                          default: Reference
-                          description: |-
-                            Type specifies the way the EnvironmentConfig is selected.
-                            Default is `Reference`
-                          enum:
-                          - Reference
-                          - Selector
-                          type: string
-                      type: object
-                    type: array
-                  patches:
-                    description: |-
-                      Patches is a list of environment patches that are executed before a
-                      composition's resources are composed.
-                    items:
-                      description: EnvironmentPatch is a patch for a Composition environment.
-                      properties:
-                        combine:
-                          description: |-
-                            Combine is the patch configuration for a CombineFromComposite or
-                            CombineToComposite patch.
-                          properties:
-                            strategy:
-                              description: |-
-                                Strategy defines the strategy to use to combine the input variable values.
-                                Currently only string is supported.
-                              enum:
-                              - string
-                              type: string
-                            string:
-                              description: |-
-                                String declares that input variables should be combined into a single
-                                string, using the relevant settings for formatting purposes.
-                              properties:
-                                fmt:
-                                  description: |-
-                                    Format the input using a Go format string. See
-                                    https://golang.org/pkg/fmt/ for details.
-                                  type: string
-                              required:
-                              - fmt
-                              type: object
-                            variables:
-                              description: |-
-                                Variables are the list of variables whose values will be retrieved and
-                                combined.
-                              items:
-                                description: |-
-                                  A CombineVariable defines the source of a value that is combined with
-                                  others to form and patch an output value. Currently, this only supports
-                                  retrieving values from a field path.
-                                properties:
-                                  fromFieldPath:
-                                    description: |-
-                                      FromFieldPath is the path of the field on the source whose value is
-                                      to be used as input.
-                                    type: string
-                                required:
-                                - fromFieldPath
-                                type: object
-                              minItems: 1
-                              type: array
-                          required:
-                          - strategy
-                          - variables
-                          type: object
-                        fromFieldPath:
-                          description: |-
-                            FromFieldPath is the path of the field on the resource whose value is
-                            to be used as input. Required when type is FromCompositeFieldPath or
-                            ToCompositeFieldPath.
-                          type: string
-                        policy:
-                          description: Policy configures the specifics of patching
-                            behaviour.
-                          properties:
-                            fromFieldPath:
-                              description: |-
-                                FromFieldPath specifies how to patch from a field path. The default is
-                                'Optional', which means the patch will be a no-op if the specified
-                                fromFieldPath does not exist. Use 'Required' if the patch should fail if
-                                the specified path does not exist.
-                              enum:
-                              - Optional
-                              - Required
-                              type: string
-                            mergeOptions:
-                              description: MergeOptions Specifies merge options on
-                                a field path.
-                              properties:
-                                appendSlice:
-                                  description: Specifies that already existing elements
-                                    in a merged slice should be preserved
-                                  type: boolean
-                                keepMapValues:
-                                  description: Specifies that already existing values
-                                    in a merged map should be preserved
-                                  type: boolean
-                              type: object
-                          type: object
-                        toFieldPath:
-                          description: |-
-                            ToFieldPath is the path of the field on the resource whose value will
-                            be changed with the result of transforms. Leave empty if you'd like to
-                            propagate to the same path as fromFieldPath.
-                          type: string
-                        transforms:
-                          description: |-
-                            Transforms are the list of functions that are used as a FIFO pipe for the
-                            input to be transformed.
-                          items:
-                            description: |-
-                              Transform is a unit of process whose input is transformed into an output with
-                              the supplied configuration.
-                            properties:
-                              convert:
-                                description: Convert is used to cast the input into
-                                  the given output type.
-                                properties:
-                                  format:
-                                    description: |-
-                                      The expected input format.
-
-
-                                      * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
-                                      Only used during `string -> float64` conversions.
-                                      * `json` - parses the input as a JSON string.
-                                      Only used during `string -> object` or `string -> list` conversions.
-
-
-                                      If this property is null, the default conversion is applied.
-                                    enum:
-                                    - none
-                                    - quantity
-                                    - json
-                                    type: string
-                                  toType:
-                                    description: ToType is the type of the output
-                                      of this transform.
-                                    enum:
-                                    - string
-                                    - int
-                                    - int64
-                                    - bool
-                                    - float64
-                                    - object
-                                    - array
-                                    type: string
-                                required:
-                                - toType
-                                type: object
-                              map:
-                                additionalProperties:
-                                  x-kubernetes-preserve-unknown-fields: true
-                                description: Map uses the input as a key in the given
-                                  map and returns the value.
-                                type: object
-                              match:
-                                description: Match is a more complex version of Map
-                                  that matches a list of patterns.
-                                properties:
-                                  fallbackTo:
-                                    default: Value
-                                    description: Determines to what value the transform
-                                      should fallback if no pattern matches.
-                                    enum:
-                                    - Value
-                                    - Input
-                                    type: string
-                                  fallbackValue:
-                                    description: |-
-                                      The fallback value that should be returned by the transform if now pattern
-                                      matches.
-                                    x-kubernetes-preserve-unknown-fields: true
-                                  patterns:
-                                    description: |-
-                                      The patterns that should be tested against the input string.
-                                      Patterns are tested in order. The value of the first match is used as
-                                      result of this transform.
-                                    items:
-                                      description: |-
-                                        MatchTransformPattern is a transform that returns the value that matches a
-                                        pattern.
-                                      properties:
-                                        literal:
-                                          description: |-
-                                            Literal exactly matches the input string (case sensitive).
-                                            Is required if `type` is `literal`.
-                                          type: string
-                                        regexp:
-                                          description: |-
-                                            Regexp to match against the input string.
-                                            Is required if `type` is `regexp`.
-                                          type: string
-                                        result:
-                                          description: The value that is used as result
-                                            of the transform if the pattern matches.
-                                          x-kubernetes-preserve-unknown-fields: true
-                                        type:
-                                          default: literal
-                                          description: |-
-                                            Type specifies how the pattern matches the input.
-
-
-                                            * `literal` - the pattern value has to exactly match (case sensitive) the
-                                            input string. This is the default.
-
-
-                                            * `regexp` - the pattern treated as a regular expression against
-                                            which the input string is tested. Crossplane will throw an error if the
-                                            key is not a valid regexp.
-                                          enum:
-                                          - literal
-                                          - regexp
-                                          type: string
-                                      required:
-                                      - result
-                                      - type
-                                      type: object
-                                    type: array
-                                type: object
-                              math:
-                                description: |-
-                                  Math is used to transform the input via mathematical operations such as
-                                  multiplication.
-                                properties:
-                                  clampMax:
-                                    description: ClampMax makes sure that the value
-                                      is not bigger than the given value.
-                                    format: int64
-                                    type: integer
-                                  clampMin:
-                                    description: ClampMin makes sure that the value
-                                      is not smaller than the given value.
-                                    format: int64
-                                    type: integer
-                                  multiply:
-                                    description: Multiply the value.
-                                    format: int64
-                                    type: integer
-                                  type:
-                                    default: Multiply
-                                    description: Type of the math transform to be
-                                      run.
-                                    enum:
-                                    - Multiply
-                                    - ClampMin
-                                    - ClampMax
-                                    type: string
-                                type: object
-                              string:
-                                description: |-
-                                  String is used to transform the input into a string or a different kind
-                                  of string. Note that the input does not necessarily need to be a string.
-                                properties:
-                                  convert:
-                                    description: |-
-                                      Optional conversion method to be specified.
-                                      `ToUpper` and `ToLower` change the letter case of the input string.
-                                      `ToBase64` and `FromBase64` perform a base64 conversion based on the input string.
-                                      `ToJson` converts any input value into its raw JSON representation.
-                                      `ToSha1`, `ToSha256` and `ToSha512` generate a hash value based on the input
-                                      converted to JSON.
-                                      `ToAdler32` generate a addler32 hash based on the input string.
-                                    enum:
-                                    - ToUpper
-                                    - ToLower
-                                    - ToBase64
-                                    - FromBase64
-                                    - ToJson
-                                    - ToSha1
-                                    - ToSha256
-                                    - ToSha512
-                                    - ToAdler32
-                                    type: string
-                                  fmt:
-                                    description: |-
-                                      Format the input using a Go format string. See
-                                      https://golang.org/pkg/fmt/ for details.
-                                    type: string
-                                  join:
-                                    description: Join defines parameters to join a
-                                      slice of values to a string.
-                                    properties:
-                                      separator:
-                                        description: |-
-                                          Separator defines the character that should separate the values from each
-                                          other in the joined string.
-                                        type: string
-                                    required:
-                                    - separator
-                                    type: object
-                                  regexp:
-                                    description: Extract a match from the input using
-                                      a regular expression.
-                                    properties:
-                                      group:
-                                        description: Group number to match. 0 (the
-                                          default) matches the entire expression.
-                                        type: integer
-                                      match:
-                                        description: |-
-                                          Match string. May optionally include submatches, aka capture groups.
-                                          See https://pkg.go.dev/regexp/ for details.
-                                        type: string
-                                    required:
-                                    - match
-                                    type: object
-                                  trim:
-                                    description: Trim the prefix or suffix from the
-                                      input
-                                    type: string
-                                  type:
-                                    default: Format
-                                    description: Type of the string transform to be
-                                      run.
-                                    enum:
-                                    - Format
-                                    - Convert
-                                    - TrimPrefix
-                                    - TrimSuffix
-                                    - Regexp
-                                    - Join
-                                    type: string
-                                type: object
-                              type:
-                                description: Type of the transform to be run.
-                                enum:
-                                - map
-                                - match
-                                - math
-                                - string
-                                - convert
-                                type: string
-                            required:
-                            - type
-                            type: object
-                          type: array
-                        type:
-                          default: FromCompositeFieldPath
-                          description: |-
-                            Type sets the patching behaviour to be used. Each patch type may require
-                            its own fields to be set on the Patch object.
-                          enum:
-                          - FromCompositeFieldPath
-                          - ToCompositeFieldPath
-                          - CombineFromComposite
-                          - CombineToComposite
-                          type: string
-                      type: object
-                    type: array
-                  policy:
-                    description: |-
-                      Policy represents the Resolve and Resolution policies which apply to
-                      all EnvironmentSourceReferences in EnvironmentConfigs list.
-                    properties:
-                      resolution:
-                        default: Required
-                        description: |-
-                          Resolution specifies whether resolution of this reference is required.
-                          The default is 'Required', which means the reconcile will fail if the
-                          reference cannot be resolved. 'Optional' means this reference will be
-                          a no-op if it cannot be resolved.
-                        enum:
-                        - Required
-                        - Optional
-                        type: string
-                      resolve:
-                        description: |-
-                          Resolve specifies when this reference should be resolved. The default
-                          is 'IfNotPresent', which will attempt to resolve the reference only when
-                          the corresponding field is not present. Use 'Always' to resolve the
-                          reference on every reconcile.
-                        enum:
-                        - Always
-                        - IfNotPresent
-                        type: string
-                    type: object
-                type: object
               mode:
                 default: Resources
                 description: |-
                   Mode controls what type or "mode" of Composition will be used.
 
-
                   "Pipeline" indicates that a Composition specifies a pipeline of
                   Composition Functions, each of which is responsible for producing
                   composed resources that Crossplane should create or update.
 
-
                   "Resources" indicates that a Composition uses what is commonly referred
                   to as "Patch & Transform" or P&T composition. This mode of Composition
                   uses an array of resources, each a template for a composed resource.
-
 
                   All Compositions should use Pipeline mode. Resources mode is deprecated.
                   Resources mode won't be removed in Crossplane 1.x, and will remain the
@@ -607,10 +103,8 @@ spec:
                   resource in this Composition. PatchSets cannot themselves refer to other
                   PatchSets.
 
-
                   PatchSets are only used by the "Resources" mode of Composition. They
                   are ignored by other modes.
-
 
                   Deprecated: Use Composition Functions instead.
                 items:
@@ -633,8 +127,8 @@ spec:
                         properties:
                           combine:
                             description: |-
-                              Combine is the patch configuration for a CombineFromComposite,
-                              CombineFromEnvironment, CombineToComposite or CombineToEnvironment patch.
+                              Combine is the patch configuration for a CombineFromComposite or
+                              CombineToComposite patch.
                             properties:
                               strategy:
                                 description: |-
@@ -683,8 +177,8 @@ spec:
                           fromFieldPath:
                             description: |-
                               FromFieldPath is the path of the field on the resource whose value is
-                              to be used as input. Required when type is FromCompositeFieldPath,
-                              FromEnvironmentFieldPath, ToCompositeFieldPath, ToEnvironmentFieldPath.
+                              to be used as input. Required when type is FromCompositeFieldPath or
+                              ToCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required
@@ -741,12 +235,10 @@ spec:
                                       description: |-
                                         The expected input format.
 
-
                                         * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
                                         Only used during `string -> float64` conversions.
                                         * `json` - parses the input as a JSON string.
                                         Only used during `string -> object` or `string -> list` conversions.
-
 
                                         If this property is null, the default conversion is applied.
                                       enum:
@@ -822,10 +314,8 @@ spec:
                                             description: |-
                                               Type specifies how the pattern matches the input.
 
-
                                               * `literal` - the pattern value has to exactly match (case sensitive) the
                                               input string. This is the default.
-
 
                                               * `regexp` - the pattern treated as a regular expression against
                                               which the input string is tested. Crossplane will throw an error if the
@@ -964,14 +454,10 @@ spec:
                               its own fields to be set on the Patch object.
                             enum:
                             - FromCompositeFieldPath
-                            - FromEnvironmentFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
-                            - ToEnvironmentFieldPath
-                            - CombineFromEnvironment
                             - CombineFromComposite
                             - CombineToComposite
-                            - CombineToEnvironment
                             type: string
                         type: object
                       type: array
@@ -985,7 +471,6 @@ spec:
                   Pipeline is a list of composition function steps that will be used when a
                   composite resource referring to this composition is created. One of
                   resources and pipeline must be specified - you cannot specify both.
-
 
                   The Pipeline is only used by the "Pipeline" mode of Composition. It is
                   ignored by other modes.
@@ -1070,7 +555,6 @@ spec:
                   with which the connection details of composite resources dynamically
                   provisioned using this composition will be published.
 
-
                   THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
                   unless the relevant Crossplane feature flag is enabled, and may be
                   changed or removed without notice.
@@ -1086,10 +570,8 @@ spec:
                   Resources is a list of resource templates that will be used when a
                   composite resource referring to this composition is created.
 
-
                   Resources are only used by the "Resources" mode of Composition. They are
                   ignored by other modes.
-
 
                   Deprecated: Use Composition Functions instead.
                 items:
@@ -1173,8 +655,8 @@ spec:
                         properties:
                           combine:
                             description: |-
-                              Combine is the patch configuration for a CombineFromComposite,
-                              CombineFromEnvironment, CombineToComposite or CombineToEnvironment patch.
+                              Combine is the patch configuration for a CombineFromComposite or
+                              CombineToComposite patch.
                             properties:
                               strategy:
                                 description: |-
@@ -1223,8 +705,8 @@ spec:
                           fromFieldPath:
                             description: |-
                               FromFieldPath is the path of the field on the resource whose value is
-                              to be used as input. Required when type is FromCompositeFieldPath,
-                              FromEnvironmentFieldPath, ToCompositeFieldPath, ToEnvironmentFieldPath.
+                              to be used as input. Required when type is FromCompositeFieldPath or
+                              ToCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required
@@ -1281,12 +763,10 @@ spec:
                                       description: |-
                                         The expected input format.
 
-
                                         * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
                                         Only used during `string -> float64` conversions.
                                         * `json` - parses the input as a JSON string.
                                         Only used during `string -> object` or `string -> list` conversions.
-
 
                                         If this property is null, the default conversion is applied.
                                       enum:
@@ -1362,10 +842,8 @@ spec:
                                             description: |-
                                               Type specifies how the pattern matches the input.
 
-
                                               * `literal` - the pattern value has to exactly match (case sensitive) the
                                               input string. This is the default.
-
 
                                               * `regexp` - the pattern treated as a regular expression against
                                               which the input string is tested. Crossplane will throw an error if the
@@ -1504,14 +982,10 @@ spec:
                               its own fields to be set on the Patch object.
                             enum:
                             - FromCompositeFieldPath
-                            - FromEnvironmentFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
-                            - ToEnvironmentFieldPath
-                            - CombineFromEnvironment
                             - CombineFromComposite
                             - CombineToComposite
-                            - CombineToEnvironment
                             type: string
                         type: object
                       type: array
