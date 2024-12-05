@@ -6,6 +6,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
+// ConstructCRDSchema constructs a map of the CRD schema with default values.
 func ConstructCRDSchema(crd extv1.CustomResourceDefinition) map[string]interface{} {
 	schema := crd.Spec.Versions[0].Schema.OpenAPIV3Schema
 	return crdSchema(schema, make(map[string]interface{}))
@@ -25,7 +26,11 @@ func crdSchema(schema *extv1.JSONSchemaProps, crdSchemaWithDefaults map[string]i
 			}
 		} else if v.Type == "object" {
 			crdSchemaWithDefaults[k] = make(map[string]interface{})
-			crdSchema(&v, crdSchemaWithDefaults[k].(map[string]interface{}))
+			t, ok := crdSchemaWithDefaults[k].(map[string]interface{})
+			if !ok {
+				t = make(map[string]interface{})
+			}
+			crdSchema(&v, t)
 		}
 	}
 	return crdSchemaWithDefaults
@@ -42,7 +47,6 @@ func MergeXRDDefaultsIntoXR(xr, xrd map[string]interface{}) map[string]interface
 
 	// Then check xrds for missing values
 	for k, xrdVal := range xrd {
-
 		// Skip if value is nil
 		if xrdVal == nil {
 			continue
