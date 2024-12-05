@@ -193,25 +193,51 @@ func (e *Environment) HelmInstallBaseCrossplane() env.Func {
 // HelmInstallPriorCrossplane returns a features.Func that installs prior
 // Crossplane version from the stable Helm chart repository.
 func (e *Environment) HelmInstallPriorCrossplane(namespace, release string) env.Func {
-	opts := []helm.Option{
-		helm.WithNamespace(namespace),
-		helm.WithName(release),
-		helm.WithChart("crossplane-stable/crossplane"),
-		helm.WithArgs("--create-namespace", "--wait"),
-	}
-	if e.priorCrossplaneVersion != nil && *e.priorCrossplaneVersion != "" {
-		opts = append(opts, helm.WithArgs("--version", *e.priorCrossplaneVersion))
-	}
 	return funcs.EnvFuncs(
 		funcs.HelmRepo(
 			helm.WithArgs("add"),
 			helm.WithArgs("crossplane-stable"),
 			helm.WithArgs("https://charts.crossplane.io/stable"),
 		),
-		funcs.HelmInstall(
-			opts...,
-		),
+		funcs.HelmInstall(e.helmOptionsForPriorCrossplane(namespace, release)...),
 	)
+}
+
+// HelmUpgradePriorCrossplane returns a features.Func that upgrades to prior
+// Crossplane version from the stable Helm chart repository.
+func (e *Environment) HelmUpgradePriorCrossplane(namespace, release string) env.Func {
+	// We need to reset the values to ensure that the values from the
+	// chart are used. Otherwise, the values from the previous install
+	// will be used which overrides the image with the one from the
+	// current build since we don't have any overrides here.
+	// https://medium.com/@kcatstack/understand-helm-upgrade-flags-reset-values-reuse-values-6e58ac8f127e
+	opts := append(e.helmOptionsForPriorCrossplane(namespace, release), helm.WithArgs("--reset-values"))
+	return funcs.EnvFuncs(
+		funcs.HelmRepo(
+			helm.WithArgs("add"),
+			helm.WithArgs("crossplane-stable"),
+			helm.WithArgs("https://charts.crossplane.io/stable"),
+		),
+		funcs.HelmUpgrade(opts...),
+	)
+}
+
+// helmOptionsForPriorCrossplane returns the helm install/upgrade options for
+// the prior Crossplane version.
+func (e *Environment) helmOptionsForPriorCrossplane(namespace, release string) []helm.Option {
+	opts := []helm.Option{
+		helm.WithNamespace(namespace),
+		helm.WithName(release),
+		helm.WithChart("crossplane-stable/crossplane"),
+		helm.WithArgs(
+			"--create-namespace",
+			"--wait",
+		),
+	}
+	if e.priorCrossplaneVersion != nil && *e.priorCrossplaneVersion != "" {
+		opts = append(opts, helm.WithArgs("--version", *e.priorCrossplaneVersion))
+	}
+	return opts
 }
 
 // getSuiteInstallOpts returns the helm install options for the specified
