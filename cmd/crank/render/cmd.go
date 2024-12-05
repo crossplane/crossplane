@@ -33,8 +33,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xcrd"
 
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -53,6 +56,7 @@ type Cmd struct {
 	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e"   type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" type:"path"`
+	XRD                    string            `help:"A YAML file specifying the CompositeResourceDefinition (XRD) to validate the XR against."                                                  optional:"" placeholder:"PATH" type:"existingfile"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 
@@ -158,7 +162,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
-
+	if c.XRD != "" {
+		xrd := &apiextensionsv1.CompositeResourceDefinition{}
+		crd := &extv1.CustomResourceDefinition{}
+		xrd, err = LoadXRD(c.fs, c.XRD)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
+		}
+		crd, err = xcrd.ForCompositeResource(xrd)
+		if err != nil {
+			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
+		}
+		crdSchemaWithDefaults := ConstructCRDSchema(*crd)
+		xrWithDefaults := MergeXRDDefaultsIntoXR(xr.UnstructuredContent(), crdSchemaWithDefaults)
+		xr.SetUnstructuredContent(xrWithDefaults)
+	}
 	fcreds := []corev1.Secret{}
 	if c.FunctionCredentials != "" {
 		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)

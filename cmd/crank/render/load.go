@@ -67,6 +67,16 @@ func LoadComposition(fs afero.Fs, file string) (*apiextensionsv1.Composition, er
 	}
 }
 
+// LoadXRD from a YAML manifest.
+func LoadXRD(fs afero.Fs, file string) (*apiextensionsv1.CompositeResourceDefinition, error) {
+	y, err := afero.ReadFile(fs, file)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read XRD file")
+	}
+	xrd := &apiextensionsv1.CompositeResourceDefinition{}
+	return xrd, errors.Wrap(yaml.Unmarshal(y, xrd), "cannot unmarshal XRD YAML")
+}
+
 // TODO(negz): Support optionally loading functions and observed resources from
 // a directory of manifests instead of a single stream.
 
