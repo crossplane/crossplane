@@ -59,7 +59,7 @@ type Flags struct {
 	Account               string   `env:"UP_ACCOUNT"                  help:"Account used to execute command."            json:"account,omitempty"               short:"a"`
 	Domain                *url.URL `default:"https://upbound.io"      env:"UP_DOMAIN"                                    help:"Root Upbound domain."            json:"domain,omitempty"`
 	InsecureSkipTLSVerify bool     `env:"UP_INSECURE_SKIP_TLS_VERIFY" help:"[INSECURE] Skip verifying TLS certificates." json:"insecureSkipTLSVerify,omitempty"`
-	Profile               string   `env:"UP_PROFILE"                  help:"Profile used to execute command."            json:"profile,omitempty"               predictor:"profiles"`
+	Profile               string   `env:"UP_PROFILE"                  help:"Profile used to execute command."            json:"profile,omitempty"`
 
 	// Hidden flags.
 	APIEndpoint      *url.URL `env:"OVERRIDE_API_ENDPOINT"      help:"Overrides the default API endpoint."      hidden:"" json:"apiEndpoint,omitempty"      name:"override-api-endpoint"`
