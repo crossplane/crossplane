@@ -47,6 +47,7 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/usage"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 const (
@@ -253,7 +254,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}))
 
 	if meta.WasDeleted(u) {
-		if by != nil {
+		// Note (turkenh): A Usage can be composed as part of a Composition
+		// together with the using resource. When the composite is deleted, the
+		// usage resource will also be deleted. In this case, we need to wait
+		// for the using resource to be deleted; otherwise, we won’t be properly
+		// waiting for its deletion since Usage will be gone immediately. We
+		// intentionally avoid checking whether they are part of the same
+		// Composition, as they may not be, but could still be composed together
+		// as part of a higher-level Composition. Therefore, as an approximation
+		// we wait for the using resource to be deleted before deleting the
+		// usage resource, if the usage resource is part of a Composition.
+		if by != nil && u.Labels[xcrd.LabelKeyNamePrefixForComposed] != "" {
 			// Identify using resource as an unstructured object.
 			using := composed.New(composed.FromReference(v1.ObjectReference{
 				Kind:       by.Kind,
