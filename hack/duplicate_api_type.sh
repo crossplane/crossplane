@@ -24,17 +24,16 @@ FROM_PACKAGE=$(basename ${FROM_DIR})
 TO_PACKAGE=$(basename ${TO_DIR})
 TO_PATH="${TO_DIR}/zz_generated.${FROM_FILE}"
 
-if [ "${STORAGE_VERSION}" = "true" ] && grep -q "+kubebuilder:storageversion" ${FROM_PATH}; then
-  echo "Error: ${FROM_PATH} is a storage version and cannot be duplicated without dropping the storage version marker."
-  exit 1
-fi
-
 sed "s#^package ${FROM_PACKAGE}\$#${DO_NOT_EDIT}\n\npackage ${TO_PACKAGE}#" ${FROM_PATH} > ${TO_PATH}
 
 case $STORAGE_VERSION in
   true)
+    if grep -q "+kubebuilder:storageversion" ${FROM_PATH}; then
+      echo "Error: ${FROM_PATH} is marked as storage version and cannot be duplicated without dropping the marker."
+      exit 1
+    fi
     # Add the storageVersion marker before // +genclient
-    sed -i '\/\/ +genclient/i\/\/ +kubebuilder:storageversion' ${TO_PATH}
+    sed -i '\/\/ +genclient$/i\/\/ +kubebuilder:storageversion' ${TO_PATH}
     echo "Duplicated ${FROM_PATH} (package ${FROM_PACKAGE}) to ${TO_PATH} (package ${TO_PACKAGE})."
     ;;
   false)

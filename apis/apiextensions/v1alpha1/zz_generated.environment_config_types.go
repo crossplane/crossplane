@@ -26,7 +26,6 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient
-// +kubebuilder:storageversion
 // +genclient:nonNamespaced
 
 // An EnvironmentConfig contains user-defined unstructured values for
