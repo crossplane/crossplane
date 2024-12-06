@@ -640,7 +640,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// considered synced (i.e. severe enough to return a ReconcileError) but
 		// they are severe enough that we probably shouldn't say we successfully
 		// composed resources.
-		r.record.Event(xr, event.Normal(reasonCompose, "Successfully composed resources"))
+		log.Debug("Successfully composed resources")
 	}
 
 	var unready []ComposedResource
