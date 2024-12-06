@@ -58,7 +58,7 @@ spec:
             type: object
         type: object
     served: true
-    storage: false
+    storage: true
     subresources: {}
   - additionalPrinterColumns:
     - jsonPath: .metadata.creationTimestamp
@@ -100,5 +100,5 @@ spec:
             type: object
         type: object
     served: true
-    storage: true
+    storage: false
     subresources: {}
