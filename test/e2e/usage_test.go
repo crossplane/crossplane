@@ -198,3 +198,101 @@ func TestUsageComposition(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestUsageCompositionWithPipeline(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/usage/composition-pipeline"
+
+	usageList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
+		APIVersion: "apiextensions.crossplane.io/v1alpha1",
+		Kind:       "Usage",
+	}))
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition pipeline and decomposed properly.").
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteUsage).
+			// Enable the usage feature flag.
+			WithSetup("EnableAlphaUsages", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteUsage)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/functions.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("ClaimCreatedAndReady", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			Assess("UsedResourceHasInUseLabel", funcs.AllOf(
+				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[crossplane.io/in-use]", "true", func(object k8s.Object) bool {
+					return object.GetLabels()["usage"] == "used"
+				}),
+			)).
+			Assess("UsageResourceIsInInitialVersion", funcs.AllOf(
+				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[crossplane.io/composition-resource-name]", "usage-resource", func(object k8s.Object) bool {
+					return object.GetLabels()["version"] == "initial"
+				}),
+			)).
+			Assess("UpdateCompositionWithNewUsage",
+				funcs.ApplyResources(FieldManager, manifests, "composition-updated.yaml"),
+			).
+			Assess("OldUsageIsGoneNewOneIsComposed", funcs.AllOf(
+				funcs.ListedResourcesDeletedWithin(2*time.Minute, usageList, resources.WithLabelSelector("version=initial")),
+				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[crossplane.io/composition-resource-name]", "usage-resource-updated", func(object k8s.Object) bool {
+					return object.GetLabels()["version"] == "updated"
+				}),
+			)).
+			Assess("ClaimDeleted", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "claim.yaml"),
+			)).
+			// NOTE(turkenh): At this point, the claim is deleted and hence the
+			// garbage collector started attempting to delete all composed
+			// resources. With the help of a finalizer (namely
+			// `delay-deletion-of-using-resource`, see in the composition),
+			// we know that the using resource is still there and hence the
+			// deletion of the used resource should be blocked. We will assess
+			// that below.
+			Assess("OthersDeletedExceptUsed", funcs.AllOf(
+				// Using resource should have a deletion timestamp (i.e. deleted by the garbage collector).
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, nopList, 1, func(object k8s.Object) bool {
+					return object.GetDeletionTimestamp() != nil
+				}, resources.WithLabelSelector(labels.FormatLabels(map[string]string{"usage": "using"}))),
+				// Usage resource should not have a deletion timestamp since it is owned by the using resource.
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, usageList, 1, func(object k8s.Object) bool {
+					return object.GetDeletionTimestamp() == nil
+				}),
+				// Used resource should not have a deletion timestamp since it is still in use.
+				funcs.ListedResourcesValidatedWithin(1*time.Minute, nopList, 1, func(object k8s.Object) bool {
+					return object.GetDeletionTimestamp() == nil
+				}, resources.WithLabelSelector(labels.FormatLabels(map[string]string{"usage": "used"}))),
+			)).
+			Assess("UsingDeletedAllGone", funcs.AllOf(
+				// Remove the finalizer from the using resource.
+				funcs.ListedResourcesModifiedWith(nopList, 1, func(object k8s.Object) {
+					object.SetFinalizers(nil)
+				}, resources.WithLabelSelector(labels.FormatLabels(map[string]string{"usage": "using"}))),
+				// All composed resources should now be deleted including the Usage itself.
+				funcs.ListedResourcesDeletedWithin(2*time.Minute, nopList),
+				funcs.ListedResourcesDeletedWithin(2*time.Minute, usageList),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			// Disable our feature flag.
+			WithTeardown("DisableAlphaUsages", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Feature(),
+	)
+}

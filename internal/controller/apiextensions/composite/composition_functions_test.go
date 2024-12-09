@@ -1253,10 +1253,42 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				err: errors.New(`refusing to delete composed resource "undesired-resource" that is controlled by XR "different"`),
 			},
 		},
+		"UpdateError": {
+			reason: "We should return any error encountered updating the resource with removed labels.",
+			params: params{
+				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				},
+			},
+			args: args{
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
+					},
+				},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								// This resource is controlled by the XR.
+								OwnerReferences: []metav1.OwnerReference{{
+									Controller: ptr.To(true),
+									UID:        "cool-xr",
+								}},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtCleanupLabelsCD, "undesired-resource", "", ""),
+			},
+		},
 		"DeleteError": {
 			reason: "We should return any error encountered deleting the resource.",
 			params: params{
 				client: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
 					MockDelete: test.NewMockDeleteFn(errBoom),
 				},
 			},
@@ -1288,6 +1320,13 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 			reason: "We should successfully delete an observed resource from the API server if it is not desired.",
 			params: params{
 				client: &test.MockClient{
+					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						l := obj.GetLabels()
+						if l[xcrd.CategoryComposite] != "" || l[xcrd.LabelKeyClaimName] != "" || l[xcrd.LabelKeyClaimNamespace] != "" {
+							return errors.New("resource still has composed resource labels")
+						}
+						return nil
+					},
 					MockDelete: test.NewMockDeleteFn(nil),
 				},
 			},
@@ -1306,6 +1345,12 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 									Controller: ptr.To(true),
 									UID:        "cool-xr",
 								}},
+								// With composed resource labels.
+								Labels: map[string]string{
+									xcrd.LabelKeyNamePrefixForComposed: "cool-xr",
+									xcrd.LabelKeyClaimName:             "cool-claim",
+									xcrd.LabelKeyClaimNamespace:        "cool-namespace",
+								},
 							},
 						},
 					},
