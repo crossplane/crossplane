@@ -18,12 +18,16 @@ limitations under the License.
 package main
 
 import (
+	"os"
+
 	"github.com/alecthomas/kong"
+	"github.com/willabides/kongplete"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/cmd/crank/beta"
+	"github.com/crossplane/crossplane/cmd/crank/completion"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"github.com/crossplane/crossplane/cmd/crank/version"
 	"github.com/crossplane/crossplane/cmd/crank/xpkg"
@@ -57,11 +61,14 @@ type cli struct {
 
 	// Flags.
 	Verbose verboseFlag `help:"Print verbose logging statements." name:"verbose"`
+
+	// Completion
+	Completions kongplete.InstallCompletions `cmd:"" help:"install shell completions"`
 }
 
 func main() {
 	logger := logging.NewNopLogger()
-	ctx := kong.Parse(&cli{},
+	parser := kong.Must(&cli{},
 		kong.Name("crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands
@@ -73,6 +80,14 @@ func main() {
 			WrapUpperBound: 80,
 		}),
 		kong.UsageOnError())
-	err := ctx.Run()
+
+	kongplete.Complete(parser,
+		kongplete.WithPredictors(completion.Predictors()),
+	)
+
+	ctx, err := parser.Parse(os.Args[1:])
+	parser.FatalIfErrorf(err)
+
+	err = ctx.Run()
 	ctx.FatalIfErrorf(err)
 }
