@@ -159,6 +159,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(errs.ToAggregate(), "invalid Composition %q", comp.GetName())
 	}
 
+	// check if XR's matchLabels have corresponding label at composition
+	xrSelector := xr.GetCompositionSelector()
+	if xrSelector != nil {
+		for key, value := range xrSelector.MatchLabels {
+			compValue, exists := comp.Labels[key]
+			if !exists {
+				return fmt.Errorf("composition %q is missing required label %q", comp.GetName(), key)
+			}
+			if compValue != value {
+				return fmt.Errorf("composition %q has incorrect value for label %q: want %q, got %q",
+					comp.GetName(), key, value, compValue)
+			}
+		}
+	}
+
 	if m := comp.Spec.Mode; m == nil || *m != v1.CompositionModePipeline {
 		return errors.Errorf("render only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
 	}
