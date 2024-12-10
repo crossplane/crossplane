@@ -208,6 +208,10 @@ func TestForCompositeResource(t *testing.T) {
 			},
 			want: want{
 				c: &extv1.CustomResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "CustomResourceDefinition",
+						APIVersion: "apiextensions.k8s.io/v1",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: labels,
@@ -519,6 +523,10 @@ func TestForCompositeResource(t *testing.T) {
 			},
 			want: want{
 				c: &extv1.CustomResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "CustomResourceDefinition",
+						APIVersion: "apiextensions.k8s.io/v1",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: labels,
@@ -808,6 +816,10 @@ func TestForCompositeResource(t *testing.T) {
 			},
 			want: want{
 				c: &extv1.CustomResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "CustomResourceDefinition",
+						APIVersion: "apiextensions.k8s.io/v1",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: labels,
@@ -1060,6 +1072,10 @@ func TestForCompositeResource(t *testing.T) {
 			},
 			want: want{
 				c: &extv1.CustomResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "CustomResourceDefinition",
+						APIVersion: "apiextensions.k8s.io/v1",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: labels,
@@ -1348,6 +1364,10 @@ func TestForCompositeResource(t *testing.T) {
 			},
 			want: want{
 				c: &extv1.CustomResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "CustomResourceDefinition",
+						APIVersion: "apiextensions.k8s.io/v1",
+					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   name,
 						Labels: labels,
@@ -2156,6 +2176,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 			},
 
 			want: &extv1.CustomResourceDefinition{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "CustomResourceDefinition",
+					APIVersion: "apiextensions.k8s.io/v1",
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   claimPlural + "." + group,
 					Labels: labels,
@@ -2450,6 +2474,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 			},
 
 			want: &extv1.CustomResourceDefinition{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "CustomResourceDefinition",
+					APIVersion: "apiextensions.k8s.io/v1",
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:   claimPlural + "." + group,
 					Labels: labels,
@@ -2778,6 +2806,10 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 	}
 
 	want := &extv1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CustomResourceDefinition",
+			APIVersion: "apiextensions.k8s.io/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   claimPlural + "." + group,
 			Labels: labels,
