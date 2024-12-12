@@ -63,7 +63,7 @@ spec:
                           time: "10s"
               usage-resource-updated:
                 resource:
-                  apiVersion: apiextensions.crossplane.io/v1alpha1
+                  apiVersion: apiextensions.crossplane.io/v1beta1
                   kind: Usage
                   metadata:
                     labels:

@@ -47,7 +47,7 @@ spec:
             time: "10s"
   - name: usage-resource
     base:
-      apiVersion: apiextensions.crossplane.io/v1alpha1
+      apiVersion: apiextensions.crossplane.io/v1beta1
       kind: Usage
       spec:
         of:
