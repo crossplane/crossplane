@@ -41,6 +41,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestPTCompose(t *testing.T) {
@@ -688,6 +689,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					// This resource is not controlled by anyone.
 					return nil
 				}),
+				MockUpdate: test.NewMockUpdateFn(nil),
 				MockDelete: test.NewMockDeleteFn(nil),
 			},
 			args: args{
@@ -717,6 +719,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					}})
 					return nil
 				}),
+				MockUpdate: test.NewMockUpdateFn(nil),
 				MockDelete: test.NewMockDeleteFn(errBoom),
 			},
 			args: args{
@@ -744,9 +747,21 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 						BlockOwnerDeletion: &ctrl,
 						UID:                types.UID("it-me"),
 					}})
+					obj.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "cool-xr",
+						xcrd.LabelKeyClaimName:             "cool-claim",
+						xcrd.LabelKeyClaimNamespace:        "cool-namespace",
+					})
 
 					return nil
 				}),
+				MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+					l := obj.GetLabels()
+					if l[xcrd.CategoryComposite] != "" || l[xcrd.LabelKeyClaimName] != "" || l[xcrd.LabelKeyClaimNamespace] != "" {
+						return errors.New("resource still has composed resource labels")
+					}
+					return nil
+				},
 				MockDelete: test.NewMockDeleteFn(nil),
 			},
 			args: args{
