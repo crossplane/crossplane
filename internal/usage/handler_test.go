@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 var _ admission.Handler = &Handler{}
@@ -178,24 +178,24 @@ func TestHandle(t *testing.T) {
 						return nil
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1alpha1.UsageList)
-						l.Items = []v1alpha1.Usage{
+						l := list.(*v1beta1.UsageList)
+						l.Items = []v1beta1.Usage{
 							{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "used-by-some-resource",
 								},
-								Spec: v1alpha1.UsageSpec{
-									Of: v1alpha1.Resource{
+								Spec: v1beta1.UsageSpec{
+									Of: v1beta1.Resource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1alpha1.ResourceRef{
+										ResourceRef: &v1beta1.ResourceRef{
 											Name: "used-resource",
 										},
 									},
-									By: &v1alpha1.Resource{
+									By: &v1beta1.Resource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1alpha1.ResourceRef{
+										ResourceRef: &v1beta1.ResourceRef{
 											Name: "using-resource",
 										},
 									},
@@ -239,17 +239,17 @@ func TestHandle(t *testing.T) {
 						return nil
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1alpha1.UsageList)
-						l.Items = []v1alpha1.Usage{
+						l := list.(*v1beta1.UsageList)
+						l.Items = []v1beta1.Usage{
 							{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "used-by-some-resource",
 								},
-								Spec: v1alpha1.UsageSpec{
-									Of: v1alpha1.Resource{
+								Spec: v1beta1.UsageSpec{
+									Of: v1beta1.Resource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1alpha1.ResourceRef{
+										ResourceRef: &v1beta1.ResourceRef{
 											Name: "used-resource",
 										},
 									},
@@ -294,17 +294,17 @@ func TestHandle(t *testing.T) {
 						return nil
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1alpha1.UsageList)
-						l.Items = []v1alpha1.Usage{
+						l := list.(*v1beta1.UsageList)
+						l.Items = []v1beta1.Usage{
 							{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "used-by-some-resource",
 								},
-								Spec: v1alpha1.UsageSpec{
-									Of: v1alpha1.Resource{
+								Spec: v1beta1.UsageSpec{
+									Of: v1beta1.Resource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1alpha1.ResourceRef{
+										ResourceRef: &v1beta1.ResourceRef{
 											Name: "used-resource",
 										},
 									},

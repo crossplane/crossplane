@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 var errBoom = errors.New("boom")
@@ -38,10 +38,10 @@ func TestResolveSelectors(t *testing.T) {
 	valueTrue := true
 	type args struct {
 		client client.Client
-		u      *v1alpha1.Usage
+		u      *v1beta1.Usage
 	}
 	type want struct {
-		u   *v1alpha1.Usage
+		u   *v1beta1.Usage
 		err error
 	}
 	cases := map[string]struct {
@@ -52,27 +52,27 @@ func TestResolveSelectors(t *testing.T) {
 		"AlreadyResolved": {
 			reason: "If selectors resolved already, we should do nothing.",
 			args: args{
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
 							},
 						},
-						By: &v1alpha1.Resource{
+						By: &v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "AnotherKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "another",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"baz": "qux",
 								},
@@ -82,27 +82,27 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
 							},
 						},
-						By: &v1alpha1.Resource{
+						By: &v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "AnotherKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "another",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"baz": "qux",
 								},
@@ -115,15 +115,15 @@ func TestResolveSelectors(t *testing.T) {
 		"AlreadyResolvedNoUsing": {
 			reason: "If selectors resolved already, we should do nothing.",
 			args: args{
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -133,15 +133,15 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -159,12 +159,12 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -185,19 +185,19 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
 						},
-						By: &v1alpha1.Resource{
+						By: &v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "AnotherKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"baz": "qux",
 								},
@@ -238,12 +238,12 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -284,19 +284,19 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
 						},
-						By: &v1alpha1.Resource{
+						By: &v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "AnotherKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"baz": "qux",
 								},
@@ -317,12 +317,12 @@ func TestResolveSelectors(t *testing.T) {
 						return nil
 					},
 				},
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -364,12 +364,12 @@ func TestResolveSelectors(t *testing.T) {
 						return nil
 					},
 				},
-				u: &v1alpha1.Usage{
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+				u: &v1beta1.Usage{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -441,7 +441,7 @@ func TestResolveSelectors(t *testing.T) {
 						return nil
 					},
 				},
-				u: &v1alpha1.Usage{
+				u: &v1beta1.Usage{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -453,32 +453,32 @@ func TestResolveSelectors(t *testing.T) {
 							},
 						},
 					},
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
 								MatchControllerRef: &valueTrue,
 							},
 						},
-						By: &v1alpha1.Resource{
+						By: &v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "AnotherKind",
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"baz": "qux",
 								},
 							},
 						},
 					},
-					Status: v1alpha1.UsageStatus{},
+					Status: v1beta1.UsageStatus{},
 				},
 			},
 			want: want{
-				u: &v1alpha1.Usage{
+				u: &v1beta1.Usage{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -490,27 +490,27 @@ func TestResolveSelectors(t *testing.T) {
 							},
 						},
 					},
-					Spec: v1alpha1.UsageSpec{
-						Of: v1alpha1.Resource{
+					Spec: v1beta1.UsageSpec{
+						Of: v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
 								MatchControllerRef: &valueTrue,
 							},
 						},
-						By: &v1alpha1.Resource{
+						By: &v1beta1.Resource{
 							APIVersion: "v1",
 							Kind:       "AnotherKind",
-							ResourceRef: &v1alpha1.ResourceRef{
+							ResourceRef: &v1beta1.ResourceRef{
 								Name: "another",
 							},
-							ResourceSelector: &v1alpha1.ResourceSelector{
+							ResourceSelector: &v1beta1.ResourceSelector{
 								MatchLabels: map[string]string{
 									"baz": "qux",
 								},
