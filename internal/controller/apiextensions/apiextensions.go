@@ -38,7 +38,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		return err
 	}
 
-	if o.Features.Enabled(features.EnableAlphaUsages) {
+	if o.Features.Enabled(features.EnableBetaUsages) {
 		if err := usage.Setup(mgr, o); err != nil {
 			return err
 		}

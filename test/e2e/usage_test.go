@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
 	"sigs.k8s.io/e2e-framework/pkg/features"
-	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
@@ -19,23 +18,6 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
-
-const (
-	// SuiteUsage is the value for the config.LabelTestSuite label to be
-	// assigned to tests that should be part of the Usage test suite.
-	SuiteUsage = "usage"
-)
-
-func init() {
-	environment.AddTestSuite(SuiteUsage,
-		config.WithHelmInstallOpts(
-			helm.WithArgs("--set args={--debug,--enable-usages}"),
-		),
-		config.WithLabelsToSelect(features.Labels{
-			config.LabelTestSuite: []string{SuiteUsage, config.TestSuiteDefault},
-		}),
-	)
-}
 
 // TestUsageStandalone tests scenarios for Crossplane's `Usage` resource without
 // a composition involved.
@@ -88,16 +70,10 @@ func TestUsageStandalone(t *testing.T) {
 
 	environment.Test(t,
 		cases.Build(t.Name()).
-			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteUsage).
-			// Enable the usage feature flag.
-			WithSetup("EnableAlphaUsages", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteUsage)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -126,16 +102,10 @@ func TestUsageComposition(t *testing.T) {
 
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition.").
-			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteUsage).
-			// Enable the usage feature flag.
-			WithSetup("EnableAlphaUsages", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteUsage)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -209,16 +179,10 @@ func TestUsageCompositionWithPipeline(t *testing.T) {
 
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition pipeline and decomposed properly.").
-			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteUsage).
-			// Enable the usage feature flag.
-			WithSetup("EnableAlphaUsages", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteUsage)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),

@@ -26,11 +26,6 @@ const (
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
 	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
 
-	// EnableAlphaUsages enables alpha support for deletion ordering and
-	// protection with Usage resource. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/19ea23/design/one-pager-generic-usage-type.md
-	EnableAlphaUsages feature.Flag = "EnableAlphaUsages"
-
 	// EnableAlphaRealtimeCompositions enables alpha support for realtime
 	// compositions, i.e. watching MRs and reconciling compositions immediately
 	// when any MR is updated.
@@ -61,4 +56,9 @@ const (
 	// runtime configs. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/c2e206/design/one-pager-package-runtime-config.md
 	EnableBetaDeploymentRuntimeConfigs feature.Flag = "EnableBetaDeploymentRuntimeConfigs"
+
+	// EnableBetaUsages enables beta support for deletion ordering and
+	// protection with Usage resource. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/19ea23/design/one-pager-generic-usage-type.md
+	EnableBetaUsages feature.Flag = "EnableBetaUsages"
 )

@@ -223,7 +223,6 @@ jobs:
       matrix:
         test-suite:
           - base
-          - usage
           - ssa-claims
           - realtime-compositions
           - package-dependency-upgrades
