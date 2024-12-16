@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/crossplane/crossplane/cmd/crossplane/job"
 	"io"
 
 	"github.com/alecthomas/kong"
@@ -51,8 +52,9 @@ type cli struct {
 
 	Version versionFlag `help:"Print version and quit." short:"v"`
 
-	Core core.Command `cmd:"" default:"withargs"                                help:"Start core Crossplane controllers."`
+	Core core.Command `cmd:"" default:"withargs" help:"Start core Crossplane controllers."`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Job  job.Command  `cmd:"" help:"Run a Crossplane job."`
 }
 
 // BeforeApply binds the dev mode logger to the kong context

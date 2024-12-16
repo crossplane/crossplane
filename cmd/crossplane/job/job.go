@@ -77,7 +77,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	defer eb.Shutdown()
 
 	crossplaneSchema := runtime.NewScheme()
-	_ = crossapiextensionsv1.AddToScheme(s)
+	_ = crossapiextensionsv1.AddToScheme(crossplaneSchema)
 
 	crossplaneClient, err := client.New(cfg, client.Options{Scheme: crossplaneSchema})
 	if err != nil {
@@ -97,6 +97,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			return errors.Wrap(err, "cannot list namespaces")
 		}
 
+		clearedRevsCount := 0
+		defer func() {
+			log.Info(fmt.Sprintf("Cleared revisions: %d", clearedRevsCount))
+		}()
+
 		for _, ns := range namespaces.Items {
 			allRevisions := &crossapiextensionsv1.CompositionRevisionList{}
 			err := crossplaneClient.List(ctx, allRevisions, client.InNamespace(ns.GetName()))
@@ -107,12 +112,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			var elements = make(map[string]struct{})
 
 			for _, rev := range allRevisions.Items {
-				elements[rev.Spec.CompositeTypeRef.Kind] = struct{}{}
+				elements[rev.ObjectMeta.Labels[crossapiextensionsv1.LabelCompositionName]] = struct{}{}
 			}
 
 			for uniqueKind := range elements {
 				// skip clearing loop for configured items
-				if _, found := compositionsToKeep[uniqueKind]; !found {
+				if _, found := compositionsToKeep[uniqueKind]; found {
 					continue
 				}
 				kindRevisions := &crossapiextensionsv1.CompositionRevisionList{}
@@ -132,7 +137,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 				for idx, rev := range kindRevisions.Items {
 					// keep top N recent revisions in local cache to keep
-					if keepTopNItems <= idx+1 {
+					if keepTopNItems > idx {
 						revisionsToKeep[rev.GetName()] = struct{}{}
 					}
 				}
@@ -142,6 +147,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 						if err := crossplaneClient.Delete(ctx, &rev); resource.IgnoreNotFound(err) != nil {
 							return errors.Wrap(err, "cannot delete composition revision")
 						}
+						clearedRevsCount++
 					}
 				}
 			}
