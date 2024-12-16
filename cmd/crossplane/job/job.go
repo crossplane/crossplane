@@ -22,18 +22,18 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sort"
-
+	"github.com/crossplane/crossplane/internal/job"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
+	"maps"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"slices"
+	"strings"
 )
 
 type Command struct {
@@ -41,15 +41,9 @@ type Command struct {
 }
 
 type startCommand struct {
-	Job string `help:"Name of a job." short:"j"`
-}
-
-const removeUnusedCompositionRevisionJob = "removeUnusedCompositionRevision"
-
-const keepTopNItems = 3
-
-var compositionsToKeep = map[string]struct{}{
-	"test": struct{}{},
+	Job           string `help:"Name of a job." short:"j"`
+	ItemsToKeep   string `help:"Comma delimited list of items to keep." name:"items-to-keep" short:"i"`
+	KeepTopNItems int    `help:"Number of items to keep" name:"keep-top-n-items" short:"n" default:"3"`
 }
 
 // Run a Crossplane job.
@@ -77,84 +71,33 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	defer eb.Shutdown()
 
 	crossplaneSchema := runtime.NewScheme()
-	_ = crossapiextensionsv1.AddToScheme(crossplaneSchema)
+	_ = crossapiextensionsv1.AddToScheme(s)
 
 	crossplaneClient, err := client.New(cfg, client.Options{Scheme: crossplaneSchema})
 	if err != nil {
 		return errors.Wrap(err, "cannot create client")
 	}
 
-	k8sClientset, err := kubernetes.NewForConfig(cfg)
+	k8sClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return errors.Wrap(err, "cannot create K8S client set")
 	}
 
-	switch c.Job {
-	case removeUnusedCompositionRevisionJob:
-		// TODO, move out logic and prepare for adding more jobs, especially clearing other revisions
-		namespaces, err := k8sClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	jobs := job.NewJobs(log, k8sClient, crossplaneClient)
+
+	if foundJob, found := jobs[c.Job]; found {
+		itemsToKeepSet := map[string]struct{}{}
+		for _, itemToKeep := range strings.Split(c.ItemsToKeep, ",") {
+			itemsToKeepSet[itemToKeep] = struct{}{}
+		}
+
+		processedItems, err := foundJob.Run(ctx, itemsToKeepSet, c.KeepTopNItems)
+		log.Info(fmt.Sprintf("No of processed items: %d", processedItems))
 		if err != nil {
-			return errors.Wrap(err, "cannot list namespaces")
+			return errors.Wrap(err, "cannot complete job")
 		}
-
-		clearedRevsCount := 0
-		defer func() {
-			log.Info(fmt.Sprintf("Cleared revisions: %d", clearedRevsCount))
-		}()
-
-		for _, ns := range namespaces.Items {
-			allRevisions := &crossapiextensionsv1.CompositionRevisionList{}
-			err := crossplaneClient.List(ctx, allRevisions, client.InNamespace(ns.GetName()))
-			if err != nil {
-				return errors.Wrap(err, "cannot list composition revisions")
-			}
-
-			var elements = make(map[string]struct{})
-
-			for _, rev := range allRevisions.Items {
-				elements[rev.ObjectMeta.Labels[crossapiextensionsv1.LabelCompositionName]] = struct{}{}
-			}
-
-			for uniqueKind := range elements {
-				// skip clearing loop for configured items
-				if _, found := compositionsToKeep[uniqueKind]; found {
-					continue
-				}
-				kindRevisions := &crossapiextensionsv1.CompositionRevisionList{}
-				ml := client.MatchingLabels{}
-				ml[crossapiextensionsv1.LabelCompositionName] = uniqueKind
-
-				if err := crossplaneClient.List(ctx, kindRevisions, ml); err != nil {
-					return errors.Wrap(err, "cannot list composition revisions for a label")
-				}
-
-				sort.Slice(kindRevisions.Items, func(i, j int) bool {
-					// sort in descending mode
-					return kindRevisions.Items[i].Spec.Revision > kindRevisions.Items[j].Spec.Revision
-				})
-
-				var revisionsToKeep = make(map[string]struct{})
-
-				for idx, rev := range kindRevisions.Items {
-					// keep top N recent revisions in local cache to keep
-					if keepTopNItems > idx {
-						revisionsToKeep[rev.GetName()] = struct{}{}
-					}
-				}
-				for _, rev := range kindRevisions.Items {
-					// remove old revisions that aren't in top N recent revisions
-					if _, found := revisionsToKeep[rev.GetName()]; !found {
-						if err := crossplaneClient.Delete(ctx, &rev); resource.IgnoreNotFound(err) != nil {
-							return errors.Wrap(err, "cannot delete composition revision")
-						}
-						clearedRevsCount++
-					}
-				}
-			}
-
-		}
-	default:
-		log.Info(fmt.Sprintf("Available jobs: %s", removeUnusedCompositionRevisionJob))
+	} else {
+		log.Info(fmt.Sprintf("Available jobs: %s", slices.Collect(maps.Keys(jobs))))
 	}
 
 	return nil
