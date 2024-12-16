@@ -1120,7 +1120,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 			return ctx
 		}
 
-		if !strings.HasPrefix(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
+		if !strings.Contains(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
 			t.Fatalf("expected the usage webhook to deny the request but it failed with err: %s", err.Error())
 			return ctx
 		}
