@@ -18,6 +18,7 @@ package job
 
 import (
 	"context"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v1 "k8s.io/api/core/v1"
@@ -131,6 +132,85 @@ func TestCompositionRevisionCleanupJob(t *testing.T) {
 			want: want{
 				processedCount: 1,
 				err:            nil,
+			},
+		},
+		"SuccessWithKeepingItemsAndKeepOneRevision": {
+			args: args{
+				log:       logging.NewNopLogger(),
+				k8sClient: NewFakeClientset(objects...),
+				crossplaneClient: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						*obj.(*crossapiextensionsv1.CompositionRevisionList) = crossapiextensionsv1.CompositionRevisionList{
+							Items: []crossapiextensionsv1.CompositionRevision{
+								*rev2,
+								*rev1,
+							},
+						}
+						return nil
+					}),
+					MockDelete: test.NewMockDeleteFn(nil),
+				},
+
+				Ctx: context.Background(),
+				ItemsToKeep: map[string]struct{}{
+					comp.GetName(): struct{}{},
+				},
+				KeepTopNItems: 1,
+			},
+			want: want{
+				processedCount: 0,
+				err:            nil,
+			},
+		},
+		"SuccessWithKeepingItemsAndKeepThreeRevisions": {
+			args: args{
+				log:       logging.NewNopLogger(),
+				k8sClient: NewFakeClientset(objects...),
+				crossplaneClient: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						*obj.(*crossapiextensionsv1.CompositionRevisionList) = crossapiextensionsv1.CompositionRevisionList{
+							Items: []crossapiextensionsv1.CompositionRevision{
+								*rev2,
+								*rev1,
+							},
+						}
+						return nil
+					}),
+				},
+
+				Ctx:           context.Background(),
+				ItemsToKeep:   map[string]struct{}{},
+				KeepTopNItems: 3,
+			},
+			want: want{
+				processedCount: 0,
+				err:            nil,
+			},
+		},
+		"FailWithErrorOnDelete": {
+			args: args{
+				log:       logging.NewNopLogger(),
+				k8sClient: NewFakeClientset(objects...),
+				crossplaneClient: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						*obj.(*crossapiextensionsv1.CompositionRevisionList) = crossapiextensionsv1.CompositionRevisionList{
+							Items: []crossapiextensionsv1.CompositionRevision{
+								*rev2,
+								*rev1,
+							},
+						}
+						return nil
+					}),
+					MockDelete: test.NewMockDeleteFn(errors.New("error")),
+				},
+
+				Ctx:           context.Background(),
+				ItemsToKeep:   map[string]struct{}{},
+				KeepTopNItems: 1,
+			},
+			want: want{
+				processedCount: 0,
+				err:            errors.Wrap(errors.New("error"), errDeleteCompositionRev),
 			},
 		},
 	}
