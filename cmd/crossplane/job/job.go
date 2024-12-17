@@ -43,7 +43,7 @@ type Command struct {
 type startCommand struct {
 	Job           string `help:"Name of a job." short:"j"`
 	ItemsToKeep   string `help:"Comma delimited list of items to keep." name:"items-to-keep" short:"i"`
-	KeepTopNItems int    `help:"Number of items to keep" name:"keep-top-n-items" short:"n" default:"3"`
+	KeepTopNItems int    `help:"Number of items to keep" name:"keep-top-n-items" short:"n" default:"1"`
 }
 
 // Run a Crossplane job.

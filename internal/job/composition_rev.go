@@ -14,7 +14,7 @@ import (
 
 type CompositionRevisionCleanupJob struct {
 	log              logging.Logger
-	k8sClientset     *kubernetes.Clientset
+	k8sClientset     kubernetes.Interface
 	crossplaneClient client.Client
 }
 
@@ -81,7 +81,7 @@ func (c CompositionRevisionCleanupJob) Run(ctx context.Context, itemsToKeep map[
 	return clearedRevsCount, nil
 }
 
-func NewCompositionRevisionCleanupJob(log logging.Logger, k8sClientset *kubernetes.Clientset, crossplaneClient client.Client) Job {
+func NewCompositionRevisionCleanupJob(log logging.Logger, k8sClientset kubernetes.Interface, crossplaneClient client.Client) Job {
 	return CompositionRevisionCleanupJob{
 		log:              log,
 		k8sClientset:     k8sClientset,

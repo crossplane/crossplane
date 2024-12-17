@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Crossplane Authors.
+Copyright 2024 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ func TestJobInitializer(t *testing.T) {
 
 	type args struct {
 		log              logging.Logger
-		k8sClient        *kubernetes.Clientset
+		k8sClient        kubernetes.Interface
 		crossplaneClient client.Client
 	}
 	type want struct {

@@ -13,7 +13,7 @@ type Job interface {
 
 const removeUnusedCompositionRevisionJob = "removeUnusedCompositionRevision"
 
-func NewJobs(log logging.Logger, k8sClient *kubernetes.Clientset, crossplaneClient client.Client) map[string]Job {
+func NewJobs(log logging.Logger, k8sClient kubernetes.Interface, crossplaneClient client.Client) map[string]Job {
 	return map[string]Job{
 		removeUnusedCompositionRevisionJob: NewCompositionRevisionCleanupJob(log, k8sClient, crossplaneClient),
 	}
