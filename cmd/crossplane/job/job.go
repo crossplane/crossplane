@@ -25,11 +25,6 @@ import (
 	"slices"
 	"strings"
 
-	"maps"
-	"os"
-	"slices"
-	"strings"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -56,7 +51,7 @@ type startCommand struct {
 }
 
 // Run a Crossplane job.
-func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { 
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

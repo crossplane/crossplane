@@ -21,9 +21,6 @@ import (
 	"fmt"
 	"io"
 
-
-	"github.com/crossplane/crossplane/cmd/crossplane/job"
-
 	"github.com/alecthomas/kong"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
