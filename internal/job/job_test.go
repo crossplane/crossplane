@@ -17,19 +17,19 @@ limitations under the License.
 package job
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest/fake"
 	"testing"
 
+
 	"github.com/google/go-cmp/cmp"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestJobInitializer(t *testing.T) {
-
 	type args struct {
 		log              logging.Logger
 		k8sClient        kubernetes.Interface

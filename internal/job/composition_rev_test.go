@@ -18,24 +18,26 @@ package job
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"testing"
+
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	kfake "k8s.io/client-go/kubernetes/fake"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"testing"
-
-	"github.com/google/go-cmp/cmp"
+	restfake "k8s.io/client-go/rest/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	kfake "k8s.io/client-go/kubernetes/fake"
-	restfake "k8s.io/client-go/rest/fake"
 
-	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 type FakeExtendedCoreV1 struct {
@@ -59,7 +61,6 @@ func NewFakeClientset(objs ...runtime.Object) kubernetes.Interface {
 }
 
 func TestCompositionRevisionCleanupJob(t *testing.T) {
-
 	comp := &crossapiextensionsv1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "cool-composition",
@@ -153,7 +154,7 @@ func TestCompositionRevisionCleanupJob(t *testing.T) {
 
 				Ctx: context.Background(),
 				ItemsToKeep: map[string]struct{}{
-					comp.GetName(): struct{}{},
+					comp.GetName(): {},
 				},
 				KeepTopNItems: 1,
 			},
@@ -216,7 +217,7 @@ func TestCompositionRevisionCleanupJob(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			job := NewCompositionRevisionCleanupJob(tc.args.log, tc.args.k8sClient, tc.args.crossplaneClient)
+			job := newCompositionRevisionCleanupJob(tc.args.log, tc.args.k8sClient, tc.args.crossplaneClient)
 			processedCount, err := job.Run(tc.args.Ctx, tc.args.ItemsToKeep, tc.args.KeepTopNItems)
 			if diff := cmp.Diff(tc.want.processedCount, processedCount, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)

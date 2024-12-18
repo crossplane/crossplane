@@ -20,34 +20,43 @@ package job
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/job"
+	"maps"
+	"os"
+	"slices"
+	"strings"
+
+	"maps"
+	"os"
+	"slices"
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
-	"maps"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"slices"
-	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/job"
 )
 
+// Command runs the Crossplane job.
 type Command struct {
 	Run startCommand `cmd:"" help:"Start a Crossplane job."`
 }
 
 type startCommand struct {
-	Job           string `help:"Name of a job." short:"j"`
-	ItemsToKeep   string `help:"Comma delimited list of items to keep." name:"items-to-keep" short:"i"`
-	KeepTopNItems int    `help:"Number of items to keep" name:"keep-top-n-items" short:"n" default:"1"`
+	Job           string `help:"Name of a job."                         short:"j"`
+	ItemsToKeep   string `help:"Comma delimited list of items to keep." name:"items-to-keep"           short:"i"`
+	KeepTopNItems int    `default:"1"                                   help:"Number of items to keep" name:"keep-top-n-items" short:"n"`
 }
 
 // Run a Crossplane job.
-func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocognit // Only slightly over.
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

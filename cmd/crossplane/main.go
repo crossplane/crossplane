@@ -19,8 +19,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crossplane/job"
 	"io"
+
+
+	"github.com/crossplane/crossplane/cmd/crossplane/job"
 
 	"github.com/alecthomas/kong"
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -38,6 +40,7 @@ import (
 
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
+	"github.com/crossplane/crossplane/cmd/crossplane/job"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -52,7 +55,7 @@ type cli struct {
 
 	Version versionFlag `help:"Print version and quit." short:"v"`
 
-	Core core.Command `cmd:"" default:"withargs" help:"Start core Crossplane controllers."`
+	Core core.Command `cmd:"" default:"withargs"                                help:"Start core Crossplane controllers."`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
 	Job  job.Command  `cmd:"" help:"Run a Crossplane job."`
 }
