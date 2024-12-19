@@ -18,12 +18,15 @@ package initializer
 
 import (
 	"context"
+	"time"
 
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -111,6 +114,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		return errors.Wrap(err, "cannot parse files")
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
+	pendingCRDs := make(map[string]struct{})
 	for _, obj := range pkg.GetObjects() {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
@@ -131,6 +135,39 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		if err := pa.Apply(ctx, crd); err != nil {
 			return errors.Wrap(err, "cannot apply crd")
 		}
+
+		pendingCRDs[crd.Name] = struct{}{}
 	}
+
+	// wait for crds to be established
+	pollInterval := 2 * time.Second
+	timeout := 2 * time.Minute
+	if err := wait.PollUntilContextTimeout(ctx, pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
+		for crdName := range pendingCRDs {
+			crd := &extv1.CustomResourceDefinition{}
+			err := kube.Get(ctx, client.ObjectKey{Name: crdName}, crd)
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					return false, nil
+				}
+				return false, errors.Wrapf(err, "failed to get CRD %s", crdName)
+			}
+
+			for _, cond := range crd.Status.Conditions {
+				if cond.Type == extv1.Established {
+					delete(pendingCRDs, crdName)
+					break
+				}
+			}
+		}
+		return len(pendingCRDs) == 0, nil
+	}); err != nil {
+		pendingCRDNames := make([]string, 0, len(pendingCRDs))
+		for crdName := range pendingCRDs {
+			pendingCRDNames = append(pendingCRDNames, crdName)
+		}
+		return errors.Wrapf(err, "error waiting for CRDs to be established: pending CRDs: %v", pendingCRDNames)
+	}
+
 	return nil
 }
