@@ -304,7 +304,9 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			// explicitly disable them first before we create anything.
 			WithSetup("DisableSSAClaims", funcs.AllOf(
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(config.TestSuiteDefault)), // Disable our feature flag.
+				funcs.ArgUnsetWithin(1*time.Minute, "--enable-ssa-claims", namespace, "crossplane"),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+				funcs.DeploymentPodIsRunningMustNotChangeWithin(10*time.Second, namespace, "crossplane"),
 			)).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
@@ -323,7 +325,9 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			// would end up sharing ownership with the old CSA field manager.
 			Assess("EnableSSAClaims", funcs.AllOf(
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
+				funcs.ArgSetWithin(1*time.Minute, "--enable-ssa-claims", namespace, "crossplane"),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+				funcs.DeploymentPodIsRunningMustNotChangeWithin(10*time.Second, namespace, "crossplane"),
 			)).
 			Assess("UpdateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml"),
