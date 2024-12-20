@@ -26,7 +26,9 @@ import (
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -60,15 +62,15 @@ type DependencyManager interface {
 type PackageDependencyManager struct {
 	client      client.Client
 	newDag      dag.NewDAGFn
-	packageType v1beta1.PackageType
+	packageType schema.GroupVersionKind
 }
 
 // NewPackageDependencyManager creates a new PackageDependencyManager.
-func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1beta1.PackageType) *PackageDependencyManager {
+func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schema.GroupVersionKind) *PackageDependencyManager {
 	return &PackageDependencyManager{
 		client:      c,
 		newDag:      nd,
-		packageType: t,
+		packageType: pkgType,
 	}
 }
 
@@ -89,15 +91,20 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta runtime.Obj
 	for i, dep := range pack.GetDependencies() {
 		pdep := v1beta1.Dependency{}
 		switch {
+		// If the GVK and package are specified explicitly they take precedence.
+		case dep.APIVersion != nil && dep.Kind != nil && dep.Package != nil:
+			pdep.APIVersion = dep.APIVersion
+			pdep.Kind = dep.Kind
+			pdep.Package = *dep.Package
 		case dep.Configuration != nil:
 			pdep.Package = *dep.Configuration
-			pdep.Type = v1beta1.ConfigurationPackageType
+			pdep.Type = ptr.To(v1beta1.ConfigurationPackageType)
 		case dep.Provider != nil:
 			pdep.Package = *dep.Provider
-			pdep.Type = v1beta1.ProviderPackageType
+			pdep.Type = ptr.To(v1beta1.ProviderPackageType)
 		case dep.Function != nil:
 			pdep.Package = *dep.Function
-			pdep.Type = v1beta1.FunctionPackageType
+			pdep.Type = ptr.To(v1beta1.FunctionPackageType)
 		}
 		pdep.Constraints = dep.Version
 		sources[i] = pdep
@@ -131,8 +138,9 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta runtime.Obj
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
+		APIVersion:   ptr.To(m.packageType.GroupVersion().String()),
+		Kind:         ptr.To(m.packageType.Kind),
 		Name:         pr.GetName(),
-		Type:         m.packageType,
 		Source:       lockRef,
 		Version:      prRef.Identifier(),
 		Dependencies: sources,

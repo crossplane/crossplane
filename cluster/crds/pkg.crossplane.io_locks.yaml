@@ -44,6 +44,9 @@ spec:
             items:
               description: LockPackage is a package that is in the lock.
               properties:
+                apiVersion:
+                  description: APIVersion of the package.
+                  type: string
                 dependencies:
                   description: |-
                     Dependencies are the list of dependencies of this package. The order of
@@ -52,25 +55,39 @@ spec:
                     description: A Dependency is a dependency of a package in the
                       lock.
                     properties:
+                      apiVersion:
+                        description: APIVersion of the package.
+                        type: string
                       constraints:
                         description: |-
                           Constraints is a valid semver range or a digest, which will be used to select a valid
                           dependency version.
+                        type: string
+                      kind:
+                        description: Kind of the package (not the kind of the package
+                          revision).
                         type: string
                       package:
                         description: Package is the OCI image name without a tag or
                           digest.
                         type: string
                       type:
-                        description: Type is the type of package. Can be either Configuration
-                          or Provider.
+                        description: |-
+                          Type is the type of package. Can be either Configuration or Provider.
+                          Deprecated: Specify an apiVersion and kind instead.
+                        enum:
+                        - Configuration
+                        - Provider
+                        - Function
                         type: string
                     required:
                     - constraints
                     - package
-                    - type
                     type: object
                   type: array
+                kind:
+                  description: Kind of the package (not the kind of the package revision).
+                  type: string
                 name:
                   description: Name corresponds to the name of the package revision
                     for this package.
@@ -79,8 +96,13 @@ spec:
                   description: Source is the OCI image name without a tag or digest.
                   type: string
                 type:
-                  description: Type is the type of package. Can be either Configuration
-                    or Provider.
+                  description: |-
+                    Type is the type of package.
+                    Deprecated: Specify an apiVersion and kind instead.
+                  enum:
+                  - Configuration
+                  - Provider
+                  - Function
                   type: string
                 version:
                   description: Version is the tag or digest of the OCI image.
@@ -89,7 +111,6 @@ spec:
               - dependencies
               - name
               - source
-              - type
               - version
               type: object
             type: array

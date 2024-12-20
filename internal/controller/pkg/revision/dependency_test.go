@@ -264,11 +264,11 @@ func TestResolve(t *testing.T) {
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-1",
-											Type:    v1beta1.ProviderPackageType,
+											Type:    ptr.To(v1beta1.ProviderPackageType),
 										},
 										{
 											Package: "not-here-2",
-											Type:    v1beta1.ConfigurationPackageType,
+											Type:    ptr.To(v1beta1.ConfigurationPackageType),
 										},
 									},
 								},
@@ -277,7 +277,7 @@ func TestResolve(t *testing.T) {
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
-											Type:    v1beta1.ProviderPackageType,
+											Type:    ptr.To(v1beta1.ProviderPackageType),
 										},
 									},
 								},
@@ -352,11 +352,11 @@ func TestResolve(t *testing.T) {
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-1",
-											Type:    v1beta1.ProviderPackageType,
+											Type:    ptr.To(v1beta1.ProviderPackageType),
 										},
 										{
 											Package: "not-here-2",
-											Type:    v1beta1.ConfigurationPackageType,
+											Type:    ptr.To(v1beta1.ConfigurationPackageType),
 										},
 									},
 								},
@@ -365,7 +365,7 @@ func TestResolve(t *testing.T) {
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
-											Type:    v1beta1.ProviderPackageType,
+											Type:    ptr.To(v1beta1.ProviderPackageType),
 										},
 									},
 								},
@@ -451,15 +451,15 @@ func TestResolve(t *testing.T) {
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-1",
-											Type:    v1beta1.ProviderPackageType,
+											Type:    ptr.To(v1beta1.ProviderPackageType),
 										},
 										{
 											Package: "not-here-2",
-											Type:    v1beta1.ConfigurationPackageType,
+											Type:    ptr.To(v1beta1.ConfigurationPackageType),
 										},
 										{
 											Package: "function-not-here-1",
-											Type:    v1beta1.FunctionPackageType,
+											Type:    ptr.To(v1beta1.FunctionPackageType),
 										},
 									},
 								},
@@ -468,7 +468,7 @@ func TestResolve(t *testing.T) {
 									Dependencies: []v1beta1.Dependency{
 										{
 											Package: "not-here-3",
-											Type:    v1beta1.ProviderPackageType,
+											Type:    ptr.To(v1beta1.ProviderPackageType),
 										},
 									},
 								},
