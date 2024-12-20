@@ -177,7 +177,6 @@
       // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
         '!/release-1\.16/',
-        '!/release-1\.17/',
       ],
       postUpgradeTasks: {
         commands: [
@@ -197,7 +196,6 @@
       // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
       matchBaseBranches: [
         'release-1.16',
-        'release-1.17'
       ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
@@ -218,7 +216,6 @@
       // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
         '!/release-1\.16/',
-        '!/release-1\.17/',
       ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
@@ -239,7 +236,6 @@
       // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
       matchBaseBranches: [
         'release-1.16',
-        'release-1.17',
       ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
