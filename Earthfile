@@ -46,10 +46,19 @@ generate:
 
 # e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
+  ARG TARGETARCH
+  ARG TARGETOS
+  ARG GOARCH=${TARGETARCH}
+  ARG GOOS=${TARGETOS}
   ARG FLAGS="-test-suite=base"
-  # Docker installs faster on Alpine, and we only need Go for go tool test2json.
-  FROM golang:${GO_VERSION}-alpine3.20
-  RUN apk add --no-cache docker jq
+  # Using earthly image to allow compatibility with different development environments e.g. WSL
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
+  RUN wget https://dl.google.com/go/go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
+  RUN tar -C /usr/local -xzf go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
+  ENV GOTOOLCHAIN=local
+  ENV GOPATH /go
+  ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+  RUN apk add --no-cache jq
   COPY +helm-setup/helm /usr/local/bin/helm
   COPY +kind-setup/kind /usr/local/bin/kind
   COPY +gotestsum-setup/gotestsum /usr/local/bin/gotestsum
