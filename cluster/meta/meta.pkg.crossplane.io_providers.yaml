@@ -114,18 +114,38 @@ spec:
               dependsOn:
                 description: Dependencies on other packages.
                 items:
-                  description: Dependency is a dependency on another package. One
-                    of Provider or Configuration may be supplied.
+                  description: |-
+                    Dependency is a dependency on another package. A dependency can be of an
+                    arbitrary API version and kind, but Crossplane expects package dependencies
+                    to behave like a Crossplane package. Specifically it expects to be able to
+                    create the dependency and set its spec.package field to a package OCI
+                    reference.
                   properties:
+                    apiVersion:
+                      description: APIVersion of the dependency.
+                      type: string
                     configuration:
-                      description: Configuration is the name of a Configuration package
-                        image.
+                      description: |-
+                        Configuration is the name of a Configuration package image.
+                        Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
-                      description: Function is the name of a Function package image.
+                      description: |-
+                        Function is the name of a Function package image.
+                        Deprecated: Specify an apiVersion, kind, and package instead.
+                      type: string
+                    kind:
+                      description: Kind of the dependency.
+                      type: string
+                    package:
+                      description: |-
+                        Package OCI reference of the dependency. Only used when apiVersion and
+                        kind are set.
                       type: string
                     provider:
-                      description: Provider is the name of a Provider package image.
+                      description: |-
+                        Provider is the name of a Provider package image.
+                        Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
                       description: Version is the semantic version constraints of
@@ -243,18 +263,38 @@ spec:
               dependsOn:
                 description: Dependencies on other packages.
                 items:
-                  description: Dependency is a dependency on another package. One
-                    of Provider or Configuration may be supplied.
+                  description: |-
+                    Dependency is a dependency on another package. A dependency can be of an
+                    arbitrary API version and kind, but Crossplane expects package dependencies
+                    to behave like a Crossplane package. Specifically it expects to be able to
+                    create the dependency and set its spec.package field to a package OCI
+                    reference.
                   properties:
+                    apiVersion:
+                      description: APIVersion of the dependency.
+                      type: string
                     configuration:
-                      description: Configuration is the name of a Configuration package
-                        image.
+                      description: |-
+                        Configuration is the name of a Configuration package image.
+                        Deprecated: Specify an apiVersion, kind, and package instead.
                       type: string
                     function:
-                      description: Function is the name of a Function package image.
+                      description: |-
+                        Function is the name of a Function package image.
+                        Deprecated: Specify an apiVersion, kind, and package instead.
+                      type: string
+                    kind:
+                      description: Kind of the dependency.
+                      type: string
+                    package:
+                      description: |-
+                        Package OCI reference of the dependency. Only used when apiVersion and
+                        kind are set.
                       type: string
                     provider:
-                      description: Provider is the name of a Provider package image.
+                      description: |-
+                        Provider is the name of a Provider package image.
+                        Deprecated: Specify an apiVersion and kind instead.
                       type: string
                     version:
                       description: Version is the semantic version constraints of
