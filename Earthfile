@@ -48,7 +48,7 @@ generate:
 e2e:
   ARG FLAGS="-test-suite=base"
   # Using earthly image to allow compatibility with different development environments e.g. WSL
-  FROM earthly/dind
+  FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
   RUN tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
   ENV GOTOOLCHAIN=local
