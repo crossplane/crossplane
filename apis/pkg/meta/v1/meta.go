@@ -31,15 +31,38 @@ type CrossplaneConstraints struct {
 	Version string `json:"version"`
 }
 
-// Dependency is a dependency on another package. One of Provider or Configuration may be supplied.
+// Dependency is a dependency on another package. A dependency can be of an
+// arbitrary API version and kind, but Crossplane expects package dependencies
+// to behave like a Crossplane package. Specifically it expects to be able to
+// create the dependency and set its spec.package field to a package OCI
+// reference.
 type Dependency struct {
+	// APIVersion of the dependency.
+	// +optional
+	APIVersion *string `json:"apiVersion,omitempty"`
+
+	// Kind of the dependency.
+	// +optional
+	Kind *string `json:"kind,omitempty"`
+
+	// Package OCI reference of the dependency. Only used when apiVersion and
+	// kind are set.
+	// +optional
+	Package *string `json:"package,omitempty"`
+
 	// Provider is the name of a Provider package image.
+	// +optional
+	// Deprecated: Specify an apiVersion and kind instead.
 	Provider *string `json:"provider,omitempty"`
 
 	// Configuration is the name of a Configuration package image.
+	// +optional
+	// Deprecated: Specify an apiVersion, kind, and package instead.
 	Configuration *string `json:"configuration,omitempty"`
 
 	// Function is the name of a Function package image.
+	// +optional
+	// Deprecated: Specify an apiVersion, kind, and package instead.
 	Function *string `json:"function,omitempty"`
 
 	// Version is the semantic version constraints of the dependency image.

@@ -389,7 +389,7 @@ type dependencyOpts func(d *v1beta1.Dependency)
 
 func withPackageType(pkgType v1beta1.PackageType) dependencyOpts {
 	return func(d *v1beta1.Dependency) {
-		d.Type = pkgType
+		d.Type = ptr.To(pkgType)
 	}
 }
 

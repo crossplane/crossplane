@@ -234,6 +234,7 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 			m.confs[image] = cfg // update the configuration
 		}
 
+		// TODO(negz): Handle apiVersion and kind
 		deps := cfg.Spec.MetaSpec.DependsOn
 		for _, dep := range deps {
 			image := ""

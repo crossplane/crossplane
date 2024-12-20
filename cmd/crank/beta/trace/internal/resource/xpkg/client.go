@@ -24,6 +24,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -316,7 +317,8 @@ func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, l
 			}
 		}
 
-		dep, err := kc.getDependencyRef(ctx, lock, d.Type, d.Package)
+		// TODO(negz): Handle apiVersion and kind
+		dep, err := kc.getDependencyRef(ctx, lock, ptr.Deref(d.Type, pkgv1beta1.ConfigurationPackageType), d.Package)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get dependency ref %s", d.Package)
 		}
