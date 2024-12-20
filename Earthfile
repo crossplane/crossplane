@@ -47,7 +47,7 @@ generate:
 # e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
   ARG FLAGS="-test-suite=base"
-  # Using earthly image to allow comability with different development environments e.g. WSL
+  # Using earthly image to allow compatibility with different development environments e.g. WSL
   FROM earthly/dind
   RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
   RUN tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
