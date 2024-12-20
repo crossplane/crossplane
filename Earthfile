@@ -46,11 +46,15 @@ generate:
 
 # e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
+  ARG TARGETARCH
+  ARG TARGETOS
+  ARG GOARCH=${TARGETARCH}
+  ARG GOOS=${TARGETOS}
   ARG FLAGS="-test-suite=base"
   # Using earthly image to allow compatibility with different development environments e.g. WSL
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
-  RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz
-  RUN tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
+  RUN wget https://dl.google.com/go/go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
+  RUN tar -C /usr/local -xzf go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
   ENV GOTOOLCHAIN=local
   ENV GOPATH /go
   ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
