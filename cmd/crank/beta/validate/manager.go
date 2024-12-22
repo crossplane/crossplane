@@ -199,7 +199,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot cache package dependencies")
 	}
 
-	schemas, err := m.cache.Load()
+	schemas, err := m.cache.Load(m.deps)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load cache")
 	}

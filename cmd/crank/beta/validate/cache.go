@@ -32,7 +32,7 @@ type Cache interface {
 	Store(schemas [][]byte, path string) error
 	Flush() error
 	Init() error
-	Load() ([]*unstructured.Unstructured, error)
+	Load(deps map[string]bool) ([]*unstructured.Unstructured, error)
 	Exists(image string) (string, error)
 }
 
@@ -87,24 +87,26 @@ func (c *LocalCache) Flush() error {
 }
 
 // Load loads the schemas from the cache directory.
-func (c *LocalCache) Load() ([]*unstructured.Unstructured, error) {
-	loader, err := NewLoader(c.cacheDir)
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot create loader from the path %s", c.cacheDir)
+func (c *LocalCache) Load(deps map[string]bool) ([]*unstructured.Unstructured, error) {
+	schemas := make([]*unstructured.Unstructured, 0)
+	for dep, _ := range deps {
+		path := c.getCachePath(dep)
+		loader, err := NewLoader(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot create loader from %s", path)
+		}
+		depSchemas, err := loader.Load()
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot load schemas from %s", path)
+		}
+		schemas = append(schemas, depSchemas...)
 	}
-
-	schemas, err := loader.Load()
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot load schemas from the path %s", c.cacheDir)
-	}
-
 	return schemas, nil
 }
 
 // Exists checks if the cache contains the image and returns the path if it doesn't exist.
 func (c *LocalCache) Exists(image string) (string, error) {
-	fName := strings.ReplaceAll(image, ":", "@")
-	path := filepath.Join(c.cacheDir, fName)
+	path := c.getCachePath(image)
 
 	_, err := os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
@@ -114,4 +116,9 @@ func (c *LocalCache) Exists(image string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func (c *LocalCache) getCachePath(image string) string {
+	fName := strings.ReplaceAll(image, ":", "@")
+	return filepath.Join(c.cacheDir, fName)
 }
