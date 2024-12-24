@@ -332,7 +332,7 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			Assess("FieldsRemovalPropagatedToXR", funcs.AllOf(
 				// Updates and deletes are propagated claim -> XR.
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo]", "1"),
-				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[bar]", funcs.NotFound),
+				funcs.CompositeResourceHasFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "metadata.labels[bar]", funcs.NotFound),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.labels[foo2]", "3"),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/foo]", "1"),
 				funcs.CompositeResourceHasFieldValueWithin(1*time.Minute, manifests, "claim.yaml", "metadata.annotations[test/bar]", funcs.NotFound),

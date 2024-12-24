@@ -3,5 +3,5 @@
 apiVersion: pkg.crossplane.io/v1
 kind: ConfigurationRevision
 metadata:
-  name: crossplane-e2e-depends-on-provider-nop-abde574a1e86
+  name: crossplane-e2e-depends-on-provider-nop-625c5dd6622e
 spec: {}
