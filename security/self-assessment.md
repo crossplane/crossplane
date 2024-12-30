@@ -87,8 +87,8 @@ considered out of scope.
           <li><code>XRD</code>: When a new <code>XRD</code> is created by a platform engineer, this controller reconciles this desired state of this definition to dynamically create a new platform API in the form of a CRD that extends the Kubernetes API.</li>
           <li><code>XR</code>: This controller reconciles instances of cluster scoped composite resources, executing the composition logic authored by the platform team to dynamically compose and configure a set of granular resources.</li>
           <li><code>Claim</code>: This controller reconciles the namespaced abstractions that application developers use to request infrastructure resources.</li>
-          <li><code>Composition</code>: Contains the "blueprint" logic for how to compose resources together. The platform engineer defines a simple pipeline of functions to execute, with the end goal being to defined and customized the composed resources. 
-         </ul> 
+          <li><code>Composition</code>: Contains the "blueprint" logic for how to compose resources together. The platform engineer defines a simple pipeline of functions to execute, with the end goal being to defined and customized the composed resources.
+         </ul>
     </td>
   </tr>
   <tr>
@@ -236,7 +236,7 @@ security audit.
   doc](https://github.com/crossplane/crossplane/blob/main/design/design-doc-packages-v2.md)
   and `xpkg` package format
   [specification](https://github.com/crossplane/crossplane/blob/main/contributing/specifications/xpkg.md)
-  are also useful resources. 
+  are also useful resources.
 
 **Security Relevant Security Components**
 
@@ -305,7 +305,8 @@ standards or sub-sections at this time.
   channels outlined in the main
   [README](https://github.com/crossplane/crossplane?tab=readme-ov-file#get-involved).
 * Outbound: The project makes announcements on the Crossplane Slack
-  `#announcements` channel, [Twitter](https://twitter.com/crossplane_io),
+  `#announcements` channel, [Bluesky](https://bsky.app/profile/crossplane.io),
+  [Twitter](https://twitter.com/crossplane_io),
   [LinkedIn](https://www.linkedin.com/company/crossplane), [blog
   posts](https://blog.crossplane.io/), and [release
   notes](https://github.com/crossplane/crossplane/releases).
@@ -407,11 +408,11 @@ Crossplane in more details on the Crossplane blog:
   Your Control
   Plane](https://blog.crossplane.io/building-crossplane-composition-functions-to-empower-your-control-plane/)
 * [How VSHN uses Composition Functions in
-  Production](https://blog.crossplane.io/composition-functions-in-production/) 
+  Production](https://blog.crossplane.io/composition-functions-in-production/)
 
 Further cases studies can be found on the [CNCF
 website](https://www.cncf.io/case-studies/?_sft_lf-project=crossplane) and
-[Upbound's website](https://www.upbound.io/resources/case-studies). 
+[Upbound's website](https://www.upbound.io/resources/case-studies).
 
 ### Related Projects and Vendors
 
