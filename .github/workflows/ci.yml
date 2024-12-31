@@ -143,7 +143,7 @@ jobs:
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-codeql
 
       - name: Upload CodeQL Results to GitHub
-        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3
+        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3
         with:
           sarif_file: '_output/codeql/go.sarif'
 
@@ -169,7 +169,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@ea9e4e37992a54ee68a9622e985e60c8e8f12d9f # v3
+        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -223,7 +223,6 @@ jobs:
       matrix:
         test-suite:
           - base
-          - usage
           - ssa-claims
           - realtime-compositions
           - package-dependency-upgrades
@@ -380,7 +379,7 @@ jobs:
             +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=master
 
       - name: Upload Artifacts to GitHub
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
         with:
           name: output
           path: _output/**
@@ -406,7 +405,7 @@ jobs:
           language: go
 
       - name: Upload Crash
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
         if: failure() && steps.build.outcome == 'success'
         with:
           name: artifacts

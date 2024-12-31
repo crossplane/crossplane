@@ -38,7 +38,7 @@ import (
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 const (
@@ -74,8 +74,8 @@ func indexValue(apiVersion, kind, name string) string {
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	indexer := mgr.GetFieldIndexer()
-	if err := indexer.IndexField(context.Background(), &v1alpha1.Usage{}, InUseIndexKey, func(obj client.Object) []string {
-		u := obj.(*v1alpha1.Usage) //nolint:forcetypeassert // Will always be a Usage.
+	if err := indexer.IndexField(context.Background(), &v1beta1.Usage{}, InUseIndexKey, func(obj client.Object) []string {
+		u := obj.(*v1beta1.Usage) //nolint:forcetypeassert // Will always be a Usage.
 		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
 			return []string{}
 		}
@@ -145,7 +145,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 
 func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured, opts *metav1.DeleteOptions) admission.Response {
 	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
-	usageList := &v1alpha1.UsageList{}
+	usageList := &v1beta1.UsageList{}
 	if err := h.client.List(ctx, usageList, client.MatchingFields{InUseIndexKey: IndexValueForObject(u)}); err != nil {
 		h.log.Debug("Error when getting Usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -185,7 +185,7 @@ func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstruct
 	return admission.Allowed("")
 }
 
-func inUseMessage(usages *v1alpha1.UsageList) string {
+func inUseMessage(usages *v1beta1.UsageList) string {
 	first := usages.Items[0]
 	if first.Spec.By != nil {
 		return fmt.Sprintf("This resource is in-use by %d Usage(s), including the Usage %q by resource %s/%s.", len(usages.Items), first.Name, first.Spec.By.Kind, first.Spec.By.ResourceRef.Name)

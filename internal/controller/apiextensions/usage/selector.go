@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 const (
@@ -47,7 +47,7 @@ func newAPISelectorResolver(c client.Client) *apiSelectorResolver {
 	return &apiSelectorResolver{client: c}
 }
 
-func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error {
+func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.Usage) error {
 	of := u.Spec.Of
 	by := u.Spec.By
 
@@ -78,7 +78,7 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 	return nil
 }
 
-func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1alpha1.Usage, rs *v1alpha1.Resource) error {
+func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1beta1.Usage, rs *v1beta1.Resource) error {
 	l := composed.NewList(composed.FromReferenceToList(v1.ObjectReference{
 		APIVersion: rs.APIVersion,
 		Kind:       rs.Kind,
@@ -100,7 +100,7 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1alpha1.U
 		if controllersMustMatch(rs.ResourceSelector) && !meta.HaveSameController(&o, u) {
 			continue
 		}
-		rs.ResourceRef = &v1alpha1.ResourceRef{
+		rs.ResourceRef = &v1beta1.ResourceRef{
 			Name: o.GetName(),
 		}
 		break
@@ -116,7 +116,7 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1alpha1.U
 // ControllersMustMatch returns true if the supplied Selector requires that a
 // reference be to a resource whose controller reference matches the
 // referencing resource.
-func controllersMustMatch(s *v1alpha1.ResourceSelector) bool {
+func controllersMustMatch(s *v1beta1.ResourceSelector) bool {
 	if s == nil {
 		return false
 	}

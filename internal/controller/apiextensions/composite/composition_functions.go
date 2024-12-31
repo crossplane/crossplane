@@ -47,6 +47,7 @@ import (
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 // Error strings.
@@ -73,6 +74,7 @@ const (
 	errFmtGetCredentialsFromSecret   = "cannot get Composition pipeline step %q credential %q from Secret"
 	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
 	errFmtControllerMismatch         = "refusing to delete composed resource %q that is controlled by %s %q"
+	errFmtCleanupLabelsCD            = "cannot cleanup composed resource labels of resource %q (a %s named %s)"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
@@ -751,6 +753,14 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 			return errors.Errorf(errFmtControllerMismatch, name, c.Kind, c.Name)
 		}
 
+		// Remove the labels that indicate this resource was owned by a
+		// Composition. This helps differentiate whether a resource was deleted
+		// due to garbage collection or because its owning composite was deleted.
+		meta.RemoveLabels(cd.Resource, xcrd.LabelKeyNamePrefixForComposed, xcrd.LabelKeyClaimName, xcrd.LabelKeyClaimNamespace)
+		if err := d.client.Update(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
+			return errors.Wrapf(err, errFmtCleanupLabelsCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
+		}
+		// Delete the composed resource.
 		if err := d.client.Delete(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
 			return errors.Wrapf(err, errFmtDeleteCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
 		}
