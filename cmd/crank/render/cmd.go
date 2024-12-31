@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -48,10 +49,11 @@ type Cmd struct {
 	ContextValues          map[string]string `help:"Comma-separated context key-value pairs to pass to the Function pipeline. Values must be JSON. Keys take precedence over --context-files." mapsep:""`
 	IncludeFunctionResults bool              `help:"Include informational and warning messages from Functions in the rendered output as resources of kind: Result."                            short:"r"`
 	IncludeFullXR          bool              `help:"Include a direct copy of the input XR's spec and metadata fields in the rendered output."                                                  short:"x"`
-	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" short:"o"   type:"path"`
-	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e"   type:"path"`
+	ObservedResources      string            `help:"A YAML file or directory of YAML files specifying the observed state of composed resources."                                               placeholder:"PATH" short:"o"          type:"path"`
+	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e"          type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" type:"path"`
+	XRD                    string            `help:"A YAML file specifying the CompositeResourceDefinition (XRD) to validate the XR against."                                                  optional:""        placeholder:"PATH" type:"existingfile"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 
@@ -182,7 +184,17 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
-
+	if c.XRD != "" {
+		xrd, err := LoadXRD(c.fs, c.XRD)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
+		}
+		crd, err := xcrd.ForCompositeResource(xrd)
+		if err != nil {
+			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
+		}
+		DefaultValues(xr.UnstructuredContent(), *crd)
+	}
 	fcreds := []corev1.Secret{}
 	if c.FunctionCredentials != "" {
 		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)
