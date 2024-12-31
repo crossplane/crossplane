@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: job
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          {{- with .Values.podSecurityContextJob }}
+          securityContext:
+            {{- toYaml . | nindent 8 }}
+          {{- end }}
+          {{- if .Values.priorityClassName }}
+          priorityClassName: {{ .Values.priorityClassName | quote }}
+          {{- end }}
+          serviceAccountName: job
+          containers:
+            - name: {{ .Chart.Name }}
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+              args:
+                - job
+                - start
+                - --job=removeUnusedCompositionRevision
+                - --keep-top-n-items={{ .Values.job.removeUnusedCompositionRevision.keepTopNItems }}
+                - --items-to-keep={{ .Values.job.removeUnusedCompositionRevision.itemsToKeep }}
+              resources:
+                {{- toYaml .Values.resourcesJob | nindent 12 }}
+          restartPolicy: OnFailure

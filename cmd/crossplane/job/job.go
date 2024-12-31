@@ -45,7 +45,7 @@ type Command struct {
 }
 
 type startCommand struct {
-	Job           string `help:"Name of a job."                         short:"j"`
+	Job           string `help:"Name of a job."                         name:"job"                     short:"j"`
 	ItemsToKeep   string `help:"Comma delimited list of items to keep." name:"items-to-keep"           short:"i"`
 	KeepTopNItems int    `default:"1"                                   help:"Number of items to keep" name:"keep-top-n-items" short:"n"`
 }
