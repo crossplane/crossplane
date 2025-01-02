@@ -1,3 +1,4 @@
+{{- if .Values.job.deploy }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -29,3 +30,4 @@ spec:
               resources:
                 {{- toYaml .Values.resourcesJob | nindent 12 }}
           restartPolicy: OnFailure
+{{- end }}
