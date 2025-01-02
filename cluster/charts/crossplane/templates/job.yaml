@@ -5,7 +5,7 @@ metadata:
   name: job
   namespace: {{ .Release.Namespace }}
 spec:
-  schedule: "* * * * *"
+  schedule: {{ .Values.job.removeUnusedCompositionRevision.schedule }}
   jobTemplate:
     spec:
       template:
