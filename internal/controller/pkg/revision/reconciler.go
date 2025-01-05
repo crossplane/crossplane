@@ -729,6 +729,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(pr, event.Warning(reasonParse, err))
 
 			close(cacheWrite)
+
 			// Requeue because we may be waiting for parent package
 			// controller to recreate Pod.
 			return reconcile.Result{}, err
