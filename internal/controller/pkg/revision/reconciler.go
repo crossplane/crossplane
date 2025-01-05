@@ -680,7 +680,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	var rc io.ReadCloser
-	cacheWrite := make(chan error)
 
 	if r.cache.Has(id) {
 		var err error
@@ -693,9 +692,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(pr, event.Warning(reasonParse, err))
 			return reconcile.Result{}, err
 		}
-		// If we got content from cache we don't need to wait for it to be
-		// written.
-		close(cacheWrite)
 	}
 
 	// packagePullPolicy is Never and contents are not in the cache so we return
@@ -710,6 +706,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	cacheWrite := make(chan error)
 	// If we didn't get a ReadCloser from cache, we need to get it from image.
 	if rc == nil {
 		bo := []parser.BackendOption{PackageRevision(pr)}
@@ -731,6 +728,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			r.record.Event(pr, event.Warning(reasonParse, err))
 
+			close(cacheWrite)
 			// Requeue because we may be waiting for parent package
 			// controller to recreate Pod.
 			return reconcile.Result{}, err
