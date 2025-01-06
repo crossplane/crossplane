@@ -747,6 +747,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 			close(cacheWrite)
 		}()
+	} else {
+		close(cacheWrite)
 	}
 
 	// Parse package contents.
