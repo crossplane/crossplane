@@ -748,6 +748,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			close(cacheWrite)
 		}()
 	} else {
+		// close the channel
 		close(cacheWrite)
 	}
 
