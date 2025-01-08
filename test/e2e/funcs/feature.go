@@ -160,9 +160,10 @@ func DeploymentPodIsRunningMustNotChangeWithin(d time.Duration, namespace, name 
 		if err := wait.For(conditions.New(c.Client().Resources()).PodConditionMatch(pod, corev1.PodReady, corev1.ConditionFalse), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Deployment %s/%s had running pod that did not change after %s", dp.GetNamespace(), dp.GetName(), since(start))
-			} else {
-				t.Errorf("Error while observing pod for deployment %s/%s", dp.GetNamespace(), dp.GetName())
+				return ctx
 			}
+
+			t.Errorf("Error while observing pod for deployment %s/%s", dp.GetNamespace(), dp.GetName())
 			return ctx
 		}
 		t.Errorf("Deployment %s/%s had pod that changed within %s, but it should not have", dp.GetNamespace(), dp.GetName(), d.String())
@@ -208,15 +209,16 @@ func checkArgSetWithin(d time.Duration, arg string, wantSet bool, namespace, nam
 				}
 			}
 
-			if wantSet && !found {
+			switch {
+			case wantSet && !found:
 				t.Logf("did not find arg %s within %s", arg, c.Args)
 				return false, nil
-			} else if !wantSet && found {
+			case !wantSet && found:
 				t.Logf("unexpectedly found arg %s within %s", arg, c.Args)
 				return false, nil
+			default:
+				return true, nil
 			}
-
-			return true, nil
 		}, wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Fatal(err)
 			return ctx
@@ -691,9 +693,10 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
-			} else {
-				t.Errorf("Error while observing claim %s: %v", identifier(cm), err)
+				return ctx
 			}
+
+			t.Errorf("Error while observing claim %s: %v", identifier(cm), err)
 			return ctx
 		}
 		t.Errorf("Claim %s changed within %s, but it should not have", identifier(cm), d.String())
@@ -738,9 +741,10 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
-			} else {
-				t.Errorf("Error while observing composite resource %s: %v", identifier(cp), err)
+				return ctx
 			}
+
+			t.Errorf("Error while observing composite resource %s: %v", identifier(cp), err)
 			return ctx
 		}
 		t.Errorf("Composite resource %s changed within %s, but it should not have", identifier(cp), d.String())
