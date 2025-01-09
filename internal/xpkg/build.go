@@ -184,7 +184,9 @@ func (b *Builder) Build(ctx context.Context, opts ...BuildOpt) (v1.Image, runtim
 	}
 
 	cfg := cfgFile.Config
-	cfg.Labels = make(map[string]string)
+	if cfg.Labels == nil {
+		cfg.Labels = make(map[string]string)
+	}
 
 	pkgBytes, err := encode(pkg)
 	if err != nil {
