@@ -427,6 +427,168 @@ func TestServerSideSync(t *testing.T) {
 				}),
 			},
 		},
+		"XRExists": {
+			reason: "When the XR already exists, we should ensure we preserve any custom status conditions.",
+			params: params{
+				c: &test.MockClient{
+					// Update the claim.
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// The XR already exists and has custom conditions.
+					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
+						*obj.(*composite.Unstructured) = *NewComposite(func(xr *composite.Unstructured) {
+							xr.SetGenerateName("cool-claim-")
+							xr.SetName("cool-claim-random")
+							meta.SetExternalName(xr, "external-name")
+							xr.SetLabels(map[string]string{
+								xcrd.LabelKeyClaimNamespace: "default",
+								xcrd.LabelKeyClaimName:      "cool-claim",
+							})
+							xr.SetAnnotations(map[string]string{
+								"example.org/propagate-me": "true",
+							})
+							xr.Object["spec"] = map[string]any{
+								"userDefinedField": "spec",
+							}
+							xr.SetClaimReference(&reference.Claim{
+								Namespace: "default",
+								Name:      "cool-claim",
+							})
+							xr.Object["status"] = map[string]any{
+								"userDefinedField": "status",
+								// Types of custom conditions that were copied from the
+								// Composite to the Claim.
+								"claimConditionTypes": []string{"ExampleCustomStatus"},
+								"conditions": []xpv1.Condition{
+									{
+										Type:               "ExampleCustomStatus",
+										Status:             "True",
+										Reason:             "SomeReason",
+										Message:            "Example message.",
+										ObservedGeneration: 20,
+									},
+								},
+							}
+						})
+						return nil
+					}),
+
+					// Update the claim's status.
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				ng: names.NameGeneratorFn(func(_ context.Context, cd resource.Object) error {
+					// Generate a name for the XR.
+					cd.SetName("cool-claim-random")
+					return nil
+				}),
+			},
+			args: args{
+				cm: NewClaim(func(cm *claim.Unstructured) {
+					cm.SetNamespace("default")
+					cm.SetName("cool-claim")
+					meta.SetExternalName(cm, "external-name")
+
+					// Kube stuff should not be propagated to the XR.
+					cm.SetLabels(map[string]string{
+						"k8s.io/some-label": "filter-me-out",
+					})
+					cm.SetAnnotations(map[string]string{
+						"kubernetes.io/some-anno":  "filter-me-out",
+						"example.org/propagate-me": "true",
+					})
+
+					// Make sure user-defined fields are propagated to the XR.
+					cm.Object["spec"] = map[string]any{
+						"userDefinedField": "spec",
+					}
+
+					// Make sure these don't get lost when we propagate status
+					// from the XR.
+					cm.SetConditions(
+						// Crossplane system conditions.
+						xpv1.ReconcileSuccess(),
+						Waiting(),
+						// User custom conditions from the Composite.
+						xpv1.Condition{
+							Type:               "ExampleCustomStatus",
+							Status:             "True",
+							Reason:             "SomeReason",
+							Message:            "Example message.",
+							ObservedGeneration: 20,
+						},
+					)
+					cm.SetConnectionDetailsLastPublishedTime(&now)
+				}),
+				xr: NewComposite(),
+			},
+			want: want{
+				cm: NewClaim(func(cm *claim.Unstructured) {
+					cm.SetNamespace("default")
+					cm.SetName("cool-claim")
+					meta.SetExternalName(cm, "external-name")
+					cm.SetLabels(map[string]string{
+						"k8s.io/some-label": "filter-me-out",
+					})
+					cm.SetAnnotations(map[string]string{
+						"kubernetes.io/some-anno":  "filter-me-out",
+						"example.org/propagate-me": "true",
+					})
+					cm.Object["spec"] = map[string]any{
+						"userDefinedField": "spec",
+					}
+					cm.SetResourceReference(&reference.Composite{
+						Name: "cool-claim-random",
+					})
+					cm.Object["status"] = map[string]any{
+						"userDefinedField": "status",
+					}
+					cm.SetConditions(
+						xpv1.ReconcileSuccess(),
+						Waiting(),
+						xpv1.Condition{
+							Type:               "ExampleCustomStatus",
+							Status:             "True",
+							Reason:             "SomeReason",
+							Message:            "Example message.",
+							ObservedGeneration: 20,
+						},
+					)
+					cm.SetConnectionDetailsLastPublishedTime(&now)
+				}),
+				xr: NewComposite(func(xr *composite.Unstructured) {
+					xr.SetGenerateName("cool-claim-")
+					xr.SetName("cool-claim-random")
+					meta.SetExternalName(xr, "external-name")
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyClaimNamespace: "default",
+						xcrd.LabelKeyClaimName:      "cool-claim",
+					})
+					xr.SetAnnotations(map[string]string{
+						"example.org/propagate-me": "true",
+					})
+					xr.Object["spec"] = map[string]any{
+						"userDefinedField": "spec",
+					}
+					xr.SetClaimReference(&reference.Claim{
+						Namespace: "default",
+						Name:      "cool-claim",
+					})
+					xr.Object["status"] = map[string]any{
+						"userDefinedField":    "status",
+						"claimConditionTypes": []string{"ExampleCustomStatus"},
+						"conditions": []xpv1.Condition{
+							{
+								Type:               "ExampleCustomStatus",
+								Status:             "True",
+								Reason:             "SomeReason",
+								Message:            "Example message.",
+								ObservedGeneration: 20,
+							},
+						},
+					}
+				}),
+			},
+		},
 	}
 
 	for name, tc := range cases {
