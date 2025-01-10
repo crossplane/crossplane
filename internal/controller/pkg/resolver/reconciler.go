@@ -584,7 +584,7 @@ func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*u
 	_ = fieldpath.Pave(pack.Object).SetString("spec.package", fmt.Sprintf(format, ref.String(), version))
 
 	switch {
-	case dep.APIVersion != nil && dep.Type != nil:
+	case dep.APIVersion != nil && dep.Kind != nil:
 		pack.SetAPIVersion(*dep.APIVersion)
 		pack.SetAPIVersion(*dep.Kind)
 	case ptr.Deref(dep.Type, "") == v1beta1.ConfigurationPackageType:
@@ -608,7 +608,7 @@ func NewPackageList(dep *v1beta1.Dependency) (*unstructured.UnstructuredList, er
 	l := &unstructured.UnstructuredList{}
 
 	switch {
-	case dep.APIVersion != nil && dep.Type != nil:
+	case dep.APIVersion != nil && dep.Kind != nil:
 		l.SetAPIVersion(*dep.APIVersion)
 		l.SetAPIVersion(*dep.Kind + "List")
 	case ptr.Deref(dep.Type, "") == v1beta1.ConfigurationPackageType:
