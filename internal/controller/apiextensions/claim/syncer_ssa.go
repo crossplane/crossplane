@@ -321,29 +321,9 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// Update the claim's user-defined status fields to match the XRs.
 	cm.Object["status"] = withoutKeys(xrStatus, xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)
 
-	// Conditions that Crossplane owns on that Claim object.
-	xpConditions := map[xpv1.ConditionType]bool{
-		// Crossplane system conditions.
-		xpv1.TypeReady:   true,
-		xpv1.TypeSynced:  true,
-		xpv1.TypeHealthy: true,
+	if cmcs.Conditions != nil {
+		cm.SetConditions(cmcs.Conditions...)
 	}
-	// Custom conditions that are copied over from the XR.
-	for _, t := range xr.GetClaimConditionTypes() {
-		xpConditions[t] = true
-	}
-
-	// Add System and Custom conditions back to the Claim.
-	for _, c := range cmcs.Conditions {
-		if xpConditions[c.Type] {
-			cm.SetConditions(c)
-		}
-	}
-
-	// TODO(dalton): We can simplify to just the following if we are OK preserving
-	// conditions set by sources other than Crossplane.
-	// cm.SetConditions(cmcs.Conditions...)
-
 	if pub != nil {
 		cm.SetConnectionDetailsLastPublishedTime(pub)
 	}
