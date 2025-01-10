@@ -14,7 +14,7 @@ We love pull requests that fix an open issue. If yours does, use the below line
 to indicate which issue it fixes, for example "Fixes #500".
 -->
 
-Fixes # 
+Fixes #
 
 I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 
@@ -24,6 +24,7 @@ I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 - [ ] Added or updated e2e tests.
 - [ ] Linked a PR or a [docs tracking issue] to [document this change].
 - [ ] Added `backport release-x.y` labels to auto-backport this PR.
+- [ ] Followed the [API promotion workflow] if this PR introduces, removes, or promotes an API.
 
 Need help with this checklist? See the [cheat sheet].
 
@@ -31,3 +32,4 @@ Need help with this checklist? See the [cheat sheet].
 [docs tracking issue]: https://github.com/crossplane/docs/issues/new
 [document this change]: https://docs.crossplane.io/contribute/contribute
 [cheat sheet]: https://github.com/crossplane/crossplane/tree/main/contributing#checklist-cheat-sheet
+[API promotion workflow]: https://github.com/crossplane/crossplane/blob/main/contributing/guide-api-promotion.md
