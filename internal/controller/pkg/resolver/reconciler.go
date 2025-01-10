@@ -77,6 +77,7 @@ const (
 	errFindDependencyUpgrade  = "cannot find dependency version to upgrade"
 	errFmtNoValidVersion      = "dependency (%s) does not have a valid version to upgrade that satisfies all constraints. If there is a valid version that requires downgrade, manual intervention is required. Constraints: %v"
 	errGetDependency          = "cannot get dependency package"
+	errConstructDependency    = "cannot construct dependency package"
 	errCreateDependency       = "cannot create dependency package"
 	errUpdateDependency       = "cannot update dependency package"
 	errFmtSplit               = "package should have 2 segments after split but has %d"
@@ -351,10 +352,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		pack, err := NewPackage(dep, addVer, ref)
 		if err != nil {
-			log.Debug(errCreateDependency, "error", err)
-			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errCreateDependency)))
+			log.Debug(errConstructDependency, "error", err)
+			lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errConstructDependency)))
 			_ = r.client.Status().Update(ctx, lock)
-			return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
+			return reconcile.Result{}, errors.Wrap(err, errConstructDependency)
 		}
 
 		// NOTE(hasheddan): consider making the lock the controller of packages
