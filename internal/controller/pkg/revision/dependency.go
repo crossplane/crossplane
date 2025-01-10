@@ -25,7 +25,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
@@ -54,7 +53,7 @@ const (
 
 // DependencyManager is a lock on packages.
 type DependencyManager interface {
-	Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error)
+	Resolve(ctx context.Context, meta pkgmetav1.Pkg, pr v1.PackageRevision) (found, installed, invalid int, err error)
 	RemoveSelf(ctx context.Context, pr v1.PackageRevision) error
 }
 
@@ -75,20 +74,15 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schem
 }
 
 // Resolve resolves package dependencies.
-func (m *PackageDependencyManager) Resolve(ctx context.Context, meta runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
+func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.Pkg, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
 	// If we are inactive, we don't need to resolve dependencies.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return 0, 0, 0, nil
 	}
 
-	pack, ok := xpkg.TryConvertToPkg(meta, &pkgmetav1.Provider{}, &pkgmetav1.Function{}, &pkgmetav1.Configuration{})
-	if !ok {
-		return found, installed, invalid, errors.New(errNotMeta)
-	}
-
 	// Copy package dependencies into Lock Dependencies.
-	sources := make([]v1beta1.Dependency, len(pack.GetDependencies()))
-	for i, dep := range pack.GetDependencies() {
+	sources := make([]v1beta1.Dependency, len(meta.GetDependencies()))
+	for i, dep := range meta.GetDependencies() {
 		pdep := v1beta1.Dependency{}
 		switch {
 		// If the GVK and package are specified explicitly they take precedence.

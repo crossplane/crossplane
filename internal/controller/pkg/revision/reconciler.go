@@ -28,7 +28,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -804,11 +803,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1.Function{})
+	pkgMeta, _ := xpkg.TryConvertToPkg(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1.Function{})
 
-	pmo := pkgMeta.(metav1.Object) //nolint:forcetypeassert // Will always be metav1.Object.
-	meta.AddLabels(pr, pmo.GetLabels())
-	meta.AddAnnotations(pr, pmo.GetAnnotations())
+	meta.AddLabels(pr, pkgMeta.GetLabels())
+	meta.AddAnnotations(pr, pkgMeta.GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil

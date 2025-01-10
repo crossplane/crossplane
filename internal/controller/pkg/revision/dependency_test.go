@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,7 +45,7 @@ func TestResolve(t *testing.T) {
 
 	type args struct {
 		dep  *PackageDependencyManager
-		meta runtime.Object
+		meta pkgmetav1.Pkg
 		pr   v1.PackageRevision
 	}
 
@@ -74,21 +73,6 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{},
-		},
-		"ErrNotMeta": {
-			reason: "Should return error if not a valid package meta type.",
-			args: args{
-				dep:  &PackageDependencyManager{},
-				meta: &v1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-			want: want{
-				err: errors.New(errNotMeta),
-			},
 		},
 		"ErrGetLock": {
 			reason: "Should return error if we cannot get lock.",
