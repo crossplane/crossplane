@@ -193,7 +193,7 @@ func TestLocalCacheLoad(t *testing.T) {
 				cacheDir: tc.args.cacheDir,
 			}
 
-			got, err := c.Load()
+			got, err := c.Load(tc.args.cacheDir)
 			if diff := cmp.Diff(tc.want.schemas, got); diff != "" {
 				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
 			}
