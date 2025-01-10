@@ -5,14 +5,14 @@ metadata:
   name: job
   namespace: {{ .Release.Namespace }}
 spec:
-  schedule: {{ .Values.job.removeUnusedCompositionRevision.schedule }}
+  schedule: "{{ .Values.job.removeUnusedCompositionRevision.schedule }}"
   jobTemplate:
     spec:
       template:
         spec:
           {{- with .Values.podSecurityContextJob }}
           securityContext:
-            {{- toYaml . | nindent 8 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- if .Values.priorityClassName }}
           priorityClassName: {{ .Values.priorityClassName | quote }}
@@ -22,12 +22,12 @@ spec:
             - name: {{ .Chart.Name }}
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
               args:
-                - job
-                - start
-                - --job=removeUnusedCompositionRevision
-                - --keep-top-n-items={{ .Values.job.removeUnusedCompositionRevision.keepTopNItems }}
-                - --items-to-keep={{ .Values.job.removeUnusedCompositionRevision.itemsToKeep }}
+              - job
+              - start
+              - --job=removeUnusedCompositionRevision
+              - --keep-top-n-items={{ .Values.job.removeUnusedCompositionRevision.keepTopNItems }}
+              - --items-to-keep={{ .Values.job.removeUnusedCompositionRevision.itemsToKeep }}
               resources:
-                {{- toYaml .Values.resourcesJob | nindent 12 }}
+                {{- toYaml .Values.resourcesJob | nindent 16 }}
           restartPolicy: OnFailure
 {{- end }}
