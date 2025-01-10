@@ -25,6 +25,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
@@ -313,19 +314,36 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	}
 
 	// Preserve Crossplane machinery, like status conditions.
-	synced := cm.GetCondition(xpv1.TypeSynced)
-	ready := cm.GetCondition(xpv1.TypeReady)
+	cmcs := xpv1.ConditionedStatus{}
+	_ = fieldpath.Pave(cm.Object).GetValueInto("status", &cmcs)
 	pub := cm.GetConnectionDetailsLastPublishedTime()
 
 	// Update the claim's user-defined status fields to match the XRs.
 	cm.Object["status"] = withoutKeys(xrStatus, xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)
 
-	if !synced.Equal(xpv1.Condition{}) {
-		cm.SetConditions(synced)
+	// Conditions that Crossplane owns on that Claim object.
+	xpConditions := map[xpv1.ConditionType]bool{
+		// Crossplane system conditions.
+		xpv1.TypeReady:   true,
+		xpv1.TypeSynced:  true,
+		xpv1.TypeHealthy: true,
 	}
-	if !ready.Equal(xpv1.Condition{}) {
-		cm.SetConditions(ready)
+	// Custom conditions that are copied over from the XR.
+	for _, t := range xr.GetClaimConditionTypes() {
+		xpConditions[t] = true
 	}
+
+	// Add System and Custom conditions back to the Claim.
+	for _, c := range cmcs.Conditions {
+		if xpConditions[c.Type] {
+			cm.SetConditions(c)
+		}
+	}
+
+	// TODO(dalton): We can simplify to just the following if we are OK preserving
+	// conditions set by sources other than Crossplane.
+	// cm.SetConditions(cmcs.Conditions...)
+
 	if pub != nil {
 		cm.SetConnectionDetailsLastPublishedTime(pub)
 	}
