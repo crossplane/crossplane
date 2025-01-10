@@ -587,7 +587,7 @@ func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*u
 	switch {
 	case dep.APIVersion != nil && dep.Kind != nil:
 		pack.SetAPIVersion(*dep.APIVersion)
-		pack.SetAPIVersion(*dep.Kind)
+		pack.SetKind(*dep.Kind)
 	case ptr.Deref(dep.Type, "") == v1beta1.ConfigurationPackageType:
 		pack.SetAPIVersion("pkg.crossplane.io/v1")
 		pack.SetKind("Configuration")
@@ -611,7 +611,7 @@ func NewPackageList(dep *v1beta1.Dependency) (*unstructured.UnstructuredList, er
 	switch {
 	case dep.APIVersion != nil && dep.Kind != nil:
 		l.SetAPIVersion(*dep.APIVersion)
-		l.SetAPIVersion(*dep.Kind + "List")
+		l.SetKind(*dep.Kind + "List")
 	case ptr.Deref(dep.Type, "") == v1beta1.ConfigurationPackageType:
 		l.SetAPIVersion("pkg.crossplane.io/v1")
 		l.SetKind("ConfigurationList")
