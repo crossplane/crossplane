@@ -234,16 +234,20 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 			m.confs[image] = cfg // update the configuration
 		}
 
-		deps := cfg.Spec.MetaSpec.DependsOn
+		deps := cfg.Spec.DependsOn
 		for _, dep := range deps {
 			image := ""
-			if dep.Configuration != nil { //nolint:gocritic // switch is not suitable here
+			switch {
+			case dep.Package != nil:
+				image = *dep.Package
+			case dep.Configuration != nil:
 				image = *dep.Configuration
-			} else if dep.Provider != nil {
+			case dep.Provider != nil:
 				image = *dep.Provider
-			} else if dep.Function != nil {
+			case dep.Function != nil:
 				image = *dep.Function
 			}
+
 			if len(image) > 0 {
 				image = fmt.Sprintf(imageFmt, image, dep.Version)
 				m.deps[image] = true

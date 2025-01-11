@@ -12,5 +12,7 @@ metadata:
   name: e2e-depends-on-provider-nop
 spec:
   dependsOn:
-  - provider: crossplane-contrib/provider-nop
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Provider
+    package: crossplane-contrib/provider-nop
     version: "=v0.2.0"
