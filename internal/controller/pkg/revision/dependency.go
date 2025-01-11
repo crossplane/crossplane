@@ -99,6 +99,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 		case dep.Function != nil:
 			pdep.Package = *dep.Function
 			pdep.Type = ptr.To(v1beta1.FunctionPackageType)
+		default:
+			return 0, 0, 0, errors.Errorf("encountered an invalid dependency: package dependencies must specify either a valid type, or an explicit apiVersion, kind, and package")
 		}
 		pdep.Constraints = dep.Version
 		sources[i] = pdep

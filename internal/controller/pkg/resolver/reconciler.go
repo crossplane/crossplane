@@ -589,16 +589,16 @@ func NewPackage(dep *v1beta1.Dependency, version string, ref name.Reference) (*u
 		pack.SetAPIVersion(*dep.APIVersion)
 		pack.SetKind(*dep.Kind)
 	case ptr.Deref(dep.Type, "") == v1beta1.ConfigurationPackageType:
-		pack.SetAPIVersion("pkg.crossplane.io/v1")
-		pack.SetKind("Configuration")
+		pack.SetAPIVersion(v1.ConfigurationGroupVersionKind.GroupVersion().String())
+		pack.SetKind(v1.ConfigurationKind)
 	case ptr.Deref(dep.Type, "") == v1beta1.ProviderPackageType:
-		pack.SetAPIVersion("pkg.crossplane.io/v1")
-		pack.SetKind("Provider")
+		pack.SetAPIVersion(v1.ProviderGroupVersionKind.GroupVersion().String())
+		pack.SetKind(v1.ProviderKind)
 	case ptr.Deref(dep.Type, "") == v1beta1.FunctionPackageType:
-		pack.SetAPIVersion("pkg.crossplane.io/v1")
-		pack.SetKind("Function")
+		pack.SetAPIVersion(v1.FunctionGroupVersionKind.GroupVersion().String())
+		pack.SetKind(v1.FunctionKind)
 	default:
-		return nil, errors.Errorf("cannot determine dependency type - you must specify either a valid type, or an explicit apiVersion and kind")
+		return nil, errors.Errorf("encountered an invalid dependency: package dependencies must specify either a valid type, or an explicit apiVersion, kind, and package")
 	}
 
 	return pack, nil
@@ -613,16 +613,16 @@ func NewPackageList(dep *v1beta1.Dependency) (*unstructured.UnstructuredList, er
 		l.SetAPIVersion(*dep.APIVersion)
 		l.SetKind(*dep.Kind + "List")
 	case ptr.Deref(dep.Type, "") == v1beta1.ConfigurationPackageType:
-		l.SetAPIVersion("pkg.crossplane.io/v1")
-		l.SetKind("ConfigurationList")
+		l.SetAPIVersion(v1.ConfigurationGroupVersionKind.GroupVersion().String())
+		l.SetKind(v1.ConfigurationKind + "List")
 	case ptr.Deref(dep.Type, "") == v1beta1.ProviderPackageType:
-		l.SetAPIVersion("pkg.crossplane.io/v1")
-		l.SetKind("ProviderList")
+		l.SetAPIVersion(v1.ProviderGroupVersionKind.GroupVersion().String())
+		l.SetKind(v1.ProviderKind + "List")
 	case ptr.Deref(dep.Type, "") == v1beta1.FunctionPackageType:
-		l.SetAPIVersion("pkg.crossplane.io/v1")
-		l.SetKind("FunctionList")
+		l.SetAPIVersion(v1.FunctionGroupVersionKind.GroupVersion().String())
+		l.SetKind(v1.FunctionKind + "List")
 	default:
-		return nil, errors.Errorf("cannot determine dependency type - you must specify either a valid type, or an explicit apiVersion and kind")
+		return nil, errors.Errorf("encountered an invalid dependency: package dependencies must specify either a valid type, or an explicit apiVersion, kind, and package")
 	}
 
 	return l, nil
