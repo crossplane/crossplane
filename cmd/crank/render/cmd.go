@@ -169,7 +169,9 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		if err != nil {
 			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
 		}
-		DefaultValues(xr.UnstructuredContent(), *crd)
+		if err := DefaultValues(xr.UnstructuredContent(), *crd); err != nil {
+			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
+		}
 	}
 	fcreds := []corev1.Secret{}
 	if c.FunctionCredentials != "" {

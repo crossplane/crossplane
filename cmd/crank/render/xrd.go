@@ -8,15 +8,16 @@ import (
 )
 
 // DefaultValues sets default values on the XR based on the CRD schema.
-func DefaultValues(xr map[string]interface{}, crd extv1.CustomResourceDefinition) {
+func DefaultValues(xr map[string]any, crd extv1.CustomResourceDefinition) error {
 	var k apiextensions.JSONSchemaProps
 	err := extv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(crd.Spec.Versions[0].Schema.OpenAPIV3Schema, &k, nil)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	crdWithDefaults, err := schema.NewStructural(&k)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	structuraldefaulting.Default(xr, crdWithDefaults)
+	return nil
 }
