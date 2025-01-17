@@ -1050,7 +1050,7 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 			},
 		},
 		"ErrorNoValidVersionDowngrade": {
-			reason: "We should return an error if no valid version exists for dependency and downgrade is not allowed.",
+			reason: "We should return an error if no valid version exists for dependency and downgrade is not enabled.",
 			args: args{
 				mgr:    &fake.Manager{Client: test.NewMockClient()},
 				insVer: "v1.0.0",
@@ -1074,18 +1074,70 @@ func TestReconcilerFindDependencyVersionToUpgrade(t *testing.T) {
 				err: errors.Errorf(errFmtNoValidVersion, "cool-repo/cool-image", "[<=v1.0.0 v0.0.1]"),
 			},
 		},
+		"UpgradeToSmallestValid": {
+			reason: "We should be able to find the smallest valid version to update to.",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: "v2.0.0",
+				dep: &v1beta1.Dependency{
+					Package: "cool-repo/cool-image",
+					ParentConstraints: []string{
+						">v2.0.0",
+						"<=v3.0.0",
+					},
+				},
+				rec: []ReconcilerOption{
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v1.0.0", "v2.0.0", "v2.1.0", "v3.0.0"}, nil),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
+					WithDowngradesEnabled(),
+				},
+			},
+			want: want{
+				version: "v2.1.0",
+			},
+		},
+		"DowngradeToLargestValid": {
+			reason: "We should return an error if no valid version exists for dependency and downgrade is not allowed.",
+			args: args{
+				mgr:    &fake.Manager{Client: test.NewMockClient()},
+				insVer: "v3.0.0",
+				dep: &v1beta1.Dependency{
+					Package: "cool-repo/cool-image",
+					ParentConstraints: []string{
+						">=v0.0.1",
+						"<v3.0.0",
+					},
+				},
+				rec: []ReconcilerOption{
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.0.1", "v1.0.0", "v2.0.0", "v3.0.0"}, nil),
+					}),
+					WithConfigStore(&fakexpkg.MockConfigStore{
+						MockPullSecretFor: fakexpkg.NewMockConfigStorePullSecretForFn("", "", nil),
+					}),
+					WithDowngradesEnabled(),
+				},
+			},
+			want: want{
+				version: "v2.0.0",
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, append(tc.args.rec, WithLogger(testLog))...)
 			ref, _ := pkgName.ParseReference(tc.args.dep.Identifier())
-			got, err := r.findDependencyVersionToUpgrade(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
+			got, err := r.findDependencyVersionToUpdate(context.Background(), ref, tc.args.insVer, tc.args.dep, testLog)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nr.findDependencyVersionToUpgrade(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.findDependencyVersionToUpdate(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.version, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nr.findDependencyVersionToUpgrade(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.findDependencyVersionToUpdate(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
