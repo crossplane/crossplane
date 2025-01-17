@@ -90,6 +90,7 @@ and their default values.
 | `packageCache.medium` | Set to `Memory` to hold the package cache in a RAM backed file system. Useful for Crossplane development. | `""` |
 | `packageCache.pvc` | The name of a PersistentVolumeClaim to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.sizeLimit` | The size limit for the package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory. | `"20Mi"` |
+| `packageManager.enableAutomaticDependencyDowngrade` | Enable automatic dependency version downgrades. This configuration is only used when `--enable-dependency-version-upgrades` flag is passed. | `false` |
 | `podSecurityContextCrossplane` | Add a custom `securityContext` to the Crossplane pod. | `{}` |
 | `podSecurityContextRBACManager` | Add a custom `securityContext` to the RBAC Manager pod. | `{}` |
 | `priorityClassName` | The PriorityClass name to apply to the Crossplane and RBAC Manager pods. | `""` |
