@@ -942,6 +942,34 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify fun
 	}
 }
 
+// ResourceCountWithin fails a test if the resources count is equal to a passed value.
+func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		time.Sleep(d)
+		err := c.Client().Resources().List(ctx, list)
+		if err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+		metaList, err := meta.ExtractList(list)
+		if err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+
+		found := len(metaList)
+		if found != count {
+			t.Errorf("expected %d CompositioRevisions to be present, found %d", count, found)
+			return ctx
+		}
+
+		t.Logf("CompositioRevisions count is %d", count)
+		return ctx
+	}
+}
+
 // LogResources polls the given kind of resources and logs creations, deletions
 // and changed conditions.
 func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) features.Func { //nolint:gocognit // this is a test helper

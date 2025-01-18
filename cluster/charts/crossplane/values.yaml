@@ -169,7 +169,7 @@ job:
   deploy: true
   removeUnusedCompositionRevision:
     schedule: "* * * * *"
-    keepTopNItems: 1
+    keepTopNItems: 3
     itemsToKeep: ""
 
 resourcesJob:
