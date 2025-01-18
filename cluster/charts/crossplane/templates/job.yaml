@@ -5,7 +5,7 @@ metadata:
   name: job
   namespace: {{ .Release.Namespace }}
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "{{ .Values.job.removeUnusedCompositionRevision.schedule }}"
   jobTemplate:
     spec:
       template:
@@ -23,7 +23,7 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
               args:
               - job
-              - start
+              - run
               - --job=removeUnusedCompositionRevision
               - --keep-top-n-items={{ .Values.job.removeUnusedCompositionRevision.keepTopNItems }}
               - --items-to-keep={{ .Values.job.removeUnusedCompositionRevision.itemsToKeep }}

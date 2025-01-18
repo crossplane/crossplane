@@ -20,6 +20,8 @@ package job
 import (
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane/apis/apiextensions"
+	"k8s.io/client-go/kubernetes/scheme"
 	"maps"
 	"os"
 	"slices"
@@ -35,7 +37,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
-	crossapiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/job"
 )
 
@@ -74,13 +75,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	})
 	defer eb.Shutdown()
 
-	crossplaneSchema := runtime.NewScheme()
-	_ = crossapiextensionsv1.AddToScheme(s)
-
-	crossplaneClient, err := client.New(cfg, client.Options{Scheme: crossplaneSchema})
+	crossplaneClient, err := client.New(cfg, client.Options{
+		Scheme: scheme.Scheme,
+	})
 	if err != nil {
-		return errors.Wrap(err, "cannot create client")
+		return errors.Wrap(err, "Error while initializing kube client")
 	}
+
+	// add package scheme
+	_ = apiextensions.AddToScheme(crossplaneClient.Scheme())
 
 	k8sClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {

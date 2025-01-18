@@ -168,7 +168,7 @@ job:
   # -- Deploy the CronJobs and its required roles.
   deploy: true
   removeUnusedCompositionRevision:
-    schedule: "* * * * *"
+    schedule: "*/1 * * * *"
     keepTopNItems: 3
     itemsToKeep: ""
 
