@@ -21,6 +21,8 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -32,6 +34,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -943,12 +946,19 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify fun
 }
 
 // ResourceCountWithin fails a test if the resources count is equal to a passed value.
-func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int) features.Func {
+func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int, namespace string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
+		err := runCreateJob(ctx, c, namespace)
+		if err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+
 		time.Sleep(d)
-		err := c.Client().Resources().List(ctx, list)
+
+		err = c.Client().Resources().List(ctx, list)
 		if err != nil {
 			t.Fatal(err)
 			return ctx
@@ -960,14 +970,48 @@ func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int) featur
 		}
 
 		found := len(metaList)
+		typeStr := list.GetObjectKind().GroupVersionKind().String()
 		if found != count {
-			t.Errorf("expected %d CompositioRevisions to be present, found %d", count, found)
+			t.Errorf("expected %d items of %s to be present, found %d", count, typeStr, found)
 			return ctx
 		}
 
-		t.Logf("CompositioRevisions count is %d", count)
+		t.Logf("%s count is %d", typeStr, count)
 		return ctx
 	}
+}
+
+func runCreateJob(ctx context.Context, c *envconf.Config, namespace string) (err error) {
+	clientset, err := kubernetes.NewForConfig(c.Client().RESTConfig())
+	if err != nil {
+		return err
+	}
+	cronjob, err := clientset.BatchV1().CronJobs(namespace).Get(ctx, "job", metav1.GetOptions{})
+
+	if err != nil {
+		return fmt.Errorf("failed to fetch job: %v", err)
+	}
+	annotations := make(map[string]string)
+	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
+	labels := make(map[string]string)
+	for k, v := range cronjob.Spec.JobTemplate.Labels {
+		labels[k] = v
+	}
+	jobToCreate := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			// job name cannot exceed DNS1053LabelMaxLength (52 characters)
+			Name:        cronjob.Name + "-manual-" + rand.String(3),
+			Namespace:   namespace,
+			Annotations: annotations,
+			Labels:      labels,
+		},
+		Spec: cronjob.Spec.JobTemplate.Spec,
+	}
+	_, err = clientset.BatchV1().Jobs(namespace).Create(ctx, jobToCreate, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create job: %v", err)
+	}
+	return nil
 }
 
 // LogResources polls the given kind of resources and logs creations, deletions

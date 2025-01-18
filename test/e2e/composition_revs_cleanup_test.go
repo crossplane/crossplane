@@ -80,7 +80,7 @@ func TestCompositionRevsCleanup(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "composition-update-2.yaml"),
 				funcs.InBackground(funcs.LogResources(compositionRevList, withTestLabels)),
 			)).
-			Assess("CompositionRevisionCountWithin", funcs.ResourceCountWithin(compositionRevList, 90*time.Second, 1)).
+			Assess("CompositionRevisionCountWithin", funcs.ResourceCountWithin(compositionRevList, 90*time.Second, 1, namespace)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
