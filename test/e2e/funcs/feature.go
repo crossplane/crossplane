@@ -950,11 +950,12 @@ func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int, namesp
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
-		err := runCreateJob(ctx, c, namespace)
+		result, err := runCreateJob(ctx, c, namespace)
 		if err != nil {
 			t.Fatal(err)
 			return ctx
 		}
+		t.Errorf("Job status %s", result.Status.String())
 
 		time.Sleep(d)
 
@@ -981,15 +982,15 @@ func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int, namesp
 	}
 }
 
-func runCreateJob(ctx context.Context, c *envconf.Config, namespace string) (err error) {
+func runCreateJob(ctx context.Context, c *envconf.Config, namespace string) (job *batchv1.Job, err error) {
 	clientset, err := kubernetes.NewForConfig(c.Client().RESTConfig())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cronjob, err := clientset.BatchV1().CronJobs(namespace).Get(ctx, "job", metav1.GetOptions{})
 
 	if err != nil {
-		return fmt.Errorf("failed to fetch job: %v", err)
+		return nil, fmt.Errorf("failed to fetch job: %v", err)
 	}
 	annotations := make(map[string]string)
 	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
@@ -1007,11 +1008,11 @@ func runCreateJob(ctx context.Context, c *envconf.Config, namespace string) (err
 		},
 		Spec: cronjob.Spec.JobTemplate.Spec,
 	}
-	_, err = clientset.BatchV1().Jobs(namespace).Create(ctx, jobToCreate, metav1.CreateOptions{})
+	result, err := clientset.BatchV1().Jobs(namespace).Create(ctx, jobToCreate, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create job: %v", err)
+		return nil, fmt.Errorf("failed to create job: %v", err)
 	}
-	return nil
+	return result, nil
 }
 
 // LogResources polls the given kind of resources and logs creations, deletions
