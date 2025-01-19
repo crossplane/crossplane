@@ -21,8 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"k8s.io/apimachinery/pkg/util/rand"
-	"k8s.io/client-go/kubernetes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -34,7 +32,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -950,69 +947,13 @@ func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int, namesp
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
-		result, err := runCreateJob(ctx, c, namespace)
-		if err != nil {
-			t.Fatal(err)
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListN(list, count), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(list)
+			t.Errorf("resources weren't found in needed size %d: %v:\n\n%s\n\n", count, err, y)
 			return ctx
 		}
-		t.Errorf("Job status %s", result.Status.String())
-
-		time.Sleep(d)
-
-		err = c.Client().Resources().List(ctx, list)
-		if err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-		metaList, err := meta.ExtractList(list)
-		if err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		found := len(metaList)
-		typeStr := list.GetObjectKind().GroupVersionKind().String()
-		if found != count {
-			t.Errorf("expected %d items of %s to be present, found %d", count, typeStr, found)
-			return ctx
-		}
-
-		t.Logf("%s count is %d", typeStr, count)
 		return ctx
 	}
-}
-
-func runCreateJob(ctx context.Context, c *envconf.Config, namespace string) (job *batchv1.Job, err error) {
-	clientset, err := kubernetes.NewForConfig(c.Client().RESTConfig())
-	if err != nil {
-		return nil, err
-	}
-	cronjob, err := clientset.BatchV1().CronJobs(namespace).Get(ctx, "job", metav1.GetOptions{})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch job: %v", err)
-	}
-	annotations := make(map[string]string)
-	annotations["cronjob.kubernetes.io/instantiate"] = "manual"
-	labels := make(map[string]string)
-	for k, v := range cronjob.Spec.JobTemplate.Labels {
-		labels[k] = v
-	}
-	jobToCreate := &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			// job name cannot exceed DNS1053LabelMaxLength (52 characters)
-			Name:        cronjob.Name + "-manual-" + rand.String(3),
-			Namespace:   namespace,
-			Annotations: annotations,
-			Labels:      labels,
-		},
-		Spec: cronjob.Spec.JobTemplate.Spec,
-	}
-	result, err := clientset.BatchV1().Jobs(namespace).Create(ctx, jobToCreate, metav1.CreateOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create job: %v", err)
-	}
-	return result, nil
 }
 
 // LogResources polls the given kind of resources and logs creations, deletions

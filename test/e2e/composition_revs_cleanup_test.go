@@ -35,8 +35,8 @@ func TestCompositionRevsCleanup(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/composition-revs-cleanup"
 
 	compositionRevList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
-		APIVersion: "apiextensions.crossplane.io/v1",
-		Kind:       "CompositionRevision",
+		APIVersion: "batch/v1",
+		Kind:       "Job",
 	}))
 
 	environment.Test(t,
@@ -54,7 +54,7 @@ func TestCompositionRevsCleanup(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "composition-update-1.yaml"),
 				funcs.ApplyResources(FieldManager, manifests, "composition-update-2.yaml"),
 			)).
-			Assess("CompositionRevisionCountWithin", funcs.ResourceCountWithin(compositionRevList, 120*time.Second, 1, namespace)).
+			Assess("CompositionRevisionCountWithin", funcs.ResourceCountWithin(compositionRevList, 70*time.Second, 1, namespace)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
