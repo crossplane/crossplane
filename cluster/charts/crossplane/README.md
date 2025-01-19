@@ -83,6 +83,10 @@ and their default values.
 | `image.repository` | Repository for the Crossplane pod image. | `"xpkg.upbound.io/crossplane/crossplane"` |
 | `image.tag` | The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`. | `""` |
 | `imagePullSecrets` | The imagePullSecret names to add to the Crossplane ServiceAccount. | `[]` |
+| `job.deploy` | Deploy the CronJobs and its required roles. | `true` |
+| `job.removeUnusedCompositionRevision.itemsToKeep` |  | `""` |
+| `job.removeUnusedCompositionRevision.keepTopNItems` |  | `1` |
+| `job.removeUnusedCompositionRevision.schedule` |  | `"*/1 * * * *"` |
 | `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
@@ -91,6 +95,7 @@ and their default values.
 | `packageCache.pvc` | The name of a PersistentVolumeClaim to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.sizeLimit` | The size limit for the package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory. | `"20Mi"` |
 | `podSecurityContextCrossplane` | Add a custom `securityContext` to the Crossplane pod. | `{}` |
+| `podSecurityContextJob` | Add a custom `securityContext` to the Job pod. | `{}` |
 | `podSecurityContextRBACManager` | Add a custom `securityContext` to the RBAC Manager pod. | `{}` |
 | `priorityClassName` | The PriorityClass name to apply to the Crossplane and RBAC Manager pods. | `""` |
 | `provider.packages` | A list of Provider packages to install. | `[]` |
@@ -111,6 +116,10 @@ and their default values.
 | `resourcesCrossplane.limits.memory` | Memory resource limits for the Crossplane pod. | `"1024Mi"` |
 | `resourcesCrossplane.requests.cpu` | CPU resource requests for the Crossplane pod. | `"100m"` |
 | `resourcesCrossplane.requests.memory` | Memory resource requests for the Crossplane pod. | `"256Mi"` |
+| `resourcesJob.limits.cpu` | CPU resource limits for the job pod. | `"100m"` |
+| `resourcesJob.limits.memory` | Memory resource limits for the job pod. | `"512Mi"` |
+| `resourcesJob.requests.cpu` | CPU resource requests for the job pod. | `"100m"` |
+| `resourcesJob.requests.memory` | Memory resource requests for the job pod. | `"256Mi"` |
 | `resourcesRBACManager.limits.cpu` | CPU resource limits for the RBAC Manager pod. | `"100m"` |
 | `resourcesRBACManager.limits.memory` | Memory resource limits for the RBAC Manager pod. | `"512Mi"` |
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for the RBAC Manager pod. | `"100m"` |

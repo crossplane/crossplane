@@ -943,7 +943,7 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify fun
 }
 
 // ResourceCountWithin fails a test if the resources count is equal to a passed value.
-func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int, namespace string) features.Func {
+func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 

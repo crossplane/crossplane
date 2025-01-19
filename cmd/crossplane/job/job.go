@@ -42,17 +42,17 @@ import (
 
 // Command runs the Crossplane job.
 type Command struct {
-	Run StartCommand `cmd:"" help:"Start a Crossplane job."`
+	Run startCommand `cmd:"" help:"Start a Crossplane job."`
 }
 
-type StartCommand struct {
+type startCommand struct {
 	Job           string `help:"Name of a job."                         name:"job"                     short:"j"`
 	ItemsToKeep   string `help:"Comma delimited list of items to keep." name:"items-to-keep"           short:"i"`
 	KeepTopNItems int    `default:"1"                                   help:"Number of items to keep" name:"keep-top-n-items" short:"n"`
 }
 
 // Run invokes a Crossplane command.
-func (c *StartCommand) Run(s *runtime.Scheme, log logging.Logger) error {
+func (c *startCommand) Run(_ *runtime.Scheme, log logging.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -79,7 +79,7 @@ func (c *StartCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 }
 
 // ExecuteJob runs a Crossplane job.
-func (c *StartCommand) ExecuteJob(ctx context.Context, cfg *rest.Config, log logging.Logger) error {
+func (c *startCommand) ExecuteJob(ctx context.Context, cfg *rest.Config, log logging.Logger) error {
 	crossplaneClient, err := client.New(cfg, client.Options{
 		Scheme: scheme.Scheme,
 	})
