@@ -112,23 +112,39 @@ func ReadyToTestWithin(d time.Duration, namespace string) features.Func {
 	//
 	// TODO(negz): We could explicitly test the above if we need to, but this is
 	// a little faster and spams the test logs less.
-	return DeploymentBecomesAvailableWithin(d, namespace, "crossplane")
+	return DeploymentRolledOutWithin(d, namespace, "crossplane")
 }
 
-// DeploymentBecomesAvailableWithin fails a test if the supplied Deployment is
-// not Available within the supplied duration.
-func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) features.Func {
+// DeploymentRolledOutWithin fails a test if the supplied Deployment is not
+// rolled out within the supplied duration.
+func DeploymentRolledOutWithin(d time.Duration, namespace, name string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
-		t.Logf("Waiting %s for deployment %s/%s to become Available...", d, dp.GetNamespace(), dp.GetName())
+		t.Logf("Waiting %s for deployment %s/%s to roll out...", d, dp.GetNamespace(), dp.GetName())
 		start := time.Now()
-		if err := wait.For(conditions.New(c.Client().Resources()).DeploymentConditionMatch(dp, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+		if err := wait.For(func(ctx context.Context) (done bool, err error) {
+			if err := c.Client().Resources().Get(ctx, dp.GetName(), dp.GetNamespace(), dp); err != nil {
+				return false, err
+			}
+			available := false
+			newReplicaset := false
+			for _, cond := range dp.Status.Conditions {
+				if cond.Type == appsv1.DeploymentAvailable && cond.Status == corev1.ConditionTrue {
+					available = true
+				}
+				if cond.Type == appsv1.DeploymentProgressing && cond.Status == corev1.ConditionTrue && cond.Reason == "NewReplicaSetAvailable" {
+					newReplicaset = true
+				}
+			}
+			done = available && newReplicaset
+			return
+		}, wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
-		t.Logf("Deployment %s/%s is Available after %s", dp.GetNamespace(), dp.GetName(), since(start))
+		t.Logf("Deployment %s/%s rolled out after %s", dp.GetNamespace(), dp.GetName(), since(start))
 		return ctx
 	}
 }
