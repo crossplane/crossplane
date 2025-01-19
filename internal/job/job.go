@@ -19,7 +19,6 @@ package job
 import (
 	"context"
 
-
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 

@@ -20,15 +20,20 @@ package job
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/apis/apiextensions"
-	"k8s.io/client-go/kubernetes/scheme"
 	"maps"
 	"os"
 	"slices"
 	"strings"
 
+	"github.com/crossplane/crossplane/apis/apiextensions"
+	"k8s.io/client-go/kubernetes/scheme"
+
+	"github.com/crossplane/crossplane/apis/apiextensions"
+	"k8s.io/client-go/kubernetes/scheme"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -37,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/apis/apiextensions"
 	"github.com/crossplane/crossplane/internal/job"
 )
 

@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"

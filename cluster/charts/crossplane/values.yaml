@@ -167,9 +167,13 @@ metrics:
 job:
   # -- Deploy the CronJobs and its required roles.
   deploy: true
+  # -- Configuration of job to clean old composition revisions.
   removeUnusedCompositionRevision:
+    # -- Job schedule.
     schedule: "*/1 * * * *"
-    keepTopNItems: 1
+    # -- Keep most recent items.
+    keepTopNItems: 3
+    # -- Comma-separated list of compositions that scheduler should skip.
     itemsToKeep: ""
 
 resourcesJob:
