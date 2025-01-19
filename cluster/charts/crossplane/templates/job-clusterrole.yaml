@@ -1,0 +1,34 @@
+{{- if .Values.job.deploy }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "crossplane.name" . }}-job
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
+rules:
+- apiGroups:
+    - ""
+  resources:
+    - events
+  verbs:
+    - create
+    - update
+    - patch
+    - delete
+- apiGroups:
+    - ""
+  resources:
+    - namespaces
+  verbs:
+    - get
+    - list
+- apiGroups:
+    - "apiextensions.crossplane.io"
+  resources:
+    - compositionrevisions
+  verbs:
+    - get
+    - list
+    - delete
+{{- end }}
