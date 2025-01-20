@@ -225,7 +225,7 @@ jobs:
           - base
           - ssa-claims
           - realtime-compositions
-          - package-dependency-upgrades
+          - package-dependency-updates
           - package-signature-verification
 
     steps:
