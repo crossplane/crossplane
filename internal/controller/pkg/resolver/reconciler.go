@@ -138,6 +138,13 @@ func WithFeatures(f *feature.Flags) ReconcilerOption {
 	}
 }
 
+// WithDowngradesEnabled sets whether upgrades are enabled or not.
+func WithDowngradesEnabled() ReconcilerOption {
+	return func(r *Reconciler) {
+		r.downgradesEnabled = true
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client   client.Client
@@ -148,6 +155,8 @@ type Reconciler struct {
 	config   xpkg.ConfigStore
 	registry string
 	features *feature.Flags
+
+	downgradesEnabled bool
 }
 
 // Setup adds a controller that reconciles the Lock.
@@ -172,6 +181,9 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
 		opts = append(opts, WithNewDagFn(internaldag.NewUpgradingMapDag))
+		if o.AutomaticDependencyDowngradeEnabled {
+			opts = append(opts, WithDowngradesEnabled())
+		}
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -387,7 +399,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Errorf(errFmtMissingDependency, depID)
 	}
 
-	newVer, err := r.findDependencyVersionToUpgrade(ctx, ref, installedVersion, n, log)
+	newVer, err := r.findDependencyVersionToUpdate(ctx, ref, installedVersion, n, log)
 	if err != nil {
 		log.Debug(errFindDependencyUpgrade, "error", errors.Wrapf(err, depID, dep.Constraints))
 		lock.SetConditions(v1beta1.ResolutionFailed(errors.Wrap(err, errFindDependencyUpgrade)))
@@ -467,8 +479,8 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 	return addVer, nil
 }
 
-// FindValidDependencyVersion finds a valid version with version upgrade capability considering parent constraints.
-func (r *Reconciler) findDependencyVersionToUpgrade(ctx context.Context, ref name.Reference, insVer string, dep internaldag.Node, log logging.Logger) (string, error) {
+// findDependencyVersionToUpdate finds a valid version to update the dependency considering the parent constraints.
+func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name.Reference, insVer string, dep internaldag.Node, log logging.Logger) (string, error) {
 	// If there is a digest in the parent constraints, we need to make sure that all other parent constraints are the same.
 	digest, err := findDigestToUpdate(dep)
 	if err != nil {
@@ -521,14 +533,10 @@ func (r *Reconciler) findDependencyVersionToUpgrade(ctx context.Context, ref nam
 
 	sort.Sort(semver.Collection(availableVersions))
 	currentVersion := semver.MustParse(insVer)
+	var targetVersion *semver.Version
 
 	// We aim to find the lowest version that satisfies all parent constraints and is greater than the current version.
 	for _, v := range availableVersions {
-		// Downgrades are not allowed, so we skip versions that are less than the current version.
-		if v.LessThan(currentVersion) {
-			continue
-		}
-
 		valid := true
 		for _, c := range parentConstraints {
 			if !c.Check(v) {
@@ -537,9 +545,19 @@ func (r *Reconciler) findDependencyVersionToUpgrade(ctx context.Context, ref nam
 			}
 		}
 
-		if valid {
+		// If we're upgrading, we target the first valid version that is greater than the current version.
+		if (v.GreaterThan(currentVersion) || v.Equal(currentVersion)) && valid {
 			return v.Original(), nil
 		}
+
+		// If we're downgrading, we target the largest valid version that is less than the current version.
+		if r.downgradesEnabled && valid {
+			targetVersion = v
+		}
+	}
+
+	if targetVersion != nil {
+		return targetVersion.Original(), nil
 	}
 
 	log.Debug(errFindDependencyUpgrade, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.GetParentConstraints()))

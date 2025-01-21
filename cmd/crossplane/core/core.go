@@ -102,7 +102,8 @@ type startCommand struct {
 	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
-	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
+	WebhookEnabled                      bool `default:"true"  env:"WEBHOOK_ENABLED"                        help:"Enable webhook configuration."`
+	AutomaticDependencyDowngradeEnabled bool `default:"false" env:"AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED" help:"Enable automatic dependency version downgrades. This configuration requires the 'EnableDependencyVersionUpgrades' feature flag to be enabled."`
 
 	TLSServerSecretName string `env:"TLS_SERVER_SECRET_NAME" help:"The name of the TLS Secret that will store Crossplane's server certificate."`
 	TLSServerCertsDir   string `env:"TLS_SERVER_CERTS_DIR"   help:"The path of the folder which will store TLS server certificate of Crossplane."`
@@ -285,6 +286,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableDependencyVersionUpgrades {
 		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
+
+		if c.AutomaticDependencyDowngradeEnabled {
+			log.Info("Automatic dependency downgrade is enabled.")
+		}
 	}
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
@@ -392,14 +397,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	po := pkgcontroller.Options{
-		Options:                          o,
-		Cache:                            xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
-		Namespace:                        c.Namespace,
-		ServiceAccount:                   c.ServiceAccount,
-		DefaultRegistry:                  c.Registry,
-		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-		PackageRuntime:                   pr,
-		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
+		Options:                             o,
+		Cache:                               xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
+		Namespace:                           c.Namespace,
+		ServiceAccount:                      c.ServiceAccount,
+		DefaultRegistry:                     c.Registry,
+		FetcherOptions:                      []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		PackageRuntime:                      pr,
+		MaxConcurrentPackageEstablishers:    c.MaxConcurrentPackageEstablishers,
+		AutomaticDependencyDowngradeEnabled: c.AutomaticDependencyDowngradeEnabled,
 	}
 
 	// We need to set the TUF_ROOT environment variable so that the TUF client
