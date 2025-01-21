@@ -13,7 +13,7 @@ Composition, etc. They should not take dependencies on 'real' Crossplane
 providers or external systems. Instead they use 'fake' providers like
 `provider-nop` and `provider-dummy`.
 
-All Crossplane features must be exercised by these tests, as well as unit tests. 
+All Crossplane features must be exercised by these tests, as well as unit tests.
 
 ## Running Tests
 
@@ -38,7 +38,7 @@ earthly -P +e2e --FLAGS="-labels area=apiextensions"
 earthly -P +e2e --FLAGS="-feature=ConfigurationWithDependency"
 
 # Stop immediately on first test failure, and leave the kind cluster to debug.
-earthly -i -P +e2e --FLAGS="-test.failfast -destroy-kind-cluster=false"
+earthly -i -P +e2e --FLAGS="-test.failfast -fail-fast -destroy-kind-cluster=false"
 
 # Run a specific test suite.
 earthly -P +e2e --FLAGS="-test.v -test-suite=composition-webhook-schema-validation"
@@ -89,6 +89,44 @@ $ apk add kubectl
 # Now you can use kubectl to access the cluster
 ```
 
+### Test Logging
+
+The E2E tests are run using [`gotestsum`] that helps output the test results in
+a format that integrates easily with CI systems. The downside though is that
+test logging statements, like `t.Logf("foo")`, are not streamed in real time and
+they are only included in the output if there is a failure.
+
+To change this behavior when running the E2E tests locally, you can update the
+`Earthfile` to call `gotestsum` with a format like `--format standard-verbose`
+instead, for example:
+
+```Dockerfile
+RUN gotestsum --no-color=false --format standard-verbose ...
+```
+
+### Running Tests Directly
+
+The E2E tests are typically run via `earthly` for convenience and consistency.
+However, this introduces additional layers that can make it challenging to debug
+issues (see [Accessing the Test Cluster](#accessing-the-test-cluster) above). An
+alternative is to run the tests more directly by basically manually running a
+couple critical commands that `earthly` would normally run for you inside of its
+build container.
+
+First compile the E2E test binary:
+```shell
+go test -c -o e2e ./test/e2e
+```
+
+Then run the `e2e` test binary, passing your specific flags and specific tests
+you want to execute if desired:
+```shell
+./e2e -v=4 -test.v -test.failfast -fail-fast -destroy-kind-cluster=false -test.run ^TestPropagateFieldsRemovalToXRAfterUpgrade
+```
+
+Note the command above doesn't clean up the `kind` cluster when finished, so
+you'll need to manually delete it when you're done.
+
 ## Test Parallelism
 
 `earthly -P +e2e` runs all defined E2E tests serially. Tests do not run in
@@ -98,7 +136,7 @@ etc. It's easier and less error-prone to write tests when you don't have to
 worry about one test potentially conflicting with another - for example by
 installing the same provider another test would install.
 
-The [CI GitHub workflow] uses a matrix strategy to run multiple jobs in parallel, 
+The [CI GitHub workflow] uses a matrix strategy to run multiple jobs in parallel,
 each running a test suite, see the dedicated section for more details.
 
 We are currently splitting the tests to be able to run all basic tests against
@@ -112,7 +150,7 @@ the area to the matrix or spinning multiple kind clusters for each job.
 ## Test Suite
 
 In order to be able to run specific subsets of tests, we introduced the concept
-of test suites. To run a specific test suite use the `-test-suite` flag. 
+of test suites. To run a specific test suite use the `-test-suite` flag.
 
 A test suite is currently defined by:
 - A key to be used as value of the `-test-suite` flag.
@@ -292,3 +330,4 @@ Refer to the [E2E one-pager] for more context.
 [`testing`]: https://pkg.go.dev/testing
 [`e2e-framework`]: https://pkg.go.dev/sigs.k8s.io/e2e-framework
 [E2e one-pager]: ../../design/one-pager-e2e-tests.md
+[`gotestsum`]: https://github.com/gotestyourself/gotestsum

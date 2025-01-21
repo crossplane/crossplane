@@ -123,7 +123,7 @@ func FuzzRevisionControllerPackageHandling(f *testing.F) {
 		if err := linter.Lint(pkg); err != nil {
 			return
 		}
-		pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
+		pkgMeta, _ := xpkg.TryConvertToPkg(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 		c, err := getFuzzMockClient(ff)
 		if err != nil {
 			return

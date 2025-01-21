@@ -25,8 +25,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -52,7 +53,7 @@ const (
 
 // DependencyManager is a lock on packages.
 type DependencyManager interface {
-	Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error)
+	Resolve(ctx context.Context, meta pkgmetav1.Pkg, pr v1.PackageRevision) (found, installed, invalid int, err error)
 	RemoveSelf(ctx context.Context, pr v1.PackageRevision) error
 }
 
@@ -60,44 +61,46 @@ type DependencyManager interface {
 type PackageDependencyManager struct {
 	client      client.Client
 	newDag      dag.NewDAGFn
-	packageType v1beta1.PackageType
+	packageType schema.GroupVersionKind
 }
 
 // NewPackageDependencyManager creates a new PackageDependencyManager.
-func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1beta1.PackageType) *PackageDependencyManager {
+func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schema.GroupVersionKind) *PackageDependencyManager {
 	return &PackageDependencyManager{
 		client:      c,
 		newDag:      nd,
-		packageType: t,
+		packageType: pkgType,
 	}
 }
 
 // Resolve resolves package dependencies.
-func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
+func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.Pkg, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocognit // TODO(negz): Can this be refactored for less complexity?
 	// If we are inactive, we don't need to resolve dependencies.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return 0, 0, 0, nil
 	}
 
-	pack, ok := xpkg.TryConvertToPkg(pkg, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
-	if !ok {
-		return found, installed, invalid, errors.New(errNotMeta)
-	}
-
 	// Copy package dependencies into Lock Dependencies.
-	sources := make([]v1beta1.Dependency, len(pack.GetDependencies()))
-	for i, dep := range pack.GetDependencies() {
+	sources := make([]v1beta1.Dependency, len(meta.GetDependencies()))
+	for i, dep := range meta.GetDependencies() {
 		pdep := v1beta1.Dependency{}
 		switch {
+		// If the GVK and package are specified explicitly they take precedence.
+		case dep.APIVersion != nil && dep.Kind != nil && dep.Package != nil:
+			pdep.APIVersion = dep.APIVersion
+			pdep.Kind = dep.Kind
+			pdep.Package = *dep.Package
 		case dep.Configuration != nil:
 			pdep.Package = *dep.Configuration
-			pdep.Type = v1beta1.ConfigurationPackageType
+			pdep.Type = ptr.To(v1beta1.ConfigurationPackageType)
 		case dep.Provider != nil:
 			pdep.Package = *dep.Provider
-			pdep.Type = v1beta1.ProviderPackageType
+			pdep.Type = ptr.To(v1beta1.ProviderPackageType)
 		case dep.Function != nil:
 			pdep.Package = *dep.Function
-			pdep.Type = v1beta1.FunctionPackageType
+			pdep.Type = ptr.To(v1beta1.FunctionPackageType)
+		default:
+			return 0, 0, 0, errors.Errorf("encountered an invalid dependency: package dependencies must specify either a valid type, or an explicit apiVersion, kind, and package")
 		}
 		pdep.Constraints = dep.Version
 		sources[i] = pdep
@@ -131,8 +134,9 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1beta1.LockPackage{
+		APIVersion:   ptr.To(m.packageType.GroupVersion().String()),
+		Kind:         ptr.To(m.packageType.Kind),
 		Name:         pr.GetName(),
-		Type:         m.packageType,
 		Source:       lockRef,
 		Version:      prRef.Identifier(),
 		Dependencies: sources,

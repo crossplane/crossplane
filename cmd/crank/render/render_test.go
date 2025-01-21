@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
@@ -249,6 +250,15 @@ func TestRender(t *testing.T) {
 										},
 									},
 								},
+								Conditions: []*fnv1.Condition{
+									{
+										Type:    "ProvisioningSuccess",
+										Status:  fnv1.Status_STATUS_CONDITION_TRUE,
+										Reason:  "Provisioned",
+										Message: ptr.To("Provisioned successfully"),
+										Target:  fnv1.Target_TARGET_COMPOSITE_AND_CLAIM.Enum(),
+									},
+								},
 							})
 							listeners = append(listeners, lis)
 
@@ -280,13 +290,22 @@ func TestRender(t *testing.T) {
 								},
 								"status": {
 									"widgets": 9001,
-									"conditions": [{
-										"lastTransitionTime": "2024-01-01T00:00:00Z",
-										"type": "Ready",
-										"status": "False",
-										"reason": "Creating",
-										"message": "Unready resources: a-cool-resource, b-cool-resource"
-									}]
+									"conditions": [
+										{
+											"lastTransitionTime": "2024-01-01T00:00:00Z",
+											"type": "Ready",
+											"status": "False",
+											"reason": "Creating",
+											"message": "Unready resources: a-cool-resource, b-cool-resource"
+										},
+										{
+											"lastTransitionTime": "2024-01-01T00:00:00Z",
+											"type": "ProvisioningSuccess",
+											"status": "True",
+											"reason": "Provisioned",
+											"message": "Provisioned successfully"
+										}
+									]
 								}
 							}`),
 						},
