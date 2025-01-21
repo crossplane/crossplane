@@ -84,9 +84,10 @@ and their default values.
 | `image.tag` | The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`. | `""` |
 | `imagePullSecrets` | The imagePullSecret names to add to the Crossplane ServiceAccount. | `[]` |
 | `job.deploy` | Deploy the CronJobs and its required roles. | `true` |
-| `job.removeUnusedCompositionRevision.itemsToKeep` |  | `""` |
-| `job.removeUnusedCompositionRevision.keepTopNItems` |  | `1` |
-| `job.removeUnusedCompositionRevision.schedule` |  | `"*/1 * * * *"` |
+| `job.removeUnusedCompositionRevision` | Configuration of job to clean old composition revisions. | `{"itemsToKeep":"","keepTopNItems":3,"schedule":"*/1 * * * *"}` |
+| `job.removeUnusedCompositionRevision.itemsToKeep` | Comma-separated list of compositions that scheduler should skip. | `""` |
+| `job.removeUnusedCompositionRevision.keepTopNItems` | Keep most recent items. | `3` |
+| `job.removeUnusedCompositionRevision.schedule` | Job schedule. | `"*/1 * * * *"` |
 | `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
