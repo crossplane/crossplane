@@ -643,7 +643,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtApplyCD, "uncool-resource"),
+				err: errors.Wrap(errors.Join(errors.Wrapf(errBoom, errFmtApplyCD, "uncool-resource")), errFmtApplyCDJoined),
 			},
 		},
 		"Successful": {
