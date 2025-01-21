@@ -19,8 +19,10 @@ package render
 import (
 	"context"
 	"io"
+	"os"
 	"testing"
 
+	"github.com/docker/cli/cli/config"
 	"github.com/docker/docker/api/types/image"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -76,6 +78,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-image-from-annotation",
+					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyAlways,
 				},
@@ -102,6 +105,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-image-from-annotation",
+					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					Name:       "test-container-name-function",
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
@@ -125,6 +129,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-package",
+					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupRemove,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
 				},
@@ -189,6 +194,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 			want: want{
 				rd: &RuntimeDocker{
 					Image:      "test-package",
+					ConfigFile: config.LoadDefaultConfigFile(os.Stderr),
 					Cleanup:    AnnotationValueRuntimeDockerCleanupStop,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
 				},
