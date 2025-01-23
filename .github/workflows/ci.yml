@@ -223,7 +223,6 @@ jobs:
       matrix:
         test-suite:
           - base
-          - ssa-claims
           - realtime-compositions
           - package-dependency-updates
           - package-signature-verification
@@ -278,7 +277,7 @@ jobs:
             echo "Error: Minor version cannot be decremented below 0"
             exit 1
           fi
-          
+
           echo "CROSSPLANE_PRIOR_VERSION=$MAJOR.$MINOR" >> $GITHUB_ENV
 
 

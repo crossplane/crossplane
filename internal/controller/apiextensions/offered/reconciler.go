@@ -437,7 +437,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// flag is enabled. Otherwise, we start claim reconcilers with the default
 	// client-side syncer. If we use a server-side syncer we also need to handle
 	// upgrading fields that were previously managed using client-side apply.
-	if r.options.Features.Enabled(features.EnableAlphaClaimSSA) {
+	if r.options.Features.Enabled(features.EnableBetaClaimSSA) {
 		o = append(o,
 			claim.WithCompositeSyncer(claim.NewServerSideCompositeSyncer(r.engine.GetClient(), names.NewNameGenerator(r.engine.GetClient()))),
 			claim.WithManagedFieldsUpgrader(claim.NewPatchingManagedFieldsUpgrader(r.engine.GetClient())),

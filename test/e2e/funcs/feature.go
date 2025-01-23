@@ -171,27 +171,27 @@ func DeploymentPodIsRunningMustNotChangeWithin(d time.Duration, namespace, name 
 	}
 }
 
-// ArgSetWithin fails a test if the supplied Deployment does not have a Pod with
-// the given argument set within the supplied duration.
-func ArgSetWithin(d time.Duration, arg, namespace, name string) features.Func {
-	return checkArgSetWithin(d, arg, true, namespace, name)
+// ArgExistsWithin fails a test if the supplied Deployment does not have a Pod with
+// the given argument within the supplied duration.
+func ArgExistsWithin(d time.Duration, arg, namespace, name string) features.Func {
+	return checkArgExistsWithin(d, arg, true, namespace, name)
 }
 
-// ArgUnsetWithin fails a test if the supplied Deployment does not have a Pod with
-// the given argument unset within the supplied duration.
-func ArgUnsetWithin(d time.Duration, arg, namespace, name string) features.Func {
-	return checkArgSetWithin(d, arg, false, namespace, name)
+// ArgNotExistsWithin fails a test if the supplied Deployment does not have a Pod with
+// the given argument not existing within the supplied duration.
+func ArgNotExistsWithin(d time.Duration, arg, namespace, name string) features.Func {
+	return checkArgExistsWithin(d, arg, false, namespace, name)
 }
 
-// checkArgSetWithin implements a check for the supplied Deployment having a Pod
-// with the given argument being either set or unset within the supplied
+// checkArgExistsWithin implements a check for the supplied Deployment having a Pod
+// with the given argument either existing or not existing within the supplied
 // duration.
-func checkArgSetWithin(d time.Duration, arg string, wantSet bool, namespace, name string) features.Func {
+func checkArgExistsWithin(d time.Duration, arg string, wantExist bool, namespace, name string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
-		t.Logf("Waiting %s for pod in deployment %s/%s to have arg %s set=%t...", d, dp.GetNamespace(), dp.GetName(), arg, wantSet)
+		t.Logf("Waiting %s for pod in deployment %s/%s to have arg %s exist=%t...", d, dp.GetNamespace(), dp.GetName(), arg, wantExist)
 		start := time.Now()
 
 		if err := wait.For(func(ctx context.Context) (done bool, err error) {
@@ -210,10 +210,10 @@ func checkArgSetWithin(d time.Duration, arg string, wantSet bool, namespace, nam
 			}
 
 			switch {
-			case wantSet && !found:
+			case wantExist && !found:
 				t.Logf("did not find arg %s within %s", arg, c.Args)
 				return false, nil
-			case !wantSet && found:
+			case !wantExist && found:
 				t.Logf("unexpectedly found arg %s within %s", arg, c.Args)
 				return false, nil
 			default:
@@ -224,7 +224,7 @@ func checkArgSetWithin(d time.Duration, arg string, wantSet bool, namespace, nam
 			return ctx
 		}
 
-		t.Logf("Deployment %s/%s has pod with arg %s set=%t after %s", dp.GetNamespace(), dp.GetName(), arg, wantSet, since(start))
+		t.Logf("Deployment %s/%s has pod with arg %s exist=%t after %s", dp.GetNamespace(), dp.GetName(), arg, wantExist, since(start))
 		return ctx
 	}
 }
