@@ -259,7 +259,12 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		PortBindings: bind,
 	}
 
-	options := r.getPullOptions()
+	options, err := r.getPullOptions()
+	if err != nil {
+		// We can continue to pull an image if we don't have the PullOptions with RegistryAuth
+		// as long as the image is from a public registry. Therefore, we log the error message and continue.
+		r.log.Info("Cannot get pull options", "image", r.Image)
+	}
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
@@ -295,18 +300,17 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
 }
 
-func (r *RuntimeDocker) getPullOptions() typesimage.PullOptions {
+func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
 	// Resolve auth token by looking into config file
 	named, err := reference.ParseNormalizedNamed(r.Image)
 	if err != nil {
 		r.log.Debug("Image is not a valid reference", "image", r.Image)
-		return typesimage.PullOptions{}
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Image is not a valid reference %s", r.Image)
 	}
 
 	repoInfo, err := registry.ParseRepositoryInfo(named)
 	if err != nil {
-		r.log.Debug("Cannot parse repository info", "named", named.String())
-		return typesimage.PullOptions{}
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot parse repository info: %s", named.String())
 	}
 
 	configKey := repoInfo.Index.Name
@@ -315,19 +319,18 @@ func (r *RuntimeDocker) getPullOptions() typesimage.PullOptions {
 	}
 	authConfig, err := r.ConfigFile.GetAuthConfig(configKey)
 	if err != nil {
-		r.log.Debug("Cannot get auth config info", "configKey", configKey)
-		return typesimage.PullOptions{}
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot get auth config info with configKey: %s", configKey)
 	}
 
 	encodedAuth, err := registrytypes.EncodeAuthConfig(registrytypes.AuthConfig(authConfig))
 	if err != nil {
 		r.log.Debug("Cannot encode auth config", "configKey", configKey)
-		return typesimage.PullOptions{}
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot encode auth config with configKey: %s", configKey)
 	}
 
 	return typesimage.PullOptions{
 		RegistryAuth: encodedAuth,
-	}
+	}, nil
 }
 
 // Start a Function as a Docker container.
