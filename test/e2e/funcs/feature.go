@@ -1040,6 +1040,20 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify fun
 	}
 }
 
+// ResourceCountWithin fails a test if the resources count is equal to a passed value.
+func ResourceCountWithin(list k8s.ObjectList, d time.Duration, count int) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListN(list, count), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			y, _ := yaml.Marshal(list)
+			t.Errorf("resources weren't found in needed size %d: %v:\n\n%s\n\n", count, err, y)
+			return ctx
+		}
+		return ctx
+	}
+}
+
 // LogResources polls the given kind of resources and logs creations, deletions
 // and changed conditions.
 func LogResources(list k8s.ObjectList, listOptions ...resources.ListOption) features.Func { //nolint:gocognit // this is a test helper

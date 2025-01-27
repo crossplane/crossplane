@@ -168,6 +168,30 @@ metrics:
   # -- Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods.
   enabled: false
 
+job:
+  # -- Deploy the CronJobs and its required roles.
+  deploy: true
+  # -- Configuration of job to clean old composition revisions.
+  removeUnusedCompositionRevision:
+    # -- Job schedule.
+    schedule: "*/1 * * * *"
+    # -- Keep most recent items.
+    keepTopNItems: 3
+    # -- Comma-separated list of compositions that scheduler should skip.
+    itemsToKeep: ""
+
+resourcesJob:
+  limits:
+    # -- CPU resource limits for the job pod.
+    cpu: 100m
+    # -- Memory resource limits for the job pod.
+    memory: 512Mi
+  requests:
+    # -- CPU resource requests for the job pod.
+    cpu: 100m
+    # -- Memory resource requests for the job pod.
+    memory: 256Mi
+
 # -- Add custom environmental variables to the Crossplane pod deployment.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
 extraEnvVarsCrossplane: {}
@@ -181,6 +205,9 @@ podSecurityContextCrossplane: {}
 
 # -- Add a custom `securityContext` to the RBAC Manager pod.
 podSecurityContextRBACManager: {}
+
+# -- Add a custom `securityContext` to the Job pod.
+podSecurityContextJob: {}
 
 # -- Add custom `volumes` to the Crossplane pod.
 extraVolumesCrossplane: {}
