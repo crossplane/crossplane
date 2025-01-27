@@ -82,6 +82,8 @@ based on the workflow defined above.
     * **Note** that the version passed into the migrator is the **"old"**
       version you want to migrate **from**, not the target version you want to
       migrate to
+1. Update the [feature flag] for this API to reflect its new maturity level
+1. Update the [feature flag docs] to reflect the new maturity level there as well
 
 <!-- Links -->
 [#6148]: https://github.com/crossplane/crossplane/issues/6148
@@ -95,3 +97,5 @@ based on the workflow defined above.
 [duplicate script]: https://github.com/crossplane/crossplane/blob/release-1.18/hack/duplicate_api_type.sh
 [`cluster/crds`]: https://github.com/crossplane/crossplane/tree/release-1.18/cluster/crds
 [migrator]: https://github.com/crossplane/crossplane/blob/release-1.18/cmd/crossplane/core/init.go#L75-L79
+[feature flag]: https://github.com/crossplane/crossplane/blob/release-1.18/cmd/crossplane/core/core.go#L112-L134
+[feature flag docs]: https://docs.crossplane.io/latest/software/install/#feature-flags

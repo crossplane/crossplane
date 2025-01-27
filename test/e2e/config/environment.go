@@ -180,8 +180,8 @@ func (e *Environment) HelmUpgradeCrossplaneToSuite(suite string, extra ...helm.O
 
 // HelmUpgradeCrossplaneToBase returns a features.Func that upgrades crossplane using
 // the specified suite's helm install options.
-func (e *Environment) HelmUpgradeCrossplaneToBase() env.Func {
-	return e.HelmUpgradeCrossplaneToSuite(e.selectedTestSuite.String())
+func (e *Environment) HelmUpgradeCrossplaneToBase(extra ...helm.Option) env.Func {
+	return e.HelmUpgradeCrossplaneToSuite(e.selectedTestSuite.String(), extra...)
 }
 
 // HelmInstallBaseCrossplane returns a features.Func that installs crossplane using
