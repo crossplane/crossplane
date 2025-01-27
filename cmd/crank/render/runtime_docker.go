@@ -263,7 +263,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 	if err != nil {
 		// We can continue to pull an image if we don't have the PullOptions with RegistryAuth
 		// as long as the image is from a public registry. Therefore, we log the error message and continue.
-		r.log.Info("Cannot get pull options", "image", r.Image)
+		r.log.Info("Cannot get pull options", "image", r.Image, "err", err)
 	}
 
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
@@ -304,7 +304,6 @@ func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
 	// Resolve auth token by looking into config file
 	named, err := reference.ParseNormalizedNamed(r.Image)
 	if err != nil {
-		r.log.Debug("Image is not a valid reference", "image", r.Image)
 		return typesimage.PullOptions{}, errors.Wrapf(err, "Image is not a valid reference %s", r.Image)
 	}
 
@@ -324,7 +323,6 @@ func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
 
 	encodedAuth, err := registrytypes.EncodeAuthConfig(registrytypes.AuthConfig(authConfig))
 	if err != nil {
-		r.log.Debug("Cannot encode auth config", "configKey", configKey)
 		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot encode auth config with configKey: %s", configKey)
 	}
 
