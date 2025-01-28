@@ -199,7 +199,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 		return errors.Wrapf(err, "cannot cache package dependencies")
 	}
 
-	schemas, err := m.cache.Load()
+	schemas, err := m.loadDependencies()
 	if err != nil {
 		return errors.Wrapf(err, "cannot load cache")
 	}
@@ -311,4 +311,16 @@ func (m *Manager) cacheDependencies() error {
 	}
 
 	return nil
+}
+
+func (m *Manager) loadDependencies() ([]*unstructured.Unstructured, error) {
+	schemas := make([]*unstructured.Unstructured, 0)
+	for dep := range m.deps {
+		cachedSchema, err := m.cache.Load(dep)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot load cache for %s", dep)
+		}
+		schemas = append(schemas, cachedSchema...)
+	}
+	return schemas, nil
 }
