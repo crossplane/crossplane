@@ -63,6 +63,14 @@ spec:
               ConfigurationSpec specifies details about a request to install a
               configuration to Crossplane.
             properties:
+              commonAnnotations:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Map of string keys and values that can be used to attach arbitrary non-identifying metadata
+                  to objects.
+                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+                type: object
               commonLabels:
                 additionalProperties:
                   type: string

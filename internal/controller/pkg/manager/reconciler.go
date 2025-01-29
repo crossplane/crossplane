@@ -463,6 +463,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
+	pr.SetCommonAnnotations(p.GetCommonAnnotations())
 	pr.SetCommonLabels(p.GetCommonLabels())
 
 	pwr, pwok := p.(v1.PackageWithRuntime)
@@ -492,8 +493,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// Handle changes in annotations
+	same := reflect.DeepEqual(pr.GetCommonAnnotations(), p.GetCommonAnnotations())
+	if !same {
+		pr.SetCommonAnnotations(p.GetCommonAnnotations())
+		if err := r.client.Update(ctx, pr); err != nil {
+			if kerrors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
+			err = errors.Wrap(err, errApplyPackageRevision)
+			r.record.Event(p, event.Warning(reasonInstall, err))
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Handle changes in labels
-	same := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
+	same = reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
 	if !same {
 		pr.SetCommonLabels(p.GetCommonLabels())
 		if err := r.client.Update(ctx, pr); err != nil {
