@@ -749,15 +749,6 @@ func TestReconcile(t *testing.T) {
 								Annotations: map[string]string{},
 							},
 						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
-								Annotations: map[string]string{},
-							},
-						},
 					)),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -1102,15 +1093,6 @@ func TestReconcile(t *testing.T) {
 								Annotations: map[string]string{},
 							},
 						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
-								Annotations: map[string]string{},
-							},
-						},
 					)),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -1199,15 +1181,6 @@ func TestReconcile(t *testing.T) {
 								Annotations: map[string]string{},
 							},
 						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
-								Annotations: map[string]string{},
-							},
-						},
 					)),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -1277,15 +1250,6 @@ func TestReconcile(t *testing.T) {
 								Type:        event.TypeNormal,
 								Reason:      "DatabaseAvailable",
 								Message:     "Pipeline step \"some-function\": This is an event for database availability.",
-								Annotations: map[string]string{},
-							},
-						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
 								Annotations: map[string]string{},
 							},
 						},
