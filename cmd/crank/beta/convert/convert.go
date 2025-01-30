@@ -21,13 +21,11 @@ package convert
 import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/convert/compositionenvironment"
 	"github.com/crossplane/crossplane/cmd/crank/beta/convert/deploymentruntime"
-	"github.com/crossplane/crossplane/cmd/crank/beta/convert/pipelinecomposition"
 )
 
 // Cmd converts a Crossplane resource to a newer version or a different kind.
 type Cmd struct {
 	DeploymentRuntime      deploymentruntime.Cmd      `cmd:"" help:"Convert a ControllerConfig to a DeploymentRuntimeConfig."`
-	PipelineComposition    pipelinecomposition.Cmd    `cmd:"" help:"Convert a Patch-and-Transform Composition to a Function Pipeline Composition."`
 	CompositionEnvironment compositionenvironment.Cmd `cmd:"" help:"Convert a Pipeline Composition to use function-environment-configs."`
 }
 

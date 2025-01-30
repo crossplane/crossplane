@@ -50,8 +50,6 @@ var (
 )
 
 func TestRender(t *testing.T) {
-	pipeline := apiextensionsv1.CompositionModePipeline
-
 	// Add all listeners here so we can close them to shutdown our gRPC servers.
 	listeners := make([]io.Closer, 0)
 
@@ -126,7 +124,7 @@ func TestRender(t *testing.T) {
 					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -148,7 +146,7 @@ func TestRender(t *testing.T) {
 					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -202,7 +200,7 @@ func TestRender(t *testing.T) {
 					},
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -388,7 +386,7 @@ func TestRender(t *testing.T) {
 					},
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -557,7 +555,7 @@ func TestRender(t *testing.T) {
 					},
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",

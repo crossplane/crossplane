@@ -33,42 +33,10 @@ type CompositionSpec struct {
 	// Composition Functions, each of which is responsible for producing
 	// composed resources that Crossplane should create or update.
 	//
-	// "Resources" indicates that a Composition uses what is commonly referred
-	// to as "Patch & Transform" or P&T composition. This mode of Composition
-	// uses an array of resources, each a template for a composed resource.
-	//
-	// All Compositions should use Pipeline mode. Resources mode is deprecated.
-	// Resources mode won't be removed in Crossplane 1.x, and will remain the
-	// default to avoid breaking legacy Compositions. However, it's no longer
-	// accepting new features, and only accepting security related bug fixes.
-	//
 	// +optional
-	// +kubebuilder:validation:Enum=Resources;Pipeline
-	// +kubebuilder:default=Resources
-	Mode *CompositionMode `json:"mode,omitempty"`
-
-	// PatchSets define a named set of patches that may be included by any
-	// resource in this Composition. PatchSets cannot themselves refer to other
-	// PatchSets.
-	//
-	// PatchSets are only used by the "Resources" mode of Composition. They
-	// are ignored by other modes.
-	//
-	// Deprecated: Use Composition Functions instead.
-	//
-	// +optional
-	PatchSets []PatchSet `json:"patchSets,omitempty"`
-
-	// Resources is a list of resource templates that will be used when a
-	// composite resource referring to this composition is created.
-	//
-	// Resources are only used by the "Resources" mode of Composition. They are
-	// ignored by other modes.
-	//
-	// Deprecated: Use Composition Functions instead.
-	//
-	// +optional
-	Resources []ComposedTemplate `json:"resources,omitempty"`
+	// +kubebuilder:validation:Enum=Pipeline
+	// +kubebuilder:default=Pipeline
+	Mode CompositionMode `json:"mode,omitempty"`
 
 	// Pipeline is a list of composition function steps that will be used when a
 	// composite resource referring to this composition is created. One of

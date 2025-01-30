@@ -115,7 +115,7 @@ func WithoutLogicalValidation() ValidatorOption {
 }
 
 // Validate validates the provided Composition.
-func (v *Validator) Validate(ctx context.Context, obj runtime.Object) (warns []string, errs field.ErrorList) {
+func (v *Validator) Validate(_ context.Context, obj runtime.Object) (warns []string, errs field.ErrorList) {
 	comp, ok := obj.(*v1.Composition)
 	if !ok {
 		return nil, append(errs, field.NotSupported(field.NewPath("kind"), obj.GetObjectKind().GroupVersionKind().Kind, []string{v1.CompositionGroupVersionKind.Kind}))
@@ -126,16 +126,6 @@ func (v *Validator) Validate(ctx context.Context, obj runtime.Object) (warns []s
 		if warns, errs := v.logicalValidation(comp); len(errs) != 0 {
 			return warns, errs
 		}
-	}
-
-	// Validate patches given the above CRDs, skip if any of the required CRDs is not available
-	for _, f := range []func(context.Context, *v1.Composition) field.ErrorList{
-		v.validatePatchesWithSchemas,
-		v.validateReadinessChecksWithSchemas,
-		v.validateConnectionDetailsWithSchemas,
-		// TODO(phisco): add more phase 2 validation here
-	} {
-		errs = append(errs, f(ctx, comp)...)
 	}
 
 	// TODO(phisco): add more  phase 3 validation here
