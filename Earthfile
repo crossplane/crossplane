@@ -85,6 +85,7 @@ hack:
   # TODO(negz): This could run an interactive shell inside a temporary container
   # once https://github.com/earthly/earthly/issues/3206 is fixed.
   ARG USERPLATFORM
+  ARG SIMULATE_CROSSPLANE_VERSION=v0.0.0-hack
   ARG XPARGS="--debug"
   LOCALLY
   WAIT
@@ -93,15 +94,15 @@ hack:
   COPY --platform=${USERPLATFORM} +helm-setup/helm .hack/helm
   COPY --platform=${USERPLATFORM} +kind-setup/kind .hack/kind
   COPY (+helm-build/output --CROSSPLANE_VERSION=v0.0.0-hack) .hack/charts
-  WITH DOCKER --load crossplane-hack/crossplane:hack=+image
+  WITH DOCKER --load crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}=(+image --CROSSPLANE_VERSION=${SIMULATE_CROSSPLANE_VERSION})
     RUN \
       .hack/kind create cluster --name crossplane-hack && \
-      .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:hack && \
+      .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION} && \
       .hack/helm install --create-namespace --namespace crossplane-system crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
-        --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=hack" \
+        --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=${SIMULATE_CROSSPLANE_VERSION}" \
         --set "args={${XPARGS}}"
   END
-  RUN docker image rm crossplane-hack/crossplane:hack
+  RUN docker image rm crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}
   RUN rm -rf .hack
 
 # unhack deletes the kind cluster created by the hack target.
