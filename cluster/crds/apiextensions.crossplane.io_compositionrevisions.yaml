@@ -173,24 +173,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - step
                 x-kubernetes-list-type: map
-              publishConnectionDetailsWithStoreConfigRef:
-                default:
-                  name: default
-                description: |-
-                  PublishConnectionDetailsWithStoreConfig specifies the secret store config
-                  with which the connection details of composite resources dynamically
-                  provisioned using this composition will be published.
-
-                  THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-                  unless the relevant Crossplane feature flag is enabled, and may be
-                  changed or removed without notice.
-                properties:
-                  name:
-                    description: Name of the referenced StoreConfig.
-                    type: string
-                required:
-                - name
-                type: object
               revision:
                 description: |-
                   Revision number. Newer revisions have larger numbers.
@@ -206,11 +188,6 @@ spec:
                   WriteConnectionSecretsToNamespace specifies the namespace in which the
                   connection secrets of composite resource dynamically provisioned using
                   this composition will be created.
-                  This field is planned to be replaced in a future release in favor of
-                  PublishConnectionDetailsWithStoreConfigRef. Currently, both could be
-                  set independently and connection details would be published to both
-                  without affecting each other as long as related fields at MR level
-                  specified.
                 type: string
             required:
             - compositeTypeRef

@@ -115,10 +115,3 @@ const (
 	// credentials from a secret.
 	FunctionCredentialsSourceSecret FunctionCredentialsSource = "Secret"
 )
-
-// A StoreConfigReference references a secret store config that may be used to
-// write connection details.
-type StoreConfigReference struct {
-	// Name of the referenced StoreConfig.
-	Name string `json:"name"`
-}

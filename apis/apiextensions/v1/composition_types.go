@@ -52,24 +52,8 @@ type CompositionSpec struct {
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
 	// this composition will be created.
-	// This field is planned to be replaced in a future release in favor of
-	// PublishConnectionDetailsWithStoreConfigRef. Currently, both could be
-	// set independently and connection details would be published to both
-	// without affecting each other as long as related fields at MR level
-	// specified.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
-
-	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
-	// with which the connection details of composite resources dynamically
-	// provisioned using this composition will be published.
-	//
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
-	// +optional
-	// +kubebuilder:default={"name": "default"}
-	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 }
 
 // +kubebuilder:object:root=true

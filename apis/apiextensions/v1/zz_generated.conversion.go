@@ -28,7 +28,6 @@ func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevi
 		pString = &xstring
 	}
 	v1CompositionSpec.WriteConnectionSecretsToNamespace = pString
-	v1CompositionSpec.PublishConnectionDetailsWithStoreConfigRef = c.pV1StoreConfigReferenceToPV1StoreConfigReference(source.PublishConnectionDetailsWithStoreConfigRef)
 	return v1CompositionSpec
 }
 func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) CompositionRevisionSpec {
@@ -49,7 +48,6 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 		pString = &xstring
 	}
 	v1CompositionRevisionSpec.WriteConnectionSecretsToNamespace = pString
-	v1CompositionRevisionSpec.PublishConnectionDetailsWithStoreConfigRef = c.pV1StoreConfigReferenceToPV1StoreConfigReference(source.PublishConnectionDetailsWithStoreConfigRef)
 	return v1CompositionRevisionSpec
 }
 func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtension(source *runtime.RawExtension) *runtime.RawExtension {
@@ -69,15 +67,6 @@ func (c *GeneratedRevisionSpecConverter) pV1SecretReferenceToPV1SecretReference(
 		pV1SecretReference = &v1SecretReference
 	}
 	return pV1SecretReference
-}
-func (c *GeneratedRevisionSpecConverter) pV1StoreConfigReferenceToPV1StoreConfigReference(source *StoreConfigReference) *StoreConfigReference {
-	var pV1StoreConfigReference *StoreConfigReference
-	if source != nil {
-		var v1StoreConfigReference StoreConfigReference
-		v1StoreConfigReference.Name = (*source).Name
-		pV1StoreConfigReference = &v1StoreConfigReference
-	}
-	return pV1StoreConfigReference
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCredentials(source FunctionCredentials) FunctionCredentials {
 	var v1FunctionCredentials FunctionCredentials
