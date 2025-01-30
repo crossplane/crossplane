@@ -27,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -36,42 +35,41 @@ type adder interface {
 }
 
 // EnqueueRequestForReferencingProviderRevisions enqueues a request for all
-// provider revisions that reference a ControllerConfig when the given
-// ControllerConfig changes.
+// provider revisions that reference a DeploymentRuntimeConfig when the given
+// DeploymentRuntimeConfig changes.
 type EnqueueRequestForReferencingProviderRevisions struct {
 	client client.Client
 }
 
 // Create enqueues a request for all provider revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingProviderRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingProviderRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.ObjectOld, q)
 	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingProviderRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingProviderRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 func (e *EnqueueRequestForReferencingProviderRevisions) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cc, isCC := obj.(*v1alpha1.ControllerConfig)
-	rc, isRC := obj.(*v1beta1.DeploymentRuntimeConfig)
+	rc, ok := obj.(*v1beta1.DeploymentRuntimeConfig)
 
-	if !isCC && !isRC {
+	if !ok {
 		return
 	}
 
@@ -82,58 +80,49 @@ func (e *EnqueueRequestForReferencingProviderRevisions) add(ctx context.Context,
 	}
 
 	for _, pr := range l.Items {
-		if isCC {
-			ref := pr.GetControllerConfigRef()
-			if ref != nil && ref.Name == cc.GetName() {
-				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
-			}
-		}
-		if isRC {
-			ref := pr.GetRuntimeConfigRef()
-			if ref != nil && ref.Name == rc.GetName() {
-				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
-			}
+		ref := pr.GetRuntimeConfigRef()
+		if ref != nil && ref.Name == rc.GetName() {
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
 		}
 	}
 }
 
 // EnqueueRequestForReferencingFunctionRevisions enqueues a request for all
-// function revisions that reference a ControllerConfig when the given
-// ControllerConfig changes.
+// function revisions that reference a DeploymentRuntimeConfig when the given
+// DeploymentRuntimeConfig changes.
 type EnqueueRequestForReferencingFunctionRevisions struct {
 	client client.Client
 }
 
 // Create enqueues a request for all function revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingFunctionRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all function revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingFunctionRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.ObjectOld, q)
 	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all function revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingFunctionRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all function revisions that reference a given
-// ControllerConfig.
+// DeploymentRuntimeConfig.
 func (e *EnqueueRequestForReferencingFunctionRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.add(ctx, evt.Object, q)
 }
 
 func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context, obj runtime.Object, queue adder) {
-	cc, isCC := obj.(*v1alpha1.ControllerConfig)
-	rc, isRC := obj.(*v1beta1.DeploymentRuntimeConfig)
+	rc, ok := obj.(*v1beta1.DeploymentRuntimeConfig)
 
-	if !isCC && !isRC {
+	if !ok {
 		return
 	}
 
@@ -144,17 +133,9 @@ func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context,
 	}
 
 	for _, pr := range l.Items {
-		if isCC {
-			ref := pr.GetControllerConfigRef()
-			if ref != nil && ref.Name == cc.GetName() {
-				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
-			}
-		}
-		if isRC {
-			ref := pr.GetRuntimeConfigRef()
-			if ref != nil && ref.Name == rc.GetName() {
-				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
-			}
+		ref := pr.GetRuntimeConfigRef()
+		if ref != nil && ref.Name == rc.GetName() {
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
 		}
 	}
 }
