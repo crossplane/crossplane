@@ -6,21 +6,32 @@ spec:
   compositeTypeRef:
     apiVersion: realtime-compositions.e2e.crossplane.io/v1alpha1
     kind: XNopResource
-  resources:
-  - name: nop-resource-1
-    base:
-      apiVersion: nop.crossplane.io/v1alpha1
-      kind: NopResource
-      metadata:
-        labels:
-          realtime-compositions: "true"
-      spec:
-        forProvider:
-          conditionAfter:
-          - conditionType: Ready
-            conditionStatus: "True"
-            time: 0s
-    patches:
-    - type: ToCompositeFieldPath
-      fromFieldPath: metadata.annotations[cool-field]
-      toFieldPath: status.coolerField
+  mode: Pipeline
+  pipeline:
+  - step: patch
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      - name: nop-resource-1
+        base:
+          apiVersion: nop.crossplane.io/v1alpha1
+          kind: NopResource
+          metadata:
+            labels:
+              realtime-compositions: "true"
+          spec:
+            forProvider:
+              conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: 0s
+        patches:
+        - type: ToCompositeFieldPath
+          fromFieldPath: metadata.annotations[cool-field]
+          toFieldPath: status.coolerField
+  - step: detect-readiness
+    functionRef:
+      name: function-auto-ready
