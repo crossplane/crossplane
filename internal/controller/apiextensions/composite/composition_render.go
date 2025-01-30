@@ -22,7 +22,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -34,11 +33,6 @@ const (
 
 	errFmtKindChanged     = "cannot change the kind of a composed resource from %s to %s (possible composed resource template mismatch)"
 	errFmtNamePrefixLabel = "cannot find top-level composite resource name label %q in composite resource metadata"
-
-	// TODO(negz): Include more detail such as field paths if they exist.
-	// Perhaps require each patch type to have a String() method to help
-	// identify it.
-	errFmtPatch = "cannot apply the %q patch at index %d"
 )
 
 // RenderFromJSON renders the supplied resource from JSON bytes.
@@ -75,29 +69,6 @@ func RenderFromJSON(o resource.Object, data []byte) error {
 		return errors.Errorf(errFmtKindChanged, gvk, o.GetObjectKind().GroupVersionKind())
 	}
 
-	return nil
-}
-
-// RenderFromCompositePatches renders the supplied composed resource by applying
-// all patches that are _from_ the supplied composite resource.
-func RenderFromCompositePatches(cd resource.Composed, xr resource.Composite, p []v1.Patch) error {
-	for i := range p {
-		if err := Apply(p[i], xr, cd, patchTypesFromXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
-		}
-	}
-	return nil
-}
-
-// RenderToCompositePatches renders the supplied composite resource by applying
-// all patches that are _from_ the supplied composed resource. composed resource
-// and template.
-func RenderToCompositePatches(xr resource.Composite, cd resource.Composed, p []v1.Patch) error {
-	for i := range p {
-		if err := Apply(p[i], xr, cd, patchTypesToXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
-		}
-	}
 	return nil
 }
 

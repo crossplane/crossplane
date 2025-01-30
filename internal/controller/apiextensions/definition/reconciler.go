@@ -475,7 +475,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ro := r.CompositeReconcilerOptions(ctx, d)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
 
-	cr := composite.NewReconciler(r.engine.GetCached(), r.engine.GetUncached(), ck, ro...)
+	cr := composite.NewReconciler(r.engine.GetCached(), ck, ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -584,9 +584,6 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 			composite.WithConfigurator(cc))
 	}
 
-	// This composer is used for mode: Resources Compositions (the default).
-	ptc := composite.NewPTComposer(r.engine.GetCached(), r.engine.GetUncached(), composite.WithComposedConnectionDetailsFetcher(fetcher))
-
 	// Wrap the PackagedFunctionRunner setup in main with support for loading
 	// extra resources to satisfy function requirements.
 	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
@@ -599,23 +596,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 
 	// We use two different Composer implementations. One supports P&T (aka
 	// 'Resources mode') and the other Functions (aka 'Pipeline mode').
-	o = append(o, composite.WithComposer(composite.ComposerSelectorFn(func(cm *v1.CompositionMode) composite.Composer {
-		// Resources mode is the implicit default.
-		m := v1.CompositionModeResources
-		if cm != nil {
-			m = *cm
-		}
-		switch m {
-		case v1.CompositionModeResources:
-			return ptc
-		case v1.CompositionModePipeline:
-			return fc
-		default:
-			// This shouldn't be possible, but just in case return the
-			// default Composer.
-			return ptc
-		}
-	})))
+	o = append(o, composite.WithComposer(fc))
 
 	// If realtime compositions are enabled we pass the ControllerEngine to the
 	// XR reconciler so that it can start watches for composed resources.

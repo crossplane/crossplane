@@ -2,17 +2,6 @@
 // As defined by https://datatracker.ietf.org/doc/html/draft-zyp-json-schema-04
 package schema
 
-import (
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-)
-
-const (
-	errFmtUnknownJSONType     = "unknown JSON type: %q"
-	errFmtUnsupportedJSONType = "JSON type not supported: %q"
-)
-
 // KnownJSONType is all the known JSON types.
 // See https://datatracker.ietf.org/doc/html/draft-zyp-json-schema-04#section-3.5
 type KnownJSONType string
@@ -50,49 +39,5 @@ func IsValid(t string) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// FromTransformIOType returns the matching JSON type for the given TransformIOType.
-// It returns an empty string if the type is not valid, call IsValid() before
-// calling this method.
-func FromTransformIOType(c v1.TransformIOType) KnownJSONType {
-	switch c {
-	case v1.TransformIOTypeString:
-		return KnownJSONTypeString
-	case v1.TransformIOTypeBool:
-		return KnownJSONTypeBoolean
-	case v1.TransformIOTypeInt, v1.TransformIOTypeInt64:
-		return KnownJSONTypeInteger
-	case v1.TransformIOTypeFloat64:
-		return KnownJSONTypeNumber
-	case v1.TransformIOTypeObject:
-		return KnownJSONTypeObject
-	case v1.TransformIOTypeArray:
-		return KnownJSONTypeArray
-	}
-	// should never happen
-	return ""
-}
-
-// FromKnownJSONType returns the TransformIOType for the given KnownJSONType.
-func FromKnownJSONType(t KnownJSONType) (v1.TransformIOType, error) {
-	switch t {
-	case KnownJSONTypeString:
-		return v1.TransformIOTypeString, nil
-	case KnownJSONTypeBoolean:
-		return v1.TransformIOTypeBool, nil
-	case KnownJSONTypeInteger:
-		return v1.TransformIOTypeInt64, nil
-	case KnownJSONTypeNumber:
-		return v1.TransformIOTypeFloat64, nil
-	case KnownJSONTypeObject:
-		return v1.TransformIOTypeObject, nil
-	case KnownJSONTypeArray:
-		return v1.TransformIOTypeObject, nil
-	case KnownJSONTypeNull:
-		return "", errors.Errorf(errFmtUnsupportedJSONType, t)
-	default:
-		return "", errors.Errorf(errFmtUnknownJSONType, t)
 	}
 }
