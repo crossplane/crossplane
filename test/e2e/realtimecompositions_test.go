@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -80,12 +81,7 @@ func TestRealtimeCompositions(t *testing.T) {
 			)).
 			Assess("UpdateMR", funcs.AllOf(
 				funcs.ListedResourcesModifiedWith(nopList, 1, func(object k8s.Object) {
-					anns := object.GetAnnotations()
-					if anns == nil {
-						anns = make(map[string]string)
-					}
-					anns["cool-field"] = "I'M COOL!"
-					object.SetAnnotations(anns)
+					meta.AddAnnotations(object, map[string]string{"cool-field": "I'M COOL!"})
 				}, withTestLabels),
 			)).
 			Assess("ClaimHasPatchedField",
