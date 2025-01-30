@@ -292,23 +292,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableBetaUsages)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaUsages)
 	}
-	if c.EnableExternalSecretStores {
-		o.Features.Enable(features.EnableAlphaExternalSecretStores)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
-
-		tcfg, err := certificates.LoadMTLSConfig(
-			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
-			false)
-		if err != nil {
-			return errors.Wrap(err, "cannot load TLS certificates for external secret stores")
-		}
-
-		o.ESSOptions = &controller.ESSOptions{
-			TLSConfig: tcfg,
-		}
-	}
 	if c.EnableRealtimeCompositions {
 		o.Features.Enable(features.EnableBetaRealtimeCompositions)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaRealtimeCompositions)

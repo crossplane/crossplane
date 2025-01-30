@@ -21,11 +21,6 @@ import "github.com/crossplane/crossplane-runtime/pkg/feature"
 
 // Alpha Feature flags.
 const (
-	// EnableAlphaExternalSecretStores enables alpha support for
-	// External Secret Stores. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
-	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
-
 	// EnableAlphaDependencyVersionUpgrades enables alpha support for
 	// upgrading the version of a package's dependencies when needed.
 	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
