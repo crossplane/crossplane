@@ -22,7 +22,6 @@ import (
 
 	"github.com/crossplane/crossplane/apis/apiextensions"
 	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/apis/secrets"
 )
 
 func init() {
@@ -30,7 +29,6 @@ func init() {
 	AddToSchemes = append(AddToSchemes,
 		apiextensions.AddToScheme,
 		pkg.AddToScheme,
-		secrets.AddToScheme,
 	)
 }
 

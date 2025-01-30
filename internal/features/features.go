@@ -21,11 +21,6 @@ import "github.com/crossplane/crossplane-runtime/pkg/feature"
 
 // Alpha Feature flags.
 const (
-	// EnableAlphaExternalSecretStores enables alpha support for
-	// External Secret Stores. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
-	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
-
 	// EnableAlphaRealtimeCompositions enables alpha support for realtime
 	// compositions, i.e. watching MRs and reconciling compositions immediately
 	// when any MR is updated.
