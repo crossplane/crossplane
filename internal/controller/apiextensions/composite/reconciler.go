@@ -231,14 +231,6 @@ func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, re
 	return fn(ctx, xr, req)
 }
 
-// A ComposerSelectorFn selects the appropriate Composer for a mode.
-type ComposerSelectorFn func(*v1.CompositionMode) Composer
-
-// Compose calls the Composer returned by calling fn.
-func (fn ComposerSelectorFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
-	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
-}
-
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -389,39 +381,32 @@ type compositeResource struct {
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(c, uc client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(cached client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: c,
+		client: cached,
 
 		gvk: schema.GroupVersionKind(of),
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)}),
-			CompositionRevisionValidator: CompositionRevisionValidatorFn(func(rev *v1.CompositionRevision) error {
-				// TODO(negz): Presumably this validation will eventually be
-				// removed in favor of the new Composition validation
-				// webhook.
-				// This is the last remaining use of conv.FromRevisionSpec -
-				// we can stop generating that once this is removed.
-				conv := &v1.GeneratedRevisionSpecConverter{}
-				comp := &v1.Composition{Spec: conv.FromRevisionSpec(rev.Spec)}
-				_, errs := comp.Validate()
-				return errs.ToAggregate()
-			}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
 		},
 
 		composite: compositeResource{
-			Finalizer:           resource.NewAPIFinalizer(c, finalizer),
-			CompositionSelector: NewAPILabelSelectorResolver(c),
-			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(c), NewAPIConfigurator(c)),
+			Finalizer:           resource.NewAPIFinalizer(cached, finalizer),
+			CompositionSelector: NewAPILabelSelectorResolver(cached),
+			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
 			// never filter any keys. Is there an unfiltered variant we could
 			// use by default instead?
-			ConnectionPublisher: NewAPIFilteredSecretPublisher(c, []string{}),
+			ConnectionPublisher: NewAPIFilteredSecretPublisher(cached, []string{}),
 		},
 
-		resource: NewPTComposer(c, uc),
+		// We use a nop Composer by default. The real composed is passed in by
+		// the definition controller when it sets up this XR controller.
+		resource: ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+			return CompositionResult{}, nil
+		}),
 
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},

@@ -49,15 +49,12 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 )
 
-var _ Composer = ComposerSelectorFn(func(_ *v1.CompositionMode) Composer { return nil })
-
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	cd := managed.ConnectionDetails{"a": []byte("b")}
 
 	type args struct {
 		c    client.Client
-		uc   client.Client
 		of   resource.CompositeKind
 		opts []ReconcilerOption
 	}
@@ -79,9 +76,6 @@ func TestReconcile(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 			},
 			want: want{
 				r: reconcile.Result{Requeue: false},
@@ -92,9 +86,6 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 			},
 			want: want{
@@ -112,9 +103,6 @@ func TestReconcile(t *testing.T) {
 						want.SetDeletionTimestamp(&now)
 						want.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errUnpublish)))
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -140,9 +128,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetDeletionTimestamp(&now)
 						cr.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
@@ -173,9 +158,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -202,9 +184,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -226,9 +205,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSelectComp)))
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, _ resource.Composite) error {
@@ -249,9 +225,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errFetchComp)))
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -277,9 +250,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errValidate)))
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -309,9 +279,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errConfigure)))
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -340,9 +307,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errCompose)))
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -375,9 +339,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPublish)))
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -416,9 +377,6 @@ func TestReconcile(t *testing.T) {
 						xr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -426,10 +384,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
+						return &v1.CompositionRevision{}, nil
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
@@ -466,9 +421,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating().WithMessage("Unready resources: cat, cow, elephant, and 1 more"))
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -476,10 +428,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
+						return &v1.CompositionRevision{}, nil
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
@@ -545,9 +494,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -555,10 +501,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
+						return &v1.CompositionRevision{}, nil
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
@@ -640,9 +583,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -650,10 +590,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
+						return &v1.CompositionRevision{}, nil
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
@@ -688,9 +625,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -698,10 +632,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionRevisionFetcher(CompositionRevisionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.CompositionRevision, error) {
-						c := &v1.CompositionRevision{Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
+						return &v1.CompositionRevision{}, nil
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
@@ -760,9 +691,6 @@ func TestReconcile(t *testing.T) {
 						cr.(*composite.Unstructured).SetClaimConditionTypes("DatabaseReady")
 						cr.SetClaimReference(&reference.Claim{})
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
@@ -931,9 +859,6 @@ func TestReconcile(t *testing.T) {
 						)
 						cr.SetClaimReference(&reference.Claim{})
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
@@ -1140,9 +1065,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
 						eventArgs{
@@ -1228,9 +1150,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
 						eventArgs{
@@ -1291,9 +1210,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 						cr.SetClaimReference(&reference.Claim{})
 					})),
-				},
-				uc: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
@@ -1356,7 +1272,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.c, tc.args.uc, tc.args.of, tc.args.opts...)
+			r := NewReconciler(tc.args.c, tc.args.of, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1414,64 +1330,6 @@ func WantComposite(t *testing.T, want resource.Composite) func(_ context.Context
 			t.Errorf("WantComposite(...): -want, +got: %s", diff)
 		}
 		return nil
-	}
-}
-
-func TestFilterToXRPatches(t *testing.T) {
-	toXR1 := v1.Patch{
-		Type: v1.PatchTypeToCompositeFieldPath,
-	}
-	toXR2 := v1.Patch{
-		Type: v1.PatchTypeCombineToComposite,
-	}
-	fromXR1 := v1.Patch{
-		Type: v1.PatchTypeFromCompositeFieldPath,
-	}
-	fromXR2 := v1.Patch{
-		Type: v1.PatchTypeCombineFromComposite,
-	}
-	type args struct {
-		tas []TemplateAssociation
-	}
-	tests := map[string]struct {
-		args args
-		want []v1.Patch
-	}{
-		"NonEmptyToXRPatches": {
-			args: args{
-				tas: []TemplateAssociation{
-					{
-						Template: v1.ComposedTemplate{
-							Patches: []v1.Patch{toXR1, toXR2, fromXR1, fromXR2},
-						},
-					},
-				},
-			},
-			want: []v1.Patch{toXR1, toXR2},
-		},
-		"NoToXRPatches": {
-			args: args{
-				tas: []TemplateAssociation{
-					{
-						Template: v1.ComposedTemplate{
-							Patches: []v1.Patch{fromXR1, fromXR2},
-						},
-					},
-				},
-			},
-			want: []v1.Patch{},
-		},
-		"EmptyToXRPatches": {
-			args: args{},
-			want: []v1.Patch{},
-		},
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, toXRPatchesFromTAs(tc.args.tas)); diff != "" {
-				t.Errorf("\nfilterToXRPatches(...): -want, +got:\n%s", diff)
-			}
-		})
 	}
 }
 

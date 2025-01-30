@@ -186,25 +186,6 @@ func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (ma
 		neededCrds[compositeResGK] = *compositeCRD
 	}
 
-	// Get schema for all Managed Resource Definitions defined by
-	// comp.Spec.Resources.
-	for _, res := range comp.Spec.Resources {
-		gvk, err := composition.GetBaseObjectGVK(&res)
-		if err != nil {
-			return nil, []error{err}
-		}
-		gk := gvk.GroupKind()
-		crd, err := v.getCRD(ctx, &gk)
-		switch {
-		case kerrors.IsNotFound(err):
-			resultErrs = append(resultErrs, err)
-		case err != nil:
-			return nil, []error{err}
-		case crd != nil:
-			neededCrds[gk] = *crd
-		}
-	}
-
 	return neededCrds, resultErrs
 }
 
