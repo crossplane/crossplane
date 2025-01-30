@@ -26,11 +26,6 @@ limitations under the License.
 
 // Replicate identical API versions
 
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1/composition_revision_types.go apis/apiextensions/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1/composition_common.go apis/apiextensions/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1/composition_patches.go apis/apiextensions/v1beta1
-//go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1/composition_transforms.go apis/apiextensions/v1beta1
-
 //go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/environment_config_types.go apis/apiextensions/v1alpha1 false
 //go:generate ./hack/duplicate_api_type.sh apis/apiextensions/v1beta1/usage_types.go apis/apiextensions/v1alpha1 true
 

@@ -70,6 +70,8 @@ const (
 	errExtraResourceAsStruct    = "cannot encode extra resource to protocol buffer Struct well-known type"
 	errUnknownResourceSelector  = "cannot get extra resource by name: unknown resource selector type"
 	errListExtraResources       = "cannot list extra resources"
+	errGetComposed              = "cannot get composed resource"
+	errMarshalJSON              = "cannot marshal to JSON"
 
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
@@ -80,6 +82,8 @@ const (
 	errFmtCleanupLabelsCD            = "cannot cleanup composed resource labels of resource %q (a %s named %s)"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
+	errFmtRenderMetadata             = "cannot render metadata for composed resource %q"
+	errFmtGenerateName               = "cannot generate a name for composed resource %q"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 )
