@@ -96,7 +96,7 @@ func TestUsageComposition(t *testing.T) {
 	}))
 
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition pipeline and decomposed properly.").
+		features.NewWithDescription(t.Name(), "Tests scenarios for Crossplane's `Usage` resource as part of a composition and decomposed properly.").
 			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
