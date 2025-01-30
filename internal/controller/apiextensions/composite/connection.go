@@ -23,12 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // Error strings.
@@ -91,82 +88,4 @@ func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, 
 		return nil, errors.Wrap(err, errGetSecret)
 	}
 	return s.Data, nil
-}
-
-// SecretStoreConnectionPublisher is a ConnectionPublisher that stores
-// connection details on the configured SecretStore.
-type SecretStoreConnectionPublisher struct {
-	publisher managed.ConnectionPublisher
-	filter    []string
-}
-
-// NewSecretStoreConnectionPublisher returns a SecretStoreConnectionPublisher.
-func NewSecretStoreConnectionPublisher(p managed.ConnectionPublisher, filter []string) *SecretStoreConnectionPublisher {
-	return &SecretStoreConnectionPublisher{
-		publisher: p,
-		filter:    filter,
-	}
-}
-
-// PublishConnection details for the supplied resource.
-func (p *SecretStoreConnectionPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-	// This resource does not want to expose a connection secret.
-	if o.GetPublishConnectionDetailsTo() == nil {
-		return false, nil
-	}
-
-	data := map[string][]byte{}
-	m := map[string]bool{}
-	for _, key := range p.filter {
-		m[key] = true
-	}
-
-	for key, val := range c {
-		// If the filter does not have any keys, we allow all given keys to be
-		// published.
-		if len(m) == 0 || m[key] {
-			data[key] = val
-		}
-	}
-
-	return p.publisher.PublishConnection(ctx, o, data)
-}
-
-// UnpublishConnection details for the supplied resource.
-func (p *SecretStoreConnectionPublisher) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
-	return p.publisher.UnpublishConnection(ctx, o, c)
-}
-
-// NewSecretStoreConnectionDetailsConfigurator returns a Configurator that
-// configures a composite resource using its composition.
-func NewSecretStoreConnectionDetailsConfigurator(c client.Client) *SecretStoreConnectionDetailsConfigurator {
-	return &SecretStoreConnectionDetailsConfigurator{client: c}
-}
-
-// A SecretStoreConnectionDetailsConfigurator configures a composite resource
-// using its composition.
-type SecretStoreConnectionDetailsConfigurator struct {
-	client client.Client
-}
-
-// Configure any required fields that were omitted from the composite resource
-// by copying them from its composition.
-func (c *SecretStoreConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
-	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
-	if rev.Spec.CompositeTypeRef.APIVersion != apiVersion || rev.Spec.CompositeTypeRef.Kind != kind {
-		return errors.New(errCompositionNotCompatible)
-	}
-
-	if cp.GetPublishConnectionDetailsTo() != nil || rev.Spec.PublishConnectionDetailsWithStoreConfigRef == nil {
-		return nil
-	}
-
-	cp.SetPublishConnectionDetailsTo(&xpv1.PublishConnectionDetailsTo{
-		Name: string(cp.GetUID()),
-		SecretStoreConfigRef: &xpv1.Reference{
-			Name: rev.Spec.PublishConnectionDetailsWithStoreConfigRef.Name,
-		},
-	})
-
-	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }

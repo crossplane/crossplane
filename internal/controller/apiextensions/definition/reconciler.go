@@ -37,18 +37,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/conditions"
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -555,44 +552,11 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 		composite.WithPollInterval(r.options.PollInterval),
 	}
 
-	// If external secret stores aren't enabled we just fetch connection details
-	// from Kubernetes secrets.
-	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-
-	// We only want to enable ExternalSecretStore support if the relevant
-	// feature flag is enabled. Otherwise, we start the XR reconcilers with
-	// their default ConnectionPublisher and ConnectionDetailsFetcher.
-	// We also add a new Configurator for ExternalSecretStore which basically
-	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
-	// the composite resource.
-	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		pc := []managed.ConnectionPublisher{
-			composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys()),
-			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.engine.GetCached(), v1alpha1.StoreConfigGroupVersionKind,
-				connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
-		}
-
-		// If external secret stores are enabled we need to support fetching
-		// connection details from both secrets and external stores.
-		fetcher = composite.ConnectionDetailsFetcherChain{
-			composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached()),
-			connection.NewDetailsManager(r.engine.GetCached(), v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
-		}
-
-		cc := composite.NewConfiguratorChain(
-			composite.NewAPINamingConfigurator(r.engine.GetCached()),
-			composite.NewAPIConfigurator(r.engine.GetCached()),
-			composite.NewSecretStoreConnectionDetailsConfigurator(r.engine.GetCached()),
-		)
-
-		o = append(o,
-			composite.WithConnectionPublishers(pc...),
-			composite.WithConfigurator(cc))
-	}
-
 	// Wrap the PackagedFunctionRunner setup in main with support for loading
 	// extra resources to satisfy function requirements.
 	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
+
+	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
 
 	// This composer is used for mode: Pipeline Compositions.
 	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
