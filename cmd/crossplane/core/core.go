@@ -59,7 +59,6 @@ import (
 	"github.com/crossplane/crossplane/internal/metrics"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/usage"
-	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/xrd"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached"
@@ -475,9 +474,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// registrations.
 		if err := xrd.SetupWebhookWithManager(mgr, o); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
-		}
-		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositions")
 		}
 		if o.Features.Enabled(features.EnableBetaUsages) {
 			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {

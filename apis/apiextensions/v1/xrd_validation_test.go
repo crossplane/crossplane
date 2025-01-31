@@ -14,6 +14,7 @@ limitations under the License.
 package v1
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -22,6 +23,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
+
+// SortFieldErrors sorts the given field.ErrorList by the error message.
+func sortFieldErrors() cmp.Option {
+	return cmpopts.SortSlices(func(e1, e2 *field.Error) bool {
+		return strings.Compare(e1.Error(), e2.Error()) < 0
+	})
+}
 
 func TestValidateConversion(t *testing.T) {
 	cases := map[string]struct {
