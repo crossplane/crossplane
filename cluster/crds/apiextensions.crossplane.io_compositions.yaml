@@ -134,6 +134,9 @@ spec:
                         - name
                         - source
                         type: object
+                        x-kubernetes-validations:
+                        - message: the Secret source requires a secretRef
+                          rule: self.source == 'Secret' && has(self.secretRef)
                       type: array
                       x-kubernetes-list-map-keys:
                       - name
@@ -164,6 +167,8 @@ spec:
                   - functionRef
                   - step
                   type: object
+                maxItems: 99
+                minItems: 1
                 type: array
                 x-kubernetes-list-map-keys:
                 - step
@@ -177,6 +182,9 @@ spec:
             required:
             - compositeTypeRef
             type: object
+            x-kubernetes-validations:
+            - message: an array of pipeline steps is required in Pipeline mode
+              rule: self.mode == 'Pipeline' && has(self.pipeline)
         type: object
     served: true
     storage: true

@@ -320,3 +320,50 @@ func TestBindToExistingXR(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestCompositionValidation(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/validation"
+
+	cases := features.Table{
+		{
+			Name:        "ValidComposition",
+			Description: "A valid Composition should pass validation",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-valid.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-valid.yaml"),
+			),
+		},
+		{
+			Name:        "InvalidMissingPipeline",
+			Description: "A Composition without a pipeline shouldn't pass validation",
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid-missing-pipeline.yaml"),
+		},
+		{
+			Name:        "InvalidEmptyPipeline",
+			Description: "A Composition with a zero-length pipeline shouldn't pass validation",
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid-empty-pipeline.yaml"),
+		},
+		{
+			Name:        "InvalidDuplicatePipelinesteps",
+			Description: "A Composition with duplicate pipeline step names shouldn't pass validation",
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid-duplicate-pipeline-steps.yaml"),
+		},
+		{
+			Name:        "InvalidFunctionMissingSecretRef",
+			Description: "A Composition with a step using a Secret credential source but without a secretRef shouldn't pass validation",
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid-missing-secretref.yaml"),
+		},
+	}
+	environment.Test(t,
+		cases.Build(t.Name()).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithTeardown("DeleteValidComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "composition-valid.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition-valid.yaml"),
+			)).
+			Feature(),
+	)
+}

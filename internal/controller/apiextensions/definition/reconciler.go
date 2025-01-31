@@ -550,7 +550,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 	// extra resources to satisfy function requirements.
 	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
 
-	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetClient())
+	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
 
 	// This composer is used for mode: Pipeline Compositions.
 	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,

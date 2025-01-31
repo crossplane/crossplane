@@ -139,6 +139,9 @@ spec:
                         - name
                         - source
                         type: object
+                        x-kubernetes-validations:
+                        - message: the Secret source requires a secretRef
+                          rule: self.source == 'Secret' && has(self.secretRef)
                       type: array
                       x-kubernetes-list-map-keys:
                       - name

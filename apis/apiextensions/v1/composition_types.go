@@ -21,6 +21,8 @@ import (
 )
 
 // CompositionSpec specifies desired state of a composition.
+//
+// +kubebuilder:validation:XValidation:rule="self.mode == 'Pipeline' && has(self.pipeline)",message="an array of pipeline steps is required in Pipeline mode"
 type CompositionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
@@ -47,6 +49,8 @@ type CompositionSpec struct {
 	// +optional
 	// +listType=map
 	// +listMapKey=step
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=99
 	Pipeline []PipelineStep `json:"pipeline,omitempty"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the

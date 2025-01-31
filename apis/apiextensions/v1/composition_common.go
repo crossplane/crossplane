@@ -88,6 +88,8 @@ type FunctionReference struct {
 
 // FunctionCredentials are optional credentials that a Composition Function
 // needs to run.
+//
+// +kubebuilder:validation:XValidation:rule="self.source == 'Secret' && has(self.secretRef)",message="the Secret source requires a secretRef"
 type FunctionCredentials struct {
 	// Name of this set of credentials.
 	Name string `json:"name"`
