@@ -136,6 +136,47 @@ func TestRunFunction(t *testing.T) {
 				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtGetClientConn, "cool-fn"),
 			},
 		},
+		"RequestFailed": {
+			reason: "We should return an error with the function name if the request to the server fails",
+			params: params{
+				c: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						// Start a gRPC server that returns an error.
+						lis := NewGRPCServer(t, &MockFunctionServer{err: errBoom})
+						listeners = append(listeners, lis)
+
+						l, ok := obj.(*pkgv1.FunctionRevisionList)
+						if !ok {
+							return nil
+						}
+						l.Items = []pkgv1.FunctionRevision{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "cool-fn-revision-a",
+								},
+								Spec: pkgv1.FunctionRevisionSpec{
+									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										DesiredState: pkgv1.PackageRevisionActive,
+									},
+								},
+								Status: pkgv1.FunctionRevisionStatus{
+									Endpoint: strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1),
+								},
+							},
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				ctx:  context.Background(),
+				name: "cool-fn",
+				req:  &fnv1.RunFunctionRequest{},
+			},
+			want: want{
+				err: errors.Errorf(errFmtRunFunction, "cool-fn"),
+			},
+		},
 		"SuccessfulRequest": {
 			reason: "We should create a new client connection and successfully make a request if no client already exists",
 			params: params{

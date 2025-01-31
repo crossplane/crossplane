@@ -45,7 +45,7 @@ const (
 	errListFunctions         = "cannot List Functions to determine which gRPC client connections to garbage collect."
 
 	errFmtGetClientConn = "cannot get gRPC client connection for Function %q"
-	errFmtRunFunction   = "cannot run Function %q"
+	errFmtRunFunction   = "Function %q is not ready to run"
 	errFmtEmptyEndpoint = "cannot determine gRPC target: active FunctionRevision %q has an empty status.endpoint"
 	errFmtDialFunction  = "cannot gRPC dial target %q from status.endpoint of active FunctionRevision %q"
 )
@@ -148,7 +148,11 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 	}
 
 	rsp, err := NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
-	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
+	if err != nil {
+		return rsp, errors.Errorf(errFmtRunFunction, name)
+	}
+
+	return rsp, nil
 }
 
 // In most cases our gRPC target will be a Kubernetes Service. The package
