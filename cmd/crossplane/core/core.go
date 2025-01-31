@@ -115,15 +115,13 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableRealtimeCompositions      bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableSignatureVerification     bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 
-	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
-	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
-	EnableUsages                             bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
-	EnableSSAClaims                          bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableDeploymentRuntimeConfigs bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
+	EnableUsages                   bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableSSAClaims                bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
 
 	// These are GA features that previously had alpha or beta feature flags.
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
@@ -133,11 +131,15 @@ type startCommand struct {
 	EnableCompositionFunctions               bool `default:"true" hidden:""`
 	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
 
-	// These are alpha features that we've removed support for. Crossplane
-	// returns an error when you enable them. This ensures you'll see an
-	// explicit and informative error on startup, instead of a potentially
-	// surprising one later.
+	// These are features that we've removed support for. Crossplane returns an
+	// error when you enable them. This ensures you'll see an explicit and
+	// informative error on startup, instead of a potentially surprising one
+	// later.
 	EnableEnvironmentConfigs bool `hidden:""`
+
+	// TODO(negz): Add errors.
+	EnableCompositionWebhookSchemaValidation bool `hidden:""`
+	EnableExternalSecretStores               bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -257,10 +259,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// Periodically remove clients for Functions that no longer exist.
 	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
 
-	if c.EnableCompositionWebhookSchemaValidation {
-		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
-	}
 	if c.EnableUsages {
 		o.Features.Enable(features.EnableBetaUsages)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaUsages)
