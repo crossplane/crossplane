@@ -67,7 +67,6 @@ const (
 	errConfigure              = "cannot configure composite resource"
 	errPublish                = "cannot publish connection details"
 	errUnpublish              = "cannot unpublish connection details"
-	errValidate               = "refusing to use invalid Composition"
 	errAssociate              = "cannot associate composed resources with Composition resource templates"
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
@@ -265,14 +264,6 @@ func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOpti
 	}
 }
 
-// WithCompositionRevisionValidator specifies how the Reconciler should validate
-// CompositionRevisions.
-func WithCompositionRevisionValidator(v CompositionRevisionValidator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.revision.CompositionRevisionValidator = v
-	}
-}
-
 // WithCompositeFinalizer specifies how the composition to be used should be
 // selected.
 // WithCompositeFinalizer specifies which Finalizer should be used to finalize
@@ -326,21 +317,6 @@ func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStar
 
 type revision struct {
 	CompositionRevisionFetcher
-	CompositionRevisionValidator
-}
-
-// A CompositionRevisionValidator validates the supplied CompositionRevision.
-type CompositionRevisionValidator interface {
-	Validate(rev *v1.CompositionRevision) error
-}
-
-// A CompositionRevisionValidatorFn is a function that validates a
-// CompositionRevision.
-type CompositionRevisionValidatorFn func(*v1.CompositionRevision) error
-
-// Validate the supplied CompositionRevision.
-func (fn CompositionRevisionValidatorFn) Validate(c *v1.CompositionRevision) error {
-	return fn(c)
 }
 
 // A WatchStarter can start a new watch. XR controllers use this to dynamically
@@ -525,16 +501,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
-	}
-
-	// TODO(negz): Update this to validate the revision? In practice that's what
-	// it's doing today when revis are enabled.
-	if err := r.revision.Validate(rev); err != nil {
-		log.Debug(errValidate, "error", err)
-		err = errors.Wrap(err, errValidate)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
