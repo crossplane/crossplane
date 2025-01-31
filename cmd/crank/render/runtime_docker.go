@@ -22,6 +22,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 
 	"github.com/distribution/reference"
 	"github.com/docker/cli/cli/config"
@@ -162,8 +163,24 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 		return nil, errors.Wrapf(err, "cannot get pull policy for Function %q", fn.GetName())
 	}
 
-	// Initial ConfigFile
-	configFile := config.LoadDefaultConfigFile(os.Stderr)
+	// Initial ConfigFile, first check environment variable XDG_RUNTIME_DIR for Podman if it exists
+	// Otherwise, use the default Docker config file
+	var configFile *configfile.ConfigFile
+	if _, err := os.Stat(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json")); err == nil {
+		// Use the auth.json file if specified XDG_RUNTIME_DIR and file exists
+		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot open file %s", filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
+		}
+		defer f.Close() //nolint:errcheck // Only open for reading.
+
+		configFile, err = config.LoadFromReader(f)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot load config file from reader")
+		}
+	} else {
+		configFile = config.LoadDefaultConfigFile(os.Stderr)
+	}
 
 	r := &RuntimeDocker{
 		Image:      fn.Spec.Package,
