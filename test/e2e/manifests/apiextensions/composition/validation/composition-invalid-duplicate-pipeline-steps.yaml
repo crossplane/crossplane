@@ -11,9 +11,6 @@ spec:
   - step: one
     functionRef:
       name: function-something
-    credentials:
-    - name: some-secret
-      source: Secret
-      secretRef:
-        namespace: default
-        name: some-secret
+  - step: one
+    functionRef:
+      name: function-something-else
