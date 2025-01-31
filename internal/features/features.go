@@ -36,12 +36,6 @@ const (
 
 // Beta Feature Flags.
 const (
-	// EnableBetaCompositionWebhookSchemaValidation enables alpha support for
-	// composition webhook schema validation. See the below design for more
-	// details.
-	// https://github.com/crossplane/crossplane/blob/f32496/design/design-doc-composition-validating-webhook.md
-	EnableBetaCompositionWebhookSchemaValidation feature.Flag = "EnableBetaCompositionWebhookSchemaValidation"
-
 	// EnableBetaDeploymentRuntimeConfigs enables beta support for deployment
 	// runtime configs. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/c2e206/design/one-pager-package-runtime-config.md
