@@ -1,7 +1,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: valid
+  name: invalid-duplicate-pipeline-steps
 spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1

@@ -12,13 +12,3 @@ spec:
   # intentional. We want to make sure Crossplane is backward compatible with
   # older v1beta1 functions.
   package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
----
-apiVersion: pkg.crossplane.io/v1
-kind: Function
-metadata:
-  name: function-auto-ready
-spec:
-  # TODO(negz): This function should use meta.pkg.crossplane.io/v1 metadata.
-  # It supports the new v1 RPCs but it can't be built using v1 metadata until
-  # https://github.com/crossplane/crossplane/issues/5971 is fixed.
-  package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.3.0
