@@ -3,7 +3,7 @@
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
-  name: function-dummy
+  name: function-dummy-apiextensions-usage
 spec:
   # NOTE(negz): This is currently manually pushed. See README.md at
   # https://github.com/crossplane-contrib/function-dummy.
@@ -16,7 +16,7 @@ spec:
 apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: function-auto-ready
+  name: function-auto-ready-apiextensions-usage
 spec:
   # TODO(negz): This function should use meta.pkg.crossplane.io/v1 metadata.
   # It supports the new v1 RPCs but it can't be built using v1 metadata until
