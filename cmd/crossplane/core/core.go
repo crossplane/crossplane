@@ -340,8 +340,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			// Don't cache secrets - there may be a lot of them.
 			DisableFor: []client.Object{&corev1.Secret{}},
 
-			// Cache unstructured resources (like XRs and MRs) on Get and List.
-			Unstructured: true,
+			// Do not cache unstructured resources (like XRs and MRs) on Get and List.
+			// Stale caches can cause Crossplane to leak resources.
+			// See https://github.com/crossplane/crossplane/issues/6260
+			Unstructured: false,
 		},
 	})
 	if err != nil {
