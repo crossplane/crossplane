@@ -32,9 +32,6 @@ spec:
                     - conditionType: Ready
                       conditionStatus: "True"
                       time: 1s
-        results:
-         - severity: SEVERITY_NORMAL
-           message: "I am doing a compose!"
   - step: detect-readiness
     functionRef:
       name: function-auto-ready
