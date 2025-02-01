@@ -10,7 +10,7 @@ spec:
   pipeline:
   - step: patch
     functionRef:
-      name: function-patch-and-transform
+      name: function-patch-and-transform-ext-realtime
     input:
       apiVersion: pt.fn.crossplane.io/v1beta1
       kind: Resources
@@ -34,4 +34,4 @@ spec:
           toFieldPath: status.coolerField
   - step: detect-readiness
     functionRef:
-      name: function-auto-ready
+      name: function-auto-ready-ext-realtime

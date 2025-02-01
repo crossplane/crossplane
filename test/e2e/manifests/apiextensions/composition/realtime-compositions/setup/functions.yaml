@@ -2,13 +2,13 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: function-patch-and-transform
+  name: function-patch-and-transform-ext-realtime
 spec:
   package: xpkg.upbound.io/crossplane-contrib/function-patch-and-transform:v0.8.1
 ---
 apiVersion: pkg.crossplane.io/v1
 kind: Function
 metadata:
-  name: function-auto-ready
+  name: function-auto-ready-ext-realtime
 spec:
   package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.4.1

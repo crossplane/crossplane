@@ -3,7 +3,7 @@
 apiVersion: pkg.crossplane.io/v1beta1
 kind: Function
 metadata:
-  name: function-dummy
+  name: function-dummy-ext-realtime-revision
 spec:
   # NOTE(negz): This is currently manually pushed. See README.md at
   # https://github.com/crossplane-contrib/function-dummy.
