@@ -10,7 +10,7 @@ spec:
   pipeline:
   - step: be-a-dummy
     functionRef:
-      name: function-dummy
+      name: function-dummy-ext-realtime-revision
     input:
       apiVersion: dummy.fn.crossplane.io/v1beta1
       kind: Response
