@@ -79,10 +79,7 @@ func TestUsageStandalone(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			// Disable our feature flag.
 			WithTeardown("DisableAlphaUsages", funcs.AllOf(
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
@@ -248,10 +245,7 @@ func TestUsageCompositionWithPipeline(t *testing.T) {
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, nopList),
 				funcs.ListedResourcesDeletedWithin(2*time.Minute, usageList),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			// Disable our feature flag.
 			WithTeardown("DisableAlphaUsages", funcs.AllOf(
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
