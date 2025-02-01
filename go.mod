@@ -8,7 +8,6 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.9.0
 	github.com/crossplane/crossplane-runtime v1.19.0-rc.0.0.20241105071456-19d95a69cc03
-	github.com/distribution/reference v0.5.0
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.6.2
@@ -64,8 +63,7 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/digitorus/pkcs7 v0.0.0-20230818184609-3a137a874352 // indirect
 	github.com/digitorus/timestamp v0.0.0-20231217203849-220c5c2851b7 // indirect
-	github.com/docker/go-metrics v0.0.1 // indirect
-	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
+	github.com/distribution/reference v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d // indirect
@@ -89,7 +87,6 @@ require (
 	github.com/google/certificate-transparency-go v1.2.1 // indirect
 	github.com/google/gnostic-models v0.6.9-0.20230804172637-c7be7c783f49 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
@@ -192,7 +189,7 @@ require (
 	github.com/dave/jennifer v1.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/docker/cli v27.4.1+incompatible
+	github.com/docker/cli v27.4.1+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.2
 	github.com/docker/go-units v0.5.0 // indirect
