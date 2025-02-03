@@ -18,22 +18,19 @@ package render
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
-	"os"
 
-	"github.com/distribution/reference"
-	"github.com/docker/cli/cli/config"
-	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	typesimage "github.com/docker/docker/api/types/image"
-	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/nat"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -112,11 +109,11 @@ type RuntimeDocker struct {
 	// Cleanup controls how the containers are handled after rendering.
 	Cleanup DockerCleanup
 
-	// ConfigFile contains information like credentials for each registry, default to ~/.docker/config.json
-	ConfigFile *configfile.ConfigFile
-
 	// PullPolicy controls how the runtime image is pulled.
 	PullPolicy DockerPullPolicy
+
+	// Keychain to use for pulling images from private registry.
+	Keychain authn.Keychain
 
 	// log is the logger for this runtime.
 	log logging.Logger
@@ -162,15 +159,12 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 		return nil, errors.Wrapf(err, "cannot get pull policy for Function %q", fn.GetName())
 	}
 
-	// Initial ConfigFile
-	configFile := config.LoadDefaultConfigFile(os.Stderr)
-
 	r := &RuntimeDocker{
 		Image:      fn.Spec.Package,
 		Name:       "",
 		Cleanup:    cleanup,
-		ConfigFile: configFile,
 		PullPolicy: pullPolicy,
+		Keychain:   authn.DefaultKeychain,
 		log:        log,
 	}
 
@@ -301,33 +295,29 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 }
 
 func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
-	// Resolve auth token by looking into config file
-	named, err := reference.ParseNormalizedNamed(r.Image)
+	// Resolve auth token by looking into keychain
+	ref, err := name.ParseReference(r.Image)
 	if err != nil {
 		return typesimage.PullOptions{}, errors.Wrapf(err, "Image is not a valid reference %s", r.Image)
 	}
 
-	repoInfo, err := registry.ParseRepositoryInfo(named)
+	auth, err := r.Keychain.Resolve(ref.Context().Registry)
 	if err != nil {
-		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot parse repository info: %s", named.String())
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot resolve auth for %s", ref.Context().RegistryStr())
 	}
 
-	configKey := repoInfo.Index.Name
-	if repoInfo.Index.Official {
-		configKey = registry.IndexServer
-	}
-	authConfig, err := r.ConfigFile.GetAuthConfig(configKey)
+	authConfig, err := auth.Authorization()
 	if err != nil {
-		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot get auth config info with configKey: %s", configKey)
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot get auth config for %s", ref.Context().RegistryStr())
 	}
 
-	encodedAuth, err := registrytypes.EncodeAuthConfig(registrytypes.AuthConfig(authConfig))
+	token, err := authConfig.MarshalJSON()
 	if err != nil {
-		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot encode auth config with configKey: %s", configKey)
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot marshal auth config for %s", ref.Context().RegistryStr())
 	}
 
 	return typesimage.PullOptions{
-		RegistryAuth: encodedAuth,
+		RegistryAuth: base64.URLEncoding.EncodeToString(token),
 	}, nil
 }
 
