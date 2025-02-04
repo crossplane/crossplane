@@ -7,7 +7,7 @@ require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.9.0
-	github.com/crossplane/crossplane-runtime v1.19.0-rc.0.0.20241105071456-19d95a69cc03
+	github.com/crossplane/crossplane-runtime v1.20.0-rc.0
 	github.com/docker/docker v27.1.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/emicklei/dot v1.6.2
