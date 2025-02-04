@@ -473,7 +473,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 		want   want
 	}{
 		"ProviderServiceNoRuntimeConfig": {
-			reason: "No overrides should result in a deployment with default values",
+			reason: "No runtime config on the builder should result in a service with default values",
 			args: args{
 				builder: &RuntimeManifestBuilder{
 					revision:  providerRevision,
@@ -484,10 +484,10 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 					ServiceWithSelectors(providerSelectors(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision)),
 					ServiceWithAdditionalPorts([]corev1.ServicePort{
 						{
-							Name:       grpcPortName,
+							Name:       webhookPortName,
 							Protocol:   corev1.ProtocolTCP,
 							Port:       servicePort,
-							TargetPort: intstr.FromString(grpcPortName),
+							TargetPort: intstr.FromString(webhookPortName),
 						},
 					}),
 				},
@@ -514,9 +514,9 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 						},
 						Ports: []corev1.ServicePort{
 							{
-								Name:       grpcPortName,
+								Name:       webhookPortName,
 								Port:       int32(servicePort),
-								TargetPort: intstr.FromString(grpcPortName),
+								TargetPort: intstr.FromString(webhookPortName),
 								Protocol:   corev1.ProtocolTCP,
 							},
 						},
