@@ -356,14 +356,23 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			// Don't cache secrets - there may be a lot of them.
 			DisableFor: []client.Object{&corev1.Secret{}},
 
-			// Do not cache unstructured resources (like XRs and MRs) on Get and List.
-			// Stale caches can cause Crossplane to leak resources.
-			// See https://github.com/crossplane/crossplane/issues/6260
-			Unstructured: false,
+			// Cache unstructured resources (like XRs and MRs) on Get and List.
+			Unstructured: true,
 		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create client for API extension controllers")
+	}
+
+	// Create a separate no-cache client for use when the composite controller does not find an Unstructured
+	// resource that it expects to find in the cache.
+	nccl, err := client.New(mgr.GetConfig(), client.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Scheme:     mgr.GetScheme(),
+		Mapper:     mgr.GetRESTMapper(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot create no-cache client for API extension controllers")
 	}
 
 	// It's important the engine's client is wrapped with unstructured.NewClient
@@ -373,6 +382,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	ce := engine.New(mgr,
 		engine.TrackInformers(ca, mgr.GetScheme()),
 		unstructured.NewClient(cl),
+		unstructured.NewClient(nccl),
 		engine.WithLogger(log),
 	)
 

@@ -125,11 +125,11 @@ type PTComposer struct {
 
 // NewPTComposer returns a Composer that composes resources using Patch and
 // Transform (P&T) Composition - a Composition's bases, patches, and transforms.
-func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
+func NewPTComposer(kube client.Client, nckube client.Client, o ...PTComposerOption) *PTComposer {
 	c := &PTComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
-		composition: NewGarbageCollectingAssociator(kube),
+		composition: NewGarbageCollectingAssociator(kube, nckube),
 		composed: composedResource{
 			NameGenerator:              names.NewNameGenerator(kube),
 			ReadinessChecker:           ReadinessCheckerFn(IsReady),
@@ -442,13 +442,14 @@ func (fn CompositionTemplateAssociatorFn) AssociateTemplates(ctx context.Context
 // that corresponds to a non-existent template the resource will be garbage
 // collected (i.e. deleted).
 type GarbageCollectingAssociator struct {
-	client client.Client
+	client   client.Client
+	ncclient client.Client
 }
 
 // NewGarbageCollectingAssociator returns a CompositionTemplateAssociator that
 // may garbage collect composed resources.
-func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociator {
-	return &GarbageCollectingAssociator{client: c}
+func NewGarbageCollectingAssociator(c client.Client, nc client.Client) *GarbageCollectingAssociator {
+	return &GarbageCollectingAssociator{client: c, ncclient: nc}
 }
 
 // AssociateTemplates with composed resources.
@@ -478,9 +479,13 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
 		err := a.client.Get(ctx, nn, cd)
 
-		// We believe we created this resource, but it no longer exists.
 		if kerrors.IsNotFound(err) {
-			continue
+			// We believe we created this resource, but it is not in the cache yet?  Try again without the cache.
+			err = a.ncclient.Get(ctx, nn, cd)
+			if kerrors.IsNotFound(err) {
+				// We believe we created this resource, but it no longer exists.
+				continue
+			}
 		}
 
 		if err != nil {

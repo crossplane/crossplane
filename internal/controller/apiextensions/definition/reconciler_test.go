@@ -82,6 +82,10 @@ func (m *MockEngine) GetClient() client.Client {
 	return m.MockGetClient()
 }
 
+func (m *MockEngine) GetNcClient() client.Client {
+	return m.MockGetClient()
+}
+
 func (m *MockEngine) GetFieldIndexer() client.FieldIndexer {
 	return m.MockGetFieldIndexer()
 }
