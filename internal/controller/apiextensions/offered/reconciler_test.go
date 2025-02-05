@@ -70,7 +70,7 @@ func (m *MockEngine) StartWatches(name string, ws ...engine.Watch) error {
 	return m.MockStartWatches(name, ws...)
 }
 
-func (m *MockEngine) GetClient() client.Client {
+func (m *MockEngine) GetCached() client.Client {
 	return m.MockGetClient()
 }
 
