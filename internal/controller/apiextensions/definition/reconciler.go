@@ -102,6 +102,7 @@ type ControllerEngine interface {
 	StartWatches(name string, ws ...engine.Watch) error
 	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
 	GetClient() client.Client
+	GetNcClient() client.Client
 	GetFieldIndexer() client.FieldIndexer
 }
 
@@ -130,6 +131,11 @@ func (e *NopEngine) StopWatches(_ context.Context, _ string, _ ...engine.WatchID
 
 // GetClient returns a nil client.
 func (e *NopEngine) GetClient() client.Client {
+	return nil
+}
+
+// GetNcClient returns a nil client.
+func (e *NopEngine) GetNcClient() client.Client {
 	return nil
 }
 
@@ -469,7 +475,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ro := r.CompositeReconcilerOptions(ctx, d)
 	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
 
-	cr := composite.NewReconciler(r.engine.GetClient(), ck, ro...)
+	cr := composite.NewReconciler(r.engine.GetClient(), r.engine.GetNcClient(), ck, ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -579,15 +585,15 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 	}
 
 	// This composer is used for mode: Resources Compositions (the default).
-	ptc := composite.NewPTComposer(r.engine.GetClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))
+	ptc := composite.NewPTComposer(r.engine.GetClient(), r.engine.GetNcClient(), composite.WithComposedConnectionDetailsFetcher(fetcher))
 
 	// Wrap the PackagedFunctionRunner setup in main with support for loading
 	// extra resources to satisfy function requirements.
 	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetClient()))
 
 	// This composer is used for mode: Pipeline Compositions.
-	fc := composite.NewFunctionComposer(r.engine.GetClient(), runner,
-		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetClient(), fetcher)),
+	fc := composite.NewFunctionComposer(r.engine.GetClient(), r.engine.GetNcClient(), runner,
+		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetClient(), r.engine.GetNcClient(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 

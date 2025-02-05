@@ -42,6 +42,7 @@ type MockEngine struct {
 	MockGetWatches  func(name string) ([]engine.WatchID, error)
 	MockStopWatches func(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
 	MockGetClient   func() client.Client
+	MockGetNcClient func() client.Client
 }
 
 func (m *MockEngine) GetWatches(name string) ([]engine.WatchID, error) {
@@ -54,6 +55,10 @@ func (m *MockEngine) StopWatches(ctx context.Context, name string, ws ...engine.
 
 func (m *MockEngine) GetClient() client.Client {
 	return m.MockGetClient()
+}
+
+func (m *MockEngine) GetNcClient() client.Client {
+	return m.MockGetNcClient()
 }
 
 func TestGarbageCollectWatchesNow(t *testing.T) {
