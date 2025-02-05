@@ -56,10 +56,10 @@ func TestFunctionCompose(t *testing.T) {
 	errProtoSyntax := protojson.Unmarshal([]byte("hi"), &structpb.Struct{})
 
 	type params struct {
-		kube   client.Client
-		nckube client.Client
-		r      FunctionRunner
-		o      []FunctionComposerOption
+		c  client.Client
+		uc client.Client
+		r  FunctionRunner
+		o  []FunctionComposerOption
 	}
 	type args struct {
 		ctx context.Context
@@ -152,11 +152,11 @@ func TestFunctionCompose(t *testing.T) {
 		"GetCredentialsSecretError": {
 			reason: "We should return any error encountered while getting the credentials secret for a Composition Function",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -406,10 +406,10 @@ func TestFunctionCompose(t *testing.T) {
 		"GenerateNameCreateComposedResourceError": {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -459,10 +459,10 @@ func TestFunctionCompose(t *testing.T) {
 		"GarbageCollectComposedResourcesError": {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					MockPatch: test.NewMockPatchFn(nil),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -503,7 +503,7 @@ func TestFunctionCompose(t *testing.T) {
 		"ApplyXRResourceReferencesError": {
 			reason: "We should return any error we encounter when applying the composite resource's resource references",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error for the XR.
 						switch obj.(type) {
@@ -514,7 +514,7 @@ func TestFunctionCompose(t *testing.T) {
 						return nil
 					}),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -555,11 +555,11 @@ func TestFunctionCompose(t *testing.T) {
 		"ApplyXRStatusError": {
 			reason: "We should return any error we encounter when applying the composite resource status",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -609,7 +609,7 @@ func TestFunctionCompose(t *testing.T) {
 		"ApplyComposedResourceError": {
 			reason: "We should return any error we encounter when applying a composed resource",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{Resource: "UncoolComposed"}, "")), // all names are available
 					MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 						// We only want to return an error if we're patching a
@@ -623,7 +623,7 @@ func TestFunctionCompose(t *testing.T) {
 					}),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -674,7 +674,7 @@ func TestFunctionCompose(t *testing.T) {
 		"Successful": {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
-				kube: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if s, ok := obj.(*corev1.Secret); ok {
 							s.Data = map[string][]byte{
@@ -692,7 +692,7 @@ func TestFunctionCompose(t *testing.T) {
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
 				},
-				nckube: &test.MockClient{
+				uc: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -898,7 +898,7 @@ func TestFunctionCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewFunctionComposer(tc.params.kube, tc.params.nckube, tc.params.r, tc.params.o...)
+			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
