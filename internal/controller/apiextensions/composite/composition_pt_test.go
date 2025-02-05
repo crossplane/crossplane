@@ -50,8 +50,9 @@ func TestPTCompose(t *testing.T) {
 	base := runtime.RawExtension{Raw: []byte(`{"apiVersion":"test.crossplane.io/v1","kind":"ComposedResource"}`)}
 
 	type params struct {
-		kube client.Client
-		o    []PTComposerOption
+		kube   client.Client
+		nckube client.Client
+		o      []PTComposerOption
 	}
 	type args struct {
 		ctx context.Context
@@ -152,6 +153,9 @@ func TestPTCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
@@ -184,6 +188,9 @@ func TestPTCompose(t *testing.T) {
 					// Apply calls Create because GenerateName is set.
 					MockCreate: test.NewMockCreateFn(errBoom),
 				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						tas := []TemplateAssociation{{
@@ -215,6 +222,9 @@ func TestPTCompose(t *testing.T) {
 
 					// Apply calls Create because GenerateName is set.
 					MockCreate: test.NewMockCreateFn(nil),
+				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -250,6 +260,9 @@ func TestPTCompose(t *testing.T) {
 
 					// Apply calls Create because GenerateName is set.
 					MockCreate: test.NewMockCreateFn(nil),
+				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -288,6 +301,9 @@ func TestPTCompose(t *testing.T) {
 
 					// Apply calls Create because GenerateName is set.
 					MockCreate: test.NewMockCreateFn(nil),
+				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -333,6 +349,9 @@ func TestPTCompose(t *testing.T) {
 					MockGet:   test.NewMockGetFn(errBoom),
 					MockPatch: test.NewMockPatchFn(nil),
 				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						return nil, nil
@@ -359,6 +378,9 @@ func TestPTCompose(t *testing.T) {
 					MockGet:    test.NewMockGetFn(nil),
 					MockCreate: test.NewMockCreateFn(nil),
 					MockPatch:  test.NewMockPatchFn(nil),
+				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -409,6 +431,9 @@ func TestPTCompose(t *testing.T) {
 					MockGet:    test.NewMockGetFn(nil),
 					MockCreate: test.NewMockCreateFn(nil),
 					MockPatch:  test.NewMockPatchFn(nil),
+				},
+				nckube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(_ context.Context, _ resource.Composite, _ []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -481,7 +506,7 @@ func TestPTCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewPTComposer(tc.params.kube, tc.params.o...)
+			c := NewPTComposer(tc.params.kube, tc.params.nckube, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty()); diff != "" {
@@ -572,6 +597,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 	cases := map[string]struct {
 		reason string
 		c      client.Client
+		nc     client.Client
 		args   args
 		want   want
 	}{
@@ -590,6 +616,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+			},
 			args: args{
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
@@ -604,6 +633,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			reason: "Errors getting a referenced resource should be returned.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(errBoom),
+			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -620,6 +652,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			c: &test.MockClient{
 				// Return an empty (and thus unannotated) composed resource.
 				MockGet: test.NewMockGetFn(nil),
+			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -638,6 +673,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					SetCompositionResourceName(obj.(metav1.Object), ResourceName(n0))
 					return nil
 				}),
+			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -668,6 +706,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					return nil
 				}),
 			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+			},
 			args: args{
 				cr: &fake.Composite{
 					ObjectMeta:                  metav1.ObjectMeta{UID: types.UID("very-unique")},
@@ -691,6 +732,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				}),
 				MockUpdate: test.NewMockUpdateFn(nil),
 				MockDelete: test.NewMockDeleteFn(nil),
+			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -721,6 +765,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				}),
 				MockUpdate: test.NewMockUpdateFn(nil),
 				MockDelete: test.NewMockDeleteFn(errBoom),
+			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -764,6 +811,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				},
 				MockDelete: test.NewMockDeleteFn(nil),
 			},
+			nc: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+			},
 			args: args{
 				cr: &fake.Composite{
 					ObjectMeta:                  metav1.ObjectMeta{UID: "it-me"},
@@ -779,7 +829,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			a := NewGarbageCollectingAssociator(tc.c)
+			a := NewGarbageCollectingAssociator(tc.c, tc.nc)
 			got, err := a.AssociateTemplates(tc.args.ctx, tc.args.cr, tc.args.ct)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

@@ -56,9 +56,10 @@ func TestFunctionCompose(t *testing.T) {
 	errProtoSyntax := protojson.Unmarshal([]byte("hi"), &structpb.Struct{})
 
 	type params struct {
-		kube client.Client
-		r    FunctionRunner
-		o    []FunctionComposerOption
+		kube   client.Client
+		nckube client.Client
+		r      FunctionRunner
+		o      []FunctionComposerOption
 	}
 	type args struct {
 		ctx context.Context
@@ -152,6 +153,10 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error encountered while getting the credentials secret for a Composition Function",
 			params: params{
 				kube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				nckube: &test.MockClient{
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
@@ -404,6 +409,10 @@ func TestFunctionCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
 				},
+				nckube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
@@ -453,6 +462,10 @@ func TestFunctionCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockPatch: test.NewMockPatchFn(nil),
 				},
+				nckube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
@@ -501,6 +514,10 @@ func TestFunctionCompose(t *testing.T) {
 						return nil
 					}),
 				},
+				nckube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
@@ -541,6 +558,10 @@ func TestFunctionCompose(t *testing.T) {
 				kube: &test.MockClient{
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(errBoom),
+				},
+				nckube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
@@ -601,6 +622,10 @@ func TestFunctionCompose(t *testing.T) {
 						return nil
 					}),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				nckube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
@@ -666,6 +691,10 @@ func TestFunctionCompose(t *testing.T) {
 					}),
 					MockPatch:       test.NewMockPatchFn(nil),
 					MockStatusPatch: test.NewMockSubResourcePatchFn(nil),
+				},
+				nckube: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
@@ -869,7 +898,7 @@ func TestFunctionCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewFunctionComposer(tc.params.kube, tc.params.r, tc.params.o...)
+			c := NewFunctionComposer(tc.params.kube, tc.params.nckube, tc.params.r, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -904,8 +933,9 @@ func TestGetComposedResources(t *testing.T) {
 	details := managed.ConnectionDetails{"a": []byte("b")}
 
 	type params struct {
-		c client.Reader
-		f managed.ConnectionDetailsFetcher
+		c  client.Reader
+		uc client.Reader
+		f  managed.ConnectionDetailsFetcher
 	}
 
 	type args struct {
@@ -932,6 +962,11 @@ func TestGetComposedResources(t *testing.T) {
 					// this error.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
 			},
 			args: args{
 				xr: &fake.Composite{
@@ -952,6 +987,11 @@ func TestGetComposedResources(t *testing.T) {
 				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
 			},
 			args: args{
 				xr: &fake.Composite{
@@ -967,6 +1007,11 @@ func TestGetComposedResources(t *testing.T) {
 			reason: "We should return any error we encounter while getting a composed resource.",
 			params: params{
 				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
 			},
@@ -996,6 +1041,11 @@ func TestGetComposedResources(t *testing.T) {
 						return nil
 					}),
 				},
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
 			},
 			args: args{
 				xr: &fake.Composite{
@@ -1016,6 +1066,11 @@ func TestGetComposedResources(t *testing.T) {
 				c: &test.MockClient{
 					// We 'return' an empty resource with no annotations.
 					MockGet: test.NewMockGetFn(nil),
+				},
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 			},
 			args: args{
@@ -1044,6 +1099,11 @@ func TestGetComposedResources(t *testing.T) {
 				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return nil, errBoom
 				}),
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
 			},
 			args: args{
 				xr: &fake.Composite{
@@ -1061,10 +1121,13 @@ func TestGetComposedResources(t *testing.T) {
 				err: errors.Wrapf(errBoom, errFmtFetchCDConnectionDetails, "cool-resource", "Broken", "cool-resource-42"),
 			},
 		},
-		"Success": {
-			reason: "We should return any composed resources and their connection details.",
+		"ComposedResourceNotFoundInCache": {
+			reason: "We should use the no-cache client for resources that are not found in the cache.",
 			params: params{
 				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
+				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						obj.SetName("cool-resource-42")
 						SetCompositionResourceName(obj, "cool-resource")
@@ -1104,11 +1167,59 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 		},
+		"Success": {
+			reason: "We should return any composed resources and their connection details.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetName("cool-resource-42")
+						SetCompositionResourceName(obj, "cool-resource")
+						return nil
+					}),
+				},
+				uc: &test.MockClient{
+					// We should continue past the unnamed reference and not hit
+					// this error.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					return details, nil
+				}),
+			},
+			args: args{
+				xr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							{
+								APIVersion: "example.org/v1",
+								Kind:       "Composed",
+								Name:       "cool-resource-42",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				ors: ComposedResourceStates{
+					"cool-resource": ComposedResourceState{
+						ConnectionDetails: details,
+						Resource: func() resource.Composed {
+							cd := composed.New()
+							cd.SetAPIVersion("example.org/v1")
+							cd.SetKind("Composed")
+							cd.SetName("cool-resource-42")
+							SetCompositionResourceName(cd, "cool-resource")
+							return cd
+						}(),
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			g := NewExistingComposedResourceObserver(tc.params.c, tc.params.f)
+			g := NewExistingComposedResourceObserver(tc.params.c, tc.params.uc, tc.params.f)
 			ors, err := g.ObserveComposedResources(tc.args.ctx, tc.args.xr)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

@@ -38,6 +38,7 @@ type ControllerEngine interface {
 	GetWatches(name string) ([]engine.WatchID, error)
 	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
 	GetClient() client.Client
+	GetNcClient() client.Client
 }
 
 // A GarbageCollector garbage collects watches for a single composite resource
