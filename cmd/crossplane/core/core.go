@@ -330,7 +330,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("API extensions cache stopped")
 	}()
 
-	cl, err := client.New(mgr.GetConfig(), client.Options{
+	cached, err := client.New(mgr.GetConfig(), client.Options{
 		HTTPClient: mgr.GetHTTPClient(),
 		Scheme:     mgr.GetScheme(),
 		Mapper:     mgr.GetRESTMapper(),
@@ -348,13 +348,25 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot create client for API extension controllers")
 	}
 
+	// Create a separate no-cache client for use when the composite controller does not find an Unstructured
+	// resource that it expects to find in the cache.
+	uncached, err := client.New(mgr.GetConfig(), client.Options{
+		HTTPClient: mgr.GetHTTPClient(),
+		Scheme:     mgr.GetScheme(),
+		Mapper:     mgr.GetRESTMapper(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot create uncached client for API extension controllers")
+	}
+
 	// It's important the engine's client is wrapped with unstructured.NewClient
 	// because controller-runtime always caches *unstructured.Unstructured, not
 	// our wrapper types like *composite.Unstructured. This client takes care of
 	// automatically wrapping and unwrapping *unstructured.Unstructured.
 	ce := engine.New(mgr,
 		engine.TrackInformers(ca, mgr.GetScheme()),
-		unstructured.NewClient(cl),
+		unstructured.NewClient(cached),
+		unstructured.NewClient(uncached),
 		engine.WithLogger(log),
 	)
 

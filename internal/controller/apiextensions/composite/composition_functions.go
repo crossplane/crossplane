@@ -217,18 +217,18 @@ func WithManagedFieldsUpgrader(u ManagedFieldsUpgrader) FunctionComposerOption {
 
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
-func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
-	f := NewSecretConnectionDetailsFetcher(kube)
+func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
+	f := NewSecretConnectionDetailsFetcher(cached)
 
 	c := &FunctionComposer{
-		client: kube,
+		client: cached,
 
 		composite: xr{
 			ConnectionDetailsFetcher:         f,
-			ComposedResourceObserver:         NewExistingComposedResourceObserver(kube, f),
-			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(kube),
-			NameGenerator:                    names.NewNameGenerator(kube),
-			ManagedFieldsUpgrader:            NewPatchingManagedFieldsUpgrader(kube),
+			ComposedResourceObserver:         NewExistingComposedResourceObserver(cached, uncached, f),
+			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(cached),
+			NameGenerator:                    names.NewNameGenerator(cached),
+			ManagedFieldsUpgrader:            NewPatchingManagedFieldsUpgrader(cached),
 		},
 
 		pipeline: r,
@@ -580,14 +580,15 @@ func ComposedFieldOwnerName(xr *composite.Unstructured) string {
 // any existing composed resources from the API server. It also loads their
 // connection details.
 type ExistingComposedResourceObserver struct {
-	resource client.Reader
+	cached   client.Reader
+	uncached client.Reader
 	details  managed.ConnectionDetailsFetcher
 }
 
 // NewExistingComposedResourceObserver returns a ComposedResourceGetter that
 // fetches an XR's existing composed resources.
-func NewExistingComposedResourceObserver(c client.Reader, f managed.ConnectionDetailsFetcher) *ExistingComposedResourceObserver {
-	return &ExistingComposedResourceObserver{resource: c, details: f}
+func NewExistingComposedResourceObserver(c, uc client.Reader, f managed.ConnectionDetailsFetcher) *ExistingComposedResourceObserver {
+	return &ExistingComposedResourceObserver{cached: c, uncached: uc, details: f}
 }
 
 // ObserveComposedResources begins building composed resource state by
@@ -613,10 +614,14 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 		r := composed.New(composed.FromReference(ref))
 		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
-		err := g.resource.Get(ctx, nn, r)
+		err := g.cached.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
-			// We believe we created this resource, but it doesn't exist.
-			continue
+			// We believe we created this resource, but it is not in the cache yet?  Try again without the cache.
+			err = g.uncached.Get(ctx, nn, r)
+			if kerrors.IsNotFound(err) {
+				// We believe we created this resource, but it no longer exists.
+				continue
+			}
 		}
 		if err != nil {
 			return nil, errors.Wrap(err, errGetComposed)

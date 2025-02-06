@@ -41,7 +41,8 @@ var _ ControllerEngine = &MockEngine{}
 type MockEngine struct {
 	MockGetWatches  func(name string) ([]engine.WatchID, error)
 	MockStopWatches func(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
-	MockGetClient   func() client.Client
+	MockGetCached   func() client.Client
+	MockGetUncached func() client.Client
 }
 
 func (m *MockEngine) GetWatches(name string) ([]engine.WatchID, error) {
@@ -52,8 +53,12 @@ func (m *MockEngine) StopWatches(ctx context.Context, name string, ws ...engine.
 	return m.MockStopWatches(ctx, name, ws...)
 }
 
-func (m *MockEngine) GetClient() client.Client {
-	return m.MockGetClient()
+func (m *MockEngine) GetCached() client.Client {
+	return m.MockGetCached()
+}
+
+func (m *MockEngine) GetUncached() client.Client {
+	return m.MockGetUncached()
 }
 
 func TestGarbageCollectWatchesNow(t *testing.T) {
@@ -82,7 +87,7 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 			reason: "The method should return an error if it can't list XRs.",
 			params: params{
 				ce: &MockEngine{
-					MockGetClient: func() client.Client {
+					MockGetCached: func() client.Client {
 						return &test.MockClient{
 							MockList: test.NewMockListFn(errBoom),
 						}
@@ -97,7 +102,7 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 			reason: "The method should return an error if it can't get watches.",
 			params: params{
 				ce: &MockEngine{
-					MockGetClient: func() client.Client {
+					MockGetCached: func() client.Client {
 						return &test.MockClient{
 							MockList: test.NewMockListFn(nil),
 						}
@@ -115,7 +120,7 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 			reason: "The method should return an error if it can't stop watches.",
 			params: params{
 				ce: &MockEngine{
-					MockGetClient: func() client.Client {
+					MockGetCached: func() client.Client {
 						return &test.MockClient{
 							MockList: test.NewMockListFn(nil),
 						}
@@ -142,7 +147,7 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 			reason: "StopWatches shouldn't be called if there's no watches to stop.",
 			params: params{
 				ce: &MockEngine{
-					MockGetClient: func() client.Client {
+					MockGetCached: func() client.Client {
 						return &test.MockClient{
 							MockList: test.NewMockListFn(nil),
 						}
@@ -161,7 +166,7 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 			reason: "StopWatches shouldn't be called if there's no watches to stop.",
 			params: params{
 				ce: &MockEngine{
-					MockGetClient: func() client.Client {
+					MockGetCached: func() client.Client {
 						return &test.MockClient{
 							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 								xr := composite.New()
