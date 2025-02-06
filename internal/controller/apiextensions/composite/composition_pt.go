@@ -125,15 +125,15 @@ type PTComposer struct {
 
 // NewPTComposer returns a Composer that composes resources using Patch and
 // Transform (P&T) Composition - a Composition's bases, patches, and transforms.
-func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
+func NewPTComposer(cached, uncached client.Client, o ...PTComposerOption) *PTComposer {
 	c := &PTComposer{
-		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+		client: resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)},
 
-		composition: NewGarbageCollectingAssociator(kube),
+		composition: NewGarbageCollectingAssociator(cached, uncached),
 		composed: composedResource{
-			NameGenerator:              names.NewNameGenerator(kube),
+			NameGenerator:              names.NewNameGenerator(cached),
 			ReadinessChecker:           ReadinessCheckerFn(IsReady),
-			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
+			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(cached),
 			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
 		},
 	}
@@ -442,13 +442,14 @@ func (fn CompositionTemplateAssociatorFn) AssociateTemplates(ctx context.Context
 // that corresponds to a non-existent template the resource will be garbage
 // collected (i.e. deleted).
 type GarbageCollectingAssociator struct {
-	client client.Client
+	cached   client.Client
+	uncached client.Client
 }
 
 // NewGarbageCollectingAssociator returns a CompositionTemplateAssociator that
 // may garbage collect composed resources.
-func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociator {
-	return &GarbageCollectingAssociator{client: c}
+func NewGarbageCollectingAssociator(c, uc client.Client) *GarbageCollectingAssociator {
+	return &GarbageCollectingAssociator{cached: c, uncached: uc}
 }
 
 // AssociateTemplates with composed resources.
@@ -476,11 +477,15 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 		}
 		cd := composed.New(composed.FromReference(ref))
 		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
-		err := a.client.Get(ctx, nn, cd)
+		err := a.cached.Get(ctx, nn, cd)
 
-		// We believe we created this resource, but it no longer exists.
 		if kerrors.IsNotFound(err) {
-			continue
+			// We believe we created this resource, but it is not in the cache yet?  Try again without the cache.
+			err = a.uncached.Get(ctx, nn, cd)
+			if kerrors.IsNotFound(err) {
+				// We believe we created this resource, but it no longer exists.
+				continue
+			}
 		}
 
 		if err != nil {
@@ -526,11 +531,11 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 		// Composition. This helps differentiate whether a resource was deleted
 		// due to garbage collection or because its owning composite was deleted.
 		meta.RemoveLabels(cd, xcrd.LabelKeyNamePrefixForComposed, xcrd.LabelKeyClaimName, xcrd.LabelKeyClaimNamespace)
-		if err := a.client.Update(ctx, cd); resource.IgnoreNotFound(err) != nil {
+		if err := a.cached.Update(ctx, cd); resource.IgnoreNotFound(err) != nil {
 			return nil, errors.Wrap(err, errGCCleanupLabels)
 		}
 		// Delete the composed resource.
-		if err := a.client.Delete(ctx, cd); resource.IgnoreNotFound(err) != nil {
+		if err := a.cached.Delete(ctx, cd); resource.IgnoreNotFound(err) != nil {
 			return nil, errors.Wrap(err, errGCComposed)
 		}
 	}

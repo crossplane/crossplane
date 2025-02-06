@@ -380,7 +380,7 @@ type compositeResource struct {
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(c client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(c, uc client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client: c,
 
@@ -412,7 +412,7 @@ func NewReconciler(c client.Client, of resource.CompositeKind, opts ...Reconcile
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(c, []string{}),
 		},
 
-		resource: NewPTComposer(c),
+		resource: NewPTComposer(c, uc),
 
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},
@@ -433,8 +433,7 @@ func NewReconciler(c client.Client, of resource.CompositeKind, opts ...Reconcile
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
 	client client.Client
-
-	gvk schema.GroupVersionKind
+	gvk    schema.GroupVersionKind
 
 	revision  revision
 	composite compositeResource
