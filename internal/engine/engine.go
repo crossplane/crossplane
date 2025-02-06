@@ -268,7 +268,6 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 	// Stop the controller's watches.
 	for wid, w := range c.sources {
 		if err := w.Stop(ctx); err != nil {
-			c.mx.Unlock()
 			return errors.Wrapf(err, "cannot stop %q watch for %q", wid.Type, wid.GVK)
 		}
 		delete(c.sources, wid)
