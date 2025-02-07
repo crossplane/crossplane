@@ -313,6 +313,12 @@ func TestConvertToCRDs(t *testing.T) {
 											JSONPath: ".spec.compositionRef.name",
 										},
 										{
+											Name:     "COMPOSITIONREVISION",
+											Type:     "string",
+											JSONPath: ".spec.compositionRevisionRef.name",
+											Priority: 1,
+										},
+										{
 											Name:     "AGE",
 											Type:     "date",
 											JSONPath: ".metadata.creationTimestamp",
@@ -649,6 +655,12 @@ func TestConvertToCRDs(t *testing.T) {
 											Name:     "COMPOSITION",
 											Type:     "string",
 											JSONPath: ".spec.compositionRef.name",
+										},
+										{
+											Name:     "COMPOSITIONREVISION",
+											Type:     "string",
+											JSONPath: ".spec.compositionRevisionRef.name",
+											Priority: 1,
 										},
 										{
 											Name:     "AGE",
