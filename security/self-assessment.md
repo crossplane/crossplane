@@ -306,7 +306,7 @@ standards or sub-sections at this time.
   [README](https://github.com/crossplane/crossplane?tab=readme-ov-file#get-involved).
 * Outbound: The project makes announcements on the Crossplane Slack
   `#announcements` channel, [Bluesky](https://bsky.app/profile/crossplane.io),
-  [Twitter](https://twitter.com/crossplane_io),
+  [X](https://x.com/crossplane_io),
   [LinkedIn](https://www.linkedin.com/company/crossplane), [blog
   posts](https://blog.crossplane.io/), and [release
   notes](https://github.com/crossplane/crossplane/releases).

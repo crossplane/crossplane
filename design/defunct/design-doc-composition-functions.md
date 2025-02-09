@@ -750,7 +750,7 @@ than x86 architectures is experimental.
 [v0.10.0]: https://github.com/crossplane/crossplane/releases/tag/v0.10.0
 [composition-design]: https://github.com/crossplane/crossplane/blob/e02c7a3/design/design-doc-composition.md#goals
 [declarative-app-management]: https://docs.google.com/document/d/1cLPGweVEYrVqQvBLJg6sxV-TrE5Rm2MNOBA_cxZP2WU/edit
-[bcl]: https://twitter.com/bgrant0607/status/1123620689930358786?lang=en
+[bcl]: https://x.com/bgrant0607/status/1123620689930358786?lang=en
 [terraform-count]: https://www.terraform.io/language/meta-arguments/count
 [turing-complete]: https://en.wikipedia.org/wiki/Turing_completeness#Unintentional_Turing_completeness  
 [pitfalls-dsl]: https://github.com/kubernetes/community/blob/8956bcd54dc6f99bcb681c79a7e5399289e15630/contributors/design-proposals/architecture/declarative-application-management.md#pitfalls-of-configuration-domain-specific-languages-dsls
