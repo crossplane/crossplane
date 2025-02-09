@@ -90,6 +90,61 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourceDeletedWithin(3*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
 			)).
 			Feature(),
+		features.NewWithDescription(t.Name()+"Downgrade", "Test that it's possible to downgrade Crossplane to the most recent stable Helm chart from the one we're testing, even when a claim exists. This expects Crossplane not to be installed.").
+			WithLabel(LabelArea, LabelAreaLifecycle).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			// We expect Crossplane to have been uninstalled first
+			Assess("CrossplaneIsNotInstalled", funcs.AllOf(
+				funcs.ResourceDeletedWithin(1*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
+				funcs.ResourcesDeletedWithin(3*time.Minute, crdsDir, "*.yaml"),
+			)).
+			Assess("InstallCrossplane", funcs.AllOf(
+				funcs.AsFeaturesFunc(envfuncs.CreateNamespace(namespace)),
+				funcs.AsFeaturesFunc(environment.HelmInstallBaseCrossplane()),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Assess("CreateClaimPrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+			)).
+			Assess("XRDIsEstablished",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite())).
+			Assess("ProviderIsReady",
+				funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("DowngradeCrossplane", funcs.AllOf(
+				funcs.AsFeaturesFunc(environment.HelmUpgradePriorCrossplane(namespace, helmReleaseName)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Assess("CoreDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).
+			Assess("RBACManagerDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
+			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
+			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(3*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
+			// want to make sure they can be deleted cleanly. If they can't, it's a
+			// sign something they define might have stuck around.
+			WithTeardown("DeleteCrossplaneCRDs", funcs.AllOf(
+				funcs.DeleteResources(crdsDir, "*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, crdsDir, "*.yaml"),
+			)).
+			// Uninstalling the Crossplane Helm chart doesn't remove the namespace
+			// it was installed to either. We want to make sure it can be deleted
+			// cleanly.
+			WithTeardown("DeleteCrossplaneNamespace", funcs.AllOf(
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(namespace)),
+				funcs.ResourceDeletedWithin(3*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
+			)).
+			Feature(),
 		features.NewWithDescription(t.Name()+"Upgrade", "Test that it's possible to upgrade Crossplane from the most recent stable Helm chart to the one we're testing, even when a claim exists. This expects Crossplane not to be installed.").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
