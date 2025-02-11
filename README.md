@@ -24,12 +24,12 @@ documentation].
 
 | Release | Release Date  |   EOL    |
 |:-------:|:-------------:|:--------:|
-|  v1.16  | May 15, 2024  | Feb 2025 |
 |  v1.17  | Aug 29, 2024  | May 2025 |
-|  v1.18  | Early Nov '24 | Aug 2025 |
-|  v1.19  | Early Feb '25 | Nov 2025 |
+|  v1.18  | Nov 5, 2024   | Aug 2025 |
+|  v1.19  | Feb 11, 2025  | Nov 2025 |
 |  v1.20  | Early May '25 | Feb 2026 |
 |  v1.21  | Early Aug '25 | May 2026 |
+|  v1.22  | Early Nov '25 | Aug 2026 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
