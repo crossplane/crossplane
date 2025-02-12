@@ -112,7 +112,6 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations, c.Functions),
-		initializer.NewStoreConfigObject(c.Namespace),
 		initializer.StepFunc(initializer.DefaultDeploymentRuntimeConfig),
 	)
 

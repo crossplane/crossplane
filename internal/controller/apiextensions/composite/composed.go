@@ -18,8 +18,6 @@ package composite
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // A CompositeResource is an output of the composition process.
@@ -64,6 +62,3 @@ type ComposedResourceState struct {
 
 // ComposedResourceStates tracks the state of composed resources.
 type ComposedResourceStates map[ResourceName]ComposedResourceState
-
-// ComposedResourceTemplates are the P&T templates for composed resources.
-type ComposedResourceTemplates map[ResourceName]v1.ComposedTemplate

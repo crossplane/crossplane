@@ -93,7 +93,6 @@ func TestLoadCompositeResource(t *testing.T) {
 
 func TestLoadComposition(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
-	pipeline := apiextensionsv1.CompositionModePipeline
 
 	type want struct {
 		comp *apiextensionsv1.Composition
@@ -117,7 +116,7 @@ func TestLoadComposition(t *testing.T) {
 							APIVersion: "nop.example.org/v1alpha1",
 							Kind:       "XNopResource",
 						},
-						Mode: &pipeline,
+						Mode: apiextensionsv1.CompositionModePipeline,
 						Pipeline: []apiextensionsv1.PipelineStep{{
 							Step:        "be-a-dummy",
 							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-dummy"},

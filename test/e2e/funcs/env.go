@@ -38,7 +38,6 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 )
 
 type kindConfigContextKey string
@@ -96,7 +95,6 @@ func AddCrossplaneTypesToScheme() env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
 		_ = apiextensionsv1.AddToScheme(c.Client().Resources().GetScheme())
 		_ = pkgv1.AddToScheme(c.Client().Resources().GetScheme())
-		_ = secretsv1alpha1.AddToScheme(c.Client().Resources().GetScheme())
 
 		return ctx, nil
 	}

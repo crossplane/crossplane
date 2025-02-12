@@ -68,7 +68,16 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "claim.yaml"),
 			)).
-			Assess("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Assess("DeletePrerequisites",
+				funcs.AllOf(
+					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
+					// Wait for package revisions to be deleted before we
+					// uninstall Crossplane.
+					// TODO(negz): Use foreground deletion?
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
+				),
+			).
 			Assess("UninstallCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUninstall(
 					helm.WithName(helmReleaseName),
@@ -129,7 +138,16 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			WithTeardown("DeletePrerequisites",
+				funcs.AllOf(
+					funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList),
+					// Wait for package revisions to be deleted before we
+					// uninstall Crossplane.
+					// TODO(negz): Use foreground deletion?
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.ProviderRevisionList{}),
+					funcs.ListedResourcesDeletedWithin(1*time.Minute, &pkgv1.FunctionRevisionList{}),
+				),
+			).
 			// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
 			// want to make sure they can be deleted cleanly. If they can't, it's a
 			// sign something they define might have stuck around.

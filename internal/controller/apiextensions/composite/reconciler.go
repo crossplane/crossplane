@@ -67,7 +67,6 @@ const (
 	errConfigure              = "cannot configure composite resource"
 	errPublish                = "cannot publish connection details"
 	errUnpublish              = "cannot unpublish connection details"
-	errValidate               = "refusing to use invalid Composition"
 	errAssociate              = "cannot associate composed resources with Composition resource templates"
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
@@ -215,14 +214,6 @@ func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, re
 	return fn(ctx, xr, req)
 }
 
-// A ComposerSelectorFn selects the appropriate Composer for a mode.
-type ComposerSelectorFn func(*v1.CompositionMode) Composer
-
-// Compose calls the Composer returned by calling fn.
-func (fn ComposerSelectorFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
-	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
-}
-
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -270,14 +261,6 @@ func WithPollInterval(interval time.Duration) ReconcilerOption {
 func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.revision.CompositionRevisionFetcher = f
-	}
-}
-
-// WithCompositionRevisionValidator specifies how the Reconciler should validate
-// CompositionRevisions.
-func WithCompositionRevisionValidator(v CompositionRevisionValidator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.revision.CompositionRevisionValidator = v
 	}
 }
 
@@ -334,21 +317,6 @@ func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStar
 
 type revision struct {
 	CompositionRevisionFetcher
-	CompositionRevisionValidator
-}
-
-// A CompositionRevisionValidator validates the supplied CompositionRevision.
-type CompositionRevisionValidator interface {
-	Validate(rev *v1.CompositionRevision) error
-}
-
-// A CompositionRevisionValidatorFn is a function that validates a
-// CompositionRevision.
-type CompositionRevisionValidatorFn func(*v1.CompositionRevision) error
-
-// Validate the supplied CompositionRevision.
-func (fn CompositionRevisionValidatorFn) Validate(c *v1.CompositionRevision) error {
-	return fn(c)
 }
 
 // A WatchStarter can start a new watch. XR controllers use this to dynamically
@@ -380,39 +348,32 @@ type compositeResource struct {
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(c, uc client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(cached client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: c,
+		client: cached,
 
 		gvk: schema.GroupVersionKind(of),
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)}),
-			CompositionRevisionValidator: CompositionRevisionValidatorFn(func(rev *v1.CompositionRevision) error {
-				// TODO(negz): Presumably this validation will eventually be
-				// removed in favor of the new Composition validation
-				// webhook.
-				// This is the last remaining use of conv.FromRevisionSpec -
-				// we can stop generating that once this is removed.
-				conv := &v1.GeneratedRevisionSpecConverter{}
-				comp := &v1.Composition{Spec: conv.FromRevisionSpec(rev.Spec)}
-				_, errs := comp.Validate()
-				return errs.ToAggregate()
-			}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
 		},
 
 		composite: compositeResource{
-			Finalizer:           resource.NewAPIFinalizer(c, finalizer),
-			CompositionSelector: NewAPILabelSelectorResolver(c),
-			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(c), NewAPIConfigurator(c)),
+			Finalizer:           resource.NewAPIFinalizer(cached, finalizer),
+			CompositionSelector: NewAPILabelSelectorResolver(cached),
+			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
 			// never filter any keys. Is there an unfiltered variant we could
 			// use by default instead?
-			ConnectionPublisher: NewAPIFilteredSecretPublisher(c, []string{}),
+			ConnectionPublisher: NewAPIFilteredSecretPublisher(cached, []string{}),
 		},
 
-		resource: NewPTComposer(c, uc),
+		// We use a nop Composer by default. The real composed is passed in by
+		// the definition controller when it sets up this XR controller.
+		resource: ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+			return CompositionResult{}, nil
+		}),
 
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},
@@ -540,16 +501,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
-	}
-
-	// TODO(negz): Update this to validate the revision? In practice that's what
-	// it's doing today when revis are enabled.
-	if err := r.revision.Validate(rev); err != nil {
-		log.Debug(errValidate, "error", err)
-		err = errors.Wrap(err, errValidate)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {

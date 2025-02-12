@@ -40,14 +40,6 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Composition type metadata.
-var (
-	CompositionRevisionKind             = reflect.TypeOf(CompositionRevision{}).Name()
-	CompositionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionRevisionKind}.String()
-	CompositionRevisionKindAPIVersion   = CompositionRevisionKind + "." + SchemeGroupVersion.String()
-	CompositionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionRevisionKind)
-)
-
 // EnvironmentConfig type metadata.
 var (
 	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
@@ -65,7 +57,6 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&CompositionRevision{}, &CompositionRevisionList{})
 	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
 	SchemeBuilder.Register(&Usage{}, &UsageList{})
 }
