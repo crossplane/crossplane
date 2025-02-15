@@ -1,0 +1,26 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  group: nop.example.org
+  names:
+    kind: XNopResource
+    plural: xnopresources
+    singular: xnopresource
+    shortNames:
+      - xnr
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          description: "A test resource"
+          properties:
+            spec:
+              type: object
+              properties:
+                coolField:
+                  type: string
