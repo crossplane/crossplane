@@ -69,6 +69,12 @@ type PackageSpec struct {
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 
+	// Map of string keys and values that can be used to attach arbitrary non-identifying metadata
+	// to objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+	// +optional
+	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty"`
+
 	// Map of string keys and values that can be used to organize and categorize
 	// (scope and select) objects. May match selectors of replication controllers
 	// and services.
