@@ -29,7 +29,6 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -108,7 +107,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ProviderDeploymentNoControllerConfig": {
+		"ProviderDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
 				builder: &RuntimeManifestBuilder{
@@ -123,49 +122,6 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					"pkg.crossplane.io/provider": providerMetaName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				})),
-			},
-		},
-		"ProviderDeploymentWithControllerConfig": {
-			reason: "Overrides from the controller config should be applied to the deployment",
-			args: args{
-				builder: &RuntimeManifestBuilder{
-					revision:  providerRevision,
-					namespace: namespace,
-					controllerConfig: &v1alpha1.ControllerConfig{
-						Spec: v1alpha1.ControllerConfigSpec{
-							Replicas: ptr.To[int32](3),
-							Metadata: &v1alpha1.PodObjectMeta{
-								Labels: map[string]string{
-									"k": "v",
-								},
-							},
-							Image: ptr.To("crossplane/provider-foo:v1.2.4"),
-							Volumes: []corev1.Volume{
-								{Name: "vol-a"},
-								{Name: "vol-b"},
-							},
-							VolumeMounts: []corev1.VolumeMount{
-								{Name: "vm-a"},
-								{Name: "vm-b"},
-							},
-						},
-					},
-				},
-				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
-			},
-			want: want{
-				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerMetaName,
-					"pkg.crossplane.io/revision": providerRevisionName,
-				}), func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = ptr.To[int32](3)
-					deployment.Spec.Template.Annotations = nil
-					deployment.Spec.Template.Labels["k"] = "v"
-					deployment.Spec.Template.Spec.Containers[0].Image = "crossplane/provider-foo:v1.2.4"
-					deployment.Spec.Template.Spec.Volumes = append(deployment.Spec.Template.Spec.Volumes, corev1.Volume{Name: "vol-a"}, corev1.Volume{Name: "vol-b"})
-					deployment.Spec.Template.Spec.Containers[0].VolumeMounts = append(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, corev1.VolumeMount{Name: "vm-a"}, corev1.VolumeMount{Name: "vm-b"})
-				}),
 			},
 		},
 		"ProviderDeploymentWithRuntimeConfig": {
@@ -364,7 +320,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 				}),
 			},
 		},
-		"FunctionDeploymentNoControllerConfig": {
+		"FunctionDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
 				builder: &RuntimeManifestBuilder{
@@ -376,75 +332,6 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 			},
 			want: want{
 				want: deploymentFunction(functionName, functionRevisionName, functionImage),
-			},
-		},
-		"FunctionDeploymentWithControllerConfig": {
-			reason: "Overrides from the controller config should be applied to the deployment",
-			args: args{
-				builder: &RuntimeManifestBuilder{
-					revision:  functionRevision,
-					namespace: namespace,
-					controllerConfig: &v1alpha1.ControllerConfig{
-						Spec: v1alpha1.ControllerConfigSpec{
-							Replicas: ptr.To[int32](3),
-						},
-					},
-				},
-				serviceAccountName: functionRevisionName,
-				overrides:          functionDeploymentOverrides(functionImage),
-			},
-			want: want{
-				want: deploymentFunction(functionName, functionRevisionName, functionImage, func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = ptr.To[int32](3)
-				}),
-			},
-		},
-		"FunctionDeploymentWithRuntimeConfig": {
-			reason: "Overrides from the runtime config should be applied to the deployment",
-			args: args{
-				builder: &RuntimeManifestBuilder{
-					revision:  functionRevision,
-					namespace: namespace,
-					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
-						Spec: v1beta1.DeploymentRuntimeConfigSpec{
-							DeploymentTemplate: &v1beta1.DeploymentTemplate{
-								Spec: &appsv1.DeploymentSpec{
-									Replicas: ptr.To[int32](3),
-									Template: corev1.PodTemplateSpec{
-										Spec: corev1.PodSpec{
-											Containers: []corev1.Container{
-												{
-													Name: runtimeContainerName,
-													Ports: []corev1.ContainerPort{
-														{
-															Name:          grpcPortName,
-															ContainerPort: 7070,
-														},
-														{
-															Name:          metricsPortName,
-															ContainerPort: 7071,
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				serviceAccountName: functionRevisionName,
-				overrides:          functionDeploymentOverrides(functionImage),
-			},
-			want: want{
-				want: deploymentFunction(functionName, functionRevisionName, functionImage, func(deployment *appsv1.Deployment) {
-					deployment.Spec.Replicas = ptr.To[int32](3)
-					deployment.Spec.Template.Spec.Containers[0].Ports[0].Name = grpcPortName
-					deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort = 7070
-					deployment.Spec.Template.Spec.Containers[0].Ports[1].Name = metricsPortName
-					deployment.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort = 7071
-				}),
 			},
 		},
 	}

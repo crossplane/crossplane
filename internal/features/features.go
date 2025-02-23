@@ -21,11 +21,6 @@ import "github.com/crossplane/crossplane-runtime/pkg/feature"
 
 // Alpha Feature flags.
 const (
-	// EnableAlphaExternalSecretStores enables alpha support for
-	// External Secret Stores. See the below design for more details.
-	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
-	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
-
 	// EnableAlphaRealtimeCompositions enables alpha support for realtime
 	// compositions, i.e. watching MRs and reconciling compositions immediately
 	// when any MR is updated.
@@ -41,12 +36,6 @@ const (
 
 // Beta Feature Flags.
 const (
-	// EnableBetaCompositionWebhookSchemaValidation enables alpha support for
-	// composition webhook schema validation. See the below design for more
-	// details.
-	// https://github.com/crossplane/crossplane/blob/f32496/design/design-doc-composition-validating-webhook.md
-	EnableBetaCompositionWebhookSchemaValidation feature.Flag = "EnableBetaCompositionWebhookSchemaValidation"
-
 	// EnableBetaDeploymentRuntimeConfigs enables beta support for deployment
 	// runtime configs. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/c2e206/design/one-pager-package-runtime-config.md

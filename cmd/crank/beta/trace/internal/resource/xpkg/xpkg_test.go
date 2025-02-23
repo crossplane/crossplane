@@ -22,7 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -218,15 +217,6 @@ func TestIsPackageRuntimeConfigType(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"V1Alpha1ControllerConfigOK": {
-			reason: "Should return true for a v1alpha1 ControllerConfig",
-			args: args{
-				gk: pkgv1alpha1.ControllerConfigGroupVersionKind.GroupKind(),
-			},
-			want: want{
-				ok: true,
-			},
-		},
 		"V1Beta1DeploymentRuntimeConfigOK": {
 			reason: "Should return true for a v1beta1 DeploymentRuntimeConfig",
 			args: args{

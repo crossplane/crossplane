@@ -9,21 +9,14 @@ spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1
     kind: XNopResource
-  resources:
-  - name: nop-resource-1
-    base:
-     apiVersion: nop.crossplane.io/v1alpha1
-     kind: NopResource
-     spec:
-      forProvider:
-        conditionAfter:
-        - conditionType: Ready
-          conditionStatus: "True"
-          time: 0s
-    patches:
-      - type: FromCompositeFieldPath
-        fromFieldPath: spec.coolField
-        toFieldPath: metadata.annotations["cf"]
-      - type: ToCompositeFieldPath
-        fromFieldPath: metadata.annotations["cf"]
-        toFieldPath: status.coolerField
+  mode: Pipeline
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy-ext-selection
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response: {}
