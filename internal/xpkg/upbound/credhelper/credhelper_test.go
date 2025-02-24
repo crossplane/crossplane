@@ -35,7 +35,7 @@ import (
 var _ credentials.Helper = &Helper{}
 
 func TestGet(t *testing.T) {
-	testServer := "xpkg.upbound.io"
+	testServer := "xpkg.crossplane.io"
 	testProfile := "test"
 	testSecret := "supersecretvalue"
 	errBoom := errors.New("boom")

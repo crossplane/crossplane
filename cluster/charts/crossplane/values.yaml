@@ -12,7 +12,7 @@ deploymentStrategy: RollingUpdate
 
 image:
   # -- Repository for the Crossplane pod image.
-  repository: xpkg.upbound.io/crossplane/crossplane
+  repository: xpkg.crossplane.io/crossplane/crossplane
   # -- The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`.
   tag: ""
   # -- The image pull policy used for Crossplane and RBAC Manager pods.

@@ -1,0 +1,17 @@
+# This is the package metadata for the Configuration installed by
+# configuration-updated.yaml.
+#
+# This package is manually built and pushed to
+# ghcr.io/crossplane/e2e-upgrade-dependency-version,  with something like:
+# ❯ export CR_PAT=<token>
+# ❯ echo $CR_PAT | docker login ghcr.io -u <user> --password-stdin
+# ❯ crossplane xpkg build -o e2e-upgrade-dependency-version.xpkg
+# ❯ crossplane xpkg push -f e2e-upgrade-dependency-version.xpkg ghcr.io/crossplane/e2e-upgrade-dependency-version:v0.3.1
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-upgrade-dependency-version
+spec:
+  dependsOn:
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-nop
+      version: v0.3.1

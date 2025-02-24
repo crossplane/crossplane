@@ -39,7 +39,7 @@ func TestNewDeploymentTemplateFromControllerConfig(t *testing.T) {
 	user := int64(33)
 	saName := "sa-name"
 	className := "className"
-	image := "xpkg.upbound.io/crossplane/crossplane:latest"
+	image := "xpkg.crossplane.io/crossplane/crossplane:latest"
 	timeNow := metav1.NewTime(time.Now())
 
 	type args struct {
@@ -311,7 +311,7 @@ func TestControllerConfigToRuntimeDeploymentConfig(t *testing.T) {
 }
 
 func TestNewContainerFromControllerConfig(t *testing.T) {
-	image := "xpkg.upbound.io/crossplane/crossplane:latest"
+	image := "xpkg.crossplane.io/crossplane/crossplane:latest"
 	priv := false
 	pullAlways := corev1.PullAlways
 

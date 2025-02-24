@@ -61,7 +61,7 @@ const (
 
 	// DefaultRegistry is the registry name that will be used when no registry
 	// is provided.
-	DefaultRegistry string = "xpkg.upbound.io"
+	DefaultRegistry string = "xpkg.crossplane.io"
 )
 
 const (
