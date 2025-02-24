@@ -326,7 +326,7 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 			Assess("UpdateConfiguration",
 				funcs.ApplyResources(FieldManager, manifests, "configuration-updated.yaml")).
 			Assess("ProviderUpgradedToNewVersionAndHealthy", funcs.AllOf(
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.3.1"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
 			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
