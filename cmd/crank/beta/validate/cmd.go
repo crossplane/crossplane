@@ -68,7 +68,7 @@ Examples:
   crossplane beta validate extensions.yaml resources.yaml
 
   # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file using a specific Crossplane image version
-  crossplane beta validate extensions.yaml resources.yaml --crossplane-image=xpkg.upbound.io/crossplane/crossplane:v1.16.0
+  crossplane beta validate extensions.yaml resources.yaml --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:v1.20.0
 
   # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder and skip
   # success logs

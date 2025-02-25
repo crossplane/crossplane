@@ -26,6 +26,7 @@ env:
   # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
   # credentials have been provided before trying to run steps that need them.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
+  GHCR_USR: ${{ github.actor }}
   AWS_USR: ${{ secrets.AWS_USR }}
   UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
 
@@ -51,6 +52,15 @@ jobs:
             --secret DOCKER_USER=${{ secrets.DOCKER_USR }} \
             --secret DOCKER_PASSWORD=${{ secrets.DOCKER_PSW }} \
             +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=docker.io/crossplane/crossplane
+
+      - name: Promote Image to ghcr.io/crossplane/crossplane:${{ inputs.channel }}
+        if: env.GHCR_USR != ''
+        run: |
+          earthly --strict \
+            --push \
+            --secret DOCKER_USER=${{ github.actor }} \
+            --secret DOCKER_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
+            +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=ghcr.io/crossplane/crossplane
 
       - name: Promote Image to xpkg.upbound.io/crossplane/crossplane:${{ inputs.channel }}
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''

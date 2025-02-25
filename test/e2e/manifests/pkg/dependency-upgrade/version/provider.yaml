@@ -3,4 +3,4 @@ kind: Provider
 metadata:
   name: crossplane-contrib-provider-nop
 spec:
-  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-nop:v0.3.0
