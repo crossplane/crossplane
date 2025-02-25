@@ -18,7 +18,6 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -28,11 +27,15 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 var _ TrackingInformers = &MockTrackingInformers{}
@@ -106,7 +109,6 @@ func TestStartController(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
-		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	type args struct {
@@ -213,7 +215,7 @@ func TestStartController(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
 			err := e.Start(tc.args.name, tc.args.opts...)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -241,7 +243,6 @@ func TestIsRunning(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
-		uc   client.Client
 		opts []ControllerEngineOption
 	}
 
@@ -330,7 +331,7 @@ func TestIsRunning(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
 			_ = e.Start(tc.args.name, tc.argsStart.opts...)
 
 			// Give the start goroutine a little time to fail.
@@ -360,7 +361,6 @@ func TestStopController(t *testing.T) {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
-		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	type args struct {
@@ -408,7 +408,7 @@ func TestStopController(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
 			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{
 					MockStart: func(ctx context.Context) error {
@@ -449,11 +449,15 @@ func TestStopController(t *testing.T) {
 }
 
 func TestStartWatches(t *testing.T) {
+	sourceA := &mockSource{}
+	sourceB := &mockSource{}
+	if sourceA == sourceB {
+		t.Fatal("mock sources should not be equal")
+	}
 	type params struct {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
-		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	// We need to control how we start the controller.
@@ -593,6 +597,29 @@ func TestStartWatches(t *testing.T) {
 						u.SetKind("Resource")
 						return WatchFor(u, WatchTypeCompositeResource, nil)
 					}(),
+					// This shouldn't be deduplicated, because it's a different
+					// watch type
+					func() Watch {
+						u := &unstructured.Unstructured{}
+						u.SetAPIVersion("test.crossplane.io/v1")
+						u.SetKind("Resource")
+						return RawWatch(u, sourceA)
+					}(),
+					// This should be deduplicated into the above raw watch.
+					func() Watch {
+						u := &unstructured.Unstructured{}
+						u.SetAPIVersion("test.crossplane.io/v1")
+						u.SetKind("Resource")
+						return RawWatch(u, sourceA)
+					}(),
+					// This shouldn't be deduplicated, because it's a different
+					// watch source.
+					func() Watch {
+						u := &unstructured.Unstructured{}
+						u.SetAPIVersion("test.crossplane.io/v1")
+						u.SetKind("Resource")
+						return RawWatch(u, sourceB)
+					}(),
 				},
 			},
 			want: want{
@@ -614,6 +641,24 @@ func TestStartWatches(t *testing.T) {
 							Kind:    "Resource",
 						},
 					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceA,
+					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceB,
+					},
 				},
 			},
 		},
@@ -621,7 +666,7 @@ func TestStartWatches(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
 			err := e.Start(tc.argsStart.name, tc.argsStart.opts...)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -645,7 +690,7 @@ func TestStartWatches(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.watches, watches,
 				cmpopts.EquateEmpty(),
-				cmpopts.SortSlices(func(a, b WatchID) bool { return fmt.Sprintf("%s", a) > fmt.Sprintf("%s", b) }),
+				cmpopts.SortSlices(func(a, b WatchID) bool { return fmt.Sprintf("%v", a) > fmt.Sprintf("%v", b) }),
 			); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -662,11 +707,15 @@ func TestStartWatches(t *testing.T) {
 }
 
 func TestStopWatches(t *testing.T) {
+	sourceA := &mockSource{}
+	sourceB := &mockSource{}
+	if sourceA == sourceB {
+		t.Fatal("mock sources should not be equal")
+	}
 	type params struct {
 		mgr  manager.Manager
 		infs TrackingInformers
 		c    client.Client
-		uc   client.Client
 		opts []ControllerEngineOption
 	}
 	type args struct {
@@ -736,6 +785,24 @@ func TestStopWatches(t *testing.T) {
 							Kind:    "Resource",
 						},
 					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceA,
+					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceB,
+					},
 				},
 			},
 		},
@@ -781,6 +848,24 @@ func TestStopWatches(t *testing.T) {
 							Version: "v1",
 							Kind:    "Resource",
 						},
+					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceA,
+					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceB,
 					},
 				},
 			},
@@ -830,10 +915,28 @@ func TestStopWatches(t *testing.T) {
 							Kind:    "NeverStarted",
 						},
 					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceA,
+					},
+					{
+						Type: WatchTypeRaw,
+						GVK: schema.GroupVersionKind{
+							Group:   "test.crossplane.io",
+							Version: "v1",
+							Kind:    "Resource",
+						},
+						RawSource: sourceB,
+					},
 				},
 			},
 			want: want{
-				stopped: 2,
+				stopped: 4,
 				err:     nil,
 				watches: []WatchID{},
 			},
@@ -845,7 +948,7 @@ func TestStopWatches(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.uc, tc.params.opts...)
+			e := New(tc.params.mgr, tc.params.infs, tc.params.c, tc.params.opts...)
 			err := e.Start(tc.args.name, WithNewControllerFn(func(_ string, _ manager.Manager, _ kcontroller.Options) (kcontroller.Controller, error) {
 				return &MockController{
 					MockStart: func(ctx context.Context) error {
@@ -868,6 +971,8 @@ func TestStopWatches(t *testing.T) {
 			err = e.StartWatches(tc.args.name,
 				WatchFor(u1, WatchTypeComposedResource, nil),
 				WatchFor(u1, WatchTypeCompositeResource, nil),
+				RawWatch(u1, sourceA),
+				RawWatch(u1, sourceB),
 			)
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -887,7 +992,7 @@ func TestStopWatches(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.watches, watches,
 				cmpopts.EquateEmpty(),
-				cmpopts.SortSlices(func(a, b WatchID) bool { return fmt.Sprintf("%s", a) > fmt.Sprintf("%s", b) }),
+				cmpopts.SortSlices(func(a, b WatchID) bool { return fmt.Sprintf("%v", a) > fmt.Sprintf("%v", b) }),
 			); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -899,4 +1004,15 @@ func TestStopWatches(t *testing.T) {
 			}
 		})
 	}
+}
+
+var _ source.Source = &mockSource{}
+
+type mockSource struct {
+	// Dummy is needed because empty struct pointers are not always different.
+	Dummy int
+}
+
+func (m *mockSource) Start(_ context.Context, _ workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
+	return nil
 }
