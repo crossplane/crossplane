@@ -116,6 +116,7 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Conversion defines all conversion settings for the defined Composite resource.
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="self.strategy == Webhook && has(self.webhook)",message="Webhook configuration is required when conversion strategy is Webhook"
 	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
 
 	// Metadata specifies the desired metadata for the defined composite resource and claim CRD's.
