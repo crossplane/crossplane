@@ -55,20 +55,18 @@ The following are some guidelines for eligibility to the Steering Committee:
 * There is **no** minimum time period for contributions to the project by the
   proposed member.
 
-### Initial Steering Committee
+### Steering Committee
 
-The initial steering committee will be nominated by the founders of the project
-in order to ensure continuity of the project charter and vision as additional members come on board.
-Once the terms of the initial committee members expire, new members will be selected through the election
-process outlined below.
-
-Here are the members of the initial steering committee (listed in alphabetical order of first name):
+The members of the steering committee are listed in the table below (listed in
+alphabetical order of first name). When terms of the committee members expire,
+new members will be selected through the [election process](#election-process)
+outlined below.
 
 | &nbsp;                                                    | Member                                         | Organization | Email                       | Term Start | Term End   |
 |-----------------------------------------------------------|------------------------------------------------|--------------|-----------------------------|------------|------------|
 | <img width="30px" src="https://github.com/bassam.png">    | [Bassam Tabbara](https://github.com/bassam)    | Upbound      | bassam@upbound.io           | 2024-02-06 | 2026-02-06 |
-| <img width="30px" src="https://github.com/lindblombr.png">| [Brian Lindblom](https://github.com/lindblombr)| Apple        | blindblom@apple.com         | 2024-02-06 | 2025-02-07 |
-| <img width="30px" src="https://github.com/bobh66.png">    | [Bob Haddleton](https://github.com/bobh66)     | Nokia        | bob.haddleton@nokia.com     | 2024-02-06 | 2025-02-07 |
+| <img width="30px" src="https://github.com/bobh66.png">    | [Bob Haddleton](https://github.com/bobh66)     | Nokia        | bob.haddleton@nokia.com     | 2025-02-06 | 2027-02-06 |
+| <img width="30px" src="https://github.com/lindblombr.png">| [Brian Lindblom](https://github.com/lindblombr)| Apple        | blindblom@apple.com         | 2025-02-06 | 2027-02-06 |
 | <img width="30px" src="https://github.com/jbw976.png">    | [Jared Watts](https://github.com/jbw976)       | Upbound      | jared@upbound.io            | 2024-02-06 | 2026-02-06 |
 | <img width="30px" src="https://github.com/negz.png">      | [Nic Cope](https://github.com/negz)            | Upbound      | negz@upbound.io             | 2024-02-06 | 2026-02-06 |
 
