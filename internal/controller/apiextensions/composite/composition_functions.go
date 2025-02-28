@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -69,6 +70,7 @@ const (
 	errListExtraResources       = "cannot list extra resources"
 
 	errFmtApplyCD                    = "cannot apply composed resource %q"
+	errFmtApplyCDJoined              = "cannot apply all composed resources"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtUnmarshalPipelineStepInput = "cannot unmarshal input for Composition pipeline step %q"
 	errFmtGetCredentialsFromSecret   = "cannot get Composition pipeline step %q credential %q from Secret"
@@ -482,45 +484,91 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 	// Produce our array of resources to return to the Reconciler. The
 	// Reconciler uses this array to determine whether the XR is ready.
-	resources := make([]ComposedResource, 0, len(desired))
+	resourcesChan := make(chan ComposedResource, len(desired))
+	applyDesiredEventsChan := make(chan TargetedEvent)
+	applyDesiredErrorChan := make(chan error)
+
+	applyDesiredWg := sync.WaitGroup{}
+	applyDesiredWg.Add(len(desired))
 
 	// We apply all of our desired resources before we observe them in the loop
 	// below. This ensures that issues observing and processing one composed
 	// resource won't block the application of another.
 	for name, cd := range desired {
-		// We don't need any crossplane-runtime resource.Applicator style apply
-		// options here because server-side apply takes care of everything.
-		// Specifically it will merge rather than replace owner references (e.g.
-		// for Usages), and will fail if we try to add a controller reference to
-		// a resource that already has a different one.
-		// NOTE(phisco): We need to set a field owner unique for each XR here,
-		// this prevents multiple XRs composing the same resource to be
-		// continuously alternated as controllers.
-		if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
-			if kerrors.IsInvalid(err) {
-				// We tried applying an invalid resource, we can't tell whether
-				// this means the resource will never be valid or it will if we
-				// run again the composition after some other resource is
-				// created or updated successfully. So, we emit a warning event
-				// and move on.
-				// We mark the resource as not synced, so that once we get to
-				// decide the XR's Synced condition, we can set it to false if
-				// any of the resources didn't sync successfully.
-				events = append(events, TargetedEvent{
-					Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)),
-					Target: CompositionTargetComposite,
-				})
-				// NOTE(phisco): here we behave differently w.r.t. the native
-				// p&t composer, as we respect the readiness reported by
-				// functions, while there we defaulted to also set ready false
-				// in case of apply errors.
-				resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: false})
-				continue
-			}
-			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
-		}
 
-		resources = append(resources, ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true})
+		// Perform the apply in seperate goroutines to speed up the process and
+		// avoid running in timeouts for large amounts of composed resources
+		// and API server throttling.
+		go func(name ResourceName, cd ComposedResourceState) {
+			defer applyDesiredWg.Done()
+
+			// We don't need any crossplane-runtime resource.Applicator style apply
+			// options here because server-side apply takes care of everything.
+			// Specifically it will merge rather than replace owner references (e.g.
+			// for Usages), and will fail if we try to add a controller reference to
+			// a resource that already has a different one.
+			// NOTE(phisco): We need to set a field owner unique for each XR here,
+			// this prevents multiple XRs composing the same resource to be
+			// continuously alternated as controllers.
+			if err := c.client.Patch(ctx, cd.Resource, client.Apply, client.ForceOwnership, client.FieldOwner(ComposedFieldOwnerName(xr))); err != nil {
+				if kerrors.IsInvalid(err) {
+					// We tried applying an invalid resource, we can't tell whether
+					// this means the resource will never be valid or it will if we
+					// run again the composition after some other resource is
+					// created or updated successfully. So, we emit a warning event
+					// and move on.
+					// We mark the resource as not synced, so that once we get to
+					// decide the XR's Synced condition, we can set it to false if
+					// any of the resources didn't sync successfully.
+					applyDesiredEventsChan <- TargetedEvent{
+						Event:  event.Warning(reasonCompose, errors.Wrapf(err, errFmtApplyCD, name)),
+						Target: CompositionTargetComposite,
+					}
+					// NOTE(phisco): here we behave differently w.r.t. the native
+					// p&t composer, as we respect the readiness reported by
+					// functions, while there we defaulted to also set ready false
+					// in case of apply errors.
+					resourcesChan <- ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: false}
+					return
+				}
+				applyDesiredErrorChan <- errors.Wrapf(err, errFmtApplyCD, name)
+			}
+			resourcesChan <- ComposedResource{ResourceName: name, Ready: cd.Ready, Synced: true}
+		}(name, cd)
+	}
+
+	go func() {
+		applyDesiredWg.Wait()
+		close(applyDesiredEventsChan)
+		close(applyDesiredErrorChan)
+		close(resourcesChan)
+	}()
+
+	// Data needs to be collected in separate goroutines because they would
+	// otherwise block each other.
+	collectWg := sync.WaitGroup{}
+	collectWg.Add(3)
+
+	go func() {
+		defer collectWg.Done()
+		events = append(events, channelToSlice(applyDesiredEventsChan)...)
+	}()
+
+	var applyErrors []error
+	go func() {
+		defer collectWg.Done()
+		applyErrors = append(applyErrors, channelToSlice(applyDesiredErrorChan)...)
+	}()
+
+	var resources []ComposedResource
+	go func() {
+		defer collectWg.Done()
+		resources = channelToSlice(resourcesChan)
+	}()
+
+	collectWg.Wait()
+	if len(applyErrors) > 0 {
+		return CompositionResult{}, errors.Wrap(errors.Join(applyErrors...), errFmtApplyCDJoined)
 	}
 
 	// Our goal here is to patch our XR's status using server-side apply. We
@@ -551,6 +599,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composite: compositeRes, Composed: resources, Events: events, Conditions: conditions}, nil
+}
+
+// channelToSlice is a generic shorthand function to convert a (closed) channel
+// into a slice.
+func channelToSlice[T any](channel chan T) []T {
+	s := make([]T, 0, len(channel))
+	for e := range channel {
+		s = append(s, e)
+	}
+	return s
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
