@@ -228,6 +228,10 @@ spec:
                 required:
                 - strategy
                 type: object
+                x-kubernetes-validations:
+                - message: Webhook configuration is required when conversion strategy
+                    is Webhook
+                  rule: self.strategy == Webhook && has(self.webhook)
               defaultCompositeDeletePolicy:
                 default: Background
                 description: |-

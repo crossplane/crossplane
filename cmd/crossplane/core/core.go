@@ -59,7 +59,6 @@ import (
 	"github.com/crossplane/crossplane/internal/metrics"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/usage"
-	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/xrd"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -468,17 +467,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.EnableWebhooks {
-		// TODO(muvaf): Once the implementation of other webhook handlers are
-		// fleshed out, implement a registration pattern similar to scheme
-		// registrations.
-		if err := xrd.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
-		}
-		if o.Features.Enabled(features.EnableBetaUsages) {
-			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
-				return errors.Wrap(err, "cannot setup webhook for usages")
-			}
+	if c.EnableWebhooks && o.Features.Enabled(features.EnableBetaUsages) {
+		if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
+			return errors.Wrap(err, "cannot setup webhook for usages")
 		}
 	}
 
