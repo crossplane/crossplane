@@ -36,8 +36,7 @@ const (
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
-// +kubebuilder:validation:XValidation:rule="has(self.claimNames) && self.scope == LegacyCluster",message="Only LegacyCluster composite resources can offer claims"
-// +kubebuilder:validation:XValidation:rule="has(self.claimNames) && has(self.defaultCompositeDeletePolicy)",message="Only LegacyCluster composite resources may set a delete policy"
+// +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.claimNames)",message="Only LegacyCluster composite resources can offer claims"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -55,6 +54,7 @@ type CompositeResourceDefinitionSpec struct {
 	// outside the scope of any namespace. Neither can be claimed. Legacy
 	// cluster scoped composite resources are cluster scoped resources that can
 	// be claimed.
+	// +optional
 	// +kubebuilder:validation:Enum=LegacyCluster;Namespaced;Cluster
 	// +kubebuilder:default=LegacyCluster
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
@@ -116,7 +116,7 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Conversion defines all conversion settings for the defined Composite resource.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.strategy == Webhook && has(self.webhook)",message="Webhook configuration is required when conversion strategy is Webhook"
+	// +kubebuilder:validation:XValidation:rule="self.strategy == 'Webhook' && has(self.webhook)",message="Webhook configuration is required when conversion strategy is Webhook"
 	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
 
 	// Metadata specifies the desired metadata for the defined composite resource and claim CRD's.

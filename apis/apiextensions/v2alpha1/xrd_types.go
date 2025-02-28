@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v2alpha1
 
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -30,14 +30,12 @@ type CompositeResourceScope string
 
 // Composite resource scopes.
 const (
-	CompositeResourceScopeNamespaced    CompositeResourceScope = "Namespaced"
-	CompositeResourceScopeCluster       CompositeResourceScope = "Cluster"
-	CompositeResourceScopeLegacyCluster CompositeResourceScope = "LegacyCluster"
+	CompositeResourceScopeNamespaced CompositeResourceScope = "Namespaced"
+	CompositeResourceScopeCluster    CompositeResourceScope = "Cluster"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
-// +kubebuilder:validation:XValidation:rule="has(self.claimNames) && self.scope == LegacyCluster",message="Only LegacyCluster composite resources can offer claims"
-// +kubebuilder:validation:XValidation:rule="has(self.claimNames) && has(self.defaultCompositeDeletePolicy)",message="Only LegacyCluster composite resources may set a delete policy"
+// +kubebuilder:validation:XValidation:rule="!has(self.claimNames)",message="Claims aren't supported in apiextensions.crossplane.io/v2"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -52,37 +50,17 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Scope of the defined composite resource. Namespaced composite resources
 	// are scoped to a single namespace. Cluster scoped composite resource exist
-	// outside the scope of any namespace. Neither can be claimed. Legacy
-	// cluster scoped composite resources are cluster scoped resources that can
-	// be claimed.
-	// +kubebuilder:validation:Enum=LegacyCluster;Namespaced;Cluster
-	// +kubebuilder:default=LegacyCluster
+	// outside the scope of any namespace.
+	// +kubebuilder:validation:Enum=Namespaced;Cluster
+	// +kubebuilder:default=Namespaced
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	Scope *CompositeResourceScope `json:"scope,omitempty"`
-
-	// ClaimNames specifies the names of an optional composite resource claim.
-	// When claim names are specified Crossplane will create a namespaced
-	// 'composite resource claim' CRD that corresponds to the defined composite
-	// resource. This composite resource claim acts as a namespaced proxy for
-	// the composite resource; creating, updating, or deleting the claim will
-	// create, update, or delete a corresponding composite resource. You may add
-	// claim names to an existing CompositeResourceDefinition, but they cannot
-	// be changed or removed once they have been set.
-	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
-	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
+	Scope CompositeResourceScope `json:"scope,omitempty"`
 
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end
 	// user of the defined kind.
 	// If the list is empty, all keys will be published.
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
-
-	// DefaultCompositeDeletePolicy is the policy used when deleting the Composite
-	// that is associated with the Claim if no policy has been specified.
-	// +optional
-	// +kubebuilder:default=Background
-	DefaultCompositeDeletePolicy *xpv1.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
 
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
@@ -116,12 +94,31 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Conversion defines all conversion settings for the defined Composite resource.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.strategy == Webhook && has(self.webhook)",message="Webhook configuration is required when conversion strategy is Webhook"
 	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
 
 	// Metadata specifies the desired metadata for the defined composite resource and claim CRD's.
 	// +optional
 	Metadata *CompositeResourceDefinitionSpecMetadata `json:"metadata,omitempty"`
+
+	// ClaimNames specifies the names of an optional composite resource claim.
+	// When claim names are specified Crossplane will create a namespaced
+	// 'composite resource claim' CRD that corresponds to the defined composite
+	// resource. This composite resource claim acts as a namespaced proxy for
+	// the composite resource; creating, updating, or deleting the claim will
+	// create, update, or delete a corresponding composite resource. You may add
+	// claim names to an existing CompositeResourceDefinition, but they cannot
+	// be changed or removed once they have been set.
+	//
+	// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
+	// +optional
+	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
+
+	// DefaultCompositeDeletePolicy is the policy used when deleting the Composite
+	// that is associated with the Claim if no policy has been specified.
+	//
+	// Deprecated: Claims aren't supported in apiextensions.crossplane.io/v2.
+	// +optional
+	DefaultCompositeDeletePolicy *xpv1.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
 }
 
 // A CompositionReference references a Composition.
@@ -231,7 +228,6 @@ type CompositeResourceDefinitionControllerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +genclient
 // +genclient:nonNamespaced
 
@@ -304,4 +300,13 @@ func (c *CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVer
 // secret.
 func (c *CompositeResourceDefinition) GetConnectionSecretKeys() []string {
 	return c.Spec.ConnectionSecretKeys
+}
+
+// TypeReference is used to refer to a type for declaring compatibility.
+type TypeReference struct {
+	// APIVersion of the type.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the type.
+	Kind string `json:"kind"`
 }
