@@ -106,6 +106,11 @@ func (in *CompositeResourceDefinitionList) DeepCopyObject() runtime.Object {
 func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDefinitionSpec) {
 	*out = *in
 	in.Names.DeepCopyInto(&out.Names)
+	if in.Scope != nil {
+		in, out := &in.Scope, &out.Scope
+		*out = new(CompositeResourceScope)
+		**out = **in
+	}
 	if in.ClaimNames != nil {
 		in, out := &in.ClaimNames, &out.ClaimNames
 		*out = new(apiextensionsv1.CustomResourceDefinitionNames)

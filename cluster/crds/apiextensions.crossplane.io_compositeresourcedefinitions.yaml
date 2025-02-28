@@ -355,6 +355,22 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
+              scope:
+                default: LegacyCluster
+                description: |-
+                  Scope of the defined composite resource. Namespaced composite resources
+                  are scoped to a single namespace. Cluster scoped composite resource exist
+                  outside the scope of any namespace. Neither can be claimed. Legacy
+                  cluster scoped composite resources are cluster scoped resources that can
+                  be claimed.
+                enum:
+                - LegacyCluster
+                - Namespaced
+                - Cluster
+                type: string
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
               versions:
                 description: |-
                   Versions is the list of all API versions of the defined composite
@@ -474,6 +490,11 @@ spec:
             - names
             - versions
             type: object
+            x-kubernetes-validations:
+            - message: Only LegacyCluster composite resources can offer claims
+              rule: has(self.claimNames) && self.scope == LegacyCluster
+            - message: Only LegacyCluster composite resources may set a delete policy
+              rule: has(self.claimNames) && has(self.defaultCompositeDeletePolicy)
           status:
             description: CompositeResourceDefinitionStatus shows the observed state
               of the definition.
