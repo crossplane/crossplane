@@ -432,44 +432,6 @@ func TestConvertToCRDs(t *testing.T) {
 																{Raw: []byte(`"Manual"`)},
 															},
 														},
-														"publishConnectionDetailsTo": {
-															Type:     "object",
-															Required: []string{"name"},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {Type: "string"},
-																"configRef": {
-																	Type:    "object",
-																	Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"name": {
-																			Type: "string",
-																		},
-																	},
-																},
-																"metadata": {
-																	Type: "object",
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"labels": {
-																			Type: "object",
-																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																				Allows: true,
-																				Schema: &extv1.JSONSchemaProps{Type: "string"},
-																			},
-																		},
-																		"annotations": {
-																			Type: "object",
-																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																				Allows: true,
-																				Schema: &extv1.JSONSchemaProps{Type: "string"},
-																			},
-																		},
-																		"type": {
-																			Type: "string",
-																		},
-																	},
-																},
-															},
-														},
 														"resourceRefs": {
 															Type: "array",
 															Items: &extv1.JSONSchemaPropsOrArray{
@@ -776,44 +738,6 @@ func TestConvertToCRDs(t *testing.T) {
 																{Raw: []byte(`"Manual"`)},
 															},
 														},
-														"publishConnectionDetailsTo": {
-															Type:     "object",
-															Required: []string{"name"},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {Type: "string"},
-																"configRef": {
-																	Type:    "object",
-																	Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"name": {
-																			Type: "string",
-																		},
-																	},
-																},
-																"metadata": {
-																	Type: "object",
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"labels": {
-																			Type: "object",
-																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																				Allows: true,
-																				Schema: &extv1.JSONSchemaProps{Type: "string"},
-																			},
-																		},
-																		"annotations": {
-																			Type: "object",
-																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																				Allows: true,
-																				Schema: &extv1.JSONSchemaProps{Type: "string"},
-																			},
-																		},
-																		"type": {
-																			Type: "string",
-																		},
-																	},
-																},
-															},
-														},
 														"resourceRefs": {
 															Type: "array",
 															Items: &extv1.JSONSchemaPropsOrArray{
@@ -1034,44 +958,6 @@ func TestConvertToCRDs(t *testing.T) {
 															Enum: []extv1.JSON{
 																{Raw: []byte(`"Automatic"`)},
 																{Raw: []byte(`"Manual"`)},
-															},
-														},
-														"publishConnectionDetailsTo": {
-															Type:     "object",
-															Required: []string{"name"},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {Type: "string"},
-																"configRef": {
-																	Type:    "object",
-																	Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"name": {
-																			Type: "string",
-																		},
-																	},
-																},
-																"metadata": {
-																	Type: "object",
-																	Properties: map[string]extv1.JSONSchemaProps{
-																		"labels": {
-																			Type: "object",
-																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																				Allows: true,
-																				Schema: &extv1.JSONSchemaProps{Type: "string"},
-																			},
-																		},
-																		"annotations": {
-																			Type: "object",
-																			AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-																				Allows: true,
-																				Schema: &extv1.JSONSchemaProps{Type: "string"},
-																			},
-																		},
-																		"type": {
-																			Type: "string",
-																		},
-																	},
-																},
 															},
 														},
 														"resourceRef": {
