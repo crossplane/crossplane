@@ -18,7 +18,9 @@ package xpkg
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -129,6 +131,15 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		authn.DefaultKeychain,
 	)
 
+	t := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: upCtx.InsecureSkipTLSVerify},
+	}
+
+	options := []remote.Option{
+		remote.WithAuthFromKeychain(kc),
+		remote.WithTransport(t),
+	}
+
 	// If there's only one package file, handle the simple path.
 	if len(c.PackageFiles) == 1 {
 		img, err := tarball.ImageFromPath(c.PackageFiles[0], nil)
@@ -139,7 +150,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		if err != nil {
 			return errors.Wrapf(err, errAnnotateLayers)
 		}
-		if err := remote.Write(tag, img, remote.WithAuthFromKeychain(kc)); err != nil {
+		if err := remote.Write(tag, img, options...); err != nil {
 			return errors.Wrapf(err, errFmtPushPackage, c.PackageFiles[0])
 		}
 		logger.Debug("Pushed package", "path", c.PackageFiles[0], "ref", tag.String())
@@ -194,7 +205,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 					},
 				},
 			}
-			if err := remote.Write(ref, img, remote.WithAuthFromKeychain(kc), remote.WithContext(ctx)); err != nil {
+			if err := remote.Write(ref, img, append(options, remote.WithContext(ctx))...); err != nil {
 				return errors.Wrapf(err, errFmtPushPackage, file)
 			}
 			logger.Debug("Pushed package", "path", file, "ref", ref.String())
@@ -206,7 +217,7 @@ func (c *pushCmd) Run(logger logging.Logger) error { //nolint:gocognit // This f
 		return err
 	}
 
-	if err := remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), remote.WithAuthFromKeychain(kc)); err != nil {
+	if err := remote.WriteIndex(tag, mutate.AppendManifests(empty.Index, adds...), options...); err != nil {
 		return errors.Wrapf(err, errFmtWriteIndex, len(adds))
 	}
 	logger.Debug("Wrote OCI index", "ref", tag.String(), "manifests", len(adds))
