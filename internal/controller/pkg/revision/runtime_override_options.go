@@ -21,7 +21,9 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/initializer"
@@ -470,4 +472,74 @@ func mountTLSSecret(secret, volName, mountPath, envName string, d *appsv1.Deploy
 		{Name: envName, Value: mountPath},
 	}
 	d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+}
+
+// PodDisruptionBudgetOverride is a modifier option that overrides a PDB.
+type PodDisruptionBudgetOverride func(pdb *policyv1.PodDisruptionBudget)
+
+// PodDisruptionBudgetWithName overrides the name of a PDB.
+func PodDisruptionBudgetWithName(name string) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		p.Name = name
+	}
+}
+
+// PodDisruptionBudgetWithOptionalName overrides the name of a PDB if empty.
+func PodDisruptionBudgetWithOptionalName(name string) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		if p.Name == "" {
+			p.Name = name
+		}
+	}
+}
+
+// PodDisruptionBudgetWithNamespace overrides the namespace of a PDB.
+func PodDisruptionBudgetWithNamespace(namespace string) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		p.Namespace = namespace
+	}
+}
+
+// PodDisruptionBudgetWithOwnerReferences overrides the owner references of a PDB.
+func PodDisruptionBudgetWithOwnerReferences(owners []metav1.OwnerReference) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		p.OwnerReferences = owners
+	}
+}
+
+// PodDisruptionBudgetWithSelectors overrides the selectors of a PDB.
+func PodDisruptionBudgetWithSelectors(selectors map[string]string) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		if p.Spec.Selector == nil {
+			p.Spec.Selector = &metav1.LabelSelector{}
+		}
+		p.Spec.Selector.MatchLabels = selectors
+	}
+}
+
+// PodDisruptionBudgetWithMaxUnavailable overrides the maxUnavailable setting of a PDB.
+func PodDisruptionBudgetWithMaxUnavailable(maxUnavailable intstr.IntOrString) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		if p.Spec.MaxUnavailable != nil {
+			p.Spec.MaxUnavailable = &maxUnavailable
+		}
+	}
+}
+
+// PodDisruptionBudgetWithMinAvailable overrides the minAvailable setting of a PDB.
+func PodDisruptionBudgetWithMinAvailable(minAvailable intstr.IntOrString) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		if p.Spec.MinAvailable != nil {
+			p.Spec.MinAvailable = &minAvailable
+		}
+	}
+}
+
+// PodDisruptionBudgetUnhealthyPodEvictionPolicyOverride overrides the unhealthyPodEvictionPolicy setting of a PDB.
+func PodDisruptionBudgetUnhealthyPodEvictionPolicyOverride(unhealthyPodEvictionPolicy policyv1.UnhealthyPodEvictionPolicyType) PodDisruptionBudgetOverride {
+	return func(p *policyv1.PodDisruptionBudget) {
+		if p.Spec.UnhealthyPodEvictionPolicy != nil {
+			p.Spec.UnhealthyPodEvictionPolicy = &unhealthyPodEvictionPolicy
+		}
+	}
 }

@@ -19,6 +19,7 @@ package revision
 import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -77,4 +78,26 @@ func serviceFromRuntimeConfig(tmpl *v1beta1.ServiceTemplate) *corev1.Service {
 	svc.Labels = tmpl.Metadata.Labels
 
 	return svc
+}
+
+func pdbFromRuntimeConfig(tmpl *v1beta1.PodDisruptionBudgetTemplate) *policyv1.PodDisruptionBudget {
+	p := &policyv1.PodDisruptionBudget{}
+
+	if tmpl == nil || tmpl.Metadata == nil {
+		return p
+	}
+
+	if meta := tmpl.Metadata; meta != nil {
+		if meta.Name != nil {
+			p.Name = *meta.Name
+		}
+		p.Annotations = meta.Annotations
+		p.Labels = meta.Labels
+	}
+
+	if spec := tmpl.Spec; spec != nil {
+		p.Spec = *spec
+	}
+
+	return p
 }
