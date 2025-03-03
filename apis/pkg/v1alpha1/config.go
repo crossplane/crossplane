@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -149,6 +150,9 @@ type ControllerConfigSpec struct {
 	// Cannot be updated.
 	// +optional
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Define the max disruption that can be caused to a collection of pods.
+	// +optional
+	PodDisruptionBudget policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 }
 
 // PodObjectMeta is metadata that is added to the Pods in a provider's

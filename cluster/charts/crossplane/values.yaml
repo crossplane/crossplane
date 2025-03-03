@@ -208,3 +208,19 @@ extraObjects: []
   #   spec:
   #     podSecurityContext:
   #       fsGroup: 2000
+
+podDisruptionBudget:
+  # -- Enable PodDisruptionBudget for the Crossplane pods.
+  enabled: false
+  # -- The minimum number of Crossplane pods that must be available at any given time.
+  minAvailable: ~
+  # -- The maximum number of Crossplane pods that can be unavailable at any given time.
+  maxUnavailable: "50%"
+
+podDisruptionBudgetRBACManager:
+  # -- Enable PodDisruptionBudget for the Crossplane RBAC Manager pods.
+  enabled: false
+  # -- The minimum number of Crossplane RBAC manager pods that must be available at any given time.
+  minAvailable: ~
+  # -- The maximum number of Crossplane RBAC manager pods that can be unavailable at any given time.
+  maxUnavailable: "50%"

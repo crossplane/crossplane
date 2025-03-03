@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -535,6 +536,80 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 	}
 }
 
+func TestRuntimeManifestBuilderPodDisruptionBudget(t *testing.T) {
+	type args struct {
+		builder            ManifestBuilder
+		overrides          []PodDisruptionBudgetOverride
+		serviceAccountName string
+	}
+	type want struct {
+		want *policyv1.PodDisruptionBudget
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ProviderDeploymentWithPodDisruptionBudget": {
+			reason: "PodDisruptionBudget should be created if specified in the runtime config",
+			args: args{
+				builder: &RuntimeManifestBuilder{
+					revision:  providerRevision,
+					namespace: namespace,
+					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
+						Spec: v1beta1.DeploymentRuntimeConfigSpec{
+							PodDisruptionBudgetTemplate: &v1beta1.PodDisruptionBudgetTemplate{
+								Metadata: &v1beta1.ObjectMeta{
+									Name: ptr.To("my-pdb"),
+								},
+								Spec: &policyv1.PodDisruptionBudgetSpec{
+									MinAvailable: ptr.To(intstr.FromString("20%")),
+								},
+							},
+						},
+					},
+				},
+				serviceAccountName: providerRevisionName,
+				overrides:          []PodDisruptionBudgetOverride{},
+			},
+			want: want{
+				want: &policyv1.PodDisruptionBudget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "my-pdb",
+						Namespace: namespace,
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								APIVersion:         "pkg.crossplane.io/v1",
+								Kind:               "ProviderRevision",
+								Name:               providerRevisionName,
+								Controller:         ptr.To(true),
+								BlockOwnerDeletion: ptr.To(true),
+							},
+						},
+					},
+					Spec: policyv1.PodDisruptionBudgetSpec{
+						MinAvailable: ptr.To(intstr.FromString("20%")),
+						Selector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"pkg.crossplane.io/provider": providerName,
+								"pkg.crossplane.io/revision": providerRevisionName,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.args.builder.PodDisruptionBudget(tc.args.overrides...)
+			if diff := cmp.Diff(tc.want.want, got); diff != "" {
+				t.Errorf("\n%s\nPodDisruptionBudget(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func deploymentProvider(provider string, revision string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -809,11 +884,17 @@ func deploymentFunction(function string, revision string, image string, override
 
 // MockManifestBuilder is a mock implementation of ManifestBuilder.
 type MockManifestBuilder struct {
-	ServiceAccountFn  func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
-	DeploymentFn      func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
-	ServiceFn         func(overrides ...ServiceOverride) *corev1.Service
-	TLSClientSecretFn func() *corev1.Secret
-	TLSServerSecretFn func() *corev1.Secret
+	ServiceAccountFn      func(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
+	DeploymentFn          func(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
+	PodDisRuptionBudgetFn func(overrides ...PodDisruptionBudgetOverride) *policyv1.PodDisruptionBudget
+	ServiceFn             func(overrides ...ServiceOverride) *corev1.Service
+	TLSClientSecretFn     func() *corev1.Secret
+	TLSServerSecretFn     func() *corev1.Secret
+}
+
+// PodDisruptionBudget returns the result of calling PodDisRuptionBudgetFn.
+func (b *MockManifestBuilder) PodDisruptionBudget(overrides ...PodDisruptionBudgetOverride) *policyv1.PodDisruptionBudget {
+	return b.PodDisRuptionBudgetFn(overrides...)
 }
 
 // ServiceAccount returns the result of calling ServiceAccountFn.

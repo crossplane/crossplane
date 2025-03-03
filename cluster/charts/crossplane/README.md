@@ -92,6 +92,12 @@ and their default values.
 | `packageCache.pvc` | The name of a PersistentVolumeClaim to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.sizeLimit` | The size limit for the package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory. | `"20Mi"` |
 | `packageManager.enableAutomaticDependencyDowngrade` | Enable automatic dependency version downgrades. This configuration is only used when `--enable-dependency-version-upgrades` flag is passed. | `false` |
+| `podDisruptionBudget.enabled` | Enable PodDisruptionBudget for the Crossplane pods. | `false` |
+| `podDisruptionBudget.maxUnavailable` | The maximum number of Crossplane pods that can be unavailable at any given time. | `"50%"` |
+| `podDisruptionBudget.minAvailable` | The minimum number of Crossplane pods that must be available at any given time. | `nil` |
+| `podDisruptionBudgetRBACManager.enabled` | Enable PodDisruptionBudget for the Crossplane RBAC Manager pods. | `false` |
+| `podDisruptionBudgetRBACManager.maxUnavailable` | The maximum number of Crossplane RBAC manager pods that can be unavailable at any given time. | `"50%"` |
+| `podDisruptionBudgetRBACManager.minAvailable` | The minimum number of Crossplane RBAC manager pods that must be available at any given time. | `nil` |
 | `podSecurityContextCrossplane` | Add a custom `securityContext` to the Crossplane pod. | `{}` |
 | `podSecurityContextRBACManager` | Add a custom `securityContext` to the RBAC Manager pod. | `{}` |
 | `priorityClassName` | The PriorityClass name to apply to the Crossplane and RBAC Manager pods. | `""` |
