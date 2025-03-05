@@ -116,6 +116,10 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
+                - message: Plural name must be lowercase
+                  rule: self.plural == self.plural.lowerAscii()
+                - message: Singular name must be lowercase
+                  rule: '!has(self.singular) || self.singular == self.singular.lowerAscii()'
               connectionSecretKeys:
                 description: |-
                   ConnectionSecretKeys is the list of keys that will be exposed to the end
@@ -407,6 +411,10 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
+                - message: Plural name must be lowercase
+                  rule: self.plural == self.plural.lowerAscii()
+                - message: Singular name must be lowercase
+                  rule: '!has(self.singular) || self.singular == self.singular.lowerAscii()'
               scope:
                 default: LegacyCluster
                 description: |-
@@ -979,6 +987,10 @@ spec:
                 x-kubernetes-validations:
                 - message: Value is immutable
                   rule: self == oldSelf
+                - message: Plural name must be lowercase
+                  rule: self.plural == self.plural.lowerAscii()
+                - message: Singular name must be lowercase
+                  rule: '!has(self.singular) || self.singular == self.singular.lowerAscii()'
               scope:
                 default: Namespaced
                 description: |-
