@@ -201,20 +201,6 @@ func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretRefer
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
-// GetPublishConnectionDetailsTo of this Composite resource.
-func (c *Unstructured) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	out := &xpv1.PublishConnectionDetailsTo{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.publishConnectionDetailsTo", out); err != nil {
-		return nil
-	}
-	return out
-}
-
-// SetPublishConnectionDetailsTo of this Composite resource.
-func (c *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnectionDetailsTo) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.publishConnectionDetailsTo", ref)
-}
-
 // GetCondition of this Composite resource.
 func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	conditioned := xpv1.ConditionedStatus{}
@@ -254,28 +240,6 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 // SetConnectionDetailsLastPublishedTime of this Composite resource.
 func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
 	_ = fieldpath.Pave(c.Object).SetValue("status.connectionDetails.lastPublishedTime", t)
-}
-
-// GetEnvironmentConfigReferences of this Composite resource.
-func (c *Unstructured) GetEnvironmentConfigReferences() []corev1.ObjectReference {
-	out := &[]corev1.ObjectReference{}
-	_ = fieldpath.Pave(c.Object).GetValueInto("spec.environmentConfigRefs", out)
-	return *out
-}
-
-// SetEnvironmentConfigReferences of this Composite resource.
-func (c *Unstructured) SetEnvironmentConfigReferences(refs []corev1.ObjectReference) {
-	empty := corev1.ObjectReference{}
-	filtered := make([]corev1.ObjectReference, 0, len(refs))
-	for _, ref := range refs {
-		// TODO(negz): Ask muvaf to explain what this is working around. :)
-		// TODO(muvaf): temporary workaround.
-		if ref.String() == empty.String() {
-			continue
-		}
-		filtered = append(filtered, ref)
-	}
-	_ = fieldpath.Pave(c.Object).SetValue("spec.environmentConfigRefs", filtered)
 }
 
 // SetObservedGeneration of this composite resource claim.
