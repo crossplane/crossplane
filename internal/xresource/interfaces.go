@@ -123,8 +123,8 @@ type Composed interface {
 	resource.Conditioned
 }
 
-// A CompositeClaim for a Composite resource.
-type CompositeClaim interface { //nolint:interfacebloat // This interface has to be big.
+// A Claim for a composite resource.
+type Claim interface { //nolint:interfacebloat // This interface has to be big.
 	resource.Object
 
 	resource.LocalConnectionSecretWriterTo
