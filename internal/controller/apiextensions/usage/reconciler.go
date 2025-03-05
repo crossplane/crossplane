@@ -42,13 +42,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
 const (
