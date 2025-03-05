@@ -47,6 +47,8 @@ type CompositeResourceDefinitionSpec struct {
 	// Names specifies the resource and kind names of the defined composite
 	// resource.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == self.plural.lowerAscii()",message="Plural name must be lowercase"
+	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
 
 	// Scope of the defined composite resource. Namespaced composite resources
@@ -70,6 +72,8 @@ type CompositeResourceDefinitionSpec struct {
 	// be changed or removed once they have been set.
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == self.plural.lowerAscii()",message="Plural name must be lowercase"
+	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end
