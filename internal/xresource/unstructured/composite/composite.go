@@ -27,7 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
-	"github.com/crossplane/crossplane/internal/resource/unstructured/reference"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 // An Option modifies an unstructured composite resource.

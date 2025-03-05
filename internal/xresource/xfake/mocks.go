@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package fake provides fake Crossplane resources for use in tests.
+// Package xfake provides fake Crossplane resources for use in tests.
 //
 //nolint:musttag // We only use JSON to round-trip convert these mocks.
-package fake
+package xfake
 
 import (
 	"encoding/json"
@@ -30,7 +30,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 
-	"github.com/crossplane/crossplane/internal/resource/unstructured/reference"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 // ClaimReferencer is a mock that implements ClaimReferencer interface.

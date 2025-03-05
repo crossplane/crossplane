@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package resource provides types and functions that can be used to build
-// Kubernetes controllers that reconcile Crossplane resources.
-package resource
+// Package xresource provides types and functions that can be used to build
+// controllers that reconcile Crossplane resources. It extends
+// github.com/crossplane/crossplane-runtime/pkg/resource with types that are
+// only used by the core Crossplane apiextensions controllers.
+package xresource

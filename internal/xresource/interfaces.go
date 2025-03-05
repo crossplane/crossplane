@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package xresource
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +23,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/internal/resource/unstructured/reference"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 // A ClaimReferencer may reference a resource claim.

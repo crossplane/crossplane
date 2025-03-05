@@ -14,22 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package xresource
 
 import (
-	"github.com/crossplane/crossplane/internal/resource/fake"
-	"github.com/crossplane/crossplane/internal/resource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/resource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/resource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/xfake"
 )
 
 // We test that our fakes satisfy our interfaces here rather than in the fake
 // package to avoid a cyclic dependency.
 
 var (
-	_ CompositeClaim = &fake.CompositeClaim{}
-	_ Composite      = &fake.Composite{}
-	_ Composed       = &fake.Composed{}
+	_ CompositeClaim = &xfake.CompositeClaim{}
+	_ Composite      = &xfake.Composite{}
+	_ Composed       = &xfake.Composed{}
 
 	_ CompositeClaim = &claim.Unstructured{}
 	_ Composite      = &composite.Unstructured{}
