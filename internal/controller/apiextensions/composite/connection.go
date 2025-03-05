@@ -25,7 +25,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane/internal/xresource"
 )
 
 // Error strings.
@@ -36,18 +37,18 @@ const (
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
 // resource, if any.
-type ConnectionDetailsFetcherFn func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
+type ConnectionDetailsFetcherFn func(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
 
 // FetchConnection calls the FetchConnectionDetailsFn.
-func (f ConnectionDetailsFetcherFn) FetchConnection(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (f ConnectionDetailsFetcherFn) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	return f(ctx, o)
 }
 
 // A ConnectionDetailsFetcherChain chains multiple ConnectionDetailsFetchers.
-type ConnectionDetailsFetcherChain []managed.ConnectionDetailsFetcher
+type ConnectionDetailsFetcherChain []ConnectionDetailsFetcher
 
 // FetchConnection details of the supplied composed resource, if any.
-func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	all := make(managed.ConnectionDetails)
 	for _, p := range fc {
 		conn, err := p.FetchConnection(ctx, o)
@@ -75,7 +76,7 @@ func NewSecretConnectionDetailsFetcher(c client.Client) *SecretConnectionDetails
 
 // FetchConnection details of the supplied composed resource from its Kubernetes
 // connection secret, per its WriteConnectionSecretToRef, if any.
-func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	sref := o.GetWriteConnectionSecretToReference()
 	if sref == nil {
 		// secret but has not yet. We presume this isn't an issue and that we'll

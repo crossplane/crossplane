@@ -26,11 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
 	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 type xrcOpt func(c *claim.Unstructured)

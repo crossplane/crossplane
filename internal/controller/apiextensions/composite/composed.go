@@ -17,7 +17,8 @@ package composite
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane/internal/xresource"
 )
 
 // A CompositeResource is an output of the composition process.
@@ -55,7 +56,7 @@ type ComposedResource struct {
 // ComposedResourceState represents a composed resource (either desired or
 // observed).
 type ComposedResourceState struct {
-	Resource          resource.Composed
+	Resource          xresource.Composed
 	ConnectionDetails managed.ConnectionDetails
 	Ready             bool
 }

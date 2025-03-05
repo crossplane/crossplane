@@ -71,7 +71,7 @@ func NewAPIConnectionPropagator(c client.Client) *APIConnectionPropagator {
 }
 
 // PropagateConnection details from the supplied resource.
-func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (bool, error) {
+func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (bool, error) {
 	// Either from does not expose a connection secret, or to does not want one.
 	if from.GetWriteConnectionSecretToReference() == nil || to.GetWriteConnectionSecretToReference() == nil {
 		return false, nil

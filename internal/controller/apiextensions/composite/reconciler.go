@@ -40,12 +40,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/engine"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -106,42 +107,101 @@ type ConnectionSecretFilterer interface {
 
 // A CompositionSelector selects a composition reference.
 type CompositionSelector interface {
-	SelectComposition(ctx context.Context, cr resource.Composite) error
+	SelectComposition(ctx context.Context, cr xresource.Composite) error
 }
 
 // A CompositionSelectorFn selects a composition reference.
-type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) error
+type CompositionSelectorFn func(ctx context.Context, cr xresource.Composite) error
 
 // SelectComposition for the supplied composite resource.
-func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resource.Composite) error {
+func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr xresource.Composite) error {
 	return fn(ctx, cr)
+}
+
+// A ConnectionPublisher manages the supplied ConnectionDetails for the
+// supplied Managed resource. ManagedPublishers must handle the case in which
+// the supplied ConnectionDetails are empty.
+type ConnectionPublisher interface {
+	// PublishConnection details for the supplied Managed resource. Publishing
+	// must be additive; i.e. if details (a, b, c) are published, subsequently
+	// publishing details (b, c, d) should update (b, c) but not remove a.
+	PublishConnection(ctx context.Context, so xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
+
+	// UnpublishConnection details for the supplied Managed resource.
+	UnpublishConnection(ctx context.Context, so xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+}
+
+// ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
+type ConnectionPublisherFns struct {
+	PublishConnectionFn   func(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error)
+	UnpublishConnectionFn func(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+}
+
+// PublishConnection details for the supplied Managed resource.
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+	return fn.PublishConnectionFn(ctx, o, c)
+}
+
+// UnpublishConnection details for the supplied Managed resource.
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+	return fn.UnpublishConnectionFn(ctx, o, c)
+}
+
+// A PublisherChain chains multiple ManagedPublishers.
+type PublisherChain []ConnectionPublisher
+
+// PublishConnection calls each ConnectionPublisher.PublishConnection serially. It returns the first error it
+// encounters, if any.
+func (pc PublisherChain) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+	published := false
+	for _, p := range pc {
+		pb, err := p.PublishConnection(ctx, o, c)
+		if err != nil {
+			return published, err
+		}
+		if pb {
+			published = true
+		}
+	}
+	return published, nil
+}
+
+// UnpublishConnection calls each ConnectionPublisher.UnpublishConnection serially. It returns the first error it
+// encounters, if any.
+func (pc PublisherChain) UnpublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+	for _, p := range pc {
+		if err := p.UnpublishConnection(ctx, o, c); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // A CompositionRevisionFetcher fetches an appropriate Composition for the supplied
 // composite resource.
 type CompositionRevisionFetcher interface {
-	Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error)
+	Fetch(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error)
 }
 
 // A CompositionRevisionFetcherFn fetches an appropriate CompositionRevision for
 // the supplied composite resource.
-type CompositionRevisionFetcherFn func(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error)
+type CompositionRevisionFetcherFn func(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error)
 
 // Fetch an appropriate Composition for the supplied Composite resource.
-func (fn CompositionRevisionFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error) {
+func (fn CompositionRevisionFetcherFn) Fetch(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error) {
 	return fn(ctx, cr)
 }
 
 // A Configurator configures a composite resource using its composition.
 type Configurator interface {
-	Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
+	Configure(ctx context.Context, cr xresource.Composite, rev *v1.CompositionRevision) error
 }
 
 // A ConfiguratorFn configures a composite resource using its composition.
-type ConfiguratorFn func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
+type ConfiguratorFn func(ctx context.Context, cr xresource.Composite, rev *v1.CompositionRevision) error
 
 // Configure the supplied composite resource using its composition.
-func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
+func (fn ConfiguratorFn) Configure(ctx context.Context, cr xresource.Composite, rev *v1.CompositionRevision) error {
 	return fn(ctx, cr, rev)
 }
 
@@ -292,9 +352,9 @@ func WithConfigurator(c Configurator) ReconcilerOption {
 
 // WithConnectionPublishers specifies how the Reconciler should publish
 // connection secrets.
-func WithConnectionPublishers(p ...managed.ConnectionPublisher) ReconcilerOption {
+func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.ConnectionPublisher = managed.PublisherChain(p)
+		r.composite.ConnectionPublisher = PublisherChain(p)
 	}
 }
 
@@ -344,15 +404,15 @@ type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
 	Configurator
-	managed.ConnectionPublisher
+	ConnectionPublisher
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(cached client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client: cached,
 
-		gvk: schema.GroupVersionKind(of),
+		gvk: of,
 
 		revision: revision{
 			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),

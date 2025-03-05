@@ -461,9 +461,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	cr := claim.NewReconciler(r.engine.GetCached(),
-		resource.CompositeClaimKind(d.GetClaimGroupVersionKind()),
-		resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)
+	cr := claim.NewReconciler(r.engine.GetCached(), d.GetClaimGroupVersionKind(), d.GetCompositeGroupVersionKind(), o...)
 
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = ratelimiter.NewReconciler(claim.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)

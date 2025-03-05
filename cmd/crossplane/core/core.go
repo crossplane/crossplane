@@ -47,7 +47,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -61,6 +60,7 @@ import (
 	"github.com/crossplane/crossplane/internal/usage"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 
 // Command runs the core crossplane controllers.

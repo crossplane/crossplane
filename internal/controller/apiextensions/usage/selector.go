@@ -24,9 +24,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
 const (

@@ -40,14 +40,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/xfake"
 )
 
 func TestFunctionCompose(t *testing.T) {
@@ -81,10 +82,10 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error encountered while fetching the XR's connection details.",
 			params: params{
 				o: []FunctionComposerOption{
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return ComposedResourceStates{}, nil
 					})),
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
 				},
@@ -101,10 +102,10 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error encountered while getting the XR's existing composed resources.",
 			params: params{
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, errBoom
 					})),
 				},
@@ -121,10 +122,10 @@ func TestFunctionCompose(t *testing.T) {
 			reason: "We should return any error encountered while unmarshalling a Composition Function input",
 			params: params{
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -161,10 +162,10 @@ func TestFunctionCompose(t *testing.T) {
 					MockGet: test.NewMockGetFn(errBoom),
 				},
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -205,10 +206,10 @@ func TestFunctionCompose(t *testing.T) {
 					return nil, errBoom
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -286,10 +287,10 @@ func TestFunctionCompose(t *testing.T) {
 					}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -375,10 +376,10 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -429,10 +430,10 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -470,10 +471,10 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
@@ -522,10 +523,10 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
@@ -576,10 +577,10 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
@@ -641,10 +642,10 @@ func TestFunctionCompose(t *testing.T) {
 					return &fnv1.RunFunctionResponse{Desired: d}, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(_ context.Context, _ metav1.Object, _, _ ComposedResourceStates) error {
@@ -765,15 +766,15 @@ func TestFunctionCompose(t *testing.T) {
 					return rsp, nil
 				}),
 				o: []FunctionComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
 						// We only try to extract connection details for
 						// observed resources.
 						r := ComposedResourceStates{
 							"observed-resource-a": ComposedResourceState{
-								Resource: &fake.Composed{
+								Resource: &xfake.Composed{
 									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
 								},
 							},
@@ -935,12 +936,12 @@ func TestGetComposedResources(t *testing.T) {
 	type params struct {
 		c  client.Reader
 		uc client.Reader
-		f  managed.ConnectionDetailsFetcher
+		f  ConnectionDetailsFetcher
 	}
 
 	type args struct {
 		ctx context.Context
-		xr  resource.Composite
+		xr  xresource.Composite
 	}
 
 	type want struct {
@@ -969,8 +970,8 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{
 								APIVersion: "example.org/v1",
@@ -994,8 +995,8 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "cool-resource"},
 						},
@@ -1016,8 +1017,8 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "cool-resource"},
 						},
@@ -1048,8 +1049,8 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "cool-resource"},
 						},
@@ -1074,8 +1075,8 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "cool-resource"},
 						},
@@ -1096,7 +1097,7 @@ func TestGetComposedResources(t *testing.T) {
 						return nil
 					}),
 				},
-				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return nil, errBoom
 				}),
 				uc: &test.MockClient{
@@ -1106,8 +1107,8 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{
 								Kind: "Broken",
@@ -1134,13 +1135,13 @@ func TestGetComposedResources(t *testing.T) {
 						return nil
 					}),
 				},
-				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return details, nil
 				}),
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{
 								APIVersion: "example.org/v1",
@@ -1155,7 +1156,7 @@ func TestGetComposedResources(t *testing.T) {
 				ors: ComposedResourceStates{
 					"cool-resource": ComposedResourceState{
 						ConnectionDetails: details,
-						Resource: func() resource.Composed {
+						Resource: func() *composed.Unstructured {
 							cd := composed.New()
 							cd.SetAPIVersion("example.org/v1")
 							cd.SetKind("Composed")
@@ -1182,13 +1183,13 @@ func TestGetComposedResources(t *testing.T) {
 					// this error.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+				f: ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 					return details, nil
 				}),
 			},
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{
 								APIVersion: "example.org/v1",
@@ -1203,7 +1204,7 @@ func TestGetComposedResources(t *testing.T) {
 				ors: ComposedResourceStates{
 					"cool-resource": ComposedResourceState{
 						ConnectionDetails: details,
-						Resource: func() resource.Composed {
+						Resource: func() *composed.Unstructured {
 							cd := composed.New()
 							cd.SetAPIVersion("example.org/v1")
 							cd.SetKind("Composed")
@@ -1235,7 +1236,7 @@ func TestGetComposedResources(t *testing.T) {
 
 func TestAsState(t *testing.T) {
 	type args struct {
-		xr resource.Composite
+		xr xresource.Composite
 		xc managed.ConnectionDetails
 		rs ComposedResourceStates
 	}
@@ -1341,13 +1342,13 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				owner: &fake.Composite{
+				owner: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "cool-xr",
 					},
 				},
 				observed: ComposedResourceStates{
-					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{
+					"undesired-resource": ComposedResourceState{Resource: &xfake.Composed{
 						ObjectMeta: metav1.ObjectMeta{
 							// This resource isn't controlled by the XR.
 							OwnerReferences: []metav1.OwnerReference{{
@@ -1372,14 +1373,14 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				owner: &fake.Composite{
+				owner: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "cool-xr",
 					},
 				},
 				observed: ComposedResourceStates{
 					"undesired-resource": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
@@ -1404,14 +1405,14 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				owner: &fake.Composite{
+				owner: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "cool-xr",
 					},
 				},
 				observed: ComposedResourceStates{
 					"undesired-resource": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
@@ -1442,14 +1443,14 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				owner: &fake.Composite{
+				owner: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "cool-xr",
 					},
 				},
 				observed: ComposedResourceStates{
 					"undesired-resource": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
@@ -1480,14 +1481,14 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				owner: &fake.Composite{
+				owner: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "cool-xr",
 					},
 				},
 				observed: ComposedResourceStates{
 					"desired-resource": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
 								OwnerReferences: []metav1.OwnerReference{{
@@ -1539,24 +1540,24 @@ func TestUpdateResourceRefs(t *testing.T) {
 		"Success": {
 			reason: "We should return a consistently ordered set of references.",
 			args: args{
-				xr: &fake.Composite{},
+				xr: &xfake.Composite{},
 				drs: ComposedResourceStates{
 					"never-created-c": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "never-created-c-42",
 							},
 						},
 					},
 					"never-created-b": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "never-created-b-42",
 							},
 						},
 					},
 					"never-created-a": ComposedResourceState{
-						Resource: &fake.Composed{
+						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "never-created-a-42",
 							},
@@ -1565,8 +1566,8 @@ func TestUpdateResourceRefs(t *testing.T) {
 				},
 			},
 			want: want{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+				xr: &xfake.Composite{
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
 							{Name: "never-created-a-42"},
 							{Name: "never-created-b-42"},

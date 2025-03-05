@@ -40,14 +40,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // Error strings.
@@ -112,7 +113,7 @@ type FunctionComposer struct {
 
 type xr struct {
 	names.NameGenerator
-	managed.ConnectionDetailsFetcher
+	ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
 	ExtraResourcesFetcher
@@ -133,16 +134,22 @@ func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fn
 	return fn(ctx, name, req)
 }
 
+// A ConnectionDetailsFetcher fetches connection details for the supplied
+// Connection Secret owner.
+type ConnectionDetailsFetcher interface {
+	FetchConnection(ctx context.Context, so xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
+}
+
 // A ComposedResourceObserver observes existing composed resources.
 type ComposedResourceObserver interface {
-	ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
+	ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
 }
 
 // A ComposedResourceObserverFn observes existing composed resources.
-type ComposedResourceObserverFn func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
+type ComposedResourceObserverFn func(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
 
 // ObserveComposedResources observes existing composed resources.
-func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error) {
 	return fn(ctx, xr)
 }
 
@@ -186,9 +193,9 @@ type ManagedFieldsUpgrader interface {
 // A FunctionComposerOption is used to configure a FunctionComposer.
 type FunctionComposerOption func(*FunctionComposer)
 
-// WithCompositeConnectionDetailsFetcher configures how the FunctionComposer should
-// get the composite resource's connection details.
-func WithCompositeConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) FunctionComposerOption {
+// WithCompositeConnectionDetailsFetcher configures how the FunctionComposer
+// should get the composite resource's connection details.
+func WithCompositeConnectionDetailsFetcher(f ConnectionDetailsFetcher) FunctionComposerOption {
 	return func(p *FunctionComposer) {
 		p.composite.ConnectionDetailsFetcher = f
 	}
@@ -586,19 +593,19 @@ func ComposedFieldOwnerName(xr *composite.Unstructured) string {
 type ExistingComposedResourceObserver struct {
 	cached   client.Reader
 	uncached client.Reader
-	details  managed.ConnectionDetailsFetcher
+	details  ConnectionDetailsFetcher
 }
 
 // NewExistingComposedResourceObserver returns a ComposedResourceGetter that
 // fetches an XR's existing composed resources.
-func NewExistingComposedResourceObserver(c, uc client.Reader, f managed.ConnectionDetailsFetcher) *ExistingComposedResourceObserver {
+func NewExistingComposedResourceObserver(c, uc client.Reader, f ConnectionDetailsFetcher) *ExistingComposedResourceObserver {
 	return &ExistingComposedResourceObserver{cached: c, uncached: uc, details: f}
 }
 
 // ObserveComposedResources begins building composed resource state by
 // fetching any existing composed resources referenced by the supplied composite
 // resource, as well as their connection details.
-func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error) {
 	ors := ComposedResourceStates{}
 
 	for _, ref := range xr.GetResourceReferences() {
@@ -656,7 +663,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
-func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
+func AsState(xr xresource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
 	r, err := AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
