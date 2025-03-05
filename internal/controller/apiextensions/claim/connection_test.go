@@ -32,6 +32,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/internal/xresource"
 )
 
 var _ ConnectionPropagator = &APIConnectionPropagator{}
@@ -65,7 +67,7 @@ func TestPropagateConnection(t *testing.T) {
 
 	type args struct {
 		ctx  context.Context
-		to   resource.LocalConnectionSecretOwner
+		to   xresource.LocalConnectionSecretOwner
 		from resource.ConnectionSecretOwner
 	}
 	type want struct {
