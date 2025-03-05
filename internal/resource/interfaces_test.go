@@ -27,10 +27,6 @@ import (
 // package to avoid a cyclic dependency.
 
 var (
-	_ Managed             = &fake.Managed{}
-	_ ProviderConfig      = &fake.ProviderConfig{}
-	_ ProviderConfigUsage = &fake.ProviderConfigUsage{}
-
 	_ CompositeClaim = &fake.CompositeClaim{}
 	_ Composite      = &fake.Composite{}
 	_ Composed       = &fake.Composed{}
