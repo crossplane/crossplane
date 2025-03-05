@@ -26,7 +26,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
-	"github.com/crossplane/crossplane/internal/resource/unstructured/reference"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 // An Option modifies an unstructured composite resource claim.

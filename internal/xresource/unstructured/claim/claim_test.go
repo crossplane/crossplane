@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composite
+package claim
 
 import (
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -30,9 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/resource/unstructured/reference"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 var _ client.Object = &Unstructured{}
@@ -72,38 +70,34 @@ func TestWithGroupVersionKind(t *testing.T) {
 
 func TestConditions(t *testing.T) {
 	cases := map[string]struct {
-		reason  string
-		u       *Unstructured
-		set     []xpv1.Condition
-		get     xpv1.ConditionType
-		want    xpv1.Condition
-		wantAll []xpv1.Condition
+		reason string
+		u      *Unstructured
+		set    []xpv1.Condition
+		get    xpv1.ConditionType
+		want   xpv1.Condition
 	}{
 		"NewCondition": {
-			reason:  "It should be possible to set a condition of an empty Unstructured.",
-			u:       New(),
-			set:     []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Available(),
-			wantAll: []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
+			reason: "It should be possible to set a condition of an empty Unstructured.",
+			u:      New(),
+			set:    []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
+			get:    xpv1.TypeReady,
+			want:   xpv1.Available(),
 		},
 		"ExistingCondition": {
-			reason:  "It should be possible to overwrite a condition that is already set.",
-			u:       New(WithConditions(xpv1.Creating())),
-			set:     []xpv1.Condition{xpv1.Available()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Available(),
-			wantAll: []xpv1.Condition{xpv1.Available()},
+			reason: "It should be possible to overwrite a condition that is already set.",
+			u:      New(WithConditions(xpv1.Creating())),
+			set:    []xpv1.Condition{xpv1.Available()},
+			get:    xpv1.TypeReady,
+			want:   xpv1.Available(),
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
 			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
 				"status": "wat",
 			}}},
-			set:     []xpv1.Condition{xpv1.Available()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Condition{},
-			wantAll: nil,
+			set:  []xpv1.Condition{xpv1.Available()},
+			get:  xpv1.TypeReady,
+			want: xpv1.Condition{},
 		},
 		"WeirdStatusConditions": {
 			reason: "Conditions should be overwritten if they are not an object.",
@@ -112,98 +106,18 @@ func TestConditions(t *testing.T) {
 					"conditions": "wat",
 				},
 			}}},
-			set:     []xpv1.Condition{xpv1.Available()},
-			get:     xpv1.TypeReady,
-			want:    xpv1.Available(),
-			wantAll: []xpv1.Condition{xpv1.Available()},
+			set:  []xpv1.Condition{xpv1.Available()},
+			get:  xpv1.TypeReady,
+			want: xpv1.Available(),
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetConditions(tc.set...)
-
 			got := tc.u.GetCondition(tc.get)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nu.GetCondition(%s): -want, +got:\n%s", tc.reason, tc.get, diff)
-			}
-
-			gotAll := tc.u.GetConditions()
-			if diff := cmp.Diff(tc.wantAll, gotAll); diff != "" {
-				t.Errorf("\n%s\nu.GetConditions(): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestClaimConditionTypes(t *testing.T) {
-	cases := map[string]struct {
-		reason  string
-		u       *Unstructured
-		set     []xpv1.ConditionType
-		want    []xpv1.ConditionType
-		wantErr error
-	}{
-		"CannotSetSystemConditionTypes": {
-			reason: "Claim conditions API should fail to set conditions if a system condition is detected.",
-			u:      New(),
-			set: []xpv1.ConditionType{
-				xpv1.ConditionType("DatabaseReady"),
-				xpv1.ConditionType("NetworkReady"),
-				// system condition
-				xpv1.ConditionType("Ready"),
-			},
-			want:    []xpv1.ConditionType{},
-			wantErr: errors.New("cannot set system condition Ready as a claim condition"),
-		},
-		"SetSingleCustomConditionType": {
-			reason: "Claim condition API should work with a single custom condition type.",
-			u:      New(),
-			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-		},
-		"SetMultipleCustomConditionTypes": {
-			reason: "Claim condition API should work with multiple custom condition types.",
-			u:      New(),
-			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
-			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
-		},
-		"SetMultipleOfTheSameCustomConditionTypes": {
-			reason: "Claim condition API not add more than one of the same condition.",
-			u:      New(),
-			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("DatabaseReady")},
-			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-		},
-		"WeirdStatus": {
-			reason: "It should not be possible to set a condition when status is not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
-				"status": "wat",
-			}}},
-			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-			want: []xpv1.ConditionType{},
-		},
-		"WeirdStatusClaimConditionTypes": {
-			reason: "Claim conditions should be overwritten if they are not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
-				"status": map[string]any{
-					"claimConditionTypes": "wat",
-				},
-			}}},
-			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-			want: []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			gotErr := tc.u.SetClaimConditionTypes(tc.set...)
-			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nu.SetClaimConditionTypes(): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			got := tc.u.GetClaimConditionTypes()
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\n%s\nu.GetClaimConditionTypes(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -334,12 +248,37 @@ func TestCompositionUpdatePolicy(t *testing.T) {
 	}
 }
 
-func TestClaimReference(t *testing.T) {
-	ref := &reference.Claim{Namespace: "ns", Name: "cool", APIVersion: "acme.com/v1", Kind: "Foo"}
+func TestCompositeDeletePolicy(t *testing.T) {
+	p := xpv1.CompositeDeleteBackground
 	cases := map[string]struct {
 		u    *Unstructured
-		set  *reference.Claim
-		want *reference.Claim
+		set  *xpv1.CompositeDeletePolicy
+		want *xpv1.CompositeDeletePolicy
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  &p,
+			want: &p,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetCompositeDeletePolicy(tc.set)
+			got := tc.u.GetCompositeDeletePolicy()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetCompositeDeletePolicy(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestResourceReference(t *testing.T) {
+	ref := &reference.Composite{Name: "cool"}
+	cases := map[string]struct {
+		u    *Unstructured
+		set  *reference.Composite
+		want *reference.Composite
 	}{
 		"NewRef": {
 			u:    New(),
@@ -350,46 +289,34 @@ func TestClaimReference(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tc.u.SetClaimReference(tc.set)
-			got := tc.u.GetClaimReference()
+			tc.u.SetResourceReference(tc.set)
+			got := tc.u.GetResourceReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\nu.GetClaimReference(): -want, +got:\n%s", diff)
+				t.Errorf("\nu.GetResourceReference(): -want, +got:\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestResourceReferences(t *testing.T) {
-	ref := corev1.ObjectReference{Namespace: "ns", Name: "cool"}
-	cases := map[string]struct {
-		u    *Unstructured
-		set  []corev1.ObjectReference
-		want []corev1.ObjectReference
-	}{
-		"NewRef": {
-			u:    New(),
-			set:  []corev1.ObjectReference{ref},
-			want: []corev1.ObjectReference{ref},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			tc.u.SetResourceReferences(tc.set)
-			got := tc.u.GetResourceReferences()
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\nu.GetResourceReferences(): -want, +got:\n%s", diff)
-			}
-		})
+func TestClaimReference(t *testing.T) {
+	ref := &reference.Claim{Namespace: "ns", Name: "cool", APIVersion: "foo.com/v1", Kind: "Foo"}
+	u := &Unstructured{}
+	u.SetName(ref.Name)
+	u.SetNamespace(ref.Namespace)
+	u.SetAPIVersion(ref.APIVersion)
+	u.SetKind(ref.Kind)
+	got := u.GetReference()
+	if diff := cmp.Diff(ref, got); diff != "" {
+		t.Errorf("\nu.GetClaimReference(): -want, +got:\n%s", diff)
 	}
 }
 
 func TestWriteConnectionSecretToReference(t *testing.T) {
-	ref := &xpv1.SecretReference{Namespace: "ns", Name: "cool"}
+	ref := &xpv1.LocalSecretReference{Name: "cool"}
 	cases := map[string]struct {
 		u    *Unstructured
-		set  *xpv1.SecretReference
-		want *xpv1.SecretReference
+		set  *xpv1.LocalSecretReference
+		want *xpv1.LocalSecretReference
 	}{
 		"NewRef": {
 			u:    New(),
@@ -416,7 +343,7 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 	// encoding.
 	lores := func(t *metav1.Time) *metav1.Time {
 		out := &metav1.Time{}
-		j, _ := json.Marshal(t) //nolint:errchkjson // No encoding error in practice.
+		j, _ := json.Marshal(t) //nolint:errchkjson // No encoding issue in practice.
 		_ = json.Unmarshal(j, out)
 		return out
 	}
