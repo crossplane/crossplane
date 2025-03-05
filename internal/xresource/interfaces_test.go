@@ -27,11 +27,11 @@ import (
 // package to avoid a cyclic dependency.
 
 var (
-	_ CompositeClaim = &xfake.CompositeClaim{}
-	_ Composite      = &xfake.Composite{}
-	_ Composed       = &xfake.Composed{}
+	_ Claim     = &xfake.Claim{}
+	_ Composite = &xfake.Composite{}
+	_ Composed  = &xfake.Composed{}
 
-	_ CompositeClaim = &claim.Unstructured{}
-	_ Composite      = &composite.Unstructured{}
-	_ Composed       = &composed.Unstructured{}
+	_ Claim     = &claim.Unstructured{}
+	_ Composite = &composite.Unstructured{}
+	_ Composed  = &composed.Unstructured{}
 )
