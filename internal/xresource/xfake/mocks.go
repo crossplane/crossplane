@@ -208,8 +208,8 @@ func (m *Composed) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// CompositeClaim is a mock that implements the CompositeClaim interface.
-type CompositeClaim struct {
+// Claim is a mock that implements the Claim interface.
+type Claim struct {
 	metav1.ObjectMeta
 
 	fake.LocalConnectionSecretWriterTo
@@ -226,13 +226,13 @@ type CompositeClaim struct {
 }
 
 // GetObjectKind returns schema.ObjectKind.
-func (m *CompositeClaim) GetObjectKind() schema.ObjectKind {
+func (m *Claim) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
 // DeepCopyObject returns a copy of the object as runtime.Object.
-func (m *CompositeClaim) DeepCopyObject() runtime.Object {
-	out := &CompositeClaim{}
+func (m *Claim) DeepCopyObject() runtime.Object {
+	out := &Claim{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
