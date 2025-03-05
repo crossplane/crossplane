@@ -17,93 +17,19 @@ limitations under the License.
 package resource
 
 import (
-	"context"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/internal/resource/unstructured/reference"
 )
-
-// A Conditioned may have conditions set or retrieved. Conditions are typically
-// indicate the status of both a resource and its reconciliation process.
-type Conditioned interface {
-	SetConditions(c ...xpv1.Condition)
-	GetCondition(ct xpv1.ConditionType) xpv1.Condition
-}
 
 // A ClaimReferencer may reference a resource claim.
 type ClaimReferencer interface {
 	SetClaimReference(r *reference.Claim)
 	GetClaimReference() *reference.Claim
-}
-
-// A ManagedResourceReferencer may reference a concrete managed resource.
-type ManagedResourceReferencer interface {
-	SetResourceReference(r *corev1.ObjectReference)
-	GetResourceReference() *corev1.ObjectReference
-}
-
-// A LocalConnectionSecretWriterTo may write a connection secret to its own
-// namespace.
-type LocalConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference)
-	GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference
-}
-
-// A ConnectionSecretWriterTo may write a connection secret to an arbitrary
-// namespace.
-type ConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *xpv1.SecretReference)
-	GetWriteConnectionSecretToReference() *xpv1.SecretReference
-}
-
-// A ConnectionDetailsPublisherTo may write a connection details secret to a
-// secret store.
-type ConnectionDetailsPublisherTo interface {
-	SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo)
-	GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo
-}
-
-// A Manageable resource may specify a ManagementPolicies.
-type Manageable interface {
-	SetManagementPolicies(p xpv1.ManagementPolicies)
-	GetManagementPolicies() xpv1.ManagementPolicies
-}
-
-// An Orphanable resource may specify a DeletionPolicy.
-type Orphanable interface {
-	SetDeletionPolicy(p xpv1.DeletionPolicy)
-	GetDeletionPolicy() xpv1.DeletionPolicy
-}
-
-// A ProviderConfigReferencer may reference a provider config resource.
-type ProviderConfigReferencer interface {
-	GetProviderConfigReference() *xpv1.Reference
-	SetProviderConfigReference(p *xpv1.Reference)
-}
-
-// A RequiredProviderConfigReferencer may reference a provider config resource.
-// Unlike ProviderConfigReferencer, the reference is required (i.e. not nil).
-type RequiredProviderConfigReferencer interface {
-	GetProviderConfigReference() xpv1.Reference
-	SetProviderConfigReference(p xpv1.Reference)
-}
-
-// A RequiredTypedResourceReferencer can reference a resource.
-type RequiredTypedResourceReferencer interface {
-	SetResourceReference(r xpv1.TypedReference)
-	GetResourceReference() xpv1.TypedReference
-}
-
-// A Finalizer manages the finalizers on the resource.
-type Finalizer interface {
-	AddFinalizer(ctx context.Context, obj Object) error
-	RemoveFinalizer(ctx context.Context, obj Object) error
 }
 
 // A CompositionSelector may select a composition of resources.
@@ -158,12 +84,6 @@ type CompositeResourceReferencer interface {
 	GetResourceReference() *reference.Composite
 }
 
-// An EnvironmentConfigReferencer references a list of EnvironmentConfigs.
-type EnvironmentConfigReferencer interface {
-	SetEnvironmentConfigReferences(refs []corev1.ObjectReference)
-	GetEnvironmentConfigReferences() []corev1.ObjectReference
-}
-
 // A UserCounter can count how many users it has.
 type UserCounter interface {
 	SetUsers(i int64)
@@ -177,97 +97,37 @@ type ConnectionDetailsPublishedTimer interface {
 	GetConnectionDetailsLastPublishedTime() *metav1.Time
 }
 
-// ReconciliationObserver can track data observed by resource reconciler.
-type ReconciliationObserver interface {
-	SetObservedGeneration(generation int64)
-	GetObservedGeneration() int64
-}
-
-// An Object is a Kubernetes object.
-type Object interface {
-	metav1.Object
-	runtime.Object
-}
-
-// A Managed is a Kubernetes object representing a concrete managed
-// resource (e.g. a CloudSQL instance).
-type Managed interface { //nolint:interfacebloat // This interface has to be big.
-	Object
-
-	ProviderConfigReferencer
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-	Manageable
-	Orphanable
-
-	Conditioned
-}
-
-// A ManagedList is a list of managed resources.
-type ManagedList interface {
-	client.ObjectList
-
-	// GetItems returns the list of managed resources.
-	GetItems() []Managed
-}
-
-// A ProviderConfig configures a Crossplane provider.
-type ProviderConfig interface {
-	Object
-
-	UserCounter
-	Conditioned
-}
-
-// A ProviderConfigUsage indicates a usage of a Crossplane provider config.
-type ProviderConfigUsage interface {
-	Object
-
-	RequiredProviderConfigReferencer
-	RequiredTypedResourceReferencer
-}
-
-// A ProviderConfigUsageList is a list of provider config usages.
-type ProviderConfigUsageList interface {
-	client.ObjectList
-
-	// GetItems returns the list of provider config usages.
-	GetItems() []ProviderConfigUsage
-}
-
 // A Composite resource composes one or more Composed resources.
 type Composite interface { //nolint:interfacebloat // This interface has to be big.
-	Object
+	resource.Object
 
+	resource.ConnectionSecretWriterTo
 	CompositionSelector
 	CompositionReferencer
 	CompositionUpdater
 	CompositionRevisionReferencer
 	CompositionRevisionSelector
 	ComposedResourcesReferencer
-	EnvironmentConfigReferencer
 	ClaimReferencer
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
-	Conditioned
+	resource.Conditioned
 	ConnectionDetailsPublishedTimer
-	ReconciliationObserver
 }
 
 // Composed resources can be a composed into a Composite resource.
 type Composed interface {
-	Object
+	resource.Object
 
-	Conditioned
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-	ReconciliationObserver
+	resource.ConnectionSecretWriterTo
+
+	resource.Conditioned
 }
 
 // A CompositeClaim for a Composite resource.
 type CompositeClaim interface { //nolint:interfacebloat // This interface has to be big.
-	Object
+	resource.Object
+
+	resource.LocalConnectionSecretWriterTo
 
 	CompositionSelector
 	CompositionReferencer
@@ -276,10 +136,7 @@ type CompositeClaim interface { //nolint:interfacebloat // This interface has to
 	CompositionRevisionSelector
 	CompositeResourceDeleter
 	CompositeResourceReferencer
-	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
-	Conditioned
+	resource.Conditioned
 	ConnectionDetailsPublishedTimer
-	ReconciliationObserver
 }
