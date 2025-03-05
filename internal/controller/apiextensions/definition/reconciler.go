@@ -476,7 +476,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	ro := r.CompositeReconcilerOptions(ctx, d)
-	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
+	ck := d.GetCompositeGroupVersionKind()
 
 	cr := composite.NewReconciler(r.engine.GetCached(), ck, ro...)
 	ko := r.options.ForControllerRuntime()
@@ -501,7 +501,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
-		gc := watch.NewGarbageCollector(name, resource.CompositeKind(xrGVK), r.engine, watch.WithLogger(log))
+		gc := watch.NewGarbageCollector(name, xrGVK, r.engine, watch.WithLogger(log))
 		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
@@ -518,7 +518,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(xrGVK)
 
-	crh := EnqueueForCompositionRevision(resource.CompositeKind(xrGVK), r.engine.GetCached(), log)
+	crh := EnqueueForCompositionRevision(xrGVK, r.engine.GetCached(), log)
 	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
@@ -581,7 +581,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 			r.log.Debug(errAddIndex, "error", err)
 		}
 
-		h := EnqueueCompositeResources(resource.CompositeKind(d.GetCompositeGroupVersionKind()), r.engine.GetCached(), r.log)
+		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
 		o = append(o,
 			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
 			composite.WithPollInterval(0), // Disable polling.

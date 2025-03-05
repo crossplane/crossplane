@@ -37,6 +37,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource"
 )
 
 // Error strings.
@@ -76,13 +77,13 @@ func NewAPIFilteredSecretPublisher(c client.Client, filter []string) *APIFiltere
 
 // PublishConnection publishes the supplied ConnectionDetails to the Secret
 // referenced in the resource.
-func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	if o.GetWriteConnectionSecretToReference() == nil {
 		return false, nil
 	}
 
-	s := resource.ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
+	s := xresource.ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
 	m := map[string]bool{}
 	for _, key := range a.filter {
 		m[key] = true
@@ -119,7 +120,7 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o re
 // UnpublishConnection is no-op since PublishConnection only creates resources
 // that will be garbage collected by Kubernetes when the managed resource is
 // deleted.
-func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ resource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
+func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
 	return nil
 }
 
@@ -140,7 +141,7 @@ func NewAPIRevisionFetcher(c client.Client) *APIRevisionFetcher {
 // Fetch the appropriate CompositionRevision for the supplied XR. Panics if the
 // composite resource's composition reference is nil, but handles setting the
 // composition revision reference.
-func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error) {
+func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error) {
 	current := cr.GetCompositionRevisionReference()
 	pol := cr.GetCompositionUpdatePolicy()
 
@@ -180,7 +181,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	return latest, nil
 }
 
-func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1.CompositionRevisionList, error) {
+func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr xresource.Composite, comp *v1.Composition) (*v1.CompositionRevisionList, error) {
 	rl := &v1.CompositionRevisionList{}
 	ml := client.MatchingLabels{}
 
@@ -208,7 +209,7 @@ type CompositionSelectorChain struct {
 
 // SelectComposition calls all SelectComposition functions of CompositionSelectors
 // in the list.
-func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp resource.Composite) error {
+func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp xresource.Composite) error {
 	for _, cs := range r.list {
 		if err := cs.SelectComposition(ctx, cp); err != nil {
 			return err
@@ -229,7 +230,7 @@ type APILabelSelectorResolver struct {
 }
 
 // SelectComposition resolves selector to a reference if it doesn't exist.
-func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp resource.Composite) error {
+func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp xresource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
@@ -284,7 +285,7 @@ type APIDefaultCompositionSelector struct {
 
 // SelectComposition selects the default compositionif neither a reference nor
 // selector is given in composite resource.
-func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
+func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp xresource.Composite) error {
 	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
 		return nil
 	}
@@ -313,7 +314,7 @@ type EnforcedCompositionSelector struct {
 }
 
 // SelectComposition selects the enforced composition if it's given in definition.
-func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp resource.Composite) error {
+func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp xresource.Composite) error {
 	// We don't need to fetch the CompositeResourceDefinition at every reconcile
 	// because enforced composition ref is immutable as opposed to default
 	// composition ref.
@@ -341,7 +342,7 @@ type ConfiguratorChain struct {
 }
 
 // Configure calls Configure function of every Configurator in the list.
-func (cc *ConfiguratorChain) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
+func (cc *ConfiguratorChain) Configure(ctx context.Context, cp xresource.Composite, rev *v1.CompositionRevision) error {
 	for _, c := range cc.list {
 		if err := c.Configure(ctx, cp, rev); err != nil {
 			return err
@@ -364,7 +365,7 @@ type APIConfigurator struct {
 
 // Configure any required fields that were omitted from the composite resource
 // by copying them from its composition.
-func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
+func (c *APIConfigurator) Configure(ctx context.Context, cp xresource.Composite, rev *v1.CompositionRevision) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if rev.Spec.CompositeTypeRef.APIVersion != apiVersion || rev.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
@@ -395,7 +396,7 @@ type APINamingConfigurator struct {
 }
 
 // Configure the supplied composite resource's root name prefix.
-func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1.CompositionRevision) error {
+func (c *APINamingConfigurator) Configure(ctx context.Context, cp xresource.Composite, _ *v1.CompositionRevision) error {
 	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 		return nil
 	}

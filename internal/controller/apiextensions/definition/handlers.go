@@ -30,15 +30,14 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a
 // newly created CompositionRevision.
-func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
+func EnqueueForCompositionRevision(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			rev, ok := e.Object.(*v1.CompositionRevision)
@@ -58,7 +57,7 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 
 			// This handler is for a specific type of XR. This
 			// revisionisn't compatible with that type.
-			if rev.Spec.CompositeTypeRef.APIVersion != schema.GroupVersionKind(of).GroupVersion().String() {
+			if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
 				return
 			}
 			if rev.Spec.CompositeTypeRef.Kind != of.Kind {
@@ -66,12 +65,12 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 			}
 
 			xrs := kunstructured.UnstructuredList{}
-			xrs.SetGroupVersionKind(schema.GroupVersionKind(of))
-			xrs.SetKind(schema.GroupVersionKind(of).Kind + "List")
+			xrs.SetGroupVersionKind(of)
+			xrs.SetKind(of.Kind + "List")
 			// TODO(negz): Index XRs by composition revision name?
 			if err := c.List(ctx, &xrs); err != nil {
 				// Logging is most we can do here. This is a programming error if it happens.
-				log.Info("cannot list in CompositionRevision handler", "type", schema.GroupVersionKind(of).String(), "error", err)
+				log.Info("cannot list in CompositionRevision handler", "type", of.String(), "error", err)
 				return
 			}
 
@@ -103,10 +102,10 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 
 // EnqueueCompositeResources enqueues reconciles for all XRs that reference an
 // updated composed resource.
-func EnqueueCompositeResources(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
+func EnqueueCompositeResources(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		UpdateFunc: func(ctx context.Context, ev kevent.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-			xrGVK := schema.GroupVersionKind(of)
+			xrGVK := of
 			cdGVK := ev.ObjectNew.GetObjectKind().GroupVersionKind()
 			key := refKey(ev.ObjectNew.GetNamespace(), ev.ObjectNew.GetName(), cdGVK.Kind, cdGVK.GroupVersion().String())
 
