@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/afero"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -252,3 +253,139 @@ webhooks:
   sideEffects: None
 `
 )
+
+func TestRemoveValidatingWebhooks(t *testing.T) {
+	type params struct {
+		configName   string
+		webhookNames []string
+	}
+	type args struct {
+		ctx  context.Context
+		kube client.Client
+	}
+	type want struct {
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"NotFound": {
+			reason: "If the config isn't found we should return early.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+				},
+			},
+		},
+		"NoOp": {
+			reason: "If the config doesn't have any entries to delete we should return early.",
+			params: params{
+				configName:   "some-config",
+				webhookNames: []string{"delete-me"},
+			},
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						obj.(*admv1.ValidatingWebhookConfiguration).Webhooks = []admv1.ValidatingWebhook{
+							{Name: "dont-delete-me"},
+						}
+						return nil
+					},
+				},
+			},
+		},
+		"DeleteError": {
+			reason: "We should return any error we encounter deleting the config.",
+			params: params{
+				configName:   "some-config",
+				webhookNames: []string{"delete-me"},
+			},
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						obj.(*admv1.ValidatingWebhookConfiguration).Webhooks = []admv1.ValidatingWebhook{
+							{Name: "delete-me"},
+						}
+						return nil
+					},
+					MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"UpdateError": {
+			reason: "We should return any error we encounter updating the config.",
+			params: params{
+				configName:   "some-config",
+				webhookNames: []string{"delete-me"},
+			},
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						obj.(*admv1.ValidatingWebhookConfiguration).Webhooks = []admv1.ValidatingWebhook{
+							{Name: "delete-me"},
+							{Name: "dont-delete-me"},
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"Success": {
+			reason: "We should remove only the named webhooks, and maintain the order of the rest.",
+			params: params{
+				configName:   "some-config",
+				webhookNames: []string{"delete-me"},
+			},
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						obj.(*admv1.ValidatingWebhookConfiguration).Webhooks = []admv1.ValidatingWebhook{
+							{Name: "delete-me"},
+							{Name: "dont-delete-me"},
+							{Name: "also-dont-delete-me"},
+						}
+						return nil
+					},
+					MockUpdate: func(_ context.Context, got client.Object, _ ...client.UpdateOption) error {
+						want := &admv1.ValidatingWebhookConfiguration{
+							Webhooks: []admv1.ValidatingWebhook{
+								{Name: "dont-delete-me"},
+								{Name: "also-dont-delete-me"},
+							},
+						}
+
+						if diff := cmp.Diff(want, got); diff != "" {
+							t.Error(diff)
+						}
+
+						return nil
+					},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := NewValidatingWebhookRemover(tc.params.configName, tc.params.webhookNames...).Run(tc.args.ctx, tc.args.kube)
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
