@@ -128,7 +128,6 @@ type Claim interface { //nolint:interfacebloat // This interface has to be big.
 	resource.Object
 
 	resource.LocalConnectionSecretWriterTo
-
 	CompositionSelector
 	CompositionReferencer
 	CompositionUpdater
