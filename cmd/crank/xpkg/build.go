@@ -120,6 +120,9 @@ Examples:
   # 'docker build' so that the package can also be used to run the provider.
   # Provider and Function packages support embedding runtime images.
   crossplane xpkg build --embed-runtime-image=cc873e13cdc1
+
+  # Build a package while ignoring all YAML files in the 'test' directory.
+  crossplane xpkg build --ignore='./test/*.yaml'
 `
 }
 
