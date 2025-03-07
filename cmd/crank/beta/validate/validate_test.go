@@ -440,6 +440,7 @@ func TestConvertToCRDs(t *testing.T) {
 																	Properties: map[string]extv1.JSONSchemaProps{
 																		"apiVersion": {Type: "string"},
 																		"name":       {Type: "string"},
+																		"namespace":  {Type: "string"},
 																		"kind":       {Type: "string"},
 																	},
 																	Required: []string{"apiVersion", "kind"},
@@ -747,6 +748,7 @@ func TestConvertToCRDs(t *testing.T) {
 																	Properties: map[string]extv1.JSONSchemaProps{
 																		"apiVersion": {Type: "string"},
 																		"name":       {Type: "string"},
+																		"namespace":  {Type: "string"},
 																		"kind":       {Type: "string"},
 																	},
 																	Required: []string{"apiVersion", "kind"},

@@ -30,6 +30,7 @@ import (
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,6 +53,7 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -475,10 +477,59 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	ro := r.CompositeReconcilerOptions(ctx, d)
-	ck := d.GetCompositeGroupVersionKind()
+	var nxr composite.NewXRFn
+	switch ptr.Deref(d.Spec.Scope, v1.CompositeResourceScopeLegacyCluster) {
+	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
+		nxr = func() *ucomposite.Unstructured {
+			return ucomposite.New(ucomposite.WithGroupVersionKind(d.GetCompositeGroupVersionKind()))
+		}
+	case v1.CompositeResourceScopeLegacyCluster:
+		nxr = func() *ucomposite.Unstructured {
+			return ucomposite.New(ucomposite.WithGroupVersionKind(d.GetCompositeGroupVersionKind()), ucomposite.WithLegacyBehavior())
+		}
+	}
 
-	cr := composite.NewReconciler(r.engine.GetCached(), ck, ro...)
+	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
+	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
+	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), nxr, runner,
+		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
+		composite.WithCompositeConnectionDetailsFetcher(fetcher),
+	)
+
+	ro := []composite.ReconcilerOption{
+		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys())),
+		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
+			composite.NewEnforcedCompositionSelector(*d, r.record),
+			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
+			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
+		)),
+		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
+		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
+		composite.WithPollInterval(r.options.PollInterval),
+		composite.WithComposer(fc),
+	}
+
+	// If realtime compositions are enabled we pass the ControllerEngine to the
+	// XR reconciler so that it can start watches for composed resources.
+	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) {
+		gvk := d.GetCompositeGroupVersionKind()
+		u := &kunstructured.Unstructured{}
+		u.SetAPIVersion(gvk.GroupVersion().String())
+		u.SetKind(gvk.Kind)
+
+		// Add an index to the controller engine's client.
+		if err := r.engine.GetFieldIndexer().IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
+			r.log.Debug(errAddIndex, "error", err)
+		}
+
+		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
+		ro = append(ro,
+			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
+			composite.WithPollInterval(0), // Disable polling.
+		)
+	}
+
+	cr := composite.NewReconciler(r.engine.GetCached(), nxr, ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -534,64 +585,4 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	status.MarkConditions(v1.WatchingComposite())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
-}
-
-// CompositeReconcilerOptions builds the options for a composite resource
-// reconciler. The options vary based on the supplied feature flags.
-func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.CompositeResourceDefinition) []composite.ReconcilerOption {
-	// The default set of reconciler options when no feature flags are enabled.
-	o := []composite.ReconcilerOption{
-		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys())),
-		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(*d, r.record),
-			composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
-			composite.NewAPILabelSelectorResolver(r.engine.GetCached()),
-		)),
-		composite.WithCompositionRevisionSelector(
-			composite.NewCompositionRevisionSelectorChain(
-				composite.NewAPIDefaultCompositionSelector(r.engine.GetCached(), *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record),
-			),
-		),
-		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
-		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
-		composite.WithPollInterval(r.options.PollInterval),
-	}
-
-	// Wrap the PackagedFunctionRunner setup in main with support for loading
-	// extra resources to satisfy function requirements.
-	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
-
-	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-
-	// This composer is used for mode: Pipeline Compositions.
-	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
-		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
-		composite.WithCompositeConnectionDetailsFetcher(fetcher),
-	)
-
-	// We use two different Composer implementations. One supports P&T (aka
-	// 'Resources mode') and the other Functions (aka 'Pipeline mode').
-	o = append(o, composite.WithComposer(fc))
-
-	// If realtime compositions are enabled we pass the ControllerEngine to the
-	// XR reconciler so that it can start watches for composed resources.
-	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) {
-		gvk := d.GetCompositeGroupVersionKind()
-		u := &kunstructured.Unstructured{}
-		u.SetAPIVersion(gvk.GroupVersion().String())
-		u.SetKind(gvk.Kind)
-
-		// Add an index to the controller engine's client.
-		if err := r.engine.GetFieldIndexer().IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
-			r.log.Debug(errAddIndex, "error", err)
-		}
-
-		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
-		o = append(o,
-			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
-			composite.WithPollInterval(0), // Disable polling.
-		)
-	}
-
-	return o
 }

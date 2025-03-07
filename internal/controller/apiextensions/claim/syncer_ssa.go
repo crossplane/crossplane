@@ -29,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
@@ -323,7 +324,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	pub := cm.GetConnectionDetailsLastPublishedTime()
 
 	// Update the claim's user-defined status fields to match the XRs.
-	cm.Object["status"] = withoutKeys(xrStatus, xcrd.GetPropFields(xcrd.LegacyCompositeResourceStatusProps())...)
+	cm.Object["status"] = withoutKeys(xrStatus, xcrd.GetPropFields(xcrd.CompositeResourceStatusProps(v1.CompositeResourceScopeLegacyCluster))...)
 
 	if cmcs.Conditions != nil {
 		cm.SetConditions(cmcs.Conditions...)

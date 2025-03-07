@@ -41,7 +41,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
@@ -59,10 +58,11 @@ func TestFunctionCompose(t *testing.T) {
 	errProtoSyntax := protojson.Unmarshal([]byte("hi"), &structpb.Struct{})
 
 	type params struct {
-		c  client.Client
-		uc client.Client
-		r  FunctionRunner
-		o  []FunctionComposerOption
+		c   client.Client
+		uc  client.Client
+		nxr NewXRFn
+		r   FunctionRunner
+		o   []FunctionComposerOption
 	}
 	type args struct {
 		ctx context.Context
@@ -521,6 +521,7 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
+				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
@@ -566,6 +567,7 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
+				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Composite: &fnv1.Resource{
@@ -630,6 +632,7 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
+				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
@@ -699,6 +702,7 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
+				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
@@ -905,7 +909,7 @@ func TestFunctionCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
+			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.nxr, tc.params.r, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1530,12 +1534,12 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 
 func TestUpdateResourceRefs(t *testing.T) {
 	type args struct {
-		xr  resource.ComposedResourcesReferencer
+		xr  xresource.Composite
 		drs ComposedResourceStates
 	}
 
 	type want struct {
-		xr resource.ComposedResourcesReferencer
+		xr xresource.Composite
 	}
 
 	cases := map[string]struct {
@@ -1543,28 +1547,31 @@ func TestUpdateResourceRefs(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Success": {
-			reason: "We should return a consistently ordered set of references.",
+		"ClusterScopedXR": {
+			reason: "We should return a consistently ordered set of references (including namespaces where applicable) suitable for a cluster scoped XR.",
 			args: args{
 				xr: &xfake.Composite{},
 				drs: ComposedResourceStates{
 					"never-created-c": ComposedResourceState{
 						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "never-created-c-42",
+								Namespace: "c",
+								Name:      "never-created-c-42",
 							},
 						},
 					},
 					"never-created-b": ComposedResourceState{
 						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "never-created-b-42",
+								Namespace: "b",
+								Name:      "never-created-b-42",
 							},
 						},
 					},
 					"never-created-a": ComposedResourceState{
 						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
+								// No namespace - cluster scoped.
 								Name: "never-created-a-42",
 							},
 						},
@@ -1575,6 +1582,61 @@ func TestUpdateResourceRefs(t *testing.T) {
 				xr: &xfake.Composite{
 					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
+							{Name: "never-created-a-42"},
+							{Namespace: "b", Name: "never-created-b-42"},
+							{Namespace: "c", Name: "never-created-c-42"},
+						},
+					},
+				},
+			},
+		},
+		"NamespacedXR": {
+			reason: "We should return a consistently ordered set of references (without namespaces) suitable for a namespaced XR.",
+			args: args{
+				xr: &xfake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						// We take the presence of a namespace to mean the XR
+						// is namespaced.
+						Namespace: "default",
+					},
+				},
+				drs: ComposedResourceStates{
+					"never-created-c": ComposedResourceState{
+						Resource: &xfake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "never-created-c-42",
+							},
+						},
+					},
+					"never-created-b": ComposedResourceState{
+						Resource: &xfake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "never-created-b-42",
+							},
+						},
+					},
+					"never-created-a": ComposedResourceState{
+						Resource: &xfake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "never-created-a-42",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				xr: &xfake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+					},
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							// The refs shouldn't have namespaces. They're
+							// assumed to be to resource in the same namespace
+							// as the XR.
 							{Name: "never-created-a-42"},
 							{Name: "never-created-b-42"},
 							{Name: "never-created-c-42"},
