@@ -83,14 +83,23 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 		return errors.Errorf(errFmtNamePrefixLabel, xcrd.LabelKeyNamePrefixForComposed)
 	}
 
-	//  We also set generate name in case we
-	// haven't yet named this composed resource.
+	// We also set generate name in case we haven't yet named this composed
+	// resource.
 	cd.SetGenerateName(xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+
+	// If the XR is namespaced it can only create composed resources in its own
+	// namespace. Cluster scoped XRs can compose cluster scoped resources, or
+	// resources in any namespace.
+	if xr.GetNamespace() != "" {
+		cd.SetNamespace(xr.GetNamespace())
+	}
 
 	if n != "" {
 		SetCompositionResourceName(cd, n)
 	}
 
+	// TODO(negz): What happens if there is no claim? Will this set empty
+	// claim name/namespace labels?
 	meta.AddLabels(cd, map[string]string{
 		xcrd.LabelKeyNamePrefixForComposed: xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
 		xcrd.LabelKeyClaimName:             xr.GetLabels()[xcrd.LabelKeyClaimName],

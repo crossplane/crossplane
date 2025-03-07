@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -98,8 +99,8 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetSecret),
 			},
 		},
-		"Success": {
-			reason: "Should fetch all connection details from the connection secret.",
+		"ClusterScopedOwner": {
+			reason: "Should fetch all connection details from a connection secret owned by a cluster scoped resource - i.e. one with an empty namespace, and a populated secret ref namespace.",
 			params: params{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 					if sobj, ok := obj.(*corev1.Secret); ok {
@@ -114,6 +115,33 @@ func TestSecretConnectionDetailsFetcher(t *testing.T) {
 			},
 			args: args{
 				o: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"foo": s.Data["foo"],
+					"bar": s.Data["bar"],
+				},
+			},
+		},
+		"NamespacedOwner": {
+			reason: "Should fetch all connection details from a connection secret owned by a namespaced resource - i.e. one with a populated namespace, and an empty secret ref namespace.",
+			params: params{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == "baz" {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+			},
+			args: args{
+				o: &fake.Composed{
+					ObjectMeta:               metav1.ObjectMeta{Namespace: "baz"},
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 			},
