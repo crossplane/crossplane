@@ -394,7 +394,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 // crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
-func SetComposedResourceMetadata(cd resource.Object, xr xresource.Composite, name string) error {
+func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposite, name string) error {
 	cd.SetGenerateName(xr.GetName() + "-")
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
