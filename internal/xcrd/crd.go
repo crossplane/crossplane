@@ -90,17 +90,11 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 			return nil, errors.Wrapf(err, errFmtGenCrd, "Composite Resource", xrd.Name)
 		}
 		crdv.AdditionalPrinterColumns = append(crdv.AdditionalPrinterColumns, CompositeResourcePrinterColumns()...)
-		props := CompositeResourceSpecProps(xrd.Spec.DefaultCompositionUpdatePolicy)
-		if scope == v1.CompositeResourceScopeLegacyCluster {
-			props = LegacyCompositeResourceSpecProps(xrd.Spec.DefaultCompositionUpdatePolicy)
-		}
+		props := CompositeResourceSpecProps(scope, xrd.Spec.DefaultCompositionUpdatePolicy)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		props = CompositeResourceStatusProps()
-		if scope == v1.CompositeResourceScopeLegacyCluster {
-			props = LegacyCompositeResourceStatusProps()
-		}
+		props = CompositeResourceStatusProps(scope)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
@@ -150,7 +144,9 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		props = LegacyCompositeResourceStatusProps()
+		// TODO(negz): This means claims will have status.claimConditionTypes.
+		// I think that's a bug - only XRs should have that field.
+		props = CompositeResourceStatusProps(v1.CompositeResourceScopeLegacyCluster)
 		for k, v := range props {
 			crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}

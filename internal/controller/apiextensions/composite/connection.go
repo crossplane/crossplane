@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -79,12 +79,18 @@ func NewSecretConnectionDetailsFetcher(c client.Client) *SecretConnectionDetails
 func (cdf *SecretConnectionDetailsFetcher) FetchConnection(ctx context.Context, o xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	sref := o.GetWriteConnectionSecretToReference()
 	if sref == nil {
-		// secret but has not yet. We presume this isn't an issue and that we'll
-		// propagate any connection details during a future iteration.
 		return nil, nil
 	}
+
+	// Namespaced resources always write connection secrets to their own
+	// namespace. Cluster scoped resources should have a namespace in the ref.
+	ns := o.GetNamespace()
+	if ns == "" {
+		ns = sref.Namespace
+	}
+
 	s := &corev1.Secret{}
-	nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
+	nn := types.NamespacedName{Namespace: ns, Name: sref.Name}
 	if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
 		return nil, errors.Wrap(err, errGetSecret)
 	}
