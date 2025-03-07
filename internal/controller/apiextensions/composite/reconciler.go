@@ -491,7 +491,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvk))
+	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithLegacyBehavior())
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)

@@ -466,7 +466,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	refs := composite.New()
+	refs := composite.New(composite.WithLegacyBehavior())
 	refs.SetAPIVersion(xr.GetAPIVersion())
 	refs.SetKind(xr.GetKind())
 	refs.SetName(xr.GetName())

@@ -97,7 +97,7 @@ func TestConditions(t *testing.T) {
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
+			u: &Unstructured{Unstructured: unstructured.Unstructured{Object: map[string]any{
 				"status": "wat",
 			}}},
 			set:     []xpv1.Condition{xpv1.Available()},
@@ -107,7 +107,7 @@ func TestConditions(t *testing.T) {
 		},
 		"WeirdStatusConditions": {
 			reason: "Conditions should be overwritten if they are not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
+			u: &Unstructured{Unstructured: unstructured.Unstructured{Object: map[string]any{
 				"status": map[string]any{
 					"conditions": "wat",
 				},
@@ -146,7 +146,7 @@ func TestClaimConditionTypes(t *testing.T) {
 	}{
 		"CannotSetSystemConditionTypes": {
 			reason: "Claim conditions API should fail to set conditions if a system condition is detected.",
-			u:      New(),
+			u:      New(WithLegacyBehavior()),
 			set: []xpv1.ConditionType{
 				xpv1.ConditionType("DatabaseReady"),
 				xpv1.ConditionType("NetworkReady"),
@@ -158,37 +158,43 @@ func TestClaimConditionTypes(t *testing.T) {
 		},
 		"SetSingleCustomConditionType": {
 			reason: "Claim condition API should work with a single custom condition type.",
-			u:      New(),
+			u:      New(WithLegacyBehavior()),
 			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 		},
 		"SetMultipleCustomConditionTypes": {
 			reason: "Claim condition API should work with multiple custom condition types.",
-			u:      New(),
+			u:      New(WithLegacyBehavior()),
 			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
 			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
 		},
 		"SetMultipleOfTheSameCustomConditionTypes": {
 			reason: "Claim condition API not add more than one of the same condition.",
-			u:      New(),
+			u:      New(WithLegacyBehavior()),
 			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("DatabaseReady")},
 			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
-				"status": "wat",
-			}}},
+			u: &Unstructured{
+				Unstructured: unstructured.Unstructured{Object: map[string]any{
+					"status": "wat",
+				}},
+				Legacy: true,
+			},
 			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 			want: []xpv1.ConditionType{},
 		},
 		"WeirdStatusClaimConditionTypes": {
 			reason: "Claim conditions should be overwritten if they are not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
-				"status": map[string]any{
-					"claimConditionTypes": "wat",
-				},
-			}}},
+			u: &Unstructured{
+				Unstructured: unstructured.Unstructured{Object: map[string]any{
+					"status": map[string]any{
+						"claimConditionTypes": "wat",
+					},
+				}},
+				Legacy: true,
+			},
 			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 			want: []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 		},
@@ -342,7 +348,7 @@ func TestClaimReference(t *testing.T) {
 		want *reference.Claim
 	}{
 		"NewRef": {
-			u:    New(),
+			u:    New(WithLegacyBehavior()),
 			set:  ref,
 			want: ref,
 		},

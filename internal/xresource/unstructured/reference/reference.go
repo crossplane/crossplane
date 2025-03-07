@@ -46,6 +46,9 @@ type Composite struct {
 
 	// Name of the referenced composite.
 	Name string `json:"name"`
+
+	// Namespace of the referenced composite.
+	Namespace *string `json:"namespace,omitempty"`
 }
 
 // GroupVersionKind returns the GroupVersionKind of the claim reference.

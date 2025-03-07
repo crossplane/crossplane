@@ -166,7 +166,7 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// Create an empty XR patch object. We'll use this object to ensure we only
 	// SSA our desired state, not the state we previously read from the API
 	// server.
-	xrPatch := composite.New(composite.WithGroupVersionKind(xr.GroupVersionKind()))
+	xrPatch := composite.New(composite.WithGroupVersionKind(xr.GroupVersionKind()), composite.WithLegacyBehavior())
 
 	// If the claim references an XR, make sure we're going to apply that XR. We
 	// do this instead of using the supplied XR's name just in case the XR
