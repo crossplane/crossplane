@@ -67,7 +67,6 @@ func (c *ClusterClient) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// GetExtraResources fetches extra resources from the cluster.
 // GetExtraResources fetches extra resources from the cluster based on the provided GVRs and selectors
 func (c *ClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
 	if len(gvrs) != len(selectors) {
@@ -163,7 +162,7 @@ func (c *ClusterClient) listCompositions(ctx context.Context) ([]apiextensionsv1
 
 	list, err := compositionsClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot list compositions")
+		return nil, errors.Wrap(err, "cannot list compositions from cluster")
 	}
 
 	compositions := make([]apiextensionsv1.Composition, 0, len(list.Items))
@@ -203,7 +202,7 @@ func (c *ClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Function, er
 
 	list, err := functionsClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot list functions")
+		return nil, errors.Wrap(err, "cannot list functions from cluster")
 	}
 
 	functions := make([]pkgv1.Function, 0, len(list.Items))
