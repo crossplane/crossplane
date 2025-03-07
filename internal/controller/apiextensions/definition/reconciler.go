@@ -36,18 +36,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/watch"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
@@ -473,9 +470,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	ro := r.CompositeReconcilerOptions(ctx, d)
-	ck := resource.CompositeKind(d.GetCompositeGroupVersionKind())
+	ck := d.GetCompositeGroupVersionKind()
 
-	cr := composite.NewReconciler(r.engine.GetCached(), r.engine.GetUncached(), ck, ro...)
+	cr := composite.NewReconciler(r.engine.GetCached(), ck, ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -498,7 +495,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
-		gc := watch.NewGarbageCollector(name, resource.CompositeKind(xrGVK), r.engine, watch.WithLogger(log))
+		gc := watch.NewGarbageCollector(name, xrGVK, r.engine, watch.WithLogger(log))
 		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
@@ -515,7 +512,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(xrGVK)
 
-	crh := EnqueueForCompositionRevision(resource.CompositeKind(xrGVK), r.engine.GetCached(), log)
+	crh := EnqueueForCompositionRevision(xrGVK, r.engine.GetCached(), log)
 	if err := r.engine.StartWatches(name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
@@ -549,47 +546,11 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 		composite.WithPollInterval(r.options.PollInterval),
 	}
 
-	// If external secret stores aren't enabled we just fetch connection details
-	// from Kubernetes secrets.
-	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-
-	// We only want to enable ExternalSecretStore support if the relevant
-	// feature flag is enabled. Otherwise, we start the XR reconcilers with
-	// their default ConnectionPublisher and ConnectionDetailsFetcher.
-	// We also add a new Configurator for ExternalSecretStore which basically
-	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
-	// the composite resource.
-	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		pc := []managed.ConnectionPublisher{
-			composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys()),
-			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.engine.GetCached(), v1alpha1.StoreConfigGroupVersionKind,
-				connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
-		}
-
-		// If external secret stores are enabled we need to support fetching
-		// connection details from both secrets and external stores.
-		fetcher = composite.ConnectionDetailsFetcherChain{
-			composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached()),
-			connection.NewDetailsManager(r.engine.GetCached(), v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
-		}
-
-		cc := composite.NewConfiguratorChain(
-			composite.NewAPINamingConfigurator(r.engine.GetCached()),
-			composite.NewAPIConfigurator(r.engine.GetCached()),
-			composite.NewSecretStoreConnectionDetailsConfigurator(r.engine.GetCached()),
-		)
-
-		o = append(o,
-			composite.WithConnectionPublishers(pc...),
-			composite.WithConfigurator(cc))
-	}
-
-	// This composer is used for mode: Resources Compositions (the default).
-	ptc := composite.NewPTComposer(r.engine.GetCached(), r.engine.GetUncached(), composite.WithComposedConnectionDetailsFetcher(fetcher))
-
 	// Wrap the PackagedFunctionRunner setup in main with support for loading
 	// extra resources to satisfy function requirements.
 	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
+
+	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
 
 	// This composer is used for mode: Pipeline Compositions.
 	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
@@ -599,23 +560,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 
 	// We use two different Composer implementations. One supports P&T (aka
 	// 'Resources mode') and the other Functions (aka 'Pipeline mode').
-	o = append(o, composite.WithComposer(composite.ComposerSelectorFn(func(cm *v1.CompositionMode) composite.Composer {
-		// Resources mode is the implicit default.
-		m := v1.CompositionModeResources
-		if cm != nil {
-			m = *cm
-		}
-		switch m {
-		case v1.CompositionModeResources:
-			return ptc
-		case v1.CompositionModePipeline:
-			return fc
-		default:
-			// This shouldn't be possible, but just in case return the
-			// default Composer.
-			return ptc
-		}
-	})))
+	o = append(o, composite.WithComposer(fc))
 
 	// If realtime compositions are enabled we pass the ControllerEngine to the
 	// XR reconciler so that it can start watches for composed resources.
@@ -630,7 +575,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 			r.log.Debug(errAddIndex, "error", err)
 		}
 
-		h := EnqueueCompositeResources(resource.CompositeKind(d.GetCompositeGroupVersionKind()), r.engine.GetCached(), r.log)
+		h := EnqueueCompositeResources(d.GetCompositeGroupVersionKind(), r.engine.GetCached(), r.log)
 		o = append(o, composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine))
 	}
 

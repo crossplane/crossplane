@@ -26,11 +26,6 @@ limitations under the License.
 
 // Replicate identical API versions
 
-//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_revision_types.go apiextensions/v1beta1
-//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_common.go apiextensions/v1beta1
-//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_patches.go apiextensions/v1beta1
-//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_transforms.go apiextensions/v1beta1
-
 //go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/environment_config_types.go apiextensions/v1alpha1 true
 //go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/usage_types.go apiextensions/v1alpha1 true
 
@@ -51,16 +46,15 @@ limitations under the License.
 // generate them all together in one command.
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=../cluster/crds
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 crd:crdVersions=v1 output:artifacts:config=../cluster/crds
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./secrets/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1beta1;./pkg/v1 crd:crdVersions=v1,generateEmbeddedObjectMeta=true output:artifacts:config=../cluster/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1;./apiextensions/v2alpha1 crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 
 // We generate the meta.pkg.crossplane.io types separately as the generated CRDs
 // are never installed, only used for API documentation.
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/... crd:crdVersions=v1 output:artifacts:config=../cluster/meta
 
 // Generate webhook manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 output:artifacts:config=../cluster/webhookconfigurations
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1beta1;./pkg/v1;./apiextensions/v1alpha1;./apiextensions/v1beta1;./apiextensions/v1 output:artifacts:config=../cluster/webhookconfigurations
 
 // Generate conversion code
 //go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./apiextensions/v1

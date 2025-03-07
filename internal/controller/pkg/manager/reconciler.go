@@ -469,7 +469,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 	if pwok && prok {
 		prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-		prwr.SetControllerConfigRef(pwr.GetControllerConfigRef())
 		prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
 		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}

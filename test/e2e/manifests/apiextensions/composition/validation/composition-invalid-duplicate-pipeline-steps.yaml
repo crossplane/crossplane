@@ -1,0 +1,16 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: invalid-duplicate-pipeline-steps
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+  - step: one
+    functionRef:
+      name: function-something
+  - step: one
+    functionRef:
+      name: function-something-else

@@ -29,11 +29,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -99,7 +99,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 1. Grabbing a map whose keys represent all well-known claim fields.
 	// 2. Deleting any well-known fields that we want to propagate.
 	// 3. Using the resulting map keys to filter the claim's spec.
-	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps()
+	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps(nil)
 	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownClaimFields, field)
 	}
@@ -171,7 +171,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 		// XR status fields overwrite non-empty claim fields.
 		withMergeOptions(mergo.WithOverride),
 		// Don't sync XR machinery (i.e. status conditions, connection details).
-		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)); err != nil {
+		withSrcFilter(xcrd.GetPropFields(xcrd.LegacyCompositeResourceStatusProps())...)); err != nil {
 		return errors.Wrap(err, errMergeClaimStatus)
 	}
 
@@ -194,7 +194,7 @@ func (s *ClientSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 	// 2. Deleting any well-known fields that we want to propagate.
 	// 3. Filtering OUT the remaining map keys from the XR's spec so that we end
 	//    up adding only the well-known fields to the claim's spec.
-	wellKnownXRFields := xcrd.CompositeResourceSpecProps()
+	wellKnownXRFields := xcrd.LegacyCompositeResourceSpecProps(nil)
 	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownXRFields, field)
 	}
