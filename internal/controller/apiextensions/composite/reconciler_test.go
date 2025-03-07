@@ -1260,7 +1260,7 @@ func TestReconcile(t *testing.T) {
 type CompositeModifier func(cr *composite.Unstructured)
 
 func NewComposite(m ...CompositeModifier) *composite.Unstructured {
-	cr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{}))
+	cr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{}), composite.WithLegacyBehavior())
 	for _, fn := range m {
 		fn(cr)
 	}
