@@ -407,12 +407,15 @@ type compositeResource struct {
 	ConnectionPublisher
 }
 
+// A NewXRFn returns a new composite resource for the Reconciler to use.
+type NewXRFn func() *composite.Unstructured
+
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(cached client.Client, nxr NewXRFn, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client: cached,
 
-		gvk: of,
+		nxr: nxr,
 
 		revision: revision{
 			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
@@ -454,7 +457,8 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
 	client client.Client
-	gvk    schema.GroupVersionKind
+
+	nxr NewXRFn
 
 	revision  revision
 	composite compositeResource
@@ -480,7 +484,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithLegacyBehavior())
+	xr := r.nxr()
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)

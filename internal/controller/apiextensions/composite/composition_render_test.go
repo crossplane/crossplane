@@ -280,8 +280,9 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 			args: args{
 				xr: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "cool-xr",
-						UID:  "somewhat-random",
+						Namespace: "ns",
+						Name:      "cool-xr",
+						UID:       "somewhat-random",
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
 							xcrd.LabelKeyClaimName:             "name",
@@ -294,6 +295,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 			want: want{
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
+						Namespace:    "ns",
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
 							Controller:         ptr.To(true),

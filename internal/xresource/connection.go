@@ -47,7 +47,8 @@ type ConnectionSecretOwner interface {
 }
 
 // LocalConnectionSecretFor creates a connection secret in the namespace of the
-// supplied LocalConnectionSecretOwner, assumed to be of the supplied kind.
+// supplied LocalConnectionSecretOwner, assumed to be of the supplied kind. It
+// should be used for resource types (like claims) that are always namespaced.
 func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,11 +62,19 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 }
 
 // ConnectionSecretFor creates a connection for the supplied
-// ConnectionSecretOwner, assumed to be of the supplied kind.
+// ConnectionSecretOwner, assumed to be of the supplied kind. It should be used
+// for resource types (like XRs) that may be namespaced or cluster scoped.
 func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	// Namespaced resources always write connection secrets to their own
+	// namespace. Cluster scoped resources should have a namespace in the ref.
+	ns := o.GetNamespace()
+	if ns == "" {
+		ns = o.GetWriteConnectionSecretToReference().Namespace
+	}
+
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,
+			Namespace:       ns,
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
