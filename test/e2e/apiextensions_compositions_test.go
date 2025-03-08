@@ -96,8 +96,8 @@ func TestCompositionRevisionSelection(t *testing.T) {
 	)
 }
 
-func TestComposition(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/functions"
+func TestLegacyComposition(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/legacy"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of composition functions ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
@@ -131,8 +131,8 @@ func TestComposition(t *testing.T) {
 	)
 }
 
-func TestPropagateFieldsRemovalToXR(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
+func TestLegacyPropagateFieldsRemovalToXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/legacy-propagate-field-removals"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that field removals in a claim are correctly propagated to the associated composite resource (XR), ensuring that updates and deletions are properly synchronized, and that the status from the XR is accurately reflected back to the claim.").
 			WithLabel(LabelStage, LabelStageBeta).
@@ -176,8 +176,8 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 	)
 }
 
-func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
+func TestLegacyPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/legacy-propagate-field-removals"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that field removals in a composite resource (XR) are correctly propagated after upgrading the field managers from CSA to SSA, verifying that the upgrade process does not interfere with the synchronization of fields between the claim and the XR.").
 			WithLabel(LabelStage, LabelStageBeta).
@@ -295,8 +295,8 @@ func TestCompositionSelection(t *testing.T) {
 	)
 }
 
-func TestBindToExistingXR(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/bind-existing-xr"
+func TestLegacyBindToExistingXR(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/legacy-bind-existing-xr"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that a new claim can successfully bind to an existing composite resource (XR), ensuring that the XR’s fields are updated according to the claim’s specifications and that the XR is correctly managed when the claim is deleted.").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
