@@ -96,6 +96,36 @@ func TestCompositionRevisionSelection(t *testing.T) {
 	)
 }
 
+func TestBasicComposition(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/basic"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests the correct functioning of composition ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateXR", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "xr.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
+			)).
+			Assess("XRIsReady",
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available())).
+			Assess("XRHasStatusField",
+				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+			).
+			WithTeardown("DeleteXR", funcs.AllOf(
+				funcs.DeleteResources(manifests, "xr.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
+
 func TestCompositionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/composition-selection"
 	environment.Test(t,
