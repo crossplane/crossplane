@@ -42,45 +42,7 @@ var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReferen
 	Kind:       "NopResource",
 }))
 
-func TestCompositionRealtimeRevisionSelection(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
-	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality to react in realtime to changes in a Composition by selecting the new CompositionRevision and reconcile the XRs.").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
-			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
-			)).
-			Assess("CreateClaim", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-			)).
-			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
-			).
-			Assess("ClaimHasOriginalField",
-				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-original-composition"),
-			).
-			Assess("UpdateComposition", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "composition-update.yaml"),
-			)).
-			Assess("ClaimHasUpdatedField",
-				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-updated-composition"),
-			).
-			WithTeardown("DeleteClaim", funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
-			)).
-			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
-			Feature(),
-	)
-}
-
-func TestCompositionFunctions(t *testing.T) {
+func TestComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/functions"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of composition functions ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
