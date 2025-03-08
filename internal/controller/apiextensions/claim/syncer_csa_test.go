@@ -414,7 +414,7 @@ func TestClientSideSync(t *testing.T) {
 type CompositeModifier func(xr *composite.Unstructured)
 
 func NewComposite(m ...CompositeModifier) *composite.Unstructured {
-	xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{}))
+	xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{}), composite.WithLegacyBehavior())
 	for _, fn := range m {
 		fn(xr)
 	}

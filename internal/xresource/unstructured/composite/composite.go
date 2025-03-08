@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -49,9 +50,19 @@ func WithConditions(c ...xpv1.Condition) Option {
 	}
 }
 
+// WithLegacyBehavior supports Crossplane v1 style LegacyCluster composite
+// resources. Specifically, getters and setters expect "Crossplane machinery"
+// fields to exist directly under spec and status, not under spec.crossplane and
+// status.crossplane.
+func WithLegacyBehavior() Option {
+	return func(c *Unstructured) {
+		c.Legacy = true
+	}
+}
+
 // New returns a new unstructured composed resource.
 func New(opts ...Option) *Unstructured {
-	c := &Unstructured{unstructured.Unstructured{Object: make(map[string]any)}}
+	c := &Unstructured{Unstructured: unstructured.Unstructured{Object: make(map[string]any)}}
 	for _, f := range opts {
 		f(c)
 	}
@@ -64,6 +75,8 @@ func New(opts ...Option) *Unstructured {
 // An Unstructured composed resource.
 type Unstructured struct {
 	unstructured.Unstructured
+
+	Legacy bool
 }
 
 // GetUnstructured returns the underlying *unstructured.Unstructured.
@@ -71,52 +84,87 @@ func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 	return &c.Unstructured
 }
 
-// GetCompositionSelector of this Composite resource.
+// GetCompositionSelector of this composite resource.
 func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
+	path := "spec.crossplane.compositionSelector"
+	if c.Legacy {
+		path = "spec.compositionSelector"
+	}
+
 	out := &metav1.LabelSelector{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionSelector", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
 	return out
 }
 
-// SetCompositionSelector of this Composite resource.
+// SetCompositionSelector of this composite resource.
 func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionSelector", sel)
+	path := "spec.crossplane.compositionSelector"
+	if c.Legacy {
+		path = "spec.compositionSelector"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, sel)
 }
 
-// GetCompositionReference of this Composite resource.
+// GetCompositionReference of this composite resource.
 func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
+	path := "spec.crossplane.compositionRef"
+	if c.Legacy {
+		path = "spec.compositionRef"
+	}
+
 	out := &corev1.ObjectReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRef", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
 	return out
 }
 
-// SetCompositionReference of this Composite resource.
+// SetCompositionReference of this composite resource.
 func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRef", ref)
+	path := "spec.crossplane.compositionRef"
+	if c.Legacy {
+		path = "spec.compositionRef"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, ref)
 }
 
-// GetCompositionRevisionReference of this Composite resource.
+// GetCompositionRevisionReference of this composite resource.
 func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectReference {
+	path := "spec.crossplane.compositionRevisionRef"
+	if c.Legacy {
+		path = "spec.compositionRevisionRef"
+	}
+
 	out := &corev1.LocalObjectReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionRef", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
 	return out
 }
 
-// SetCompositionRevisionReference of this Composite resource.
+// SetCompositionRevisionReference of this composite resource.
 func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.LocalObjectReference) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionRef", ref)
+	path := "spec.crossplane.compositionRevisionRef"
+	if c.Legacy {
+		path = "spec.compositionRevisionRef"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, ref)
 }
 
 // GetCompositionRevisionSelector of this resource claim.
 func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
+	path := "spec.crossplane.compositionRevisionSelector"
+	if c.Legacy {
+		path = "spec.compositionRevisionSelector"
+	}
+
 	out := &metav1.LabelSelector{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionSelector", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
 	return out
@@ -124,17 +172,32 @@ func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
 
 // SetCompositionRevisionSelector of this resource claim.
 func (c *Unstructured) SetCompositionRevisionSelector(sel *metav1.LabelSelector) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionSelector", sel)
+	path := "spec.crossplane.compositionRevisionSelector"
+	if c.Legacy {
+		path = "spec.compositionRevisionSelector"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, sel)
 }
 
-// SetCompositionUpdatePolicy of this Composite resource.
+// SetCompositionUpdatePolicy of this composite resource.
 func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionUpdatePolicy", p)
+	path := "spec.crossplane.compositionUpdatePolicy"
+	if c.Legacy {
+		path = "spec.compositionUpdatePolicy"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, p)
 }
 
-// GetCompositionUpdatePolicy of this Composite resource.
+// GetCompositionUpdatePolicy of this composite resource.
 func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
-	p, err := fieldpath.Pave(c.Object).GetString("spec.compositionUpdatePolicy")
+	path := "spec.crossplane.compositionUpdatePolicy"
+	if c.Legacy {
+		path = "spec.compositionUpdatePolicy"
+	}
+
+	p, err := fieldpath.Pave(c.Object).GetString(path)
 	if err != nil {
 		return nil
 	}
@@ -142,8 +205,13 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 	return &out
 }
 
-// GetClaimReference of this Composite resource.
+// GetClaimReference of this composite resource.
 func (c *Unstructured) GetClaimReference() *reference.Claim {
+	// Only legacy XRs support claims.
+	if !c.Legacy {
+		return nil
+	}
+
 	out := &reference.Claim{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.claimRef", out); err != nil {
 		return nil
@@ -151,20 +219,35 @@ func (c *Unstructured) GetClaimReference() *reference.Claim {
 	return out
 }
 
-// SetClaimReference of this Composite resource.
+// SetClaimReference of this composite resource.
 func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
+	// Only legacy XRs support claims.
+	if !c.Legacy {
+		return
+	}
+
 	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 
-// GetResourceReferences of this Composite resource.
+// GetResourceReferences of this composite resource.
 func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
+	path := "spec.crossplane.resourceRefs"
+	if c.Legacy {
+		path = "spec.resourceRefs"
+	}
+
 	out := &[]corev1.ObjectReference{}
-	_ = fieldpath.Pave(c.Object).GetValueInto("spec.resourceRefs", out)
+	_ = fieldpath.Pave(c.Object).GetValueInto(path, out)
 	return *out
 }
 
-// SetResourceReferences of this Composite resource.
+// SetResourceReferences of this composite resource.
 func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
+	path := "spec.crossplane.resourceRefs"
+	if c.Legacy {
+		path = "spec.resourceRefs"
+	}
+
 	empty := corev1.ObjectReference{}
 	filtered := make([]corev1.ObjectReference, 0, len(refs))
 	for _, ref := range refs {
@@ -175,33 +258,53 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 		}
 		filtered = append(filtered, ref)
 	}
-	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRefs", filtered)
+	_ = fieldpath.Pave(c.Object).SetValue(path, filtered)
 }
 
 // GetReference returns reference to this composite.
 func (c *Unstructured) GetReference() *reference.Composite {
-	return &reference.Composite{
+	ref := &reference.Composite{
 		APIVersion: c.GetAPIVersion(),
 		Kind:       c.GetKind(),
 		Name:       c.GetName(),
 	}
+
+	if c.GetNamespace() != "" {
+		ref.Namespace = ptr.To(c.GetNamespace())
+	}
+
+	return ref
 }
 
-// GetWriteConnectionSecretToReference of this Composite resource.
+// TODO(negz): Ideally we'd use LocalSecretReference for namespaced XRs. As is
+// we'll return a SecretReference with an empty namespace if the XR doesn't
+// actually have a spec.crossplane.writeConnectionSecretToRef.namespace field.
+
+// GetWriteConnectionSecretToReference of this composite resource.
 func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+	path := "spec.crossplane.writeConnectionSecretToRef"
+	if c.Legacy {
+		path = "spec.writeConnectionSecretToRef"
+	}
+
 	out := &xpv1.SecretReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
 	return out
 }
 
-// SetWriteConnectionSecretToReference of this Composite resource.
+// SetWriteConnectionSecretToReference of this composite resource.
 func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretReference) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
+	path := "spec.crossplane.writeConnectionSecretToRef"
+	if c.Legacy {
+		path = "spec.writeConnectionSecretToRef"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, ref)
 }
 
-// GetCondition of this Composite resource.
+// GetCondition of this composite resource.
 func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
@@ -211,7 +314,7 @@ func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return conditioned.GetCondition(ct)
 }
 
-// SetConditions of this Composite resource.
+// SetConditions of this composite resource.
 func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
 	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
@@ -220,7 +323,7 @@ func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
 	_ = fieldpath.Pave(c.Object).SetValue("status.conditions", conditioned.Conditions)
 }
 
-// GetConditions of this Composite resource.
+// GetConditions of this composite resource.
 func (c *Unstructured) GetConditions() []xpv1.Condition {
 	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
@@ -228,18 +331,28 @@ func (c *Unstructured) GetConditions() []xpv1.Condition {
 	return conditioned.Conditions
 }
 
-// GetConnectionDetailsLastPublishedTime of this Composite resource.
+// GetConnectionDetailsLastPublishedTime of this composite resource.
 func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
+	path := "status.crossplane.connectionDetails.lastPublishedTime"
+	if c.Legacy {
+		path = "status.connectionDetails.lastPublishedTime"
+	}
+
 	out := &metav1.Time{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("status.connectionDetails.lastPublishedTime", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
 	return out
 }
 
-// SetConnectionDetailsLastPublishedTime of this Composite resource.
+// SetConnectionDetailsLastPublishedTime of this composite resource.
 func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
-	_ = fieldpath.Pave(c.Object).SetValue("status.connectionDetails.lastPublishedTime", t)
+	path := "status.crossplane.connectionDetails.lastPublishedTime"
+	if c.Legacy {
+		path = "status.connectionDetails.lastPublishedTime"
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(path, t)
 }
 
 // SetObservedGeneration of this composite resource claim.
@@ -257,9 +370,13 @@ func (c *Unstructured) GetObservedGeneration() int64 {
 	return status.GetObservedGeneration()
 }
 
-// SetClaimConditionTypes of this Composite resource. You cannot set system
+// SetClaimConditionTypes of this composite resource. You cannot set system
 // condition types such as Ready, Synced or Healthy as claim conditions.
 func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
+	// Only legacy XRs support claims.
+	if !c.Legacy {
+		return nil
+	}
 	ts := c.GetClaimConditionTypes()
 	m := make(map[xpv1.ConditionType]bool, len(ts))
 	for _, t := range ts {
@@ -280,8 +397,12 @@ func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 	return nil
 }
 
-// GetClaimConditionTypes of this Composite resource.
+// GetClaimConditionTypes of this composite resource.
 func (c *Unstructured) GetClaimConditionTypes() []xpv1.ConditionType {
+	// Only legacy XRs support claims.
+	if !c.Legacy {
+		return nil
+	}
 	cs := []xpv1.ConditionType{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status.claimConditionTypes", &cs)
 	return cs

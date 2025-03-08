@@ -40,7 +40,8 @@ func IndexCompositeResourcesRefs(o client.Object) []string {
 	if !ok {
 		return nil // should never happen
 	}
-	xr := composite.Unstructured{Unstructured: *u}
+	// TODO(negz): How'll we know if this should be legacy or not?
+	xr := composite.Unstructured{Unstructured: *u, Legacy: true}
 	refs := xr.GetResourceReferences()
 	keys := make([]string, 0, len(refs))
 	for _, ref := range refs {

@@ -345,7 +345,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR))
+	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR), composite.WithLegacyBehavior())
 	if ref := cm.GetResourceReference(); ref != nil {
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
