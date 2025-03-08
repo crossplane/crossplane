@@ -58,7 +58,7 @@ var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReferen
 	Kind:       "NopResource",
 }))
 
-func TestCompositionRealtimeRevisionSelection(t *testing.T) {
+func TestCompositionRevisionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality to react in realtime to changes in a Composition by selecting the new CompositionRevision and reconcile the XRs.").
@@ -96,7 +96,7 @@ func TestCompositionRealtimeRevisionSelection(t *testing.T) {
 	)
 }
 
-func TestCompositionFunctions(t *testing.T) {
+func TestComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/functions"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of composition functions ensuring that the composed resources are created, conditions are met, fields are patched, and resources are properly cleaned up when deleted.").
