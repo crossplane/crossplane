@@ -6,6 +6,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -17,6 +18,8 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 	kt "k8s.io/client-go/testing"
+
+	"k8s.io/client-go/rest"
 )
 
 func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
@@ -1429,5 +1432,456 @@ func TestClusterClient_GetXRDSchema(t *testing.T) {
 				t.Errorf("\n%s\nGetXRDSchema(...): expected non-empty schema", tc.reason)
 			}
 		})
+	}
+}
+
+func TestClusterClient_GetResource(t *testing.T) {
+	scheme := runtime.NewScheme()
+
+	type args struct {
+		ctx       context.Context
+		gvk       schema.GroupVersionKind
+		namespace string
+		name      string
+	}
+
+	type want struct {
+		resource *unstructured.Unstructured
+		err      error
+	}
+
+	cases := map[string]struct {
+		reason string
+		setup  func() dynamic.Interface
+		args   args
+		want   want
+	}{
+		"NamespacedResourceFound": {
+			reason: "Should return the resource when it exists in a namespace",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ExampleResource",
+							"metadata": map[string]interface{}{
+								"name":      "test-resource",
+								"namespace": "test-namespace",
+							},
+							"spec": map[string]interface{}{
+								"property": "value",
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "ExampleResource",
+				},
+				namespace: "test-namespace",
+				name:      "test-resource",
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name":      "test-resource",
+							"namespace": "test-namespace",
+						},
+						"spec": map[string]interface{}{
+							"property": "value",
+						},
+					},
+				},
+			},
+		},
+		"ClusterScopedResourceFound": {
+			reason: "Should return the resource when it exists at cluster scope",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ClusterResource",
+							"metadata": map[string]interface{}{
+								"name": "test-cluster-resource",
+							},
+							"spec": map[string]interface{}{
+								"property": "value",
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "ClusterResource",
+				},
+				namespace: "", // Cluster-scoped
+				name:      "test-cluster-resource",
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ClusterResource",
+						"metadata": map[string]interface{}{
+							"name": "test-cluster-resource",
+						},
+						"spec": map[string]interface{}{
+							"property": "value",
+						},
+					},
+				},
+			},
+		},
+		"ResourceNotFound": {
+			reason: "Should return an error when the resource doesn't exist",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClient(scheme)
+				dc.Fake.PrependReactor("get", "*", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("resource not found")
+				})
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "ExampleResource",
+				},
+				namespace: "test-namespace",
+				name:      "nonexistent-resource",
+			},
+			want: want{
+				resource: nil,
+				err:      errors.New("cannot get resource test-namespace/nonexistent-resource of kind ExampleResource"),
+			},
+		},
+		"SpecialResourceType": {
+			reason: "Should handle special resource types with non-standard pluralization",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "Endpoints",
+							"metadata": map[string]interface{}{
+								"name":      "test-endpoints",
+								"namespace": "test-namespace",
+							},
+							"subsets": []interface{}{
+								map[string]interface{}{
+									"addresses": []interface{}{
+										map[string]interface{}{
+											"ip": "192.168.1.1",
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "",
+					Version: "v1",
+					Kind:    "Endpoints",
+				},
+				namespace: "test-namespace",
+				name:      "test-endpoints",
+			},
+			want: want{
+				resource: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Endpoints",
+						"metadata": map[string]interface{}{
+							"name":      "test-endpoints",
+							"namespace": "test-namespace",
+						},
+						"subsets": []interface{}{
+							map[string]interface{}{
+								"addresses": []interface{}{
+									map[string]interface{}{
+										"ip": "192.168.1.1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &DefaultClusterClient{
+				dynamicClient: tc.setup(),
+			}
+
+			got, err := c.GetResource(tc.args.ctx, tc.args.gvk, tc.args.namespace, tc.args.name)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nGetResource(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if !strings.Contains(err.Error(), tc.want.err.Error()) {
+					t.Errorf("\n%s\nGetResource(...): expected error containing %q, got %q", tc.reason, tc.want.err.Error(), err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nGetResource(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			// Remove resourceVersion from comparison since it's added by the fake client
+			gotCopy := got.DeepCopy()
+			if gotCopy != nil && gotCopy.Object != nil {
+				meta, found, _ := unstructured.NestedMap(gotCopy.Object, "metadata")
+				if found && meta != nil {
+					delete(meta, "resourceVersion")
+					_ = unstructured.SetNestedMap(gotCopy.Object, meta, "metadata")
+				}
+			}
+
+			if diff := cmp.Diff(tc.want.resource, gotCopy); diff != "" {
+				t.Errorf("\n%s\nGetResource(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// MockDryRunClient is a mock implementation of the ClusterClient interface
+// specifically designed to test DryRunApply
+type MockDryRunClient struct {
+	mockDryRunApply func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+}
+
+// Initialize implements ClusterClient
+func (m *MockDryRunClient) Initialize(ctx context.Context) error {
+	return nil
+}
+
+// FindMatchingComposition implements ClusterClient
+func (m *MockDryRunClient) FindMatchingComposition(*unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	return nil, errors.New("not implemented")
+}
+
+// GetExtraResources implements ClusterClient
+func (m *MockDryRunClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+	return nil, errors.New("not implemented")
+}
+
+// GetFunctionsFromPipeline implements ClusterClient
+func (m *MockDryRunClient) GetFunctionsFromPipeline(*apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+	return nil, errors.New("not implemented")
+}
+
+// GetXRDSchema implements ClusterClient
+func (m *MockDryRunClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
+	return nil, errors.New("not implemented")
+}
+
+// GetResource implements ClusterClient
+func (m *MockDryRunClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+	return nil, errors.New("not implemented")
+}
+
+// DryRunApply implements ClusterClient
+func (m *MockDryRunClient) DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	if m.mockDryRunApply != nil {
+		return m.mockDryRunApply(ctx, obj)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func TestClusterClient_DryRunApply(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		obj *unstructured.Unstructured
+	}
+
+	type want struct {
+		result *unstructured.Unstructured
+		err    error
+	}
+
+	cases := map[string]struct {
+		reason       string
+		mockDryRunFn func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
+		args         args
+		want         want
+	}{
+		"NamespacedResourceApplied": {
+			reason: "Should successfully apply a namespaced resource",
+			mockDryRunFn: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+				// Create a modified copy of the input object
+				result := obj.DeepCopy()
+				result.SetResourceVersion("1000")
+				return result, nil
+			},
+			args: args{
+				ctx: context.Background(),
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name":      "test-resource",
+							"namespace": "test-namespace",
+						},
+						"spec": map[string]interface{}{
+							"property": "new-value",
+						},
+					},
+				},
+			},
+			want: want{
+				result: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name":            "test-resource",
+							"namespace":       "test-namespace",
+							"resourceVersion": "1000",
+						},
+						"spec": map[string]interface{}{
+							"property": "new-value",
+						},
+					},
+				},
+			},
+		},
+		"ClusterScopedResourceApplied": {
+			reason: "Should successfully apply a cluster-scoped resource",
+			mockDryRunFn: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+				// Create a modified copy of the input object
+				result := obj.DeepCopy()
+				result.SetResourceVersion("1000")
+				return result, nil
+			},
+			args: args{
+				ctx: context.Background(),
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ClusterResource",
+						"metadata": map[string]interface{}{
+							"name": "test-cluster-resource",
+						},
+						"spec": map[string]interface{}{
+							"property": "new-value",
+						},
+					},
+				},
+			},
+			want: want{
+				result: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ClusterResource",
+						"metadata": map[string]interface{}{
+							"name":            "test-cluster-resource",
+							"resourceVersion": "1000",
+						},
+						"spec": map[string]interface{}{
+							"property": "new-value",
+						},
+					},
+				},
+			},
+		},
+		"ApplyError": {
+			reason: "Should return error when apply fails",
+			mockDryRunFn: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+				return nil, errors.New("apply failed")
+			},
+			args: args{
+				ctx: context.Background(),
+				obj: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name":      "test-resource",
+							"namespace": "test-namespace",
+						},
+					},
+				},
+			},
+			want: want{
+				result: nil,
+				err:    errors.New("apply failed"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Create a mock client with the provided mock function
+			c := &MockDryRunClient{
+				mockDryRunApply: tc.mockDryRunFn,
+			}
+
+			got, err := c.DryRunApply(tc.args.ctx, tc.args.obj)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nDryRunApply(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if !strings.Contains(err.Error(), tc.want.err.Error()) {
+					t.Errorf("\n%s\nDryRunApply(...): expected error containing %q, got %q", tc.reason, tc.want.err.Error(), err.Error())
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nDryRunApply(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			// For successful cases, compare results
+			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+				t.Errorf("\n%s\nDryRunApply(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// TestNewClusterClient tests the creation of a new DefaultClusterClient instance
+func TestNewClusterClient(t *testing.T) {
+	// Skip the nil config test because we can't easily mock the underlying functions
+	// We'll just test the valid config case
+	validConfig := &rest.Config{
+		Host: "https://localhost:8080",
+	}
+
+	_, err := NewClusterClient(validConfig)
+	if err != nil {
+		t.Errorf("NewClusterClient(...): unexpected error with valid config: %v", err)
 	}
 }

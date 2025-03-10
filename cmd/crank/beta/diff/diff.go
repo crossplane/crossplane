@@ -18,6 +18,7 @@ limitations under the License.
 package diff
 
 import (
+	"github.com/crossplane/crossplane/cmd/crank/render"
 	"k8s.io/client-go/rest"
 
 	"context"
@@ -78,7 +79,7 @@ func (c *Cmd) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to load resources")
 	}
 
-	processor, err := DiffProcessorFactory(config, client, c.Namespace)
+	processor, err := DiffProcessorFactory(config, client, c.Namespace, render.Render)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
@@ -97,8 +98,8 @@ var (
 	}
 
 	// DiffProcessorFactory Factory function for creating a new diff processor
-	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string) (dp.DiffProcessor, error) {
-		return dp.NewDiffProcessor(config, client, namespace)
+	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
+		return dp.NewDiffProcessor(config, client, namespace, renderFunc, nil)
 	}
 
 	// ResourceLoader Function for loading resources, which can be mocked in tests

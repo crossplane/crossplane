@@ -2,6 +2,7 @@ package clusterclient
 
 import (
 	"context"
+	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"strings"
 )
 
 type compositionCacheKey struct {
@@ -26,12 +28,28 @@ type DefaultClusterClient struct {
 	functions     map[string]pkgv1.Function
 }
 
+// ClusterClient defines the interface for interacting with a Kubernetes cluster
+// to retrieve Crossplane resources for diffing.
 type ClusterClient interface {
-	FindMatchingComposition(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetExtraResources(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]unstructured.Unstructured, error)
-	GetFunctionsFromPipeline(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
-	GetXRDSchema(context.Context, *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
-	Initialize(context.Context) error
+	// Initialize sets up any required resources
+	Initialize(ctx context.Context) error
+
+	// FindMatchingComposition finds a composition that matches the given XR
+	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
+
+	// GetExtraResources retrieves all resources matching the given GVRs and selectors
+	GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error)
+
+	// GetFunctionsFromPipeline retrieves all functions used in the composition's pipeline
+	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
+
+	// GetXRDSchema retrieves the XRD schema for the given XR
+	GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
+
+	// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
+	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
+
+	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
@@ -255,4 +273,71 @@ func (c *DefaultClusterClient) GetXRDSchema(ctx context.Context, res *unstructur
 	}
 
 	return nil, errors.Errorf("no XRD found for %s", xrGVK.String())
+}
+
+// GetResource retrieves a resource from the cluster using the dynamic client
+func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+	// Create a GroupVersionResource from the GroupVersionKind
+	gvr := schema.GroupVersionResource{
+		Group:    gvk.Group,
+		Version:  gvk.Version,
+		Resource: strings.ToLower(gvk.Kind) + "s", // Naive pluralization
+	}
+
+	// Handle special cases for some well-known types
+	switch gvk.Kind {
+	case "Ingress":
+		gvr.Resource = "ingresses"
+	case "Endpoints":
+		gvr.Resource = "endpoints"
+	case "ConfigMap":
+		gvr.Resource = "configmaps"
+		// Add other special cases as needed
+	}
+
+	// Get the resource
+	var resource *unstructured.Unstructured
+	var err error
+
+	if namespace != "" {
+		// Namespaced resource
+		resource, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+	} else {
+		// Cluster-scoped resource
+		resource, err = c.dynamicClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
+	}
+
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot get resource %s/%s of kind %s", namespace, name, gvk.Kind)
+	}
+
+	return resource, nil
+}
+
+// DryRunApply performs a server-side apply with dry-run flag for diffing
+func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	// Create GVR from the object
+	gvk := obj.GroupVersionKind()
+	gvr := schema.GroupVersionResource{
+		Group:    gvk.Group,
+		Version:  gvk.Version,
+		Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // naive pluralization
+	}
+
+	// Get the resource client for the namespace
+	// if obj.namespace is empty, calling Namespace() is a no-op.
+	resourceClient := c.dynamicClient.Resource(gvr).Namespace(obj.GetNamespace())
+
+	// Set a field manager for server-side apply
+	fieldManager := "crossplane-diff"
+
+	// Create apply options for a dry run
+	applyOptions := metav1.ApplyOptions{
+		FieldManager: fieldManager,
+		Force:        true,
+		DryRun:       []string{metav1.DryRunAll},
+	}
+
+	// Perform a dry-run server-side apply
+	return resourceClient.Apply(ctx, obj.GetName(), obj, applyOptions)
 }

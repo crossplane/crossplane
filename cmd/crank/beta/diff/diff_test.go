@@ -18,88 +18,19 @@ package diff
 
 import (
 	"context"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/cmd/crank/render"
 	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 )
 
-// MockClusterClient implements the ClusterClient interface for testing
-type MockClusterClient struct {
-	InitializeFn               func(ctx context.Context) error
-	FindMatchingCompositionFn  func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]unstructured.Unstructured, error)
-	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
-	GetXRDSchemaFn             func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
-}
-
-// Initialize implements the ClusterClient interface
-func (m *MockClusterClient) Initialize(ctx context.Context) error {
-	if m.InitializeFn != nil {
-		return m.InitializeFn(ctx)
-	}
-	return nil
-}
-
-// FindMatchingComposition implements the ClusterClient interface
-func (m *MockClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-	if m.FindMatchingCompositionFn != nil {
-		return m.FindMatchingCompositionFn(res)
-	}
-	return nil, nil
-}
-
-// GetExtraResources implements the ClusterClient interface
-func (m *MockClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-	if m.GetExtraResourcesFn != nil {
-		return m.GetExtraResourcesFn(ctx, gvrs, selectors)
-	}
-	return nil, nil
-}
-
-// GetFunctionsFromPipeline implements the ClusterClient interface
-func (m *MockClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-	if m.GetFunctionsFromPipelineFn != nil {
-		return m.GetFunctionsFromPipelineFn(comp)
-	}
-	return nil, nil
-}
-
-// GetXRDSchema implements the ClusterClient interface
-func (m *MockClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-	if m.GetXRDSchemaFn != nil {
-		return m.GetXRDSchemaFn(ctx, res)
-	}
-	return nil, nil
-}
-
-// Ensure MockClusterClient implements the ClusterClient interface
-var _ cc.ClusterClient = &MockClusterClient{}
-
-// MockDiffProcessor implements the DiffProcessor interface for testing
-type MockDiffProcessor struct {
-	ProcessAllFn func(ctx context.Context, resources []*unstructured.Unstructured) error
-}
-
-// ProcessAll implements the DiffProcessor.ProcessAll method
-func (m *MockDiffProcessor) ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error {
-	if m.ProcessAllFn != nil {
-		return m.ProcessAllFn(ctx, resources)
-	}
-	return nil
-}
-
-// Ensure MockDiffProcessor implements the DiffProcessor interface
-var _ dp.DiffProcessor = &MockDiffProcessor{}
-
+// Custom Run function for testing - this avoids calling the real Run()
 // Custom Run function for testing - this avoids calling the real Run()
 func testRun(ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, error)) error {
 	config, err := setupConfig()
@@ -121,7 +52,12 @@ func testRun(ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, erro
 		return errors.Wrap(err, "failed to load resources")
 	}
 
-	processor, err := DiffProcessorFactory(config, client, c.Namespace)
+	renderFunc := func(ctx context.Context, logger logging.Logger, in render.Inputs) (render.Outputs, error) {
+		// This is a placeholder - in tests, this will typically be overridden
+		return render.Outputs{}, nil
+	}
+
+	processor, err := DiffProcessorFactory(config, client, c.Namespace, renderFunc)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
@@ -199,7 +135,7 @@ func TestCmd_Run(t *testing.T) {
 
 				// Mock diff processor
 				mockProcessor := &MockDiffProcessor{}
-				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string) (dp.DiffProcessor, error) {
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -275,7 +211,7 @@ func TestCmd_Run(t *testing.T) {
 						return errors.New("processing error")
 					},
 				}
-				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string) (dp.DiffProcessor, error) {
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -320,7 +256,7 @@ func TestCmd_Run(t *testing.T) {
 				}
 
 				// Mock diff processor factory error
-				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string) (dp.DiffProcessor, error) {
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
 					return nil, errors.New("failed to create diff processor")
 				}
 			},

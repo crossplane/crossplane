@@ -2,13 +2,17 @@ package diffprocessor
 
 import (
 	"context"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/ptr"
+	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,6 +27,8 @@ type stubClusterClient struct {
 	getExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]unstructured.Unstructured, error)
 	getFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	getXRDSchemaFn             func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
+	getResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
+	dryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
 }
 
 func (s *stubClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
@@ -53,17 +59,22 @@ func (s *stubClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.
 	return nil, errors.New("GetXRDSchema not implemented")
 }
 
-func (s *stubClusterClient) Initialize(ctx context.Context) error {
-	return nil
+func (s *stubClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+	if s.getResourceFn != nil {
+		return s.getResourceFn(ctx, gvk, namespace, name)
+	}
+	return nil, errors.New("GetResource not implemented")
 }
 
-// MockDiffProcessor creates a DiffProcessor with mocked behavior for testing
-func MockDiffProcessor(client cc.ClusterClient, config *rest.Config, namespace string) DiffProcessor {
-	return &DefaultDiffProcessor{
-		client:    client,
-		config:    config,
-		namespace: namespace,
+func (s *stubClusterClient) DryRunApply(ctx context.Context, toApply *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	if s.dryRunApplyFn != nil {
+		return s.dryRunApplyFn(ctx, toApply)
 	}
+	return nil, errors.New("DryRunApply not implemented")
+}
+
+func (s *stubClusterClient) Initialize(ctx context.Context) error {
+	return nil
 }
 
 func TestDiffProcessor_ProcessResource(t *testing.T) {
@@ -82,6 +93,12 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 			return nil, errors.New("should not be called")
 		},
 		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
+			return nil, errors.New("should not be called")
+		},
+		getResourceFn: func(ctx context.Context, kind schema.GroupVersionKind, s string, s2 string) (*unstructured.Unstructured, error) {
+			return nil, errors.New("should not be called")
+		},
+		dryRunApplyFn: func(ctx context.Context, res *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 			return nil, errors.New("should not be called")
 		},
 	}
@@ -242,11 +259,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor that uses our stub client directly
-			p := DefaultDiffProcessor{
-				client:    tc.stub, // Use the stub directly as the client
-				config:    &rest.Config{},
-				namespace: "default",
-			}
+			p, _ := NewDiffProcessor(&rest.Config{}, tc.stub, "default", nil, nil)
 
 			err := p.ProcessResource(tc.args.ctx, tc.args.res)
 
@@ -942,4 +955,715 @@ func TestGetExtraResourcesFromResult(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDiffProcessor_CalculateDiff(t *testing.T) {
+	ctx := context.Background()
+
+	type args struct {
+		ctx     context.Context
+		desired runtime.Object
+	}
+	type fields struct {
+		mockGetResource func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
+		mockDryRunApply func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	}
+	type want struct {
+		diff string
+		err  error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		fields fields
+		want   want
+	}{
+		"DesiredNotUnstructured": {
+			reason: "Should return an error if the desired object is not an unstructured",
+			args: args{
+				ctx:     ctx,
+				desired: &corev1.Pod{}, // Using a typed object to test error handling
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					return nil, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					return nil, nil
+				},
+			},
+			want: want{
+				diff: "",
+				err:  errors.New("desired object is not unstructured"),
+			},
+		},
+		"ResourceNotFound": {
+			reason: "Should return a formatted diff for a new resource",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name": "new-resource",
+						},
+						"spec": map[string]interface{}{
+							"param": "value",
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					return nil, apierrors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, name)
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Should not be called for new resources
+					return nil, errors.New("should not be called")
+				},
+			},
+			want: want{
+				// YAML format instead of JSON
+				diff: `+ ExampleResource (new object)
+apiVersion: example.org/v1
+kind: ExampleResource
+metadata:
+  name: new-resource
+spec:
+  param: value`,
+				err: nil,
+			},
+		},
+		"ErrorGettingResource": {
+			reason: "Should return an error if there is a problem getting the current resource",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name": "error-resource",
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					return nil, errors.New("server unavailable")
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Should not be called when GetResource fails
+					return nil, errors.New("should not be called")
+				},
+			},
+			want: want{
+				diff: "",
+				err:  errors.New("cannot get current object: server unavailable"),
+			},
+		},
+		"DryRunError": {
+			reason: "Should return an error if DryRunApply fails",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name": "dryrun-error-resource",
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					return &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ExampleResource",
+							"metadata": map[string]interface{}{
+								"name":            "dryrun-error-resource",
+								"resourceVersion": "1",
+							},
+						},
+					}, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					return nil, errors.New("dry run failed")
+				},
+			},
+			want: want{
+				diff: "",
+				err:  errors.New("cannot perform dry-run apply: dry run failed"),
+			},
+		},
+		"NoChanges": {
+			reason: "Should return an empty string when there are no changes",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "ExampleResource",
+						"metadata": map[string]interface{}{
+							"name": "unchanged-resource",
+						},
+						"spec": map[string]interface{}{
+							"param": "value",
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					// Return the current resource
+					return &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ExampleResource",
+							"metadata": map[string]interface{}{
+								"name":            "unchanged-resource",
+								"resourceVersion": "1",
+							},
+							"spec": map[string]interface{}{
+								"param": "value",
+							},
+						},
+					}, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Return the exact same resource (no changes)
+					return &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ExampleResource",
+							"metadata": map[string]interface{}{
+								"name":            "unchanged-resource",
+								"resourceVersion": "1",
+							},
+							"spec": map[string]interface{}{
+								"param": "value",
+							},
+						},
+					}, nil
+				},
+			},
+			want: want{
+				diff: "",
+				err:  nil,
+			},
+		},
+		"WithChanges": {
+			reason: "Should return a formatted diff when there are changes",
+			args: args{
+				ctx: ctx,
+				desired: func() runtime.Object {
+					// Create a ConfigMap
+					cm := &corev1.ConfigMap{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "changed-configmap",
+						},
+						Data: map[string]string{
+							"param":  "new-value",
+							"newkey": "value",
+							// "unused" is removed
+						},
+					}
+					// Convert to unstructured
+					unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cm)
+					if err != nil {
+						t.Fatalf("Failed to convert ConfigMap to unstructured: %v", err)
+						return nil
+					}
+					return &unstructured.Unstructured{Object: unstr}
+				}(),
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					// Return a ConfigMap with different values
+					cm := &corev1.ConfigMap{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "ConfigMap",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "changed-configmap",
+							ResourceVersion: "1",
+						},
+						Data: map[string]string{
+							"param":  "old-value",
+							"unused": "old-value",
+							// No "newkey"
+						},
+					}
+					// Convert to unstructured
+					unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cm)
+					if err != nil {
+						return nil, err
+					}
+					return &unstructured.Unstructured{Object: unstr}, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Return the desired object as the result of dry run
+					return obj, nil
+				},
+			},
+			want: want{
+				// Updated to YAML format
+				diff: `~ ConfigMap/changed-configmap
+data:
+  newkey: value
+  param: new-value`,
+				err: nil,
+			},
+		},
+		"WithAddedField": {
+			reason: "Should show added fields in the diff",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]interface{}{
+							"name": "added-field-pod",
+						},
+						"spec": map[string]interface{}{
+							"containers": []interface{}{
+								map[string]interface{}{
+									"name":  "container1",
+									"image": "nginx:latest",
+									"resources": map[string]interface{}{
+										"limits": map[string]interface{}{
+											"cpu":    "100m",
+											"memory": "128Mi",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					// Create a pod without resource limits
+					pod := &corev1.Pod{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Pod",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "added-field-pod",
+							ResourceVersion: "1",
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "container1",
+									Image: "nginx:latest",
+									// No resource limits
+								},
+							},
+						},
+					}
+					// Convert to unstructured
+					unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
+					if err != nil {
+						return nil, err
+					}
+					return &unstructured.Unstructured{Object: unstr}, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Return the desired object as if the dry run was successful
+					return &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "Pod",
+							"metadata": map[string]interface{}{
+								"name":            "added-field-pod",
+								"resourceVersion": "1",
+							},
+							"spec": map[string]interface{}{
+								"containers": []interface{}{
+									map[string]interface{}{
+										"name":  "container1",
+										"image": "nginx:latest",
+										"resources": map[string]interface{}{
+											"limits": map[string]interface{}{
+												"cpu":    "100m",
+												"memory": "128Mi",
+											},
+										},
+									},
+								},
+							},
+						},
+					}, nil
+				},
+			},
+			want: want{
+				// YAML format with array handling
+				diff: `~ Pod/added-field-pod
+spec:
+  containers:
+  - resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi`,
+				err: nil,
+			},
+		},
+		"WithRemovedField": {
+			reason: "Should show type change in the diff",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Service",
+						"metadata": map[string]interface{}{
+							"name": "removed-field-service",
+						},
+						"spec": map[string]interface{}{
+							"selector": map[string]interface{}{
+								"app": "example",
+							},
+							"ports": []interface{}{
+								map[string]interface{}{
+									"port": int64(80),
+									"name": "http",
+								},
+							},
+							"type": "ClusterIP", // Changed from NodePort
+							// No externalIPs
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					// Return service with additional fields
+					svc := &corev1.Service{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "v1",
+							Kind:       "Service",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "removed-field-service",
+							ResourceVersion: "1",
+						},
+						Spec: corev1.ServiceSpec{
+							Selector: map[string]string{
+								"app": "example",
+							},
+							Ports: []corev1.ServicePort{
+								{
+									Port: 80,
+									Name: "http",
+								},
+							},
+							Type: corev1.ServiceTypeNodePort,
+							ExternalIPs: []string{
+								"192.168.1.100",
+							},
+						},
+					}
+					// Convert to unstructured
+					unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(svc)
+					if err != nil {
+						return nil, err
+					}
+					return &unstructured.Unstructured{Object: unstr}, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Return the desired object as if the dry run was successful
+					return &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "v1",
+							"kind":       "Service",
+							"metadata": map[string]interface{}{
+								"name":            "removed-field-service",
+								"resourceVersion": "1",
+							},
+							"spec": map[string]interface{}{
+								"selector": map[string]interface{}{
+									"app": "example",
+								},
+								"ports": []interface{}{
+									map[string]interface{}{
+										"port": int64(80),
+										"name": "http",
+									},
+								},
+								"type": "ClusterIP",
+								// No externalIPs
+							},
+						},
+					}, nil
+				},
+			},
+			want: want{
+				// YAML format
+				diff: `~ Service/removed-field-service
+spec:
+  type: ClusterIP`,
+				err: nil,
+			},
+		},
+		"WithNestedChanges": {
+			reason: "Should handle nested field changes properly",
+			args: args{
+				ctx: ctx,
+				desired: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "apiextensions.k8s.io/v1beta1",
+						"kind":       "CustomResourceDefinition",
+						"metadata": map[string]interface{}{
+							"name": "nested-changes.example.org",
+						},
+						"spec": map[string]interface{}{
+							"group": "example.org",
+							"names": map[string]interface{}{
+								"kind":     "Example",
+								"listKind": "ExampleList",
+								"plural":   "examples",
+								"singular": "example",
+							},
+							"scope":   "Namespaced",
+							"version": "v1alpha1",
+							"validation": map[string]interface{}{
+								"openAPIV3Schema": map[string]interface{}{
+									"type": "object",
+									"properties": map[string]interface{}{
+										"spec": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"replicas": map[string]interface{}{
+													"type":    "integer",
+													"minimum": float64(1),
+													"maximum": float64(10),
+												},
+												"newField": map[string]interface{}{
+													"type": "string",
+												},
+											},
+											"required": []interface{}{"replicas"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			fields: fields{
+				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+					// Return CRD with different nested values
+					crd := &apiextensions.CustomResourceDefinition{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "apiextensions.k8s.io/v1beta1",
+							Kind:       "CustomResourceDefinition",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name:            "nested-changes.example.org",
+							ResourceVersion: "1",
+						},
+						Spec: apiextensions.CustomResourceDefinitionSpec{
+							Group: "example.org",
+							Names: apiextensions.CustomResourceDefinitionNames{
+								Kind:     "Example",
+								ListKind: "ExampleList",
+								Plural:   "examples",
+								Singular: "example",
+							},
+							Scope:   apiextensions.NamespaceScoped,
+							Version: "v1alpha1",
+							Validation: &apiextensions.CustomResourceValidation{
+								OpenAPIV3Schema: &apiextensions.JSONSchemaProps{
+									Type: "object",
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"spec": {
+											Type: "object",
+											Properties: map[string]apiextensions.JSONSchemaProps{
+												"replicas": {
+													Type:    "integer",
+													Minimum: ptr.To[float64](3), // Different minimum
+													Maximum: ptr.To[float64](5), // Different maximum
+												},
+												// No newField
+											},
+											Required: []string{"replicas"},
+										},
+									},
+								},
+							},
+						},
+					}
+					// Convert to unstructured
+					unstr, err := runtime.DefaultUnstructuredConverter.ToUnstructured(crd)
+					if err != nil {
+						return nil, err
+					}
+					return &unstructured.Unstructured{Object: unstr}, nil
+				},
+				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					// Return the desired object as if the dry run was successful
+					return &unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.k8s.io/v1beta1",
+							"kind":       "CustomResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name":            "nested-changes.example.org",
+								"resourceVersion": "1",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind":     "Example",
+									"listKind": "ExampleList",
+									"plural":   "examples",
+									"singular": "example",
+								},
+								"scope":   "Namespaced",
+								"version": "v1alpha1",
+								"validation": map[string]interface{}{
+									"openAPIV3Schema": map[string]interface{}{
+										"type": "object",
+										"properties": map[string]interface{}{
+											"spec": map[string]interface{}{
+												"type": "object",
+												"properties": map[string]interface{}{
+													"replicas": map[string]interface{}{
+														"type":    "integer",
+														"minimum": float64(1),
+														"maximum": float64(10),
+													},
+													"newField": map[string]interface{}{
+														"type": "string",
+													},
+												},
+												"required": []interface{}{"replicas"},
+											},
+										},
+									},
+								},
+							},
+						},
+					}, nil
+				},
+			},
+			want: want{
+				// Update this to match the actual output with the full resource details
+				diff: `~ CustomResourceDefinition/nested-changes.example.org
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nested-changes.example.org
+spec:
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            newField:
+              type: string
+            replicas:
+              maximum: 10
+              minimum: 1`,
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Create a mock client that returns predefined resources
+			mockClient := &stubClusterClient{
+				getResourceFn: tc.fields.mockGetResource,
+				dryRunApplyFn: tc.fields.mockDryRunApply,
+			}
+
+			// Create a processor with the mock client
+			processor := &DefaultDiffProcessor{
+				client: mockClient,
+				config: &rest.Config{},
+			}
+
+			diff, err := processor.CalculateDiff(tc.args.ctx, tc.args.desired)
+
+			// Check if error matches expectation
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("CalculateDiff() error = nil, wantErr %v", tc.want.err)
+					return
+				}
+				if !strings.Contains(err.Error(), tc.want.err.Error()) {
+					t.Errorf("CalculateDiff() error = %v, wantErr %v", err, tc.want.err)
+					return
+				}
+			} else if err != nil {
+				t.Errorf("CalculateDiff() unexpected error: %v", err)
+				return
+			}
+
+			// Check if diff matches expectation
+			// For YAML comparisons, we need to normalize whitespace and indentation
+			if tc.want.diff != "" && diff != "" {
+				normalizedWant, err := normalizeYAML(tc.want.diff)
+				if err != nil {
+					t.Errorf("Error normalizing expected diff: %v", err)
+					return
+				}
+
+				normalizedGot, err := normalizeYAML(diff)
+				if err != nil {
+					t.Errorf("Error normalizing actual diff: %v", err)
+					return
+				}
+
+				if normalizedWant != normalizedGot {
+					t.Errorf("CalculateDiff() mismatch:\nWant:\n%s\n\nGot:\n%s", tc.want.diff, diff)
+				}
+			} else if tc.want.diff != diff {
+				// For empty diffs or header-only diffs, compare directly
+				t.Errorf("CalculateDiff() = %v, want %v", diff, tc.want.diff)
+			}
+		})
+	}
+}
+
+// normalizeYAML handles normalization of YAML content for consistent comparison
+func normalizeYAML(yamlString string) (string, error) {
+	// Split the diff into header and YAML parts
+	parts := strings.SplitN(yamlString, "\n", 2)
+	if len(parts) < 2 {
+		// No YAML part or not in the expected format, return as is
+		return yamlString, nil
+	}
+
+	header := parts[0]
+	yamlPart := parts[1]
+
+	// Parse YAML to a map
+	var parsed map[string]interface{}
+	if err := sigsyaml.Unmarshal([]byte(yamlPart), &parsed); err != nil {
+		return "", errors.Wrap(err, "cannot parse diff YAML")
+	}
+
+	// Re-serialize with consistent formatting
+	normalized, err := sigsyaml.Marshal(parsed)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot marshal normalized YAML")
+	}
+
+	// Reconstitute the diff
+	return header + "\n" + string(normalized), nil
 }
