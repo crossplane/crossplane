@@ -2,6 +2,8 @@ package clusterclient
 
 import (
 	"context"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"testing"
@@ -144,7 +146,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &ClusterClient{
+			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
 			}
 
@@ -316,7 +318,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &ClusterClient{
+			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
 			}
 
@@ -540,7 +542,7 @@ func TestClusterClient_GetExtraResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &ClusterClient{
+			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
 			}
 
@@ -586,4 +588,846 @@ func TestClusterClient_GetExtraResources(t *testing.T) {
 	}
 }
 
-// TODO:  tests for FindMatchingComposition, GetFunctionsFromPipeline, GetXRDSchema
+func TestClusterClient_FindMatchingComposition(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = pkgv1.AddToScheme(scheme)
+	_ = apiextensionsv1.AddToScheme(scheme)
+
+	type fields struct {
+		compositions map[compositionCacheKey]*apiextensionsv1.Composition
+	}
+
+	type args struct {
+		res *unstructured.Unstructured
+	}
+
+	type want struct {
+		composition *apiextensionsv1.Composition
+		err         error
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   want
+	}{
+		"NoMatchingComposition": {
+			reason: "Should return error when no matching composition exists",
+			fields: fields{
+				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
+					{apiVersion: "example.org/v1", kind: "OtherXR"}: {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "apiextensions.crossplane.io/v1",
+							Kind:       "Composition",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "non-matching-comp",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v1",
+								Kind:       "OtherXR",
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("no composition found for %s", "example.org/v1, Kind=XR1"),
+			},
+		},
+		"MatchingComposition": {
+			reason: "Should return the matching composition",
+			fields: fields{
+				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
+					{apiVersion: "example.org/v1", kind: "XR1"}: {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "apiextensions.crossplane.io/v1",
+							Kind:       "Composition",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "matching-comp",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v1",
+								Kind:       "XR1",
+							},
+						},
+					},
+					{apiVersion: "example.org/v1", kind: "OtherXR"}: {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "apiextensions.crossplane.io/v1",
+							Kind:       "Composition",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "non-matching-comp",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v1",
+								Kind:       "OtherXR",
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				composition: &apiextensionsv1.Composition{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "apiextensions.crossplane.io/v1",
+						Kind:       "Composition",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "matching-comp",
+					},
+					Spec: apiextensionsv1.CompositionSpec{
+						CompositeTypeRef: apiextensionsv1.TypeReference{
+							APIVersion: "example.org/v1",
+							Kind:       "XR1",
+						},
+					},
+				},
+			},
+		},
+		"EmptyCompositionCache": {
+			reason: "Should return error when composition cache is empty",
+			fields: fields{
+				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{},
+			},
+			args: args{
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("no composition found for %s", "example.org/v1, Kind=XR1"),
+			},
+		},
+		"DifferentVersions": {
+			reason: "Should not match compositions with different versions",
+			fields: fields{
+				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
+					{apiVersion: "example.org/v2", kind: "XR1"}: {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "apiextensions.crossplane.io/v1",
+							Kind:       "Composition",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "version-mismatch-comp",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v2",
+								Kind:       "XR1",
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("no composition found for %s", "example.org/v1, Kind=XR1"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &DefaultClusterClient{
+				compositions: tc.fields.compositions,
+			}
+
+			got, err := c.FindMatchingComposition(tc.args.res)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nFindMatchingComposition(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
+					t.Errorf("\n%s\nFindMatchingComposition(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nFindMatchingComposition(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			if tc.want.composition != nil {
+				if diff := cmp.Diff(tc.want.composition.Name, got.Name); diff != "" {
+					t.Errorf("\n%s\nFindMatchingComposition(...): -want composition name, +got composition name:\n%s", tc.reason, diff)
+				}
+
+				if diff := cmp.Diff(tc.want.composition.Spec.CompositeTypeRef, got.Spec.CompositeTypeRef); diff != "" {
+					t.Errorf("\n%s\nFindMatchingComposition(...): -want composition type ref, +got composition type ref:\n%s", tc.reason, diff)
+				}
+			}
+		})
+	}
+}
+
+func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = pkgv1.AddToScheme(scheme)
+	_ = apiextensionsv1.AddToScheme(scheme)
+
+	pipelineMode := apiextensionsv1.CompositionModePipeline
+	nonPipelineMode := apiextensionsv1.CompositionMode("NonPipeline")
+
+	type fields struct {
+		functions map[string]pkgv1.Function
+	}
+
+	type args struct {
+		comp *apiextensionsv1.Composition
+	}
+
+	type want struct {
+		functions []pkgv1.Function
+		err       error
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   want
+	}{
+		"NonPipelineMode": {
+			reason: "Should return nil when composition is not in pipeline mode",
+			fields: fields{
+				functions: map[string]pkgv1.Function{},
+			},
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &nonPipelineMode,
+					},
+				},
+			},
+			want: want{
+				functions: nil,
+			},
+		},
+		"NoModeSpecified": {
+			reason: "Should return nil when composition mode is not specified",
+			fields: fields{
+				functions: map[string]pkgv1.Function{},
+			},
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: nil,
+					},
+				},
+			},
+			want: want{
+				functions: nil,
+			},
+		},
+		"EmptyPipeline": {
+			reason: "Should return empty slice for empty pipeline",
+			fields: fields{
+				functions: map[string]pkgv1.Function{},
+			},
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode:     &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{},
+					},
+				},
+			},
+			want: want{
+				functions: []pkgv1.Function{},
+			},
+		},
+		"MissingFunction": {
+			reason: "Should return error when a function is missing",
+			fields: fields{
+				functions: map[string]pkgv1.Function{
+					"function-a": {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-a",
+						},
+					},
+				},
+			},
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-a",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-a"},
+							},
+							{
+								Step:        "step-b",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-b"},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("function %q referenced in pipeline step %q not found", "function-b", "step-b"),
+			},
+		},
+		"AllFunctionsFound": {
+			reason: "Should return all functions referenced in the pipeline",
+			fields: fields{
+				functions: map[string]pkgv1.Function{
+					"function-a": {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-a",
+						},
+					},
+					"function-b": {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-b",
+						},
+					},
+				},
+			},
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-a",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-a"},
+							},
+							{
+								Step:        "step-b",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-b"},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				functions: []pkgv1.Function{
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-a",
+						},
+					},
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-b",
+						},
+					},
+				},
+			},
+		},
+		"DuplicateFunctionRefs": {
+			reason: "Should handle pipeline steps that reference the same function",
+			fields: fields{
+				functions: map[string]pkgv1.Function{
+					"function-a": {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-a",
+						},
+					},
+				},
+			},
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-a",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-a"},
+							},
+							{
+								Step:        "step-b",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-a"},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				functions: []pkgv1.Function{
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-a",
+						},
+					},
+					{
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-a",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &DefaultClusterClient{
+				functions: tc.fields.functions,
+			}
+
+			got, err := c.GetFunctionsFromPipeline(tc.args.comp)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nGetFunctionsFromPipeline(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
+					t.Errorf("\n%s\nGetFunctionsFromPipeline(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nGetFunctionsFromPipeline(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			if tc.want.functions == nil {
+				if got != nil {
+					t.Errorf("\n%s\nGetFunctionsFromPipeline(...): expected nil functions, got %v", tc.reason, got)
+				}
+				return
+			}
+
+			if diff := cmp.Diff(len(tc.want.functions), len(got)); diff != "" {
+				t.Errorf("\n%s\nGetFunctionsFromPipeline(...): -want function count, +got function count:\n%s", tc.reason, diff)
+			}
+
+			// Check each function matches what we expect
+			for i, wantFn := range tc.want.functions {
+				if i >= len(got) {
+					break
+				}
+				if diff := cmp.Diff(wantFn.GetName(), got[i].GetName()); diff != "" {
+					t.Errorf("\n%s\nGetFunctionsFromPipeline(...): -want function name, +got function name at index %d:\n%s", tc.reason, i, diff)
+				}
+			}
+		})
+	}
+}
+
+func TestClusterClient_GetXRDSchema(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = pkgv1.AddToScheme(scheme)
+	_ = apiextensionsv1.AddToScheme(scheme)
+
+	type args struct {
+		ctx context.Context
+		res *unstructured.Unstructured
+	}
+
+	type want struct {
+		xrd *apiextensionsv1.CompositeResourceDefinition
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		setup  func() dynamic.Interface
+		args   args
+		want   want
+	}{
+		"NoXRDsFound": {
+			reason: "Should return error when no XRDs exist",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
+					map[schema.GroupVersionResource]string{
+						{Group: "apiextensions.crossplane.io", Version: "v1", Resource: "compositeresourcedefinitions"}: "CompositeResourceDefinitionList",
+					})
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("no XRD found for %s", "example.org/v1, Kind=XR1"),
+			},
+		},
+		"XRDsExistButNoMatch": {
+			reason: "Should return error when XRDs exist but none match the resource",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr1s.other.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "other.org",
+								"names": map[string]interface{}{
+									"kind":     "XR1",
+									"plural":   "xr1s",
+									"singular": "xr1",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1",
+										"served":  true,
+										"storage": true,
+									},
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr2s.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind":     "XR2",
+									"plural":   "xr2s",
+									"singular": "xr2",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1",
+										"served":  true,
+										"storage": true,
+									},
+								},
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("no XRD found for %s", "example.org/v1, Kind=XR1"),
+			},
+		},
+		"MatchingXRDFound": {
+			reason: "Should return the matching XRD when one exists",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr1s.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind":     "XR1",
+									"plural":   "xr1s",
+									"singular": "xr1",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1",
+										"served":  true,
+										"storage": true,
+										"schema": map[string]interface{}{
+											"openAPIV3Schema": map[string]interface{}{
+												"type": "object",
+												"properties": map[string]interface{}{
+													"spec": map[string]interface{}{
+														"type": "object",
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr2s.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind":     "XR2",
+									"plural":   "xr2s",
+									"singular": "xr2",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1",
+										"served":  true,
+										"storage": true,
+									},
+								},
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				xrd: &apiextensionsv1.CompositeResourceDefinition{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "apiextensions.crossplane.io/v1",
+						Kind:       "CompositeResourceDefinition",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "xr1s.example.org",
+					},
+					Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+						Group: "example.org",
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "XR1",
+							Plural:   "xr1s",
+							Singular: "xr1",
+						},
+						Versions: []apiextensionsv1.CompositeResourceDefinitionVersion{
+							{
+								Name:   "v1",
+								Served: true,
+								Schema: &apiextensionsv1.CompositeResourceValidation{
+									OpenAPIV3Schema: runtime.RawExtension{
+										Raw: []byte(`{"properties":{"spec":{"type":"object"}},"type":"object"}`),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"ListError": {
+			reason: "Should propagate errors from the Kubernetes API",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
+					map[schema.GroupVersionResource]string{
+						{Group: "apiextensions.crossplane.io", Version: "v1", Resource: "compositeresourcedefinitions"}: "CompositeResourceDefinitionList",
+					})
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("list error")
+				})
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("list error"), "cannot list XRDs"),
+			},
+		},
+		"ConversionError": {
+			reason: "Should handle conversion errors gracefully",
+			setup: func() dynamic.Interface {
+				// Create a malformed XRD that will cause conversion issues
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr1s.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind": "XR1",
+									// Missing required fields will cause conversion errors
+								},
+								// Invalid versions structure
+								"versions": "not-an-array",
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+				res: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "example.org/v1",
+						"kind":       "XR1",
+						"metadata": map[string]interface{}{
+							"name": "my-xr",
+						},
+					},
+				},
+			},
+			want: want{
+				// The exact error message may vary depending on the runtime implementation
+				// So we'll just check that it contains "string" as that's the part we're testing
+				err: errors.New("cannot convert unstructured to XRD: cannot restore slice from string"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &DefaultClusterClient{
+				dynamicClient: tc.setup(),
+			}
+
+			got, err := c.GetXRDSchema(tc.args.ctx, tc.args.res)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nGetXRDSchema(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
+					t.Errorf("\n%s\nGetXRDSchema(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nGetXRDSchema(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			// Skip OpenAPIV3Schema comparison as it's hard to match exactly with the JSON marshaling differences
+			gotSchemaRaw := got.Spec.Versions[0].Schema.OpenAPIV3Schema.Raw
+			got.Spec.Versions[0].Schema.OpenAPIV3Schema.Raw = nil
+			tc.want.xrd.Spec.Versions[0].Schema.OpenAPIV3Schema.Raw = nil
+
+			if diff := cmp.Diff(tc.want.xrd, got, cmpopts.IgnoreFields(apiextensionsv1.CompositeResourceDefinitionVersion{}, "Schema")); diff != "" {
+				t.Errorf("\n%s\nGetXRDSchema(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// Now check if we got a non-empty schema
+			if len(gotSchemaRaw) == 0 {
+				t.Errorf("\n%s\nGetXRDSchema(...): expected non-empty schema", tc.reason)
+			}
+		})
+	}
+}

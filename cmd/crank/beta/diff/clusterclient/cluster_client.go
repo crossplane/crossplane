@@ -19,27 +19,35 @@ type compositionCacheKey struct {
 	kind       string
 }
 
-// ClusterClient handles all interactions with the Kubernetes cluster.
-type ClusterClient struct {
+// DefaultClusterClient handles all interactions with the Kubernetes cluster.
+type DefaultClusterClient struct {
 	dynamicClient dynamic.Interface
 	compositions  map[compositionCacheKey]*apiextensionsv1.Composition
 	functions     map[string]pkgv1.Function
 }
 
-// NewClusterClient creates a new ClusterClient instance.
-func NewClusterClient(config *rest.Config) (*ClusterClient, error) {
+type ClusterClient interface {
+	FindMatchingComposition(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
+	GetExtraResources(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]unstructured.Unstructured, error)
+	GetFunctionsFromPipeline(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
+	GetXRDSchema(context.Context, *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
+	Initialize(context.Context) error
+}
+
+// NewClusterClient creates a new DefaultClusterClient instance.
+func NewClusterClient(config *rest.Config) (*DefaultClusterClient, error) {
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create dynamic client")
 	}
 
-	return &ClusterClient{
+	return &DefaultClusterClient{
 		dynamicClient: dynamicClient,
 	}, nil
 }
 
 // Initialize loads compositions and functions from the cluster.
-func (c *ClusterClient) Initialize(ctx context.Context) error {
+func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 	compositions, err := c.listCompositions(ctx)
 	if err != nil {
 		return errors.Wrap(err, "cannot list compositions")
@@ -68,7 +76,7 @@ func (c *ClusterClient) Initialize(ctx context.Context) error {
 }
 
 // GetExtraResources fetches extra resources from the cluster based on the provided GVRs and selectors
-func (c *ClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
 	if len(gvrs) != len(selectors) {
 		return nil, errors.New("number of GVRs must match number of selectors")
 	}
@@ -94,7 +102,7 @@ func (c *ClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.Gro
 }
 
 // GetEnvironmentConfigs fetches environment configs from the cluster.
-func (c *ClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]unstructured.Unstructured, error) {
 	envConfigsGVR := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",
 		Version:  "v1alpha1",
@@ -119,7 +127,7 @@ func (c *ClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]unstructur
 }
 
 // FindMatchingComposition finds a composition matching the given resource.
-func (c *ClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 	xrGVK := res.GroupVersionKind()
 	key := compositionCacheKey{
 		apiVersion: xrGVK.GroupVersion().String(),
@@ -135,7 +143,7 @@ func (c *ClusterClient) FindMatchingComposition(res *unstructured.Unstructured) 
 }
 
 // GetFunctionsFromPipeline returns functions referenced in the composition pipeline.
-func (c *ClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+func (c *DefaultClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return nil, nil
 	}
@@ -152,7 +160,7 @@ func (c *ClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Compositi
 	return functions, nil
 }
 
-func (c *ClusterClient) listCompositions(ctx context.Context) ([]apiextensionsv1.Composition, error) {
+func (c *DefaultClusterClient) listCompositions(ctx context.Context) ([]apiextensionsv1.Composition, error) {
 	compositionsGVR := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",
 		Version:  "v1",
@@ -177,7 +185,7 @@ func (c *ClusterClient) listCompositions(ctx context.Context) ([]apiextensionsv1
 	return compositions, nil
 }
 
-func (c *ClusterClient) findMatchingComposition(res *unstructured.Unstructured, compositionMap map[compositionCacheKey]*apiextensionsv1.Composition) (*apiextensionsv1.Composition, error) {
+func (c *DefaultClusterClient) findMatchingComposition(res *unstructured.Unstructured, compositionMap map[compositionCacheKey]*apiextensionsv1.Composition) (*apiextensionsv1.Composition, error) {
 	xrGVK := res.GroupVersionKind()
 	key := compositionCacheKey{
 		apiVersion: xrGVK.GroupVersion().String(),
@@ -192,7 +200,7 @@ func (c *ClusterClient) findMatchingComposition(res *unstructured.Unstructured, 
 	return comp, nil
 }
 
-func (c *ClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Function, error) {
+func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Function, error) {
 	functionsGVR := schema.GroupVersionResource{
 		Group:    "pkg.crossplane.io",
 		Version:  "v1",
@@ -217,7 +225,7 @@ func (c *ClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Function, er
 	return functions, nil
 }
 
-func (c *ClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
+func (c *DefaultClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
 	// Create a dynamic resource interface for XRDs
 	xrdsGVR := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",

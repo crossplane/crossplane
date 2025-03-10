@@ -29,12 +29,12 @@ import (
 
 // DiffProcessor handles the processing of resources for diffing.
 type DiffProcessor struct {
-	client    *cc.ClusterClient
+	client    cc.ClusterClient
 	config    *rest.Config
 	namespace string
 }
 
-func NewDiffProcessor(config *rest.Config, client *cc.ClusterClient, namespace string) (*DiffProcessor, error) {
+func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace string) (*DiffProcessor, error) {
 	return &DiffProcessor{
 		client:    client,
 		config:    config,
@@ -61,7 +61,7 @@ func (p *DiffProcessor) ProcessResource(ctx context.Context, res *unstructured.U
 		return errors.Wrap(err, "cannot find matching composition")
 	}
 
-	gvrs, selectors, err := p.identifyNeededExtraResources(comp)
+	gvrs, selectors, err := p.IdentifyNeededExtraResources(comp)
 	if err != nil {
 		return errors.Wrap(err, "cannot identify needed extra resources")
 	}
@@ -81,13 +81,13 @@ func (p *DiffProcessor) ProcessResource(ctx context.Context, res *unstructured.U
 		return errors.Wrap(err, "cannot convert XR to composite unstructured")
 	}
 
-	hasTemplatedExtra, err := scanForTemplatedExtraResources(comp)
+	hasTemplatedExtra, err := ScanForTemplatedExtraResources(comp)
 	if err != nil {
 		return errors.Wrap(err, "cannot scan for templated extra resources")
 	}
 
 	if hasTemplatedExtra {
-		extraResources, err = p.handleTemplatedExtraResources(ctx, comp, xr, fns, extraResources)
+		extraResources, err = p.HandleTemplatedExtraResources(ctx, comp, xr, fns, extraResources)
 		if err != nil {
 			return err
 		}
@@ -108,12 +108,12 @@ func (p *DiffProcessor) ProcessResource(ctx context.Context, res *unstructured.U
 		return errors.Wrap(err, "cannot get XRD xrdSchema")
 	}
 
-	if err := validateResources(desired, xrdSchema); err != nil {
+	if err := ValidateResources(desired, xrdSchema); err != nil {
 		return errors.Wrap(err, "cannot validate resources")
 	}
 
 	for _, d := range desired.ComposedResources {
-		diff, err := calculateDiff(p.config, &d)
+		diff, err := CalculateDiff(p.config, &d)
 		if err != nil {
 			return errors.Wrap(err, "cannot calculate diff")
 		}
@@ -124,8 +124,8 @@ func (p *DiffProcessor) ProcessResource(ctx context.Context, res *unstructured.U
 	return nil
 }
 
-// identifyNeededExtraResources analyzes a composition to determine what extra resources are needed
-func (p *DiffProcessor) identifyNeededExtraResources(comp *apiextensionsv1.Composition) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
+// IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
+func (p *DiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Composition) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
 	// If no pipeline mode or no steps, return empty
 	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return nil, nil, nil
@@ -197,8 +197,8 @@ func (p *DiffProcessor) identifyNeededExtraResources(comp *apiextensionsv1.Compo
 	return resources, selectors, nil
 }
 
-// handleTemplatedExtraResources processes templated extra resources.
-func (p *DiffProcessor) handleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+// HandleTemplatedExtraResources processes templated extra resources.
+func (p *DiffProcessor) HandleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
 	preliminary, err := render.Render(ctx, nil, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
@@ -211,7 +211,7 @@ func (p *DiffProcessor) handleTemplatedExtraResources(ctx context.Context, comp 
 
 	for _, result := range preliminary.Results {
 		if result.GetKind() == "ExtraResources" {
-			additional, err := getExtraResourcesFromResult(&result)
+			additional, err := GetExtraResourcesFromResult(&result)
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot get extra resources from result")
 			}
@@ -222,7 +222,7 @@ func (p *DiffProcessor) handleTemplatedExtraResources(ctx context.Context, comp 
 	return extraResources, nil
 }
 
-func validateResources(desired render.Outputs, schema *apiextensionsv1.CompositeResourceDefinition) error {
+func ValidateResources(desired render.Outputs, schema *apiextensionsv1.CompositeResourceDefinition) error {
 	// Convert XRD to CRD format
 	crd := &extv1.CustomResourceDefinition{
 		Spec: extv1.CustomResourceDefinitionSpec{
@@ -274,7 +274,7 @@ func validateResources(desired render.Outputs, schema *apiextensionsv1.Composite
 	return nil
 }
 
-func scanForTemplatedExtraResources(comp *apiextensionsv1.Composition) (bool, error) {
+func ScanForTemplatedExtraResources(comp *apiextensionsv1.Composition) (bool, error) {
 	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return false, nil
 	}
@@ -317,7 +317,7 @@ func scanForTemplatedExtraResources(comp *apiextensionsv1.Composition) (bool, er
 	return false, nil
 }
 
-func getExtraResourcesFromResult(result *unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]unstructured.Unstructured, error) {
 	spec, found, err := unstructured.NestedMap(result.Object, "spec")
 	if err != nil || !found {
 		return nil, errors.New("no spec found in ExtraResources result")
@@ -342,7 +342,7 @@ func getExtraResourcesFromResult(result *unstructured.Unstructured) ([]unstructu
 	return resources, nil
 }
 
-func calculateDiff(config *rest.Config, desired runtime.Object) (string, error) {
+func CalculateDiff(config *rest.Config, desired runtime.Object) (string, error) {
 	// Get the current object from the cluster
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
