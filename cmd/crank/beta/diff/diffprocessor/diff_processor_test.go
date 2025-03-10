@@ -58,8 +58,8 @@ func (s *stubClusterClient) Initialize(ctx context.Context) error {
 }
 
 // MockDiffProcessor creates a DiffProcessor with mocked behavior for testing
-func MockDiffProcessor(client cc.ClusterClient, config *rest.Config, namespace string) *DiffProcessor {
-	return &DiffProcessor{
+func MockDiffProcessor(client cc.ClusterClient, config *rest.Config, namespace string) DiffProcessor {
+	return &DefaultDiffProcessor{
 		client:    client,
 		config:    config,
 		namespace: namespace,
@@ -242,7 +242,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor that uses our stub client directly
-			p := &DiffProcessor{
+			p := DefaultDiffProcessor{
 				client:    tc.stub, // Use the stub directly as the client
 				config:    &rest.Config{},
 				namespace: "default",
@@ -402,7 +402,7 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			p := &DiffProcessor{
+			p := &DefaultDiffProcessor{
 				client:    tc.stub, // Use the stub directly as the client
 				config:    &rest.Config{},
 				namespace: "default",
@@ -576,7 +576,7 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			p := &DiffProcessor{}
+			p := &DefaultDiffProcessor{}
 			gvrs, selectors, err := p.IdentifyNeededExtraResources(tc.args.comp)
 
 			if tc.want.err != nil {

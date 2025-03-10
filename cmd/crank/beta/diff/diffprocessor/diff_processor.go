@@ -27,15 +27,27 @@ import (
 	"strings"
 )
 
-// DiffProcessor handles the processing of resources for diffing.
-type DiffProcessor struct {
+// DefaultDiffProcessor handles the processing of resources for diffing.
+type DefaultDiffProcessor struct {
 	client    cc.ClusterClient
 	config    *rest.Config
 	namespace string
 }
 
-func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace string) (*DiffProcessor, error) {
-	return &DiffProcessor{
+type DiffProcessor interface {
+	ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error
+}
+
+// NewDiffProcessor creates a new DefaultDiffProcessor
+func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace string) (DiffProcessor, error) {
+	if config == nil {
+		return nil, errors.New("config cannot be nil")
+	}
+	if client == nil {
+		return nil, errors.New("client cannot be nil")
+	}
+
+	return &DefaultDiffProcessor{
 		client:    client,
 		config:    config,
 		namespace: namespace,
@@ -43,7 +55,7 @@ func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace st
 }
 
 // ProcessAll handles all resources stored in the processor.
-func (p *DiffProcessor) ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error {
+func (p *DefaultDiffProcessor) ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error {
 	var errs []error
 	for _, res := range resources {
 		if err := p.ProcessResource(ctx, res); err != nil {
@@ -55,7 +67,7 @@ func (p *DiffProcessor) ProcessAll(ctx context.Context, resources []*unstructure
 }
 
 // ProcessResource handles one resource at a time.
-func (p *DiffProcessor) ProcessResource(ctx context.Context, res *unstructured.Unstructured) error {
+func (p *DefaultDiffProcessor) ProcessResource(ctx context.Context, res *unstructured.Unstructured) error {
 	comp, err := p.client.FindMatchingComposition(res)
 	if err != nil {
 		return errors.Wrap(err, "cannot find matching composition")
@@ -125,7 +137,7 @@ func (p *DiffProcessor) ProcessResource(ctx context.Context, res *unstructured.U
 }
 
 // IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
-func (p *DiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Composition) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
+func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Composition) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
 	// If no pipeline mode or no steps, return empty
 	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return nil, nil, nil
@@ -198,7 +210,7 @@ func (p *DiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Compo
 }
 
 // HandleTemplatedExtraResources processes templated extra resources.
-func (p *DiffProcessor) HandleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
 	preliminary, err := render.Render(ctx, nil, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,

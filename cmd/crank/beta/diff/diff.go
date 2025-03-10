@@ -18,6 +18,8 @@ limitations under the License.
 package diff
 
 import (
+	"k8s.io/client-go/rest"
+
 	"context"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
@@ -62,7 +64,7 @@ func (c *Cmd) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to get kubeconfig")
 	}
 
-	client, err := cc.NewClusterClient(config)
+	client, err := ClusterClientFactory(config)
 	if err != nil {
 		return errors.Wrap(err, "cannot initialize cluster client")
 	}
@@ -71,12 +73,12 @@ func (c *Cmd) Run(ctx context.Context) error {
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	resources, err := LoadResources(c.Files)
+	resources, err := ResourceLoader(c.Files)
 	if err != nil {
 		return errors.Wrap(err, "failed to load resources")
 	}
 
-	processor, err := dp.NewDiffProcessor(config, client, c.Namespace)
+	processor, err := DiffProcessorFactory(config, client, c.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
@@ -87,3 +89,18 @@ func (c *Cmd) Run(ctx context.Context) error {
 
 	return nil
 }
+
+var (
+	// ClusterClientFactory Factory function for creating a new cluster client
+	ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+		return cc.NewClusterClient(config)
+	}
+
+	// DiffProcessorFactory Factory function for creating a new diff processor
+	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string) (dp.DiffProcessor, error) {
+		return dp.NewDiffProcessor(config, client, namespace)
+	}
+
+	// ResourceLoader Function for loading resources, which can be mocked in tests
+	ResourceLoader = LoadResources
+)
