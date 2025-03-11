@@ -1,11 +1,11 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: basic-composition
+  name: basic-composition-cluster
 spec:
   compositeTypeRef:
     apiVersion: example.org/v1alpha1
-    kind: Test
+    kind: ClusterTest
   mode: Pipeline
   pipeline:
   - step: be-a-dummy
@@ -29,8 +29,27 @@ spec:
               resource:
                 apiVersion: v1
                 kind: ConfigMap
+                metadata:
+                  namespace: default
                 data:
                   coolData: "I'm cool!"
+              ready: READY_TRUE
+            crd:
+              resource:
+                apiVersion: apiextensions.k8s.io/v1
+                kind: CustomResourceDefinition
+                metadata:
+                  name: controllers.test.example.org
+                spec:
+                  group: test.example.org
+                  names:
+                    kind: Controller
+                    plural: controllers
+                  scope: Cluster
+                  versions:
+                  - name: v1alpha1
+                    served: true
+                    storage: true
               ready: READY_TRUE
         results:
          - severity: SEVERITY_NORMAL
