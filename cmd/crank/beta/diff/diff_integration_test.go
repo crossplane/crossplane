@@ -21,7 +21,6 @@ import (
 )
 
 // TestDiffWithExtraResources tests that a resource with differing values produces a diff
-// TestDiffWithExtraResources tests that a resource with differing values produces a diff
 func TestDiffWithExtraResources(t *testing.T) {
 	// Set up the test context
 	ctx := context.Background()

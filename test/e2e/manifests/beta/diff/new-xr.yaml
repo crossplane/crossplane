@@ -1,0 +1,10 @@
+apiVersion: diff.example.org/v1alpha1
+kind: XNopResource
+metadata:
+  name: new-resource
+spec:
+  coolField: "I'm new!"
+  parameters:
+    config:
+      setting1: value1
+      setting2: value2

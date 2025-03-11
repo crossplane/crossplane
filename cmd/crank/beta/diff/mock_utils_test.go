@@ -7,6 +7,7 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
+	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -538,13 +539,13 @@ type MockDiffProcessor struct {
 }
 
 // ProcessAll implements the DiffProcessor.ProcessAll method
-func (m *MockDiffProcessor) ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error {
+func (m *MockDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 	if m.ProcessAllFn != nil {
 		return m.ProcessAllFn(ctx, resources)
 	}
 	// Default implementation processes each resource
 	for _, res := range resources {
-		if err := m.ProcessResource(ctx, res); err != nil {
+		if err := m.ProcessResource(nil, ctx, res); err != nil {
 			return errors.Wrapf(err, "unable to process resource %s", res.GetName())
 		}
 	}
@@ -552,7 +553,7 @@ func (m *MockDiffProcessor) ProcessAll(ctx context.Context, resources []*unstruc
 }
 
 // ProcessResource implements the DiffProcessor.ProcessResource method
-func (m *MockDiffProcessor) ProcessResource(ctx context.Context, res *unstructured.Unstructured) error {
+func (m *MockDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
 	if m.ProcessResourceFn != nil {
 		return m.ProcessResourceFn(ctx, res)
 	}

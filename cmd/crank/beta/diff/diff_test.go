@@ -62,7 +62,7 @@ func testRun(ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, erro
 		return errors.Wrap(err, "cannot create diff processor")
 	}
 
-	if err := processor.ProcessAll(ctx, resources); err != nil {
+	if err := processor.ProcessAll(nil, ctx, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 

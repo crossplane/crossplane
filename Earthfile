@@ -62,6 +62,10 @@ e2e:
   COPY +helm-setup/helm /usr/local/bin/helm
   COPY +kind-setup/kind /usr/local/bin/kind
   COPY +gotestsum-setup/gotestsum /usr/local/bin/gotestsum
+  # go-build is needed to create the `crank` binary that we use in some of the e2es.
+  # technically this will break if we ever used a windows builder (since this would be crank.exe)
+  # but we don't so it's fine for now.
+  COPY +go-build/crank .
   COPY +go-build-e2e/e2e .
   COPY --dir cluster test .
   TRY

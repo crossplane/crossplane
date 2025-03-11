@@ -40,8 +40,8 @@ type DefaultDiffProcessor struct {
 
 // DiffProcessor interface for processing resources
 type DiffProcessor interface {
-	ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error
-	ProcessResource(ctx context.Context, res *unstructured.Unstructured) error
+	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
+	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor
@@ -72,10 +72,10 @@ func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace st
 }
 
 // ProcessAll handles all resources stored in the processor.
-func (p *DefaultDiffProcessor) ProcessAll(ctx context.Context, resources []*unstructured.Unstructured) error {
+func (p *DefaultDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 	var errs []error
 	for _, res := range resources {
-		if err := p.ProcessResource(ctx, res); err != nil {
+		if err := p.ProcessResource(stdout, ctx, res); err != nil {
 			errs = append(errs, errors.Wrapf(err, "unable to process resource %s", res.GetName()))
 		}
 	}
@@ -84,7 +84,7 @@ func (p *DefaultDiffProcessor) ProcessAll(ctx context.Context, resources []*unst
 }
 
 // ProcessResource handles one resource at a time.
-func (p *DefaultDiffProcessor) ProcessResource(ctx context.Context, res *unstructured.Unstructured) error {
+func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
 	comp, err := p.client.FindMatchingComposition(res)
 	if err != nil {
 		return errors.Wrap(err, "cannot find matching composition")
@@ -147,7 +147,7 @@ func (p *DefaultDiffProcessor) ProcessResource(ctx context.Context, res *unstruc
 			return errors.Wrap(err, "cannot calculate diff")
 		}
 		if diff != "" {
-			fmt.Printf("%s\n---\n", diff)
+			_, _ = fmt.Fprintf(stdout, "%s\n---\n", diff)
 		}
 	}
 	return nil

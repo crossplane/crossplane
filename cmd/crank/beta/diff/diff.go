@@ -18,8 +18,11 @@ limitations under the License.
 package diff
 
 import (
+	"github.com/alecthomas/kong"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"k8s.io/client-go/rest"
+	"time"
 
 	"context"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
@@ -34,6 +37,8 @@ import (
 type Cmd struct {
 	Namespace string   `default:"crossplane-system" help:"Namespace to compare resources against." name:"namespace" short:"n"`
 	Files     []string `arg:"" optional:"" help:"YAML files containing Crossplane resources to diff."`
+
+	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 }
 
 // Help returns help instructions for the diff command.
@@ -59,7 +64,7 @@ Examples:
 }
 
 // Run executes the diff command.
-func (c *Cmd) Run(ctx context.Context) error {
+func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 	config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 	if err != nil {
 		return errors.Wrap(err, "failed to get kubeconfig")
@@ -70,6 +75,9 @@ func (c *Cmd) Run(ctx context.Context) error {
 		return errors.Wrap(err, "cannot initialize cluster client")
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+	defer cancel()
+
 	if err := client.Initialize(ctx); err != nil {
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
@@ -79,12 +87,12 @@ func (c *Cmd) Run(ctx context.Context) error {
 		return errors.Wrap(err, "failed to load resources")
 	}
 
-	processor, err := DiffProcessorFactory(config, client, c.Namespace, render.Render)
+	processor, err := DiffProcessorFactory(config, client, c.Namespace, render.Render, log)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
 
-	if err := processor.ProcessAll(ctx, resources); err != nil {
+	if err := processor.ProcessAll(k.Stdout, ctx, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 
@@ -98,8 +106,8 @@ var (
 	}
 
 	// DiffProcessorFactory Factory function for creating a new diff processor
-	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
-		return dp.NewDiffProcessor(config, client, namespace, renderFunc, nil)
+	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
+		return dp.NewDiffProcessor(config, client, namespace, renderFunc, logger)
 	}
 
 	// ResourceLoader Function for loading resources, which can be mocked in tests

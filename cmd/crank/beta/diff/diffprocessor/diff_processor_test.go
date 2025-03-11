@@ -261,7 +261,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 			// Create a DiffProcessor that uses our stub client directly
 			p, _ := NewDiffProcessor(&rest.Config{}, tc.stub, "default", nil, nil)
 
-			err := p.ProcessResource(tc.args.ctx, tc.args.res)
+			err := p.ProcessResource(nil, tc.args.ctx, tc.args.res)
 
 			if tc.want.err != nil {
 				if err == nil {
@@ -421,7 +421,7 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 				namespace: "default",
 			}
 
-			err := p.ProcessAll(tc.args.ctx, tc.args.resources)
+			err := p.ProcessAll(nil, tc.args.ctx, tc.args.resources)
 
 			if tc.want.err != nil {
 				if err == nil {
