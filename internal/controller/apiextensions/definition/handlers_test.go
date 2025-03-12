@@ -88,6 +88,9 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 								v1.LabelCompositionName: "dachshund",
 							},
 						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
+						},
 					},
 				},
 			},
@@ -123,6 +126,9 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 							Labels: map[string]string{
 								v1.LabelCompositionName: "dachshund",
 							},
+						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
 						},
 					},
 				},
@@ -201,6 +207,9 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 							Labels: map[string]string{
 								v1.LabelCompositionName: "dachshund",
 							},
+						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
 						},
 					},
 				},
