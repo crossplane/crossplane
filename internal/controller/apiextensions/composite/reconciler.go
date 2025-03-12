@@ -544,6 +544,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	orig := xr.GetCompositionReference()
 	if err := r.composite.SelectComposition(ctx, xr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
