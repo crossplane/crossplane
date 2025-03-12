@@ -363,8 +363,8 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 
 // CompositeResourcePrinterColumns returns the set of default printer columns
 // that should exist in all generated composite resource CRDs.
-func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
-	return []extv1.CustomResourceColumnDefinition{
+func CompositeResourcePrinterColumns(s v1.CompositeResourceScope) []extv1.CustomResourceColumnDefinition {
+	cols := []extv1.CustomResourceColumnDefinition{
 		{
 			Name:     "SYNCED",
 			Type:     "string",
@@ -378,12 +378,12 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 		{
 			Name:     "COMPOSITION",
 			Type:     "string",
-			JSONPath: ".spec.compositionRef.name",
+			JSONPath: ".spec.crossplane.compositionRef.name",
 		},
 		{
 			Name:     "COMPOSITIONREVISION",
 			Type:     "string",
-			JSONPath: ".spec.compositionRevisionRef.name",
+			JSONPath: ".spec.crossplane.compositionRevisionRef.name",
 			Priority: 1,
 		},
 		{
@@ -392,6 +392,19 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 			JSONPath: ".metadata.creationTimestamp",
 		},
 	}
+
+	if s == v1.CompositeResourceScopeLegacyCluster {
+		for i := range cols {
+			if cols[i].Name == "COMPOSITION" {
+				cols[i].JSONPath = ".spec.compositionRef.name"
+			}
+			if cols[i].Name == "COMPOSITIONREVISION" {
+				cols[i].JSONPath = ".spec.compositionRevisionRef.name"
+			}
+		}
+	}
+
+	return cols
 }
 
 // CompositeResourceClaimPrinterColumns returns the set of default printer
