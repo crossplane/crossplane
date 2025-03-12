@@ -269,12 +269,12 @@ func TestForCompositeResource(t *testing.T) {
 								{
 									Name:     "COMPOSITION",
 									Type:     "string",
-									JSONPath: ".spec.compositionRef.name",
+									JSONPath: ".spec.crossplane.compositionRef.name",
 								},
 								{
 									Name:     "COMPOSITIONREVISION",
 									Type:     "string",
-									JSONPath: ".spec.compositionRevisionRef.name",
+									JSONPath: ".spec.crossplane.compositionRevisionRef.name",
 									Priority: 1,
 								},
 								{
@@ -2017,6 +2017,9 @@ func TestForCompositeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			// TODO(negz): This is surprising - refactor it. We should always
+			// pass the xrd as an argument, not default it here. Same with the
+			// version.
 			var xrd *v1.CompositeResourceDefinition
 			if tc.args.xrd != nil {
 				xrd = tc.args.xrd
