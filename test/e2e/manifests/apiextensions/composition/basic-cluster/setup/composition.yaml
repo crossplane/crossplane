@@ -23,7 +23,7 @@ spec:
               status:
                 coolerField: "I'M COOLER!"
             connectionDetails:
-              super: secret
+              super: c2VjcmV0Cg==  # The string 'secret'
           resources:
             configmap:
               resource:
