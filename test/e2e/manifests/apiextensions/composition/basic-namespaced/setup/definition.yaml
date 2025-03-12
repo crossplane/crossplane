@@ -9,7 +9,7 @@ spec:
     kind: Test
     plural: tests
   connectionSecretKeys:
-  - test
+  - super
   versions:
   - name: v1alpha1
     served: true

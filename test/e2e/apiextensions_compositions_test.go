@@ -21,6 +21,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -61,6 +62,9 @@ func TestBasicCompositionNamespaced(t *testing.T) {
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).
+			Assess("ConnectionSecretCreated",
+				funcs.ResourceHasFieldValueWithin(30*time.Second, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "basic-secret-namespaced"}}, "data[super]", "c2VjcmV0Cg=="),
+			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResources(manifests, "xr.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
@@ -90,6 +94,9 @@ func TestBasicCompositionCluster(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available())).
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
+			).
+			Assess("ConnectionSecretCreated",
+				funcs.ResourceHasFieldValueWithin(30*time.Second, &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "basic-secret-cluster"}}, "data[super]", "c2VjcmV0Cg=="),
 			).
 			WithTeardown("DeleteXR", funcs.AllOf(
 				funcs.DeleteResources(manifests, "xr.yaml"),
