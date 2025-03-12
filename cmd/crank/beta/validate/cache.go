@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,7 +91,7 @@ func (c *LocalCache) Flush() error {
 // image should be a validate image name with the format: <registry>/<image>:<tag>.
 func (c *LocalCache) Load(image string) ([]*unstructured.Unstructured, error) {
 	cacheImagePath := c.getCachePath(image)
-	loader, err := NewLoader(cacheImagePath)
+	loader, err := internal.NewLoader(cacheImagePath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot create loader from %s", cacheImagePath)
 	}

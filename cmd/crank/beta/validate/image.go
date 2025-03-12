@@ -19,6 +19,7 @@ package validate
 import (
 	"archive/tar"
 	"fmt"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"io"
 	"log"
 	"os"
@@ -194,7 +195,7 @@ func extractPackageContent(layer conregv1.Layer) ([][]byte, []byte, error) {
 		return nil, nil, errors.Wrapf(err, "cannot get uncompressed layer")
 	}
 
-	objs, err := load(rc)
+	objs, err := internal.LoadYamlStream(rc)
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "cannot read from layer")
 	}

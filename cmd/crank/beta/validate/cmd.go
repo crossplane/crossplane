@@ -19,6 +19,7 @@ package validate
 
 import (
 	"fmt"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,8 +100,8 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CrossplaneImage = fmt.Sprintf("%s/crossplane/crossplane:%s", xpkg.DefaultRegistry, version.New().GetVersionString())
 	}
 
-	// Load all extensions
-	extensionLoader, err := NewLoader(c.Extensions)
+	// LoadYamlStream all extensions
+	extensionLoader, err := internal.NewLoader(c.Extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
@@ -110,8 +111,8 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
 
-	// Load all resources
-	resourceLoader, err := NewLoader(c.Resources)
+	// LoadYamlStream all resources
+	resourceLoader, err := internal.NewLoader(c.Resources)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load resources from %q", c.Resources)
 	}

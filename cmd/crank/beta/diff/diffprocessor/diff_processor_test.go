@@ -1499,12 +1499,12 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 	// Create a mock client that returns an error for GetXRDs
 	mockXRDsError := &testutils.MockClusterClient{
 		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return nil, errors.New("cannot get XRDs: XRD not found")
+			return nil, errors.New("XRD not found")
 		},
 	}
 
 	// Create a mock client that returns success for GetXRDs
-	_ = &testutils.MockClusterClient{ // TODO: mockXRDsSuccess := &testutils.MockClusterClient{
+	mockXRDsSuccess := &testutils.MockClusterClient{
 		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{
 				{
@@ -1526,6 +1526,29 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 									"name":    "v1",
 									"served":  true,
 									"storage": true,
+									"schema": map[string]interface{}{
+										"openAPIV3Schema": map[string]interface{}{
+											"type": "object",
+											"properties": map[string]interface{}{
+												"spec": map[string]interface{}{
+													"type": "object",
+													"properties": map[string]interface{}{
+														"coolParam": map[string]interface{}{
+															"type": "string",
+														},
+													},
+												},
+												"status": map[string]interface{}{
+													"type": "object",
+													"properties": map[string]interface{}{
+														"coolStatus": map[string]interface{}{
+															"type": "string",
+														},
+													},
+												},
+											},
+										},
+									},
 								},
 							},
 						},
@@ -1556,20 +1579,19 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				err: errors.New("XRD not found"),
+				err: errors.New("cannot get XRDs: XRD not found"),
 			},
 		},
-		// TODO:  fix this once we can properly mock Manager
-		//"XRDsSuccess": {
-		//	reason: "Should succeed when XRDs are found",
-		//	mock:   mockXRDsSuccess,
-		//	args: args{
-		//		ctx: context.Background(),
-		//	},
-		//	want: want{
-		//		err: nil,
-		//	},
-		//},
+		"Success": {
+			reason: "Should succeed when XRDs are found and converted",
+			mock:   mockXRDsSuccess,
+			args: args{
+				ctx: context.Background(),
+			},
+			want: want{
+				err: nil,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -1596,7 +1618,10 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 
 			if err != nil {
 				t.Errorf("\n%s\nInitialize(...): unexpected error: %v", tc.reason, err)
+				return
 			}
+
+			// For success case, we assume no error means happy, because we don't want to expose the crd cache field
 		})
 	}
 }

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package validate
+package internal
 
 import (
 	"testing"
@@ -100,11 +100,11 @@ func TestFileLoaderLoad(t *testing.T) {
 			}
 			got, err := f.Load()
 			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
-				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nLoadYamlStream(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nLoadYamlStream(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -124,7 +124,7 @@ func TestFolderLoaderLoad(t *testing.T) {
 		want   want
 	}{
 		"Success": {
-			reason: "Successfully load resources from folder",
+			reason: "Successfully LoadYamlStream resources from folder",
 			args: args{
 				Path: "testdata/folder",
 			},
@@ -157,11 +157,11 @@ func TestFolderLoaderLoad(t *testing.T) {
 			}
 			got, err := f.Load()
 			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
-				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nLoadYamlStream(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("%s\nLoadYamlStream(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package validate
+package internal
 
 import (
 	"bufio"
@@ -58,11 +58,11 @@ func NewLoader(input string) (Loader, error) {
 // StdinLoader implements the Loader interface for reading from stdin.
 type StdinLoader struct{}
 
-// Load reads the contents from stdin.
+// LoadYamlStream reads the contents from stdin.
 func (s *StdinLoader) Load() ([]*unstructured.Unstructured, error) {
-	stream, err := load(os.Stdin)
+	stream, err := LoadYamlStream(os.Stdin)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot load YAML stream from stdin")
+		return nil, errors.Wrap(err, "cannot LoadYamlStream YAML stream from stdin")
 	}
 
 	return streamToUnstructured(stream)
@@ -73,7 +73,7 @@ type FileLoader struct {
 	path string
 }
 
-// Load reads the contents from a file.
+// LoadYamlStream reads the contents from a file.
 func (f *FileLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := readFile(f.path)
 	if err != nil {
@@ -88,7 +88,7 @@ type FolderLoader struct {
 	path string
 }
 
-// Load reads the contents from all files in a folder.
+// LoadYamlStream reads the contents from all files in a folder.
 func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 	var stream [][]byte
 	err := filepath.Walk(f.path, func(path string, info os.FileInfo, err error) error {
@@ -123,10 +123,10 @@ func readFile(path string) ([][]byte, error) {
 	}
 	defer f.Close() //nolint:errcheck // Only open for reading.
 
-	return load(f)
+	return LoadYamlStream(f)
 }
 
-func load(r io.Reader) ([][]byte, error) {
+func LoadYamlStream(r io.Reader) ([][]byte, error) {
 	stream := make([][]byte, 0)
 
 	yr := yaml.NewYAMLReader(bufio.NewReader(r))

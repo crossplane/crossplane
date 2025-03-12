@@ -13,6 +13,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -44,6 +45,7 @@ type DefaultDiffProcessor struct {
 	renderFn  RenderFunc
 	log       logging.Logger
 	manager   *validate.Manager
+	crds      []*extv1.CustomResourceDefinition
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor
@@ -79,16 +81,14 @@ func (p *DefaultDiffProcessor) Initialize(writer io.Writer, ctx context.Context)
 		return errors.Wrap(err, "cannot get XRDs")
 	}
 
-	// TODO:  we are initializing this with constants; probably make sure we don't need the downstream cache, etc
-	// since we pull direct from cluster
-	m := validate.NewManager("~/.crossplane/cache", nil, writer)
-
-	// Convert XRDs/CRDs to CRDs and add package dependencies
-	if err := m.PrepExtensions(xrds); err != nil {
-		return errors.Wrapf(err, "cannot prepare extensions")
+	// Use the helper function to convert XRDs to CRDs
+	crds, err := internal.ConvertToCRDs(xrds)
+	if err != nil {
+		return errors.Wrap(err, "cannot convert XRDs to CRDs")
 	}
 
-	p.manager = m
+	// Create a new validation manager
+	p.crds = crds
 
 	return nil
 }
@@ -269,7 +269,12 @@ func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context
 	return extraResources, nil
 }
 
+// ValidateResources validates the resources using schema validation
 func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, desired render.Outputs) error {
+	// Make sure we have CRDs before validation
+	if len(p.crds) == 0 {
+		return errors.New("no CRDs available for validation")
+	}
 
 	// Convert XR and composed resources to unstructured
 	resources := make([]*unstructured.Unstructured, 0, len(desired.ComposedResources)+1)
@@ -284,7 +289,7 @@ func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, desired rende
 	}
 
 	// Validate using the converted CRD schema
-	if err := validate.SchemaValidation(resources, p.manager.GetCRDs(), true, writer); err != nil {
+	if err := validate.SchemaValidation(resources, p.crds, true, writer); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
 
