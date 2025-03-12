@@ -74,8 +74,6 @@ func EnqueueForCompositionRevision(of schema.GroupVersionKind, c client.Reader, 
 				return
 			}
 
-			// Enqueue all those that reference the composition of
-			// this revision.
 			for _, u := range xrs.Items {
 				xr := composite.Unstructured{Unstructured: u}
 
