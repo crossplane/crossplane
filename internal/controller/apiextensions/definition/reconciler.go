@@ -471,26 +471,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	var nxr composite.NewXRFn
-	switch ptr.Deref(d.Spec.Scope, v1.CompositeResourceScopeLegacyCluster) {
-	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
-		nxr = func() *ucomposite.Unstructured {
-			return ucomposite.New(ucomposite.WithGroupVersionKind(d.GetCompositeGroupVersionKind()))
-		}
-	case v1.CompositeResourceScopeLegacyCluster:
-		nxr = func() *ucomposite.Unstructured {
-			return ucomposite.New(ucomposite.WithGroupVersionKind(d.GetCompositeGroupVersionKind()), ucomposite.WithLegacyBehavior())
-		}
-	}
-
 	runner := composite.NewFetchingFunctionRunner(r.options.FunctionRunner, composite.NewExistingExtraResourcesFetcher(r.engine.GetCached()))
 	fetcher := composite.NewSecretConnectionDetailsFetcher(r.engine.GetCached())
-	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), nxr, runner,
+	fc := composite.NewFunctionComposer(r.engine.GetCached(), r.engine.GetUncached(), runner,
 		composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(r.engine.GetCached(), r.engine.GetUncached(), fetcher)),
 		composite.WithCompositeConnectionDetailsFetcher(fetcher),
 	)
 
+	// All XRs have modern schema unless their XRD's scope is LegacyCluster.
+	schema := ucomposite.SchemaModern
+	if ptr.Deref(d.Spec.Scope, v1.CompositeResourceScopeLegacyCluster) == v1.CompositeResourceScopeLegacyCluster {
+		schema = ucomposite.SchemaLegacy
+	}
+
 	ro := []composite.ReconcilerOption{
+		composite.WithCompositeSchema(schema),
 		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.engine.GetCached(), d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, r.record),
@@ -512,7 +507,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		u.SetKind(gvk.Kind)
 
 		// Add an index to the controller engine's client.
-		if err := r.engine.GetFieldIndexer().IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs); err != nil {
+		if err := r.engine.GetFieldIndexer().IndexField(ctx, u, compositeResourcesRefsIndex, IndexCompositeResourcesRefs(schema)); err != nil {
 			r.log.Debug(errAddIndex, "error", err)
 		}
 
@@ -520,7 +515,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		ro = append(ro, composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine))
 	}
 
-	cr := composite.NewReconciler(r.engine.GetCached(), nxr, ro...)
+	cr := composite.NewReconciler(r.engine.GetCached(), d.GetCompositeGroupVersionKind(), ro...)
 	ko := r.options.ForControllerRuntime()
 
 	// Most controllers use this type of rate limiter to backoff requeues from 1
@@ -532,7 +527,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ko.RateLimiter = workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
 
-	xrGVK := d.GetCompositeGroupVersionKind()
+	gvk := d.GetCompositeGroupVersionKind()
 	name := composite.ControllerName(d.GetName())
 
 	// TODO(negz): Update CompositeReconcilerOptions to produce
@@ -543,7 +538,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
-		gc := watch.NewGarbageCollector(name, xrGVK, r.engine, watch.WithLogger(log))
+		gc := watch.NewGarbageCollector(name, gvk, r.engine, watch.WithCompositeSchema(schema), watch.WithLogger(log))
 		co = append(co, engine.WithWatchGarbageCollector(gc))
 	}
 
@@ -558,9 +553,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// controller-runtime doesn't support watching types that satisfy the
 	// runtime.Unstructured interface - only *unstructured.Unstructured.
 	xr := &kunstructured.Unstructured{}
-	xr.SetGroupVersionKind(xrGVK)
+	xr.SetGroupVersionKind(gvk)
 
-	crh := EnqueueForCompositionRevision(xrGVK, r.engine.GetCached(), log)
+	crh := EnqueueForCompositionRevision(gvk, schema, r.engine.GetCached(), log)
 	if err := r.engine.StartWatches(name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),

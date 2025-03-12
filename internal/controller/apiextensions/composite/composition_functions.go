@@ -107,7 +107,6 @@ const (
 // Composition Functions. It ignores the P&T resources array.
 type FunctionComposer struct {
 	client    client.Client
-	nxr       NewXRFn
 	composite xr
 	pipeline  FunctionRunner
 }
@@ -229,12 +228,11 @@ func WithManagedFieldsUpgrader(u ManagedFieldsUpgrader) FunctionComposerOption {
 
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
-func NewFunctionComposer(cached, uncached client.Client, nxr NewXRFn, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
+func NewFunctionComposer(cached, uncached client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
 	f := NewSecretConnectionDetailsFetcher(cached)
 
 	c := &FunctionComposer{
 		client: cached,
-		nxr:    nxr,
 
 		composite: xr{
 			ConnectionDetailsFetcher:         f,
@@ -463,9 +461,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	refs := c.nxr()
-	refs.SetAPIVersion(xr.GetAPIVersion())
-	refs.SetKind(xr.GetKind())
+	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
 	refs.SetNamespace(xr.GetNamespace())
 	refs.SetName(xr.GetName())
 	UpdateResourceRefs(refs, desired)

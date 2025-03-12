@@ -375,6 +375,14 @@ func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStar
 	}
 }
 
+// WithCompositeSchema specifies whether the Reconciler should reconcile a
+// modern or a legacy type of composite resource.
+func WithCompositeSchema(s composite.Schema) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.schema = s
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
 }
@@ -407,15 +415,12 @@ type compositeResource struct {
 	ConnectionPublisher
 }
 
-// A NewXRFn returns a new composite resource for the Reconciler to use.
-type NewXRFn func() *composite.Unstructured
-
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(cached client.Client, nxr NewXRFn, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client: cached,
 
-		nxr: nxr,
+		gvk: of,
 
 		revision: revision{
 			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
@@ -458,7 +463,8 @@ func NewReconciler(cached client.Client, nxr NewXRFn, opts ...ReconcilerOption) 
 type Reconciler struct {
 	client client.Client
 
-	nxr NewXRFn
+	gvk    schema.GroupVersionKind
+	schema composite.Schema
 
 	revision  revision
 	composite compositeResource
@@ -484,7 +490,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := r.nxr()
+	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithSchema(r.schema))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
