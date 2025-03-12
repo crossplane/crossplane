@@ -58,11 +58,10 @@ func TestFunctionCompose(t *testing.T) {
 	errProtoSyntax := protojson.Unmarshal([]byte("hi"), &structpb.Struct{})
 
 	type params struct {
-		c   client.Client
-		uc  client.Client
-		nxr NewXRFn
-		r   FunctionRunner
-		o   []FunctionComposerOption
+		c  client.Client
+		uc client.Client
+		r  FunctionRunner
+		o  []FunctionComposerOption
 	}
 	type args struct {
 		ctx context.Context
@@ -521,7 +520,6 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
@@ -567,7 +565,6 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Composite: &fnv1.Resource{
@@ -632,7 +629,6 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
@@ -702,7 +698,6 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				nxr: func() *composite.Unstructured { return composite.New() },
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
@@ -909,7 +904,7 @@ func TestFunctionCompose(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.nxr, tc.params.r, tc.params.o...)
+			c := NewFunctionComposer(tc.params.c, tc.params.uc, tc.params.r, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

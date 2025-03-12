@@ -23,6 +23,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 func TestIndexCompositeResourcesRefs(t *testing.T) {
@@ -30,44 +32,60 @@ func TestIndexCompositeResourcesRefs(t *testing.T) {
 		object client.Object
 	}
 	tests := map[string]struct {
-		args args
-		want []string
+		schema composite.Schema
+		args   args
+		want   []string
 	}{
-		"Nil":             {args: args{object: nil}, want: nil},
-		"NotUnstructured": {args: args{object: &corev1.Pod{}}, want: nil},
-		"NoRefs": {args: args{object: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"spec": map[string]interface{}{},
-			},
-		}}, want: []string{}},
-		"References": {args: args{object: &unstructured.Unstructured{
-			Object: map[string]interface{}{
-				"spec": map[string]interface{}{
-					"resourceRefs": []interface{}{
-						map[string]interface{}{
-							"apiVersion": "nop.crossplane.io/v1alpha1",
-							"kind":       "NopResource",
-							"name":       "mr",
-						},
-						map[string]interface{}{
-							"apiVersion": "nop.example.org/v1alpha1",
-							"kind":       "NopResource",
-							"name":       "xr",
-						},
-						map[string]interface{}{
-							"apiVersion": "v1",
-							"kind":       "ConfigMap",
-							"name":       "cm",
-							"namespace":  "ns",
+		"Nil": {
+			args: args{object: nil},
+			want: nil,
+		},
+		"NotUnstructured": {
+			args: args{object: &corev1.Pod{}},
+			want: nil,
+		},
+		"NoRefs": {
+			args: args{object: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"spec": map[string]interface{}{},
+				},
+			}},
+			want: []string{},
+		},
+		"Legacy": {
+			schema: composite.SchemaLegacy,
+			args: args{
+				object: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"spec": map[string]interface{}{
+							"resourceRefs": []interface{}{
+								map[string]interface{}{
+									"apiVersion": "nop.crossplane.io/v1alpha1",
+									"kind":       "NopResource",
+									"name":       "mr",
+								},
+								map[string]interface{}{
+									"apiVersion": "nop.example.org/v1alpha1",
+									"kind":       "NopResource",
+									"name":       "xr",
+								},
+								map[string]interface{}{
+									"apiVersion": "v1",
+									"kind":       "ConfigMap",
+									"name":       "cm",
+									"namespace":  "ns",
+								},
+							},
 						},
 					},
 				},
 			},
-		}}, want: []string{"mr..NopResource.nop.crossplane.io/v1alpha1", "xr..NopResource.nop.example.org/v1alpha1", "cm.ns.ConfigMap.v1"}},
+			want: []string{"mr..NopResource.nop.crossplane.io/v1alpha1", "xr..NopResource.nop.example.org/v1alpha1", "cm.ns.ConfigMap.v1"},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := IndexCompositeResourcesRefs(tc.args.object)
+			got := IndexCompositeResourcesRefs(tc.schema)(tc.args.object)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nIndexCompositeResourcesRefs(...): -want, +got:\n%s", name, diff)
 			}
