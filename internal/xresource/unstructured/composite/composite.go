@@ -31,36 +31,47 @@ import (
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
+// Schema specifies the schema version of a composite resource's Crossplane
+// machinery fields.
+type Schema int
+
+const (
+	// SchemaModern indicates a modern Namespaced or Cluster scope composite
+	// resource. Modern composite resources nest all Crossplane machinery fields
+	// under spec.crossplane and status.crossplane, and can't be claimed.
+	SchemaModern Schema = iota
+
+	// SchemaLegacy indicates a LegacyCluster scope composite resource. Legacy
+	// composite resources don't nest Crossplane machinery fields - they're set
+	// directly under spec and status. Legacy composite resources can be claimed.
+	SchemaLegacy
+)
+
 // An Option modifies an unstructured composite resource.
 type Option func(*Unstructured)
 
-// WithGroupVersionKind sets the GroupVersionKind of the unstructured composite
-// resource.
+// WithGroupVersionKind sets the GroupVersionKind of the composite resource.
 func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 	return func(c *Unstructured) {
 		c.SetGroupVersionKind(gvk)
 	}
 }
 
-// WithConditions returns an Option that sets the supplied conditions on an
-// unstructured composite resource.
+// WithConditions sets the supplied conditions on the composite resource.
 func WithConditions(c ...xpv1.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
 }
 
-// WithLegacyBehavior supports Crossplane v1 style LegacyCluster composite
-// resources. Specifically, getters and setters expect "Crossplane machinery"
-// fields to exist directly under spec and status, not under spec.crossplane and
-// status.crossplane.
-func WithLegacyBehavior() Option {
+// WithSchema sets the schema of the composite resource.
+func WithSchema(s Schema) Option {
 	return func(c *Unstructured) {
-		c.Legacy = true
+		c.Schema = s
 	}
 }
 
-// New returns a new unstructured composed resource.
+// New returns a new unstructured composite resource.
 func New(opts ...Option) *Unstructured {
 	c := &Unstructured{Unstructured: unstructured.Unstructured{Object: make(map[string]any)}}
 	for _, f := range opts {
@@ -72,11 +83,11 @@ func New(opts ...Option) *Unstructured {
 // +k8s:deepcopy-gen=true
 // +kubebuilder:object:root=true
 
-// An Unstructured composed resource.
+// An Unstructured composite resource.
 type Unstructured struct {
 	unstructured.Unstructured
 
-	Legacy bool
+	Schema Schema
 }
 
 // GetUnstructured returns the underlying *unstructured.Unstructured.
@@ -87,7 +98,7 @@ func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 // GetCompositionSelector of this composite resource.
 func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 	path := "spec.crossplane.compositionSelector"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionSelector"
 	}
 
@@ -101,7 +112,7 @@ func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 // SetCompositionSelector of this composite resource.
 func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
 	path := "spec.crossplane.compositionSelector"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionSelector"
 	}
 
@@ -111,7 +122,7 @@ func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
 // GetCompositionReference of this composite resource.
 func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 	path := "spec.crossplane.compositionRef"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionRef"
 	}
 
@@ -125,7 +136,7 @@ func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 // SetCompositionReference of this composite resource.
 func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
 	path := "spec.crossplane.compositionRef"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionRef"
 	}
 
@@ -135,7 +146,7 @@ func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
 // GetCompositionRevisionReference of this composite resource.
 func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectReference {
 	path := "spec.crossplane.compositionRevisionRef"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionRevisionRef"
 	}
 
@@ -149,7 +160,7 @@ func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectRefe
 // SetCompositionRevisionReference of this composite resource.
 func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.LocalObjectReference) {
 	path := "spec.crossplane.compositionRevisionRef"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionRevisionRef"
 	}
 
@@ -159,7 +170,7 @@ func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.LocalObjectRe
 // GetCompositionRevisionSelector of this resource claim.
 func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
 	path := "spec.crossplane.compositionRevisionSelector"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionRevisionSelector"
 	}
 
@@ -173,7 +184,7 @@ func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
 // SetCompositionRevisionSelector of this resource claim.
 func (c *Unstructured) SetCompositionRevisionSelector(sel *metav1.LabelSelector) {
 	path := "spec.crossplane.compositionRevisionSelector"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionRevisionSelector"
 	}
 
@@ -183,7 +194,7 @@ func (c *Unstructured) SetCompositionRevisionSelector(sel *metav1.LabelSelector)
 // SetCompositionUpdatePolicy of this composite resource.
 func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
 	path := "spec.crossplane.compositionUpdatePolicy"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionUpdatePolicy"
 	}
 
@@ -193,7 +204,7 @@ func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
 // GetCompositionUpdatePolicy of this composite resource.
 func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 	path := "spec.crossplane.compositionUpdatePolicy"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.compositionUpdatePolicy"
 	}
 
@@ -208,7 +219,7 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 // GetClaimReference of this composite resource.
 func (c *Unstructured) GetClaimReference() *reference.Claim {
 	// Only legacy XRs support claims.
-	if !c.Legacy {
+	if c.Schema != SchemaLegacy {
 		return nil
 	}
 
@@ -222,7 +233,7 @@ func (c *Unstructured) GetClaimReference() *reference.Claim {
 // SetClaimReference of this composite resource.
 func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 	// Only legacy XRs support claims.
-	if !c.Legacy {
+	if c.Schema != SchemaLegacy {
 		return
 	}
 
@@ -232,7 +243,7 @@ func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 // GetResourceReferences of this composite resource.
 func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 	path := "spec.crossplane.resourceRefs"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.resourceRefs"
 	}
 
@@ -244,7 +255,7 @@ func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 // SetResourceReferences of this composite resource.
 func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 	path := "spec.crossplane.resourceRefs"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.resourceRefs"
 	}
 
@@ -283,7 +294,7 @@ func (c *Unstructured) GetReference() *reference.Composite {
 // GetWriteConnectionSecretToReference of this composite resource.
 func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	path := "spec.crossplane.writeConnectionSecretToRef"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.writeConnectionSecretToRef"
 	}
 
@@ -297,7 +308,7 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReferen
 // SetWriteConnectionSecretToReference of this composite resource.
 func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretReference) {
 	path := "spec.crossplane.writeConnectionSecretToRef"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "spec.writeConnectionSecretToRef"
 	}
 
@@ -334,7 +345,7 @@ func (c *Unstructured) GetConditions() []xpv1.Condition {
 // GetConnectionDetailsLastPublishedTime of this composite resource.
 func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 	path := "status.crossplane.connectionDetails.lastPublishedTime"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "status.connectionDetails.lastPublishedTime"
 	}
 
@@ -348,7 +359,7 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 // SetConnectionDetailsLastPublishedTime of this composite resource.
 func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
 	path := "status.crossplane.connectionDetails.lastPublishedTime"
-	if c.Legacy {
+	if c.Schema == SchemaLegacy {
 		path = "status.connectionDetails.lastPublishedTime"
 	}
 
@@ -374,7 +385,7 @@ func (c *Unstructured) GetObservedGeneration() int64 {
 // condition types such as Ready, Synced or Healthy as claim conditions.
 func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 	// Only legacy XRs support claims.
-	if !c.Legacy {
+	if c.Schema != SchemaLegacy {
 		return nil
 	}
 	ts := c.GetClaimConditionTypes()
@@ -400,7 +411,7 @@ func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 // GetClaimConditionTypes of this composite resource.
 func (c *Unstructured) GetClaimConditionTypes() []xpv1.ConditionType {
 	// Only legacy XRs support claims.
-	if !c.Legacy {
+	if c.Schema != SchemaLegacy {
 		return nil
 	}
 	cs := []xpv1.ConditionType{}

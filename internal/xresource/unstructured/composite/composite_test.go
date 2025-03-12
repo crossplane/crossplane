@@ -146,7 +146,7 @@ func TestClaimConditionTypes(t *testing.T) {
 	}{
 		"CannotSetSystemConditionTypes": {
 			reason: "Claim conditions API should fail to set conditions if a system condition is detected.",
-			u:      New(WithLegacyBehavior()),
+			u:      New(WithSchema(SchemaLegacy)),
 			set: []xpv1.ConditionType{
 				xpv1.ConditionType("DatabaseReady"),
 				xpv1.ConditionType("NetworkReady"),
@@ -158,19 +158,19 @@ func TestClaimConditionTypes(t *testing.T) {
 		},
 		"SetSingleCustomConditionType": {
 			reason: "Claim condition API should work with a single custom condition type.",
-			u:      New(WithLegacyBehavior()),
+			u:      New(WithSchema(SchemaLegacy)),
 			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 		},
 		"SetMultipleCustomConditionTypes": {
 			reason: "Claim condition API should work with multiple custom condition types.",
-			u:      New(WithLegacyBehavior()),
+			u:      New(WithSchema(SchemaLegacy)),
 			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
 			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
 		},
 		"SetMultipleOfTheSameCustomConditionTypes": {
 			reason: "Claim condition API not add more than one of the same condition.",
-			u:      New(WithLegacyBehavior()),
+			u:      New(WithSchema(SchemaLegacy)),
 			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("DatabaseReady")},
 			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 		},
@@ -180,7 +180,7 @@ func TestClaimConditionTypes(t *testing.T) {
 				Unstructured: unstructured.Unstructured{Object: map[string]any{
 					"status": "wat",
 				}},
-				Legacy: true,
+				Schema: SchemaLegacy,
 			},
 			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 			want: []xpv1.ConditionType{},
@@ -193,7 +193,7 @@ func TestClaimConditionTypes(t *testing.T) {
 						"claimConditionTypes": "wat",
 					},
 				}},
-				Legacy: true,
+				Schema: SchemaLegacy,
 			},
 			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
 			want: []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
@@ -348,7 +348,7 @@ func TestClaimReference(t *testing.T) {
 		want *reference.Claim
 	}{
 		"NewRef": {
-			u:    New(WithLegacyBehavior()),
+			u:    New(WithSchema(SchemaLegacy)),
 			set:  ref,
 			want: ref,
 		},

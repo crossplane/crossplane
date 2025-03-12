@@ -47,7 +47,8 @@ type ControllerEngine interface {
 // reference.
 type GarbageCollector struct {
 	controllerName string
-	xrGVK          schema.GroupVersionKind
+	gvk            schema.GroupVersionKind
+	schema         composite.Schema
 
 	engine ControllerEngine
 
@@ -64,11 +65,19 @@ func WithLogger(l logging.Logger) GarbageCollectorOption {
 	}
 }
 
+// WithCompositeSchema configures whether to garbage collect a modern or a
+// legacy composite resource.
+func WithCompositeSchema(s composite.Schema) GarbageCollectorOption {
+	return func(gc *GarbageCollector) {
+		gc.schema = s
+	}
+}
+
 // NewGarbageCollector creates a new watch garbage collector for a controller.
 func NewGarbageCollector(name string, of schema.GroupVersionKind, ce ControllerEngine, o ...GarbageCollectorOption) *GarbageCollector {
 	gc := &GarbageCollector{
 		controllerName: name,
-		xrGVK:          of,
+		gvk:            of,
 		engine:         ce,
 		log:            logging.NewNopLogger(),
 	}
@@ -125,8 +134,8 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	// List all XRs of the type we're interested in. This list is from
 	// cache, so it could be stale.
 	l := &kunstructured.UnstructuredList{}
-	l.SetAPIVersion(gc.xrGVK.GroupVersion().String())
-	l.SetKind(gc.xrGVK.Kind + "List")
+	l.SetAPIVersion(gc.gvk.GroupVersion().String())
+	l.SetKind(gc.gvk.Kind + "List")
 	if err := gc.engine.GetCached().List(ctx, l); err != nil {
 		return errors.Wrap(err, "cannot list composite resources")
 	}
@@ -134,7 +143,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	// Build the set of GVKs they still reference.
 	used := make(map[schema.GroupVersionKind]bool)
 	for _, u := range l.Items {
-		xr := &composite.Unstructured{Unstructured: u}
+		xr := &composite.Unstructured{Unstructured: u, Schema: gc.schema}
 		for _, ref := range xr.GetResourceReferences() {
 			used[schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind)] = true
 		}
@@ -168,8 +177,8 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 
 	// List all XRs again, this time using an uncached client.
 	l = &kunstructured.UnstructuredList{}
-	l.SetAPIVersion(gc.xrGVK.GroupVersion().String())
-	l.SetKind(gc.xrGVK.Kind + "List")
+	l.SetAPIVersion(gc.gvk.GroupVersion().String())
+	l.SetKind(gc.gvk.Kind + "List")
 	if err := gc.engine.GetUncached().List(ctx, l); err != nil {
 		return errors.Wrap(err, "cannot list composite resources")
 	}

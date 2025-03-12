@@ -37,7 +37,7 @@ import (
 
 // EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a
 // newly created CompositionRevision.
-func EnqueueForCompositionRevision(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.Funcs {
+func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schema, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			rev, ok := e.Object.(*v1.CompositionRevision)
@@ -75,7 +75,7 @@ func EnqueueForCompositionRevision(of schema.GroupVersionKind, c client.Reader, 
 			}
 
 			for _, u := range xrs.Items {
-				xr := composite.Unstructured{Unstructured: u}
+				xr := composite.Unstructured{Unstructured: u, Schema: s}
 
 				// We only care about XRs that would
 				// automatically update to this new revision.
