@@ -2,8 +2,7 @@ package clusterclient
 
 import (
 	"context"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
@@ -21,6 +20,9 @@ import (
 
 	"k8s.io/client-go/rest"
 )
+
+// Ensure MockClusterClient implements the ClusterClient interface.
+var _ ClusterClient = &testutils.MockClusterClient{}
 
 func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 	scheme := runtime.NewScheme()
@@ -1094,19 +1096,18 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 	}
 }
 
-func TestClusterClient_GetXRDSchema(t *testing.T) {
+func TestClusterClient_GetXRDs(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = pkgv1.AddToScheme(scheme)
 	_ = apiextensionsv1.AddToScheme(scheme)
 
 	type args struct {
 		ctx context.Context
-		res *unstructured.Unstructured
 	}
 
 	type want struct {
-		xrd *apiextensionsv1.CompositeResourceDefinition
-		err error
+		xrds []*unstructured.Unstructured
+		err  error
 	}
 
 	cases := map[string]struct {
@@ -1116,7 +1117,7 @@ func TestClusterClient_GetXRDSchema(t *testing.T) {
 		want   want
 	}{
 		"NoXRDsFound": {
-			reason: "Should return error when no XRDs exist",
+			reason: "Should return empty slice when no XRDs exist",
 			setup: func() dynamic.Interface {
 				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
 					map[schema.GroupVersionResource]string{
@@ -1126,93 +1127,13 @@ func TestClusterClient_GetXRDSchema(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
 			},
 			want: want{
-				err: errors.Errorf("no XRD found for %s", "example.org/v1, Kind=XR1"),
+				xrds: []*unstructured.Unstructured{},
 			},
 		},
-		"XRDsExistButNoMatch": {
-			reason: "Should return error when XRDs exist but none match the resource",
-			setup: func() dynamic.Interface {
-				objects := []runtime.Object{
-					&unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "apiextensions.crossplane.io/v1",
-							"kind":       "CompositeResourceDefinition",
-							"metadata": map[string]interface{}{
-								"name": "xr1s.other.org",
-							},
-							"spec": map[string]interface{}{
-								"group": "other.org",
-								"names": map[string]interface{}{
-									"kind":     "XR1",
-									"plural":   "xr1s",
-									"singular": "xr1",
-								},
-								"versions": []interface{}{
-									map[string]interface{}{
-										"name":    "v1",
-										"served":  true,
-										"storage": true,
-									},
-								},
-							},
-						},
-					},
-					&unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "apiextensions.crossplane.io/v1",
-							"kind":       "CompositeResourceDefinition",
-							"metadata": map[string]interface{}{
-								"name": "xr2s.example.org",
-							},
-							"spec": map[string]interface{}{
-								"group": "example.org",
-								"names": map[string]interface{}{
-									"kind":     "XR2",
-									"plural":   "xr2s",
-									"singular": "xr2",
-								},
-								"versions": []interface{}{
-									map[string]interface{}{
-										"name":    "v1",
-										"served":  true,
-										"storage": true,
-									},
-								},
-							},
-						},
-					},
-				}
-				return fake.NewSimpleDynamicClient(scheme, objects...)
-			},
-			args: args{
-				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Errorf("no XRD found for %s", "example.org/v1, Kind=XR1"),
-			},
-		},
-		"MatchingXRDFound": {
-			reason: "Should return the matching XRD when one exists",
+		"XRDsExist": {
+			reason: "Should return all XRDs when they exist",
 			setup: func() dynamic.Interface {
 				objects := []runtime.Object{
 					&unstructured.Unstructured{
@@ -1278,39 +1199,62 @@ func TestClusterClient_GetXRDSchema(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
 			},
 			want: want{
-				xrd: &apiextensionsv1.CompositeResourceDefinition{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "apiextensions.crossplane.io/v1",
-						Kind:       "CompositeResourceDefinition",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "xr1s.example.org",
-					},
-					Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
-						Group: "example.org",
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind:     "XR1",
-							Plural:   "xr1s",
-							Singular: "xr1",
+				xrds: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr1s.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind":     "XR1",
+									"plural":   "xr1s",
+									"singular": "xr1",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1",
+										"served":  true,
+										"storage": true,
+										"schema": map[string]interface{}{
+											"openAPIV3Schema": map[string]interface{}{
+												"type": "object",
+												"properties": map[string]interface{}{
+													"spec": map[string]interface{}{
+														"type": "object",
+													},
+												},
+											},
+										},
+									},
+								},
+							},
 						},
-						Versions: []apiextensionsv1.CompositeResourceDefinitionVersion{
-							{
-								Name:   "v1",
-								Served: true,
-								Schema: &apiextensionsv1.CompositeResourceValidation{
-									OpenAPIV3Schema: runtime.RawExtension{
-										Raw: []byte(`{"properties":{"spec":{"type":"object"}},"type":"object"}`),
+					},
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xr2s.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind":     "XR2",
+									"plural":   "xr2s",
+									"singular": "xr2",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":    "v1",
+										"served":  true,
+										"storage": true,
 									},
 								},
 							},
@@ -1333,62 +1277,9 @@ func TestClusterClient_GetXRDSchema(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
 			},
 			want: want{
 				err: errors.Wrap(errors.New("list error"), "cannot list XRDs"),
-			},
-		},
-		"ConversionError": {
-			reason: "Should handle conversion errors gracefully",
-			setup: func() dynamic.Interface {
-				// Create a malformed XRD that will cause conversion issues
-				objects := []runtime.Object{
-					&unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "apiextensions.crossplane.io/v1",
-							"kind":       "CompositeResourceDefinition",
-							"metadata": map[string]interface{}{
-								"name": "xr1s.example.org",
-							},
-							"spec": map[string]interface{}{
-								"group": "example.org",
-								"names": map[string]interface{}{
-									"kind": "XR1",
-									// Missing required fields will cause conversion errors
-								},
-								// Invalid versions structure
-								"versions": "not-an-array",
-							},
-						},
-					},
-				}
-				return fake.NewSimpleDynamicClient(scheme, objects...)
-			},
-			args: args{
-				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
-			},
-			want: want{
-				// The exact error message may vary depending on the runtime implementation
-				// So we'll just check that it contains "string" as that's the part we're testing
-				err: errors.New("cannot convert unstructured to XRD: cannot restore slice from string"),
 			},
 		},
 	}
@@ -1399,37 +1290,52 @@ func TestClusterClient_GetXRDSchema(t *testing.T) {
 				dynamicClient: tc.setup(),
 			}
 
-			got, err := c.GetXRDSchema(tc.args.ctx, tc.args.res)
+			got, err := c.GetXRDs(tc.args.ctx)
 
 			if tc.want.err != nil {
 				if err == nil {
-					t.Errorf("\n%s\nGetXRDSchema(...): expected error but got none", tc.reason)
+					t.Errorf("\n%s\nGetXRDs(...): expected error but got none", tc.reason)
 					return
 				}
 
 				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nGetXRDSchema(...): -want error, +got error:\n%s", tc.reason, diff)
+					t.Errorf("\n%s\nGetXRDs(...): -want error, +got error:\n%s", tc.reason, diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nGetXRDSchema(...): unexpected error: %v", tc.reason, err)
+				t.Errorf("\n%s\nGetXRDs(...): unexpected error: %v", tc.reason, err)
 				return
 			}
 
-			// Skip OpenAPIV3Schema comparison as it's hard to match exactly with the JSON marshaling differences
-			gotSchemaRaw := got.Spec.Versions[0].Schema.OpenAPIV3Schema.Raw
-			got.Spec.Versions[0].Schema.OpenAPIV3Schema.Raw = nil
-			tc.want.xrd.Spec.Versions[0].Schema.OpenAPIV3Schema.Raw = nil
-
-			if diff := cmp.Diff(tc.want.xrd, got, cmpopts.IgnoreFields(apiextensionsv1.CompositeResourceDefinitionVersion{}, "Schema")); diff != "" {
-				t.Errorf("\n%s\nGetXRDSchema(...): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(len(tc.want.xrds), len(got)); diff != "" {
+				t.Errorf("\n%s\nGetXRDs(...): -want xrd count, +got xrd count:\n%s", tc.reason, diff)
 			}
 
-			// Now check if we got a non-empty schema
-			if len(gotSchemaRaw) == 0 {
-				t.Errorf("\n%s\nGetXRDSchema(...): expected non-empty schema", tc.reason)
+			// Check if we got the right XRDs by name
+			// Create maps of XRD names for easier lookup
+			wantXRDNames := make(map[string]bool)
+			gotXRDNames := make(map[string]bool)
+
+			for _, xrd := range tc.want.xrds {
+				wantXRDNames[xrd.GetName()] = true
+			}
+
+			for _, xrd := range got {
+				gotXRDNames[xrd.GetName()] = true
+			}
+
+			for name := range wantXRDNames {
+				if !gotXRDNames[name] {
+					t.Errorf("\n%s\nGetXRDs(...): missing expected XRD with name %s", tc.reason, name)
+				}
+			}
+
+			for name := range gotXRDNames {
+				if !wantXRDNames[name] {
+					t.Errorf("\n%s\nGetXRDs(...): unexpected XRD with name %s", tc.reason, name)
+				}
 			}
 		})
 	}

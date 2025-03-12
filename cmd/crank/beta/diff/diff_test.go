@@ -17,9 +17,12 @@ limitations under the License.
 package diff
 
 import (
+	"bytes"
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
+	"io"
 	"strings"
 	"testing"
 
@@ -30,7 +33,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Custom Run function for testing - this avoids calling the real Run()
 // Custom Run function for testing - this avoids calling the real Run()
 func testRun(ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, error)) error {
 	config, err := setupConfig()
@@ -57,9 +59,15 @@ func testRun(ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, erro
 		return render.Outputs{}, nil
 	}
 
-	processor, err := DiffProcessorFactory(config, client, c.Namespace, renderFunc)
+	processor, err := DiffProcessorFactory(config, client, c.Namespace, renderFunc, nil)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
+	}
+
+	// Initialize the diff processor with a dummy writer
+	var dummyWriter bytes.Buffer
+	if err := processor.Initialize(&dummyWriter, ctx); err != nil {
+		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
 	if err := processor.ProcessAll(nil, ctx, resources); err != nil {
@@ -128,14 +136,25 @@ func TestCmd_Run(t *testing.T) {
 				}
 
 				// Mock cluster client
-				mockClient := &MockClusterClient{}
+				mockClient := &testutils.MockClusterClient{
+					InitializeFn: func(ctx context.Context) error {
+						return nil
+					},
+					GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+						return nil, nil
+					},
+				}
 				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
 				// Mock diff processor
-				mockProcessor := &MockDiffProcessor{}
-				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
+				mockProcessor := &testutils.MockDiffProcessor{
+					InitializeFn: func(writer io.Writer, ctx context.Context) error {
+						return nil
+					},
+				}
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -173,7 +192,7 @@ func TestCmd_Run(t *testing.T) {
 				}
 
 				// Mock cluster client initialization error
-				mockClient := &MockClusterClient{
+				mockClient := &testutils.MockClusterClient{
 					InitializeFn: func(ctx context.Context) error {
 						return errors.New("failed to initialize cluster client")
 					},
@@ -200,18 +219,28 @@ func TestCmd_Run(t *testing.T) {
 				}
 
 				// Mock cluster client
-				mockClient := &MockClusterClient{}
+				mockClient := &testutils.MockClusterClient{
+					InitializeFn: func(ctx context.Context) error {
+						return nil
+					},
+					GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+						return nil, nil
+					},
+				}
 				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
 				// Mock diff processor with processing error
-				mockProcessor := &MockDiffProcessor{
-					ProcessAllFn: func(ctx context.Context, resources []*unstructured.Unstructured) error {
+				mockProcessor := &testutils.MockDiffProcessor{
+					InitializeFn: func(writer io.Writer, ctx context.Context) error {
+						return nil
+					},
+					ProcessAllFn: func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 						return errors.New("processing error")
 					},
 				}
-				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -250,18 +279,59 @@ func TestCmd_Run(t *testing.T) {
 				}
 
 				// Mock cluster client
-				mockClient := &MockClusterClient{}
+				mockClient := &testutils.MockClusterClient{
+					InitializeFn: func(ctx context.Context) error {
+						return nil
+					},
+				}
 				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
 				// Mock diff processor factory error
-				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc) (dp.DiffProcessor, error) {
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
 					return nil, errors.New("failed to create diff processor")
 				}
 			},
 			wantErr:         true,
 			wantErrContains: "cannot create diff processor",
+		},
+		"DiffProcessorInitializeError": {
+			fields: fields{
+				Namespace: "default",
+				Files:     []string{"test-file.yaml"},
+			},
+			args: args{
+				ctx: ctx,
+			},
+			setupMocks: func() {
+				// Mock resource loading
+				ResourceLoader = func(files []string) ([]*unstructured.Unstructured, error) {
+					return sampleResources, nil
+				}
+
+				// Mock cluster client
+				mockClient := &testutils.MockClusterClient{
+					InitializeFn: func(ctx context.Context) error {
+						return nil
+					},
+				}
+				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+					return mockClient, nil
+				}
+
+				// Mock diff processor with initialize error
+				mockProcessor := &testutils.MockDiffProcessor{
+					InitializeFn: func(writer io.Writer, ctx context.Context) error {
+						return errors.New("initialization error")
+					},
+				}
+				DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
+					return mockProcessor, nil
+				}
+			},
+			wantErr:         true,
+			wantErrContains: "cannot initialize diff processor",
 		},
 	}
 

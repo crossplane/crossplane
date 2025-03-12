@@ -92,6 +92,11 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
 
+	err = processor.Initialize(k.Stdout, ctx)
+	if err != nil {
+		return errors.Wrap(err, "cannot initialize diff processor")
+	}
+
 	if err := processor.ProcessAll(k.Stdout, ctx, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}

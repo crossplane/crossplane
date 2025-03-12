@@ -9,10 +9,10 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,6 +29,13 @@ import (
 // RenderFunc defines the signature of a function that can render resources
 type RenderFunc func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error)
 
+// DiffProcessor interface for processing resources
+type DiffProcessor interface {
+	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
+	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
+	Initialize(writer io.Writer, ctx context.Context) error
+}
+
 // DefaultDiffProcessor handles the processing of resources for diffing.
 type DefaultDiffProcessor struct {
 	client    cc.ClusterClient
@@ -36,12 +43,7 @@ type DefaultDiffProcessor struct {
 	namespace string
 	renderFn  RenderFunc
 	log       logging.Logger
-}
-
-// DiffProcessor interface for processing resources
-type DiffProcessor interface {
-	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
-	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
+	manager   *validate.Manager
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor
@@ -69,6 +71,26 @@ func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace st
 		renderFn:  renderFn,
 		log:       logger,
 	}, nil
+}
+
+func (p *DefaultDiffProcessor) Initialize(writer io.Writer, ctx context.Context) error {
+	xrds, err := p.client.GetXRDs(ctx)
+	if err != nil {
+		return errors.Wrap(err, "cannot get XRDs")
+	}
+
+	// TODO:  we are initializing this with constants; probably make sure we don't need the downstream cache, etc
+	// since we pull direct from cluster
+	m := validate.NewManager("~/.crossplane/cache", nil, writer)
+
+	// Convert XRDs/CRDs to CRDs and add package dependencies
+	if err := m.PrepExtensions(xrds); err != nil {
+		return errors.Wrapf(err, "cannot prepare extensions")
+	}
+
+	p.manager = m
+
+	return nil
 }
 
 // ProcessAll handles all resources stored in the processor.
@@ -126,18 +148,14 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,
-		ExtraResources:    extraResources,
+		// don't dereference the slice until the last minute
+		ExtraResources: internal.DereferenceSlice(extraResources),
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot render resources")
 	}
 
-	xrdSchema, err := p.client.GetXRDSchema(ctx, res)
-	if err != nil {
-		return errors.Wrap(err, "cannot get XRD xrdSchema")
-	}
-
-	if err := ValidateResources(desired, xrdSchema); err != nil {
+	if err := p.ValidateResources(stdout, desired); err != nil {
 		return errors.Wrap(err, "cannot validate resources")
 	}
 
@@ -227,12 +245,12 @@ func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv
 }
 
 // HandleTemplatedExtraResources processes templated extra resources.
-func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	preliminary, err := render.Render(ctx, nil, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,
-		ExtraResources:    extraResources,
+		ExtraResources:    internal.DereferenceSlice(extraResources),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot perform preliminary render")
@@ -251,37 +269,7 @@ func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context
 	return extraResources, nil
 }
 
-func ValidateResources(desired render.Outputs, schema *apiextensionsv1.CompositeResourceDefinition) error {
-	// Convert XRD to CRD format
-	crd := &extv1.CustomResourceDefinition{
-		Spec: extv1.CustomResourceDefinitionSpec{
-			Group: schema.Spec.Group,
-			Names: extv1.CustomResourceDefinitionNames{
-				Kind:     schema.Spec.Names.Kind,
-				ListKind: schema.Spec.Names.ListKind,
-				Plural:   schema.Spec.Names.Plural,
-				Singular: schema.Spec.Names.Singular,
-			},
-			Versions: []extv1.CustomResourceDefinitionVersion{
-				{
-					Name:    schema.Spec.Versions[len(schema.Spec.Versions)-1].Name,
-					Served:  true,
-					Storage: true,
-					Schema:  &extv1.CustomResourceValidation{},
-				},
-			},
-		},
-	}
-
-	// Convert the schema using JSON marshaling/unmarshaling
-	raw, err := schema.Spec.Versions[len(schema.Spec.Versions)-1].Schema.OpenAPIV3Schema.MarshalJSON()
-	if err != nil {
-		return errors.Wrap(err, "cannot marshal XRD schema")
-	}
-
-	if err := crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Unmarshal(raw); err != nil {
-		return errors.Wrap(err, "cannot unmarshal CRD schema")
-	}
+func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, desired render.Outputs) error {
 
 	// Convert XR and composed resources to unstructured
 	resources := make([]*unstructured.Unstructured, 0, len(desired.ComposedResources)+1)
@@ -296,7 +284,7 @@ func ValidateResources(desired render.Outputs, schema *apiextensionsv1.Composite
 	}
 
 	// Validate using the converted CRD schema
-	if err := validate.SchemaValidation(resources, []*extv1.CustomResourceDefinition{crd}, true, io.Discard); err != nil {
+	if err := validate.SchemaValidation(resources, p.manager.GetCRDs(), true, writer); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
 
@@ -346,7 +334,7 @@ func ScanForTemplatedExtraResources(comp *apiextensionsv1.Composition) (bool, er
 	return false, nil
 }
 
-func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	spec, found, err := unstructured.NestedMap(result.Object, "spec")
 	if err != nil || !found {
 		return nil, errors.New("no spec found in ExtraResources result")
@@ -357,7 +345,7 @@ func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]unstructu
 		return nil, errors.New("no resources found in ExtraResources spec")
 	}
 
-	var resources []unstructured.Unstructured
+	var resources []*unstructured.Unstructured
 	for _, er := range extraResources {
 		erMap, ok := er.(map[string]interface{})
 		if !ok {
@@ -365,7 +353,7 @@ func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]unstructu
 		}
 
 		u := unstructured.Unstructured{Object: erMap}
-		resources = append(resources, u)
+		resources = append(resources, &u)
 	}
 
 	return resources, nil

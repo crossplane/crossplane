@@ -1,7 +1,9 @@
 package diffprocessor
 
 import (
+	"bytes"
 	"context"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,142 +23,45 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// stubClusterClient is a stub implementation of the cc.ClusterClient interface
-type stubClusterClient struct {
-	findMatchingCompositionFn  func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	getExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]unstructured.Unstructured, error)
-	getFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
-	getXRDSchemaFn             func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
-	getResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
-	dryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
-}
-
-func (s *stubClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-	if s.findMatchingCompositionFn != nil {
-		return s.findMatchingCompositionFn(res)
-	}
-	return nil, errors.New("FindMatchingComposition not implemented")
-}
-
-func (s *stubClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-	if s.getExtraResourcesFn != nil {
-		return s.getExtraResourcesFn(ctx, gvrs, selectors)
-	}
-	return nil, errors.New("GetExtraResources not implemented")
-}
-
-func (s *stubClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-	if s.getFunctionsFromPipelineFn != nil {
-		return s.getFunctionsFromPipelineFn(comp)
-	}
-	return nil, errors.New("GetFunctionsFromPipeline not implemented")
-}
-
-func (s *stubClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-	if s.getXRDSchemaFn != nil {
-		return s.getXRDSchemaFn(ctx, res)
-	}
-	return nil, errors.New("GetXRDSchema not implemented")
-}
-
-func (s *stubClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-	if s.getResourceFn != nil {
-		return s.getResourceFn(ctx, gvk, namespace, name)
-	}
-	return nil, errors.New("GetResource not implemented")
-}
-
-func (s *stubClusterClient) DryRunApply(ctx context.Context, toApply *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	if s.dryRunApplyFn != nil {
-		return s.dryRunApplyFn(ctx, toApply)
-	}
-	return nil, errors.New("DryRunApply not implemented")
-}
-
-func (s *stubClusterClient) Initialize(ctx context.Context) error {
-	return nil
-}
+// Ensure MockDiffProcessor implements the DiffProcessor interface
+var _ DiffProcessor = &testutils.MockDiffProcessor{}
 
 func TestDiffProcessor_ProcessResource(t *testing.T) {
 	pipelineMode := apiextensionsv1.CompositionModePipeline
 
 	// Create mocks with proper behavior
-	mockCompositionNotFound := &stubClusterClient{
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	mockCompositionNotFound := &testutils.MockClusterClient{
+		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return nil, errors.New("composition not found")
 		},
-		// Define empty implementations for other methods to avoid nil pointer errors
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-			return nil, errors.New("should not be called")
-		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return nil, errors.New("should not be called")
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-			return nil, errors.New("should not be called")
-		},
-		getResourceFn: func(ctx context.Context, kind schema.GroupVersionKind, s string, s2 string) (*unstructured.Unstructured, error) {
-			return nil, errors.New("should not be called")
-		},
-		dryRunApplyFn: func(ctx context.Context, res *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-			return nil, errors.New("should not be called")
-		},
 	}
 
-	mockExtraResourcesError := &stubClusterClient{
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	mockExtraResourcesError := &testutils.MockClusterClient{
+		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return &apiextensionsv1.Composition{
 				Spec: apiextensionsv1.CompositionSpec{
 					Mode: &pipelineMode,
 				},
 			}, nil
 		},
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+		GetExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			return nil, errors.New("failed to get extra resources")
 		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return nil, errors.New("should not be called")
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-			return nil, errors.New("should not be called")
-		},
 	}
 
-	mockGetFunctionsError := &stubClusterClient{
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	mockGetFunctionsError := &testutils.MockClusterClient{
+		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return &apiextensionsv1.Composition{
 				Spec: apiextensionsv1.CompositionSpec{
 					Mode: &pipelineMode,
 				},
 			}, nil
 		},
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-			return []unstructured.Unstructured{}, nil
+		GetExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{}, nil
 		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+		GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 			return nil, errors.New("function not found")
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-			return nil, errors.New("should not be called")
-		},
-	}
-
-	mockXRDSchemaError := &stubClusterClient{
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: &pipelineMode,
-				},
-			}, nil
-		},
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-			return []unstructured.Unstructured{}, nil
-		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return []pkgv1.Function{}, nil
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-			return nil, errors.New("XRD not found")
 		},
 	}
 
@@ -169,18 +74,15 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 		err error
 	}
 
-	// For testing, we'll use the stub directly instead of trying to convert it
-	// to a real cc.ClusterClient
-
 	cases := map[string]struct {
 		reason string
-		stub   *stubClusterClient
+		mock   *testutils.MockClusterClient
 		args   args
 		want   want
 	}{
 		"CompositionNotFound": {
 			reason: "Should return error when matching composition is not found",
-			stub:   mockCompositionNotFound,
+			mock:   mockCompositionNotFound,
 			args: args{
 				ctx: context.Background(),
 				res: &unstructured.Unstructured{
@@ -199,7 +101,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 		},
 		"ExtraResourcesError": {
 			reason: "Should return error when identifying needed extra resources fails",
-			stub:   mockExtraResourcesError,
+			mock:   mockExtraResourcesError,
 			args: args{
 				ctx: context.Background(),
 				res: &unstructured.Unstructured{
@@ -218,7 +120,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 		},
 		"GetFunctionsError": {
 			reason: "Should return error when getting functions from pipeline fails",
-			stub:   mockGetFunctionsError,
+			mock:   mockGetFunctionsError,
 			args: args{
 				ctx: context.Background(),
 				res: &unstructured.Unstructured{
@@ -235,33 +137,17 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 				err: errors.Wrap(errors.New("function not found"), "cannot get functions from pipeline"),
 			},
 		},
-		"XRDSchemaError": {
-			reason: "Should return error when getting XRD schema fails",
-			stub:   mockXRDSchemaError,
-			args: args{
-				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.New("XRD not found"), "cannot get XRD xrdSchema"),
-			},
-		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// Create a DiffProcessor that uses our stub client directly
-			p, _ := NewDiffProcessor(&rest.Config{}, tc.stub, "default", nil, nil)
+			// Create a DiffProcessor that uses our mock client
+			p, _ := NewDiffProcessor(&rest.Config{}, tc.mock, "default", nil, nil)
 
-			err := p.ProcessResource(nil, tc.args.ctx, tc.args.res)
+			// Create a dummy writer for stdout
+			var stdout bytes.Buffer
+
+			err := p.ProcessResource(&stdout, tc.args.ctx, tc.args.res)
 
 			if tc.want.err != nil {
 				if err == nil {
@@ -284,50 +170,21 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 
 func TestDiffProcessor_ProcessAll(t *testing.T) {
 	// Create mock clients for testing
-	mockCompositionNotFound := &stubClusterClient{
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	mockCompositionNotFound := &testutils.MockClusterClient{
+		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return nil, errors.New("composition not found")
 		},
-		// Define empty implementations for other methods
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-			return nil, errors.New("should not be called")
-		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return nil, errors.New("should not be called")
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-			return nil, errors.New("should not be called")
-		},
 	}
 
-	mockMultipleErrors := &stubClusterClient{
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	mockMultipleErrors := &testutils.MockClusterClient{
+		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return nil, errors.Errorf("composition not found for %s", res.GetName())
 		},
-		// Define empty implementations for other methods
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-			return nil, errors.New("should not be called")
-		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return nil, errors.New("should not be called")
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-			return nil, errors.New("should not be called")
-		},
 	}
 
-	mockNoErrors := &stubClusterClient{
+	mockNoErrors := &testutils.MockClusterClient{
 		// Since this test has no resources, these functions shouldn't be called
-		findMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return nil, errors.New("should not be called")
-		},
-		getExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
-			return nil, errors.New("should not be called")
-		},
-		getFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return nil, errors.New("should not be called")
-		},
-		getXRDSchemaFn: func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
+		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return nil, errors.New("should not be called")
 		},
 	}
@@ -341,17 +198,15 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 		err error
 	}
 
-	// For testing, we'll use the stub directly
-
 	cases := map[string]struct {
 		reason string
-		stub   *stubClusterClient
+		mock   *testutils.MockClusterClient
 		args   args
 		want   want
 	}{
 		"NoResources": {
 			reason: "Should not return error when no resources are provided",
-			stub:   mockNoErrors,
+			mock:   mockNoErrors,
 			args: args{
 				ctx:       context.Background(),
 				resources: []*unstructured.Unstructured{},
@@ -362,7 +217,7 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 		},
 		"ProcessResourceError": {
 			reason: "Should return error when processing a resource fails",
-			stub:   mockCompositionNotFound,
+			mock:   mockCompositionNotFound,
 			args: args{
 				ctx: context.Background(),
 				resources: []*unstructured.Unstructured{
@@ -383,7 +238,7 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 		},
 		"MultipleResourceErrors": {
 			reason: "Should return all errors when multiple resources fail processing",
-			stub:   mockMultipleErrors,
+			mock:   mockMultipleErrors,
 			args: args{
 				ctx: context.Background(),
 				resources: []*unstructured.Unstructured{
@@ -415,13 +270,13 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			p := &DefaultDiffProcessor{
-				client:    tc.stub, // Use the stub directly as the client
-				config:    &rest.Config{},
-				namespace: "default",
-			}
+			// Create a DiffProcessor with our mock client
+			p, _ := NewDiffProcessor(&rest.Config{}, tc.mock, "default", nil, nil)
 
-			err := p.ProcessAll(nil, tc.args.ctx, tc.args.resources)
+			// Create a dummy writer for stdout
+			var stdout bytes.Buffer
+
+			err := p.ProcessAll(&stdout, tc.args.ctx, tc.args.resources)
 
 			if tc.want.err != nil {
 				if err == nil {
@@ -1586,9 +1441,9 @@ spec:
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			// Create a mock client that returns predefined resources
-			mockClient := &stubClusterClient{
-				getResourceFn: tc.fields.mockGetResource,
-				dryRunApplyFn: tc.fields.mockDryRunApply,
+			mockClient := &testutils.MockClusterClient{
+				GetResourceFn: tc.fields.mockGetResource,
+				DryRunApplyFn: tc.fields.mockDryRunApply,
 			}
 
 			// Create a processor with the mock client
@@ -1635,6 +1490,112 @@ spec:
 			} else if tc.want.diff != diff {
 				// For empty diffs or header-only diffs, compare directly
 				t.Errorf("CalculateDiff() = %v, want %v", diff, tc.want.diff)
+			}
+		})
+	}
+}
+
+func TestDiffProcessor_Initialize(t *testing.T) {
+	// Create a mock client that returns an error for GetXRDs
+	mockXRDsError := &testutils.MockClusterClient{
+		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+			return nil, errors.New("cannot get XRDs: XRD not found")
+		},
+	}
+
+	// Create a mock client that returns success for GetXRDs
+	_ = &testutils.MockClusterClient{ // TODO: mockXRDsSuccess := &testutils.MockClusterClient{
+		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{
+				{
+					Object: map[string]interface{}{
+						"apiVersion": "apiextensions.crossplane.io/v1",
+						"kind":       "CompositeResourceDefinition",
+						"metadata": map[string]interface{}{
+							"name": "xexampleresources.example.org",
+						},
+						"spec": map[string]interface{}{
+							"group": "example.org",
+							"names": map[string]interface{}{
+								"kind":     "XExampleResource",
+								"plural":   "xexampleresources",
+								"singular": "xexampleresource",
+							},
+							"versions": []interface{}{
+								map[string]interface{}{
+									"name":    "v1",
+									"served":  true,
+									"storage": true,
+								},
+							},
+						},
+					},
+				},
+			}, nil
+		},
+	}
+
+	type args struct {
+		ctx context.Context
+	}
+
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		mock   *testutils.MockClusterClient
+		args   args
+		want   want
+	}{
+		"XRDsError": {
+			reason: "Should return error when getting XRD schema fails",
+			mock:   mockXRDsError,
+			args: args{
+				ctx: context.Background(),
+			},
+			want: want{
+				err: errors.New("XRD not found"),
+			},
+		},
+		// TODO:  fix this once we can properly mock Manager
+		//"XRDsSuccess": {
+		//	reason: "Should succeed when XRDs are found",
+		//	mock:   mockXRDsSuccess,
+		//	args: args{
+		//		ctx: context.Background(),
+		//	},
+		//	want: want{
+		//		err: nil,
+		//	},
+		//},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			// Create a DiffProcessor that uses our mock client
+			p, _ := NewDiffProcessor(&rest.Config{}, tc.mock, "default", nil, nil)
+
+			// Create a dummy writer for stdout
+			var stdout bytes.Buffer
+
+			err := p.Initialize(&stdout, tc.args.ctx)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nInitialize(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
+					t.Errorf("\n%s\nInitialize(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nInitialize(...): unexpected error: %v", tc.reason, err)
 			}
 		})
 	}

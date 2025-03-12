@@ -21,13 +21,6 @@ type compositionCacheKey struct {
 	kind       string
 }
 
-// DefaultClusterClient handles all interactions with the Kubernetes cluster.
-type DefaultClusterClient struct {
-	dynamicClient dynamic.Interface
-	compositions  map[compositionCacheKey]*apiextensionsv1.Composition
-	functions     map[string]pkgv1.Function
-}
-
 // ClusterClient defines the interface for interacting with a Kubernetes cluster
 // to retrieve Crossplane resources for diffing.
 type ClusterClient interface {
@@ -38,18 +31,25 @@ type ClusterClient interface {
 	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
 
 	// GetExtraResources retrieves all resources matching the given GVRs and selectors
-	GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error)
+	GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 
 	// GetFunctionsFromPipeline retrieves all functions used in the composition's pipeline
 	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
 
-	// GetXRDSchema retrieves the XRD schema for the given XR
-	GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
+	// GetXRDs retrieves the XRD schemas from the cluster
+	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
 
 	// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
 
 	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+}
+
+// DefaultClusterClient handles all interactions with the Kubernetes cluster.
+type DefaultClusterClient struct {
+	dynamicClient dynamic.Interface
+	compositions  map[compositionCacheKey]*apiextensionsv1.Composition
+	functions     map[string]pkgv1.Function
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
@@ -94,12 +94,12 @@ func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 }
 
 // GetExtraResources fetches extra resources from the cluster based on the provided GVRs and selectors
-func (c *DefaultClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 	if len(gvrs) != len(selectors) {
 		return nil, errors.New("number of GVRs must match number of selectors")
 	}
 
-	var resources []unstructured.Unstructured
+	var resources []*unstructured.Unstructured
 
 	for i, gvr := range gvrs {
 		// List resources matching the selector
@@ -113,7 +113,11 @@ func (c *DefaultClusterClient) GetExtraResources(ctx context.Context, gvrs []sch
 			return nil, errors.Wrapf(err, "cannot list resources for %s", gvr)
 		}
 
-		resources = append(resources, list.Items...)
+		for _, item := range list.Items {
+
+			// Create a pointer to each item
+			resources = append(resources, &item)
+		}
 	}
 
 	return resources, nil
@@ -243,7 +247,7 @@ func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Funct
 	return functions, nil
 }
 
-func (c *DefaultClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
+func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error) {
 	// Create a dynamic resource interface for XRDs
 	xrdsGVR := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",
@@ -258,21 +262,15 @@ func (c *DefaultClusterClient) GetXRDSchema(ctx context.Context, res *unstructur
 		return nil, errors.Wrap(err, "cannot list XRDs")
 	}
 
-	// Find the XRD that defines this XR's type
-	xrGVK := res.GroupVersionKind()
-	for _, obj := range list.Items {
-		xrd := &apiextensionsv1.CompositeResourceDefinition{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, xrd); err != nil {
-			return nil, errors.Wrap(err, "cannot convert unstructured to XRD")
-		}
+	items := list.Items
+	result := make([]*unstructured.Unstructured, len(items))
 
-		// The XRD's group and kind must match the XR's
-		if xrd.Spec.Group == xrGVK.Group && xrd.Spec.Names.Kind == xrGVK.Kind {
-			return xrd, nil
-		}
+	for i := range items {
+		// Create a pointer to each item
+		result[i] = &items[i]
 	}
 
-	return nil, errors.Errorf("no XRD found for %s", xrGVK.String())
+	return result, nil
 }
 
 // GetResource retrieves a resource from the cluster using the dynamic client

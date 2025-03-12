@@ -81,10 +81,14 @@ type Inputs struct {
 
 // Outputs contains all outputs from the render process.
 type Outputs struct {
+	// the rendered xr
 	CompositeResource *ucomposite.Unstructured
+	// the rendered mrs derived from the xr
 	ComposedResources []composed.Unstructured
-	Results           []unstructured.Unstructured
-	Context           *unstructured.Unstructured
+	// the Function results (not render results)
+	Results []unstructured.Unstructured
+	// the Crossplane context object
+	Context *unstructured.Unstructured
 
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores

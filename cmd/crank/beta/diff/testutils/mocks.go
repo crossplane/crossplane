@@ -1,273 +1,37 @@
-package diff
+package testutils
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
-	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
-	"io"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
-
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"context"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 )
 
-// Testing data for integration tests
+// duplicate these interfaces to avoid cyclical dependency:
 
-// createTestXR creates a test XR for validation
-func createTestXR() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "XExampleResource",
-			"metadata": map[string]interface{}{
-				"name": "test-xr",
-			},
-			"spec": map[string]interface{}{
-				"coolParam": "test-value",
-				"replicas":  3,
-			},
-		},
-	}
+// DiffProcessor defines the interface for processing resources for diffing
+type DiffProcessor interface {
+	Initialize(writer io.Writer, ctx context.Context) error
+	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
+	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
 }
 
-// createTestCompositionWithExtraResources creates a test Composition with a function-extra-resources step
-func createTestCompositionWithExtraResources() *apiextensionsv1.Composition {
-	pipelineMode := apiextensionsv1.CompositionModePipeline
-
-	// Create the extra resources function input
-	extraResourcesInput := map[string]interface{}{
-		"apiVersion": "function.crossplane.io/v1beta1",
-		"kind":       "ExtraResources",
-		"spec": map[string]interface{}{
-			"extraResources": []interface{}{
-				map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "ExtraResource",
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
-							"app": "test-app",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	extraResourcesRaw, _ := json.Marshal(extraResourcesInput)
-
-	// Create template function input to create composed resources
-	templateInput := map[string]interface{}{
-		"apiVersion": "apiextensions.crossplane.io/v1",
-		"kind":       "Composition",
-		"spec": map[string]interface{}{
-			"resources": []interface{}{
-				map[string]interface{}{
-					"name": "composed-resource",
-					"base": map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ComposedResource",
-						"metadata": map[string]interface{}{
-							"name": "test-composed-resource",
-							"labels": map[string]interface{}{
-								"app": "crossplane",
-							},
-						},
-						"spec": map[string]interface{}{
-							"coolParam": "{{ .observed.composite.spec.coolParam }}",
-							"replicas":  "{{ .observed.composite.spec.replicas }}",
-							"extraData": "{{ index .observed.resources \"extra-resource-0\" \"spec\" \"data\" }}",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	templateRaw, _ := json.Marshal(templateInput)
-
-	return &apiextensionsv1.Composition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-composition",
-		},
-		Spec: apiextensionsv1.CompositionSpec{
-			CompositeTypeRef: apiextensionsv1.TypeReference{
-				APIVersion: "example.org/v1",
-				Kind:       "XExampleResource",
-			},
-			Mode: &pipelineMode,
-			Pipeline: []apiextensionsv1.PipelineStep{
-				{
-					Step:        "extra-resources",
-					FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
-					Input:       &runtime.RawExtension{Raw: extraResourcesRaw},
-				},
-				{
-					Step:        "templating",
-					FunctionRef: apiextensionsv1.FunctionReference{Name: "function-patch-and-transform"},
-					Input:       &runtime.RawExtension{Raw: templateRaw},
-				},
-			},
-		},
-	}
-}
-
-// createTestXRD creates a test XRD for the XR
-func createTestXRD() *apiextensionsv1.CompositeResourceDefinition {
-	return &apiextensionsv1.CompositeResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "xexampleresources.example.org",
-		},
-		Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
-			Group: "example.org",
-			Names: extv1.CustomResourceDefinitionNames{
-				Kind:     "XExampleResource",
-				Plural:   "xexampleresources",
-				Singular: "xexampleresource",
-			},
-			Versions: []apiextensionsv1.CompositeResourceDefinitionVersion{
-				{
-					Name:          "v1",
-					Served:        true,
-					Referenceable: true,
-					Schema: &apiextensionsv1.CompositeResourceValidation{
-						OpenAPIV3Schema: runtime.RawExtension{
-							Raw: []byte(`{
-								"type": "object",
-								"properties": {
-									"spec": {
-										"type": "object",
-										"properties": {
-											"coolParam": {
-												"type": "string"
-											},
-											"replicas": {
-												"type": "integer"
-											}
-										}
-									},
-									"status": {
-										"type": "object",
-										"properties": {
-											"coolStatus": {
-												"type": "string"
-											}
-										}
-									}
-								}
-							}`),
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-// createExtraResource creates a test extra resource
-func createExtraResource() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "ExtraResource",
-			"metadata": map[string]interface{}{
-				"name": "test-extra-resource",
-				"labels": map[string]interface{}{
-					"app": "test-app",
-				},
-			},
-			"spec": map[string]interface{}{
-				"data": "extra-resource-data",
-			},
-		},
-	}
-}
-
-// createExistingComposedResource creates an existing composed resource with different values
-func createExistingComposedResource() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "ComposedResource",
-			"metadata": map[string]interface{}{
-				"name": "test-xr-composed-resource",
-				"labels": map[string]interface{}{
-					"app":                     "crossplane",
-					"crossplane.io/composite": "test-xr",
-				},
-				"annotations": map[string]interface{}{
-					"crossplane.io/composition-resource-name": "composed-resource",
-				},
-				"ownerReferences": []interface{}{
-					map[string]interface{}{
-						"apiVersion":         "example.org/v1",
-						"kind":               "XExampleResource",
-						"name":               "test-xr",
-						"controller":         true,
-						"blockOwnerDeletion": true,
-					},
-				},
-			},
-			"spec": map[string]interface{}{
-				"coolParam": "old-value", // Different from what will be rendered
-				"replicas":  2,           // Different from what will be rendered
-				"extraData": "old-data",  // Different from what will be rendered
-			},
-		},
-	}
-}
-
-// createMatchingComposedResource creates a composed resource that matches what would be rendered
-func createMatchingComposedResource() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "ComposedResource",
-			"metadata": map[string]interface{}{
-				"name": "test-xr-composed-resource",
-				"labels": map[string]interface{}{
-					"app":                     "crossplane",
-					"crossplane.io/composite": "test-xr",
-				},
-				"annotations": map[string]interface{}{
-					"crossplane.io/composition-resource-name": "composed-resource",
-				},
-				"ownerReferences": []interface{}{
-					map[string]interface{}{
-						"apiVersion":         "example.org/v1",
-						"kind":               "XExampleResource",
-						"name":               "test-xr",
-						"controller":         true,
-						"blockOwnerDeletion": true,
-					},
-				},
-			},
-			"spec": map[string]interface{}{
-				"coolParam": "test-value",          // Matches what would be rendered
-				"replicas":  3,                     // Matches what would be rendered
-				"extraData": "extra-resource-data", // Matches what would be rendered
-			},
-		},
-	}
-}
-
-// Define a var for fprintf to allow test overriding
-var fprintf = fmt.Fprintf
-
-// Define a var for getting dynamic client to allow test overriding
-var getDynamicClient = func(config *rest.Config) (dynamic.Interface, error) {
-	return dynamic.NewForConfig(config)
+// ClusterClient defines the interface for interacting with a Kubernetes cluster
+type ClusterClient interface {
+	Initialize(ctx context.Context) error
+	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
+	GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
+	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
+	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
+	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 }
 
 // MockDynamicClient mocks the dynamic.Interface
@@ -466,9 +230,9 @@ func (m *MockResourceInterface) ApplyStatus(ctx context.Context, name string, ob
 type MockClusterClient struct {
 	InitializeFn               func(ctx context.Context) error
 	FindMatchingCompositionFn  func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]unstructured.Unstructured, error)
+	GetExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
-	GetXRDSchemaFn             func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error)
+	GetXRDsFn                  func(context.Context) ([]*unstructured.Unstructured, error)
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
 	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
 }
@@ -486,15 +250,15 @@ func (m *MockClusterClient) FindMatchingComposition(res *unstructured.Unstructur
 	if m.FindMatchingCompositionFn != nil {
 		return m.FindMatchingCompositionFn(res)
 	}
-	return nil, nil
+	return nil, errors.New("FindMatchingComposition not implemented")
 }
 
 // GetExtraResources implements the ClusterClient interface
-func (m *MockClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 	if m.GetExtraResourcesFn != nil {
 		return m.GetExtraResourcesFn(ctx, gvrs, selectors)
 	}
-	return nil, nil
+	return nil, errors.New("GetExtraResources not implemented")
 }
 
 // GetFunctionsFromPipeline implements the ClusterClient interface
@@ -502,15 +266,15 @@ func (m *MockClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Compo
 	if m.GetFunctionsFromPipelineFn != nil {
 		return m.GetFunctionsFromPipelineFn(comp)
 	}
-	return nil, nil
+	return nil, errors.New("GetFunctionsFromPipeline not implemented")
 }
 
-// GetXRDSchema implements the ClusterClient interface
-func (m *MockClusterClient) GetXRDSchema(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.CompositeResourceDefinition, error) {
-	if m.GetXRDSchemaFn != nil {
-		return m.GetXRDSchemaFn(ctx, res)
+// GetXRDs implements the ClusterClient interface
+func (m *MockClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+	if m.GetXRDsFn != nil {
+		return m.GetXRDsFn(ctx)
 	}
-	return nil, nil
+	return nil, errors.New("GetXRDs not implemented")
 }
 
 // GetResource implements the ClusterClient interface
@@ -529,23 +293,29 @@ func (m *MockClusterClient) DryRunApply(ctx context.Context, obj *unstructured.U
 	return nil, errors.New("DryRunApply not implemented")
 }
 
-// Ensure MockClusterClient implements the ClusterClient interface
-var _ cc.ClusterClient = &MockClusterClient{}
-
 // MockDiffProcessor implements the DiffProcessor interface for testing
 type MockDiffProcessor struct {
-	ProcessAllFn      func(ctx context.Context, resources []*unstructured.Unstructured) error
-	ProcessResourceFn func(ctx context.Context, res *unstructured.Unstructured) error
+	InitializeFn      func(writer io.Writer, ctx context.Context) error
+	ProcessAllFn      func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
+	ProcessResourceFn func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
+}
+
+// Initialize implements the DiffProcessor interface
+func (m *MockDiffProcessor) Initialize(stdout io.Writer, ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(stdout, ctx)
+	}
+	return nil
 }
 
 // ProcessAll implements the DiffProcessor.ProcessAll method
 func (m *MockDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 	if m.ProcessAllFn != nil {
-		return m.ProcessAllFn(ctx, resources)
+		return m.ProcessAllFn(stdout, ctx, resources)
 	}
 	// Default implementation processes each resource
 	for _, res := range resources {
-		if err := m.ProcessResource(nil, ctx, res); err != nil {
+		if err := m.ProcessResource(stdout, ctx, res); err != nil {
 			return errors.Wrapf(err, "unable to process resource %s", res.GetName())
 		}
 	}
@@ -555,10 +325,7 @@ func (m *MockDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context, re
 // ProcessResource implements the DiffProcessor.ProcessResource method
 func (m *MockDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
 	if m.ProcessResourceFn != nil {
-		return m.ProcessResourceFn(ctx, res)
+		return m.ProcessResourceFn(stdout, ctx, res)
 	}
 	return nil
 }
-
-// Ensure MockDiffProcessor implements the DiffProcessor interface
-var _ dp.DiffProcessor = &MockDiffProcessor{}

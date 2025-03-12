@@ -8,6 +8,7 @@ import (
 	"os"
 )
 
+// TODO:  we should reuse Loader from beta/validate/loader.go instead of rolling our own
 func LoadResources(files []string) ([]*unstructured.Unstructured, error) {
 	var resources []*unstructured.Unstructured
 

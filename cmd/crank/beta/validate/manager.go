@@ -43,6 +43,7 @@ const (
 )
 
 // Manager defines a Manager for preparing Crossplane packages for validation.
+// TODO:  consider that this struct is write-only; we should have some way to read its outputs, maybe an output object?
 type Manager struct {
 	fetcher ImageFetcher
 	cache   Cache
@@ -51,6 +52,10 @@ type Manager struct {
 	crds  []*extv1.CustomResourceDefinition
 	deps  map[string]bool                  // Dependency images
 	confs map[string]*metav1.Configuration // Configuration images
+}
+
+func (m *Manager) GetCRDs() []*extv1.CustomResourceDefinition {
+	return m.crds
 }
 
 // Option defines an option for the Manager.
