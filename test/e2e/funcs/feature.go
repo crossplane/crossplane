@@ -901,9 +901,10 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 			return ctx
 		}
 
-		xrRef := cm.GetResourceReference()
-		uxr := &composite.Unstructured{}
+		// We always find this XR from a claim, so it'll always be legacy.
+		uxr := &composite.Unstructured{Schema: composite.SchemaLegacy}
 
+		xrRef := cm.GetResourceReference()
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
 		if err := c.Client().Resources().Get(ctx, xrRef.Name, "", uxr); err != nil {
 			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
