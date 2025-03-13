@@ -231,3 +231,67 @@ func TestBuildPath(t *testing.T) {
 		})
 	}
 }
+
+func TestReplaceExt(t *testing.T) {
+	type args struct {
+		path string
+		ext  string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   string
+	}{
+		"ReplaceWithTxt": {
+			reason: "Should replace the existing extension with .txt",
+			args: args{
+				path: "file.doc",
+				ext:  ".txt",
+			},
+			want: "file.txt",
+		},
+		"ReplaceWithEmpty": {
+			reason: "Should remove the extension if an empty string is given",
+			args: args{
+				path: "file.doc",
+				ext:  "",
+			},
+			want: "file",
+		},
+		"NoExtensionToAdd": {
+			reason: "Should add an extension if there was none before",
+			args: args{
+				path: "file",
+				ext:  ".txt",
+			},
+			want: "file.txt",
+		},
+		"MultipleDots": {
+			reason: "Should correctly replace only the last extension",
+			args: args{
+				path: "archive.tar.gz",
+				ext:  ".zip",
+			},
+			want: "archive.tar.zip",
+		},
+		"HiddenFile": {
+			reason: "Should correctly replace extension of hidden files",
+			args: args{
+				path: ".hiddenfile.conf",
+				ext:  ".bak",
+			},
+			want: ".hiddenfile.bak",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ReplaceExt(tc.args.path, tc.args.ext)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nReplaceExt(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
