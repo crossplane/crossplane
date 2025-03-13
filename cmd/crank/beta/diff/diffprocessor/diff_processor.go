@@ -158,17 +158,28 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 	//if err := p.ValidateResources(stdout, desired); err != nil {
 	//	return errors.Wrap(err, "cannot validate resources")
 	//}
-
-	for _, d := range desired.ComposedResources {
-		diff, err := p.CalculateDiff(ctx, &d)
+	printDiff := func(res runtime.Object) error {
+		diff, err := p.CalculateDiff(ctx, res)
 		if err != nil {
 			return errors.Wrap(err, "cannot calculate diff")
 		}
 		if diff != "" {
 			_, _ = fmt.Fprintf(stdout, "%s\n---\n", diff)
 		}
+
+		return nil
 	}
-	return nil
+
+	// Diff the XR
+	xrUnstructured := &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}
+	var errs []error
+	errs = append(errs, printDiff(xrUnstructured))
+
+	// Diff the things downstream from the XR
+	for _, d := range desired.ComposedResources {
+		errs = append(errs, printDiff(&d))
+	}
+	return errors.Wrap(errors.Join(errs...), "cannot print diff")
 }
 
 // IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
