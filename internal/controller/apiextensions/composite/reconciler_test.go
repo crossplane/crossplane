@@ -93,31 +93,6 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGet),
 			},
 		},
-		"UnpublishConnectionError": {
-			reason: "We should return any error encountered while unpublishing connection details.",
-			args: args{
-				c: &test.MockClient{
-					MockGet: WithComposite(t, NewComposite(func(cr *composite.Unstructured) {
-						cr.SetDeletionTimestamp(&now)
-					})),
-					MockStatusUpdate: WantComposite(t, NewComposite(func(want *composite.Unstructured) {
-						want.SetDeletionTimestamp(&now)
-						want.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errUnpublish)))
-					})),
-				},
-				opts: []ReconcilerOption{
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
-							return errBoom
-						},
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
 		"RemoveFinalizerError": {
 			reason: "We should return any error encountered while removing finalizer.",
 			args: args{
@@ -134,11 +109,6 @@ func TestReconcile(t *testing.T) {
 					WithCompositeFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
 							return errBoom
-						},
-					}),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
-							return nil
 						},
 					}),
 				},
@@ -162,11 +132,6 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
-							return nil
-						},
-					}),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
 							return nil
 						},
 					}),
@@ -338,11 +303,9 @@ func TestReconcile(t *testing.T) {
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{}, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
-							return false, errBoom
-						},
-					}),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return false, errBoom
+					})),
 				},
 			},
 			want: want{
@@ -384,11 +347,9 @@ func TestReconcile(t *testing.T) {
 							},
 						}, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
-							return false, nil
-						},
-					}),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return false, nil
+					})),
 				},
 			},
 			want: want{
@@ -449,11 +410,9 @@ func TestReconcile(t *testing.T) {
 							}},
 						}, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
-							return false, nil
-						},
-					}),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return false, nil
+					})),
 				},
 			},
 			want: want{
@@ -498,15 +457,13 @@ func TestReconcile(t *testing.T) {
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{ConnectionDetails: cd}, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
-							want := cd
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
-							}
-							return true, nil
-						},
-					}),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+						want := cd
+						if diff := cmp.Diff(want, got); diff != "" {
+							t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
+						}
+						return true, nil
+					})),
 					WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ context.Context, _ string, ws ...engine.Watch) error {
 						cd := &kunstructured.Unstructured{}
 						cd.SetAPIVersion("example.org/v1")
@@ -589,11 +546,9 @@ func TestReconcile(t *testing.T) {
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{}, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
-							return true, nil
-						},
-					}),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return true, nil
+					})),
 				},
 			},
 			want: want{
@@ -633,11 +588,9 @@ func TestReconcile(t *testing.T) {
 					WithCompositionRevisionSelector(CompositionRevisionSelectorFn(func(_ context.Context, _ resource.Composite) error {
 						return nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
-							return true, nil
-						},
-					}),
+					WithConnectionPublishers(ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (published bool, err error) {
+						return true, nil
+					})),
 				},
 			},
 			want: want{
