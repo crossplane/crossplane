@@ -8,6 +8,8 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"io"
 	"k8s.io/apimachinery/pkg/runtime"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -24,13 +26,11 @@ import (
 )
 
 // TestDiffWithExtraResources tests that a resource with differing values produces a diff
-// TestDiffWithExtraResources tests that a resource with differing values produces a diff
 func TestDiffWithExtraResources(t *testing.T) {
 	// Set up the test context
 	ctx := context.Background()
 
 	// Create test resources
-	testXR := createTestXR()
 	testComposition := createTestCompositionWithExtraResources()
 	testXRD := createTestXRD()
 	testExtraResource := createExtraResource()
@@ -128,20 +128,35 @@ func TestDiffWithExtraResources(t *testing.T) {
 		return fmt.Fprintf(&buf, format, a...)
 	}
 
+	// Create a temporary test file with the XR content
+	tempDir, err := os.MkdirTemp("", "diff-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempFile := filepath.Join(tempDir, "test-xr.yaml")
+	xrYAML := []byte(`
+apiVersion: example.org/v1
+kind: XExampleResource
+metadata:
+  name: test-xr
+spec:
+  coolParam: test-value
+  replicas: 3
+`)
+
+	if err := os.WriteFile(tempFile, xrYAML, 0600); err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
 	// Create our command
 	cmd := &Cmd{
 		Namespace: "default",
-		Files:     []string{"test-xr.yaml"},
+		Files:     []string{tempFile},
 	}
 
-	// Mock resource loader to return our test XR
-	originalResourceLoader := ResourceLoader
-	defer func() { ResourceLoader = originalResourceLoader }()
-	ResourceLoader = func(files []string) ([]*unstructured.Unstructured, error) {
-		return []*unstructured.Unstructured{testXR}, nil
-	}
-
-	// Mock the factory functions
+	// Save original ClusterClientFactory and restore after test
 	originalClusterClientFactory := ClusterClientFactory
 	originalDiffProcessorFactory := DiffProcessorFactory
 	defer func() {
@@ -208,7 +223,6 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	ctx := context.Background()
 
 	// Create test resources
-	testXR := createTestXR()
 	testComposition := createTestCompositionWithExtraResources()
 	testXRD := createTestXRD()
 	testExtraResource := createExtraResource()
@@ -276,17 +290,32 @@ func TestDiffWithMatchingResources(t *testing.T) {
 		return fmt.Fprintf(&buf, format, a...)
 	}
 
+	// Create a temporary test file with the XR content
+	tempDir, err := os.MkdirTemp("", "diff-test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	tempFile := filepath.Join(tempDir, "test-xr.yaml")
+	xrYAML := []byte(`
+apiVersion: example.org/v1
+kind: XExampleResource
+metadata:
+  name: test-xr
+spec:
+  coolParam: test-value
+  replicas: 3
+`)
+
+	if err := os.WriteFile(tempFile, xrYAML, 0600); err != nil {
+		t.Fatalf("Failed to write temp file: %v", err)
+	}
+
 	// Create our command
 	cmd := &Cmd{
 		Namespace: "default",
-		Files:     []string{"test-xr.yaml"},
-	}
-
-	// Mock resource loader to return our test XR
-	originalResourceLoader := ResourceLoader
-	defer func() { ResourceLoader = originalResourceLoader }()
-	ResourceLoader = func(files []string) ([]*unstructured.Unstructured, error) {
-		return []*unstructured.Unstructured{testXR}, nil
+		Files:     []string{tempFile},
 	}
 
 	// Mock the factory functions

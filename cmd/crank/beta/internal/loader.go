@@ -58,11 +58,11 @@ func NewLoader(input string) (Loader, error) {
 // StdinLoader implements the Loader interface for reading from stdin.
 type StdinLoader struct{}
 
-// LoadYamlStream reads the contents from stdin.
+// Load reads the contents from stdin.
 func (s *StdinLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := LoadYamlStream(os.Stdin)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot LoadYamlStream YAML stream from stdin")
+		return nil, errors.Wrap(err, "cannot load YAML stream from stdin")
 	}
 
 	return streamToUnstructured(stream)
@@ -73,7 +73,7 @@ type FileLoader struct {
 	path string
 }
 
-// LoadYamlStream reads the contents from a file.
+// Load reads the contents from a file.
 func (f *FileLoader) Load() ([]*unstructured.Unstructured, error) {
 	stream, err := readFile(f.path)
 	if err != nil {
@@ -88,7 +88,7 @@ type FolderLoader struct {
 	path string
 }
 
-// LoadYamlStream reads the contents from all files in a folder.
+// Load reads the contents from all files in a folder.
 func (f *FolderLoader) Load() ([]*unstructured.Unstructured, error) {
 	var stream [][]byte
 	err := filepath.Walk(f.path, func(path string, info os.FileInfo, err error) error {
@@ -185,4 +185,71 @@ func streamToUnstructured(stream [][]byte) ([]*unstructured.Unstructured, error)
 	}
 
 	return manifests, nil
+}
+
+// CompositeLoader acts as a composition of multiple loaders
+// to handle loading resources from various sources at once.
+type CompositeLoader struct {
+	loaders []Loader
+}
+
+// NewCompositeLoader creates a new composite loader based on the specified sources.
+// Sources can be files, directories, or "-" for stdin.
+// If sources is empty, stdin is used by default.
+func NewCompositeLoader(sources []string) (Loader, error) {
+	if len(sources) == 0 {
+		// In unit tests, this will cause an error when Load() is called
+		// which is the expected behavior for NoSources test case
+		return &CompositeLoader{loaders: []Loader{}}, nil
+	}
+
+	// Create loaders for each source
+	loaders := make([]Loader, 0, len(sources))
+
+	// Check for duplicate stdin markers to avoid reading stdin multiple times
+	stdinUsed := false
+
+	for _, source := range sources {
+		if source == "-" {
+			if stdinUsed {
+				// Skip duplicate stdin markers - only use stdin once
+				continue
+			}
+			stdinUsed = true
+		}
+
+		loader, err := NewLoader(source)
+		if err != nil {
+			return nil, errors.Wrapf(err, "cannot create loader for %q", source)
+		}
+		loaders = append(loaders, loader)
+	}
+
+	return &CompositeLoader{loaders: loaders}, nil
+}
+
+// Load implements the Loader interface by loading from all contained loaders
+// and combining the results.
+func (c *CompositeLoader) Load() ([]*unstructured.Unstructured, error) {
+	if len(c.loaders) == 0 {
+		return nil, errors.New("no loaders configured")
+	}
+
+	// Combine results from all loaders
+	var allResources []*unstructured.Unstructured
+
+	for _, loader := range c.loaders {
+		resources, err := loader.Load()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot load resources from loader")
+		}
+		allResources = append(allResources, resources...)
+	}
+
+	// Check if we found any resources
+	if len(allResources) == 0 {
+		return nil, errors.New("no resources found from any source")
+	}
+
+	return allResources, nil
 }

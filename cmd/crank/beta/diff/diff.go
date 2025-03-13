@@ -20,6 +20,7 @@ package diff
 import (
 	"github.com/alecthomas/kong"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"k8s.io/client-go/rest"
 	"time"
@@ -82,9 +83,14 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	resources, err := ResourceLoader(c.Files)
+	loader, err := internal.NewCompositeLoader(c.Files)
 	if err != nil {
-		return errors.Wrap(err, "failed to load resources")
+		return errors.Wrap(err, "cannot create resource loader")
+	}
+
+	resources, err := loader.Load()
+	if err != nil {
+		return errors.Wrap(err, "cannot load resources")
 	}
 
 	processor, err := DiffProcessorFactory(config, client, c.Namespace, render.Render, log)
@@ -114,7 +120,4 @@ var (
 	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
 		return dp.NewDiffProcessor(config, client, namespace, renderFunc, logger)
 	}
-
-	// ResourceLoader Function for loading resources, which can be mocked in tests
-	ResourceLoader = LoadResources
 )

@@ -329,3 +329,12 @@ func (m *MockDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Contex
 	}
 	return nil
 }
+
+type MockLoader struct {
+	Resources []*unstructured.Unstructured
+	Err       error
+}
+
+func (m *MockLoader) Load() ([]*unstructured.Unstructured, error) {
+	return m.Resources, m.Err
+}

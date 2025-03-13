@@ -100,7 +100,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CrossplaneImage = fmt.Sprintf("%s/crossplane/crossplane:%s", xpkg.DefaultRegistry, version.New().GetVersionString())
 	}
 
-	// LoadYamlStream all extensions
+	// load all extensions
 	extensionLoader, err := internal.NewLoader(c.Extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
@@ -111,7 +111,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
 
-	// LoadYamlStream all resources
+	// load all resources
 	resourceLoader, err := internal.NewLoader(c.Resources)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load resources from %q", c.Resources)
