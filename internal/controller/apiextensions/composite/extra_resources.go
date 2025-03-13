@@ -119,7 +119,7 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 		r := &kunstructured.Unstructured{}
 		r.SetAPIVersion(rs.GetApiVersion())
 		r.SetKind(rs.GetKind())
-		nn := types.NamespacedName{Name: rs.GetMatchName()}
+		nn := types.NamespacedName{Namespace: rs.GetNamespace(), Name: rs.GetMatchName()}
 		err := e.client.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
 			// The resource doesn't exist. We'll return nil, which the Functions
@@ -139,8 +139,8 @@ func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.Reso
 		list := &kunstructured.UnstructuredList{}
 		list.SetAPIVersion(rs.GetApiVersion())
 		list.SetKind(rs.GetKind())
-
-		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels())); err != nil {
+		// If namespace is empty client.InNamespace will have no effect.
+		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels()), client.InNamespace(rs.GetNamespace())); err != nil {
 			return nil, errors.Wrap(err, errListExtraResources)
 		}
 

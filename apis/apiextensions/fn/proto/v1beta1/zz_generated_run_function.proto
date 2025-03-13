@@ -160,6 +160,11 @@ message ResourceSelector {
     // Match all resources with these labels.
     MatchLabels match_labels = 4;
   }
+
+  // Match resources in this namespace.
+  // Omit namespace to match cluster scoped resources, or to match namespaced
+  // resources by labels across all namespaces.
+  optional string namespace = 5;
 }
 
 // MatchLabels defines a set of labels to match resources against.
