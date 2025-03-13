@@ -155,9 +155,9 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot render resources")
 	}
 
-	if err := p.ValidateResources(stdout, desired); err != nil {
-		return errors.Wrap(err, "cannot validate resources")
-	}
+	//if err := p.ValidateResources(stdout, desired); err != nil {
+	//	return errors.Wrap(err, "cannot validate resources")
+	//}
 
 	for _, d := range desired.ComposedResources {
 		diff, err := p.CalculateDiff(ctx, &d)

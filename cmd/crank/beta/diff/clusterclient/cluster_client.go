@@ -337,5 +337,11 @@ func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructure
 	}
 
 	// Perform a dry-run server-side apply
-	return resourceClient.Apply(ctx, obj.GetName(), obj, applyOptions)
+	result, err := resourceClient.Apply(ctx, obj.GetName(), obj, applyOptions)
+	if err != nil {
+		// Log the error details for debugging
+		return nil, errors.Wrapf(err, "failed to apply resource %s/%s: %v",
+			obj.GetNamespace(), obj.GetName(), err)
+	}
+	return result, nil
 }

@@ -1,0 +1,6 @@
+apiVersion: diff.example.org/v1alpha1
+kind: XNopResource
+metadata:
+  name: test-resource
+spec:
+  coolField: "new-value"

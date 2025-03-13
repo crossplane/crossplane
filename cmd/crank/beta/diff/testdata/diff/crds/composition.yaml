@@ -1,0 +1,28 @@
+# we don't actually have crossplane running to generate the CRD from the XRD so we need to provide it manually.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: xnopresources.diff.example.org
+spec:
+  group: diff.example.org
+  names:
+    kind: XNopResource
+    listKind: XNopResourceList
+    plural: xnopresources
+    singular: xnopresource
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                coolField:
+                  type: string
+            status:
+              type: object

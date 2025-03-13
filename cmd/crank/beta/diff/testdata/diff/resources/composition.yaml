@@ -1,0 +1,23 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.diff.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: diff.example.org/v1alpha1
+    kind: XNopResource
+  mode: Resources
+  resources:
+    - name: nop-resource
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        metadata:
+          name: test-nop-resource
+        spec:
+          forProvider:
+            coolField: test-value
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.coolField
+          toFieldPath: spec.forProvider.coolField

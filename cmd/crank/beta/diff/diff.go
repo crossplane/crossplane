@@ -26,12 +26,9 @@ import (
 	"time"
 
 	"context"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
-	"k8s.io/client-go/tools/clientcmd"
-	"os"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // Cmd represents the diff command.
@@ -65,11 +62,10 @@ Examples:
 }
 
 // Run executes the diff command.
-func (c *Cmd) Run(k *kong.Context, log logging.Logger) error {
-	config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
-	if err != nil {
-		return errors.Wrap(err, "failed to get kubeconfig")
-	}
+func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) error {
+
+	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
+	// in their arguments.  that means we won't get errors for cases where the config isn't asked for.
 
 	client, err := ClusterClientFactory(config)
 	if err != nil {
