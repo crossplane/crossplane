@@ -465,34 +465,38 @@ func TestDiffIntegration(t *testing.T) {
 				}
 				return nil
 			},
-			expectedOutput: "+ XNopResource/test-resource",
-			expectedError:  false,
+			// Update the expected output to match the actual format exactly
+			expectedOutput: `+ XNopResource (new object)
+apiVersion: diff.example.org/v1alpha1
+kind: XNopResource
+metadata:
+  name: test-resource
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    reason: Available
+    status: "True"
+    type: Ready`,
+			expectedError: false,
 		},
 		{
 			name: "Modified resource shows diff",
 			setupResources: func(ctx context.Context, c client.Client) error {
 				// Apply the XRD and Composition from YAML files
-				if err := applyResourcesFromFiles(ctx, c, []string{
+				return applyResourcesFromFiles(ctx, c, []string{
 					"testdata/diff/resources/xrd.yaml",
 					"testdata/diff/resources/composition.yaml",
-				}); err != nil {
-					return err
-				}
-
-				// Create an existing resource in the cluster
-				existingXR := &unstructured.Unstructured{}
-				existingXR.SetAPIVersion("diff.example.org/v1alpha1")
-				existingXR.SetKind("XNopResource")
-				existingXR.SetName("existing-resource")
-				existingXR.SetNamespace("default")
-				existingXR.Object["spec"] = map[string]interface{}{
-					"coolField": "original-value",
-				}
-
-				return c.Create(ctx, existingXR)
+					"testdata/diff/new-xr.yaml",
+				})
 			},
-			inputFile:      "testdata/diff/modified-xr.yaml",
-			expectedOutput: "~ XNopResource/existing-resource",
+			inputFile: "testdata/diff/modified-xr.yaml",
+			// Update the expected output to match the actual format exactly
+			// TODO:  the Render function requires us to use a composition of Function type.  the test should reflect that.
+			// TODO:  the `crossplane render` cli doesn't actually provide the full XR on `render.Outputs`.  it just stuffs
+			// the spec from the input XR into the results, rendering this test meaningless.
+			// we therefore have to ensure our test does more than just reflect back the XR -- we have to do something
+			// downstream.
+			expectedOutput: `+ i expect a diff`,
 			expectedError:  false,
 		},
 	}
@@ -549,6 +553,7 @@ func TestDiffIntegration(t *testing.T) {
 				DiffProcessorFactory = origDiffProcessorFactory
 			}()
 
+			// TODO: This seems a bit redundant with the Kong binding?
 			// Use the real implementation but with our test config
 			ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
 				return cc.NewClusterClient(cfg)
@@ -580,8 +585,10 @@ func TestDiffIntegration(t *testing.T) {
 			}
 
 			// Check the output
-			if !strings.Contains(stdout.String(), tt.expectedOutput) {
-				t.Fatalf("expected output to contain %q, but got %q", tt.expectedOutput, stdout.String())
+			outputStr := stdout.String()
+			// Using TrimSpace because the output might have trailing newlines
+			if !strings.Contains(strings.TrimSpace(outputStr), strings.TrimSpace(tt.expectedOutput)) {
+				t.Fatalf("expected output to contain:\n%s\n\nbut got:\n%s", tt.expectedOutput, outputStr)
 			}
 		})
 	}

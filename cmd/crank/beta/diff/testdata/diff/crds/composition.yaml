@@ -10,7 +10,7 @@ spec:
     listKind: XNopResourceList
     plural: xnopresources
     singular: xnopresource
-  scope: Namespaced
+  scope: Cluster
   versions:
     - name: v1alpha1
       served: true

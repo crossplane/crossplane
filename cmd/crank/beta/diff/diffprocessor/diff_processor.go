@@ -143,7 +143,7 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 			return err
 		}
 	}
-
+	
 	desired, err := p.renderFn(ctx, nil, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
