@@ -67,7 +67,6 @@ const (
 	errFetchComp              = "cannot fetch Composition"
 	errConfigure              = "cannot configure composite resource"
 	errPublish                = "cannot publish connection details"
-	errUnpublish              = "cannot unpublish connection details"
 	errAssociate              = "cannot associate composed resources with Composition resource templates"
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
@@ -118,33 +117,22 @@ func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr xresou
 	return fn(ctx, cr)
 }
 
-// A ConnectionPublisher manages the supplied ConnectionDetails for the
-// supplied Managed resource. ManagedPublishers must handle the case in which
-// the supplied ConnectionDetails are empty.
+// A ConnectionPublisher publishes the supplied ConnectionDetails for the
+// supplied resource.
 type ConnectionPublisher interface {
-	// PublishConnection details for the supplied Managed resource. Publishing
+	// PublishConnection details for the supplied resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publishing details (b, c, d) should update (b, c) but not remove a.
 	PublishConnection(ctx context.Context, so xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
-
-	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, so xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error
 }
 
-// ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
-type ConnectionPublisherFns struct {
-	PublishConnectionFn   func(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error)
-	UnpublishConnectionFn func(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error
-}
+// A ConnectionPublisherFn publishes the supplied ConnectionDetails for the
+// supplied resource.
+type ConnectionPublisherFn func(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error)
 
-// PublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
-	return fn.PublishConnectionFn(ctx, o, c)
-}
-
-// UnpublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
-	return fn.UnpublishConnectionFn(ctx, o, c)
+// PublishConnection details for the supplied resource.
+func (fn ConnectionPublisherFn) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+	return fn(ctx, o, c)
 }
 
 // A PublisherChain chains multiple ManagedPublishers.
@@ -164,17 +152,6 @@ func (pc PublisherChain) PublishConnection(ctx context.Context, o xresource.Conn
 		}
 	}
 	return published, nil
-}
-
-// UnpublishConnection calls each ConnectionPublisher.UnpublishConnection serially. It returns the first error it
-// encounters, if any.
-func (pc PublisherChain) UnpublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
-	for _, p := range pc {
-		if err := p.UnpublishConnection(ctx, o, c); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // A CompositionRevisionFetcher fetches an appropriate Composition for the supplied
@@ -516,12 +493,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
 		xr.SetConditions(xpv1.Deleting())
-		if err := r.composite.UnpublishConnection(ctx, xr, nil); err != nil {
-			err = errors.Wrap(err, errUnpublish)
-			r.record.Event(xr, event.Warning(reasonDelete, err))
-			xr.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-		}
 
 		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 			if kerrors.IsConflict(err) {

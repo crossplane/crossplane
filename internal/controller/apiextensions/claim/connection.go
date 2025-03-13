@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/internal/xresource"
@@ -40,22 +39,6 @@ const (
 	errSecretConflict       = "cannot establish control of existing connection secret"
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
 )
-
-// NopConnectionUnpublisher is a ConnectionUnpublisher that does nothing.
-type NopConnectionUnpublisher struct{}
-
-// NewNopConnectionUnpublisher returns a new NopConnectionUnpublisher.
-func NewNopConnectionUnpublisher() *NopConnectionUnpublisher {
-	return &NopConnectionUnpublisher{}
-}
-
-// UnpublishConnection does nothing and returns no error with
-// UnpublishConnection. Expected to be used where deletion of connection
-// secret is already handled by K8s garbage collection and there is actually
-// nothing to do to unpublish connection details.
-func (n *NopConnectionUnpublisher) UnpublishConnection(_ context.Context, _ xresource.LocalConnectionSecretOwner, _ managed.ConnectionDetails) error {
-	return nil
-}
 
 // An APIConnectionPropagator propagates connection details by reading
 // them from and writing them to a Kubernetes API server.

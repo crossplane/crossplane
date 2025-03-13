@@ -35,7 +35,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/internal/names"
@@ -141,20 +140,6 @@ func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to 
 	return propagated, nil
 }
 
-// A ConnectionUnpublisher is responsible for cleaning up connection secret.
-type ConnectionUnpublisher interface {
-	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, so xresource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error
-}
-
-// A ConnectionUnpublisherFn is responsible for cleaning up connection secret.
-type ConnectionUnpublisherFn func(ctx context.Context, so xresource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error
-
-// UnpublishConnection details of a local connection secret owner.
-func (fn ConnectionUnpublisherFn) UnpublishConnection(ctx context.Context, so xresource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error {
-	return fn(ctx, so, c)
-}
-
 // A DefaultsSelector copies default values from the CompositeResourceDefinition when the corresponding field
 // in the Claim is not set.
 type DefaultsSelector interface {
@@ -208,13 +193,11 @@ func defaultCRComposite(c client.Client) crComposite {
 
 type crClaim struct {
 	resource.Finalizer
-	ConnectionUnpublisher
 }
 
 func defaultCRClaim(c client.Client) crClaim {
 	return crClaim{
-		Finalizer:             resource.NewAPIFinalizer(c, finalizer),
-		ConnectionUnpublisher: NewNopConnectionUnpublisher(),
+		Finalizer: resource.NewAPIFinalizer(c, finalizer),
 	}
 }
 
@@ -243,14 +226,6 @@ func WithCompositeSyncer(cs CompositeSyncer) ReconcilerOption {
 func WithConnectionPropagator(p ConnectionPropagator) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.composite.ConnectionPropagator = p
-	}
-}
-
-// WithConnectionUnpublisher specifies which ConnectionUnpublisher should be
-// used to unpublish resource connection details.
-func WithConnectionUnpublisher(u ConnectionUnpublisher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.claim.ConnectionUnpublisher = u
 	}
 }
 
@@ -418,16 +393,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				log.Debug("Waiting for the XR to finish deleting (foreground deletion)")
 				return reconcile.Result{Requeue: true}, nil
 			}
-		}
-
-		// Claims do not publish connection details but may propagate XR
-		// secrets. Hence, we need to clean up propagated secrets when the
-		// claim is deleted.
-		if err := r.claim.UnpublishConnection(ctx, cm, nil); err != nil {
-			err = errors.Wrap(err, errDeleteCDs)
-			record.Event(cm, event.Warning(reasonDelete, err))
-			cm.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
 		record.Event(cm, event.Normal(reasonDelete, "Successfully deleted composite resource"))
