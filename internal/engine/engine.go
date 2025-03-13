@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -53,11 +54,7 @@ type ControllerEngine struct {
 
 	// The client used by the engine's controllers. The client must be backed by
 	// the above TrackingInformers.
-	cached client.Client
-
-	// uncached is a non-cached client used when Unstructured resources
-	// are not found in the cache.
-	uncached client.Client
+	client client.Client
 
 	log logging.Logger
 
@@ -75,12 +72,11 @@ type TrackingInformers interface {
 }
 
 // New creates a new controller engine.
-func New(mgr manager.Manager, infs TrackingInformers, c client.Client, nc client.Client, o ...ControllerEngineOption) *ControllerEngine {
+func New(mgr manager.Manager, infs TrackingInformers, c client.Client, o ...ControllerEngineOption) *ControllerEngine {
 	e := &ControllerEngine{
 		mgr:         mgr,
 		infs:        infs,
-		cached:      c,
-		uncached:    nc,
+		client:      c,
 		log:         logging.NewNopLogger(),
 		controllers: make(map[string]*controller),
 	}
@@ -113,7 +109,7 @@ type controller struct {
 	mx sync.RWMutex
 
 	// The controller's sources, by watched GVK.
-	sources map[WatchID]*StoppableSource
+	sources map[WatchID]StoppableSource
 }
 
 // A WatchGarbageCollector periodically garbage collects watches.
@@ -157,14 +153,9 @@ func WithNewControllerFn(fn NewControllerFn) ControllerOption {
 	}
 }
 
-// GetCached gets a client backed by the controller engine's cache.
-func (e *ControllerEngine) GetCached() client.Client {
-	return e.cached
-}
-
-// GetUncached gets a non-cached client.
-func (e *ControllerEngine) GetUncached() client.Client {
-	return e.uncached
+// GetClient gets a client backed by the controller engine's cache.
+func (e *ControllerEngine) GetClient() client.Client {
+	return e.client
 }
 
 // GetFieldIndexer returns a FieldIndexer that can be used to add indexes to the
@@ -242,7 +233,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 	r := &controller{
 		ctrl:    c,
 		cancel:  cancel,
-		sources: make(map[WatchID]*StoppableSource),
+		sources: make(map[WatchID]StoppableSource),
 	}
 
 	e.controllers[name] = r
@@ -300,23 +291,30 @@ type WatchType string
 // Common watch types.
 const (
 	WatchTypeClaim               WatchType = "Claim"
-	WatchTypeCompositeResource   WatchType = "CompositeResource"
+	WatchTypeCompositeResource   WatchType = "CompositeReference"
 	WatchTypeComposedResource    WatchType = "ComposedResource"
 	WatchTypeCompositionRevision WatchType = "CompositionRevision"
+	WatchTypeRaw                 WatchType = "Raw"
 )
 
 // Watch an object.
 type Watch struct {
-	wt         WatchType
-	kind       client.Object
+	wt   WatchType
+	kind client.Object
+
+	// raw.
+	rawSource source.Source
+
+	// everything else.
 	handler    handler.EventHandler
 	predicates []predicate.Predicate
 }
 
 // A WatchID uniquely identifies a watch.
 type WatchID struct {
-	Type WatchType
-	GVK  schema.GroupVersionKind
+	Type      WatchType
+	GVK       schema.GroupVersionKind
+	RawSource source.Source
 }
 
 // WatchFor returns a Watch for the supplied kind of object. Events will be
@@ -324,6 +322,12 @@ type WatchID struct {
 // predicates.
 func WatchFor(kind client.Object, wt WatchType, h handler.EventHandler, p ...predicate.Predicate) Watch {
 	return Watch{kind: kind, wt: wt, handler: h, predicates: p}
+}
+
+// RawWatch returns a raw source watch. Raw watches are not represented by
+// an event handler, but just get a queue to insert requests into.
+func RawWatch(kind client.Object, source source.Source) Watch {
+	return Watch{kind: kind, wt: WatchTypeRaw, rawSource: source}
 }
 
 // StartWatches instructs the named controller to start the supplied watches.
@@ -373,7 +377,8 @@ func (e *ControllerEngine) StartWatches(name string, ws ...Watch) error {
 	c.mx.RLock()
 	start := false
 	for i, w := range ws {
-		wid := WatchID{Type: w.wt, GVK: gvks[i]}
+		wid := WatchID{Type: w.wt, GVK: gvks[i], RawSource: w.rawSource}
+
 		// We've already created this watch and the informer backing it is still
 		// running. We don't need to create a new watch.
 		if _, watchExists := c.sources[wid]; watchExists && activeInformer[wid.GVK] {
@@ -399,7 +404,7 @@ func (e *ControllerEngine) StartWatches(name string, ws ...Watch) error {
 
 	// Start new sources.
 	for i, w := range ws {
-		wid := WatchID{Type: w.wt, GVK: gvks[i]}
+		wid := WatchID{Type: w.wt, GVK: gvks[i], RawSource: w.rawSource}
 
 		// We've already created this watch and the informer backing it is still
 		// running. We don't need to create a new watch. We don't debug log this
@@ -417,7 +422,13 @@ func (e *ControllerEngine) StartWatches(name string, ws ...Watch) error {
 		// The watch will stop sending events when either the source is stopped,
 		// or its backing informer is stopped. The controller's work queue will
 		// stop processing events when the controller is stopped.
-		src := NewStoppableSource(e.infs, w.kind, w.handler, w.predicates...)
+		var src StoppableSource
+		if w.rawSource != nil {
+			src = NewStoppableRawSource(w.rawSource)
+		} else {
+			src = NewStoppableSource(e.infs, w.kind, w.handler, w.predicates...)
+		}
+
 		if err := c.ctrl.Watch(src); err != nil {
 			return errors.Wrapf(err, "cannot start %q watch for %q", wid.Type, wid.GVK)
 		}
