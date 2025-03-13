@@ -117,13 +117,6 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o xr
 	return true, nil
 }
 
-// UnpublishConnection is no-op since PublishConnection only creates resources
-// that will be garbage collected by Kubernetes when the managed resource is
-// deleted.
-func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
-	return nil
-}
-
 // An APIRevisionFetcher selects the appropriate CompositionRevision for a
 // composite resource, fetches it, and returns it as a Composition. This is done
 // for compatibility with existing Composition logic while CompositionRevisions
