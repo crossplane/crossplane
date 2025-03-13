@@ -57,7 +57,7 @@ const (
 	errGetExistingCDs           = "cannot get existing composed resources"
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
-	errApplyXRRefs              = "cannot update composite resource spec.resourceRefs"
+	errApplyXRRefs              = "cannot update composed resource references"
 	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
@@ -461,9 +461,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	refs := composite.New()
-	refs.SetAPIVersion(xr.GetAPIVersion())
-	refs.SetKind(xr.GetKind())
+	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
+	refs.SetNamespace(xr.GetNamespace())
 	refs.SetName(xr.GetName())
 	UpdateResourceRefs(refs, desired)
 
@@ -478,13 +477,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
 	}
 
-	// TODO: Remove this call to Upgrade once no supported version of
-	// Crossplane have native P&T available. We only need to upgrade field managers if the
-	// native PTComposer might have applied the composed resources before, using the
-	// default client-side apply field manager "crossplane",
-	// but now migrated to use Composition functions, which uses server-side apply instead.
-	// Without this managedFields upgrade, the composed resources ends up having shared ownership
-	// of fields and field removals won't sync properly.
+	// TODO: Remove this call to Upgrade once no supported version of Crossplane
+	// have native P&T available. We only need to upgrade field managers if the
+	// native PTComposer might have applied the composed resources before, using
+	// the default client-side apply field manager "crossplane", but now
+	// migrated to use Composition functions, which uses server-side apply
+	// instead. Without this managedFields upgrade, the composed resources ends
+	// up having shared ownership of fields and field removals won't sync
+	// properly.
 	for _, cd := range observed {
 		if err := c.composite.ManagedFieldsUpgrader.Upgrade(ctx, cd.Resource); err != nil {
 			return CompositionResult{}, errors.Wrap(err, "cannot upgrade composed resource's managed fields from client-side to server-side apply")
@@ -542,6 +542,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// GVK and name so that our client knows what resource to patch.
 	v := xr.GetAPIVersion()
 	k := xr.GetKind()
+	ns := xr.GetNamespace()
 	n := xr.GetName()
 	u := xr.GetUID()
 	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
@@ -549,6 +550,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 	xr.SetAPIVersion(v)
 	xr.SetKind(k)
+	xr.SetNamespace(ns)
 	xr.SetName(n)
 	xr.SetUID(u)
 
@@ -623,8 +625,16 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 			continue
 		}
 
-		r := composed.New(composed.FromReference(ref))
+		// Cluster scoped XRs can compose resources either at the cluster scope,
+		// or in arbitrary namespaces. They can optionally include a namespace
+		// in their composed resource references. Namespaced XRs must compose
+		// resources in their own namespace.
 		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+		if xr.GetNamespace() != "" {
+			nn.Namespace = xr.GetNamespace()
+		}
+
+		r := composed.New(composed.FromReference(ref))
 		err := g.cached.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
 			// We believe we created this resource, but it is not in the cache yet?  Try again without the cache.
@@ -787,10 +797,19 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 
 // UpdateResourceRefs updates the supplied state to ensure the XR references all
 // composed resources that exist or are pending creation.
-func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired ComposedResourceStates) {
+func UpdateResourceRefs(xr xresource.Composite, desired ComposedResourceStates) {
+	namespaced := xr.GetNamespace() != ""
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
 		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
+
+		// If the XR is namespaced it can only compose resources in its own
+		// namespace. Its OpenAPI schema won't allow including a namespace in
+		// its resourceRefs.
+		if namespaced {
+			ref.Namespace = ""
+		}
+
 		refs = append(refs, *ref)
 	}
 

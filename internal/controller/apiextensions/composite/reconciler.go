@@ -375,6 +375,14 @@ func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStar
 	}
 }
 
+// WithCompositeSchema specifies whether the Reconciler should reconcile a
+// modern or a legacy type of composite resource.
+func WithCompositeSchema(s composite.Schema) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.schema = s
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
 }
@@ -454,7 +462,9 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
 	client client.Client
+
 	gvk    schema.GroupVersionKind
+	schema composite.Schema
 
 	revision  revision
 	composite compositeResource
@@ -480,7 +490,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvk))
+	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithSchema(r.schema))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
@@ -540,6 +550,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	orig := xr.GetCompositionReference()
 	if err := r.composite.SelectComposition(ctx, xr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))

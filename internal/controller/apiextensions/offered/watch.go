@@ -99,7 +99,7 @@ func addClaim(obj runtime.Object, queue adder) {
 	if !ok || u == nil {
 		return
 	}
-	cp := &composite.Unstructured{Unstructured: *u}
+	cp := &composite.Unstructured{Unstructured: *u, Schema: composite.SchemaLegacy}
 	if ref := cp.GetClaimReference(); ref != nil {
 		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}})
 	}

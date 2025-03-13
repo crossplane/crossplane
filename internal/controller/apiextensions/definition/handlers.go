@@ -37,19 +37,26 @@ import (
 
 // EnqueueForCompositionRevision enqueues reconciles for all XRs that will use a
 // newly created CompositionRevision.
-func EnqueueForCompositionRevision(of schema.GroupVersionKind, c client.Reader, log logging.Logger) handler.Funcs {
+func EnqueueForCompositionRevision(of schema.GroupVersionKind, s composite.Schema, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			rev, ok := e.Object.(*v1.CompositionRevision)
 			if !ok {
-				// should not happen
 				return
 			}
 
-			// TODO(negz): Check whether the revision's compositeTypeRef matches
-			// the supplied CompositeKind. If it doesn't, we can return early.
+			if rev.Spec.CompositeTypeRef.APIVersion != of.GroupVersion().String() {
+				return
+			}
+			if rev.Spec.CompositeTypeRef.Kind != of.Kind {
+				return
+			}
 
-			// get all XRs
+			compName := rev.Labels[v1.LabelCompositionName]
+			if compName == "" {
+				return
+			}
+
 			xrs := kunstructured.UnstructuredList{}
 			xrs.SetGroupVersionKind(of)
 			xrs.SetKind(of.Kind + "List")
@@ -60,14 +67,8 @@ func EnqueueForCompositionRevision(of schema.GroupVersionKind, c client.Reader, 
 				return
 			}
 
-			// enqueue all those that reference the Composition of this revision
-			compName := rev.Labels[v1.LabelCompositionName]
-			// TODO(negz): Check this before we get all XRs.
-			if compName == "" {
-				return
-			}
 			for _, u := range xrs.Items {
-				xr := composite.Unstructured{Unstructured: u}
+				xr := composite.Unstructured{Unstructured: u, Schema: s}
 
 				// only automatic
 				if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {

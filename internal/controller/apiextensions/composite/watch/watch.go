@@ -47,7 +47,8 @@ type ControllerEngine interface {
 // still reference.
 type GarbageCollector struct {
 	controllerName string
-	xrGVK          schema.GroupVersionKind
+	gvk            schema.GroupVersionKind
+	schema         composite.Schema
 
 	engine ControllerEngine
 
@@ -64,11 +65,19 @@ func WithLogger(l logging.Logger) GarbageCollectorOption {
 	}
 }
 
+// WithCompositeSchema configures whether to garbage collect a modern or a
+// legacy composite resource.
+func WithCompositeSchema(s composite.Schema) GarbageCollectorOption {
+	return func(gc *GarbageCollector) {
+		gc.schema = s
+	}
+}
+
 // NewGarbageCollector creates a new watch garbage collector for a controller.
 func NewGarbageCollector(name string, of schema.GroupVersionKind, ce ControllerEngine, o ...GarbageCollectorOption) *GarbageCollector {
 	gc := &GarbageCollector{
 		controllerName: name,
-		xrGVK:          of,
+		gvk:            of,
 		engine:         ce,
 		log:            logging.NewNopLogger(),
 	}
@@ -104,8 +113,8 @@ func (gc *GarbageCollector) GarbageCollectWatches(ctx context.Context, interval 
 func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error {
 	// List all XRs of the type we're interested in.
 	l := &kunstructured.UnstructuredList{}
-	l.SetAPIVersion(gc.xrGVK.GroupVersion().String())
-	l.SetKind(gc.xrGVK.Kind + "List")
+	l.SetAPIVersion(gc.gvk.GroupVersion().String())
+	l.SetKind(gc.gvk.Kind + "List")
 	if err := gc.engine.GetCached().List(ctx, l); err != nil {
 		return errors.Wrap(err, "cannot list composite resources")
 	}
@@ -113,7 +122,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	// Build the set of GVKs they still reference.
 	used := make(map[engine.WatchID]bool)
 	for _, u := range l.Items {
-		xr := &composite.Unstructured{Unstructured: u}
+		xr := &composite.Unstructured{Unstructured: u, Schema: gc.schema}
 		for _, ref := range xr.GetResourceReferences() {
 			used[engine.WatchID{Type: engine.WatchTypeComposedResource, GVK: schema.FromAPIVersionAndKind(ref.APIVersion, ref.Kind)}] = true
 		}

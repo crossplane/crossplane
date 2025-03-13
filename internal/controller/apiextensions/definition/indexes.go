@@ -31,22 +31,23 @@ const (
 	compositeResourcesRefsIndex = "compositeResourcesRefs"
 )
 
-var _ client.IndexerFunc = IndexCompositeResourcesRefs
-
-// IndexCompositeResourcesRefs assumes the passed object is a composite. It
-// returns keys for every composed resource referenced in the composite.
-func IndexCompositeResourcesRefs(o client.Object) []string {
-	u, ok := o.(*kunstructured.Unstructured)
-	if !ok {
-		return nil // should never happen
+// IndexCompositeResourcesRefs returns an IndexerFunc that assumes the passed
+// object is a composite. It returns keys for every composed resource referenced
+// in the composite.
+func IndexCompositeResourcesRefs(s composite.Schema) client.IndexerFunc {
+	return func(o client.Object) []string {
+		u, ok := o.(*kunstructured.Unstructured)
+		if !ok {
+			return nil // should never happen
+		}
+		xr := composite.Unstructured{Unstructured: *u, Schema: s}
+		refs := xr.GetResourceReferences()
+		keys := make([]string, 0, len(refs))
+		for _, ref := range refs {
+			keys = append(keys, refKey(ref.Namespace, ref.Name, ref.Kind, ref.APIVersion))
+		}
+		return keys
 	}
-	xr := composite.Unstructured{Unstructured: *u}
-	refs := xr.GetResourceReferences()
-	keys := make([]string, 0, len(refs))
-	for _, ref := range refs {
-		keys = append(keys, refKey(ref.Namespace, ref.Name, ref.Kind, ref.APIVersion))
-	}
-	return keys
 }
 
 func refKey(ns, name, kind, apiVersion string) string {

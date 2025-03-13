@@ -39,7 +39,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
@@ -1524,12 +1523,12 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 
 func TestUpdateResourceRefs(t *testing.T) {
 	type args struct {
-		xr  resource.ComposedResourcesReferencer
+		xr  xresource.Composite
 		drs ComposedResourceStates
 	}
 
 	type want struct {
-		xr resource.ComposedResourcesReferencer
+		xr xresource.Composite
 	}
 
 	cases := map[string]struct {
@@ -1537,28 +1536,31 @@ func TestUpdateResourceRefs(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Success": {
-			reason: "We should return a consistently ordered set of references.",
+		"ClusterScopedXR": {
+			reason: "We should return a consistently ordered set of references (including namespaces where applicable) suitable for a cluster scoped XR.",
 			args: args{
 				xr: &xfake.Composite{},
 				drs: ComposedResourceStates{
 					"never-created-c": ComposedResourceState{
 						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "never-created-c-42",
+								Namespace: "c",
+								Name:      "never-created-c-42",
 							},
 						},
 					},
 					"never-created-b": ComposedResourceState{
 						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "never-created-b-42",
+								Namespace: "b",
+								Name:      "never-created-b-42",
 							},
 						},
 					},
 					"never-created-a": ComposedResourceState{
 						Resource: &xfake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
+								// No namespace - cluster scoped.
 								Name: "never-created-a-42",
 							},
 						},
@@ -1569,6 +1571,61 @@ func TestUpdateResourceRefs(t *testing.T) {
 				xr: &xfake.Composite{
 					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
 						Refs: []corev1.ObjectReference{
+							{Name: "never-created-a-42"},
+							{Namespace: "b", Name: "never-created-b-42"},
+							{Namespace: "c", Name: "never-created-c-42"},
+						},
+					},
+				},
+			},
+		},
+		"NamespacedXR": {
+			reason: "We should return a consistently ordered set of references (without namespaces) suitable for a namespaced XR.",
+			args: args{
+				xr: &xfake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						// We take the presence of a namespace to mean the XR
+						// is namespaced.
+						Namespace: "default",
+					},
+				},
+				drs: ComposedResourceStates{
+					"never-created-c": ComposedResourceState{
+						Resource: &xfake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "never-created-c-42",
+							},
+						},
+					},
+					"never-created-b": ComposedResourceState{
+						Resource: &xfake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "never-created-b-42",
+							},
+						},
+					},
+					"never-created-a": ComposedResourceState{
+						Resource: &xfake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "never-created-a-42",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				xr: &xfake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+					},
+					ComposedResourcesReferencer: xfake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							// The refs shouldn't have namespaces. They're
+							// assumed to be to resource in the same namespace
+							// as the XR.
 							{Name: "never-created-a-42"},
 							{Name: "never-created-b-42"},
 							{Name: "never-created-c-42"},

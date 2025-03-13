@@ -1,3 +1,19 @@
+/*
+Copyright 2025 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e
 
 import (
@@ -98,6 +114,44 @@ func TestRealtimeCompositions(t *testing.T) {
 				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
+			Feature(),
+	)
+}
+
+func TestCompositionRealtimeRevisionSelection(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality to react in realtime to changes in a Composition by selecting the new CompositionRevision and reconcile the XRs.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimIsReady",
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			).
+			Assess("ClaimHasOriginalField",
+				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-original-composition"),
+			).
+			Assess("UpdateComposition", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-update.yaml"),
+			)).
+			Assess("ClaimHasUpdatedField",
+				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "from-updated-composition"),
+			).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),
 	)
 }

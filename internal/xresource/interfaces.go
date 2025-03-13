@@ -108,10 +108,15 @@ type Composite interface { //nolint:interfacebloat // This interface has to be b
 	CompositionRevisionReferencer
 	CompositionRevisionSelector
 	ComposedResourcesReferencer
-	ClaimReferencer
 
 	resource.Conditioned
 	ConnectionDetailsPublishedTimer
+}
+
+// A LegacyComposite resource is a composite resource that can be claimed.
+type LegacyComposite interface {
+	Composite
+	ClaimReferencer
 }
 
 // Composed resources can be a composed into a Composite resource.

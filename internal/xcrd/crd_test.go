@@ -269,12 +269,12 @@ func TestForCompositeResource(t *testing.T) {
 								{
 									Name:     "COMPOSITION",
 									Type:     "string",
-									JSONPath: ".spec.compositionRef.name",
+									JSONPath: ".spec.crossplane.compositionRef.name",
 								},
 								{
 									Name:     "COMPOSITIONREVISION",
 									Type:     "string",
-									JSONPath: ".spec.compositionRevisionRef.name",
+									JSONPath: ".spec.crossplane.compositionRevisionRef.name",
 									Priority: 1,
 								},
 								{
@@ -372,16 +372,6 @@ func TestForCompositeResource(t *testing.T) {
 																{Raw: []byte(`"Manual"`)},
 															},
 														},
-														"claimRef": {
-															Type:     "object",
-															Required: []string{"apiVersion", "kind", "namespace", "name"},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"kind":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"name":       {Type: "string"},
-															},
-														},
 														"resourceRefs": {
 															Type: "array",
 															Items: &extv1.JSONSchemaPropsOrArray{
@@ -399,10 +389,9 @@ func TestForCompositeResource(t *testing.T) {
 														},
 														"writeConnectionSecretToRef": {
 															Type:     "object",
-															Required: []string{"name", "namespace"},
+															Required: []string{"name"},
 															Properties: map[string]extv1.JSONSchemaProps{
-																"name":      {Type: "string"},
-																"namespace": {Type: "string"},
+																"name": {Type: "string"},
 															},
 														},
 													},
@@ -644,6 +633,7 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
@@ -924,6 +914,7 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
@@ -1167,6 +1158,7 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
@@ -1400,6 +1392,7 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
@@ -1656,6 +1649,7 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
@@ -1923,6 +1917,7 @@ func TestForCompositeResource(t *testing.T) {
 															Properties: map[string]extv1.JSONSchemaProps{
 																"apiVersion": {Type: "string"},
 																"name":       {Type: "string"},
+																"namespace":  {Type: "string"},
 																"kind":       {Type: "string"},
 															},
 															Required: []string{"apiVersion", "kind"},
@@ -2016,6 +2011,9 @@ func TestForCompositeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			// TODO(negz): This is surprising - refactor it. We should always
+			// pass the xrd as an argument, not default it here. Same with the
+			// version.
 			var xrd *v1.CompositeResourceDefinition
 			if tc.args.xrd != nil {
 				xrd = tc.args.xrd
