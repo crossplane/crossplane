@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - release-*
+      # TODO(negz): Remove this and all references to the v2 branches below
+      # if/when v2 is merged into main. It's a temporary branch for v2 preview
+      # development.
+      - v2 
   pull_request: {}
   workflow_dispatch: {}
 
@@ -352,7 +356,7 @@ jobs:
         run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Configure Earthly to Push Artifacts
-        if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
+        if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/v2' || startsWith(github.ref, 'refs/heads/release-')) && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
         run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
 
       - name: Set CROSSPLANE_VERSION GitHub Environment Variable
@@ -376,6 +380,14 @@ jobs:
             --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
             --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
             +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=master
+
+      - name: Push Artifacts to https://releases.crossplane.io/preview/ and https://charts.crossplane.io/preview
+        if: env.AWS_USR != '' && github.ref == 'refs/heads/v2'
+        run: |
+          earthly --strict \
+            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
+            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
+            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --BUILD_DIR=${GITHUB_REF##*/} --CHANNEL=preview
 
       - name: Upload Artifacts to GitHub
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
