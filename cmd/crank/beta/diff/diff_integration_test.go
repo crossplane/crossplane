@@ -597,32 +597,46 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 			return fmt.Errorf("failed to read file %s: %w", path, err)
 		}
 
-		// TODO:  we should handle the case of multiple yaml docs in a single file
-		obj := &unstructured.Unstructured{}
-		if err := yaml.Unmarshal(data, obj); err != nil {
-			return fmt.Errorf("faiinled to unmarshal YAML from %s: %w", path, err)
-		}
+		// Split the file into individual YAML documents
+		docs := bytes.Split(data, []byte("---"))
 
-		if err := c.Create(ctx, obj); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				// If the resource already exists, update it
-				existing := &unstructured.Unstructured{}
-				existing.SetGroupVersionKind(obj.GroupVersionKind())
-				if err := c.Get(ctx, client.ObjectKey{
-					Name:      obj.GetName(),
-					Namespace: obj.GetNamespace(),
-				}, existing); err != nil {
-					return fmt.Errorf("failed to get existing resource %s: %w", path, err)
+		for _, doc := range docs {
+			// Skip empty documents
+			if len(bytes.TrimSpace(doc)) == 0 {
+				continue
+			}
+
+			obj := &unstructured.Unstructured{}
+			if err := yaml.Unmarshal(doc, obj); err != nil {
+				return fmt.Errorf("failed to unmarshal YAML document from %s: %w", path, err)
+			}
+
+			// Skip empty objects
+			if len(obj.Object) == 0 {
+				continue
+			}
+
+			if err := c.Create(ctx, obj); err != nil {
+				if apierrors.IsAlreadyExists(err) {
+					// If the resource already exists, update it
+					existing := &unstructured.Unstructured{}
+					existing.SetGroupVersionKind(obj.GroupVersionKind())
+					if err := c.Get(ctx, client.ObjectKey{
+						Name:      obj.GetName(),
+						Namespace: obj.GetNamespace(),
+					}, existing); err != nil {
+						return fmt.Errorf("failed to get existing resource %s: %w", path, err)
+					}
+
+					// Copy resource version to avoid conflicts
+					obj.SetResourceVersion(existing.GetResourceVersion())
+
+					if err := c.Update(ctx, obj); err != nil {
+						return fmt.Errorf("failed to update resource %s: %w", path, err)
+					}
+				} else {
+					return fmt.Errorf("failed to create resource %s: %w", path, err)
 				}
-
-				// Copy resource version to avoid conflicts
-				obj.SetResourceVersion(existing.GetResourceVersion())
-
-				if err := c.Update(ctx, obj); err != nil {
-					return fmt.Errorf("failed to update resource %s: %w", path, err)
-				}
-			} else {
-				return fmt.Errorf("failed to create resource %s: %w", path, err)
 			}
 		}
 	}
