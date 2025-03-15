@@ -446,8 +446,9 @@ spec:
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    reason: Available
-    status: "True"
+    message: 'Unready resources: nop-resource'
+    reason: Creating
+    status: "False"
     type: Ready
 
 ---
@@ -469,7 +470,7 @@ metadata:
     uid: ""
 spec:
   forProvider:
-    configData: '{{ .observed.composite.spec.coolField }}'
+    configData: new-value
 
 ---
 `,
@@ -491,6 +492,7 @@ spec:
 ~ XNopResource/test-resource
 spec:
   coolField: modified-value
+~ NopResource should also have a changed coolField
 `,
 			expectedError: false,
 		},
