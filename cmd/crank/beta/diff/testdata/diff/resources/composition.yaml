@@ -6,18 +6,19 @@ spec:
   compositeTypeRef:
     apiVersion: diff.example.org/v1alpha1
     kind: XNopResource
-  mode: Resources
-  resources:
-    - name: nop-resource
-      base:
-        apiVersion: nop.crossplane.io/v1alpha1
-        kind: NopResource
-        metadata:
-          name: test-nop-resource
-        spec:
-          forProvider:
-            coolField: test-value
-      patches:
-        - type: FromCompositeFieldPath
-          fromFieldPath: spec.coolField
-          toFieldPath: spec.forProvider.coolField
+  mode: Pipeline
+  pipeline:
+    - step: generate-resources
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: nop-resource
+            base:
+              apiVersion: nop.example.org/v1alpha1
+              kind: NopResource
+              spec:
+                forProvider:
+                  configData: "{{ .observed.composite.spec.coolField }}"

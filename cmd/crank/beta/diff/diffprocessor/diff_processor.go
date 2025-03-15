@@ -192,7 +192,9 @@ func mergeUnstructured(dest *ucomposite.Unstructured, src *unstructured.Unstruct
 	mergedContent := runtime.DeepCopyJSON(dest.UnstructuredContent())
 
 	// Merge the original resource's content on top of it
-	// This ensures any fields present in the original resource override the rendered ones
+	// This ensures any fields present in the original resource override the rendered ones.
+
+	// TODO: this is a naive, top-level copy only.  We need to get deep into nested map merges for this to be truly correct.
 	for k, v := range src.Object {
 		// Merge
 		mergedContent[k] = v
