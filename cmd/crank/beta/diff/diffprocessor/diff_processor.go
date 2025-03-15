@@ -2,6 +2,7 @@ package diffprocessor
 
 import (
 	"context"
+	"dario.cat/mergo"
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -117,7 +118,7 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot identify needed extra resources")
 	}
 
-	extraResources, err := p.client.GetExtraResources(ctx, gvrs, selectors)
+	extraResources, err := p.client.GetAllResourcesByLabels(ctx, gvrs, selectors)
 	if err != nil {
 		return errors.Wrap(err, "cannot get extra resources")
 	}
@@ -144,7 +145,7 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		}
 	}
 
-	desired, err := p.renderFn(ctx, nil, render.Inputs{
+	desired, err := p.renderFn(ctx, p.log, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,
@@ -160,8 +161,8 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 	//	return errors.Wrap(err, "cannot validate resources")
 	//}
 
-	printDiff := func(res runtime.Object) error {
-		diff, err := p.CalculateDiff(ctx, res)
+	printDiff := func(composite string, res runtime.Object) error {
+		diff, err := p.CalculateDiff(ctx, composite, res)
 		if err != nil {
 			return errors.Wrap(err, "cannot calculate diff")
 		}
@@ -172,39 +173,35 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return nil
 	}
 
+	compositeUnstructured := &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}
+
 	// the `crossplane render` cli doesn't actually provide the full XR on `render.Outputs`.  it just stuffs
 	// the spec from the input XR into the results.  however the input could be different from what's on the server
 	// so we should still diff.  so we naively merge the input XR with the rendered XR to get the full XR.
-	xrUnstructured := mergeUnstructured(desired.CompositeResource, res)
+	xrUnstructured, err := mergeUnstructured(compositeUnstructured, res)
+	if err != nil {
+		return errors.Wrap(err, "cannot merge input XR with result of rendered XR")
+	}
 
 	var errs []error
-	errs = append(errs, printDiff(xrUnstructured))
+	errs = append(errs, printDiff("", xrUnstructured))
 
 	// Diff the things downstream from the XR
 	for _, d := range desired.ComposedResources {
-		errs = append(errs, printDiff(&d))
+		un := &unstructured.Unstructured{Object: d.UnstructuredContent()}
+		errs = append(errs, printDiff(xr.GetName(), un))
 	}
 	return errors.Wrap(errors.Join(errs...), "cannot print diff")
 }
 
-func mergeUnstructured(dest *ucomposite.Unstructured, src *unstructured.Unstructured) *unstructured.Unstructured {
+func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	// Start with a deep copy of the rendered resource
-	mergedContent := runtime.DeepCopyJSON(dest.UnstructuredContent())
-
-	// Merge the original resource's content on top of it
-	// This ensures any fields present in the original resource override the rendered ones.
-
-	// TODO: this is a naive, top-level copy only.  We need to get deep into nested map merges for this to be truly correct.
-	for k, v := range src.Object {
-		// Merge
-		mergedContent[k] = v
+	result := dest.DeepCopy()
+	if err := mergo.Merge(&result.Object, src.Object, mergo.WithOverride); err != nil {
+		return nil, errors.Wrap(err, "cannot merge unstructured objects")
 	}
 
-	// Create the merged unstructured object
-	xrUnstructured := &unstructured.Unstructured{
-		Object: mergedContent,
-	}
-	return xrUnstructured
+	return result, nil
 }
 
 // IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
@@ -402,7 +399,7 @@ func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]*unstruct
 
 // CalculateDiff calculates the difference between desired state and current state
 // using the ClusterClient's DryRunApply method
-func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, desired runtime.Object) (string, error) {
+func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite string, desired runtime.Object) (string, error) {
 	// Convert desired to unstructured
 	desiredUnstr, ok := desired.(*unstructured.Unstructured)
 	if !ok {
@@ -414,16 +411,48 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, desired runtim
 	name := desiredUnstr.GetName()
 	namespace := desiredUnstr.GetNamespace()
 
-	// Get the current object from the cluster using ClusterClient
-	current, err := p.client.GetResource(ctx, gvk, namespace, name)
+	var current *unstructured.Unstructured
+	var err error
+	if composite != "" {
+		sel := metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"crossplane.io/composite": composite,
+			},
+		}
+		gvr := schema.GroupVersionResource{
+			Group:    gvk.Group,
+			Version:  gvk.Version,
+			Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // naive pluralization
+		}
+
+		// Get the current object from the cluster using ClusterClient
+		// TODO:  the name is not actually known (it's generated nondeterministically); we need to use labels
+		currents, err := p.client.GetResourcesByLabel(ctx, namespace, gvr, sel)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot get current object")
+		}
+		if len(currents) > 1 {
+			return "", errors.New(fmt.Sprintf("more than one matching resource found for %s/%s", gvk.Kind, name))
+		}
+
+		if len(currents) == 1 {
+			current = currents[0]
+		}
+
+		if current == nil {
+			// no error, but no current object found
+			// new object!
+			return renderNewObject(desiredUnstr, gvk)
+		}
+
+	} else {
+		// Get the current object from the cluster using ClusterClient
+		current, err = p.client.GetResource(ctx, gvk, namespace, name)
+	}
 
 	// If not found, show the entire object as new
 	if apierrors.IsNotFound(err) {
-		yamlBytes, err := sigsyaml.Marshal(desiredUnstr.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal desired object to YAML")
-		}
-		return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, string(yamlBytes)), nil
+		return renderNewObject(desiredUnstr, gvk)
 	} else if err != nil {
 		return "", errors.Wrap(err, "cannot get current object")
 	}
@@ -455,6 +484,14 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, desired runtim
 
 	// Format the diff
 	return fmt.Sprintf("~ %s/%s\n%s", gvk.Kind, name, diff), nil
+}
+
+func renderNewObject(desiredUnstr *unstructured.Unstructured, gvk schema.GroupVersionKind) (string, error) {
+	yamlBytes, err := sigsyaml.Marshal(desiredUnstr.Object)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot marshal desired object to YAML")
+	}
+	return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, string(yamlBytes)), nil
 }
 
 // calculateStructuralDiff compares current and desired objects and returns a formatted diff

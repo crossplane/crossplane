@@ -1,14 +1,14 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: nopresources.nop.example.org
+  name: downstreamresources.nop.example.org
 spec:
   group: nop.example.org
   names:
-    kind: NopResource
-    listKind: NopResourceList
-    plural: nopresources
-    singular: nopresource
+    kind: DownstreamResource
+    listKind: DownstreamResourceList
+    plural: downstreamresources
+    singular: downstreamresource
   scope: Namespaced
   versions:
     - name: v1alpha1

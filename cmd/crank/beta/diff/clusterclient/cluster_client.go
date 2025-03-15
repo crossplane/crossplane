@@ -30,8 +30,8 @@ type ClusterClient interface {
 	// FindMatchingComposition finds a composition that matches the given XR
 	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
 
-	// GetExtraResources retrieves all resources matching the given GVRs and selectors
-	GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	// GetAllResourcesByLabels retrieves all resources matching the given GVRs and selectors
+	GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 
 	// GetFunctionsFromPipeline retrieves all functions used in the composition's pipeline
 	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
@@ -42,6 +42,10 @@ type ClusterClient interface {
 	// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
 
+	// GetResourcesByLabel retrieves all resources from the cluster based on the provided GVR and selector
+	GetResourcesByLabel(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+
+	// DryRunApply performs a server-side apply with dry-run flag for diffing
 	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 }
 
@@ -93,8 +97,8 @@ func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// GetExtraResources fetches extra resources from the cluster based on the provided GVRs and selectors
-func (c *DefaultClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+// GetAllResourcesByLabels fetches all resources from the cluster based on the provided GVRs and selectors
+func (c *DefaultClusterClient) GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 	if len(gvrs) != len(selectors) {
 		return nil, errors.New("number of GVRs must match number of selectors")
 	}
@@ -103,23 +107,38 @@ func (c *DefaultClusterClient) GetExtraResources(ctx context.Context, gvrs []sch
 
 	for i, gvr := range gvrs {
 		// List resources matching the selector
-		opts := metav1.ListOptions{}
-		if len(selectors[i].MatchLabels) > 0 {
-			opts.LabelSelector = labels.Set(selectors[i].MatchLabels).String()
-		}
+		sel := selectors[i]
 
-		list, err := c.dynamicClient.Resource(gvr).List(ctx, opts)
+		res, err := c.GetResourcesByLabel(ctx, "", gvr, sel)
 		if err != nil {
 			return nil, errors.Wrapf(err, "cannot list resources for %s", gvr)
 		}
 
-		for _, item := range list.Items {
-
-			// Create a pointer to each item
-			resources = append(resources, &item)
-		}
+		resources = append(resources, res...)
 	}
 
+	return resources, nil
+}
+
+func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+
+	var resources []*unstructured.Unstructured
+
+	opts := metav1.ListOptions{}
+	if len(sel.MatchLabels) > 0 {
+		opts.LabelSelector = labels.Set(sel.MatchLabels).String()
+	}
+
+	list, err := c.dynamicClient.Resource(gvr).Namespace(ns).List(ctx, opts)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot list resources for %s", gvr)
+	}
+
+	for _, item := range list.Items {
+
+		// Create a pointer to each item
+		resources = append(resources, &item)
+	}
 	return resources, nil
 }
 
@@ -297,13 +316,8 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	var resource *unstructured.Unstructured
 	var err error
 
-	if namespace != "" {
-		// Namespaced resource
-		resource, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
-	} else {
-		// Cluster-scoped resource
-		resource, err = c.dynamicClient.Resource(gvr).Get(ctx, name, metav1.GetOptions{})
-	}
+	// If namespace is empty string, it will be ignored
+	resource, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get resource %s/%s of kind %s", namespace, name, gvk.Kind)

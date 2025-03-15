@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"github.com/alecthomas/kong"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -375,35 +373,6 @@ spec:
 	}
 }
 
-// MockRenderFunc mocks the render.Render function
-func MockRenderFunc(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
-	// Create a simple output with just the XR and a single composed resource
-	// First create a standard unstructured object
-	u := unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "nop.crossplane.io/v1alpha1",
-			"kind":       "NopResource",
-			"metadata": map[string]interface{}{
-				"name": "test-nop-resource",
-			},
-			"spec": map[string]interface{}{
-				"forProvider": map[string]interface{}{
-					"coolField": "mocked-value",
-				},
-			},
-		},
-	}
-
-	// Convert it to a composed.Unstructured
-	c := composed.Unstructured{Unstructured: u}
-
-	out := render.Outputs{
-		CompositeResource: in.CompositeResource,
-		ComposedResources: []composed.Unstructured{c},
-	}
-	return out, nil
-}
-
 // TestDiffIntegration runs an integration test for the diff command
 func TestDiffIntegration(t *testing.T) {
 	// Create a scheme with both Kubernetes and Crossplane types
@@ -460,6 +429,7 @@ func TestDiffIntegration(t *testing.T) {
 				if err := applyResourcesFromFiles(ctx, c, []string{
 					"testdata/diff/resources/xrd.yaml",
 					"testdata/diff/resources/composition.yaml",
+					"testdata/diff/resources/functions.yaml",
 				}); err != nil {
 					return err
 				}
@@ -478,7 +448,31 @@ status:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     reason: Available
     status: "True"
-    type: Ready`,
+    type: Ready
+
+---
++ DownstreamResource (new object)
+apiVersion: nop.example.org/v1alpha1
+kind: DownstreamResource
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: nop-resource
+  generateName: test-resource-
+  labels:
+    crossplane.io/composite: test-resource
+  ownerReferences:
+  - apiVersion: diff.example.org/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XNopResource
+    name: test-resource
+    uid: ""
+spec:
+  forProvider:
+    configData: '{{ .observed.composite.spec.coolField }}'
+
+---
+`,
 			expectedError: false,
 		},
 		{
@@ -488,6 +482,7 @@ status:
 				return applyResourcesFromFiles(ctx, c, []string{
 					"testdata/diff/resources/xrd.yaml",
 					"testdata/diff/resources/composition.yaml",
+					"testdata/diff/resources/functions.yaml",
 					"testdata/diff/new-xr.yaml",
 				})
 			},
@@ -602,9 +597,10 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 			return fmt.Errorf("failed to read file %s: %w", path, err)
 		}
 
+		// TODO:  we should handle the case of multiple yaml docs in a single file
 		obj := &unstructured.Unstructured{}
 		if err := yaml.Unmarshal(data, obj); err != nil {
-			return fmt.Errorf("failed to unmarshal YAML from %s: %w", path, err)
+			return fmt.Errorf("faiinled to unmarshal YAML from %s: %w", path, err)
 		}
 
 		if err := c.Create(ctx, obj); err != nil {

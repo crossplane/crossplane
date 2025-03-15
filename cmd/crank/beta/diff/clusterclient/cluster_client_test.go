@@ -551,7 +551,7 @@ func TestClusterClient_GetExtraResources(t *testing.T) {
 				dynamicClient: tc.setup(),
 			}
 
-			got, err := c.GetExtraResources(tc.args.ctx, tc.args.gvrs, tc.args.selectors)
+			got, err := c.GetAllResourcesByLabels(tc.args.ctx, tc.args.gvrs, tc.args.selectors)
 
 			if tc.want.err != nil {
 				if err == nil {

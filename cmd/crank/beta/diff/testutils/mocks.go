@@ -27,11 +27,12 @@ type DiffProcessor interface {
 type ClusterClient interface {
 	Initialize(ctx context.Context) error
 	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
 	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	GetResourcesByLabel(ctx context.Context, ns string, sel metav1.LabelSelector, gvr schema.GroupVersionResource) ([]*unstructured.Unstructured, error)
 }
 
 // MockDynamicClient mocks the dynamic.Interface
@@ -228,13 +229,14 @@ func (m *MockResourceInterface) ApplyStatus(ctx context.Context, name string, ob
 
 // MockClusterClient implements the ClusterClient interface for testing
 type MockClusterClient struct {
-	InitializeFn               func(ctx context.Context) error
+	InitializeFn               func(context.Context) error
 	FindMatchingCompositionFn  func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
 	GetExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDsFn                  func(context.Context) ([]*unstructured.Unstructured, error)
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
 	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 }
 
 // Initialize implements the ClusterClient interface
@@ -253,12 +255,12 @@ func (m *MockClusterClient) FindMatchingComposition(res *unstructured.Unstructur
 	return nil, errors.New("FindMatchingComposition not implemented")
 }
 
-// GetExtraResources implements the ClusterClient interface
-func (m *MockClusterClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+// GetAllResourcesByLabels implements the ClusterClient interface
+func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 	if m.GetExtraResourcesFn != nil {
 		return m.GetExtraResourcesFn(ctx, gvrs, selectors)
 	}
-	return nil, errors.New("GetExtraResources not implemented")
+	return nil, errors.New("GetAllResourcesByLabels not implemented")
 }
 
 // GetFunctionsFromPipeline implements the ClusterClient interface
@@ -283,6 +285,14 @@ func (m *MockClusterClient) GetResource(ctx context.Context, gvk schema.GroupVer
 		return m.GetResourceFn(ctx, gvk, namespace, name)
 	}
 	return nil, errors.New("GetResource not implemented")
+}
+
+// GetResourcesByLabel implements the ClusterClient interface
+func (m *MockClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+	if m.GetResourcesByLabelFn != nil {
+		return m.GetResourcesByLabelFn(ctx, ns, gvr, selector)
+	}
+	return nil, errors.New("GetResourcesByLabel not implemented")
 }
 
 // DryRunApply implements the ClusterClient interface

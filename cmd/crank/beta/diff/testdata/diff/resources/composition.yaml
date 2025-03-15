@@ -18,7 +18,12 @@ spec:
           - name: nop-resource
             base:
               apiVersion: nop.example.org/v1alpha1
-              kind: NopResource
+              kind: DownstreamResource
+              metadata:
+                name: "{{ .observed.composite.metadata.name }}"
               spec:
                 forProvider:
                   configData: "{{ .observed.composite.spec.coolField }}"
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready
