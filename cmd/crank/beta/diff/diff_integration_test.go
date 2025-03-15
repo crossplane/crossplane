@@ -471,6 +471,8 @@ apiVersion: diff.example.org/v1alpha1
 kind: XNopResource
 metadata:
   name: test-resource
+spec:
+  coolField: new-value
 status:
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
@@ -490,14 +492,12 @@ status:
 				})
 			},
 			inputFile: "testdata/diff/modified-xr.yaml",
-			// Update the expected output to match the actual format exactly
-			// TODO:  the Render function requires us to use a composition of Function type.  the test should reflect that.
-			// TODO:  the `crossplane render` cli doesn't actually provide the full XR on `render.Outputs`.  it just stuffs
-			// the spec from the input XR into the results, rendering this test meaningless.
-			// we therefore have to ensure our test does more than just reflect back the XR -- we have to do something
-			// downstream.
-			expectedOutput: `+ i expect a diff`,
-			expectedError:  false,
+			expectedOutput: `
+~ XNopResource/test-resource
+spec:
+  coolField: modified-value
+`,
+			expectedError: false,
 		},
 	}
 

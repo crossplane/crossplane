@@ -143,7 +143,7 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 			return err
 		}
 	}
-	
+
 	desired, err := p.renderFn(ctx, nil, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
@@ -155,9 +155,11 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot render resources")
 	}
 
+	// TODO:  comment me in and get me to work
 	//if err := p.ValidateResources(stdout, desired); err != nil {
 	//	return errors.Wrap(err, "cannot validate resources")
 	//}
+
 	printDiff := func(res runtime.Object) error {
 		diff, err := p.CalculateDiff(ctx, res)
 		if err != nil {
@@ -170,8 +172,11 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return nil
 	}
 
-	// Diff the XR
-	xrUnstructured := &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}
+	// the `crossplane render` cli doesn't actually provide the full XR on `render.Outputs`.  it just stuffs
+	// the spec from the input XR into the results.  however the input could be different from what's on the server
+	// so we should still diff.  so we naively merge the input XR with the rendered XR to get the full XR.
+	xrUnstructured := mergeUnstructured(desired.CompositeResource, res)
+
 	var errs []error
 	errs = append(errs, printDiff(xrUnstructured))
 
@@ -180,6 +185,24 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		errs = append(errs, printDiff(&d))
 	}
 	return errors.Wrap(errors.Join(errs...), "cannot print diff")
+}
+
+func mergeUnstructured(dest *ucomposite.Unstructured, src *unstructured.Unstructured) *unstructured.Unstructured {
+	// Start with a deep copy of the rendered resource
+	mergedContent := runtime.DeepCopyJSON(dest.UnstructuredContent())
+
+	// Merge the original resource's content on top of it
+	// This ensures any fields present in the original resource override the rendered ones
+	for k, v := range src.Object {
+		// Merge
+		mergedContent[k] = v
+	}
+
+	// Create the merged unstructured object
+	xrUnstructured := &unstructured.Unstructured{
+		Object: mergedContent,
+	}
+	return xrUnstructured
 }
 
 // IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
