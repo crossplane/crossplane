@@ -386,37 +386,10 @@ func TestDiffIntegration(t *testing.T) {
 	_ = pkgv1.AddToScheme(scheme)
 	_ = extv1.AddToScheme(scheme)
 
-	// Setup a test environment
-	testEnv := &envtest.Environment{
-		CRDDirectoryPaths: []string{
-			filepath.Join("..", "..", "..", "..", "cluster", "crds"),
-			filepath.Join("testdata", "diff", "crds"),
-		},
-		ErrorIfCRDPathMissing: false,
-		Scheme:                scheme,
-	}
-
-	// Start the test environment
-	cfg, err := testEnv.Start()
-	if err != nil {
-		t.Fatalf("failed to start test environment: %v", err)
-	}
-	defer func() {
-		if err := testEnv.Stop(); err != nil {
-			t.Logf("failed to stop test environment: %v", err)
-		}
-	}()
-
-	// Create a controller-runtime client for setup operations
-	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-
 	// Test cases
 	tests := []struct {
 		name           string
-		setupResources func(ctx context.Context, c client.Client) error
+		setupFiles     []string
 		inputFile      string
 		expectedOutput string
 		expectedError  bool
@@ -424,18 +397,11 @@ func TestDiffIntegration(t *testing.T) {
 		{
 			name:      "New resource shows diff",
 			inputFile: "testdata/diff/new-xr.yaml",
-			setupResources: func(ctx context.Context, c client.Client) error {
-				// Apply the XRD and Composition from YAML files
-				if err := applyResourcesFromFiles(ctx, c, []string{
-					"testdata/diff/resources/xrd.yaml",
-					"testdata/diff/resources/composition.yaml",
-					"testdata/diff/resources/functions.yaml",
-				}); err != nil {
-					return err
-				}
-				return nil
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/composition.yaml",
+				"testdata/diff/resources/functions.yaml",
 			},
-			// Update the expected output to match the actual format exactly
 			expectedOutput: `+ XNopResource (new object)
 apiVersion: diff.example.org/v1alpha1
 kind: XNopResource
@@ -479,35 +445,13 @@ spec:
 		},
 		{
 			name: "Modified resource shows diff",
-			setupResources: func(ctx context.Context, c client.Client) error {
-				// Apply the XRD and Composition from YAML files
-				return applyResourcesFromFiles(ctx, c, []string{
-					"testdata/diff/resources/xrd.yaml",
-					"testdata/diff/resources/composition.yaml",
-					"testdata/diff/resources/functions.yaml",
-					// put an existing XR in the cluster to diff against
-					"testdata/diff/resources/existing-downstream-resource.yaml",
-					"testdata/diff/new-xr.yaml",
-				})
-			},
-			inputFile: "testdata/diff/modified-xr.yaml",
-			expectedOutput: `
-~ XNopResource/test-resource
-spec:
-  coolField: modified-value
-`,
-			expectedError: false,
-		},
-		{
-			name: "Modified XR that creates new downstream resource shows diff",
-			setupResources: func(ctx context.Context, c client.Client) error {
-				// Apply the XRD and Composition from YAML files
-				return applyResourcesFromFiles(ctx, c, []string{
-					"testdata/diff/resources/xrd.yaml",
-					"testdata/diff/resources/composition.yaml",
-					"testdata/diff/resources/functions.yaml",
-					"testdata/diff/new-xr.yaml",
-				})
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/composition.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// put an existing XR in the cluster to diff against
+				"testdata/diff/resources/existing-downstream-resource.yaml",
+				"testdata/diff/new-xr.yaml",
 			},
 			inputFile: "testdata/diff/modified-xr.yaml",
 			expectedOutput: `
@@ -525,18 +469,85 @@ spec:
 `,
 			expectedError: false,
 		},
+		{
+			name: "Modified XR that creates new downstream resource shows diff",
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/composition.yaml",
+				"testdata/diff/resources/functions.yaml",
+				"testdata/diff/new-xr.yaml",
+			},
+			inputFile: "testdata/diff/modified-xr.yaml",
+			expectedOutput: `
+~ XNopResource/test-resource
+spec:
+  coolField: modified-value
+
+---
++ XDownstreamResource (new object)
+apiVersion: nop.example.org/v1alpha1
+kind: XDownstreamResource
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: nop-resource
+  generateName: test-resource-
+  labels:
+    crossplane.io/composite: test-resource
+  name: test-resource
+  ownerReferences:
+  - apiVersion: diff.example.org/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: XNopResource
+    name: test-resource
+    uid: ""
+spec:
+  forProvider:
+    configData: modified-value
+
+---
+`,
+			expectedError: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup a brand new test environment for each test case
+			testEnv := &envtest.Environment{
+				CRDDirectoryPaths: []string{
+					filepath.Join("..", "..", "..", "..", "cluster", "crds"),
+					filepath.Join("testdata", "diff", "crds"),
+				},
+				ErrorIfCRDPathMissing: false,
+				Scheme:                scheme,
+			}
+
+			// Start the test environment
+			cfg, err := testEnv.Start()
+			if err != nil {
+				t.Fatalf("failed to start test environment: %v", err)
+			}
+
+			// Ensure we clean up at the end of the test
+			defer func() {
+				if err := testEnv.Stop(); err != nil {
+					t.Logf("failed to stop test environment: %v", err)
+				}
+			}()
+
+			// Create a controller-runtime client for setup operations
+			k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
+			if err != nil {
+				t.Fatalf("failed to create client: %v", err)
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			// Setup resources if needed
-			if tt.setupResources != nil {
-				if err := tt.setupResources(ctx, k8sClient); err != nil {
-					t.Fatalf("failed to setup resources: %v", err)
-				}
+			// Apply the setup resources
+			if err := applyResourcesFromFiles(ctx, k8sClient, tt.setupFiles); err != nil {
+				t.Fatalf("failed to setup resources: %v", err)
 			}
 
 			// Set up the test file
