@@ -13,7 +13,6 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	gdiff "github.com/go-git/go-git/v5/utils/diff"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -407,10 +406,43 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 		return "", errors.New("desired object is not unstructured")
 	}
 
+	// Fetch current object from cluster
+	current, isNewObject, err := p.fetchCurrentObject(ctx, composite, desiredUnstr)
+	if err != nil {
+		return "", err
+	}
+
+	// Clean up objects for comparison (remove server-side fields)
+	cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
+
+	// For new objects, we don't have a current object to compare against
+	if isNewObject {
+		// Instead of calculating a diff, just format the entire desired object as new
+		desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot marshal desired object to YAML")
+		}
+		return fmt.Sprintf("+ %s (new object)\n%s", desiredUnstr.GetKind(), string(desiredYAML)), nil
+	}
+
+	// For existing objects, clean up the current object and perform diff
+	cleanCurrent := current.DeepCopy() //cleanupForDiff(current.DeepCopy())
+
+	// If objects are identical after cleanup, no changes to display
+	if reflect.DeepEqual(cleanDesired.Object, cleanCurrent.Object) {
+		return "", nil
+	}
+
+	return p.generateDiff(cleanCurrent, cleanDesired, desiredUnstr.GetKind(), desiredUnstr.GetName())
+}
+
+// fetchCurrentObject retrieves the current state of the object from the cluster
+// It returns the current object, a boolean indicating if it's a new object, and any error
+func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite string, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
 	// Get the GroupVersionKind and name/namespace for lookup
-	gvk := desiredUnstr.GroupVersionKind()
-	name := desiredUnstr.GetName()
-	namespace := desiredUnstr.GetNamespace()
+	gvk := desired.GroupVersionKind()
+	name := desired.GetName()
+	namespace := desired.GetNamespace()
 
 	var current *unstructured.Unstructured
 	var err error
@@ -432,10 +464,10 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 		// Get the current object from the cluster using ClusterClient
 		currents, err := p.client.GetResourcesByLabel(ctx, namespace, gvr, sel)
 		if err != nil {
-			return "", errors.Wrap(err, "cannot get current object")
+			return nil, false, errors.Wrap(err, "cannot get current object")
 		}
 		if len(currents) > 1 {
-			return "", errors.New(fmt.Sprintf("more than one matching resource found for %s/%s", gvk.Kind, name))
+			return nil, false, errors.New(fmt.Sprintf("more than one matching resource found for %s/%s", gvk.Kind, name))
 		}
 
 		if len(currents) == 1 {
@@ -449,38 +481,22 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 		if apierrors.IsNotFound(err) {
 			isNewObject = true
 		} else if err != nil {
-			return "", errors.Wrap(err, "cannot get current object")
+			return nil, false, errors.Wrap(err, "cannot get current object")
 		}
 	}
 
-	// Clean up objects for comparison (remove server-side fields)
-	cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
+	return current, isNewObject, nil
+}
 
-	// For new objects, we don't have a current object to compare against
-	if isNewObject {
-		// Instead of calculating a diff, just format the entire desired object as new
-		desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal desired object to YAML")
-		}
-		return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, string(desiredYAML)), nil
-	}
-
-	// For existing objects, clean up the current object and perform diff
-	cleanCurrent := cleanupForDiff(current.DeepCopy())
-
-	// If objects are identical after cleanup, no changes to display
-	if reflect.DeepEqual(cleanDesired.Object, cleanCurrent.Object) {
-		return "", nil
-	}
-
+// generateDiff produces a formatted diff between two unstructured objects
+func (p *DefaultDiffProcessor) generateDiff(current, desired *unstructured.Unstructured, kind, name string) (string, error) {
 	// Convert both objects to YAML strings for diffing
-	currentYAML, err := sigsyaml.Marshal(cleanCurrent.Object)
+	currentYAML, err := sigsyaml.Marshal(current.Object)
 	if err != nil {
 		return "", errors.Wrap(err, "cannot marshal current object to YAML")
 	}
 
-	desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
+	desiredYAML, err := sigsyaml.Marshal(desired.Object)
 	if err != nil {
 		return "", errors.Wrap(err, "cannot marshal desired object to YAML")
 	}
@@ -502,29 +518,7 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 	}
 
 	// Format the output with a resource header
-	return fmt.Sprintf("~ %s/%s\n%s", gvk.Kind, name, diffResult), nil
-}
-
-// renderNewObject creates a diff for a completely new object using go-git/diff
-func renderNewObject(desiredUnstr *unstructured.Unstructured, gvk schema.GroupVersionKind) (string, error) {
-	// Clean up the object to remove unnecessary fields
-	cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
-
-	// Marshal the cleaned object to YAML
-	desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot marshal desired object to YAML")
-	}
-
-	// For a new object, we're comparing from empty to the full object
-	emptyYAML := ""
-
-	// Generate diff between empty (non-existent) and the new object
-	diffResult := gdiff.Do(emptyYAML, string(desiredYAML))
-
-	// Format with header, maintain the "(new object)" indicator to make it clear
-	// this is an entirely new resource
-	return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, diffResult), nil
+	return fmt.Sprintf("~ %s/%s\n%s", kind, name, diffResult), nil
 }
 
 // cleanupForDiff removes fields that shouldn't be included in the diff
