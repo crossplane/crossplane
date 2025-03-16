@@ -13,6 +13,8 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
+	gdiff "github.com/go-git/go-git/v5/utils/diff"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,7 +26,6 @@ import (
 	"k8s.io/client-go/rest"
 	"reflect"
 	sigsyaml "sigs.k8s.io/yaml" // For Marshal/Unmarshal functionality (aliased to avoid conflicts)
-
 	"strings"
 )
 
@@ -398,7 +399,7 @@ func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]*unstruct
 }
 
 // CalculateDiff calculates the difference between desired state and current state
-// using the ClusterClient's DryRunApply method
+// using the ClusterClient's DryRunApply method and a git-based diff to produce GNU-format diffs
 func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite string, desired runtime.Object) (string, error) {
 	// Convert desired to unstructured
 	desiredUnstr, ok := desired.(*unstructured.Unstructured)
@@ -413,7 +414,10 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 
 	var current *unstructured.Unstructured
 	var err error
+	isNewObject := false
+
 	if composite != "" {
+		// For composed resources, use the label selector approach
 		sel := metav1.LabelSelector{
 			MatchLabels: map[string]string{
 				"crossplane.io/composite": composite,
@@ -426,7 +430,6 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 		}
 
 		// Get the current object from the cluster using ClusterClient
-		// TODO:  the name is not actually known (it's generated nondeterministically); we need to use labels
 		currents, err := p.client.GetResourcesByLabel(ctx, namespace, gvr, sel)
 		if err != nil {
 			return "", errors.Wrap(err, "cannot get current object")
@@ -437,209 +440,91 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 
 		if len(currents) == 1 {
 			current = currents[0]
+		} else {
+			isNewObject = true
 		}
-
-		if current == nil {
-			// no error, but no current object found
-			// new object!
-			return renderNewObject(desiredUnstr, gvk)
-		}
-
 	} else {
-		// Get the current object from the cluster using ClusterClient
+		// For XRs, use direct lookup by name
 		current, err = p.client.GetResource(ctx, gvk, namespace, name)
+		if apierrors.IsNotFound(err) {
+			isNewObject = true
+		} else if err != nil {
+			return "", errors.Wrap(err, "cannot get current object")
+		}
 	}
 
-	// If not found, show the entire object as new
-	if apierrors.IsNotFound(err) {
-		return renderNewObject(desiredUnstr, gvk)
-	} else if err != nil {
-		return "", errors.Wrap(err, "cannot get current object")
+	// Clean up objects for comparison (remove server-side fields)
+	cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
+
+	// For new objects, we don't have a current object to compare against
+	if isNewObject {
+		// Instead of calculating a diff, just format the entire desired object as new
+		desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot marshal desired object to YAML")
+		}
+		return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, string(desiredYAML)), nil
 	}
 
-	// Use server-side apply dry run to calculate changes
-	// Create a copy of the desired object to use for the dry run
-	dryRunObj := desiredUnstr.DeepCopy()
+	// For existing objects, clean up the current object and perform diff
+	cleanCurrent := cleanupForDiff(current.DeepCopy())
 
-	// Set the resource version from the current object for conflict detection
-	dryRunObj.SetResourceVersion(current.GetResourceVersion())
-
-	// put the owner refs from the current version into the dry run object
-	dryRunObj.SetOwnerReferences(current.GetOwnerReferences())
-
-	// Perform a dry-run server-side apply using ClusterClient
-	dryRunResult, err := p.client.DryRunApply(ctx, dryRunObj)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot perform dry-run apply")
-	}
-
-	// Calculate the structural differences between current and dry run result
-	// using our new YAML-based diff approach
-	diff, err := calculateStructuralDiff(current, dryRunResult)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot calculate structural diff")
-	}
-
-	// If there are no changes, return empty string
-	if diff == "" {
+	// If objects are identical after cleanup, no changes to display
+	if reflect.DeepEqual(cleanDesired.Object, cleanCurrent.Object) {
 		return "", nil
 	}
 
-	// Format the diff
-	return fmt.Sprintf("~ %s/%s\n%s", gvk.Kind, name, diff), nil
-}
+	// Convert both objects to YAML strings for diffing
+	currentYAML, err := sigsyaml.Marshal(cleanCurrent.Object)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot marshal current object to YAML")
+	}
 
-func renderNewObject(desiredUnstr *unstructured.Unstructured, gvk schema.GroupVersionKind) (string, error) {
-	yamlBytes, err := sigsyaml.Marshal(desiredUnstr.Object)
+	desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
 	if err != nil {
 		return "", errors.Wrap(err, "cannot marshal desired object to YAML")
 	}
-	return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, string(yamlBytes)), nil
+
+	// Create diff between the current and desired YAML
+	patch := diffmatchpatch.New()
+
+	chars1, chars2, array := patch.DiffLinesToChars(string(currentYAML), string(desiredYAML))
+
+	// Compute diff on line-encoded text
+	lineDiffs2 := patch.DiffMain(chars1, chars2, false)
+
+	// Convert line-encoded diff back to text
+	lineDiffs3 := patch.DiffCharsToLines(lineDiffs2, array)
+	diffResult := patch.DiffPrettyText(lineDiffs3)
+
+	if diffResult == "" {
+		return "", nil
+	}
+
+	// Format the output with a resource header
+	return fmt.Sprintf("~ %s/%s\n%s", gvk.Kind, name, diffResult), nil
 }
 
-// calculateStructuralDiff compares current and desired objects and returns a formatted diff
-func calculateStructuralDiff(current, desired *unstructured.Unstructured) (string, error) {
-	// Remove fields we don't want to include in the diff
-	current = cleanupForDiff(current.DeepCopy())
-	desired = cleanupForDiff(desired.DeepCopy())
+// renderNewObject creates a diff for a completely new object using go-git/diff
+func renderNewObject(desiredUnstr *unstructured.Unstructured, gvk schema.GroupVersionKind) (string, error) {
+	// Clean up the object to remove unnecessary fields
+	cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
 
-	// If they're identical, there's no diff
-	if reflect.DeepEqual(current.Object, desired.Object) {
-		return "", nil
-	}
-
-	// Calculate the difference between the objects directly
-	diffMap := buildDiffMap(current.Object, desired.Object)
-	if len(diffMap) == 0 {
-		return "", nil
-	}
-
-	// Convert the diff to YAML
-	yamlBytes, err := sigsyaml.Marshal(diffMap)
+	// Marshal the cleaned object to YAML
+	desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
 	if err != nil {
-		return "", errors.Wrap(err, "cannot marshal diff to YAML")
+		return "", errors.Wrap(err, "cannot marshal desired object to YAML")
 	}
 
-	return string(yamlBytes), nil
-}
+	// For a new object, we're comparing from empty to the full object
+	emptyYAML := ""
 
-// buildDiffMap creates a map of differences between current and desired state
-// It recursively compares objects and builds a map containing only changed fields
-func buildDiffMap(current, desired map[string]interface{}) map[string]interface{} {
-	diffMap := make(map[string]interface{})
+	// Generate diff between empty (non-existent) and the new object
+	diffResult := gdiff.Do(emptyYAML, string(desiredYAML))
 
-	// Process all keys in desired
-	for key, desiredValue := range desired {
-		// Skip metadata.resourceVersion and other server-side fields
-		if key == "status" {
-			continue
-		}
-
-		currentValue, exists := current[key]
-
-		// If the key doesn't exist in current, or values are different
-		if !exists || !reflect.DeepEqual(currentValue, desiredValue) {
-			// Recursively handle nested maps
-			if desiredMap, isDesiredMap := desiredValue.(map[string]interface{}); isDesiredMap {
-				if currentMap, isCurrentMap := currentValue.(map[string]interface{}); isCurrentMap {
-					// Both are maps, recursively compute diff
-					nestedDiff := buildDiffMap(currentMap, desiredMap)
-					if len(nestedDiff) > 0 {
-						diffMap[key] = nestedDiff
-					}
-					continue
-				}
-			}
-
-			// Handle arrays specially to preserve YAML list notation
-			if desiredArray, isDesiredArray := desiredValue.([]interface{}); isDesiredArray {
-				if currentArray, isCurrentArray := currentValue.([]interface{}); isCurrentArray {
-					arrayDiff := buildArrayDiff(currentArray, desiredArray)
-					if arrayDiff != nil {
-						diffMap[key] = arrayDiff
-					}
-					continue
-				}
-			}
-
-			// For any other type, include the value if it's different
-			diffMap[key] = desiredValue
-		}
-	}
-
-	return diffMap
-}
-
-// buildArrayDiff compares arrays and returns either nil (if no differences)
-// or a slice containing the desired array elements that differ from current
-func buildArrayDiff(current, desired []interface{}) []interface{} {
-	hasDifferences := false
-	result := make([]interface{}, len(desired))
-
-	// Compare elements up to the shorter length
-	minLen := len(current)
-	if len(desired) < minLen {
-		minLen = len(desired)
-	}
-
-	for i := 0; i < minLen; i++ {
-		currentItem := current[i]
-		desiredItem := desired[i]
-
-		if !reflect.DeepEqual(currentItem, desiredItem) {
-			// Recursively handle maps in arrays
-			if desiredMap, isDesiredMap := desiredItem.(map[string]interface{}); isDesiredMap {
-				if currentMap, isCurrentMap := currentItem.(map[string]interface{}); isCurrentMap {
-					// Both are maps, recursively compute diff
-					nestedDiff := buildDiffMap(currentMap, desiredMap)
-					if len(nestedDiff) > 0 {
-						result[i] = nestedDiff
-						hasDifferences = true
-					} else {
-						result[i] = desiredItem // No changes, use original
-					}
-					continue
-				}
-			}
-
-			// Handle nested arrays
-			if desiredArray, isDesiredArray := desiredItem.([]interface{}); isDesiredArray {
-				if currentArray, isCurrentArray := currentItem.([]interface{}); isCurrentArray {
-					nestedArrayDiff := buildArrayDiff(currentArray, desiredArray)
-					if nestedArrayDiff != nil {
-						result[i] = nestedArrayDiff
-						hasDifferences = true
-					} else {
-						result[i] = desiredItem // No changes, use original
-					}
-					continue
-				}
-			}
-
-			// For other types, include the item if different
-			result[i] = desiredItem
-			hasDifferences = true
-		} else {
-			// No difference, copy the item
-			result[i] = desiredItem
-		}
-	}
-
-	// If desired array is longer, include additional elements
-	for i := minLen; i < len(desired); i++ {
-		result[i] = desired[i]
-		hasDifferences = true
-	}
-
-	// If current array is longer, we consider this a difference
-	if len(current) > len(desired) {
-		hasDifferences = true
-	}
-
-	if hasDifferences {
-		return result
-	}
-	return nil
+	// Format with header, maintain the "(new object)" indicator to make it clear
+	// this is an entirely new resource
+	return fmt.Sprintf("+ %s (new object)\n%s", gvk.Kind, diffResult), nil
 }
 
 // cleanupForDiff removes fields that shouldn't be included in the diff
