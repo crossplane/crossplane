@@ -452,15 +452,16 @@ status:
     type: Ready
 
 ---
-+ DownstreamResource (new object)
++ XDownstreamResource (new object)
 apiVersion: nop.example.org/v1alpha1
-kind: DownstreamResource
+kind: XDownstreamResource
 metadata:
   annotations:
     crossplane.io/composition-resource-name: nop-resource
   generateName: test-resource-
   labels:
     crossplane.io/composite: test-resource
+  name: test-resource
   ownerReferences:
   - apiVersion: diff.example.org/v1alpha1
     blockOwnerDeletion: true
@@ -484,6 +485,8 @@ spec:
 					"testdata/diff/resources/xrd.yaml",
 					"testdata/diff/resources/composition.yaml",
 					"testdata/diff/resources/functions.yaml",
+					// put an existing XR in the cluster to diff against
+					"testdata/diff/resources/existing-downstream-resource.yaml",
 					"testdata/diff/new-xr.yaml",
 				})
 			},
@@ -492,7 +495,33 @@ spec:
 ~ XNopResource/test-resource
 spec:
   coolField: modified-value
-~ NopResource should also have a changed coolField
+`,
+			expectedError: false,
+		},
+		{
+			name: "Modified XR that creates new downstream resource shows diff",
+			setupResources: func(ctx context.Context, c client.Client) error {
+				// Apply the XRD and Composition from YAML files
+				return applyResourcesFromFiles(ctx, c, []string{
+					"testdata/diff/resources/xrd.yaml",
+					"testdata/diff/resources/composition.yaml",
+					"testdata/diff/resources/functions.yaml",
+					"testdata/diff/new-xr.yaml",
+				})
+			},
+			inputFile: "testdata/diff/modified-xr.yaml",
+			expectedOutput: `
+~ XNopResource/test-resource
+spec:
+  coolField: modified-value
+
+---
+~ XDownstreamResource/test-resource
+spec:
+  forProvider:
+    configData: modified-value
+
+---
 `,
 			expectedError: false,
 		},

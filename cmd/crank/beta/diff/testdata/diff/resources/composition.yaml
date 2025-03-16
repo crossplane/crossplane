@@ -10,20 +10,22 @@ spec:
   pipeline:
     - step: generate-resources
       functionRef:
-        name: function-patch-and-transform
+        name: function-go-templating
       input:
-        apiVersion: pt.fn.crossplane.io/v1beta1
-        kind: Resources
-        resources:
-          - name: nop-resource
-            base:
-              apiVersion: nop.example.org/v1alpha1
-              kind: DownstreamResource
-              metadata:
-                name: "{{ .observed.composite.metadata.name }}"
-              spec:
-                forProvider:
-                  configData: "{{ .observed.composite.spec.coolField }}"
+        apiVersion: template.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: nop.example.org/v1alpha1
+            kind: XDownstreamResource
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: nop-resource
+            spec:
+              forProvider:
+                configData: {{ .observed.composite.resource.spec.coolField }}
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: function-auto-ready

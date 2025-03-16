@@ -376,7 +376,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 	}
 }
 
-func TestClusterClient_GetExtraResources(t *testing.T) {
+func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = pkgv1.AddToScheme(scheme)
 	_ = apiextensionsv1.AddToScheme(scheme)
@@ -539,8 +539,10 @@ func TestClusterClient_GetExtraResources(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errors.New("list error"), "cannot list resources for %s",
-					schema.GroupVersionResource{Group: "example.org", Version: "v1", Resource: "resources"}),
+				err: errors.Wrap(errors.Wrapf(errors.New("list error"),
+					"cannot list resources for '%s' matching '%s'",
+					schema.GroupVersionResource{Group: "example.org", Version: "v1", Resource: "resources"}, "app=test"),
+					"cannot get all resources"),
 			},
 		},
 	}
@@ -555,23 +557,23 @@ func TestClusterClient_GetExtraResources(t *testing.T) {
 
 			if tc.want.err != nil {
 				if err == nil {
-					t.Errorf("\n%s\nGetExtraResources(...): expected error but got none", tc.reason)
+					t.Errorf("\n%s\nGetAllResourcesByLabels(...): expected error but got none", tc.reason)
 					return
 				}
 
 				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nGetExtraResources(...): -want error, +got error:\n%s", tc.reason, diff)
+					t.Errorf("\n%s\nGetAllResourcesByLabels(...): -want error, +got error:\n%s", tc.reason, diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nGetExtraResources(...): unexpected error: %v", tc.reason, err)
+				t.Errorf("\n%s\nGetAllResourcesByLabels(...): unexpected error: %v", tc.reason, err)
 				return
 			}
 
 			if diff := cmp.Diff(len(tc.want.resources), len(got)); diff != "" {
-				t.Errorf("\n%s\nGetExtraResources(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nGetAllResourcesByLabels(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
 			}
 
 			// Just comparing lengths isn't enough since we want to make sure the right resources were returned
@@ -585,7 +587,7 @@ func TestClusterClient_GetExtraResources(t *testing.T) {
 				for _, gotRes := range got {
 					name := gotRes.GetName()
 					if !wantResources[name] {
-						t.Errorf("\n%s\nGetExtraResources(...): unexpected resource: %s", tc.reason, name)
+						t.Errorf("\n%s\nGetAllResourcesByLabels(...): unexpected resource: %s", tc.reason, name)
 					}
 				}
 			}
@@ -1594,8 +1596,8 @@ func (m *MockDryRunClient) FindMatchingComposition(*unstructured.Unstructured) (
 	return nil, errors.New("not implemented")
 }
 
-// GetExtraResources implements ClusterClient
-func (m *MockDryRunClient) GetExtraResources(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
+// GetAllResourcesByLabels implements ClusterClient
+func (m *MockDryRunClient) GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]unstructured.Unstructured, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -1773,6 +1775,404 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			// For successful cases, compare results
 			if diff := cmp.Diff(tc.want.result, got); diff != "" {
 				t.Errorf("\n%s\nDryRunApply(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestClusterClient_GetResourcesByLabel(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = pkgv1.AddToScheme(scheme)
+	_ = apiextensionsv1.AddToScheme(scheme)
+
+	type args struct {
+		ctx       context.Context
+		namespace string
+		gvr       schema.GroupVersionResource
+		selector  metav1.LabelSelector
+	}
+
+	type want struct {
+		resources []*unstructured.Unstructured
+		err       error
+	}
+
+	cases := map[string]struct {
+		reason string
+		setup  func() dynamic.Interface
+		args   args
+		want   want
+	}{
+		"ListError": {
+			reason: "Should propagate errors from the Kubernetes API",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
+					map[schema.GroupVersionResource]string{
+						{Group: "example.org", Version: "v1", Resource: "resources"}: "ResourceList",
+					})
+				dc.Fake.PrependReactor("list", "resources", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("list error")
+				})
+				return dc
+			},
+			args: args{
+				ctx:       context.Background(),
+				namespace: "test-namespace",
+				gvr: schema.GroupVersionResource{
+					Group:    "example.org",
+					Version:  "v1",
+					Resource: "resources",
+				},
+				selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "test"},
+				},
+			},
+			want: want{
+				resources: nil,
+				err:       errors.New("cannot list resources for 'example.org/v1, Resource=resources' matching 'app=test': list error"),
+			},
+		},
+		"NoMatchingResources": {
+			reason: "Should return empty list when no resources match selector",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
+					map[schema.GroupVersionResource]string{
+						{Group: "example.org", Version: "v1", Resource: "resources"}: "ResourceList",
+					})
+				return dc
+			},
+			args: args{
+				ctx:       context.Background(),
+				namespace: "test-namespace",
+				gvr: schema.GroupVersionResource{
+					Group:    "example.org",
+					Version:  "v1",
+					Resource: "resources",
+				},
+				selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "test"},
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{},
+				err:       nil,
+			},
+		},
+		"MatchingResources": {
+			reason: "Should return resources matching label selector",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "matched-resource-1",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app": "test",
+									"env": "dev",
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "matched-resource-2",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app": "test",
+									"env": "prod",
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "unmatched-resource",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app": "other",
+								},
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx:       context.Background(),
+				namespace: "test-namespace",
+				gvr: schema.GroupVersionResource{
+					Group:    "example.org",
+					Version:  "v1",
+					Resource: "resources",
+				},
+				selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "test"},
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "matched-resource-1",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app": "test",
+									"env": "dev",
+								},
+							},
+						},
+					},
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "matched-resource-2",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app": "test",
+									"env": "prod",
+								},
+							},
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"ClusterScopedResources": {
+			reason: "Should return cluster-scoped resources when namespace is empty",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ClusterResource",
+							"metadata": map[string]interface{}{
+								"name": "matched-cluster-resource-1",
+								"labels": map[string]interface{}{
+									"scope": "cluster",
+									"type":  "config",
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ClusterResource",
+							"metadata": map[string]interface{}{
+								"name": "matched-cluster-resource-2",
+								"labels": map[string]interface{}{
+									"scope": "cluster",
+									"type":  "config",
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ClusterResource",
+							"metadata": map[string]interface{}{
+								"name": "unmatched-cluster-resource",
+								"labels": map[string]interface{}{
+									"scope": "cluster",
+									"type":  "network",
+								},
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx:       context.Background(),
+				namespace: "", // Empty namespace for cluster-scoped resources
+				gvr: schema.GroupVersionResource{
+					Group:    "example.org",
+					Version:  "v1",
+					Resource: "clusterresources",
+				},
+				selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"scope": "cluster",
+						"type":  "config",
+					},
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ClusterResource",
+							"metadata": map[string]interface{}{
+								"name": "matched-cluster-resource-1",
+								"labels": map[string]interface{}{
+									"scope": "cluster",
+									"type":  "config",
+								},
+							},
+						},
+					},
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "ClusterResource",
+							"metadata": map[string]interface{}{
+								"name": "matched-cluster-resource-2",
+								"labels": map[string]interface{}{
+									"scope": "cluster",
+									"type":  "config",
+								},
+							},
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"MultipleLabelSelectors": {
+			reason: "Should correctly filter resources with multiple label selectors",
+			setup: func() dynamic.Interface {
+				objects := []runtime.Object{
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "resource-1",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app":  "test",
+									"env":  "dev",
+									"tier": "frontend",
+								},
+							},
+						},
+					},
+					&unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "resource-2",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app":  "test",
+									"env":  "prod",
+									"tier": "backend",
+								},
+							},
+						},
+					},
+				}
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx:       context.Background(),
+				namespace: "test-namespace",
+				gvr: schema.GroupVersionResource{
+					Group:    "example.org",
+					Version:  "v1",
+					Resource: "resources",
+				},
+				selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "test",
+						"env": "dev",
+					},
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "Resource",
+							"metadata": map[string]interface{}{
+								"name":      "resource-1",
+								"namespace": "test-namespace",
+								"labels": map[string]interface{}{
+									"app":  "test",
+									"env":  "dev",
+									"tier": "frontend",
+								},
+							},
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &DefaultClusterClient{
+				dynamicClient: tc.setup(),
+			}
+
+			got, err := c.GetResourcesByLabel(tc.args.ctx, tc.args.namespace, tc.args.gvr, tc.args.selector)
+
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nGetResourcesByLabel(...): expected error but got none", tc.reason)
+					return
+				}
+
+				// Check that the error contains the expected message
+				if !strings.Contains(err.Error(), tc.want.err.Error()) {
+					t.Errorf("\n%s\nGetResourcesByLabel(...): expected error containing %q, got: %v",
+						tc.reason, tc.want.err.Error(), err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nGetResourcesByLabel(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			if diff := cmp.Diff(len(tc.want.resources), len(got)); diff != "" {
+				t.Errorf("\n%s\nGetResourcesByLabel(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
+			}
+
+			// Compare resources by name to handle ordering differences
+			wantResources := make(map[string]bool)
+			for _, res := range tc.want.resources {
+				wantResources[res.GetName()] = true
+			}
+
+			for _, gotRes := range got {
+				if !wantResources[gotRes.GetName()] {
+					t.Errorf("\n%s\nGetResourcesByLabel(...): unexpected resource: %s", tc.reason, gotRes.GetName())
+				}
+			}
+
+			// Also check if any expected resources are missing
+			gotResources := make(map[string]bool)
+			for _, res := range got {
+				gotResources[res.GetName()] = true
+			}
+
+			for _, wantRes := range tc.want.resources {
+				if !gotResources[wantRes.GetName()] {
+					t.Errorf("\n%s\nGetResourcesByLabel(...): missing expected resource: %s", tc.reason, wantRes.GetName())
+				}
 			}
 		})
 	}

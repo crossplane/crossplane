@@ -464,6 +464,9 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 	// Set the resource version from the current object for conflict detection
 	dryRunObj.SetResourceVersion(current.GetResourceVersion())
 
+	// put the owner refs from the current version into the dry run object
+	dryRunObj.SetOwnerReferences(current.GetOwnerReferences())
+
 	// Perform a dry-run server-side apply using ClusterClient
 	dryRunResult, err := p.client.DryRunApply(ctx, dryRunObj)
 	if err != nil {

@@ -1452,7 +1452,7 @@ spec:
 				config: &rest.Config{},
 			}
 
-			diff, err := processor.CalculateDiff(tc.args.ctx, tc.args.desired)
+			diff, err := processor.CalculateDiff(tc.args.ctx, "", tc.args.desired)
 
 			// Check if error matches expectation
 			if tc.want.err != nil {

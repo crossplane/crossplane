@@ -111,7 +111,7 @@ func (c *DefaultClusterClient) GetAllResourcesByLabels(ctx context.Context, gvrs
 
 		res, err := c.GetResourcesByLabel(ctx, "", gvr, sel)
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot list resources for %s", gvr)
+			return nil, errors.Wrapf(err, "cannot get all resources")
 		}
 
 		resources = append(resources, res...)
@@ -131,7 +131,7 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 
 	list, err := c.dynamicClient.Resource(gvr).Namespace(ns).List(ctx, opts)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot list resources for %s", gvr)
+		return nil, errors.Wrapf(err, "cannot list resources for '%s' matching '%s'", gvr, opts.LabelSelector)
 	}
 
 	for _, item := range list.Items {
