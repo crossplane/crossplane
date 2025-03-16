@@ -112,6 +112,9 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 	GetSkipDependencyResolution() *bool
 	SetSkipDependencyResolution(skip *bool)
 
+	GetCommonAnnotations() map[string]string
+	SetCommonAnnotations(a map[string]string)
+
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
 }
@@ -241,6 +244,16 @@ func (p *Provider) SetCurrentIdentifier(s string) {
 	p.Status.CurrentIdentifier = s
 }
 
+// GetCommonAnnotations of this Provider.
+func (p *Provider) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this Provider.
+func (p *Provider) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
+}
+
 // GetCommonLabels of this Provider.
 func (p *Provider) GetCommonLabels() map[string]string {
 	return p.Spec.CommonLabels
@@ -366,6 +379,16 @@ func (p *Configuration) SetCurrentIdentifier(s string) {
 	p.Status.CurrentIdentifier = s
 }
 
+// GetCommonAnnotations of this Configuration.
+func (p *Configuration) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this Configuration.
+func (p *Configuration) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
+}
+
 // GetCommonLabels of this Configuration.
 func (p *Configuration) GetCommonLabels() map[string]string {
 	return p.Spec.CommonLabels
@@ -429,6 +452,9 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
+
+	GetCommonAnnotations() map[string]string
+	SetCommonAnnotations(a map[string]string)
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
@@ -581,6 +607,16 @@ func (p *ProviderRevision) SetTLSClientSecretName(s *string) {
 	p.Spec.TLSClientSecretName = s
 }
 
+// GetCommonAnnotations of this ProviderRevision.
+func (p *ProviderRevision) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this ProviderRevision.
+func (p *ProviderRevision) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
+}
+
 // GetCommonLabels of this ProviderRevision.
 func (p *ProviderRevision) GetCommonLabels() map[string]string {
 	return p.Spec.CommonLabels
@@ -696,6 +732,16 @@ func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
+}
+
+// GetCommonAnnotations of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetCommonAnnotations() map[string]string {
+	return p.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetCommonAnnotations(a map[string]string) {
+	p.Spec.CommonAnnotations = a
 }
 
 // GetCommonLabels of this ConfigurationRevision.
@@ -884,9 +930,19 @@ func (f *Function) SetCurrentIdentifier(s string) {
 	f.Status.CurrentIdentifier = s
 }
 
+// GetCommonAnnotations of this Function.
+func (f *Function) GetCommonAnnotations() map[string]string {
+	return f.Spec.CommonAnnotations
+}
+
 // GetCommonLabels of this Function.
 func (f *Function) GetCommonLabels() map[string]string {
 	return f.Spec.CommonLabels
+}
+
+// SetCommonAnnotations of this Function.
+func (f *Function) SetCommonAnnotations(a map[string]string) {
+	f.Spec.CommonAnnotations = a
 }
 
 // SetCommonLabels of this Function.
@@ -1049,6 +1105,16 @@ func (r *FunctionRevision) GetTLSClientSecretName() *string {
 // SetTLSClientSecretName of this FunctionRevision.
 func (r *FunctionRevision) SetTLSClientSecretName(s *string) {
 	r.Spec.TLSClientSecretName = s
+}
+
+// GetCommonAnnotations of this FunctionRevision.
+func (r *FunctionRevision) GetCommonAnnotations() map[string]string {
+	return r.Spec.CommonAnnotations
+}
+
+// SetCommonAnnotations of this FunctionRevision.
+func (r *FunctionRevision) SetCommonAnnotations(a map[string]string) {
+	r.Spec.CommonAnnotations = a
 }
 
 // GetCommonLabels of this FunctionRevision.
