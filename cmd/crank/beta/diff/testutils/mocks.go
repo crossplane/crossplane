@@ -314,6 +314,7 @@ func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstr
 
 // MockDiffProcessor implements the DiffProcessor interface for testing
 type MockDiffProcessor struct {
+	// Function fields for mocking behavior
 	InitializeFn      func(writer io.Writer, ctx context.Context) error
 	ProcessAllFn      func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
 	ProcessResourceFn func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error

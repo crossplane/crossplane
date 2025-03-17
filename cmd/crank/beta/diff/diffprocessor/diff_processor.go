@@ -16,6 +16,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/yaml" // For NewYAMLOrJSONDecoder
-	"k8s.io/client-go/rest"
+	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
 )
 
@@ -39,39 +40,41 @@ type DiffProcessor interface {
 
 // DefaultDiffProcessor handles the processing of resources for diffing.
 type DefaultDiffProcessor struct {
-	client    cc.ClusterClient
-	config    *rest.Config
-	namespace string
-	renderFn  RenderFunc
-	log       logging.Logger
-	manager   *validate.Manager
-	crds      []*extv1.CustomResourceDefinition
+	client cc.ClusterClient
+	config ProcessorConfig
+	crds   []*extv1.CustomResourceDefinition
 }
 
-// NewDiffProcessor creates a new DefaultDiffProcessor
-// If renderFn is nil, it defaults to render.Render
-func NewDiffProcessor(config *rest.Config, client cc.ClusterClient, namespace string, renderFn RenderFunc, logger logging.Logger) (DiffProcessor, error) {
-	if config == nil {
-		return nil, errors.New("config cannot be nil")
-	}
+// NewDiffProcessor creates a new DefaultDiffProcessor with the provided options
+// todo probably take a pointer for client
+func NewDiffProcessor(client cc.ClusterClient, options ...DiffProcessorOption) (DiffProcessor, error) {
+
 	if client == nil {
 		return nil, errors.New("client cannot be nil")
 	}
 
-	// Default to the standard Render function if none provided
-	if renderFn == nil {
-		renderFn = render.Render
+	// Create default configuration
+	config := ProcessorConfig{
+		Namespace:  "default",
+		Colorize:   true,
+		Compact:    false,
+		Logger:     logging.NewNopLogger(),
+		RenderFunc: render.Render,
 	}
-	if logger == nil {
-		logger = logging.NewNopLogger()
+
+	// Apply all provided options
+	for _, option := range options {
+		option(&config)
+	}
+
+	// Validate required fields
+	if config.RestConfig == nil {
+		return nil, errors.New("REST config cannot be nil")
 	}
 
 	return &DefaultDiffProcessor{
-		client:    client,
-		config:    config,
-		namespace: namespace,
-		renderFn:  renderFn,
-		log:       logger,
+		client: client,
+		config: config,
 	}, nil
 }
 
@@ -87,7 +90,6 @@ func (p *DefaultDiffProcessor) Initialize(writer io.Writer, ctx context.Context)
 		return errors.Wrap(err, "cannot convert XRDs to CRDs")
 	}
 
-	// Create a new validation manager
 	p.crds = crds
 
 	return nil
@@ -151,12 +153,12 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		}
 	}
 
-	desired, err := p.renderFn(ctx, p.log, render.Inputs{
+	// Use the render function from the configuration
+	desired, err := p.config.RenderFunc(ctx, p.config.Logger, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,
-		// don't dereference the slice until the last minute
-		ExtraResources: internal.DereferenceSlice(extraResources),
+		ExtraResources:    internal.DereferenceSlice(extraResources),
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot render resources")
@@ -428,10 +430,74 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 		}
 	}
 
-	// TODO:  we need to find all objects, no matter the GVK, that have the composition label
-	// so we can diff removals.  let's use `crossplane beta trace` to help with this.
+	// Get diff options from the processor configuration
+	diffOpts := p.config.GetDiffOptions()
 
-	return GenerateDiff(current, wouldBeResult, desiredUnstr.GetKind(), desiredUnstr.GetName())
+	// Generate diff with the configured options
+	diff, err := GenerateDiffWithOptions(current, wouldBeResult, desiredUnstr.GetKind(), desiredUnstr.GetName(), diffOpts)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot generate diff")
+	}
+
+	return diff, nil
+}
+
+// GenerateDiffWithOptions produces a formatted diff between two unstructured objects with specified options
+func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, name string, options DiffOptions) (string, error) {
+	// If the objects are equal, return an empty diff
+	if equality.Semantic.DeepEqual(current, desired) {
+		return "", nil
+	}
+
+	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
+		clean := cleanupForDiff(obj.DeepCopy())
+
+		// Convert both objects to YAML strings for diffing
+		cleanYAML, err := sigsyaml.Marshal(clean.Object)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot marshal current object to YAML")
+		}
+
+		return string(cleanYAML), nil
+	}
+
+	currentStr := ""
+	var err error
+	if current != nil {
+		currentStr, err = cleanAndRender(current)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	desiredStr, err := cleanAndRender(desired)
+	if err != nil {
+		return "", err
+	}
+
+	// Return an empty diff if content is identical
+	if desiredStr == currentStr {
+		return "", nil
+	}
+
+	// get the line by line diff with the specified options
+	diffResult := GetLineDiff(currentStr, desiredStr, options)
+
+	if diffResult == "" {
+		return "", nil
+	}
+
+	var leadChar string
+
+	switch current {
+	case nil:
+		leadChar = "+++" // Resource does not exist
+	default:
+		leadChar = "~~~" // Resource exists and is changing
+	}
+
+	// Format the output with a resource header
+	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
 }
 
 // makeObjectValid makes sure all OwnerReferences have a valid UID

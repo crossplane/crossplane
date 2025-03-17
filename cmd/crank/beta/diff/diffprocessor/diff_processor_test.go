@@ -6,7 +6,6 @@ import (
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
 	"testing"
 
@@ -149,7 +148,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor that uses our mock client
-			p, _ := NewDiffProcessor(&rest.Config{}, tc.mock, "default", nil, nil)
+			p, _ := NewDiffProcessor(tc.mock, WithRestConfig(&rest.Config{}))
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
@@ -278,7 +277,7 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor with our mock client
-			p, _ := NewDiffProcessor(&rest.Config{}, tc.mock, "default", nil, nil)
+			p, _ := NewDiffProcessor(tc.mock, WithRestConfig(&rest.Config{}))
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
@@ -1292,9 +1291,14 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 				GetResourcesByLabelFn: tt.fields.mockGetResourcesByLabel,
 			}
 
+			config := ProcessorConfig{
+				RestConfig: &rest.Config{},
+				Colorize:   true,
+			}
+
 			p := &DefaultDiffProcessor{
 				client: mockClient,
-				config: &rest.Config{},
+				config: config,
 			}
 
 			diff, err := p.CalculateDiff(tt.args.ctx, tt.args.composite, tt.args.desired)
@@ -1446,7 +1450,7 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor that uses our mock client
-			p, _ := NewDiffProcessor(&rest.Config{}, tc.mock, "default", nil, nil)
+			p, _ := NewDiffProcessor(tc.mock, WithRestConfig(&rest.Config{}))
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
@@ -1473,34 +1477,6 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 			// For success case, we assume no error means happy, because we don't want to expose the crd cache field
 		})
 	}
-}
-
-// normalizeYAML handles normalization of YAML content for consistent comparison
-func normalizeYAML(yamlString string) (string, error) {
-	// Split the diff into header and YAML parts
-	parts := strings.SplitN(yamlString, "\n", 2)
-	if len(parts) < 2 {
-		// No YAML part or not in the expected format, return as is
-		return yamlString, nil
-	}
-
-	header := parts[0]
-	yamlPart := parts[1]
-
-	// Parse YAML to a map
-	var parsed map[string]interface{}
-	if err := sigsyaml.Unmarshal([]byte(yamlPart), &parsed); err != nil {
-		return "", errors.Wrap(err, "cannot parse diff YAML")
-	}
-
-	// Re-serialize with consistent formatting
-	normalized, err := sigsyaml.Marshal(parsed)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot marshal normalized YAML")
-	}
-
-	// Reconstitute the diff
-	return header + "\n" + string(normalized), nil
 }
 
 func normalizeTrailingWhitespace(s string) string {

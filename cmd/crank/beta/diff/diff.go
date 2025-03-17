@@ -36,6 +36,9 @@ type Cmd struct {
 	Namespace string   `default:"crossplane-system" help:"Namespace to compare resources against." name:"namespace" short:"n"`
 	Files     []string `arg:"" optional:"" help:"YAML files containing Crossplane resources to diff."`
 
+	// Configuration options
+	NoColor bool          `help:"Disable colorized output." name:"no-color"`
+	Compact bool          `help:"Show compact diffs with minimal context." name:"compact"`
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
 }
 
@@ -56,14 +59,16 @@ Examples:
   # Show the changes that would result from applying xr.yaml, xr1.yaml, and xr2.yaml in the default 'crossplane-system' namespace.
   cat xr.yaml | crossplane diff xr1.yaml xr2.yaml --
 
-  # Show the changes that would result from applying xr.yaml (via file) in the 'foobar' namespace.
-  crossplane diff xr.yaml -n foobar
+  # Show the changes that would result from applying xr.yaml (via file) in the 'foobar' namespace with no color output.
+  crossplane diff xr.yaml -n foobar --no-color
+
+  # Show the changes in a compact format with minimal context.
+  crossplane diff xr.yaml --compact
 `
 }
 
 // Run executes the diff command.
 func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) error {
-
 	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
 	// in their arguments.  that means we won't get errors for cases where the config isn't asked for.
 
@@ -76,7 +81,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	defer cancel()
 
 	if err := client.Initialize(ctx); err != nil {
-		return errors.Wrap(err, "cannot initialize diff processor")
+		return errors.Wrap(err, "cannot initialize client")
 	}
 
 	loader, err := internal.NewCompositeLoader(c.Files)
@@ -89,7 +94,18 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 		return errors.Wrap(err, "cannot load resources")
 	}
 
-	processor, err := DiffProcessorFactory(config, client, c.Namespace, render.Render, log)
+	// Create the options for the processor
+	options := []dp.DiffProcessorOption{
+		dp.WithRestConfig(config),
+		dp.WithNamespace(c.Namespace),
+		dp.WithLogger(log),
+		dp.WithRenderFunc(render.Render),
+		dp.WithColorize(!c.NoColor),
+		dp.WithCompact(c.Compact),
+	}
+
+	// Create the processor with all options
+	processor, err := DiffProcessorFactory(client, options...)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
@@ -113,7 +129,9 @@ var (
 	}
 
 	// DiffProcessorFactory Factory function for creating a new diff processor
-	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
-		return dp.NewDiffProcessor(config, client, namespace, renderFunc, logger)
+	DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+
+		// Create the processor with all options
+		return dp.NewDiffProcessor(client, opts...)
 	}
 )

@@ -183,7 +183,7 @@ spec:
 	}
 
 	// Use the MockDiffProcessor
-	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
+	DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
 		return &tu.MockDiffProcessor{
 			InitializeFn: func(writer io.Writer, ctx context.Context) error {
 				return nil
@@ -345,7 +345,7 @@ spec:
 	}
 
 	// Use the MockDiffProcessor
-	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
+	DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
 		return &tu.MockDiffProcessor{
 			InitializeFn: func(writer io.Writer, ctx context.Context) error {
 				return nil
@@ -596,11 +596,6 @@ func TestDiffIntegration(t *testing.T) {
 			// Use the real implementation but with our test config
 			ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
 				return cc.NewClusterClient(cfg)
-			}
-
-			// Keep the real DiffProcessor
-			DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
-				return dp.NewDiffProcessor(config, client, namespace, renderFunc, logger)
 			}
 
 			// Create a Kong context with stdout
