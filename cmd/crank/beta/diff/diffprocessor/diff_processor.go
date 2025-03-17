@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -161,11 +162,6 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot render resources")
 	}
 
-	// TODO:  comment me in and get me to work
-	//if err := p.ValidateResources(stdout, desired); err != nil {
-	//	return errors.Wrap(err, "cannot validate resources")
-	//}
-
 	printDiff := func(composite string, res runtime.Object) error {
 		diff, err := p.CalculateDiff(ctx, composite, res)
 		if err != nil {
@@ -186,6 +182,11 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 	xrUnstructured, err := mergeUnstructured(compositeUnstructured, res)
 	if err != nil {
 		return errors.Wrap(err, "cannot merge input XR with result of rendered XR")
+	}
+
+	// schema validation will fail if we do it before we merge the composite into the results
+	if err := p.ValidateResources(stdout, xrUnstructured, desired.ComposedResources); err != nil {
+		return errors.Wrap(err, "cannot validate resources")
 	}
 
 	var errs []error
@@ -308,26 +309,25 @@ func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context
 }
 
 // ValidateResources validates the resources using schema validation
-func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, desired render.Outputs) error {
+func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
 	// Make sure we have CRDs before validation
 	if len(p.crds) == 0 {
 		return errors.New("no CRDs available for validation")
 	}
 
 	// Convert XR and composed resources to unstructured
-	resources := make([]*unstructured.Unstructured, 0, len(desired.ComposedResources)+1)
+	resources := make([]*unstructured.Unstructured, 0, len(composed)+1)
 
-	// Convert XR from composite.Unstructured to regular Unstructured
-	xr := &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}
+	// Add the XR to the validation list; we've already taken care of merging it together with desired
 	resources = append(resources, xr)
 
 	// Add composed resources to validation list
-	for i := range desired.ComposedResources {
-		resources = append(resources, &unstructured.Unstructured{Object: desired.ComposedResources[i].UnstructuredContent()})
+	for i := range composed {
+		resources = append(resources, &unstructured.Unstructured{Object: resources[i].UnstructuredContent()})
 	}
 
 	// Validate using the converted CRD schema
-	if err := validate.SchemaValidation(resources, p.crds, true, writer); err != nil {
+	if err := validate.SchemaValidation(resources, p.crds, false, writer); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
 

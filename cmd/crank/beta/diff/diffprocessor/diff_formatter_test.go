@@ -377,15 +377,12 @@ func TestCompactDiffFormatter_Format(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			fail := false
 			formatter := &CompactDiffFormatter{}
 			result := formatter.Format(tt.diffs, tt.options)
 
 			// Log the actual result for debugging
-			t.Logf("Actual result with line numbers:")
 			resultLines := strings.Split(result, "\n")
-			for i, line := range resultLines {
-				t.Logf("%d: %q", i, line)
-			}
 
 			// Remove any trailing empty line which might appear from a final newline
 			if len(resultLines) > 0 && resultLines[len(resultLines)-1] == "" {
@@ -403,8 +400,10 @@ func TestCompactDiffFormatter_Format(t *testing.T) {
 				}
 
 				if !foundLine {
+
 					// For better debugging, try to find a close match
-					t.Errorf("Expected line not found: %q", expectedLine)
+					t.Logf("Expected line not found: %q", expectedLine)
+					fail = true
 					for _, actualLine := range resultLines {
 						if strings.Contains(actualLine, expectedLine[2:]) { // Skip prefix spaces for content check
 							t.Logf("  Similar line found: %q", actualLine)
@@ -417,10 +416,21 @@ func TestCompactDiffFormatter_Format(t *testing.T) {
 			for _, forbiddenLine := range tt.forbiddenLines {
 				for _, actualLine := range resultLines {
 					if actualLine == forbiddenLine {
-						t.Errorf("Unexpected line found: %q", forbiddenLine)
+						t.Logf("Unexpected line found: %q", forbiddenLine)
+						fail = true
 						break
 					}
 				}
+			}
+
+			if fail {
+				// print the actual result for debugging in case of failure
+				t.Logf("Actual result with line numbers:")
+				for i, line := range resultLines {
+					t.Logf("%d: %q", i, line)
+				}
+
+				t.Fail()
 			}
 		})
 	}
