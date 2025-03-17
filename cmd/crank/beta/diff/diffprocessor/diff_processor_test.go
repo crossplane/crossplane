@@ -32,6 +32,9 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return nil, errors.New("composition not found")
 		},
+		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{}, nil
+		},
 	}
 
 	mockExtraResourcesError := &tu.MockClusterClient{
@@ -41,6 +44,9 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 					Mode: &pipelineMode,
 				},
 			}, nil
+		},
+		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{}, nil
 		},
 		GetExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			return nil, errors.New("failed to get extra resources")
@@ -54,6 +60,9 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 					Mode: &pipelineMode,
 				},
 			}, nil
+		},
+		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+			return []*unstructured.Unstructured{}, nil
 		},
 		GetExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{}, nil
