@@ -34,7 +34,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 	}
 
 	type want struct {
-		envConfigs []unstructured.Unstructured
+		envConfigs []*unstructured.Unstructured
 		err        error
 	}
 
@@ -57,7 +57,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				envConfigs: []unstructured.Unstructured{},
+				envConfigs: []*unstructured.Unstructured{},
 			},
 		},
 		"AllConfigs": {
@@ -95,7 +95,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				envConfigs: []unstructured.Unstructured{
+				envConfigs: []*unstructured.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "apiextensions.crossplane.io/v1alpha1",
@@ -159,13 +159,13 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 
 			if tc.want.err != nil {
 				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nInitialize(...): -want error, +got error:\n%s", tc.reason, diff)
+					t.Errorf("\n%s\nGetEnvironmentConfigs(...): -want error, +got error:\n%s", tc.reason, diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nInitialize(...): unexpected error: %v", tc.reason, err)
+				t.Errorf("\n%s\nGetEnvironmentConfigs(...): unexpected error: %v", tc.reason, err)
 				return
 			}
 
