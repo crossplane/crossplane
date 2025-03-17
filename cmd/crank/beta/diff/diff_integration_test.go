@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/alecthomas/kong"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/yaml"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -58,7 +59,7 @@ func TestDiffWithExtraResources(t *testing.T) {
 	}
 
 	// Set up the mock cluster client
-	mockClient := &testutils.MockClusterClient{
+	mockClient := &tu.MockClusterClient{
 		InitializeFn: func(ctx context.Context) error {
 			return nil
 		},
@@ -183,7 +184,7 @@ spec:
 
 	// Use the MockDiffProcessor
 	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
-		return &testutils.MockDiffProcessor{
+		return &tu.MockDiffProcessor{
 			InitializeFn: func(writer io.Writer, ctx context.Context) error {
 				return nil
 			},
@@ -250,7 +251,7 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	}
 
 	// Set up the mock cluster client
-	mockClient := &testutils.MockClusterClient{
+	mockClient := &tu.MockClusterClient{
 		InitializeFn: func(ctx context.Context) error {
 			return nil
 		},
@@ -345,7 +346,7 @@ spec:
 
 	// Use the MockDiffProcessor
 	DiffProcessorFactory = func(config *rest.Config, client cc.ClusterClient, namespace string, renderFunc dp.RenderFunc, logger logging.Logger) (dp.DiffProcessor, error) {
-		return &testutils.MockDiffProcessor{
+		return &tu.MockDiffProcessor{
 			InitializeFn: func(writer io.Writer, ctx context.Context) error {
 				return nil
 			},
@@ -402,31 +403,33 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/composition.yaml",
 				"testdata/diff/resources/functions.yaml",
 			},
-			expectedOutput: `+ XNopResource (new object)
-apiVersion: diff.example.org/v1alpha1
-kind: XNopResource
-metadata:
-  name: test-resource
-spec:
-  coolField: new-value
-
+			expectedOutput: strings.Join([]string{
+				`+++ XNopResource/test-resource
+`, tu.Green(`+ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   name: test-resource
++ spec:
++   coolField: new-value
+`), `
 ---
-+ XDownstreamResource (new object)
-apiVersion: nop.example.org/v1alpha1
-kind: XDownstreamResource
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: nop-resource
-  generateName: test-resource-
-  labels:
-    crossplane.io/composite: test-resource
-  name: test-resource
-spec:
-  forProvider:
-    configData: new-value
-
++++ XDownstreamResource/test-resource
+`, tu.Green(`+ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: nop-resource
++   generateName: test-resource-
++   labels:
++     crossplane.io/composite: test-resource
++   name: test-resource
++ spec:
++   forProvider:
++     configData: new-value
+`), `
 ---
 `,
+			}, ""),
 			expectedError: false,
 		},
 		{
@@ -437,19 +440,34 @@ spec:
 				"testdata/diff/resources/functions.yaml",
 				// put an existing XR in the cluster to diff against
 				"testdata/diff/resources/existing-downstream-resource.yaml",
-				"testdata/diff/new-xr.yaml",
+				"testdata/diff/existing-xr.yaml",
 			},
 			inputFile: "testdata/diff/modified-xr.yaml",
 			expectedOutput: `
-~ XNopResource/test-resource
-spec:
-  coolField: modified-value
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+` + tu.Red("-   coolField: existing-value") + `
+` + tu.Green("+   coolField: modified-value") + `
 
 ---
-~ XDownstreamResource/test-resource
-spec:
-  forProvider:
-    configData: modified-value
+~~~ XDownstreamResource/test-resource
+  apiVersion: nop.example.org/v1alpha1
+  kind: XDownstreamResource
+  metadata:
+    annotations:
+      crossplane.io/composition-resource-name: nop-resource
+    generateName: test-resource-
+    labels:
+      crossplane.io/composite: test-resource
+    name: test-resource
+  spec:
+    forProvider:
+` + tu.Red("-     configData: existing-value") + `
+` + tu.Green("+     configData: modified-value") + `
 
 ---
 `,
@@ -461,29 +479,34 @@ spec:
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
 				"testdata/diff/resources/functions.yaml",
-				"testdata/diff/new-xr.yaml",
+				"testdata/diff/existing-xr.yaml",
 			},
 			inputFile: "testdata/diff/modified-xr.yaml",
 			expectedOutput: `
-~ XNopResource/test-resource
-spec:
-  coolField: modified-value
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+` + tu.Red("-   coolField: existing-value") + `
+` + tu.Green("+   coolField: modified-value") + `
 
 ---
-+ XDownstreamResource (new object)
-apiVersion: nop.example.org/v1alpha1
-kind: XDownstreamResource
-metadata:
-  annotations:
-    crossplane.io/composition-resource-name: nop-resource
-  generateName: test-resource-
-  labels:
-    crossplane.io/composite: test-resource
-  name: test-resource
-spec:
-  forProvider:
-    configData: modified-value
-
++++ XDownstreamResource/test-resource
+` + tu.Green(`+ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: nop-resource
++   generateName: test-resource-
++   labels:
++     crossplane.io/composite: test-resource
++   name: test-resource
++ spec:
++   forProvider:
++     configData: modified-value
+`) + `
 ---
 `,
 			expectedError: false,
@@ -604,7 +627,15 @@ spec:
 			outputStr := stdout.String()
 			// Using TrimSpace because the output might have trailing newlines
 			if !strings.Contains(strings.TrimSpace(outputStr), strings.TrimSpace(tt.expectedOutput)) {
-				t.Fatalf("expected output to contain:\n%s\n\nbut got:\n%s", tt.expectedOutput, outputStr)
+				// Strings aren't equal, *including* ansi.  but we can compare ignoring ansi to determine what output to
+				// show for the failure.  if the difference is only in color codes, we'll show escaped ansi codes.
+				out := outputStr
+				expect := tt.expectedOutput
+				if tu.CompareIgnoringAnsi(strings.TrimSpace(outputStr), strings.TrimSpace(tt.expectedOutput)) {
+					out = strconv.QuoteToASCII(outputStr)
+					expect = strconv.QuoteToASCII(tt.expectedOutput)
+				}
+				t.Fatalf("expected output to contain:\n%s\n\nbut got:\n%s", expect, out)
 			}
 		})
 	}

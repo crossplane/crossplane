@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/yaml" // For NewYAMLOrJSONDecoder
 	"k8s.io/client-go/rest"
 	"strings"
@@ -409,33 +410,41 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 		return "", err
 	}
 
+	p.makeObjectValid(desiredUnstr)
+
+	wouldBeResult := desiredUnstr
+	if current != nil {
+		// Perform a dry-run apply to get the result after we'd apply
+		wouldBeResult, err = p.client.DryRunApply(ctx, desiredUnstr)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot dry-run apply desired object")
+		}
+	}
+
 	// TODO:  we need to find all objects, no matter the GVK, that have the composition label
-	// so we can diff removals
+	// so we can diff removals.  let's use `crossplane beta trace` to help with this.
 
-	// Clean up objects for comparison (remove server-side fields)
-	//cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
+	return GenerateDiff(current, wouldBeResult, desiredUnstr.GetKind(), desiredUnstr.GetName())
+}
 
-	// For new objects, we don't have a current object to compare against
-	//if isNewObject {
-	//	current = &unstructured.Unstructured{}
-	//	current.SetGroupVersionKind(desiredUnstr.GroupVersionKind())
-	//	current.SetName(desiredUnstr.GetName())
-	//	current.SetNamespace(desiredUnstr.GetNamespace())
+// makeObjectValid makes sure all OwnerReferences have a valid UID
+func (p *DefaultDiffProcessor) makeObjectValid(obj *unstructured.Unstructured) {
+	// Get the current owner references
+	refs := obj.GetOwnerReferences()
 
-	// TODO:  use the diff calculator to render the new object.
+	// Create new slice to hold the updated references
+	updatedRefs := make([]metav1.OwnerReference, 0, len(refs))
 
-	// Instead of calculating a diff, just format the entire desired object as new
-	//desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
-	//if err != nil {
-	//	return "", errors.Wrap(err, "cannot marshal desired object to YAML")
-	//}
-	//return fmt.Sprintf("+ %s (new object)\n%s", desiredUnstr.GetKind(), string(desiredYAML)), nil
-	//}
+	// Set a valid UID for each reference
+	for _, ref := range refs {
+		if ref.UID == "" {
+			ref.UID = uuid.NewUUID()
+		}
+		updatedRefs = append(updatedRefs, ref)
+	}
 
-	// For existing objects, clean up the current object and perform diff
-	//cleanCurrent := cleanupForDiff(current.DeepCopy())
-
-	return GenerateDiff(current, desiredUnstr, desiredUnstr.GetKind(), desiredUnstr.GetName())
+	// Update the object with the modified owner references
+	obj.SetOwnerReferences(updatedRefs)
 }
 
 // fetchCurrentObject retrieves the current state of the object from the cluster

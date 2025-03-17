@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
@@ -11,6 +12,11 @@ import (
 
 // GenerateDiff produces a formatted diff between two unstructured objects
 func GenerateDiff(current, desired *unstructured.Unstructured, kind, name string) (string, error) {
+
+	// If the objects are equal, return an empty diff
+	if equality.Semantic.DeepEqual(current, desired) {
+		return "", nil
+	}
 
 	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
 		clean := cleanupForDiff(obj.DeepCopy())
@@ -35,8 +41,13 @@ func GenerateDiff(current, desired *unstructured.Unstructured, kind, name string
 
 	desiredStr, err := cleanAndRender(desired)
 
+	// Return an empty diff
+	if desiredStr == currentStr {
+		return "", nil
+	}
+
 	// get the full line by line diff
-	diffResult := GetLineDiff(currentStr, desiredStr, CompactDiffOptions())
+	diffResult := GetLineDiff(currentStr, desiredStr, DefaultDiffOptions())
 
 	if diffResult == "" {
 		return "", nil
@@ -165,6 +176,16 @@ func NewFormatter(compact bool) DiffFormatter {
 func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
 	var builder strings.Builder
 
+	// Set color variables based on options
+	addColor := ""
+	delColor := ""
+	resetColor := ""
+	if options.UseColors {
+		addColor = ColorGreen
+		delColor = ColorRed
+		resetColor = ColorReset
+	}
+
 	for _, diff := range diffs {
 		lines := strings.Split(diff.Text, "\n")
 
@@ -177,34 +198,18 @@ func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOpti
 		switch diff.Type {
 		case diffmatchpatch.DiffInsert:
 			for _, line := range lines {
-				if options.UseColors {
-					builder.WriteString(fmt.Sprintf("%s%s%s%s\n", ColorGreen, options.AddPrefix, line, ColorReset))
-				} else {
-					builder.WriteString(fmt.Sprintf("%s%s\n", options.AddPrefix, line))
-				}
+				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", addColor, options.AddPrefix, line, resetColor))
 			}
 			if hasTrailingNewline && len(lines) == 0 {
-				if options.UseColors {
-					builder.WriteString(fmt.Sprintf("%s%s%s\n", ColorGreen, options.AddPrefix, ColorReset))
-				} else {
-					builder.WriteString(fmt.Sprintf("%s\n", options.AddPrefix))
-				}
+				builder.WriteString(fmt.Sprintf("%s%s%s\n", addColor, options.AddPrefix, resetColor))
 			}
 
 		case diffmatchpatch.DiffDelete:
 			for _, line := range lines {
-				if options.UseColors {
-					builder.WriteString(fmt.Sprintf("%s%s%s%s\n", ColorRed, options.DeletePrefix, line, ColorReset))
-				} else {
-					builder.WriteString(fmt.Sprintf("%s%s\n", options.DeletePrefix, line))
-				}
+				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", delColor, options.DeletePrefix, line, resetColor))
 			}
 			if hasTrailingNewline && len(lines) == 0 {
-				if options.UseColors {
-					builder.WriteString(fmt.Sprintf("%s%s%s\n", ColorRed, options.DeletePrefix, ColorReset))
-				} else {
-					builder.WriteString(fmt.Sprintf("%s\n", options.DeletePrefix))
-				}
+				builder.WriteString(fmt.Sprintf("%s%s%s\n", delColor, options.DeletePrefix, resetColor))
 			}
 
 		case diffmatchpatch.DiffEqual:
@@ -221,7 +226,18 @@ func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOpti
 }
 
 // Format implements the DiffFormatter interface for CompactDiffFormatter
+// Format implements the DiffFormatter interface for CompactDiffFormatter
 func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
+	// Set color variables based on options
+	addColor := ""
+	delColor := ""
+	resetColor := ""
+	if options.UseColors {
+		addColor = ColorGreen
+		delColor = ColorRed
+		resetColor = ColorReset
+	}
+
 	// First, convert diffs to line-based items
 	type lineItem struct {
 		Type    diffmatchpatch.Operation
@@ -259,63 +275,93 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 	// Now build compact output with context
 	var builder strings.Builder
 	contextLines := options.ContextLines
-	inChange := false
-	lastPrintedIdx := -1
 
+	// Find change blocks (sequences of inserts/deletes)
+	type changeBlock struct {
+		StartIdx int
+		EndIdx   int
+	}
+
+	var changeBlocks []changeBlock
+	var currentBlock *changeBlock
+
+	// Identify all the change blocks
 	for i := 0; i < len(allLines); i++ {
-		// If this is a change (insert or delete)
 		if allLines[i].Type != diffmatchpatch.DiffEqual {
-			// If we weren't already in a change block
-			if !inChange {
-				inChange = true
-
-				// Print separator if there's a gap
-				if lastPrintedIdx != -1 && i-lastPrintedIdx > 1 {
-					builder.WriteString(fmt.Sprintf("%s\n", options.ChunkSeparator))
-				}
-
-				// Print preceding context lines
-				startIdx := max(0, i-contextLines)
-				for j := startIdx; j < i; j++ {
-					builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, allLines[j].Content))
-				}
+			// Start a new block if we don't have one
+			if currentBlock == nil {
+				currentBlock = &changeBlock{StartIdx: i, EndIdx: i}
+			} else {
+				// Extend current block
+				currentBlock.EndIdx = i
 			}
-
-			// Print the change
-			switch allLines[i].Type {
-			case diffmatchpatch.DiffInsert:
-				if options.UseColors {
-					builder.WriteString(fmt.Sprintf("%s%s%s%s\n", ColorGreen, options.AddPrefix, allLines[i].Content, ColorReset))
-				} else {
-					builder.WriteString(fmt.Sprintf("%s%s\n", options.AddPrefix, allLines[i].Content))
-				}
-			case diffmatchpatch.DiffDelete:
-				if options.UseColors {
-					builder.WriteString(fmt.Sprintf("%s%s%s%s\n", ColorRed, options.DeletePrefix, allLines[i].Content, ColorReset))
-				} else {
-					builder.WriteString(fmt.Sprintf("%s%s\n", options.DeletePrefix, allLines[i].Content))
-				}
-			}
-
-			lastPrintedIdx = i
-		} else {
-			// This is an equal/context line
-			if inChange {
-				// We were in a change, print following context
-				if i-lastPrintedIdx <= contextLines {
-					builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, allLines[i].Content))
-					lastPrintedIdx = i
-				} else {
-					// We've printed enough context lines after the change
-					inChange = false
-				}
-			}
+		} else if currentBlock != nil {
+			// If we were in a block and hit an equal line, finish the block
+			changeBlocks = append(changeBlocks, *currentBlock)
+			currentBlock = nil
 		}
 	}
 
-	// Add final separator if there are lines after the last printed line
-	if lastPrintedIdx != -1 && lastPrintedIdx < len(allLines)-1 {
-		builder.WriteString(fmt.Sprintf("%s\n", options.ChunkSeparator))
+	// Add the last block if it's still active
+	if currentBlock != nil {
+		changeBlocks = append(changeBlocks, *currentBlock)
+	}
+
+	// If we have no change blocks, just return empty string
+	if len(changeBlocks) == 0 {
+		return ""
+	}
+
+	// Keep track of the last line we printed
+	lastPrintedIdx := -1
+
+	// Now process each block with its context
+	for blockIdx, block := range changeBlocks {
+		// Calculate visible range for context before the block
+		contextStart := max(0, block.StartIdx-contextLines)
+
+		// If this isn't the first block, check if we need a separator
+		if blockIdx > 0 {
+			prevBlock := changeBlocks[blockIdx-1]
+			prevContextEnd := min(len(allLines), prevBlock.EndIdx+contextLines+1)
+
+			// If there's a gap between the end of the previous context and the start of this context,
+			// add a separator
+			if contextStart > prevContextEnd {
+				// Add separator
+				builder.WriteString(fmt.Sprintf("%s\n", options.ChunkSeparator))
+				lastPrintedIdx = -1 // Reset to force printing of context lines
+			} else {
+				// Contexts overlap or are adjacent - adjust the start to avoid duplicate lines
+				contextStart = max(lastPrintedIdx+1, contextStart)
+			}
+		}
+
+		// Print context before the change if we haven't already printed it
+		for i := contextStart; i < block.StartIdx; i++ {
+			if i > lastPrintedIdx {
+				builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, allLines[i].Content))
+				lastPrintedIdx = i
+			}
+		}
+
+		// Print the changes
+		for i := block.StartIdx; i <= block.EndIdx; i++ {
+			switch allLines[i].Type {
+			case diffmatchpatch.DiffInsert:
+				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", addColor, options.AddPrefix, allLines[i].Content, resetColor))
+			case diffmatchpatch.DiffDelete:
+				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", delColor, options.DeletePrefix, allLines[i].Content, resetColor))
+			}
+			lastPrintedIdx = i
+		}
+
+		// Print context after the change
+		contextEnd := min(len(allLines), block.EndIdx+contextLines+1)
+		for i := block.EndIdx + 1; i < contextEnd; i++ {
+			builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, allLines[i].Content))
+			lastPrintedIdx = i
+		}
 	}
 
 	return builder.String()
