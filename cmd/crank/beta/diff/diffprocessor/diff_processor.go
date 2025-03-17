@@ -13,7 +13,6 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,8 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml" // For NewYAMLOrJSONDecoder
 	"k8s.io/client-go/rest"
-	"reflect"
-	sigsyaml "sigs.k8s.io/yaml" // For Marshal/Unmarshal functionality (aliased to avoid conflicts)
 	"strings"
 )
 
@@ -407,33 +404,38 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 	}
 
 	// Fetch current object from cluster
-	current, isNewObject, err := p.fetchCurrentObject(ctx, composite, desiredUnstr)
+	current, _, err := p.fetchCurrentObject(ctx, composite, desiredUnstr)
 	if err != nil {
 		return "", err
 	}
 
+	// TODO:  we need to find all objects, no matter the GVK, that have the composition label
+	// so we can diff removals
+
 	// Clean up objects for comparison (remove server-side fields)
-	cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
+	//cleanDesired := cleanupForDiff(desiredUnstr.DeepCopy())
 
 	// For new objects, we don't have a current object to compare against
-	if isNewObject {
-		// Instead of calculating a diff, just format the entire desired object as new
-		desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal desired object to YAML")
-		}
-		return fmt.Sprintf("+ %s (new object)\n%s", desiredUnstr.GetKind(), string(desiredYAML)), nil
-	}
+	//if isNewObject {
+	//	current = &unstructured.Unstructured{}
+	//	current.SetGroupVersionKind(desiredUnstr.GroupVersionKind())
+	//	current.SetName(desiredUnstr.GetName())
+	//	current.SetNamespace(desiredUnstr.GetNamespace())
+
+	// TODO:  use the diff calculator to render the new object.
+
+	// Instead of calculating a diff, just format the entire desired object as new
+	//desiredYAML, err := sigsyaml.Marshal(cleanDesired.Object)
+	//if err != nil {
+	//	return "", errors.Wrap(err, "cannot marshal desired object to YAML")
+	//}
+	//return fmt.Sprintf("+ %s (new object)\n%s", desiredUnstr.GetKind(), string(desiredYAML)), nil
+	//}
 
 	// For existing objects, clean up the current object and perform diff
-	cleanCurrent := current.DeepCopy() //cleanupForDiff(current.DeepCopy())
+	//cleanCurrent := cleanupForDiff(current.DeepCopy())
 
-	// If objects are identical after cleanup, no changes to display
-	if reflect.DeepEqual(cleanDesired.Object, cleanCurrent.Object) {
-		return "", nil
-	}
-
-	return p.generateDiff(cleanCurrent, cleanDesired, desiredUnstr.GetKind(), desiredUnstr.GetName())
+	return GenerateDiff(current, desiredUnstr, desiredUnstr.GetKind(), desiredUnstr.GetName())
 }
 
 // fetchCurrentObject retrieves the current state of the object from the cluster
@@ -486,65 +488,4 @@ func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite
 	}
 
 	return current, isNewObject, nil
-}
-
-// generateDiff produces a formatted diff between two unstructured objects
-func (p *DefaultDiffProcessor) generateDiff(current, desired *unstructured.Unstructured, kind, name string) (string, error) {
-	// Convert both objects to YAML strings for diffing
-	currentYAML, err := sigsyaml.Marshal(current.Object)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot marshal current object to YAML")
-	}
-
-	desiredYAML, err := sigsyaml.Marshal(desired.Object)
-	if err != nil {
-		return "", errors.Wrap(err, "cannot marshal desired object to YAML")
-	}
-
-	// Create diff between the current and desired YAML
-	patch := diffmatchpatch.New()
-
-	chars1, chars2, array := patch.DiffLinesToChars(string(currentYAML), string(desiredYAML))
-
-	// Compute diff on line-encoded text
-	lineDiffs2 := patch.DiffMain(chars1, chars2, false)
-
-	// Convert line-encoded diff back to text
-	lineDiffs3 := patch.DiffCharsToLines(lineDiffs2, array)
-	diffResult := patch.DiffPrettyText(lineDiffs3)
-
-	if diffResult == "" {
-		return "", nil
-	}
-
-	// Format the output with a resource header
-	return fmt.Sprintf("~ %s/%s\n%s", kind, name, diffResult), nil
-}
-
-// cleanupForDiff removes fields that shouldn't be included in the diff
-func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
-	// Remove server-side fields and metadata that we don't want to diff
-	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
-	if found {
-		// Remove fields that change automatically or are server-side
-		fieldsToRemove := []string{
-			"resourceVersion",
-			"uid",
-			"generation",
-			"creationTimestamp",
-			"managedFields",
-			"selfLink",
-		}
-
-		for _, field := range fieldsToRemove {
-			delete(metadata, field)
-		}
-
-		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
-	}
-
-	// Remove status field as we're focused on spec changes
-	delete(obj.Object, "status")
-
-	return obj
 }

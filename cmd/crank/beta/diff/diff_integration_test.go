@@ -409,13 +409,6 @@ metadata:
   name: test-resource
 spec:
   coolField: new-value
-status:
-  conditions:
-  - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: 'Unready resources: nop-resource'
-    reason: Creating
-    status: "False"
-    type: Ready
 
 ---
 + XDownstreamResource (new object)
@@ -428,13 +421,6 @@ metadata:
   labels:
     crossplane.io/composite: test-resource
   name: test-resource
-  ownerReferences:
-  - apiVersion: diff.example.org/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: XNopResource
-    name: test-resource
-    uid: ""
 spec:
   forProvider:
     configData: new-value
@@ -494,13 +480,6 @@ metadata:
   labels:
     crossplane.io/composite: test-resource
   name: test-resource
-  ownerReferences:
-  - apiVersion: diff.example.org/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: XNopResource
-    name: test-resource
-    uid: ""
 spec:
   forProvider:
     configData: modified-value
