@@ -237,6 +237,7 @@ type MockClusterClient struct {
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
 	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
 }
 
 // Initialize implements the ClusterClient interface
@@ -301,6 +302,14 @@ func (m *MockClusterClient) DryRunApply(ctx context.Context, obj *unstructured.U
 		return m.DryRunApplyFn(ctx, obj)
 	}
 	return nil, errors.New("DryRunApply not implemented")
+}
+
+// GetEnvironmentConfigs implements the ClusterClient interface
+func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+	if m.GetEnvironmentConfigsFn != nil {
+		return m.GetEnvironmentConfigsFn(ctx)
+	}
+	return nil, errors.New("GetEnvironmentConfigs not implemented")
 }
 
 // MockDiffProcessor implements the DiffProcessor interface for testing

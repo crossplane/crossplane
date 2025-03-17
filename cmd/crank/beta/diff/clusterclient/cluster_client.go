@@ -30,6 +30,9 @@ type ClusterClient interface {
 	// FindMatchingComposition finds a composition that matches the given XR
 	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
 
+	// GetEnvironmentConfigs fetches environment configs from the cluster
+	GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error)
+
 	// GetAllResourcesByLabels retrieves all resources matching the given GVRs and selectors
 	GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 
@@ -143,7 +146,7 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 }
 
 // GetEnvironmentConfigs fetches environment configs from the cluster.
-func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error) {
 	envConfigsGVR := schema.GroupVersionResource{
 		Group:    "apiextensions.crossplane.io",
 		Version:  "v1alpha1",
@@ -159,9 +162,9 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]uns
 		return nil, errors.Wrap(err, "cannot list environment configs")
 	}
 
-	envConfigs := make([]unstructured.Unstructured, len(list.Items))
+	envConfigs := make([]*unstructured.Unstructured, len(list.Items))
 	for i := range list.Items {
-		envConfigs[i] = list.Items[i]
+		envConfigs[i] = &list.Items[i]
 	}
 
 	return envConfigs, nil

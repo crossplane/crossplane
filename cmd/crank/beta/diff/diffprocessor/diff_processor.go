@@ -116,10 +116,17 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot identify needed extra resources")
 	}
 
+	ecs, err := p.client.GetEnvironmentConfigs(ctx)
+	if err != nil {
+		return errors.Wrap(err, "cannot get environment configs")
+	}
+
 	extraResources, err := p.client.GetAllResourcesByLabels(ctx, gvrs, selectors)
 	if err != nil {
 		return errors.Wrap(err, "cannot get extra resources")
 	}
+
+	extraResources = append(extraResources, ecs...)
 
 	fns, err := p.client.GetFunctionsFromPipeline(comp)
 	if err != nil {
