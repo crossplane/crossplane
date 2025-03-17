@@ -134,13 +134,16 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 				}
 			}
 
-			if rf == 0 && !skipSuccessLogs {
+			if rf == 0 {
+				if skipSuccessLogs {
+					return nil
+				}
+
 				if _, err := fmt.Fprintf(w, "[✓] %s, %s validated successfully\n", r.GroupVersionKind().String(), getResourceName(r)); err != nil {
 					return errors.Wrap(err, errWriteOutput)
 				}
-			} else {
-				failure++
 			}
+			failure++
 		}
 	}
 
