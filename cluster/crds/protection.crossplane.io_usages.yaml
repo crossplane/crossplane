@@ -14,7 +14,7 @@ spec:
     listKind: UsageList
     plural: usages
     singular: usage
-  scope: Cluster
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .metadata.annotations.crossplane\.io/usage-details
