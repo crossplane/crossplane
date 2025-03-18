@@ -1,0 +1,8 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: test-env-config
+data:
+  region: us-west-2
+  environment: staging
+  serviceLevel: premium

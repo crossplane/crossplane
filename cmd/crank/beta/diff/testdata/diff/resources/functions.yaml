@@ -12,4 +12,11 @@ metadata:
   name: function-auto-ready
 spec:
   package: xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.4.2
-
+---
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: function-environment-configs
+spec:
+  # This is ignored when using the Development runtime.
+  package: xpkg.upbound.io/crossplane-contrib/function-environment-configs:v0.2.0

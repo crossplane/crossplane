@@ -1,0 +1,31 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xdownstreamenrresources.nop.example.org
+spec:
+  group: nop.example.org
+  names:
+    kind: XDownstreamEnvResource
+    plural: xdownstreamenrresources
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                forProvider:
+                  type: object
+                  properties:
+                    configData:
+                      type: string
+                    region:
+                      type: string
+                    environment:
+                      type: string
+                    serviceLevel:
+                      type: string

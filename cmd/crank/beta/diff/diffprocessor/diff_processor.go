@@ -328,8 +328,13 @@ func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, xr *unstructu
 		resources = append(resources, &unstructured.Unstructured{Object: resources[i].UnstructuredContent()})
 	}
 
+	loggerWriter := internal.NewLoggerWriter(p.config.Logger)
+
+	// TODO:  we should probably clean up stdout refs everywhere since we do have a logger on hand
+
 	// Validate using the converted CRD schema
-	if err := validate.SchemaValidation(resources, p.crds, false, writer); err != nil {
+	// do not actually write to stdout (as it can interfere with diffs) -- just use the logger
+	if err := validate.SchemaValidation(resources, p.crds, true, loggerWriter); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
 
