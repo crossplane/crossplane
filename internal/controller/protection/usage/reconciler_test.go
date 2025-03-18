@@ -38,7 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/internal/usage"
+	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )

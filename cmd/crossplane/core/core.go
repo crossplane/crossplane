@@ -52,12 +52,13 @@ import (
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/controller/protection"
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/metrics"
 	"github.com/crossplane/crossplane/internal/transport"
-	"github.com/crossplane/crossplane/internal/usage"
+	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -444,7 +445,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
-		return errors.Wrap(err, "cannot add packages controllers to manager")
+		return errors.Wrap(err, "cannot add package manager controllers to manager")
+	}
+
+	if err := protection.Setup(mgr, o); err != nil {
+		return errors.Wrap(err, "cannot add protection controllers to manager")
 	}
 
 	// Registering webhooks with the manager is what actually starts the webhook

@@ -36,6 +36,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/conditions"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -44,8 +45,7 @@ import (
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/usage"
+	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
@@ -100,7 +100,7 @@ type selectorResolver interface {
 
 // Setup adds a controller that reconciles Usages by
 // defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.UsageGroupKind)
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
