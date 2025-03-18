@@ -14,27 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apiextensions implements the Crossplane Composition controllers.
-package apiextensions
+// Package protection implements the Crossplane deletion protection controller.
+package protection
 
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composition"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/definition"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
+
+	"github.com/crossplane/crossplane/internal/controller/protection/usage"
+	"github.com/crossplane/crossplane/internal/features"
 )
 
 // Setup API extensions controllers.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	if err := composition.Setup(mgr, o); err != nil {
-		return err
+	if !o.Features.Enabled(features.EnableBetaUsages) {
+		return nil
 	}
 
-	if err := definition.Setup(mgr, o); err != nil {
-		return err
-	}
-
-	return offered.Setup(mgr, o)
+	return usage.Setup(mgr, o)
 }
