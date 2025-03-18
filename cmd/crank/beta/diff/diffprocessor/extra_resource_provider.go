@@ -28,20 +28,92 @@ type ExtraResourceProvider interface {
 	GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
 }
 
-// SelectorExtraResourceProvider fetches extra resources of the Selector type from function-extra-resources.
+// BaseResourceProvider contains common functionality for all providers
+type BaseResourceProvider struct {
+	// Common functionality and helper methods
+}
+
+// IsPipelineMode checks if the composition uses the pipeline mode
+func (p *BaseResourceProvider) IsPipelineMode(comp *apiextensionsv1.Composition) bool {
+	return comp.Spec.Mode != nil && *comp.Spec.Mode == apiextensionsv1.CompositionModePipeline
+}
+
+// FindStepsWithFunction finds all steps with a specific function name and returns them
+func (p *BaseResourceProvider) FindStepsWithFunction(comp *apiextensionsv1.Composition, functionName string) []apiextensionsv1.PipelineStep {
+	if !p.IsPipelineMode(comp) {
+		return nil
+	}
+
+	var steps []apiextensionsv1.PipelineStep
+	for _, step := range comp.Spec.Pipeline {
+		if step.FunctionRef.Name == functionName && step.Input != nil {
+			steps = append(steps, step)
+		}
+	}
+	return steps
+}
+
+// ParseStepInput parses a step's input into an unstructured object
+func (p *BaseResourceProvider) ParseStepInput(step apiextensionsv1.PipelineStep) (*unstructured.Unstructured, error) {
+	input := &unstructured.Unstructured{}
+	if err := input.UnmarshalJSON(step.Input.Raw); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal function input")
+	}
+	return input, nil
+}
+
+// GetExtraResourcesConfig extracts the extraResources configuration from an input object
+func (p *BaseResourceProvider) GetExtraResourcesConfig(input *unstructured.Unstructured) ([]interface{}, error) {
+	resources, found, err := unstructured.NestedSlice(input.Object, "spec", "extraResources")
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get extraResources")
+	}
+	if !found {
+		return nil, nil
+	}
+	return resources, nil
+}
+
+// ResolveFieldPath resolves a field path in the XR
+func (p *BaseResourceProvider) ResolveFieldPath(xr *unstructured.Unstructured, path string) (string, error) {
+	// Try the path as is
+	value, err := fieldpath.Pave(xr.UnstructuredContent()).GetString(path)
+	if err == nil && value != "" {
+		return value, nil
+	}
+
+	// Try with spec. prefix if no prefix was provided
+	if !strings.HasPrefix(path, "spec.") && !strings.HasPrefix(path, "status.") {
+		augmentedPath := "spec." + path
+		value, err = fieldpath.Pave(xr.UnstructuredContent()).GetString(augmentedPath)
+		if err == nil && value != "" {
+			return value, nil
+		}
+	}
+
+	return "", errors.New("field path not found in XR")
+}
+
+// SelectorExtraResourceProvider fetches extra resources of the Selector type
 type SelectorExtraResourceProvider struct {
+	BaseResourceProvider
 	client cc.ClusterClient
 }
 
-// NewSelectorExtraResourceProvider creates a new SelectorExtraResourceProvider.
+// NewSelectorExtraResourceProvider creates a new SelectorExtraResourceProvider
 func NewSelectorExtraResourceProvider(client cc.ClusterClient) *SelectorExtraResourceProvider {
 	return &SelectorExtraResourceProvider{
 		client: client,
 	}
 }
 
-// GetExtraResources implements the ExtraResourceProvider interface for Selector type resources.
+// GetExtraResources implements the ExtraResourceProvider interface
 func (p *SelectorExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+	// If not pipeline mode, return nil
+	if !p.IsPipelineMode(comp) {
+		return nil, nil
+	}
+
 	gvrs, selectors, err := p.identifyNeededSelectorResources(comp, xr)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot identify needed selector resources")
@@ -51,6 +123,7 @@ func (p *SelectorExtraResourceProvider) GetExtraResources(ctx context.Context, c
 		return nil, nil
 	}
 
+	// Get resources from the cluster using selectors
 	extraResources, err := p.client.GetAllResourcesByLabels(ctx, gvrs, selectors)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get selector resources")
@@ -59,35 +132,31 @@ func (p *SelectorExtraResourceProvider) GetExtraResources(ctx context.Context, c
 	return extraResources, nil
 }
 
-// identifyNeededSelectorResources analyzes a composition to determine what Selector type extra resources are needed.
+// identifyNeededSelectorResources analyzes a composition to determine what Selector type resources are needed
 func (p *SelectorExtraResourceProvider) identifyNeededSelectorResources(comp *apiextensionsv1.Composition, xr *unstructured.Unstructured) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
-	// If no pipeline mode or no steps, return empty
-	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
+	// Find steps with the extra-resources function
+	steps := p.FindStepsWithFunction(comp, "function-extra-resources")
+	if len(steps) == 0 {
 		return nil, nil, nil
 	}
 
 	var resources []schema.GroupVersionResource
 	var selectors []metav1.LabelSelector
 
-	// Look for function-extra-resources steps
-	for _, step := range comp.Spec.Pipeline {
-		if step.FunctionRef.Name != "function-extra-resources" || step.Input == nil {
+	// Process each step
+	for _, step := range steps {
+		input, err := p.ParseStepInput(step)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "cannot parse function input")
+		}
+
+		// Extract extra resources config
+		extraResources, err := p.GetExtraResourcesConfig(input)
+		if err != nil || extraResources == nil {
 			continue
 		}
 
-		// Parse the input into an unstructured object
-		input := &unstructured.Unstructured{}
-		if err := input.UnmarshalJSON(step.Input.Raw); err != nil {
-			return nil, nil, errors.Wrap(err, "cannot unmarshal function-extra-resources input")
-		}
-
-		// Extract extra resources configuration
-		extraResources, found, err := unstructured.NestedSlice(input.Object, "spec", "extraResources")
-		if err != nil || !found {
-			continue
-		}
-
-		// Process each extra resource configuration
+		// Process each extra resource config
 		for _, er := range extraResources {
 			erMap, ok := er.(map[string]interface{})
 			if !ok {
@@ -113,7 +182,7 @@ func (p *SelectorExtraResourceProvider) identifyNeededSelectorResources(comp *ap
 				continue
 			}
 
-			// Create GVR for Selector type resources
+			// Process selector
 			gvr, labelSelector, err := p.processSelector(erMap, apiVersion, kind, xr)
 			if err != nil {
 				return nil, nil, err
@@ -126,9 +195,9 @@ func (p *SelectorExtraResourceProvider) identifyNeededSelectorResources(comp *ap
 	return resources, selectors, nil
 }
 
-// processSelector handles the creation of GVR and label selector for Selector type resources.
+// processSelector is kept nearly the same, but uses the base provider's ResolveFieldPath method
 func (p *SelectorExtraResourceProvider) processSelector(erMap map[string]interface{}, apiVersion, kind string, xr *unstructured.Unstructured) (schema.GroupVersionResource, metav1.LabelSelector, error) {
-	// Create GVR for this resource type
+	// Create GVR
 	gv, err := schema.ParseGroupVersion(apiVersion)
 	if err != nil {
 		return schema.GroupVersionResource{}, metav1.LabelSelector{}, errors.Wrapf(err, "cannot parse group version %q", apiVersion)
@@ -182,8 +251,6 @@ func (p *SelectorExtraResourceProvider) processSelector(erMap map[string]interfa
 				case "FromCompositeFieldPath":
 					// Value from XR field path
 					if xr == nil {
-						// If no XR is provided, we can't resolve the field path
-						// In this case, we skip this label
 						continue
 					}
 
@@ -192,27 +259,13 @@ func (p *SelectorExtraResourceProvider) processSelector(erMap map[string]interfa
 						continue
 					}
 
-					// Get the value from the XR using the field path
-					// First try with the path as is
-					fieldValue, err := fieldpath.Pave(xr.UnstructuredContent()).GetString(fieldPath)
-					if err == nil && fieldValue != "" {
-						labelValue = fieldValue
-					} else {
-						// If that fails, check if we need to add "spec." prefix for compatibility
-						if !strings.HasPrefix(fieldPath, "spec.") && !strings.HasPrefix(fieldPath, "status.") {
-							augmentedPath := "spec." + fieldPath
-							fieldValue, err = fieldpath.Pave(xr.UnstructuredContent()).GetString(augmentedPath)
-							if err == nil && fieldValue != "" {
-								labelValue = fieldValue
-							} else {
-								// Still couldn't find a value, skip this label
-								continue
-							}
-						} else {
-							// Path was already in spec/status but value wasn't found, skip
-							continue
-						}
+					// Use base provider's field path resolution
+					fieldValue, err := p.ResolveFieldPath(xr, fieldPath)
+					if err != nil {
+						continue
 					}
+
+					labelValue = fieldValue
 
 				default:
 					// Unknown label type, skip
@@ -228,20 +281,26 @@ func (p *SelectorExtraResourceProvider) processSelector(erMap map[string]interfa
 	return gvr, labelSelector, nil
 }
 
-// ReferenceExtraResourceProvider fetches extra resources of the Reference type from function-extra-resources.
+// ReferenceExtraResourceProvider fetches extra resources of the Reference type
 type ReferenceExtraResourceProvider struct {
+	BaseResourceProvider
 	client cc.ClusterClient
 }
 
-// NewReferenceExtraResourceProvider creates a new ReferenceExtraResourceProvider.
+// NewReferenceExtraResourceProvider creates a new ReferenceExtraResourceProvider
 func NewReferenceExtraResourceProvider(client cc.ClusterClient) *ReferenceExtraResourceProvider {
 	return &ReferenceExtraResourceProvider{
 		client: client,
 	}
 }
 
-// GetExtraResources implements the ExtraResourceProvider interface for Reference type resources.
+// GetExtraResources implements the ExtraResourceProvider interface
 func (p *ReferenceExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+	// If not pipeline mode, return nil
+	if !p.IsPipelineMode(comp) {
+		return nil, nil
+	}
+
 	references, err := p.identifyNeededReferenceResources(comp, xr)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot identify needed reference resources")
@@ -265,41 +324,37 @@ func (p *ReferenceExtraResourceProvider) GetExtraResources(ctx context.Context, 
 	return extraResources, nil
 }
 
-// referenceResource holds information about a Reference type resource.
+// referenceResource holds information about a Reference type resource
 type referenceResource struct {
 	gvk       schema.GroupVersionKind
 	namespace string
 	name      string
 }
 
-// identifyNeededReferenceResources analyzes a composition to determine what Reference type extra resources are needed.
+// identifyNeededReferenceResources analyzes a composition to determine what Reference type resources are needed
 func (p *ReferenceExtraResourceProvider) identifyNeededReferenceResources(comp *apiextensionsv1.Composition, xr *unstructured.Unstructured) ([]referenceResource, error) {
-	// If no pipeline mode or no steps, return empty
-	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
+	// Find steps with the extra-resources function
+	steps := p.FindStepsWithFunction(comp, "function-extra-resources")
+	if len(steps) == 0 {
 		return nil, nil
 	}
 
 	var references []referenceResource
 
-	// Look for function-extra-resources steps
-	for _, step := range comp.Spec.Pipeline {
-		if step.FunctionRef.Name != "function-extra-resources" || step.Input == nil {
+	// Process each step
+	for _, step := range steps {
+		input, err := p.ParseStepInput(step)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot parse function input")
+		}
+
+		// Extract extra resources config
+		extraResources, err := p.GetExtraResourcesConfig(input)
+		if err != nil || extraResources == nil {
 			continue
 		}
 
-		// Parse the input into an unstructured object
-		input := &unstructured.Unstructured{}
-		if err := input.UnmarshalJSON(step.Input.Raw); err != nil {
-			return nil, errors.Wrap(err, "cannot unmarshal function-extra-resources input")
-		}
-
-		// Extract extra resources configuration
-		extraResources, found, err := unstructured.NestedSlice(input.Object, "spec", "extraResources")
-		if err != nil || !found {
-			continue
-		}
-
-		// Process each extra resource configuration
+		// Process each extra resource config
 		for _, er := range extraResources {
 			erMap, ok := er.(map[string]interface{})
 			if !ok {
@@ -357,14 +412,15 @@ func (p *ReferenceExtraResourceProvider) identifyNeededReferenceResources(comp *
 	return references, nil
 }
 
-// TemplatedExtraResourceProvider fetches resources emerging from go-templating in the composition.
+// TemplatedExtraResourceProvider fetches resources from go-templating
 type TemplatedExtraResourceProvider struct {
+	BaseResourceProvider
 	client   cc.ClusterClient
 	renderFn RenderFunc
 	logger   logging.Logger
 }
 
-// NewTemplatedExtraResourceProvider creates a new TemplatedExtraResourceProvider.
+// NewTemplatedExtraResourceProvider creates a new TemplatedExtraResourceProvider
 func NewTemplatedExtraResourceProvider(client cc.ClusterClient, renderFn RenderFunc, logger logging.Logger) *TemplatedExtraResourceProvider {
 	return &TemplatedExtraResourceProvider{
 		client:   client,
@@ -373,9 +429,14 @@ func NewTemplatedExtraResourceProvider(client cc.ClusterClient, renderFn RenderF
 	}
 }
 
-// GetExtraResources implements the ExtraResourceProvider interface for templated extra resources.
+// GetExtraResources implements the ExtraResourceProvider interface
 func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	hasTemplatedExtra, err := ScanForTemplatedExtraResources(comp)
+	// If not pipeline mode, return nil
+	if !p.IsPipelineMode(comp) {
+		return nil, nil
+	}
+
+	hasTemplatedExtra, err := p.ScanForTemplatedResources(comp)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot scan for templated extra resources")
 	}
@@ -418,7 +479,7 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 	// Process the rendered results looking for ExtraResources objects
 	for _, result := range preliminary.Results {
 		if result.GetKind() == "ExtraResources" {
-			additional, err := GetExtraResourcesFromResult(&result)
+			additional, err := p.GetExtraResourcesFromResult(&result)
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot get extra resources from result")
 			}
@@ -428,6 +489,73 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 	}
 
 	return extraResources, nil
+}
+
+// ScanForTemplatedResources checks if the composition has templated extra resources
+func (p *TemplatedExtraResourceProvider) ScanForTemplatedResources(comp *apiextensionsv1.Composition) (bool, error) {
+	// Find steps with go-templating function
+	steps := p.FindStepsWithFunction(comp, "function-go-templating")
+	if len(steps) == 0 {
+		return false, nil
+	}
+
+	for _, step := range steps {
+		input, err := p.ParseStepInput(step)
+		if err != nil {
+			return false, errors.Wrap(err, "cannot parse function input")
+		}
+
+		// Look for template string
+		template, found, err := unstructured.NestedString(input.Object, "spec", "inline", "template")
+		if err != nil || !found {
+			continue
+		}
+
+		// Parse the template string as YAML and look for ExtraResources documents
+		decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(template), 4096)
+		for {
+			obj := make(map[string]interface{})
+			if err := decoder.Decode(&obj); err != nil {
+				if err == io.EOF {
+					break
+				}
+				return false, errors.Wrap(err, "cannot decode template YAML")
+			}
+
+			u := &unstructured.Unstructured{Object: obj}
+			if u.GetKind() == "ExtraResources" {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// GetExtraResourcesFromResult extracts resources from an ExtraResources result
+func (p *TemplatedExtraResourceProvider) GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+	spec, found, err := unstructured.NestedMap(result.Object, "spec")
+	if err != nil || !found {
+		return nil, errors.New("no spec found in ExtraResources result")
+	}
+
+	extraResources, found, err := unstructured.NestedSlice(spec, "resources")
+	if err != nil || !found {
+		return nil, errors.New("no resources found in ExtraResources spec")
+	}
+
+	var resources []*unstructured.Unstructured
+	for _, er := range extraResources {
+		erMap, ok := er.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		u := unstructured.Unstructured{Object: erMap}
+		resources = append(resources, &u)
+	}
+
+	return resources, nil
 }
 
 // UnstructuredToComposite converts an unstructured.Unstructured to a composite.Unstructured.
