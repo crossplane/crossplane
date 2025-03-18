@@ -48,6 +48,15 @@ var (
 	UsageGroupVersionKind = SchemeGroupVersion.WithKind(UsageKind)
 )
 
+// ClusterUsage type metadata.
+var (
+	ClusterUsageKind             = reflect.TypeOf(ClusterUsage{}).Name()
+	ClusterUsageGroupKind        = schema.GroupKind{Group: Group, Kind: ClusterUsageKind}.String()
+	ClusterUsageKindAPIVersion   = ClusterUsageKind + "." + SchemeGroupVersion.String()
+	ClusterUsageGroupVersionKind = SchemeGroupVersion.WithKind(ClusterUsageKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Usage{}, &UsageList{})
+	SchemeBuilder.Register(&ClusterUsage{}, &ClusterUsageList{})
 }
