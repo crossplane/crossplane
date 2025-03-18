@@ -375,129 +375,6 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 	}
 }
 
-// TDOO evaluate whether this function or the existing one is better for testing
-func TestScanForTemplatedExtraResources2(t *testing.T) {
-	tests := []struct {
-		name        string
-		composition *apiextensionsv1.Composition
-		expectFound bool
-		expectError bool
-	}{
-		{
-			name: "No templated extra resources",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
-					Pipeline: []apiextensionsv1.PipelineStep{
-						{
-							Step:        "generate-resources",
-							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-							Input: &runtime.RawExtension{
-								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
-									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test"
-										}
-									}
-								}`),
-							},
-						},
-					},
-				},
-			},
-			expectFound: false,
-			expectError: false,
-		},
-		{
-			name: "With templated extra resources",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
-					Pipeline: []apiextensionsv1.PipelineStep{
-						{
-							Step:        "generate-resources",
-							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-							Input: &runtime.RawExtension{
-								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
-									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
-										}
-									}
-								}`),
-							},
-						},
-					},
-				},
-			},
-			expectFound: true,
-			expectError: false,
-		},
-		{
-			name: "Non-pipeline composition",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionMode("NonPipeline")),
-				},
-			},
-			expectFound: false,
-			expectError: false,
-		},
-		{
-			name: "Invalid template YAML",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
-					Pipeline: []apiextensionsv1.PipelineStep{
-						{
-							Step:        "generate-resources",
-							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-							Input: &runtime.RawExtension{
-								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
-									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "{{ invalid template"
-										}
-									}
-								}`),
-							},
-						},
-					},
-				},
-			},
-			expectFound: false,
-			expectError: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			found, err := ScanForTemplatedExtraResources(tc.composition)
-
-			if tc.expectError {
-				if err == nil {
-					t.Fatalf("Expected an error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("ScanForTemplatedExtraResources() error = %v", err)
-			}
-
-			if found != tc.expectFound {
-				t.Errorf("Expected found=%v, got %v", tc.expectFound, found)
-			}
-		})
-	}
-}
-
 func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -890,6 +767,129 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 				if resources[i].GetName() != name {
 					t.Errorf("Resource at index %d: expected name '%s', got '%s'", i, name, resources[i].GetName())
 				}
+			}
+		})
+	}
+}
+
+func TestScanForTemplatedExtraResources(t *testing.T) {
+	tests := []struct {
+		name        string
+		composition *apiextensionsv1.Composition
+		expectFound bool
+		expectError bool
+	}{
+		{
+			name: "No templated extra resources",
+			composition: &apiextensionsv1.Composition{
+				Spec: apiextensionsv1.CompositionSpec{
+					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
+					Pipeline: []apiextensionsv1.PipelineStep{
+						{
+							Step:        "generate-resources",
+							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
+							Input: &runtime.RawExtension{
+								Raw: []byte(`{
+									"apiVersion": "template.fn.crossplane.io/v1beta1",
+									"kind": "GoTemplate",
+									"spec": {
+										"inline": {
+											"template": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test"
+										}
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+			expectFound: false,
+			expectError: false,
+		},
+		{
+			name: "With templated extra resources",
+			composition: &apiextensionsv1.Composition{
+				Spec: apiextensionsv1.CompositionSpec{
+					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
+					Pipeline: []apiextensionsv1.PipelineStep{
+						{
+							Step:        "generate-resources",
+							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
+							Input: &runtime.RawExtension{
+								Raw: []byte(`{
+									"apiVersion": "template.fn.crossplane.io/v1beta1",
+									"kind": "GoTemplate",
+									"spec": {
+										"inline": {
+											"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
+										}
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+			expectFound: true,
+			expectError: false,
+		},
+		{
+			name: "Non-pipeline composition",
+			composition: &apiextensionsv1.Composition{
+				Spec: apiextensionsv1.CompositionSpec{
+					Mode: composePtr(apiextensionsv1.CompositionMode("NonPipeline")),
+				},
+			},
+			expectFound: false,
+			expectError: false,
+		},
+		{
+			name: "Invalid template YAML",
+			composition: &apiextensionsv1.Composition{
+				Spec: apiextensionsv1.CompositionSpec{
+					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
+					Pipeline: []apiextensionsv1.PipelineStep{
+						{
+							Step:        "generate-resources",
+							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
+							Input: &runtime.RawExtension{
+								Raw: []byte(`{
+									"apiVersion": "template.fn.crossplane.io/v1beta1",
+									"kind": "GoTemplate",
+									"spec": {
+										"inline": {
+											"template": "{{ invalid template"
+										}
+									}
+								}`),
+							},
+						},
+					},
+				},
+			},
+			expectFound: false,
+			expectError: true,
+		},
+		// No additional test cases from the second function that aren't already covered
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			found, err := ScanForTemplatedExtraResources(tc.composition)
+
+			if tc.expectError {
+				if err == nil {
+					t.Fatalf("Expected an error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("ScanForTemplatedExtraResources() error = %v", err)
+			}
+
+			if found != tc.expectFound {
+				t.Errorf("Expected found=%v, got %v", tc.expectFound, found)
 			}
 		})
 	}

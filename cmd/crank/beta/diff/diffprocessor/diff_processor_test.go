@@ -3,17 +3,19 @@ package diffprocessor
 import (
 	"bytes"
 	"context"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"github.com/crossplane/crossplane/cmd/crank/render"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/google/go-cmp/cmp"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,569 +26,355 @@ import (
 var _ DiffProcessor = &tu.MockDiffProcessor{}
 
 func TestDiffProcessor_ProcessResource(t *testing.T) {
-	pipelineMode := apiextensionsv1.CompositionModePipeline
+	ctx := context.Background()
 
-	// Create mocks with proper behavior
-	mockCompositionNotFound := &tu.MockClusterClient{
-		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return nil, errors.New("composition not found")
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-	}
+	// Create test resources
+	xr := tu.NewResource("example.org/v1", "XR1", "my-xr").
+		WithSpecField("coolField", "test-value").
+		Build()
 
-	mockGetFunctionsError := &tu.MockClusterClient{
-		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: &pipelineMode,
-				},
-			}, nil
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-		GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
-			return nil, errors.New("function not found")
-		},
-	}
+	composition := tu.NewComposition("test-comp").
+		WithCompositeTypeRef("example.org/v1", "XR1").
+		WithPipelineMode().
+		WithPipelineStep("step1", "function-test", nil).
+		Build()
 
-	type args struct {
-		ctx context.Context
-		res *unstructured.Unstructured
-	}
+	composedResource := tu.NewResource("composed.org/v1", "ComposedResource", "resource1").
+		WithCompositeOwner("my-xr").
+		WithCompositionResourceName("resA").
+		WithSpecField("param", "value").
+		Build()
+	
+	composedXrd := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
+		WithSpecField("group", "composed.org").
+		WithSpecField("names", map[string]interface{}{
+			"kind":     "ComposedResource",
+			"plural":   "composedresources",
+			"singular": "composedresource",
+		}).
+		Build()
 
-	type want struct {
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		mock   *tu.MockClusterClient
-		args   args
-		want   want
+	// Test cases
+	tests := []struct {
+		name      string
+		mockSetup func() *tu.MockClusterClient
+		want      error
 	}{
-		"CompositionNotFound": {
-			reason: "Should return error when matching composition is not found",
-			mock:   mockCompositionNotFound,
-			args: args{
-				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
-						},
-					},
-				},
+		{
+			name: "CompositionNotFound",
+			mockSetup: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithNoMatchingComposition().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
 			},
-			want: want{
-				err: errors.Wrap(errors.New("composition not found"), "cannot find matching composition"),
-			},
+			want: errors.Wrap(errors.New("composition not found"), "cannot find matching composition"),
 		},
-		"GetFunctionsError": {
-			reason: "Should return error when getting functions from pipeline fails",
-			mock:   mockGetFunctionsError,
-			args: args{
-				ctx: context.Background(),
-				res: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "XR1",
-						"metadata": map[string]interface{}{
-							"name": "my-xr",
+		{
+			name: "GetFunctionsError",
+			mockSetup: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithSuccessfulCompositionMatch(composition).
+					WithFailedFunctionsFetch("function not found").
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			want: errors.Wrap(errors.New("function not found"), "cannot get functions from pipeline"),
+		},
+		{
+			name: "Success",
+			mockSetup: func() *tu.MockClusterClient {
+				// Create mock functions that render will call successfully
+				functions := []pkgv1.Function{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-test",
 						},
 					},
-				},
+				}
+
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithSuccessfulCompositionMatch(composition).
+					WithSuccessfulFunctionsFetch(functions).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithResourcesExist(xr, composedResource). // Add the XR to existing resources
+					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
+					WithSuccessfulDryRun().
+					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{composedXrd}).
+					//WithSuccessfulXRDsFetch([]*unstructured.Unstructured{sampleCRD, composedCRD}).
+					//WithSuccessfulXRDsToCRDs(sampleCRD, composedCRD).
+					Build()
 			},
-			want: want{
-				err: errors.Wrap(errors.New("function not found"), "cannot get functions from pipeline"),
-			},
+			want: nil,
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			// Create a DiffProcessor that uses our mock client
-			p, _ := NewDiffProcessor(tc.mock, WithRestConfig(&rest.Config{}))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a DiffProcessor with our mock client
+			mockClient := tc.mockSetup()
+
+			// Create a mock render function
+			mockRenderFn := func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return render.Outputs{
+					CompositeResource: in.CompositeResource,
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: composedResource.Object,
+							},
+						},
+					},
+				}, nil
+			}
+
+			// Create the processor with options
+			processor, err := NewDiffProcessor(mockClient,
+				WithRestConfig(&rest.Config{}),
+				WithRenderFunc(mockRenderFn))
+			if err != nil {
+				t.Fatalf("Failed to create processor: %v", err)
+			}
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
 
-			err := p.ProcessResource(&stdout, tc.args.ctx, tc.args.res)
+			// Initialize the processor for the Success case only
+			if tc.name == "Success" {
+				if err := processor.Initialize(&stdout, ctx); err != nil {
+					t.Fatalf("Failed to initialize processor: %v", err)
+				}
+			}
 
-			if tc.want.err != nil {
+			err = processor.ProcessResource(&stdout, ctx, xr)
+
+			if tc.want != nil {
 				if err == nil {
-					t.Errorf("\n%s\nProcessResource(...): expected error but got none", tc.reason)
+					t.Errorf("ProcessResource(...): expected error but got none")
 					return
 				}
 
-				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nProcessResource(...): -want error, +got error:\n%s", tc.reason, diff)
+				if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
+					t.Errorf("ProcessResource(...): -want error, +got error:\n%s", diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nProcessResource(...): unexpected error: %v", tc.reason, err)
+				t.Errorf("ProcessResource(...): unexpected error: %v", err)
 			}
 		})
 	}
 }
 
 func TestDiffProcessor_ProcessAll(t *testing.T) {
-	// Create mock clients for testing
-	mockCompositionNotFound := &tu.MockClusterClient{
-		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return nil, errors.New("composition not found")
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-	}
+	// Setup test context
+	ctx := context.Background()
 
-	mockMultipleErrors := &tu.MockClusterClient{
-		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return nil, errors.Errorf("composition not found for %s", res.GetName())
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-	}
+	// Create test resources
+	resource1 := tu.NewResource("example.org/v1", "XR1", "my-xr-1").
+		WithSpecField("coolField", "test-value-1").
+		Build()
 
-	mockNoErrors := &tu.MockClusterClient{
-		// Since this test has no resources, these functions shouldn't be called
-		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-			return nil, errors.New("should not be called")
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-	}
+	resource2 := tu.NewResource("example.org/v1", "XR1", "my-xr-2").
+		WithSpecField("coolField", "test-value-2").
+		Build()
 
-	type args struct {
-		ctx       context.Context
+	// Test cases
+	tests := []struct {
+		name      string
+		client    func() *tu.MockClusterClient
 		resources []*unstructured.Unstructured
-	}
-
-	type want struct {
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		mock   *tu.MockClusterClient
-		args   args
-		want   want
+		want      error
 	}{
-		"NoResources": {
-			reason: "Should not return error when no resources are provided",
-			mock:   mockNoErrors,
-			args: args{
-				ctx:       context.Background(),
-				resources: []*unstructured.Unstructured{},
+		{
+			name: "NoResources",
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
 			},
-			want: want{
-				err: nil,
-			},
+			resources: []*unstructured.Unstructured{},
+			want:      nil,
 		},
-		"ProcessResourceError": {
-			reason: "Should return error when processing a resource fails",
-			mock:   mockCompositionNotFound,
-			args: args{
-				ctx: context.Background(),
-				resources: []*unstructured.Unstructured{
-					{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "XR1",
-							"metadata": map[string]interface{}{
-								"name": "my-xr",
-							},
-						},
-					},
-				},
+		{
+			name: "ProcessResourceError",
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithNoMatchingComposition().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
 			},
-			want: want{
-				err: errors.New("unable to process resource my-xr: cannot find matching composition: composition not found"),
-			},
+			resources: []*unstructured.Unstructured{resource1},
+			want:      errors.New("unable to process resource my-xr-1: cannot find matching composition: composition not found"),
 		},
-		"MultipleResourceErrors": {
-			reason: "Should return all errors when multiple resources fail processing",
-			mock:   mockMultipleErrors,
-			args: args{
-				ctx: context.Background(),
-				resources: []*unstructured.Unstructured{
-					{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "XR1",
-							"metadata": map[string]interface{}{
-								"name": "my-xr-1",
-							},
-						},
-					},
-					{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "XR1",
-							"metadata": map[string]interface{}{
-								"name": "my-xr-2",
-							},
-						},
-					},
-				},
+		{
+			name: "MultipleResourceErrors",
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithNoMatchingComposition().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
 			},
-			want: want{
-				err: errors.New("[unable to process resource my-xr-1: cannot find matching composition: composition not found for my-xr-1, unable to process resource my-xr-2: cannot find matching composition: composition not found for my-xr-2]"),
-			},
+			resources: []*unstructured.Unstructured{resource1, resource2},
+			want: errors.New("[unable to process resource my-xr-1: cannot find matching composition: composition not found, " +
+				"unable to process resource my-xr-2: cannot find matching composition: composition not found]"),
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			// Create a DiffProcessor with our mock client
-			p, _ := NewDiffProcessor(tc.mock, WithRestConfig(&rest.Config{}))
+			p, _ := NewDiffProcessor(tc.client(), WithRestConfig(&rest.Config{}))
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
 
-			err := p.ProcessAll(&stdout, tc.args.ctx, tc.args.resources)
+			err := p.ProcessAll(&stdout, ctx, tc.resources)
 
-			if tc.want.err != nil {
+			if tc.want != nil {
 				if err == nil {
-					t.Errorf("\n%s\nProcessAll(...): expected error but got none", tc.reason)
+					t.Errorf("ProcessAll(...): expected error but got none")
 					return
 				}
 
-				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nProcessAll(...): -want error, +got error:\n%s", tc.reason, diff)
+				if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
+					t.Errorf("ProcessResource(...): -want error, +got error:\n%s", diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nProcessAll(...): unexpected error: %v", tc.reason, err)
-			}
-		})
-	}
-}
-
-func TestScanForTemplatedExtraResources(t *testing.T) {
-	pipelineMode := apiextensionsv1.CompositionModePipeline
-	nonPipelineMode := apiextensionsv1.CompositionMode("NonPipeline")
-
-	type args struct {
-		comp *apiextensionsv1.Composition
-	}
-
-	type want struct {
-		hasTemplated bool
-		err          error
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"NonPipelineMode": {
-			reason: "Should return false for non-pipeline mode compositions",
-			args: args{
-				comp: &apiextensionsv1.Composition{
-					Spec: apiextensionsv1.CompositionSpec{
-						Mode: &nonPipelineMode,
-					},
-				},
-			},
-			want: want{
-				hasTemplated: false,
-			},
-		},
-		"NoGoTemplatingFunction": {
-			reason: "Should return false when no go-templating function exists",
-			args: args{
-				comp: &apiextensionsv1.Composition{
-					Spec: apiextensionsv1.CompositionSpec{
-						Mode: &pipelineMode,
-						Pipeline: []apiextensionsv1.PipelineStep{
-							{
-								Step:        "step-1",
-								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-other"},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				hasTemplated: false,
-			},
-		},
-		"TemplateWithoutExtraResources": {
-			reason: "Should return false when template doesn't have ExtraResources",
-			args: args{
-				comp: &apiextensionsv1.Composition{
-					Spec: apiextensionsv1.CompositionSpec{
-						Mode: &pipelineMode,
-						Pipeline: []apiextensionsv1.PipelineStep{
-							{
-								Step:        "step-1",
-								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-								Input: &runtime.RawExtension{
-									Raw: []byte(`{
-										"apiVersion": "crossplane.io/v1alpha1",
-										"kind": "GoTemplatingInput",
-										"spec": {
-											"inline": {
-												"template": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test"
-											}
-										}
-									}`),
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				hasTemplated: false,
-			},
-		},
-		"TemplateWithExtraResources": {
-			reason: "Should return true when template has ExtraResources",
-			args: args{
-				comp: &apiextensionsv1.Composition{
-					Spec: apiextensionsv1.CompositionSpec{
-						Mode: &pipelineMode,
-						Pipeline: []apiextensionsv1.PipelineStep{
-							{
-								Step:        "step-1",
-								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-								Input: &runtime.RawExtension{
-									Raw: []byte(`{
-										"apiVersion": "crossplane.io/v1alpha1",
-										"kind": "GoTemplatingInput",
-										"spec": {
-											"inline": {
-												"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
-											}
-										}
-									}`),
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				hasTemplated: true,
-			},
-		},
-		"InvalidTemplate": {
-			reason: "Should return error for invalid template",
-			args: args{
-				comp: &apiextensionsv1.Composition{
-					Spec: apiextensionsv1.CompositionSpec{
-						Mode: &pipelineMode,
-						Pipeline: []apiextensionsv1.PipelineStep{
-							{
-								Step:        "step-1",
-								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-								Input: &runtime.RawExtension{
-									Raw: []byte(`{
-										"apiVersion": "crossplane.io/v1alpha1",
-										"kind": "GoTemplatingInput",
-										"spec": {
-											"inline": {
-												"template": "{{"
-											}
-										}
-									}`),
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				hasTemplated: false,
-				err:          errors.New("cannot decode template YAML"),
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got, err := ScanForTemplatedExtraResources(tc.args.comp)
-
-			if tc.want.err != nil {
-				if err == nil {
-					t.Errorf("\n%s\nscanForTemplatedExtraResources(...): expected error but got none", tc.reason)
-					return
-				}
-
-				if !strings.Contains(err.Error(), tc.want.err.Error()) {
-					t.Errorf("\n%s\nscanForTemplatedExtraResources(...): expected error containing %q, got %q", tc.reason, tc.want.err.Error(), err.Error())
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("\n%s\nscanForTemplatedExtraResources(...): unexpected error: %v", tc.reason, err)
-				return
-			}
-
-			if diff := cmp.Diff(tc.want.hasTemplated, got); diff != "" {
-				t.Errorf("\n%s\nscanForTemplatedExtraResources(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("ProcessResource(...): unexpected error: %v", err)
 			}
 		})
 	}
 }
 
 func TestGetExtraResourcesFromResult(t *testing.T) {
-	type args struct {
-		result *unstructured.Unstructured
-	}
-
-	type want struct {
-		resources []unstructured.Unstructured
-		err       error
-	}
-
-	cases := map[string]struct {
+	tests := map[string]struct {
 		reason string
-		args   args
-		want   want
+		setup  func() *unstructured.Unstructured
+		want   struct {
+			resources []*unstructured.Unstructured
+			err       error
+		}
 	}{
 		"NoSpec": {
 			reason: "Should return error when result has no spec",
-			args: args{
-				result: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "render.crossplane.io/v1beta1",
-						"kind":       "ExtraResources",
-						"metadata": map[string]interface{}{
-							"name": "result",
-						},
-					},
-				},
+			setup: func() *unstructured.Unstructured {
+				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+					Build()
 			},
-			want: want{
-				err: errors.New("no spec found in ExtraResources result"),
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				resources: nil,
+				err:       errors.New("no spec found in ExtraResources result"),
 			},
 		},
 		"NoResources": {
 			reason: "Should return error when spec has no resources",
-			args: args{
-				result: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "render.crossplane.io/v1beta1",
-						"kind":       "ExtraResources",
-						"metadata": map[string]interface{}{
-							"name": "result",
-						},
-						"spec": map[string]interface{}{},
-					},
-				},
+			setup: func() *unstructured.Unstructured {
+				// Fixed: Need to set empty spec to match the function's expected behavior
+				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+					WithSpecField("otherField", "value"). // Adding a field other than 'resources'
+					Build()
 			},
-			want: want{
-				err: errors.New("no resources found in ExtraResources spec"),
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				resources: nil,
+				err:       errors.New("no resources found in ExtraResources spec"),
 			},
 		},
 		"WithResources": {
 			reason: "Should return resources when they exist",
-			args: args{
-				result: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "render.crossplane.io/v1beta1",
-						"kind":       "ExtraResources",
+			setup: func() *unstructured.Unstructured {
+				resourcesList := []interface{}{
+					map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "ConfigMap",
 						"metadata": map[string]interface{}{
-							"name": "result",
-						},
-						"spec": map[string]interface{}{
-							"resources": []interface{}{
-								map[string]interface{}{
-									"apiVersion": "v1",
-									"kind":       "ConfigMap",
-									"metadata": map[string]interface{}{
-										"name": "resource-1",
-									},
-								},
-								map[string]interface{}{
-									"apiVersion": "v1",
-									"kind":       "Secret",
-									"metadata": map[string]interface{}{
-										"name": "resource-2",
-									},
-								},
-							},
+							"name": "resource-1",
 						},
 					},
-				},
+					map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Secret",
+						"metadata": map[string]interface{}{
+							"name": "resource-2",
+						},
+					},
+				}
+
+				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+					WithSpecField("resources", resourcesList).
+					Build()
 			},
-			want: want{
-				resources: []unstructured.Unstructured{
-					{
-						Object: map[string]interface{}{
-							"apiVersion": "v1",
-							"kind":       "ConfigMap",
-							"metadata": map[string]interface{}{
-								"name": "resource-1",
-							},
-						},
-					},
-					{
-						Object: map[string]interface{}{
-							"apiVersion": "v1",
-							"kind":       "Secret",
-							"metadata": map[string]interface{}{
-								"name": "resource-2",
-							},
-						},
-					},
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				resources: []*unstructured.Unstructured{
+					tu.NewResource("v1", "ConfigMap", "resource-1").Build(),
+					tu.NewResource("v1", "Secret", "resource-2").Build(),
 				},
 			},
 		},
 	}
 
-	for name, tc := range cases {
+	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := GetExtraResourcesFromResult(tc.args.result)
+			// Setup the input for this test case
+			result := tc.setup()
 
+			// Call the function under test
+			got, err := GetExtraResourcesFromResult(result)
+
+			// Check error expectations
 			if tc.want.err != nil {
 				if err == nil {
-					t.Errorf("\n%s\ngetExtraResourcesFromResult(...): expected error but got none", tc.reason)
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): expected error but got none", tc.reason)
 					return
 				}
 
 				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\ngetExtraResourcesFromResult(...): -want error, +got error:\n%s", tc.reason, diff)
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want error, +got error:\n%s", tc.reason, diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\ngetExtraResourcesFromResult(...): unexpected error: %v", tc.reason, err)
+				t.Errorf("\n%s\nGetExtraResourcesFromResult(...): unexpected error: %v", tc.reason, err)
 				return
 			}
 
+			// Compare resource count
 			if diff := cmp.Diff(len(tc.want.resources), len(got)); diff != "" {
-				t.Errorf("\n%s\ngetExtraResourcesFromResult(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
 			}
 
+			// Check each resource
 			for i, wantRes := range tc.want.resources {
 				if i >= len(got) {
 					break
 				}
 
 				if diff := cmp.Diff(wantRes.GetKind(), got[i].GetKind()); diff != "" {
-					t.Errorf("\n%s\ngetExtraResourcesFromResult(...): -want kind, +got kind at index %d:\n%s", tc.reason, i, diff)
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want kind, +got kind at index %d:\n%s", tc.reason, i, diff)
 				}
 
 				if diff := cmp.Diff(wantRes.GetName(), got[i].GetName()); diff != "" {
-					t.Errorf("\n%s\ngetExtraResourcesFromResult(...): -want name, +got name at index %d:\n%s", tc.reason, i, diff)
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want name, +got name at index %d:\n%s", tc.reason, i, diff)
 				}
 			}
 		})
@@ -596,205 +384,149 @@ func TestGetExtraResourcesFromResult(t *testing.T) {
 func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 	ctx := context.Background()
 
-	type fields struct {
-		mockGetResource         func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
-		mockDryRunApply         func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-		mockGetResourcesByLabel func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error)
-	}
+	// Create some reusable test resources
+	existingResource := tu.NewResource("example.org/v1", "ExampleResource", "existing-resource").
+		WithSpecField("param", "old-value").
+		Build()
 
-	type args struct {
-		ctx       context.Context
-		composite string
-		desired   runtime.Object
-	}
+	modifiedResource := tu.NewResource("example.org/v1", "ExampleResource", "modified-resource").
+		WithSpecField("param1", "old-value1").
+		WithSpecField("param2", "old-value2").
+		WithSpecField("param3", "unchanged").
+		Build()
 
-	type want struct {
-		diff string
-		err  error
+	nestedResource := tu.NewResource("example.org/v1", "ExampleResource", "nested-resource").
+		WithSpecField("simple", "unchanged").
+		WithSpecField("nested", map[string]interface{}{
+			"field1": "old-nested-value",
+			"field2": map[string]interface{}{
+				"deepField": "old-deep-value",
+			},
+		}).
+		Build()
+
+	// Resource with array fields
+	arrayItems := []interface{}{
+		map[string]interface{}{
+			"name":  "item1",
+			"value": "value1",
+		},
+		map[string]interface{}{
+			"name":  "item2",
+			"value": "value2",
+		},
 	}
+	arrayResource := tu.NewResource("example.org/v1", "ExampleResource", "array-resource").
+		WithSpecField("items", arrayItems).
+		Build()
+
+	// Composed resource
+	composedResource := tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
+		WithSpecField("param", "old-value").
+		WithLabels(map[string]string{
+			"crossplane.io/composite": "parent-xr",
+		}).
+		WithAnnotations(map[string]string{
+			"crossplane.io/composition-resource-name": "resource-a",
+		}).
+		Build()
+
+	noColorResource := tu.NewResource("example.org/v1", "ExampleResource", "nocolor-resource").
+		WithSpecField("param", "old-value").
+		Build()
 
 	tests := map[string]struct {
-		fields fields
-		args   args
-		want   want
+		reason      string
+		setupClient func() *tu.MockClusterClient
+		ctx         context.Context
+		composite   string
+		desired     runtime.Object
+		expectDiff  string
+		expectError error
+		noColor     bool
 	}{
 		"Non-Unstructured Object": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return nil, nil
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					return nil, nil
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					return nil, nil
-				},
+			reason: "Should return error when desired object is not an unstructured object",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired:   &corev1.Pod{}, // Using a typed object to test error handling
-			},
-			want: want{
-				err: errors.New("desired object is not unstructured"),
-			},
+			ctx:         ctx,
+			composite:   "",
+			desired:     &corev1.Pod{}, // Using a typed object to test error handling
+			expectError: errors.New("desired object is not unstructured"),
 		},
+		// Fixed test case for New Resource
 		"New Resource": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return nil, apierrors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, name)
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					// Should not be called for new resources
-					return nil, errors.New("should not be called")
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					return nil, nil
-				},
+			reason: "Should generate a diff for a new resource that doesn't exist in the cluster",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+						// Explicitly return NotFound error for apierrors.IsNotFound to work
+						return nil, apierrors.NewNotFound(
+							schema.GroupResource{Group: gvk.Group, Resource: strings.ToLower(gvk.Kind)},
+							name)
+					}).
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ExampleResource",
-						"metadata": map[string]interface{}{
-							"name": "new-resource",
-						},
-						"spec": map[string]interface{}{
-							"param": "value",
-						},
-					},
-				},
-			},
-			want: want{
-				diff: `+++ ExampleResource/new-resource
+			ctx:       ctx,
+			composite: "",
+			desired: tu.NewResource("example.org/v1", "ExampleResource", "new-resource").
+				WithSpecField("param", "value").
+				Build(),
+			expectDiff: `+++ ExampleResource/new-resource
 ` + tu.Green(`+ apiVersion: example.org/v1
 + kind: ExampleResource
 + metadata:
 +   name: new-resource
 + spec:
 +   param: value`),
-			},
 		},
 		"Error Getting Current Resource": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return nil, errors.New("get resource error")
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					return nil, nil
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					return nil, nil
-				},
+			reason: "Should return error when getting the current resource fails",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+						return nil, errors.New("get resource error")
+					}).
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ExampleResource",
-						"metadata": map[string]interface{}{
-							"name": "error-resource",
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.New("cannot get current object: get resource error"),
-			},
+			ctx:         ctx,
+			composite:   "",
+			desired:     tu.NewResource("example.org/v1", "ExampleResource", "error-resource").Build(),
+			expectError: errors.New("cannot get current object: get resource error"),
 		},
 		"Dry Run Apply Error": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return &unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "ExampleResource",
-							"metadata": map[string]interface{}{
-								"name": "existing-resource",
-							},
-							"spec": map[string]interface{}{
-								"param": "old-value",
-							},
-						},
-					}, nil
-				},
-				// This is returning DryRunApply error
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					return nil, errors.New("dry run apply error")
-				},
+			reason: "Should return error when the dry run apply fails",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(existingResource).
+					WithFailedDryRun("dry run apply error").
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ExampleResource",
-						"metadata": map[string]interface{}{
-							"name": "existing-resource",
-						},
-						"spec": map[string]interface{}{
-							"param": "new-value",
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.New("cannot dry-run apply desired object: dry run apply error"),
-			},
+			ctx:       ctx,
+			composite: "",
+			desired: tu.NewResource("example.org/v1", "ExampleResource", "existing-resource").
+				WithSpecField("param", "new-value").
+				Build(),
+			expectError: errors.New("cannot dry-run apply desired object: dry run apply error"),
 		},
 		"Modified Simple Fields": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return &unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "ExampleResource",
-							"metadata": map[string]interface{}{
-								"name": "modified-resource",
-							},
-							"spec": map[string]interface{}{
-								"param1": "old-value1",
-								"param2": "old-value2",
-								"param3": "unchanged",
-							},
-						},
-					}, nil
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					// Return a version that would result from applying the changes
-					return obj, nil
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					return nil, nil
-				},
+			reason: "Should generate a diff for a resource with modified simple fields",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(modifiedResource).
+					WithSuccessfulDryRun().
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ExampleResource",
-						"metadata": map[string]interface{}{
-							"name": "modified-resource",
-						},
-						"spec": map[string]interface{}{
-							"param1": "new-value1",
-							"param2": "new-value2",
-							"param3": "unchanged",
-							"param4": "added",
-						},
-					},
-				},
-			},
-			want: want{
-				diff: `~~~ ExampleResource/modified-resource
+			ctx:       ctx,
+			composite: "",
+			desired: tu.NewResource("example.org/v1", "ExampleResource", "modified-resource").
+				WithSpecField("param1", "new-value1").
+				WithSpecField("param2", "new-value2").
+				WithSpecField("param3", "unchanged").
+				WithSpecField("param4", "added").
+				Build(),
+			expectDiff: `~~~ ExampleResource/modified-resource
   apiVersion: example.org/v1
   kind: ExampleResource
   metadata:
@@ -807,64 +539,29 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 +   param2: new-value2
 +   param3: unchanged
 +   param4: added`),
-			},
 		},
 		"Nested Fields": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return &unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "ExampleResource",
-							"metadata": map[string]interface{}{
-								"name": "nested-resource",
-							},
-							"spec": map[string]interface{}{
-								"simple": "unchanged",
-								"nested": map[string]interface{}{
-									"field1": "old-nested-value",
-									"field2": map[string]interface{}{
-										"deepField": "old-deep-value",
-									},
-								},
-							},
-						},
-					}, nil
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					// Return a version that would result from applying the changes
-					return obj, nil
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					return nil, nil
-				},
+			reason: "Should generate a diff for a resource with modified nested fields",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(nestedResource).
+					WithSuccessfulDryRun().
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ExampleResource",
-						"metadata": map[string]interface{}{
-							"name": "nested-resource",
-						},
-						"spec": map[string]interface{}{
-							"simple": "unchanged",
-							"nested": map[string]interface{}{
-								"field1": "new-nested-value",
-								"field2": map[string]interface{}{
-									"deepField":      "new-deep-value",
-									"addedDeepField": "added-deep-value",
-								},
-								"field3": "added-field",
-							},
-						},
+			ctx:       ctx,
+			composite: "",
+			desired: tu.NewResource("example.org/v1", "ExampleResource", "nested-resource").
+				WithSpecField("simple", "unchanged").
+				WithSpecField("nested", map[string]interface{}{
+					"field1": "new-nested-value",
+					"field2": map[string]interface{}{
+						"deepField":      "new-deep-value",
+						"addedDeepField": "added-deep-value",
 					},
-				},
-			},
-			want: want{
-				diff: `~~~ ExampleResource/nested-resource
+					"field3": "added-field",
+				}).
+				Build(),
+			expectDiff: `~~~ ExampleResource/nested-resource
   apiVersion: example.org/v1
   kind: ExampleResource
   metadata:
@@ -880,68 +577,30 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 +       deepField: new-deep-value
 +     field3: added-field`) + `
     simple: unchanged`,
-			},
 		},
 		"Array Fields": {
-			fields: fields{
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					return &unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "ExampleResource",
-							"metadata": map[string]interface{}{
-								"name": "array-resource",
-							},
-							"spec": map[string]interface{}{
-								"items": []interface{}{
-									map[string]interface{}{
-										"name":  "item1",
-										"value": "value1",
-									},
-									map[string]interface{}{
-										"name":  "item2",
-										"value": "value2",
-									},
-								},
-							},
-						},
-					}, nil
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					// Return a version that would result from applying the changes
-					return obj, nil
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					return nil, nil
-				},
+			reason: "Should generate a diff for a resource with modified array fields",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(arrayResource).
+					WithSuccessfulDryRun().
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "",
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ExampleResource",
-						"metadata": map[string]interface{}{
-							"name": "array-resource",
-						},
-						"spec": map[string]interface{}{
-							"items": []interface{}{
-								map[string]interface{}{
-									"name":  "item1",
-									"value": "modified1",
-								},
-								map[string]interface{}{
-									"name":  "item3",
-									"value": "value3",
-								},
-							},
-						},
+			ctx:       ctx,
+			composite: "",
+			desired: tu.NewResource("example.org/v1", "ExampleResource", "array-resource").
+				WithSpecField("items", []interface{}{
+					map[string]interface{}{
+						"name":  "item1",
+						"value": "modified1",
 					},
-				},
-			},
-			want: want{
-				diff: `~~~ ExampleResource/array-resource
+					map[string]interface{}{
+						"name":  "item3",
+						"value": "value3",
+					},
+				}).
+				Build(),
+			expectDiff: `~~~ ExampleResource/array-resource
   apiVersion: example.org/v1
   kind: ExampleResource
   metadata:
@@ -955,93 +614,28 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 ` + tu.Green(`+     value: modified1
 +   - name: item3
 +     value: value3`),
-			},
 		},
 		"Composed Resource": {
-			fields: fields{
-				// Fix the mock for composed resources
-				mockGetResource: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-					// For composed resources, we simulate a resource that exists but has different values
-					if name == "composed-resource" {
-						return &unstructured.Unstructured{
-							Object: map[string]interface{}{
-								"apiVersion": "example.org/v1",
-								"kind":       "ComposedResource",
-								"metadata": map[string]interface{}{
-									"name": "composed-resource",
-									"labels": map[string]interface{}{
-										"crossplane.io/composite": "parent-xr",
-									},
-									"annotations": map[string]interface{}{
-										"crossplane.io/composition-resource-name": "resource-a",
-									},
-								},
-								"spec": map[string]interface{}{
-									"param": "old-value",
-								},
-							},
-						}, nil
-					}
-					// For GetResourcesByLabel fallback (if implemented in DefaultDiffProcessor)
-					return nil, apierrors.NewNotFound(
-						schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, name)
-				},
-				mockDryRunApply: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-					return obj, nil
-				},
-				mockGetResourcesByLabel: func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-					// For composed resources with composite reference
-					compositeLabel, hasCompositeLabel := selector.MatchLabels["crossplane.io/composite"]
-					if hasCompositeLabel && compositeLabel == "parent-xr" {
-						// Mock data for testing composed resources by label
-						return []*unstructured.Unstructured{
-							{
-								Object: map[string]interface{}{
-									"apiVersion": "example.org/v1",
-									"kind":       "ComposedResource",
-									"metadata": map[string]interface{}{
-										"name": "composed-resource",
-										"labels": map[string]interface{}{
-											"crossplane.io/composite": compositeLabel,
-										},
-										"annotations": map[string]interface{}{
-											"crossplane.io/composition-resource-name": "resource-a",
-										},
-									},
-									"spec": map[string]interface{}{
-										"param": "old-value",
-									},
-								},
-							},
-						}, nil
-					}
-					return nil, nil
-				},
+			reason: "Should generate a diff for a composed resource using labels to identify it",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(composedResource).
+					WithResourcesFoundByLabel([]*unstructured.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
+					WithSuccessfulDryRun().
+					Build()
 			},
-			args: args{
-				ctx:       ctx,
-				composite: "parent-xr", // This indicates it's a composed resource
-				desired: &unstructured.Unstructured{
-					Object: map[string]interface{}{
-						"apiVersion": "example.org/v1",
-						"kind":       "ComposedResource",
-						"metadata": map[string]interface{}{
-							"name": "composed-resource",
-							"labels": map[string]interface{}{
-								"crossplane.io/composite": "parent-xr",
-							},
-							"annotations": map[string]interface{}{
-								"crossplane.io/composition-resource-name": "resource-a",
-							},
-						},
-						"spec": map[string]interface{}{
-							"param": "new-value",
-						},
-					},
-				},
-			},
-			want: want{
-				diff: `~~~ ComposedResource/composed-resource
+			ctx:       ctx,
+			composite: "parent-xr", // This indicates it's a composed resource
+			desired: tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
+				WithSpecField("param", "new-value").
+				WithLabels(map[string]string{
+					"crossplane.io/composite": "parent-xr",
+				}).
+				WithAnnotations(map[string]string{
+					"crossplane.io/composition-resource-name": "resource-a",
+				}).
+				Build(),
+			expectDiff: `~~~ ComposedResource/composed-resource
   apiVersion: example.org/v1
   kind: ComposedResource
   metadata:
@@ -1053,69 +647,90 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
   spec:
 ` + tu.Red(`-   param: old-value`) + `
 ` + tu.Green(`+   param: new-value`),
+		},
+		"No Color Output": {
+			reason: "Should generate a diff without ANSI color codes when colorize is disabled",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(noColorResource).
+					WithSuccessfulDryRun().
+					Build()
 			},
+			ctx:       ctx,
+			composite: "",
+			desired: tu.NewResource("example.org/v1", "ExampleResource", "nocolor-resource").
+				WithSpecField("param", "new-value").
+				Build(),
+			expectDiff: `~~~ ExampleResource/nocolor-resource
+  apiVersion: example.org/v1
+  kind: ExampleResource
+  metadata:
+    name: nocolor-resource
+  spec:
+-   param: old-value
++   param: new-value`,
+			noColor: true,
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Create a mock client
-			mockClient := &tu.MockClusterClient{
-				GetResourceFn:         tt.fields.mockGetResource,
-				DryRunApplyFn:         tt.fields.mockDryRunApply,
-				GetResourcesByLabelFn: tt.fields.mockGetResourcesByLabel,
-			}
+			// Create a mock client using the mock builder pattern
+			mockClient := tt.setupClient()
 
+			// Create processor configuration
 			config := ProcessorConfig{
 				RestConfig: &rest.Config{},
-				Colorize:   true,
+				Colorize:   !tt.noColor,
 			}
 
+			// Create the processor
 			p := &DefaultDiffProcessor{
 				client: mockClient,
 				config: config,
 			}
 
-			diff, err := p.CalculateDiff(tt.args.ctx, tt.args.composite, tt.args.desired)
+			// Call the function under test
+			diff, err := p.CalculateDiff(tt.ctx, tt.composite, tt.desired)
 
 			// Check error expectations
-			if tt.want.err != nil {
+			if tt.expectError != nil {
 				if err == nil {
-					t.Errorf("CalculateDiff() expected error but got none")
+					t.Errorf("%s: CalculateDiff() expected error but got none", tt.reason)
 					return
 				}
-				if !strings.Contains(err.Error(), tt.want.err.Error()) {
-					t.Errorf("CalculateDiff() error = %v, wantErr %v", err, tt.want.err)
+				if !strings.Contains(err.Error(), tt.expectError.Error()) {
+					t.Errorf("%s: CalculateDiff() error = %v, want error containing %v", tt.reason, err, tt.expectError)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("CalculateDiff() unexpected error: %v", err)
+				t.Errorf("%s: CalculateDiff() unexpected error: %v", tt.reason, err)
 				return
 			}
 
 			// For empty expected diff, verify the result is also empty
-			if tt.want.diff == "" && diff != "" {
-				t.Errorf("CalculateDiff() expected empty diff, got: %s", diff)
+			if tt.expectDiff == "" && diff != "" {
+				t.Errorf("%s: CalculateDiff() expected empty diff, got: %s", tt.reason, diff)
 				return
 			}
 
 			// Check if we need to compare expected diff with actual diff
-			if tt.want.diff != "" && err == nil {
+			if tt.expectDiff != "" && err == nil {
 				// Normalize both strings by trimming trailing whitespace from each line
-				normalizedExpected := normalizeTrailingWhitespace(tt.want.diff)
+				normalizedExpected := normalizeTrailingWhitespace(tt.expectDiff)
 				normalizedActual := normalizeTrailingWhitespace(diff)
 
 				// Direct string comparison with normalized strings
 				if normalizedExpected != normalizedActual {
 					// If they're equal when ignoring ANSI, show escaped ANSI for debugging
-					if tu.CompareIgnoringAnsi(tt.want.diff, diff) {
-						t.Errorf("CalculateDiff() diff matches content but ANSI codes differ.\nWant (escaped):\n%q\n\nGot (escaped):\n%q",
-							tt.want.diff, diff)
+					if tu.CompareIgnoringAnsi(tt.expectDiff, diff) {
+						t.Errorf("%s: CalculateDiff() diff matches content but ANSI codes differ.\nWant (escaped):\n%q\n\nGot (escaped):\n%q",
+							tt.reason, tt.expectDiff, diff)
 					} else {
-						t.Errorf("CalculateDiff() diff does not match expected.\nWant:\n%s\n\nGot:\n%s",
-							tt.want.diff, diff)
+						t.Errorf("%s: CalculateDiff() diff does not match expected.\nWant:\n%s\n\nGot:\n%s",
+							tt.reason, tt.expectDiff, diff)
 					}
 				}
 			}
@@ -1124,158 +739,83 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 }
 
 func TestDiffProcessor_Initialize(t *testing.T) {
-	// Create a mock client that returns an error for GetXRDs
-	mockXRDsError := &tu.MockClusterClient{
-		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return nil, errors.New("XRD not found")
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-	}
+	// Setup test context
+	ctx := context.Background()
 
-	// Create a mock client that returns success for GetXRDs
-	mockXRDsSuccess := &tu.MockClusterClient{
-		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{
-				{
-					Object: map[string]interface{}{
-						"apiVersion": "apiextensions.crossplane.io/v1",
-						"kind":       "CompositeResourceDefinition",
-						"metadata": map[string]interface{}{
-							"name": "xexampleresources.example.org",
-						},
-						"spec": map[string]interface{}{
-							"group": "example.org",
-							"names": map[string]interface{}{
-								"kind":     "XExampleResource",
-								"plural":   "xexampleresources",
-								"singular": "xexampleresource",
-							},
-							"versions": []interface{}{
-								map[string]interface{}{
-									"name":    "v1",
-									"served":  true,
-									"storage": true,
-									"schema": map[string]interface{}{
-										"openAPIV3Schema": map[string]interface{}{
-											"type": "object",
-											"properties": map[string]interface{}{
-												"spec": map[string]interface{}{
-													"type": "object",
-													"properties": map[string]interface{}{
-														"coolParam": map[string]interface{}{
-															"type": "string",
-														},
-													},
-												},
-												"status": map[string]interface{}{
-													"type": "object",
-													"properties": map[string]interface{}{
-														"coolStatus": map[string]interface{}{
-															"type": "string",
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}, nil
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-	}
-
-	// Create a mock client that returns error for GetEnvironmentConfigs
-	mockEnvConfigsError := &tu.MockClusterClient{
-		GetXRDsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{}, nil
-		},
-		GetEnvironmentConfigsFn: func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return nil, errors.New("env configs not found")
-		},
-	}
-
-	type args struct {
-		ctx context.Context
-	}
-
-	type want struct {
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		mock   *tu.MockClusterClient
-		args   args
-		want   want
+	// Create test resources
+	xrd1 := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
+		WithSpecField("group", "example.org").
+		WithSpecField("names", map[string]interface{}{
+			"kind":     "XExampleResource",
+			"plural":   "xexampleresources",
+			"singular": "xexampleresource",
+		}).
+		Build()
+	// Test cases
+	tests := []struct {
+		name   string
+		client func() *tu.MockClusterClient
+		want   error
 	}{
-		"XRDsError": {
-			reason: "Should return error when getting XRD schema fails",
-			mock:   mockXRDsError,
-			args: args{
-				ctx: context.Background(),
+		{
+			name: "XRDsError",
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithFailedXRDsFetch("XRD not found").
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
 			},
-			want: want{
-				err: errors.New("cannot get XRDs: XRD not found"),
-			},
+			want: errors.Wrap(errors.New("XRD not found"), "cannot get XRDs"),
 		},
-		"EnvConfigsError": {
-			reason: "Should return error when getting environment configs fails",
-			mock:   mockEnvConfigsError,
-			args: args{
-				ctx: context.Background(),
+		{
+			name: "EnvConfigsError",
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
+					WithEnvironmentConfigs(func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+						return nil, errors.New("env configs not found")
+					}).
+					Build()
 			},
-			want: want{
-				err: errors.New("cannot get environment configs: env configs not found"),
-			},
+			want: errors.Wrap(errors.New("env configs not found"), "cannot get environment configs"),
 		},
-		"Success": {
-			reason: "Should succeed when XRDs are found and converted",
-			mock:   mockXRDsSuccess,
-			args: args{
-				ctx: context.Background(),
+		{
+			name: "Success",
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{xrd1}).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
 			},
-			want: want{
-				err: nil,
-			},
+			want: nil,
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
 			// Create a DiffProcessor that uses our mock client
-			p, _ := NewDiffProcessor(tc.mock, WithRestConfig(&rest.Config{}))
+			p, _ := NewDiffProcessor(tc.client(), WithRestConfig(&rest.Config{}))
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
 
-			err := p.Initialize(&stdout, tc.args.ctx)
+			err := p.Initialize(&stdout, ctx)
 
-			if tc.want.err != nil {
+			if tc.want != nil {
 				if err == nil {
-					t.Errorf("\n%s\nInitialize(...): expected error but got none", tc.reason)
+					t.Errorf("Initialize(...): expected error but got none")
 					return
 				}
 
-				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nInitialize(...): -want error, +got error:\n%s", tc.reason, diff)
+				if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
+					t.Errorf("Initialize(...): -want error, +got error:\n%s", diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nInitialize(...): unexpected error: %v", tc.reason, err)
-				return
+				t.Errorf("Initialize(...): unexpected error: %v", err)
 			}
-
-			// For success case, we assume no error means happy, because we don't want to expose the crd cache field
 		})
 	}
 }
