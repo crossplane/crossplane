@@ -383,3 +383,61 @@ func GetLineDiff(oldText, newText string, options DiffOptions) string {
 	formatter := NewFormatter(options.Compact)
 	return formatter.Format(lineDiffs, options)
 }
+
+// GenerateDiffWithOptions produces a formatted diff between two unstructured objects with specified options
+func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, name string, options DiffOptions) (string, error) {
+	// If the objects are equal, return an empty diff
+	if equality.Semantic.DeepEqual(current, desired) {
+		return "", nil
+	}
+
+	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
+		clean := cleanupForDiff(obj.DeepCopy())
+
+		// Convert both objects to YAML strings for diffing
+		cleanYAML, err := sigsyaml.Marshal(clean.Object)
+		if err != nil {
+			return "", errors.Wrap(err, "cannot marshal current object to YAML")
+		}
+
+		return string(cleanYAML), nil
+	}
+
+	currentStr := ""
+	var err error
+	if current != nil {
+		currentStr, err = cleanAndRender(current)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	desiredStr, err := cleanAndRender(desired)
+	if err != nil {
+		return "", err
+	}
+
+	// Return an empty diff if content is identical
+	if desiredStr == currentStr {
+		return "", nil
+	}
+
+	// get the line by line diff with the specified options
+	diffResult := GetLineDiff(currentStr, desiredStr, options)
+
+	if diffResult == "" {
+		return "", nil
+	}
+
+	var leadChar string
+
+	switch current {
+	case nil:
+		leadChar = "+++" // Resource does not exist
+	default:
+		leadChar = "~~~" // Resource exists and is changing
+	}
+
+	// Format the output with a resource header
+	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
+}

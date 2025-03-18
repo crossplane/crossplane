@@ -7,14 +7,17 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"github.com/go-logr/stdr"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	stdlog "log"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
@@ -70,7 +73,7 @@ func TestDiffWithExtraResources(t *testing.T) {
 			}
 			return testComposition, nil
 		},
-		GetExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+		GetAllResourcesByLabelsFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			// Validate the GVR and selector match what we expect
 			if len(gvrs) != 1 || len(selectors) != 1 {
 				return nil, errors.New("unexpected number of GVRs or selectors")
@@ -258,7 +261,7 @@ func TestDiffWithMatchingResources(t *testing.T) {
 		FindMatchingCompositionFn: func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			return testComposition, nil
 		},
-		GetExtraResourcesFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+		GetAllResourcesByLabelsFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{testExtraResource}, nil
 		},
 		GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
@@ -606,6 +609,8 @@ func TestDiffIntegration(t *testing.T) {
 		},
 	}
 
+	SetupTestLogger(t)
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup a brand new test environment for each test case
@@ -782,4 +787,22 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 		}
 	}
 	return nil
+}
+
+func SetupTestLogger(t *testing.T) {
+	// Create a logr.Logger that writes to testing.T.Log
+	testLogger := stdr.NewWithOptions(stdlog.New(testWriter{t}, "", 0), stdr.Options{LogCaller: stdr.All})
+
+	// Set the logger for controller-runtime
+	log.SetLogger(testLogger)
+}
+
+// testWriter adapts testing.T.Log to io.Writer
+type testWriter struct {
+	t *testing.T
+}
+
+func (tw testWriter) Write(p []byte) (int, error) {
+	tw.t.Log(string(p))
+	return len(p), nil
 }

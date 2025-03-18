@@ -231,13 +231,13 @@ func (m *MockResourceInterface) ApplyStatus(ctx context.Context, name string, ob
 type MockClusterClient struct {
 	InitializeFn               func(context.Context) error
 	FindMatchingCompositionFn  func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetExtraResourcesFn        func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDsFn                  func(context.Context) ([]*unstructured.Unstructured, error)
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
 	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
+	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 }
 
 // Initialize implements the ClusterClient interface
@@ -258,8 +258,8 @@ func (m *MockClusterClient) FindMatchingComposition(res *unstructured.Unstructur
 
 // GetAllResourcesByLabels implements the ClusterClient interface
 func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-	if m.GetExtraResourcesFn != nil {
-		return m.GetExtraResourcesFn(ctx, gvrs, selectors)
+	if m.GetAllResourcesByLabelsFn != nil {
+		return m.GetAllResourcesByLabelsFn(ctx, gvrs, selectors)
 	}
 	return nil, errors.New("GetAllResourcesByLabels not implemented")
 }
@@ -357,4 +357,13 @@ type MockLoader struct {
 
 func (m *MockLoader) Load() ([]*unstructured.Unstructured, error) {
 	return m.Resources, m.Err
+}
+
+// Helper type for mocking providers
+type MockExtraResourceProvider struct {
+	GetExtraResourcesFn func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
+}
+
+func (m *MockExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+	return m.GetExtraResourcesFn(ctx, comp, xr, resources)
 }

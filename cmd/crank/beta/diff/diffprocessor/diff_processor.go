@@ -5,27 +5,21 @@ import (
 	"dario.cat/mergo"
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/apimachinery/pkg/util/yaml" // For NewYAMLOrJSONDecoder
-	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
 )
 
@@ -41,16 +35,14 @@ type DiffProcessor interface {
 
 // DefaultDiffProcessor handles the processing of resources for diffing.
 type DefaultDiffProcessor struct {
-	client             cc.ClusterClient
-	config             ProcessorConfig
-	crds               []*extv1.CustomResourceDefinition
-	environmentConfigs []*unstructured.Unstructured // Cache for environment configs
+	client                cc.ClusterClient
+	config                ProcessorConfig
+	crds                  []*extv1.CustomResourceDefinition
+	extraResourceProvider ExtraResourceProvider
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor with the provided options
-// todo probably take a pointer for client
 func NewDiffProcessor(client cc.ClusterClient, options ...DiffProcessorOption) (DiffProcessor, error) {
-
 	if client == nil {
 		return nil, errors.New("client cannot be nil")
 	}
@@ -74,13 +66,27 @@ func NewDiffProcessor(client cc.ClusterClient, options ...DiffProcessorOption) (
 		return nil, errors.New("REST config cannot be nil")
 	}
 
-	return &DefaultDiffProcessor{
-		client:             client,
-		config:             config,
-		environmentConfigs: make([]*unstructured.Unstructured, 0),
-	}, nil
+	processor := &DefaultDiffProcessor{
+		client: client,
+		config: config,
+		crds:   []*extv1.CustomResourceDefinition{},
+	}
+
+	// Create environment config provider with empty configs (will be populated in Initialize)
+	envConfigProvider := NewEnvironmentConfigProvider([]*unstructured.Unstructured{})
+
+	// Create the composite provider with all our extra resource providers
+	processor.extraResourceProvider = NewCompositeExtraResourceProvider(
+		envConfigProvider,
+		NewSelectorExtraResourceProvider(client),
+		NewReferenceExtraResourceProvider(client),
+		NewTemplatedExtraResourceProvider(client, config.RenderFunc, config.Logger),
+	)
+
+	return processor, nil
 }
 
+// Initialize loads required resources like CRDs and environment configs
 func (p *DefaultDiffProcessor) Initialize(writer io.Writer, ctx context.Context) error {
 	xrds, err := p.client.GetXRDs(ctx)
 	if err != nil {
@@ -100,7 +106,17 @@ func (p *DefaultDiffProcessor) Initialize(writer io.Writer, ctx context.Context)
 	if err != nil {
 		return errors.Wrap(err, "cannot get environment configs")
 	}
-	p.environmentConfigs = environmentConfigs
+
+	// Update the EnvironmentConfigProvider with the fetched configs
+	// Find the EnvironmentConfigProvider in our composite provider
+	if compositeProvider, ok := p.extraResourceProvider.(*CompositeExtraResourceProvider); ok {
+		for _, provider := range compositeProvider.providers {
+			if envProvider, ok := provider.(*EnvironmentConfigProvider); ok {
+				envProvider.configs = environmentConfigs
+				break
+			}
+		}
+	}
 
 	return nil
 }
@@ -119,60 +135,48 @@ func (p *DefaultDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context,
 
 // ProcessResource handles one resource at a time.
 func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
-
+	// Convert the unstructured resource to a composite unstructured for rendering
 	xr := ucomposite.New()
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
 		return errors.Wrap(err, "cannot convert XR to composite unstructured")
 	}
 
+	// Find the matching composition
 	comp, err := p.client.FindMatchingComposition(res)
 	if err != nil {
 		return errors.Wrap(err, "cannot find matching composition")
 	}
 
-	// figure out what extra resources are needed based on what we know right now
-	gvrs, selectors, err := p.IdentifyNeededExtraResources(comp, res)
-	if err != nil {
-		return errors.Wrap(err, "cannot identify needed extra resources")
-	}
-
-	extraResources, err := p.client.GetAllResourcesByLabels(ctx, gvrs, selectors)
-	if err != nil {
-		return errors.Wrap(err, "cannot get extra resources")
-	}
-
-	// Add cached environment configs to extra resources
-	extraResources = append(extraResources, p.environmentConfigs...)
-
+	// Get functions for rendering
 	fns, err := p.client.GetFunctionsFromPipeline(comp)
 	if err != nil {
 		return errors.Wrap(err, "cannot get functions from pipeline")
 	}
 
-	hasTemplatedExtra, err := ScanForTemplatedExtraResources(comp)
+	// Get all extra resources using our extraResourceProvider
+	extraResources, err := p.extraResourceProvider.GetExtraResources(ctx, comp, res, []*unstructured.Unstructured{})
 	if err != nil {
-		return errors.Wrap(err, "cannot scan for templated extra resources")
+		return errors.Wrap(err, "cannot get extra resources")
 	}
 
-	if hasTemplatedExtra {
-		// TODO:  I think this needs to fetch the extra resources from the result of the render, and currently doesn't
-		extraResources, err = p.HandleTemplatedExtraResources(ctx, comp, xr, fns, extraResources)
-		if err != nil {
-			return err
-		}
+	// Convert the extra resources to the format expected by render.Inputs
+	extraResourcesForRender := make([]unstructured.Unstructured, 0, len(extraResources))
+	for _, er := range extraResources {
+		extraResourcesForRender = append(extraResourcesForRender, *er)
 	}
 
-	// Use the render function from the configuration
+	// Render the resources
 	desired, err := p.config.RenderFunc(ctx, p.config.Logger, render.Inputs{
 		CompositeResource: xr,
 		Composition:       comp,
 		Functions:         fns,
-		ExtraResources:    internal.DereferenceSlice(extraResources),
+		ExtraResources:    extraResourcesForRender,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot render resources")
 	}
 
+	// Helper function to print diffs
 	printDiff := func(composite string, res runtime.Object) error {
 		diff, err := p.CalculateDiff(ctx, composite, res)
 		if err != nil {
@@ -187,240 +191,27 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 
 	compositeUnstructured := &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}
 
-	// the `crossplane render` cli doesn't actually provide the full XR on `render.Outputs`.  it just stuffs
-	// the spec from the input XR into the results.  however the input could be different from what's on the server
-	// so we should still diff.  so we naively merge the input XR with the rendered XR to get the full XR.
+	// Merge the input XR with the rendered XR to get the full XR
 	xrUnstructured, err := mergeUnstructured(compositeUnstructured, res)
 	if err != nil {
 		return errors.Wrap(err, "cannot merge input XR with result of rendered XR")
 	}
 
-	// schema validation will fail if we do it before we merge the composite into the results
+	// Validate the resources
 	if err := p.ValidateResources(stdout, xrUnstructured, desired.ComposedResources); err != nil {
 		return errors.Wrap(err, "cannot validate resources")
 	}
 
+	// Print the diffs
 	var errs []error
 	errs = append(errs, printDiff("", xrUnstructured))
 
-	// Diff the things downstream from the XR
+	// Diff the composed resources
 	for _, d := range desired.ComposedResources {
 		un := &unstructured.Unstructured{Object: d.UnstructuredContent()}
 		errs = append(errs, printDiff(xr.GetName(), un))
 	}
 	return errors.Wrap(errors.Join(errs...), "cannot print diff")
-}
-
-func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	// Start with a deep copy of the rendered resource
-	result := dest.DeepCopy()
-	if err := mergo.Merge(&result.Object, src.Object, mergo.WithOverride); err != nil {
-		return nil, errors.Wrap(err, "cannot merge unstructured objects")
-	}
-
-	return result, nil
-}
-
-// IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
-// The xr parameter is needed to resolve field paths in FromCompositeFieldPath label selectors
-func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Composition, xr *unstructured.Unstructured) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
-	// If no pipeline mode or no steps, return empty
-	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
-		return nil, nil, nil
-	}
-
-	var resources []schema.GroupVersionResource
-	var selectors []metav1.LabelSelector
-
-	// Look for function-extra-resources steps
-	for _, step := range comp.Spec.Pipeline {
-		if step.FunctionRef.Name != "function-extra-resources" || step.Input == nil {
-			continue
-		}
-
-		// Parse the input into an unstructured object
-		input := &unstructured.Unstructured{}
-		if err := input.UnmarshalJSON(step.Input.Raw); err != nil {
-			return nil, nil, errors.Wrap(err, "cannot unmarshal function-extra-resources input")
-		}
-
-		// Extract extra resources configuration
-		extraResources, found, err := unstructured.NestedSlice(input.Object, "spec", "extraResources")
-		if err != nil || !found {
-			continue
-		}
-
-		// Process each extra resource configuration
-		for _, er := range extraResources {
-			erMap, ok := er.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			// Get common resource details
-			apiVersion, _, _ := unstructured.NestedString(erMap, "apiVersion")
-			kind, _, _ := unstructured.NestedString(erMap, "kind")
-
-			if apiVersion == "" || kind == "" {
-				continue
-			}
-
-			// Get the resource type - default is Reference
-			resourceType, _, _ := unstructured.NestedString(erMap, "type")
-			if resourceType == "" {
-				resourceType = "Reference"
-			}
-
-			// Handle based on type
-			switch resourceType {
-			case "Reference":
-				// For Reference type, we don't need to add anything to the GVR/selectors
-				// as these resources are fetched directly by name
-
-			case "Selector":
-				// Create GVR for Selector type resources
-				gvr, labelSelector, err := p.processSelector(erMap, apiVersion, kind, xr)
-				if err != nil {
-					return nil, nil, err
-				}
-				resources = append(resources, gvr)
-				selectors = append(selectors, labelSelector)
-
-			default:
-				// Unknown resource type, log and skip
-				p.config.Logger.Debug("Unknown resource type in extraResources", "type", resourceType)
-			}
-		}
-	}
-
-	return resources, selectors, nil
-}
-
-// processSelector handles the creation of GVR and label selector for Selector type resources
-func (p *DefaultDiffProcessor) processSelector(erMap map[string]interface{}, apiVersion, kind string, xr *unstructured.Unstructured) (schema.GroupVersionResource, metav1.LabelSelector, error) {
-	// Create GVR for this resource type
-	gv, err := schema.ParseGroupVersion(apiVersion)
-	if err != nil {
-		return schema.GroupVersionResource{}, metav1.LabelSelector{}, errors.Wrapf(err, "cannot parse group version %q", apiVersion)
-	}
-
-	gvr := schema.GroupVersionResource{
-		Group:    gv.Group,
-		Version:  gv.Version,
-		Resource: fmt.Sprintf("%ss", strings.ToLower(kind)), // naive pluralization
-	}
-
-	// Create label selector
-	labelSelector := metav1.LabelSelector{
-		MatchLabels: make(map[string]string),
-	}
-
-	// Check if selector exists and has matchLabels
-	selector, selectorFound, _ := unstructured.NestedMap(erMap, "selector")
-	if selectorFound {
-		matchLabelsSlice, matchLabelsFound, _ := unstructured.NestedSlice(selector, "matchLabels")
-		if matchLabelsFound {
-			for _, label := range matchLabelsSlice {
-				labelMap, isMap := label.(map[string]interface{})
-				if !isMap {
-					continue
-				}
-
-				// Get the key of the label
-				key, keyExists, _ := unstructured.NestedString(labelMap, "key")
-				if !keyExists || key == "" {
-					continue
-				}
-
-				// Get the type of the label (defaults to FromCompositeFieldPath)
-				labelType, labelTypeExists, _ := unstructured.NestedString(labelMap, "type")
-				if !labelTypeExists {
-					labelType = "FromCompositeFieldPath"
-				}
-
-				var labelValue string
-
-				switch labelType {
-				case "Value":
-					// Static value
-					value, valueExists, _ := unstructured.NestedString(labelMap, "value")
-					if !valueExists || value == "" {
-						continue
-					}
-					labelValue = value
-
-				case "FromCompositeFieldPath":
-					// Value from XR field path
-					if xr == nil {
-						// If no XR is provided, we can't resolve the field path
-						// In this case, we skip this label
-						continue
-					}
-
-					fieldPath, fieldPathExists, _ := unstructured.NestedString(labelMap, "valueFromFieldPath")
-					if !fieldPathExists || fieldPath == "" {
-						continue
-					}
-
-					// Get the value from the XR using the field path
-					// First try with the path as is
-					fieldValue, err := fieldpath.Pave(xr.UnstructuredContent()).GetString(fieldPath)
-					if err == nil && fieldValue != "" {
-						labelValue = fieldValue
-					} else {
-						// If that fails, check if we need to add "spec." prefix for compatibility
-						if !strings.HasPrefix(fieldPath, "spec.") && !strings.HasPrefix(fieldPath, "status.") {
-							augmentedPath := "spec." + fieldPath
-							fieldValue, err = fieldpath.Pave(xr.UnstructuredContent()).GetString(augmentedPath)
-							if err == nil && fieldValue != "" {
-								labelValue = fieldValue
-							} else {
-								// Still couldn't find a value, skip this label
-								continue
-							}
-						} else {
-							// Path was already in spec/status but value wasn't found, skip
-							continue
-						}
-					}
-
-				default:
-					// Unknown label type, skip
-					continue
-				}
-
-				// Add the label to the selector
-				labelSelector.MatchLabels[key] = labelValue
-			}
-		}
-	}
-
-	return gvr, labelSelector, nil
-}
-
-// HandleTemplatedExtraResources processes templated extra resources.
-func (p *DefaultDiffProcessor) HandleTemplatedExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *ucomposite.Unstructured, fns []pkgv1.Function, extraResources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	preliminary, err := render.Render(ctx, nil, render.Inputs{
-		CompositeResource: xr,
-		Composition:       comp,
-		Functions:         fns,
-		ExtraResources:    internal.DereferenceSlice(extraResources),
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot perform preliminary render")
-	}
-
-	for _, result := range preliminary.Results {
-		if result.GetKind() == "ExtraResources" {
-			additional, err := GetExtraResourcesFromResult(&result)
-			if err != nil {
-				return nil, errors.Wrap(err, "cannot get extra resources from result")
-			}
-			extraResources = append(extraResources, additional...)
-		}
-	}
-
-	return extraResources, nil
 }
 
 // ValidateResources validates the resources using schema validation
@@ -438,15 +229,15 @@ func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, xr *unstructu
 
 	// Add composed resources to validation list
 	for i := range composed {
-		resources = append(resources, &unstructured.Unstructured{Object: resources[i].UnstructuredContent()})
+		// Use the correct index (i) for accessing composed resources
+		composedUnstr := &unstructured.Unstructured{Object: composed[i].UnstructuredContent()}
+		resources = append(resources, composedUnstr)
 	}
 
 	loggerWriter := internal.NewLoggerWriter(p.config.Logger)
 
-	// TODO:  we should probably clean up stdout refs everywhere since we do have a logger on hand
-
 	// Validate using the converted CRD schema
-	// do not actually write to stdout (as it can interfere with diffs) -- just use the logger
+	// Do not actually write to stdout (as it can interfere with diffs) -- just use the logger
 	if err := validate.SchemaValidation(resources, p.crds, true, loggerWriter); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
@@ -454,76 +245,7 @@ func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, xr *unstructu
 	return nil
 }
 
-func ScanForTemplatedExtraResources(comp *apiextensionsv1.Composition) (bool, error) {
-	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
-		return false, nil
-	}
-
-	for _, step := range comp.Spec.Pipeline {
-		if step.FunctionRef.Name != "function-go-templating" || step.Input == nil {
-			continue
-		}
-
-		// Parse the input into an unstructured object
-		input := &unstructured.Unstructured{}
-		if err := input.UnmarshalJSON(step.Input.Raw); err != nil {
-			return false, errors.Wrap(err, "cannot unmarshal function-go-templating input")
-		}
-
-		// Look for template string
-		template, found, err := unstructured.NestedString(input.Object, "spec", "inline", "template")
-		if err != nil || !found {
-			continue
-		}
-
-		// Parse the template string as YAML and look for ExtraResources documents
-		decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(template), 4096)
-		for {
-			obj := make(map[string]interface{})
-			if err := decoder.Decode(&obj); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return false, errors.Wrap(err, "cannot decode template YAML")
-			}
-
-			u := &unstructured.Unstructured{Object: obj}
-			if u.GetKind() == "ExtraResources" {
-				return true, nil
-			}
-		}
-	}
-
-	return false, nil
-}
-
-func GetExtraResourcesFromResult(result *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	spec, found, err := unstructured.NestedMap(result.Object, "spec")
-	if err != nil || !found {
-		return nil, errors.New("no spec found in ExtraResources result")
-	}
-
-	extraResources, found, err := unstructured.NestedSlice(spec, "resources")
-	if err != nil || !found {
-		return nil, errors.New("no resources found in ExtraResources spec")
-	}
-
-	var resources []*unstructured.Unstructured
-	for _, er := range extraResources {
-		erMap, ok := er.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		u := unstructured.Unstructured{Object: erMap}
-		resources = append(resources, &u)
-	}
-
-	return resources, nil
-}
-
 // CalculateDiff calculates the difference between desired state and current state
-// using the ClusterClient's DryRunApply method and a git-based diff to produce GNU-format diffs
 func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite string, desired runtime.Object) (string, error) {
 	// Convert desired to unstructured
 	desiredUnstr, ok := desired.(*unstructured.Unstructured)
@@ -558,64 +280,6 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 	}
 
 	return diff, nil
-}
-
-// GenerateDiffWithOptions produces a formatted diff between two unstructured objects with specified options
-func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, name string, options DiffOptions) (string, error) {
-	// If the objects are equal, return an empty diff
-	if equality.Semantic.DeepEqual(current, desired) {
-		return "", nil
-	}
-
-	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
-		clean := cleanupForDiff(obj.DeepCopy())
-
-		// Convert both objects to YAML strings for diffing
-		cleanYAML, err := sigsyaml.Marshal(clean.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal current object to YAML")
-		}
-
-		return string(cleanYAML), nil
-	}
-
-	currentStr := ""
-	var err error
-	if current != nil {
-		currentStr, err = cleanAndRender(current)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	desiredStr, err := cleanAndRender(desired)
-	if err != nil {
-		return "", err
-	}
-
-	// Return an empty diff if content is identical
-	if desiredStr == currentStr {
-		return "", nil
-	}
-
-	// get the line by line diff with the specified options
-	diffResult := GetLineDiff(currentStr, desiredStr, options)
-
-	if diffResult == "" {
-		return "", nil
-	}
-
-	var leadChar string
-
-	switch current {
-	case nil:
-		leadChar = "+++" // Resource does not exist
-	default:
-		leadChar = "~~~" // Resource exists and is changing
-	}
-
-	// Format the output with a resource header
-	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
 }
 
 // makeObjectValid makes sure all OwnerReferences have a valid UID
@@ -688,4 +352,15 @@ func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite
 	}
 
 	return current, isNewObject, nil
+}
+
+// mergeUnstructured merges two unstructured objects
+func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	// Start with a deep copy of the rendered resource
+	result := dest.DeepCopy()
+	if err := mergo.Merge(&result.Object, src.Object, mergo.WithOverride); err != nil {
+		return nil, errors.Wrap(err, "cannot merge unstructured objects")
+	}
+
+	return result, nil
 }
