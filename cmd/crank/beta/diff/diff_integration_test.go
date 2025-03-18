@@ -592,6 +592,7 @@ func TestDiffIntegration(t *testing.T) {
   metadata:
     annotations:
       crossplane.io/composition-resource-name: nop-resource
+    generateName: test-resource-
     labels:
       crossplane.io/composite: test-resource
     name: test-resource

@@ -47,7 +47,7 @@ spec:
             {{- /* we can't use the same call to 'index' on these because it goes map -> array -> map */ -}}
             {{- $extras := index .context "apiextensions.crossplane.io/extra-resources" -}}
             {{- $cfgMap := index $extras "cfgMap" 0 -}}
-            {{- $clusterRole := index $extras "namedClusterRole" -}}
+            {{- $clusterRole := index $extras "namedClusterRole" 0 -}}
             apiVersion: nop.example.org/v1alpha1
             kind: XDownstreamResource
             metadata:
