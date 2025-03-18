@@ -88,11 +88,10 @@ type UsageStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient
-// +genclient:nonNamespaced
 // +kubebuilder:printcolumn:name="DETAILS",type="string",JSONPath=".metadata.annotations.crossplane\\.io/usage-details"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 type Usage struct {
 	metav1.TypeMeta   `json:",inline"`
