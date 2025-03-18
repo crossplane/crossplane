@@ -558,6 +558,48 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
+		{
+			name: "Diff with external resource dependencies via fn-external-resources",
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/functions.yaml",
+				"testdata/diff/resources/external-resource-configmap.yaml",
+				"testdata/diff/resources/external-res-fn-composition.yaml",
+				"testdata/diff/resources/existing-xr-with-external-dep.yaml",
+				"testdata/diff/resources/existing-downstream-with-external-dep.yaml",
+			},
+			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
+			expectedOutput: `
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+-   coolField: existing-value
++   coolField: modified-with-external-dep
+
+---
+~~~ XDownstreamResource/test-resource
+  apiVersion: nop.example.org/v1alpha1
+  kind: XDownstreamResource
+  metadata:
+    annotations:
+      crossplane.io/composition-resource-name: nop-resource
+    generateName: test-resource-
+    labels:
+      crossplane.io/composite: test-resource
+    name: test-resource
+  spec:
+    forProvider:
+-     configData: existing-value
++     configData: external-resource-data
+
+---
+`,
+			expectedError: false,
+			noColor:       true,
+		},
 	}
 
 	for _, tt := range tests {

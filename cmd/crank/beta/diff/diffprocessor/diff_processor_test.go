@@ -307,8 +307,27 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 	pipelineMode := apiextensionsv1.CompositionModePipeline
 	nonPipelineMode := apiextensionsv1.CompositionMode("NonPipeline")
 
+	// Create a sample XR for field path resolution tests
+	sampleXR := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "example.org/v1",
+			"kind":       "XTest",
+			"metadata": map[string]interface{}{
+				"name": "test-xr",
+			},
+			"spec": map[string]interface{}{
+				"environment": "production",
+				"region":      "us-west-2",
+				"nested": map[string]interface{}{
+					"value": "nested-value",
+				},
+			},
+		},
+	}
+
 	type args struct {
 		comp *apiextensionsv1.Composition
+		xr   *unstructured.Unstructured
 	}
 
 	type want struct {
@@ -330,6 +349,7 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 						Mode: &nonPipelineMode,
 					},
 				},
+				xr: sampleXR,
 			},
 			want: want{
 				gvrs:      nil,
@@ -350,6 +370,7 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 						},
 					},
 				},
+				xr: sampleXR,
 			},
 			want: want{
 				gvrs:      nil,
@@ -367,12 +388,13 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 								Step:        "step-1",
 								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
 								Input: &runtime.RawExtension{
-									Raw: []byte(`{"apiVersion":"crossplane.io/v1alpha1","kind":"ExtraResourcesInput","spec":{"otherField":"value"}}`),
+									Raw: []byte(`{"apiVersion":"extra-resources.fn.crossplane.io/v1beta1","kind":"Input","spec":{"otherField":"value"}}`),
 								},
 							},
 						},
 					},
 				},
+				xr: sampleXR,
 			},
 			want: want{
 				gvrs:      nil,
@@ -396,6 +418,7 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 						},
 					},
 				},
+				xr: sampleXR,
 			},
 			want: want{
 				gvrs:      nil,
@@ -403,8 +426,8 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 				err:       errors.New("cannot unmarshal function-extra-resources input"),
 			},
 		},
-		"WithExtraResources": {
-			reason: "Should return GVRs and selectors when extraResources exist",
+		"ReferenceTypeSkipped": {
+			reason: "Should skip Reference type resources (default)",
 			args: args{
 				comp: &apiextensionsv1.Composition{
 					Spec: apiextensionsv1.CompositionSpec{
@@ -415,17 +438,16 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
 								Input: &runtime.RawExtension{
 									Raw: []byte(`{
-										"apiVersion": "crossplane.io/v1alpha1",
-										"kind": "ExtraResourcesInput",
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
 										"spec": {
 											"extraResources": [
 												{
 													"apiVersion": "example.org/v1",
 													"kind": "Test",
-													"selector": {
-														"matchLabels": {
-															"app": "test"
-														}
+													"into": "testRef",
+													"ref": {
+														"name": "test-name"
 													}
 												}
 											]
@@ -436,13 +458,492 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 						},
 					},
 				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs:      nil,
+				selectors: nil,
+			},
+		},
+		"SelectorTypeWithSimpleValue": {
+			reason: "Should process Selector type with simple static value in matchLabels",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "app",
+																"type": "Value",
+																"value": "test-app"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
 			},
 			want: want{
 				gvrs: []schema.GroupVersionResource{
 					{Group: "example.org", Version: "v1", Resource: "tests"},
 				},
 				selectors: []metav1.LabelSelector{
-					{MatchLabels: map[string]string{"app": "test"}},
+					{MatchLabels: map[string]string{"app": "test-app"}},
+				},
+			},
+		},
+		"SelectorTypeWithFieldPath": {
+			reason: "Should process Selector type with field path value in matchLabels",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "env",
+																"type": "FromCompositeFieldPath",
+																"valueFromFieldPath": "spec.environment"
+															},
+															{
+																"key": "region",
+																"type": "FromCompositeFieldPath",
+																"valueFromFieldPath": "spec.region"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{
+						"env":    "production",
+						"region": "us-west-2",
+					}},
+				},
+			},
+		},
+		"SelectorTypeWithMixedValues": {
+			reason: "Should process Selector type with a mix of static and field path values",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "app",
+																"type": "Value",
+																"value": "test-app"
+															},
+															{
+																"key": "env",
+																"type": "FromCompositeFieldPath",
+																"valueFromFieldPath": "spec.environment"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{
+						"app": "test-app",
+						"env": "production",
+					}},
+				},
+			},
+		},
+		"SelectorTypeWithNestedFieldPath": {
+			reason: "Should process Selector type with a nested field path value",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "nested-value",
+																"type": "FromCompositeFieldPath",
+																"valueFromFieldPath": "spec.nested.value"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{
+						"nested-value": "nested-value",
+					}},
+				},
+			},
+		},
+		"MultipleSelectorTypes": {
+			reason: "Should process multiple resources with Selector type",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test1",
+													"into": "test1Selector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "app",
+																"type": "Value",
+																"value": "test-app-1"
+															}
+														]
+													}
+												},
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test2",
+													"into": "test2Selector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "app",
+																"type": "Value",
+																"value": "test-app-2"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "test1s"},
+					{Group: "example.org", Version: "v1", Resource: "test2s"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{"app": "test-app-1"}},
+					{MatchLabels: map[string]string{"app": "test-app-2"}},
+				},
+			},
+		},
+		"MissingLabelKey": {
+			reason: "Should skip label with missing key",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"type": "Value",
+																"value": "test-app"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{}},
+				},
+			},
+		},
+		"MissingValueInStaticValue": {
+			reason: "Should skip label with missing value in Value type",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "app",
+																"type": "Value"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{}},
+				},
+			},
+		},
+		"MissingValueFromFieldPath": {
+			reason: "Should skip label with missing valueFromFieldPath in FromCompositeFieldPath type",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "env",
+																"type": "FromCompositeFieldPath"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{}},
+				},
+			},
+		},
+		"NonExistentFieldPath": {
+			reason: "Should skip label when field path doesn't exist in XR",
+			args: args{
+				comp: &apiextensionsv1.Composition{
+					Spec: apiextensionsv1.CompositionSpec{
+						Mode: &pipelineMode,
+						Pipeline: []apiextensionsv1.PipelineStep{
+							{
+								Step:        "step-1",
+								FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+								Input: &runtime.RawExtension{
+									Raw: []byte(`{
+										"apiVersion": "extra-resources.fn.crossplane.io/v1beta1",
+										"kind": "Input",
+										"spec": {
+											"extraResources": [
+												{
+													"apiVersion": "example.org/v1",
+													"kind": "Test",
+													"into": "testSelector",
+													"type": "Selector",
+													"selector": {
+														"matchLabels": [
+															{
+																"key": "nonexistent",
+																"type": "FromCompositeFieldPath",
+																"valueFromFieldPath": "spec.nonexistent"
+															}
+														]
+													}
+												}
+											]
+										}
+									}`),
+								},
+							},
+						},
+					},
+				},
+				xr: sampleXR,
+			},
+			want: want{
+				gvrs: []schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Resource: "tests"},
+				},
+				selectors: []metav1.LabelSelector{
+					{MatchLabels: map[string]string{}},
 				},
 			},
 		},
@@ -451,31 +952,31 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			p := &DefaultDiffProcessor{}
-			gvrs, selectors, err := p.IdentifyNeededExtraResources(tc.args.comp)
+			gvrs, selectors, err := p.IdentifyNeededExtraResources(tc.args.comp, tc.args.xr)
 
 			if tc.want.err != nil {
 				if err == nil {
-					t.Errorf("\n%s\nidentifyNeededExtraResources(...): expected error but got none", tc.reason)
+					t.Errorf("\n%s\nIdentifyNeededExtraResources(...): expected error but got none", tc.reason)
 					return
 				}
 
 				if !strings.Contains(err.Error(), tc.want.err.Error()) {
-					t.Errorf("\n%s\nidentifyNeededExtraResources(...): expected error containing %q, got %q", tc.reason, tc.want.err.Error(), err.Error())
+					t.Errorf("\n%s\nIdentifyNeededExtraResources(...): expected error containing %q, got %q", tc.reason, tc.want.err.Error(), err.Error())
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("\n%s\nidentifyNeededExtraResources(...): unexpected error: %v", tc.reason, err)
+				t.Errorf("\n%s\nIdentifyNeededExtraResources(...): unexpected error: %v", tc.reason, err)
 				return
 			}
 
 			if diff := cmp.Diff(len(tc.want.gvrs), len(gvrs)); diff != "" {
-				t.Errorf("\n%s\nidentifyNeededExtraResources(...): -want GVR count, +got GVR count:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nIdentifyNeededExtraResources(...): -want GVR count, +got GVR count:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(len(tc.want.selectors), len(selectors)); diff != "" {
-				t.Errorf("\n%s\nidentifyNeededExtraResources(...): -want selector count, +got selector count:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nIdentifyNeededExtraResources(...): -want selector count, +got selector count:\n%s", tc.reason, diff)
 			}
 
 			for i, wantGVR := range tc.want.gvrs {
@@ -483,7 +984,7 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 					break
 				}
 				if diff := cmp.Diff(wantGVR.String(), gvrs[i].String()); diff != "" {
-					t.Errorf("\n%s\nidentifyNeededExtraResources(...): -want GVR, +got GVR at index %d:\n%s", tc.reason, i, diff)
+					t.Errorf("\n%s\nIdentifyNeededExtraResources(...): -want GVR, +got GVR at index %d:\n%s", tc.reason, i, diff)
 				}
 			}
 
@@ -492,7 +993,7 @@ func TestDiffProcessor_IdentifyNeededExtraResources(t *testing.T) {
 					break
 				}
 				if diff := cmp.Diff(wantSelector.MatchLabels, selectors[i].MatchLabels); diff != "" {
-					t.Errorf("\n%s\nidentifyNeededExtraResources(...): -want selector, +got selector at index %d:\n%s", tc.reason, i, diff)
+					t.Errorf("\n%s\nIdentifyNeededExtraResources(...): -want selector, +got selector at index %d:\n%s", tc.reason, i, diff)
 				}
 			}
 		})

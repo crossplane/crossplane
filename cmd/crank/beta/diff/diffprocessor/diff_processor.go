@@ -5,6 +5,7 @@ import (
 	"dario.cat/mergo"
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
@@ -114,7 +115,7 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot find matching composition")
 	}
 
-	gvrs, selectors, err := p.IdentifyNeededExtraResources(comp)
+	gvrs, selectors, err := p.IdentifyNeededExtraResources(comp, res)
 	if err != nil {
 		return errors.Wrap(err, "cannot identify needed extra resources")
 	}
@@ -213,7 +214,8 @@ func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstru
 }
 
 // IdentifyNeededExtraResources analyzes a composition to determine what extra resources are needed
-func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Composition) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
+// The xr parameter is needed to resolve field paths in FromCompositeFieldPath label selectors
+func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv1.Composition, xr *unstructured.Unstructured) ([]schema.GroupVersionResource, []metav1.LabelSelector, error) {
 	// If no pipeline mode or no steps, return empty
 	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
 		return nil, nil, nil
@@ -250,9 +252,20 @@ func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv
 			// Get the resource selector details
 			apiVersion, _, _ := unstructured.NestedString(erMap, "apiVersion")
 			kind, _, _ := unstructured.NestedString(erMap, "kind")
-			selector, _, _ := unstructured.NestedMap(erMap, "selector", "matchLabels")
 
 			if apiVersion == "" || kind == "" {
+				continue
+			}
+
+			// Get the resource type - default is Reference
+			resourceType, _, _ := unstructured.NestedString(erMap, "type")
+			if resourceType == "" {
+				resourceType = "Reference"
+			}
+
+			// Handle based on type
+			if resourceType != "Selector" {
+				// We only process Selector type here
 				continue
 			}
 
@@ -273,11 +286,87 @@ func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv
 			labelSelector := metav1.LabelSelector{
 				MatchLabels: make(map[string]string),
 			}
-			for k, v := range selector {
-				if s, ok := v.(string); ok {
-					labelSelector.MatchLabels[k] = s
+
+			// Check if selector exists and has matchLabels
+			selector, selectorFound, _ := unstructured.NestedMap(erMap, "selector")
+			if selectorFound {
+				matchLabelsSlice, matchLabelsFound, _ := unstructured.NestedSlice(selector, "matchLabels")
+				if matchLabelsFound {
+					for _, label := range matchLabelsSlice {
+						labelMap, isMap := label.(map[string]interface{})
+						if !isMap {
+							continue
+						}
+
+						// Get the key of the label
+						key, keyExists, _ := unstructured.NestedString(labelMap, "key")
+						if !keyExists || key == "" {
+							continue
+						}
+
+						// Get the type of the label (defaults to FromCompositeFieldPath)
+						labelType, labelTypeExists, _ := unstructured.NestedString(labelMap, "type")
+						if !labelTypeExists {
+							labelType = "FromCompositeFieldPath"
+						}
+
+						var labelValue string
+
+						switch labelType {
+						case "Value":
+							// Static value
+							value, valueExists, _ := unstructured.NestedString(labelMap, "value")
+							if !valueExists || value == "" {
+								continue
+							}
+							labelValue = value
+
+						case "FromCompositeFieldPath":
+							// Value from XR field path
+							if xr == nil {
+								// If no XR is provided, we can't resolve the field path
+								// In this case, we skip this label
+								continue
+							}
+
+							fieldPath, fieldPathExists, _ := unstructured.NestedString(labelMap, "valueFromFieldPath")
+							if !fieldPathExists || fieldPath == "" {
+								continue
+							}
+
+							// Get the value from the XR using the field path
+							// First try with the path as is
+							fieldValue, err := fieldpath.Pave(xr.UnstructuredContent()).GetString(fieldPath)
+							if err == nil && fieldValue != "" {
+								labelValue = fieldValue
+							} else {
+								// If that fails, check if we need to add "spec." prefix for compatibility
+								if !strings.HasPrefix(fieldPath, "spec.") && !strings.HasPrefix(fieldPath, "status.") {
+									augmentedPath := "spec." + fieldPath
+									fieldValue, err = fieldpath.Pave(xr.UnstructuredContent()).GetString(augmentedPath)
+									if err == nil && fieldValue != "" {
+										labelValue = fieldValue
+									} else {
+										// Still couldn't find a value, skip this label
+										continue
+									}
+								} else {
+									// Path was already in spec/status but value wasn't found, skip
+									continue
+								}
+							}
+
+						default:
+							// Unknown label type, skip
+							continue
+						}
+
+						// Add the label to the selector
+						labelSelector.MatchLabels[key] = labelValue
+					}
 				}
 			}
+
 			selectors = append(selectors, labelSelector)
 		}
 	}

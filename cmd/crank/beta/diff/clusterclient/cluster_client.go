@@ -153,8 +153,13 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 		Resource: "environmentconfigs",
 	}
 
-	// TODO:  we have the EnvironmentConfig type in the same package, so we can use it here, but
-	// this might be troublesome for adding it to the unstructured ExtraResources list
+	// TODO make sure namespacing works everywhere
+	// TODO fix naive pluralization
+	// TODO handle composition lookup with selectors if we find more than one matching the ref type
+	// TODO:  nested external resources
+
+	// we have the EnvironmentConfig type in the same package, so we could use it here, but
+	// that might be troublesome for adding it to the unstructured ExtraResources list
 	envConfigsClient := c.dynamicClient.Resource(envConfigsGVR)
 
 	list, err := envConfigsClient.List(ctx, metav1.ListOptions{})

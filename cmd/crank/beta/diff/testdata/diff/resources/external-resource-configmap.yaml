@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-resource
+  namespace: default
+  labels:
+    app: test-app
+    environment: testing
+data:
+  resource-data: "external-resource-data"
