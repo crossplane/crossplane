@@ -127,27 +127,25 @@ type startCommand struct {
 	EnableSSAClaims                bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
 	EnableRealtimeCompositions     bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 
-	// These are GA features that previously had alpha or beta feature flags.
-	// You can't turn off a GA feature. We maintain the flags to avoid breaking
-	// folks who are passing them, but they do nothing. The flags are hidden so
-	// they don't show up in the help output.
-	EnableCompositionRevisions               bool `default:"true" hidden:""`
-	EnableCompositionFunctions               bool `default:"true" hidden:""`
-	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
-
 	// These are features that we've removed support for. Crossplane returns an
 	// error when you enable them. This ensures you'll see an explicit and
 	// informative error on startup, instead of a potentially surprising one
 	// later.
-	EnableEnvironmentConfigs bool `hidden:""`
-
-	// TODO(negz): Add errors.
 	EnableCompositionWebhookSchemaValidation bool `hidden:""`
 	EnableExternalSecretStores               bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocognit // Only slightly over.
+	if c.EnableCompositionWebhookSchemaValidation {
+		//nolint:revive // This is long and easier to read with punctuation.
+		return errors.New("Crossplane now uses CEL to validate Compositions. The --enable-composition-webhook-schema-validation flag will be removed in a future release.")
+	}
+	if c.EnableExternalSecretStores {
+		//nolint:revive // This is long and easier to read with punctuation.
+		return errors.New("Crossplane removed support for external secret stores. The --enable-external-secret-stores flag will be removed in a future release.")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -223,22 +221,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		PollInterval:            c.PollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
 		Features:                &feature.Flags{},
-	}
-
-	if !c.EnableCompositionRevisions {
-		log.Info("Composition Revisions are GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
-	}
-	if !c.EnableCompositionFunctions {
-		log.Info("Composition Functions are GA and cannot be disabled. The --enable-composition-functions flag will be removed in a future release.")
-	}
-	if !c.EnableCompositionFunctionsExtraResources {
-		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
-	}
-
-	// TODO(negz): Include a link to a migration guide.
-	if c.EnableEnvironmentConfigs {
-		//nolint:revive // This is long. It's easier to read with punctuation.
-		return errors.New("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
 	}
 
 	clienttls, err := certificates.LoadMTLSConfig(
