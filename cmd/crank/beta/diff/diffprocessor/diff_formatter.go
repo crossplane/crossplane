@@ -176,49 +176,11 @@ func NewFormatter(compact bool) DiffFormatter {
 func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
 	var builder strings.Builder
 
-	// Set color variables based on options
-	addColor := ""
-	delColor := ""
-	resetColor := ""
-	if options.UseColors {
-		addColor = ColorGreen
-		delColor = ColorRed
-		resetColor = ColorReset
-	}
-
 	for _, diff := range diffs {
-		lines := strings.Split(diff.Text, "\n")
-
-		// Handle the trailing newline correctly
-		hasTrailingNewline := strings.HasSuffix(diff.Text, "\n")
-		if hasTrailingNewline && len(lines) > 0 {
-			lines = lines[:len(lines)-1]
-		}
-
-		switch diff.Type {
-		case diffmatchpatch.DiffInsert:
-			for _, line := range lines {
-				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", addColor, options.AddPrefix, line, resetColor))
-			}
-			if hasTrailingNewline && len(lines) == 0 {
-				builder.WriteString(fmt.Sprintf("%s%s%s\n", addColor, options.AddPrefix, resetColor))
-			}
-
-		case diffmatchpatch.DiffDelete:
-			for _, line := range lines {
-				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", delColor, options.DeletePrefix, line, resetColor))
-			}
-			if hasTrailingNewline && len(lines) == 0 {
-				builder.WriteString(fmt.Sprintf("%s%s%s\n", delColor, options.DeletePrefix, resetColor))
-			}
-
-		case diffmatchpatch.DiffEqual:
-			for _, line := range lines {
-				builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, line))
-			}
-			if hasTrailingNewline && len(lines) == 0 {
-				builder.WriteString(fmt.Sprintf("%s\n", options.ContextPrefix))
-			}
+		formattedLines, _ := processLines(diff, options)
+		for _, line := range formattedLines {
+			builder.WriteString(line)
+			builder.WriteString("\n")
 		}
 	}
 
@@ -226,48 +188,30 @@ func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOpti
 }
 
 // Format implements the DiffFormatter interface for CompactDiffFormatter
-// Format implements the DiffFormatter interface for CompactDiffFormatter
 func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
-	// Set color variables based on options
-	addColor := ""
-	delColor := ""
-	resetColor := ""
-	if options.UseColors {
-		addColor = ColorGreen
-		delColor = ColorRed
-		resetColor = ColorReset
-	}
-
-	// First, convert diffs to line-based items
+	// Create a flat array of all formatted lines with their diff types
 	type lineItem struct {
-		Type    diffmatchpatch.Operation
-		Content string
+		Type      diffmatchpatch.Operation
+		Content   string
+		Formatted string
 	}
 
 	var allLines []lineItem
 
-	// Process all diffs into individual lines
 	for _, diff := range diffs {
-		lines := strings.Split(diff.Text, "\n")
+		formattedLines, hasTrailingNewline := processLines(diff, options)
 
-		// Handle the trailing newline correctly
-		hasTrailingNewline := strings.HasSuffix(diff.Text, "\n")
-		if hasTrailingNewline && len(lines) > 0 {
-			lines = lines[:len(lines)-1]
-		}
+		for i, formatted := range formattedLines {
+			// For non-trailing empty lines or regular lines
+			content := ""
+			if isEmptyTrailer := hasTrailingNewline && len(formattedLines) == 1 && i == 0; !isEmptyTrailer {
+				content = strings.Split(diff.Text, "\n")[i]
+			}
 
-		for _, line := range lines {
 			allLines = append(allLines, lineItem{
-				Type:    diff.Type,
-				Content: line,
-			})
-		}
-
-		// Add an empty line for trailing newlines
-		if hasTrailingNewline && len(lines) == 0 {
-			allLines = append(allLines, lineItem{
-				Type:    diff.Type,
-				Content: "",
+				Type:      diff.Type,
+				Content:   content,
+				Formatted: formatted,
 			})
 		}
 	}
@@ -307,7 +251,7 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 		changeBlocks = append(changeBlocks, *currentBlock)
 	}
 
-	// If we have no change blocks, just return empty string
+	// If we have no change blocks, return an empty string
 	if len(changeBlocks) == 0 {
 		return ""
 	}
@@ -340,26 +284,24 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 		// Print context before the change if we haven't already printed it
 		for i := contextStart; i < block.StartIdx; i++ {
 			if i > lastPrintedIdx {
-				builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, allLines[i].Content))
+				builder.WriteString(allLines[i].Formatted)
+				builder.WriteString("\n")
 				lastPrintedIdx = i
 			}
 		}
 
 		// Print the changes
 		for i := block.StartIdx; i <= block.EndIdx; i++ {
-			switch allLines[i].Type {
-			case diffmatchpatch.DiffInsert:
-				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", addColor, options.AddPrefix, allLines[i].Content, resetColor))
-			case diffmatchpatch.DiffDelete:
-				builder.WriteString(fmt.Sprintf("%s%s%s%s\n", delColor, options.DeletePrefix, allLines[i].Content, resetColor))
-			}
+			builder.WriteString(allLines[i].Formatted)
+			builder.WriteString("\n")
 			lastPrintedIdx = i
 		}
 
 		// Print context after the change
 		contextEnd := min(len(allLines), block.EndIdx+contextLines+1)
 		for i := block.EndIdx + 1; i < contextEnd; i++ {
-			builder.WriteString(fmt.Sprintf("%s%s\n", options.ContextPrefix, allLines[i].Content))
+			builder.WriteString(allLines[i].Formatted)
+			builder.WriteString("\n")
 			lastPrintedIdx = i
 		}
 	}
@@ -440,4 +382,88 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, 
 
 	// Format the output with a resource header
 	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
+}
+
+// diffLine represents a line with its diff operation type
+type diffLine struct {
+	Type    diffmatchpatch.Operation
+	Content string
+}
+
+// splitDiffIntoLines splits the diff text into lines and handles trailing newlines correctly
+func splitDiffIntoLines(diff diffmatchpatch.Diff) ([]diffLine, bool) {
+	lines := strings.Split(diff.Text, "\n")
+	hasTrailingNewline := strings.HasSuffix(diff.Text, "\n")
+
+	result := make([]diffLine, 0, len(lines))
+
+	// If there's a trailing newline, the split will produce an empty string at the end
+	// that we should not treat as a separate line
+	end := len(lines)
+	if hasTrailingNewline && end > 0 {
+		end--
+	}
+
+	for i := 0; i < end; i++ {
+		result = append(result, diffLine{
+			Type:    diff.Type,
+			Content: lines[i],
+		})
+	}
+
+	return result, hasTrailingNewline
+}
+
+// processLines extracts lines from a diff and processes them into a standardized format
+// Returns the processed lines and whether there was a trailing newline
+func processLines(diff diffmatchpatch.Diff, options DiffOptions) ([]string, bool) {
+	lines := strings.Split(diff.Text, "\n")
+	hasTrailingNewline := strings.HasSuffix(diff.Text, "\n")
+
+	// If there's a trailing newline, the split produces an empty string at the end
+	if hasTrailingNewline && len(lines) > 0 {
+		lines = lines[:len(lines)-1]
+	}
+
+	var result []string
+
+	// Format each line with appropriate prefix and color
+	for _, line := range lines {
+		result = append(result, formatLine(line, diff.Type, options))
+	}
+
+	// Add formatted empty line if there was just a newline
+	if hasTrailingNewline && len(lines) == 0 {
+		result = append(result, formatLine("", diff.Type, options))
+	}
+
+	return result, hasTrailingNewline
+}
+
+// formatLine applies the appropriate prefix and color to a single line
+func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOptions) string {
+	var prefix string
+	var colorStart, colorEnd string
+
+	switch diffType {
+	case diffmatchpatch.DiffInsert:
+		prefix = options.AddPrefix
+		if options.UseColors {
+			colorStart = ColorGreen
+			colorEnd = ColorReset
+		}
+	case diffmatchpatch.DiffDelete:
+		prefix = options.DeletePrefix
+		if options.UseColors {
+			colorStart = ColorRed
+			colorEnd = ColorReset
+		}
+	case diffmatchpatch.DiffEqual:
+		prefix = options.ContextPrefix
+	}
+
+	if options.UseColors && colorStart != "" {
+		return fmt.Sprintf("%s%s%s%s", colorStart, prefix, line, colorEnd)
+	}
+	return fmt.Sprintf("%s%s", prefix, line)
 }
