@@ -397,7 +397,7 @@ func TestDiffIntegration(t *testing.T) {
 		noColor        bool
 	}{
 		{
-			name:      "New resource shows diff",
+			name:      "New resource shows color diff",
 			inputFile: "testdata/diff/new-xr.yaml",
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
@@ -434,7 +434,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "Modified resource shows diff",
+			name: "Modified resource shows color diff",
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -475,7 +475,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "Modified XR that creates new downstream resource shows diff",
+			name: "Modified XR that creates new downstream resource shows color diff",
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -559,6 +559,8 @@ func TestDiffIntegration(t *testing.T) {
 			noColor:       true,
 		},
 		{
+			// this test does a weird thing where it changes the XR but all the downstream changes come from external
+			// resources.
 			name: "Diff with external resource dependencies via fn-external-resources",
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
@@ -567,6 +569,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/external-res-fn-composition.yaml",
 				"testdata/diff/resources/existing-xr-with-external-dep.yaml",
 				"testdata/diff/resources/existing-downstream-with-external-dep.yaml",
+				"testdata/diff/resources/external-named-clusterrole.yaml",
 			},
 			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
 			expectedOutput: `
@@ -586,14 +589,15 @@ func TestDiffIntegration(t *testing.T) {
   metadata:
     annotations:
       crossplane.io/composition-resource-name: nop-resource
-    generateName: test-resource-
     labels:
       crossplane.io/composite: test-resource
     name: test-resource
   spec:
     forProvider:
 -     configData: existing-value
+-     roleName: old-role-name
 +     configData: external-resource-data
++     roleName: external-named-clusterrole
 
 ---
 `,

@@ -41,9 +41,10 @@ type DiffProcessor interface {
 
 // DefaultDiffProcessor handles the processing of resources for diffing.
 type DefaultDiffProcessor struct {
-	client cc.ClusterClient
-	config ProcessorConfig
-	crds   []*extv1.CustomResourceDefinition
+	client             cc.ClusterClient
+	config             ProcessorConfig
+	crds               []*extv1.CustomResourceDefinition
+	environmentConfigs []*unstructured.Unstructured // Cache for environment configs
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor with the provided options
@@ -74,8 +75,9 @@ func NewDiffProcessor(client cc.ClusterClient, options ...DiffProcessorOption) (
 	}
 
 	return &DefaultDiffProcessor{
-		client: client,
-		config: config,
+		client:             client,
+		config:             config,
+		environmentConfigs: make([]*unstructured.Unstructured, 0),
 	}, nil
 }
 
@@ -92,6 +94,13 @@ func (p *DefaultDiffProcessor) Initialize(writer io.Writer, ctx context.Context)
 	}
 
 	p.crds = crds
+
+	// Get and cache environment configs
+	environmentConfigs, err := p.client.GetEnvironmentConfigs(ctx)
+	if err != nil {
+		return errors.Wrap(err, "cannot get environment configs")
+	}
+	p.environmentConfigs = environmentConfigs
 
 	return nil
 }
@@ -110,19 +119,21 @@ func (p *DefaultDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context,
 
 // ProcessResource handles one resource at a time.
 func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
+
+	xr := ucomposite.New()
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
+		return errors.Wrap(err, "cannot convert XR to composite unstructured")
+	}
+
 	comp, err := p.client.FindMatchingComposition(res)
 	if err != nil {
 		return errors.Wrap(err, "cannot find matching composition")
 	}
 
+	// figure out what extra resources are needed based on what we know right now
 	gvrs, selectors, err := p.IdentifyNeededExtraResources(comp, res)
 	if err != nil {
 		return errors.Wrap(err, "cannot identify needed extra resources")
-	}
-
-	ecs, err := p.client.GetEnvironmentConfigs(ctx)
-	if err != nil {
-		return errors.Wrap(err, "cannot get environment configs")
 	}
 
 	extraResources, err := p.client.GetAllResourcesByLabels(ctx, gvrs, selectors)
@@ -130,16 +141,12 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot get extra resources")
 	}
 
-	extraResources = append(extraResources, ecs...)
+	// Add cached environment configs to extra resources
+	extraResources = append(extraResources, p.environmentConfigs...)
 
 	fns, err := p.client.GetFunctionsFromPipeline(comp)
 	if err != nil {
 		return errors.Wrap(err, "cannot get functions from pipeline")
-	}
-
-	xr := ucomposite.New()
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
-		return errors.Wrap(err, "cannot convert XR to composite unstructured")
 	}
 
 	hasTemplatedExtra, err := ScanForTemplatedExtraResources(comp)
@@ -148,6 +155,7 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 	}
 
 	if hasTemplatedExtra {
+		// TODO:  I think this needs to fetch the extra resources from the result of the render, and currently doesn't
 		extraResources, err = p.HandleTemplatedExtraResources(ctx, comp, xr, fns, extraResources)
 		if err != nil {
 			return err
@@ -249,7 +257,7 @@ func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv
 				continue
 			}
 
-			// Get the resource selector details
+			// Get common resource details
 			apiVersion, _, _ := unstructured.NestedString(erMap, "apiVersion")
 			kind, _, _ := unstructured.NestedString(erMap, "kind")
 
@@ -264,114 +272,130 @@ func (p *DefaultDiffProcessor) IdentifyNeededExtraResources(comp *apiextensionsv
 			}
 
 			// Handle based on type
-			if resourceType != "Selector" {
-				// We only process Selector type here
-				continue
-			}
+			switch resourceType {
+			case "Reference":
+				// For Reference type, we don't need to add anything to the GVR/selectors
+				// as these resources are fetched directly by name
 
-			// Create GVR for this resource type
-			gv, err := schema.ParseGroupVersion(apiVersion)
-			if err != nil {
-				return nil, nil, errors.Wrapf(err, "cannot parse group version %q", apiVersion)
-			}
-
-			gvr := schema.GroupVersionResource{
-				Group:    gv.Group,
-				Version:  gv.Version,
-				Resource: fmt.Sprintf("%ss", strings.ToLower(kind)), // naive pluralization
-			}
-			resources = append(resources, gvr)
-
-			// Create label selector
-			labelSelector := metav1.LabelSelector{
-				MatchLabels: make(map[string]string),
-			}
-
-			// Check if selector exists and has matchLabels
-			selector, selectorFound, _ := unstructured.NestedMap(erMap, "selector")
-			if selectorFound {
-				matchLabelsSlice, matchLabelsFound, _ := unstructured.NestedSlice(selector, "matchLabels")
-				if matchLabelsFound {
-					for _, label := range matchLabelsSlice {
-						labelMap, isMap := label.(map[string]interface{})
-						if !isMap {
-							continue
-						}
-
-						// Get the key of the label
-						key, keyExists, _ := unstructured.NestedString(labelMap, "key")
-						if !keyExists || key == "" {
-							continue
-						}
-
-						// Get the type of the label (defaults to FromCompositeFieldPath)
-						labelType, labelTypeExists, _ := unstructured.NestedString(labelMap, "type")
-						if !labelTypeExists {
-							labelType = "FromCompositeFieldPath"
-						}
-
-						var labelValue string
-
-						switch labelType {
-						case "Value":
-							// Static value
-							value, valueExists, _ := unstructured.NestedString(labelMap, "value")
-							if !valueExists || value == "" {
-								continue
-							}
-							labelValue = value
-
-						case "FromCompositeFieldPath":
-							// Value from XR field path
-							if xr == nil {
-								// If no XR is provided, we can't resolve the field path
-								// In this case, we skip this label
-								continue
-							}
-
-							fieldPath, fieldPathExists, _ := unstructured.NestedString(labelMap, "valueFromFieldPath")
-							if !fieldPathExists || fieldPath == "" {
-								continue
-							}
-
-							// Get the value from the XR using the field path
-							// First try with the path as is
-							fieldValue, err := fieldpath.Pave(xr.UnstructuredContent()).GetString(fieldPath)
-							if err == nil && fieldValue != "" {
-								labelValue = fieldValue
-							} else {
-								// If that fails, check if we need to add "spec." prefix for compatibility
-								if !strings.HasPrefix(fieldPath, "spec.") && !strings.HasPrefix(fieldPath, "status.") {
-									augmentedPath := "spec." + fieldPath
-									fieldValue, err = fieldpath.Pave(xr.UnstructuredContent()).GetString(augmentedPath)
-									if err == nil && fieldValue != "" {
-										labelValue = fieldValue
-									} else {
-										// Still couldn't find a value, skip this label
-										continue
-									}
-								} else {
-									// Path was already in spec/status but value wasn't found, skip
-									continue
-								}
-							}
-
-						default:
-							// Unknown label type, skip
-							continue
-						}
-
-						// Add the label to the selector
-						labelSelector.MatchLabels[key] = labelValue
-					}
+			case "Selector":
+				// Create GVR for Selector type resources
+				gvr, labelSelector, err := p.processSelector(erMap, apiVersion, kind, xr)
+				if err != nil {
+					return nil, nil, err
 				}
-			}
+				resources = append(resources, gvr)
+				selectors = append(selectors, labelSelector)
 
-			selectors = append(selectors, labelSelector)
+			default:
+				// Unknown resource type, log and skip
+				p.config.Logger.Debug("Unknown resource type in extraResources", "type", resourceType)
+			}
 		}
 	}
 
 	return resources, selectors, nil
+}
+
+// processSelector handles the creation of GVR and label selector for Selector type resources
+func (p *DefaultDiffProcessor) processSelector(erMap map[string]interface{}, apiVersion, kind string, xr *unstructured.Unstructured) (schema.GroupVersionResource, metav1.LabelSelector, error) {
+	// Create GVR for this resource type
+	gv, err := schema.ParseGroupVersion(apiVersion)
+	if err != nil {
+		return schema.GroupVersionResource{}, metav1.LabelSelector{}, errors.Wrapf(err, "cannot parse group version %q", apiVersion)
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    gv.Group,
+		Version:  gv.Version,
+		Resource: fmt.Sprintf("%ss", strings.ToLower(kind)), // naive pluralization
+	}
+
+	// Create label selector
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: make(map[string]string),
+	}
+
+	// Check if selector exists and has matchLabels
+	selector, selectorFound, _ := unstructured.NestedMap(erMap, "selector")
+	if selectorFound {
+		matchLabelsSlice, matchLabelsFound, _ := unstructured.NestedSlice(selector, "matchLabels")
+		if matchLabelsFound {
+			for _, label := range matchLabelsSlice {
+				labelMap, isMap := label.(map[string]interface{})
+				if !isMap {
+					continue
+				}
+
+				// Get the key of the label
+				key, keyExists, _ := unstructured.NestedString(labelMap, "key")
+				if !keyExists || key == "" {
+					continue
+				}
+
+				// Get the type of the label (defaults to FromCompositeFieldPath)
+				labelType, labelTypeExists, _ := unstructured.NestedString(labelMap, "type")
+				if !labelTypeExists {
+					labelType = "FromCompositeFieldPath"
+				}
+
+				var labelValue string
+
+				switch labelType {
+				case "Value":
+					// Static value
+					value, valueExists, _ := unstructured.NestedString(labelMap, "value")
+					if !valueExists || value == "" {
+						continue
+					}
+					labelValue = value
+
+				case "FromCompositeFieldPath":
+					// Value from XR field path
+					if xr == nil {
+						// If no XR is provided, we can't resolve the field path
+						// In this case, we skip this label
+						continue
+					}
+
+					fieldPath, fieldPathExists, _ := unstructured.NestedString(labelMap, "valueFromFieldPath")
+					if !fieldPathExists || fieldPath == "" {
+						continue
+					}
+
+					// Get the value from the XR using the field path
+					// First try with the path as is
+					fieldValue, err := fieldpath.Pave(xr.UnstructuredContent()).GetString(fieldPath)
+					if err == nil && fieldValue != "" {
+						labelValue = fieldValue
+					} else {
+						// If that fails, check if we need to add "spec." prefix for compatibility
+						if !strings.HasPrefix(fieldPath, "spec.") && !strings.HasPrefix(fieldPath, "status.") {
+							augmentedPath := "spec." + fieldPath
+							fieldValue, err = fieldpath.Pave(xr.UnstructuredContent()).GetString(augmentedPath)
+							if err == nil && fieldValue != "" {
+								labelValue = fieldValue
+							} else {
+								// Still couldn't find a value, skip this label
+								continue
+							}
+						} else {
+							// Path was already in spec/status but value wasn't found, skip
+							continue
+						}
+					}
+
+				default:
+					// Unknown label type, skip
+					continue
+				}
+
+				// Add the label to the selector
+				labelSelector.MatchLabels[key] = labelValue
+			}
+		}
+	}
+
+	return gvr, labelSelector, nil
 }
 
 // HandleTemplatedExtraResources processes templated extra resources.

@@ -28,6 +28,13 @@ spec:
                   - key: environment
                     type: Value
                     value: testing
+            - apiVersion: rbac.authorization.k8s.io/v1
+              kind: ClusterRole
+              # function-extra-resources only supports Cluster-scoped resources as name refs
+              into: namedClusterRole
+              type: Reference
+              ref:
+                name: external-named-clusterrole
     - step: generate-resources
       functionRef:
         name: function-go-templating
@@ -40,6 +47,7 @@ spec:
             {{- /* we can't use the same call to 'index' on these because it goes map -> array -> map */ -}}
             {{- $extras := index .context "apiextensions.crossplane.io/extra-resources" -}}
             {{- $cfgMap := index $extras "cfgMap" 0 -}}
+            {{- $clusterRole := index $extras "namedClusterRole" -}}
             apiVersion: nop.example.org/v1alpha1
             kind: XDownstreamResource
             metadata:
@@ -49,6 +57,7 @@ spec:
             spec:
               forProvider:
                 configData: {{ index $cfgMap "data" "resource-data" }}
+                roleName: {{ $clusterRole.metadata.name }}
     - step: automatically-detect-ready-composed-resources
       functionRef:
         name: function-auto-ready

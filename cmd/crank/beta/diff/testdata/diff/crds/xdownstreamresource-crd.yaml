@@ -26,6 +26,9 @@ spec:
                   properties:
                     configData:
                       type: string
+                    roleName:
+                      type: string
+                      description: "Name of an external cluster role referenced by the resource"
             status:
               type: object
               properties:

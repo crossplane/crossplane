@@ -10,3 +10,4 @@ metadata:
 spec:
   forProvider:
     configData: existing-value
+    roleName: old-role-name
