@@ -152,7 +152,7 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 		}
 	case v1.EnvironmentSourceSelectorMultiMode:
 
-		if selector.MinMatch != nil && len(cl.Items) < int(*selector.MinMatch) {
+		if selector.MinMatch != nil && uint64(len(cl.Items)) < *selector.MinMatch {
 			return nil, errors.Errorf(errFmtSelectorNotEnoughResults, *selector.MinMatch, len(cl.Items))
 		}
 
@@ -161,7 +161,7 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 			return nil, err
 		}
 
-		if selector.MaxMatch != nil && len(cl.Items) > int(*selector.MaxMatch) {
+		if selector.MaxMatch != nil && uint64(len(cl.Items)) > *selector.MaxMatch {
 			ec = append(ec, cl.Items[:*selector.MaxMatch]...)
 			break
 		}
@@ -191,7 +191,7 @@ func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
 	}, len(ec))
 
 	var valsKind reflect.Kind
-	for i := range len(ec) {
+	for i := range ec {
 		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ec[i])
 		if err != nil {
 			return err

@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane/crossplane
 
-ARG --global GO_VERSION=1.22.8
+ARG --global GO_VERSION=1.23.7
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -44,7 +44,7 @@ generate:
   BUILD +go-generate
   BUILD +helm-generate
 
-# e2e runs end-to-end tests. See test/e2e/README.md for details. 
+# e2e runs end-to-end tests. See test/e2e/README.md for details.
 e2e:
   ARG FLAGS="-test-suite=base"
   # Docker installs faster on Alpine, and we only need Go for go tool test2json.
@@ -197,7 +197,7 @@ go-test:
 
 # go-lint lints Go code.
 go-lint:
-  ARG GOLANGCI_LINT_VERSION=v1.59.0
+  ARG GOLANGCI_LINT_VERSION=v1.62.2
   FROM +go-modules
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint
@@ -314,7 +314,7 @@ helm-docs-setup:
   FROM --platform=${NATIVEPLATFORM} curlimages/curl:8.8.0
   IF [ "${TARGETARCH}" = "amd64" ]
     LET ARCH=x86_64
-  ELSE 
+  ELSE
     LET ARCH=${TARGETARCH}
   END
   RUN curl -fsSL https://github.com/norwoodj/helm-docs/releases/download/v${HELM_DOCS_VERSION}/helm-docs_${HELM_DOCS_VERSION}_${TARGETOS}_${ARCH}.tar.gz|tar zx>helm-docs
