@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1beta1 contains API types that extend the Crossplane API.
-// v1beta1 composition revision schema is identical to v1alpha1
+// Package v1beta1 contains API types that protect resources from deletion.
 // +kubebuilder:object:generate=true
 // +groupName=protection.crossplane.io
 // +versionName=v1beta1
