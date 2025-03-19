@@ -23,6 +23,25 @@ func (c *GeneratedResourceConverter) ToInternal(source Resource) protection.Reso
 	protectionResource.ResourceSelector = c.pV1beta1ResourceSelectorToPProtectionResourceSelector(source.ResourceSelector)
 	return protectionResource
 }
+func (c *GeneratedResourceConverter) ToInternalResourceRef(source ResourceRef) protection.ResourceRef {
+	var protectionResourceRef protection.ResourceRef
+	protectionResourceRef.Name = source.Name
+	return protectionResourceRef
+}
+func (c *GeneratedResourceConverter) ToInternalResourceSelector(source ResourceSelector) protection.ResourceSelector {
+	var protectionResourceSelector protection.ResourceSelector
+	if source.MatchLabels != nil {
+		protectionResourceSelector.MatchLabels = make(map[string]string, len(source.MatchLabels))
+		for key, value := range source.MatchLabels {
+			protectionResourceSelector.MatchLabels[key] = value
+		}
+	}
+	if source.MatchControllerRef != nil {
+		xbool := *source.MatchControllerRef
+		protectionResourceSelector.MatchControllerRef = &xbool
+	}
+	return protectionResourceSelector
+}
 func (c *GeneratedResourceConverter) pProtectionResourceRefToPV1beta1ResourceRef(source *protection.ResourceRef) *ResourceRef {
 	var pV1beta1ResourceRef *ResourceRef
 	if source != nil {
@@ -53,8 +72,7 @@ func (c *GeneratedResourceConverter) pProtectionResourceSelectorToPV1beta1Resour
 func (c *GeneratedResourceConverter) pV1beta1ResourceRefToPProtectionResourceRef(source *ResourceRef) *protection.ResourceRef {
 	var pProtectionResourceRef *protection.ResourceRef
 	if source != nil {
-		var protectionResourceRef protection.ResourceRef
-		protectionResourceRef.Name = (*source).Name
+		protectionResourceRef := c.ToInternalResourceRef((*source))
 		pProtectionResourceRef = &protectionResourceRef
 	}
 	return pProtectionResourceRef
@@ -62,17 +80,7 @@ func (c *GeneratedResourceConverter) pV1beta1ResourceRefToPProtectionResourceRef
 func (c *GeneratedResourceConverter) pV1beta1ResourceSelectorToPProtectionResourceSelector(source *ResourceSelector) *protection.ResourceSelector {
 	var pProtectionResourceSelector *protection.ResourceSelector
 	if source != nil {
-		var protectionResourceSelector protection.ResourceSelector
-		if (*source).MatchLabels != nil {
-			protectionResourceSelector.MatchLabels = make(map[string]string, len((*source).MatchLabels))
-			for key, value := range (*source).MatchLabels {
-				protectionResourceSelector.MatchLabels[key] = value
-			}
-		}
-		if (*source).MatchControllerRef != nil {
-			xbool := *(*source).MatchControllerRef
-			protectionResourceSelector.MatchControllerRef = &xbool
-		}
+		protectionResourceSelector := c.ToInternalResourceSelector((*source))
 		pProtectionResourceSelector = &protectionResourceSelector
 	}
 	return pProtectionResourceSelector

@@ -117,6 +117,9 @@ spec:
                       name:
                         description: Name of the referent.
                         type: string
+                      namespace:
+                        description: Namespace of the referent.
+                        type: string
                     required:
                     - name
                     type: object
@@ -136,6 +139,11 @@ spec:
                         description: MatchLabels ensures an object with matching labels
                           is selected.
                         type: object
+                      namespace:
+                        description: |-
+                          Namespace ensures an object in the supplied namespace is selected.
+                          Omit namespace to only match resources in the Usage's namespace.
+                        type: string
                     type: object
                 type: object
                 x-kubernetes-validations:

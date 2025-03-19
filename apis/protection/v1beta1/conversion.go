@@ -25,6 +25,24 @@ import "github.com/crossplane/crossplane/internal/protection"
 // goverter:output:file ./zz_generated.conversion.go
 // +k8s:deepcopy-gen=false
 type ResourceConverter interface {
+	// goverter:ignore Namespace
+	ToInternalResourceRef(in ResourceRef) protection.ResourceRef
+
+	// goverter:ignore Namespace
+	ToInternalResourceSelector(in ResourceSelector) protection.ResourceSelector
+
 	ToInternal(in Resource) protection.Resource
 	FromInternal(in protection.Resource) Resource
+}
+
+// A NamespacedResourceConverter converts a Resource to the internal implementation.
+//
+// goverter:converter
+// goverter:name GeneratedNamespacedResourceConverter
+// goverter:output:file ./zz_generated.conversion.go
+// goverter:output:package github.com/crossplane/crossplane/apis/protection/v1beta1
+// +k8s:deepcopy-gen=false
+type NamespacedResourceConverter interface {
+	ToInternal(in NamespacedResource) protection.Resource
+	FromInternal(in protection.Resource) NamespacedResource
 }

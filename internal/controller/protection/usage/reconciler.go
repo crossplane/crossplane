@@ -284,9 +284,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	status := r.conditions.For(u)
 
-	// Identify used xp composed as an unstructured object.
+	// Identify used as an unstructured object. It might not actually be
+	// composed by an XR; we use composed as a convenience.
 	used := composed.New(composed.FromReference(v1.ObjectReference{
 		Kind:       of.Kind,
+		Namespace:  ptr.Deref(of.ResourceRef.Namespace, u.GetNamespace()),
 		Name:       of.ResourceRef.Name,
 		APIVersion: of.APIVersion,
 	}))
@@ -306,11 +308,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// Identify using resource as an unstructured object.
 			using := composed.New(composed.FromReference(v1.ObjectReference{
 				Kind:       by.Kind,
+				Namespace:  u.GetNamespace(), // Will always be cluster scoped or in the same namespace as the Usage.
 				Name:       by.ResourceRef.Name,
 				APIVersion: by.APIVersion,
 			}))
 			// Get the using resource
-			if err := r.client.Get(ctx, client.ObjectKey{Name: by.ResourceRef.Name}, using); xpresource.IgnoreNotFound(err) != nil {
+			if err := r.client.Get(ctx, client.ObjectKeyFromObject(using), using); xpresource.IgnoreNotFound(err) != nil {
 				log.Debug(errGetUsing, "error", err)
 				err = errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsing)
 				r.record.Event(u, event.Warning(reasonGetUsing, err))
@@ -335,13 +338,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// So, we can proceed with the deletion of the usage.
 
 		// Get the used resource
-		if err := r.client.Get(ctx, client.ObjectKey{Name: of.ResourceRef.Name}, used); xpresource.IgnoreNotFound(err) != nil {
+		if err := r.client.Get(ctx, client.ObjectKeyFromObject(used), used); xpresource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetUsed, "error", err)
 			err = errors.Wrap(err, errGetUsed)
 			r.record.Event(u, event.Warning(reasonGetUsed, err))
 			return reconcile.Result{}, err
 		} else if err == nil {
 			// Remove the in-use label from the used resource if no other usages exists.
+
+			// TODO(negz): Whoops - this shouldn't be hardcoded to UsageList.
+			// Its type should be derived from the type of usage...
 			usageList := &v1beta1.UsageList{}
 			if err = r.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(used.GetAPIVersion(), used.GetKind(), used.GetName())}); err != nil {
 				log.Debug(errListUsages, "error", err)
@@ -425,7 +431,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Get the used resource
-	if err := r.client.Get(ctx, client.ObjectKey{Name: of.ResourceRef.Name}, used); err != nil {
+	if err := r.client.Get(ctx, client.ObjectKeyFromObject(used), used); err != nil {
 		log.Debug(errGetUsed, "error", err)
 		err = errors.Wrap(err, errGetUsed)
 		r.record.Event(u, event.Warning(reasonGetUsed, err))
@@ -453,12 +459,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Identify using resource as an unstructured object.
 		using := composed.New(composed.FromReference(v1.ObjectReference{
 			Kind:       by.Kind,
+			Namespace:  u.GetNamespace(), // Will always be cluster scoped or in the same namespace as the Usage.
 			Name:       by.ResourceRef.Name,
 			APIVersion: by.APIVersion,
 		}))
 
 		// Get the using resource
-		if err := r.client.Get(ctx, client.ObjectKey{Name: by.ResourceRef.Name}, using); err != nil {
+		if err := r.client.Get(ctx, client.ObjectKeyFromObject(using), using); err != nil {
 			log.Debug(errGetUsing, "error", err)
 			err = errors.Wrap(err, errGetUsing)
 			r.record.Event(u, event.Warning(reasonGetUsing, err))

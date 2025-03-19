@@ -26,13 +26,15 @@ import (
 	"github.com/crossplane/crossplane/internal/protection"
 )
 
-// ResourceRef is a reference to a resource.
+// ResourceRef is a reference to a resource. It's suitable for cluster
+// scoped resources, or resources in the same namespace as the Usage.
 type ResourceRef struct {
 	// Name of the referent.
 	Name string `json:"name"`
 }
 
-// ResourceSelector is a selector to a resource.
+// ResourceSelector is a selector of a resource. It's suitable for cluster
+// scoped resources, or resources in the same namespace as the Usage.
 type ResourceSelector struct {
 	// MatchLabels ensures an object with matching labels is selected.
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
@@ -42,22 +44,81 @@ type ResourceSelector struct {
 	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
 }
 
-// Resource defines a cluster-scoped resource.
+// Resource refers to an arbitrary resource. It's suitable for cluster scoped
+// resources, or resources in the same namespace as the Usage.
 type Resource struct {
 	// API version of the referent.
 	// +optional
 	APIVersion string `json:"apiVersion,omitempty"`
+
 	// Kind of the referent.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
 	// +optional
 	Kind string `json:"kind,omitempty"`
+
 	// Reference to the resource.
 	// +optional
 	ResourceRef *ResourceRef `json:"resourceRef,omitempty"`
+
 	// Selector to the resource.
 	// This field will be ignored if ResourceRef is set.
 	// +optional
 	ResourceSelector *ResourceSelector `json:"resourceSelector,omitempty"`
+}
+
+// NamespacedResourceRef is a reference to a resource. It supports an optional
+// namespace. It's suitable for cluster scoped resources, or resources in the
+// same namespace as the Usage.
+type NamespacedResourceRef struct {
+	// Name of the referent.
+	Name string `json:"name"`
+
+	// Namespace of the referent.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// NamespacedResourceSelector is a selector of a resource. It's suitable for
+// cluster scoped resources, resources in the same namespace as the Usage, or
+// resources in a different namespace.
+type NamespacedResourceSelector struct {
+	// MatchLabels ensures an object with matching labels is selected.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	// MatchControllerRef ensures an object with the same controller reference
+	// as the selecting object is selected.
+	// +optional
+	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
+
+	// Namespace ensures an object in the supplied namespace is selected.
+	// Omit namespace to only match resources in the Usage's namespace.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// NamespacedResource refers to an arbitrary resource. Despite the name, the
+// resource doesn't have to be namespaced. It's different from Resource because
+// it supports namespaced resources. It's suitable for cluster scoped resources,
+// resources in the same namespace as the Usage, or resources in a different
+// namespace.
+type NamespacedResource struct {
+	// API version of the referent.
+	// +optional
+	APIVersion string `json:"apiVersion,omitempty"`
+
+	// Kind of the referent.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+	// +optional
+	Kind string `json:"kind,omitempty"`
+
+	// Reference to the resource.
+	// +optional
+	ResourceRef *NamespacedResourceRef `json:"resourceRef,omitempty"`
+
+	// Selector to the resource.
+	// This field will be ignored if ResourceRef is set.
+	// +optional
+	ResourceSelector *NamespacedResourceSelector `json:"resourceSelector,omitempty"`
 }
 
 // UsageSpec defines the desired state of Usage.
@@ -65,14 +126,17 @@ type Resource struct {
 type UsageSpec struct {
 	// Of is the resource that is "being used".
 	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
-	Of Resource `json:"of"`
+	Of NamespacedResource `json:"of"`
+
 	// By is the resource that is "using the other resource".
 	// +optional
 	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
 	By *Resource `json:"by,omitempty"`
+
 	// Reason is the reason for blocking deletion of the resource.
 	// +optional
 	Reason *string `json:"reason,omitempty"`
+
 	// ReplayDeletion will trigger a deletion on the used resource during the deletion of the usage itself, if it was attempted to be deleted at least once.
 	// +optional
 	ReplayDeletion *bool `json:"replayDeletion,omitempty"`
@@ -107,13 +171,13 @@ type Usage struct {
 
 // GetUserOf gets the resource this Usage indicates a use of.
 func (u *Usage) GetUserOf() protection.Resource {
-	conv := GeneratedResourceConverter{}
+	conv := GeneratedNamespacedResourceConverter{}
 	return conv.ToInternal(u.Spec.Of)
 }
 
 // SetUserOf sets the resource this Usage indicates a use of.
 func (u *Usage) SetUserOf(r protection.Resource) {
-	conv := GeneratedResourceConverter{}
+	conv := GeneratedNamespacedResourceConverter{}
 	u.Spec.Of = conv.FromInternal(r)
 }
 

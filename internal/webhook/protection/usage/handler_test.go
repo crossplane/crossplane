@@ -188,10 +188,10 @@ func TestHandle(t *testing.T) {
 									Name: "used-by-some-resource",
 								},
 								Spec: v1beta1.UsageSpec{
-									Of: v1beta1.Resource{
+									Of: v1beta1.NamespacedResource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
+										ResourceRef: &v1beta1.NamespacedResourceRef{
 											Name: "used-resource",
 										},
 									},
@@ -252,10 +252,10 @@ func TestHandle(t *testing.T) {
 									Name: "used-by-some-resource",
 								},
 								Spec: v1beta1.UsageSpec{
-									Of: v1beta1.Resource{
+									Of: v1beta1.NamespacedResource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
+										ResourceRef: &v1beta1.NamespacedResourceRef{
 											Name: "used-resource",
 										},
 									},
@@ -310,10 +310,10 @@ func TestHandle(t *testing.T) {
 									Name: "used-by-some-resource",
 								},
 								Spec: v1beta1.UsageSpec{
-									Of: v1beta1.Resource{
+									Of: v1beta1.NamespacedResource{
 										APIVersion: "nop.crossplane.io/v1alpha1",
 										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
+										ResourceRef: &v1beta1.NamespacedResourceRef{
 											Name: "used-resource",
 										},
 									},

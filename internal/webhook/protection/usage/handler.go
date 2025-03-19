@@ -182,16 +182,12 @@ func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstruct
 	msg := inUseMessage(usages)
 	h.log.Debug("Usage found, deletion not allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "msg", msg)
 
-	// Use the default propagation policy if not provided
-	policy := metav1.DeletePropagationBackground
-	if opts.PropagationPolicy != nil {
-		policy = *opts.PropagationPolicy
-	}
 	// If the resource is being deleted, we want to record the first deletion attempt
 	// so that we can track whether a deletion was attempted at least once.
-	if u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != string(policy) {
+	policy := string(ptr.Deref(opts.PropagationPolicy, metav1.DeletePropagationBackground))
+	if u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != policy {
 		orig := u.DeepCopy()
-		xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: string(policy)})
+		xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: policy})
 		// Patch the resource to add the deletion attempt annotation
 		if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
 			h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
