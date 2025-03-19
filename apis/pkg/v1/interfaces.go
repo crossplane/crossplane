@@ -63,6 +63,11 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	return stringRefs
 }
 
+// TODO(negz): Move these interfaces out of the apis package and closer to where
+// they're consumed. This'll probably require internal duplicates of some of the
+// returned types. We could generate converters from the public API types to the
+// internal types, like we do for the Usage types.
+
 // PackageWithRuntime is the interface satisfied by packages with runtime types.
 // +k8s:deepcopy-gen=false
 type PackageWithRuntime interface {

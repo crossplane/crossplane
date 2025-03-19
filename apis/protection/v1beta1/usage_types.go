@@ -1,5 +1,5 @@
 /*
-Copyright 2023 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
+	"github.com/crossplane/crossplane/internal/protection"
 )
 
 // ResourceRef is a reference to a resource.
@@ -99,6 +101,71 @@ type Usage struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Spec              UsageSpec   `json:"spec"`
 	Status            UsageStatus `json:"status,omitempty"`
+}
+
+// GetUserOf gets the resource this Usage indicates a use of.
+func (u *Usage) GetUserOf() protection.Resource {
+	conv := GeneratedResourceConverter{}
+	return conv.ToInternal(u.Spec.Of)
+}
+
+// SetUserOf sets the resource this Usage indicates a use of.
+func (u *Usage) SetUserOf(r protection.Resource) {
+	conv := GeneratedResourceConverter{}
+	u.Spec.Of = conv.FromInternal(r)
+}
+
+// GetUsedBy gets the resource this Usage indicates a use by.
+func (u *Usage) GetUsedBy() *protection.Resource {
+	if u.Spec.By == nil {
+		return nil
+	}
+	conv := GeneratedResourceConverter{}
+	out := conv.ToInternal(*u.Spec.By)
+	return &out
+}
+
+// SetUsedBy sets the resource this Usage indicates a use by.
+func (u *Usage) SetUsedBy(r *protection.Resource) {
+	if r == nil {
+		u.Spec.By = nil
+		return
+	}
+	conv := GeneratedResourceConverter{}
+	out := conv.FromInternal(*r)
+	u.Spec.By = &out
+}
+
+// GetReason gets the reason this Usage exists.
+func (u *Usage) GetReason() *string {
+	return u.Spec.Reason
+}
+
+// SetReason sets the reason this Usage exists.
+func (u *Usage) SetReason(reason *string) {
+	u.Spec.Reason = reason
+}
+
+// GetReplayDeletion gets a boolean that indicates whether deletion of the used
+// resource will be replayed when this Usage is deleted.
+func (u *Usage) GetReplayDeletion() *bool {
+	return u.Spec.ReplayDeletion
+}
+
+// SetReplayDeletion specifies whether deletion of the used resource will be
+// replayed when this Usage is deleted.
+func (u *Usage) SetReplayDeletion(replay *bool) {
+	u.Spec.ReplayDeletion = replay
+}
+
+// GetCondition of this Usage.
+func (u *Usage) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return u.Status.GetCondition(ct)
+}
+
+// SetConditions of this Usage.
+func (u *Usage) SetConditions(c ...xpv1.Condition) {
+	u.Status.SetConditions(c...)
 }
 
 // +kubebuilder:object:root=true
