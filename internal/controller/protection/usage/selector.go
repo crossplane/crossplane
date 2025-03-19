@@ -20,12 +20,13 @@ import (
 	"context"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
@@ -47,15 +48,15 @@ func newAPISelectorResolver(c client.Client) *apiSelectorResolver {
 	return &apiSelectorResolver{client: c}
 }
 
-func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.ClusterUsage) error {
-	of := u.Spec.Of
-	by := u.Spec.By
+func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u protection.Usage) error {
+	of := u.GetUserOf()
+	by := u.GetUsedBy()
 
 	if of.ResourceRef == nil || len(of.ResourceRef.Name) == 0 {
-		if err := r.resolveSelector(ctx, u, &of); err != nil {
+		if err := r.resolveSelector(ctx, &of, u); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsedResource)
 		}
-		u.Spec.Of = of
+		u.SetUserOf(of)
 		if err := r.client.Update(ctx, u); err != nil {
 			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
@@ -66,10 +67,10 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.C
 	}
 
 	if by.ResourceRef == nil || len(by.ResourceRef.Name) == 0 {
-		if err := r.resolveSelector(ctx, u, by); err != nil {
+		if err := r.resolveSelector(ctx, by, u); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsingResource)
 		}
-		u.Spec.By = by
+		u.SetUsedBy(by)
 		if err := r.client.Update(ctx, u); err != nil {
 			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
@@ -78,15 +79,15 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.C
 	return nil
 }
 
-func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1beta1.ClusterUsage, rs *v1beta1.Resource) error {
+func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protection.Resource, usage metav1.Object) error {
+	if rs.ResourceSelector == nil {
+		return errors.New(errNoSelectorToResolve)
+	}
+
 	l := composed.NewList(composed.FromReferenceToList(v1.ObjectReference{
 		APIVersion: rs.APIVersion,
 		Kind:       rs.Kind,
 	}))
-
-	if rs.ResourceSelector == nil {
-		return errors.New(errNoSelectorToResolve)
-	}
 	if err := r.client.List(ctx, l, client.MatchingLabels(rs.ResourceSelector.MatchLabels)); err != nil {
 		return errors.Wrap(err, errListResourceMatchingLabels)
 	}
@@ -95,14 +96,11 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1beta1.Cl
 		return errors.Errorf(errFmtResourcesNotFound, rs.Kind, rs.ResourceSelector.MatchLabels)
 	}
 
-	for i := range l.Items {
-		o := l.Items[i]
-		if controllersMustMatch(rs.ResourceSelector) && !meta.HaveSameController(&o, u) {
+	for _, o := range l.Items {
+		if controllersMustMatch(rs.ResourceSelector) && !meta.HaveSameController(&o, usage) {
 			continue
 		}
-		rs.ResourceRef = &v1beta1.ResourceRef{
-			Name: o.GetName(),
-		}
+		rs.ResourceRef = &protection.ResourceRef{Name: o.GetName()}
 		break
 	}
 
@@ -113,10 +111,10 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1beta1.Cl
 	return nil
 }
 
-// ControllersMustMatch returns true if the supplied Selector requires that a
+// controllersMustMatch returns true if the supplied Selector requires that a
 // reference be to a resource whose controller reference matches the
 // referencing resource.
-func controllersMustMatch(s *v1beta1.ResourceSelector) bool {
+func controllersMustMatch(s *protection.ResourceSelector) bool {
 	if s == nil {
 		return false
 	}

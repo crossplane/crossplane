@@ -32,5 +32,15 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		return nil
 	}
 
-	return usage.Setup(mgr, o)
+	for _, fn := range []func(mgr ctrl.Manager, o controller.Options) error{
+		usage.SetupUsage,
+		usage.SetupClusterUsage,
+		usage.SetupLegacyUsage,
+	} {
+		if err := fn(mgr, o); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
