@@ -10,6 +10,7 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
@@ -134,6 +135,7 @@ func (p *DefaultDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context,
 }
 
 // ProcessResource handles one resource at a time.
+// ProcessResource handles one resource at a time.
 func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
 	// Convert the unstructured resource to a composite unstructured for rendering
 	xr := ucomposite.New()
@@ -176,19 +178,6 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot render resources")
 	}
 
-	// Helper function to print diffs
-	printDiff := func(composite string, res runtime.Object) error {
-		diff, err := p.CalculateDiff(ctx, composite, res)
-		if err != nil {
-			return errors.Wrap(err, "cannot calculate diff")
-		}
-		if diff != "" {
-			_, _ = fmt.Fprintf(stdout, "%s\n---\n", diff)
-		}
-
-		return nil
-	}
-
 	compositeUnstructured := &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}
 
 	// Merge the input XR with the rendered XR to get the full XR
@@ -202,16 +191,31 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot validate resources")
 	}
 
-	// Print the diffs
+	// Create a map to track resources that were rendered
+	renderedResources := make(map[string]bool)
+
+	// Process all rendered resources first
 	var errs []error
-	errs = append(errs, printDiff("", xrUnstructured))
+	errs = append(errs, p.CalculateDiff(ctx, stdout, "", xrUnstructured))
 
 	// Diff the composed resources
 	for _, d := range desired.ComposedResources {
 		un := &unstructured.Unstructured{Object: d.UnstructuredContent()}
-		errs = append(errs, printDiff(xr.GetName(), un))
+
+		// Generate a key to identify this resource
+		key := fmt.Sprintf("%s/%s/%s", un.GetAPIVersion(), un.GetKind(), un.GetName())
+		renderedResources[key] = true
+
+		errs = append(errs, p.CalculateDiff(ctx, stdout, xr.GetName(), un))
 	}
-	return errors.Wrap(errors.Join(errs...), "cannot print diff")
+
+	// Now find resources that would be removed
+	err = p.ProcessRemovedResources(stdout, ctx, xr, renderedResources)
+	if err != nil {
+		errs = append(errs, errors.Wrap(err, "cannot process removed resources"))
+	}
+
+	return errors.Join(errs...)
 }
 
 // ValidateResources validates the resources using schema validation
@@ -245,28 +249,91 @@ func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, xr *unstructu
 	return nil
 }
 
-// CalculateDiff calculates the difference between desired state and current state
-func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite string, desired runtime.Object) (string, error) {
-	// Convert desired to unstructured
-	desiredUnstr, ok := desired.(*unstructured.Unstructured)
-	if !ok {
-		return "", errors.New("desired object is not unstructured")
-	}
+// resourceKey generates a unique key for a resource based on GVK and name
+func resourceKey(res *unstructured.Unstructured) string {
+	return fmt.Sprintf("%s/%s/%s",
+		res.GetAPIVersion(),
+		res.GetKind(),
+		res.GetName())
+}
 
-	// Fetch current object from cluster
-	current, _, err := p.fetchCurrentObject(ctx, composite, desiredUnstr)
+// findResourcesToBeRemoved identifies resources that exist in the current state but are not in the processed list
+func (p *DefaultDiffProcessor) findResourcesToBeRemoved(ctx context.Context, composite string, processedResources map[string]bool) ([]*unstructured.Unstructured, error) {
+
+	// Find the XR
+	xrRes, err := p.client.GetResource(ctx, schema.GroupVersionKind{
+		Group:   "example.org", // This needs to be determined dynamically based on the XR
+		Version: "v1alpha1",    // This needs to be determined dynamically
+		Kind:    "XRKind",      // This needs to be determined dynamically
+	}, "", composite)
 	if err != nil {
-		return "", err
+		return nil, errors.Wrap(err, "cannot find composite resource")
 	}
 
-	p.makeObjectValid(desiredUnstr)
+	// Get the resource tree
+	resourceTree, err := p.client.GetResourceTree(ctx, xrRes)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get resource tree")
+	}
 
-	wouldBeResult := desiredUnstr
+	// Find resources that weren't processed (meaning they would be removed)
+	var toBeRemoved []*unstructured.Unstructured
+
+	// Function to recursively traverse the tree and find composed resources
+	var findComposedResources func(node *resource.Resource)
+	findComposedResources = func(node *resource.Resource) {
+		// Skip the root (XR) node
+		if node.Unstructured.GetAnnotations()["crossplane.io/composition-resource-name"] != "" {
+			key := resourceKey(&node.Unstructured)
+			if !processedResources[key] {
+				// This resource exists but wasn't in our desired resources - it will be removed
+				toBeRemoved = append(toBeRemoved, &node.Unstructured)
+			}
+		}
+
+		for _, child := range node.Children {
+			findComposedResources(child)
+		}
+	}
+
+	// Start the traversal from the root's children to skip the XR itself
+	for _, child := range resourceTree.Children {
+		findComposedResources(child)
+	}
+
+	return toBeRemoved, nil
+}
+
+// CalculateRemovalDiff calculates the diff for a resource being removed
+func (p *DefaultDiffProcessor) CalculateRemovalDiff(ctx context.Context, resource *unstructured.Unstructured) (string, error) {
+	// Get diff options from the processor configuration
+	diffOpts := p.config.GetDiffOptions()
+
+	// Generate diff with the configured options - passing nil as desired to indicate removal
+	diff, err := GenerateDiffWithOptions(resource, nil, resource.GetKind(), resource.GetName(), diffOpts)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot generate diff")
+	}
+
+	return diff, nil
+}
+
+// CalculateDiff calculates and prints the difference between desired state and current state
+func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, stdout io.Writer, composite string, desired *unstructured.Unstructured) error {
+	// Fetch current object from cluster
+	current, _, err := p.fetchCurrentObject(ctx, composite, desired)
+	if err != nil {
+		return errors.Wrap(err, "cannot fetch current object")
+	}
+
+	p.makeObjectValid(desired)
+
+	wouldBeResult := desired
 	if current != nil {
 		// Perform a dry-run apply to get the result after we'd apply
-		wouldBeResult, err = p.client.DryRunApply(ctx, desiredUnstr)
+		wouldBeResult, err = p.client.DryRunApply(ctx, desired)
 		if err != nil {
-			return "", errors.Wrap(err, "cannot dry-run apply desired object")
+			return errors.Wrap(err, "cannot dry-run apply desired object")
 		}
 	}
 
@@ -274,12 +341,70 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 	diffOpts := p.config.GetDiffOptions()
 
 	// Generate diff with the configured options
-	diff, err := GenerateDiffWithOptions(current, wouldBeResult, desiredUnstr.GetKind(), desiredUnstr.GetName(), diffOpts)
+	diff, err := GenerateDiffWithOptions(current, wouldBeResult, desired.GetKind(), desired.GetName(), diffOpts)
 	if err != nil {
-		return "", errors.Wrap(err, "cannot generate diff")
+		return errors.Wrap(err, "cannot generate diff")
 	}
 
-	return diff, nil
+	if diff != "" {
+		_, _ = fmt.Fprintf(stdout, "%s\n---\n", diff)
+	}
+
+	return nil
+}
+
+// ProcessRemovedResources identifies and shows diffs for resources that would be removed
+func (p *DefaultDiffProcessor) ProcessRemovedResources(stdout io.Writer, ctx context.Context, composite *ucomposite.Unstructured, renderedResources map[string]bool) error {
+
+	xrRes, err := p.client.GetResource(ctx, composite.GroupVersionKind(), "", composite.GetName())
+	if err != nil {
+		return errors.Wrap(err, "cannot find composite resource")
+	}
+
+	// Get the resource tree
+	resourceTree, err := p.client.GetResourceTree(ctx, xrRes)
+	if err != nil {
+		return errors.Wrap(err, "cannot get resource tree")
+	}
+
+	// Find and process resources that would be removed
+	var errs []error
+
+	// Function to recursively traverse the tree and find composed resources
+	var processRemovedResource func(node *resource.Resource)
+	processRemovedResource = func(node *resource.Resource) {
+		// Skip the root (XR) node
+		if _, hasAnno := node.Unstructured.GetAnnotations()["crossplane.io/composition-resource-name"]; hasAnno {
+			key := fmt.Sprintf("%s/%s/%s",
+				node.Unstructured.GetAPIVersion(),
+				node.Unstructured.GetKind(),
+				node.Unstructured.GetName())
+
+			if !renderedResources[key] {
+				// This resource exists but wasn't rendered - it will be removed
+				diff, err := p.CalculateRemovalDiff(ctx, &node.Unstructured)
+				if err != nil {
+					errs = append(errs, errors.Wrapf(err, "cannot calculate removal diff for %s", key))
+					return
+				}
+
+				if diff != "" {
+					_, _ = fmt.Fprintf(stdout, "%s\n---\n", diff)
+				}
+			}
+		}
+
+		for _, child := range node.Children {
+			processRemovedResource(child)
+		}
+	}
+
+	// Start the traversal from the root's children to skip the XR itself
+	for _, child := range resourceTree.Children {
+		processRemovedResource(child)
+	}
+
+	return errors.Join(errs...)
 }
 
 // makeObjectValid makes sure all OwnerReferences have a valid UID

@@ -18,6 +18,7 @@ package xpkg
 
 import (
 	"context"
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"slices"
 
 	pkgname "github.com/google/go-containerregistry/pkg/name"
@@ -35,7 +36,6 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -89,7 +89,7 @@ func NewClient(in client.Client, opts ...ClientOption) (*Client, error) {
 }
 
 // GetResourceTree returns the requested package Resource and all its children.
-func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
+func (kc *Client) GetResourceTree(ctx context.Context, root *resource2.Resource) (*resource2.Resource, error) {
 	var err error
 	if !IsPackageType(root.Unstructured.GroupVersionKind().GroupKind()) {
 		return nil, errors.Errorf("resource %s is not a package", root.Unstructured.GetName())
@@ -102,7 +102,7 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 	}
 
 	// Set up a FIFO queue to traverse the resource tree breadth first.
-	queue := []*resource.Resource{root}
+	queue := []*resource2.Resource{root}
 
 	uniqueDeps := map[string]struct{}{}
 
@@ -133,7 +133,7 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 		}
 
 		for i := range refs {
-			child := resource.GetResource(ctx, kc.client, &refs[i])
+			child := resource2.GetResource(ctx, kc.client, &refs[i])
 
 			res.Children = append(res.Children, child)
 			queue = append(queue, child)
@@ -143,13 +143,13 @@ func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) 
 	return root, nil
 }
 
-func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resource.Resource) {
+func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resource2.Resource) {
 	if !kc.includePackageRuntimeConfig {
 		return
 	}
 	runtimeConfigRef := pkgv1.RuntimeConfigReference{}
 	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.runtimeConfigRef", &runtimeConfigRef); err == nil {
-		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
+		res.Children = append(res.Children, resource2.GetResource(ctx, kc.client, &v1.ObjectReference{
 			APIVersion: *runtimeConfigRef.APIVersion,
 			Kind:       *runtimeConfigRef.Kind,
 			Name:       runtimeConfigRef.Name,
@@ -159,7 +159,7 @@ func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resourc
 	controllerConfigRef := pkgv1.ControllerConfigReference{}
 	apiVersion, kind := pkgv1alpha1.ControllerConfigGroupVersionKind.ToAPIVersionAndKind()
 	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.controllerConfigRef", &runtimeConfigRef); err == nil {
-		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
+		res.Children = append(res.Children, resource2.GetResource(ctx, kc.client, &v1.ObjectReference{
 			APIVersion: apiVersion,
 			Kind:       kind,
 			Name:       controllerConfigRef.Name,
@@ -167,7 +167,7 @@ func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resourc
 	}
 }
 
-func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resource) (err error) {
+func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource2.Resource) (err error) {
 	// Nothing to do if we don't want to show revisions
 	if kc.revisionOutput == RevisionOutputNone {
 		return nil
@@ -193,7 +193,7 @@ func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resour
 }
 
 // getRevisions gets the revisions for the given package.
-func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]*resource.Resource, error) {
+func (kc *Client) getRevisions(ctx context.Context, xpkg *resource2.Resource) ([]*resource2.Resource, error) {
 	revisions := &unstructured.UnstructuredList{}
 	switch gvk := xpkg.Unstructured.GroupVersionKind(); gvk.GroupKind() {
 	case pkgv1.ProviderGroupVersionKind.GroupKind():
@@ -214,9 +214,9 @@ func (kc *Client) getRevisions(ctx context.Context, xpkg *resource.Resource) ([]
 	slices.SortFunc(revisions.Items, func(i, j unstructured.Unstructured) int {
 		return i.GetCreationTimestamp().Compare(j.GetCreationTimestamp().Time)
 	})
-	resources := make([]*resource.Resource, 0, len(revisions.Items))
+	resources := make([]*resource2.Resource, 0, len(revisions.Items))
 	for i := range revisions.Items {
-		resources = append(resources, &resource.Resource{Unstructured: revisions.Items[i]})
+		resources = append(resources, &resource2.Resource{Unstructured: revisions.Items[i]})
 	}
 	return resources, nil
 }
@@ -291,7 +291,7 @@ func (kc *Client) getDependencyRef(ctx context.Context, d pkgv1beta1.Dependency,
 }
 
 // getPackageDeps returns the dependencies for the given package resource.
-func (kc *Client) getPackageDeps(ctx context.Context, node *resource.Resource, lock *pkgv1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
+func (kc *Client) getPackageDeps(ctx context.Context, node *resource2.Resource, lock *pkgv1beta1.Lock, uniqueDeps map[string]struct{}) ([]v1.ObjectReference, error) {
 	cr, _ := fieldpath.Pave(node.Unstructured.Object).GetString("status.currentRevision")
 	if cr == "" {
 		// we don't have a current package revision, so just return empty deps

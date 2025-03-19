@@ -19,11 +19,10 @@ package printer
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"io"
 
 	"github.com/pkg/errors"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 const (

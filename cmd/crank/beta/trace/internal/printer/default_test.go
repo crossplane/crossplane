@@ -18,14 +18,13 @@ package printer
 
 import (
 	"bytes"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 func TestDefaultPrinter(t *testing.T) {

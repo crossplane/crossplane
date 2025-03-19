@@ -19,6 +19,9 @@ package trace
 
 import (
 	"context"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	xpkg2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xrm"
 	"strings"
 
 	"github.com/alecthomas/kong"
@@ -36,9 +39,6 @@ import (
 
 	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
 )
 
 const (
@@ -198,12 +198,12 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 
 	var treeClient resource.TreeClient
 	switch {
-	case xpkg.IsPackageType(mapping.GroupVersionKind.GroupKind()):
+	case xpkg2.IsPackageType(mapping.GroupVersionKind.GroupKind()):
 		logger.Debug("Requested resource is an Package")
-		treeClient, err = xpkg.NewClient(client,
-			xpkg.WithDependencyOutput(xpkg.DependencyOutput(c.ShowPackageDependencies)),
-			xpkg.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
-			xpkg.WithRevisionOutput(xpkg.RevisionOutput(c.ShowPackageRevisions)))
+		treeClient, err = xpkg2.NewClient(client,
+			xpkg2.WithDependencyOutput(xpkg2.DependencyOutput(c.ShowPackageDependencies)),
+			xpkg2.WithPackageRuntimeConfigs(c.ShowPackageRuntimeConfigs),
+			xpkg2.WithRevisionOutput(xpkg2.RevisionOutput(c.ShowPackageRevisions)))
 		if err != nil {
 			return errors.Wrap(err, errInitKubeClient)
 		}

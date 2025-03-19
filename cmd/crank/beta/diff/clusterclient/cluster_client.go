@@ -5,14 +5,19 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/apis/pkg"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xrm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
 )
 
@@ -45,6 +50,9 @@ type ClusterClient interface {
 	// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
 
+	// GetResourceTree retrieves the resource tree from the cluster
+	GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error)
+
 	// GetResourcesByLabel retrieves all resources from the cluster based on the provided GVR and selector
 	GetResourcesByLabel(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 
@@ -55,19 +63,46 @@ type ClusterClient interface {
 // DefaultClusterClient handles all interactions with the Kubernetes cluster.
 type DefaultClusterClient struct {
 	dynamicClient dynamic.Interface
+	xrmClient     *xrm.Client
 	compositions  map[compositionCacheKey]*apiextensionsv1.Composition
 	functions     map[string]pkgv1.Function
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
 func NewClusterClient(config *rest.Config) (*DefaultClusterClient, error) {
+	// TODO:  make this configurable per trace.go
+	if config.QPS == 0 {
+		config.QPS = 20
+	}
+	if config.Burst == 0 {
+		config.Burst = 30
+	}
+
 	dynamicClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create dynamic client")
 	}
 
+	c, err := client.New(config, client.Options{
+		Scheme: scheme.Scheme,
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create static client")
+	}
+
+	_ = pkg.AddToScheme(c.Scheme())
+
+	// Create an XRM client to get the resource tree
+	xrmClient, err := xrm.NewClient(c,
+		xrm.WithConnectionSecrets(false),
+		xrm.WithConcurrency(5))
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create resource tree client")
+	}
+
 	return &DefaultClusterClient{
 		dynamicClient: dynamicClient,
+		xrmClient:     xrmClient,
 	}, nil
 }
 
@@ -332,6 +367,15 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	}
 
 	return resource, nil
+}
+
+func (c *DefaultClusterClient) GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+	// Convert to resource.Resource for the XRM client
+	res := &resource.Resource{
+		Unstructured: *root,
+	}
+
+	return c.xrmClient.GetResourceTree(ctx, res)
 }
 
 // DryRunApply performs a server-side apply with dry-run flag for diffing

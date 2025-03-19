@@ -5,6 +5,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -31,6 +32,7 @@ type ClusterClient interface {
 	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
+	GetResourceTree(ctx context.Context, resource *unstructured.Unstructured) (*resource.Resource, error)
 	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	GetResourcesByLabel(ctx context.Context, ns string, sel metav1.LabelSelector, gvr schema.GroupVersionResource) ([]*unstructured.Unstructured, error)
 }
@@ -234,6 +236,7 @@ type MockClusterClient struct {
 	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDsFn                  func(context.Context) ([]*unstructured.Unstructured, error)
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
+	GetResourceTreeFn          func(context.Context, *unstructured.Unstructured) (*resource.Resource, error)
 	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
 	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
@@ -286,6 +289,14 @@ func (m *MockClusterClient) GetResource(ctx context.Context, gvk schema.GroupVer
 		return m.GetResourceFn(ctx, gvk, namespace, name)
 	}
 	return nil, errors.New("GetResource not implemented")
+}
+
+// GetResourceTree implements the ClusterClient interface
+func (m *MockClusterClient) GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+	if m.GetResourceTreeFn != nil {
+		return m.GetResourceTreeFn(ctx, root)
+	}
+	return nil, errors.New("GetResourceTree not implemented")
 }
 
 // GetResourcesByLabel implements the ClusterClient interface

@@ -20,6 +20,7 @@ package xrm
 
 import (
 	"context"
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 )
 
 // defaultConcurrency is the concurrency using which the resource tree if loaded when not explicitly specified.
@@ -79,26 +79,26 @@ func NewClient(in client.Client, opts ...ResourceClientOption) (*Client, error) 
 }
 
 // GetResourceTree returns the requested Crossplane Resource and all its children.
-func (kc *Client) GetResourceTree(ctx context.Context, root *resource.Resource) (*resource.Resource, error) {
+func (kc *Client) GetResourceTree(ctx context.Context, root *resource2.Resource) (*resource2.Resource, error) {
 	q := newLoader(root, kc, defaultChannelCapacity)
 	q.load(ctx, kc.concurrency)
 	return root, nil
 }
 
 // loadResource returns the resource for the specified object reference.
-func (kc *Client) loadResource(ctx context.Context, ref *v1.ObjectReference) *resource.Resource {
-	return resource.GetResource(ctx, kc.client, ref)
+func (kc *Client) loadResource(ctx context.Context, ref *v1.ObjectReference) *resource2.Resource {
+	return resource2.GetResource(ctx, kc.client, ref)
 }
 
 // getResourceChildrenRefs returns the references to the children for the given
 // Resource, assuming it's a Crossplane resource, XR or XRC.
-func (kc *Client) getResourceChildrenRefs(r *resource.Resource) []v1.ObjectReference {
+func (kc *Client) getResourceChildrenRefs(r *resource2.Resource) []v1.ObjectReference {
 	return getResourceChildrenRefs(r, kc.getConnectionSecrets)
 }
 
 // getResourceChildrenRefs returns the references to the children for the given
 // Resource, assuming it's a Crossplane resource, XR or XRC.
-func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []v1.ObjectReference {
+func getResourceChildrenRefs(r *resource2.Resource, getConnectionSecrets bool) []v1.ObjectReference {
 	obj := r.Unstructured
 	// collect object references for the
 	var refs []v1.ObjectReference
