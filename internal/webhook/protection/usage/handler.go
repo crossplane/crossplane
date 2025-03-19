@@ -54,7 +54,7 @@ func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error
 		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
 			return []string{}
 		}
-		return []string{protection.IndexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
+		return []string{protection.InUseIndexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
 	}); err != nil {
 		return err
 	}
@@ -121,7 +121,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured, opts *metav1.DeleteOptions) admission.Response {
 	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
 	usageList := &v1beta1.UsageList{}
-	if err := h.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.IndexValueForObject(u)}); err != nil {
+	if err := h.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())}); err != nil {
 		h.log.Debug("Error when getting Usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}

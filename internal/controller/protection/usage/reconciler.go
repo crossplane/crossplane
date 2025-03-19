@@ -312,7 +312,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// exists.
 		if err == nil {
 			usageList := &v1beta1.UsageList{}
-			if err = r.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.IndexValueForObject(used.GetUnstructured())}); err != nil {
+			if err = r.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(used.GetAPIVersion(), used.GetKind(), used.GetName())}); err != nil {
 				log.Debug(errListUsages, "error", err)
 				err = errors.Wrap(err, errListUsages)
 				r.record.Event(u, event.Warning(reasonListUsages, err))
