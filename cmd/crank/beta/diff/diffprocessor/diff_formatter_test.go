@@ -1,6 +1,7 @@
 package diffprocessor
 
 import (
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"strings"
 	"testing"
 
@@ -9,45 +10,25 @@ import (
 )
 
 func TestDiffFormatting(t *testing.T) {
-	// Test resources for GenerateDiff tests
-	current := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "TestResource",
-			"metadata": map[string]interface{}{
-				"name":            "test-resource",
-				"resourceVersion": "1",
-			},
-			"spec": map[string]interface{}{
-				"field1": "old-value",
-				"field2": int64(123),
-				"field3": []interface{}{
-					"item1",
-					"item2",
-				},
-			},
-		},
-	}
+	// Test resources for GenerateDiff tests using the test builder
+	current := tu.NewResource("example.org/v1", "TestResource", "test-resource").
+		WithSpecField("field1", "old-value").
+		WithSpecField("field2", int64(123)).
+		WithSpecField("field3", []interface{}{
+			"item1",
+			"item2",
+		}).
+		Build()
 
-	desired := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "TestResource",
-			"metadata": map[string]interface{}{
-				"name":            "test-resource",
-				"resourceVersion": "1",
-			},
-			"spec": map[string]interface{}{
-				"field1": "new-value",
-				"field2": int64(456),
-				"field3": []interface{}{
-					"item1",
-					"item3",
-				},
-				"field4": "added-field",
-			},
-		},
-	}
+	desired := tu.NewResource("example.org/v1", "TestResource", "test-resource").
+		WithSpecField("field1", "new-value").
+		WithSpecField("field2", int64(456)).
+		WithSpecField("field3", []interface{}{
+			"item1",
+			"item3",
+		}).
+		WithSpecField("field4", "added-field").
+		Build()
 
 	// Identical to current, for no-change test
 	noChanges := current.DeepCopy()
