@@ -4,3 +4,4 @@ metadata:
   name: test-resource
 spec:
   coolField: existing-value
+  environment: staging

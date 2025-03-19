@@ -20,3 +20,5 @@ spec:
               properties:
                 coolField:
                   type: string
+                environment:
+                  type: string

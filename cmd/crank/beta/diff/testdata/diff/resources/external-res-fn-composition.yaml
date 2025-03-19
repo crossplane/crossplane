@@ -26,8 +26,8 @@ spec:
                     type: Value
                     value: test-app
                   - key: environment
-                    type: Value
-                    value: testing
+                    type: FromCompositeFieldPath
+                    valueFromFieldPath: spec.environment
             - apiVersion: rbac.authorization.k8s.io/v1
               kind: ClusterRole
               # function-extra-resources only supports Cluster-scoped resources as name refs

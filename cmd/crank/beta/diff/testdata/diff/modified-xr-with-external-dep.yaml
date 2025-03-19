@@ -4,3 +4,4 @@ metadata:
   name: test-resource
 spec:
   coolField: modified-with-external-dep
+  environment: testing

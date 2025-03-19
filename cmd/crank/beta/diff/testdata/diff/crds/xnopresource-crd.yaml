@@ -23,6 +23,8 @@ spec:
               properties:
                 coolField:
                   type: string
+                environment:
+                  type: string
             status:
               type: object
               properties:

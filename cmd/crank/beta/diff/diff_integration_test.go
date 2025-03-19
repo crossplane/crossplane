@@ -223,8 +223,8 @@ func TestDiffIntegration(t *testing.T) {
 		},
 		{
 			// this test does a weird thing where it changes the XR but all the downstream changes come from external
-			// resources.
-			name: "Diff with external resource dependencies via fn-external-resources",
+			// resources, including a field path from the XR itself.
+			name: "Diff with external resource dependencies via fn-external-resources with field paths",
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/functions.yaml",
@@ -243,7 +243,9 @@ func TestDiffIntegration(t *testing.T) {
     name: test-resource
   spec:
 -   coolField: existing-value
+-   environment: staging
 +   coolField: modified-with-external-dep
++   environment: testing
 
 ---
 ~~~ XDownstreamResource/test-resource
@@ -260,7 +262,7 @@ func TestDiffIntegration(t *testing.T) {
     forProvider:
 -     configData: existing-value
 -     roleName: old-role-name
-+     configData: external-resource-data
++     configData: testing-external-resource-data
 +     roleName: external-named-clusterrole
 
 ---
