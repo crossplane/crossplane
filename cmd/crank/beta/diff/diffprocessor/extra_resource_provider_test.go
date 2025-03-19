@@ -2,6 +2,7 @@ package diffprocessor
 
 import (
 	"context"
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -337,16 +338,15 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
 					Pipeline: []apiextensionsv1.PipelineStep{
 						{
-							Step:        "generate-resources",
+							Step:        "render-templates",
 							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
 							Input: &runtime.RawExtension{
 								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
+									"apiVersion": "gotemplating.fn.crossplane.io/v1beta1",
 									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
-										}
+									"source": "Inline",
+									"inline": {
+										"template": "apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1\nkind: ExtraResources\nrequirements:\n  configmaps:\n    apiVersion: v1\n    kind: ConfigMap\n    matchLabels:\n      app: test-app"
 									}
 								}`),
 							},
@@ -359,22 +359,57 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 				WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 					return []pkgv1.Function{}, nil
 				}).
+				WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					// Verify the GVR and selector match our expectations
+					expectedGVR := schema.GroupVersionResource{
+						Group:    "",
+						Version:  "v1",
+						Resource: "configmaps",
+					}
+					if gvr != expectedGVR {
+						return nil, errors.Errorf("unexpected GVR: %v", gvr)
+					}
+
+					// Verify the selector matches our expectation
+					if selector.MatchLabels["app"] != "test-app" {
+						return nil, errors.New("unexpected selector")
+					}
+
+					return []*unstructured.Unstructured{
+						tu.NewResource("v1", "ConfigMap", "test-configmap").
+							WithLabels(map[string]string{"app": "test-app"}).
+							Build(),
+					}, nil
+				}).
 				Build(),
 			mockRenderFn: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
-				return render.Outputs{
-					Results: []unstructured.Unstructured{
-						*tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
-							WithSpecField("resources", []interface{}{
-								map[string]interface{}{
-									"apiVersion": "v1",
-									"kind":       "ConfigMap",
-									"metadata": map[string]interface{}{
-										"name": "test-configmap",
-									},
-								},
-							}).
-							Build(),
+				// Create the match labels for the resource selector
+				matchLabels := &fnv1.MatchLabels{
+					Labels: map[string]string{
+						"app": "test-app",
 					},
+				}
+
+				// Create the resource selector with the match labels
+				resourceSelector := &fnv1.ResourceSelector{
+					ApiVersion: "v1",
+					Kind:       "ConfigMap",
+					Match: &fnv1.ResourceSelector_MatchLabels{
+						MatchLabels: matchLabels,
+					},
+				}
+
+				// Create the requirements with the resource selector
+				requirements := map[string]fnv1.Requirements{
+					"render-templates": {
+						ExtraResources: map[string]*fnv1.ResourceSelector{
+							"configmaps": resourceSelector,
+						},
+					},
+				}
+
+				return render.Outputs{
+					Requirements: requirements,
 				}, nil
 			},
 			expectResCount: 1,
@@ -424,16 +459,15 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
 					Pipeline: []apiextensionsv1.PipelineStep{
 						{
-							Step:        "generate-resources",
+							Step:        "render-templates",
 							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
 							Input: &runtime.RawExtension{
 								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
+									"apiVersion": "gotemplating.fn.crossplane.io/v1beta1",
 									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
-										}
+									"source": "Inline", 
+									"inline": {
+										"template": "apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1\nkind: ExtraResources\nrequirements:\n  configmaps:\n    apiVersion: v1\n    kind: ConfigMap\n    matchLabels:\n      app: test-app"
 									}
 								}`),
 							},
@@ -459,16 +493,15 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
 					Pipeline: []apiextensionsv1.PipelineStep{
 						{
-							Step:        "generate-resources",
+							Step:        "render-templates",
 							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
 							Input: &runtime.RawExtension{
 								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
+									"apiVersion": "gotemplating.fn.crossplane.io/v1beta1",
 									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
-										}
+									"source": "Inline",
+									"inline": {
+										"template": "apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1\nkind: ExtraResources\nrequirements:\n  configmaps:\n    apiVersion: v1\n    kind: ConfigMap\n    matchLabels:\n      app: test-app"
 									}
 								}`),
 							},

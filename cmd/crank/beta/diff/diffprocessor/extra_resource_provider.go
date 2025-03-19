@@ -483,21 +483,7 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 		return nil, errors.Wrap(err, "cannot process requirements from preliminary render")
 	}
 
-	// TODO:  I don't think this actually needs to be done.
-	extraFromResults := []*unstructured.Unstructured{}
-	for _, result := range preliminary.Results {
-		if result.GetKind() == "ExtraResources" {
-			additional, err := GetExtraResourcesFromResult(&result)
-			if err != nil {
-				return nil, errors.Wrap(err, "cannot get extra resources from result")
-			}
-			extraFromResults = append(extraFromResults, additional...)
-		}
-	}
-
-	// Combine both sets of extra resources
-	extraResources := append(extraFromRequirements, extraFromResults...)
-	return extraResources, nil
+	return extraFromRequirements, nil
 }
 
 // ProcessRequirements extracts and fetches resources from Requirements in render output

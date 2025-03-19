@@ -299,7 +299,9 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			})
 		}
 
-		requirements[fn.Step] = *rsp.GetRequirements()
+		if rsp.GetRequirements() != nil {
+			requirements[fn.Step] = *rsp.GetRequirements()
+		}
 
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
