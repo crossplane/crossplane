@@ -66,16 +66,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/functions.yaml",
 			},
 			expectedOutput: strings.Join([]string{
-				`+++ XNopResource/test-resource
-`, tu.Green(`+ apiVersion: diff.example.org/v1alpha1
-+ kind: XNopResource
-+ metadata:
-+   name: test-resource
-+ spec:
-+   coolField: new-value
-`), `
----
-+++ XDownstreamResource/test-resource
+				`+++ XDownstreamResource/test-resource
 `, tu.Green(`+ apiVersion: nop.example.org/v1alpha1
 + kind: XDownstreamResource
 + metadata:
@@ -88,6 +79,15 @@ func TestDiffIntegration(t *testing.T) {
 + spec:
 +   forProvider:
 +     configData: new-value
+`), `
+---
++++ XNopResource/test-resource
+`, tu.Green(`+ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   name: test-resource
++ spec:
++   coolField: new-value
 `), `
 ---
 `,
@@ -106,16 +106,6 @@ func TestDiffIntegration(t *testing.T) {
 			},
 			inputFile: "testdata/diff/modified-xr.yaml",
 			expectedOutput: `
-~~~ XNopResource/test-resource
-  apiVersion: diff.example.org/v1alpha1
-  kind: XNopResource
-  metadata:
-    name: test-resource
-  spec:
-` + tu.Red("-   coolField: existing-value") + `
-` + tu.Green("+   coolField: modified-value") + `
-
----
 ~~~ XDownstreamResource/test-resource
   apiVersion: nop.example.org/v1alpha1
   kind: XDownstreamResource
@@ -132,6 +122,16 @@ func TestDiffIntegration(t *testing.T) {
 ` + tu.Green("+     configData: modified-value") + `
 
 ---
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+` + tu.Red("-   coolField: existing-value") + `
+` + tu.Green("+   coolField: modified-value") + `
+
+---
 `,
 			expectedError: false,
 		},
@@ -145,16 +145,6 @@ func TestDiffIntegration(t *testing.T) {
 			},
 			inputFile: "testdata/diff/modified-xr.yaml",
 			expectedOutput: `
-~~~ XNopResource/test-resource
-  apiVersion: diff.example.org/v1alpha1
-  kind: XNopResource
-  metadata:
-    name: test-resource
-  spec:
-` + tu.Red("-   coolField: existing-value") + `
-` + tu.Green("+   coolField: modified-value") + `
-
----
 +++ XDownstreamResource/test-resource
 ` + tu.Green(`+ apiVersion: nop.example.org/v1alpha1
 + kind: XDownstreamResource
@@ -169,6 +159,16 @@ func TestDiffIntegration(t *testing.T) {
 +   forProvider:
 +     configData: modified-value
 `) + `
+---
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+` + tu.Red("-   coolField: existing-value") + `
+` + tu.Green("+   coolField: modified-value") + `
+
 ---
 `,
 			expectedError: false,
@@ -186,16 +186,6 @@ func TestDiffIntegration(t *testing.T) {
 			},
 			inputFile: "testdata/diff/modified-env-xr.yaml",
 			expectedOutput: `
-~~~ XEnvResource/test-env-resource
-  apiVersion: diff.example.org/v1alpha1
-  kind: XEnvResource
-  metadata:
-    name: test-env-resource
-  spec:
--   configKey: existing-config-value
-+   configKey: modified-config-value
-
----
 ~~~ XDownstreamEnvResource/test-env-resource
   apiVersion: nop.example.org/v1alpha1
   kind: XDownstreamEnvResource
@@ -213,6 +203,16 @@ func TestDiffIntegration(t *testing.T) {
       environment: staging
       region: us-west-2
       serviceLevel: premium
+
+---
+~~~ XEnvResource/test-env-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XEnvResource
+  metadata:
+    name: test-env-resource
+  spec:
+-   configKey: existing-config-value
++   configKey: modified-config-value
 
 ---
 `,
@@ -234,18 +234,6 @@ func TestDiffIntegration(t *testing.T) {
 			},
 			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
 			expectedOutput: `
-~~~ XNopResource/test-resource
-  apiVersion: diff.example.org/v1alpha1
-  kind: XNopResource
-  metadata:
-    name: test-resource
-  spec:
--   coolField: existing-value
--   environment: staging
-+   coolField: modified-with-external-dep
-+   environment: testing
-
----
 ~~~ XDownstreamResource/test-resource
   apiVersion: nop.example.org/v1alpha1
   kind: XDownstreamResource
@@ -262,6 +250,18 @@ func TestDiffIntegration(t *testing.T) {
 -     roleName: old-role-name
 +     configData: testing-external-resource-data
 +     roleName: external-named-clusterrole
+
+---
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+-   coolField: existing-value
+-   environment: staging
++   coolField: modified-with-external-dep
++   environment: testing
 
 ---
 `,
@@ -282,18 +282,6 @@ func TestDiffIntegration(t *testing.T) {
 			},
 			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
 			expectedOutput: `
-~~~ XNopResource/test-resource
-  apiVersion: diff.example.org/v1alpha1
-  kind: XNopResource
-  metadata:
-    name: test-resource
-  spec:
--   coolField: existing-value
--   environment: staging
-+   coolField: modified-with-external-dep
-+   environment: testing
-
----
 ~~~ XDownstreamResource/test-resource
   apiVersion: nop.example.org/v1alpha1
   kind: XDownstreamResource
@@ -310,6 +298,18 @@ func TestDiffIntegration(t *testing.T) {
 -     roleName: old-role-name
 +     configData: modified-with-external-dep
 +     roleName: templated-external-resource-testing
+
+---
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+-   coolField: existing-value
+-   environment: staging
++   coolField: modified-with-external-dep
++   environment: testing
 
 ---
 `,
