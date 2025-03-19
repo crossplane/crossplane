@@ -104,18 +104,6 @@ type Usage struct {
 	Status UsageStatus `json:"status,omitempty"`
 }
 
-// SetConditions delegates to Status.SetConditions.
-// Implements Conditioned.SetConditions.
-func (u *Usage) SetConditions(c ...xpv1.Condition) {
-	u.Status.SetConditions(c...)
-}
-
-// GetCondition delegates to Status.GetCondition.
-// Implements Conditioned.GetCondition.
-func (u *Usage) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	return u.Status.GetCondition(ct)
-}
-
 // +kubebuilder:object:root=true
 
 // UsageList contains a list of Usage.
