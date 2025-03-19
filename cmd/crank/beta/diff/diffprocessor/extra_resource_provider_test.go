@@ -75,21 +75,11 @@ func TestSelectorExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-					"spec": map[string]interface{}{
-						"environment": "production",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				// Using GetAllResourcesByLabels instead of GetResourcesByLabel
-				GetAllResourcesByLabelsFn: func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").
+				WithSpecField("environment", "production").
+				Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 					// Verify correct GVR
 					if len(gvrs) == 0 || len(selectors) == 0 {
 						return nil, errors.New("no GVRs or selectors provided")
@@ -119,22 +109,15 @@ func TestSelectorExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 					// Return mock resources
 					return []*unstructured.Unstructured{
-						{
-							Object: map[string]interface{}{
-								"apiVersion": "example.org/v1",
-								"kind":       "Test",
-								"metadata": map[string]interface{}{
-									"name": "test-resource",
-									"labels": map[string]interface{}{
-										"app": "test-app",
-										"env": "production",
-									},
-								},
-							},
-						},
+						tu.NewResource("example.org/v1", "Test", "test-resource").
+							WithLabels(map[string]string{
+								"app": "test-app",
+								"env": "production",
+							}).
+							Build(),
 					}, nil
-				},
-			},
+				}).
+				Build(),
 			expectResCount: 1,
 			expectResNames: []string{"test-resource"},
 			expectError:    false,
@@ -146,16 +129,9 @@ func TestSelectorExtraResourceProvider_GetExtraResources(t *testing.T) {
 					Mode: composePtr(apiextensionsv1.CompositionMode("NonPipeline")),
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient:     &tu.MockClusterClient{},
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				Build(),
 			expectResCount: 0,
 			expectError:    false,
 		},
@@ -236,17 +212,9 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				GetResourceFn: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
 					// Verify correct GVK and name
 					expectedGVK := schema.GroupVersionKind{
 						Group:   "example.org",
@@ -263,17 +231,9 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 					}
 
 					// Return mock resource
-					return &unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"apiVersion": "example.org/v1",
-							"kind":       "Test",
-							"metadata": map[string]interface{}{
-								"name": "test-reference",
-							},
-						},
-					}, nil
-				},
-			},
+					return tu.NewResource("example.org/v1", "Test", "test-reference").Build(), nil
+				}).
+				Build(),
 			expectResCount: 1,
 			expectResName:  "test-reference",
 			expectError:    false,
@@ -285,16 +245,8 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 					Mode: composePtr(apiextensionsv1.CompositionMode("NonPipeline")),
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient:     &tu.MockClusterClient{},
+			xr:             tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient:     tu.NewMockClusterClient().Build(),
 			expectResCount: 0,
 			expectError:    false,
 		},
@@ -330,20 +282,12 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				GetResourceFn: func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
 					return nil, errors.New("resource not found")
-				},
-			},
+				}).
+				Build(),
 			expectError: true,
 		},
 	}
@@ -410,40 +354,26 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 					return []pkgv1.Function{}, nil
-				},
-			},
+				}).
+				Build(),
 			mockRenderFn: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 				return render.Outputs{
 					Results: []unstructured.Unstructured{
-						{
-							Object: map[string]interface{}{
-								"apiVersion": "render.crossplane.io/v1beta1",
-								"kind":       "ExtraResources",
-								"spec": map[string]interface{}{
-									"resources": []interface{}{
-										map[string]interface{}{
-											"apiVersion": "v1",
-											"kind":       "ConfigMap",
-											"metadata": map[string]interface{}{
-												"name": "test-configmap",
-											},
-										},
+						*tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+							WithSpecField("resources", []interface{}{
+								map[string]interface{}{
+									"apiVersion": "v1",
+									"kind":       "ConfigMap",
+									"metadata": map[string]interface{}{
+										"name": "test-configmap",
 									},
 								},
-							},
-						},
+							}).
+							Build(),
 					},
 				}, nil
 			},
@@ -475,20 +405,12 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 					return []pkgv1.Function{}, nil
-				},
-			},
+				}).
+				Build(),
 			mockRenderFn: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 				return render.Outputs{}, nil
 			},
@@ -519,20 +441,12 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 					return nil, errors.New("failed to fetch functions")
-				},
-			},
+				}).
+				Build(),
 			mockRenderFn: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 				return render.Outputs{}, nil
 			},
@@ -562,20 +476,12 @@ func TestTemplatedExtraResourceProvider_GetExtraResources(t *testing.T) {
 					},
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
-			mockClient: &tu.MockClusterClient{
-				GetFunctionsFromPipelineFn: func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+			xr: tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
+			mockClient: tu.NewMockClusterClient().
+				WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 					return []pkgv1.Function{}, nil
-				},
-			},
+				}).
+				Build(),
 			mockRenderFn: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 				return render.Outputs{}, errors.New("render error")
 			},
@@ -623,56 +529,30 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 		{
 			name: "Success with multiple providers",
 			providers: []ExtraResourceProvider{
-				&tu.MockExtraResourceProvider{
-					GetExtraResourcesFn: func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-						return []*unstructured.Unstructured{
-							{
-								Object: map[string]interface{}{
-									"apiVersion": "example.org/v1",
-									"kind":       "Test1",
-									"metadata": map[string]interface{}{
-										"name": "resource-1",
-									},
-								},
-							},
-						}, nil
-					},
-				},
-				&tu.MockExtraResourceProvider{
-					GetExtraResourcesFn: func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+				tu.NewMockExtraResourceProvider().
+					WithSuccessfulExtraResourcesFetch([]*unstructured.Unstructured{
+						tu.NewResource("example.org/v1", "Test1", "resource-1").Build(),
+					}).
+					Build(),
+				tu.NewMockExtraResourceProvider().
+					WithGetExtraResources(func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 						// Verify that resources from provider1 are included
 						if len(resources) != 1 || resources[0].GetName() != "resource-1" {
 							return nil, errors.New("expected resources from provider1")
 						}
 
 						return []*unstructured.Unstructured{
-							{
-								Object: map[string]interface{}{
-									"apiVersion": "example.org/v1",
-									"kind":       "Test2",
-									"metadata": map[string]interface{}{
-										"name": "resource-2",
-									},
-								},
-							},
+							tu.NewResource("example.org/v1", "Test2", "resource-2").Build(),
 						}, nil
-					},
-				},
+					}).
+					Build(),
 			},
 			composition: &apiextensionsv1.Composition{
 				Spec: apiextensionsv1.CompositionSpec{
 					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
+			xr:             tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
 			expectResCount: 2,
 			expectResNames: []string{"resource-1", "resource-2"},
 			expectError:    false,
@@ -680,41 +560,21 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 		{
 			name: "Error in second provider",
 			providers: []ExtraResourceProvider{
-				&tu.MockExtraResourceProvider{
-					GetExtraResourcesFn: func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-						return []*unstructured.Unstructured{
-							{
-								Object: map[string]interface{}{
-									"apiVersion": "example.org/v1",
-									"kind":       "Test1",
-									"metadata": map[string]interface{}{
-										"name": "resource-1",
-									},
-								},
-							},
-						}, nil
-					},
-				},
-				&tu.MockExtraResourceProvider{
-					GetExtraResourcesFn: func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-						return nil, errors.New("failed to get resources")
-					},
-				},
+				tu.NewMockExtraResourceProvider().
+					WithSuccessfulExtraResourcesFetch([]*unstructured.Unstructured{
+						tu.NewResource("example.org/v1", "Test1", "resource-1").Build(),
+					}).
+					Build(),
+				tu.NewMockExtraResourceProvider().
+					WithFailedExtraResourcesFetch("failed to get resources").
+					Build(),
 			},
 			composition: &apiextensionsv1.Composition{
 				Spec: apiextensionsv1.CompositionSpec{
 					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
+			xr:          tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
 			expectError: true,
 		},
 		{
@@ -725,15 +585,7 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
 				},
 			},
-			xr: &unstructured.Unstructured{
-				Object: map[string]interface{}{
-					"apiVersion": "example.org/v1",
-					"kind":       "XExampleResource",
-					"metadata": map[string]interface{}{
-						"name": "test-xr",
-					},
-				},
-			},
+			xr:             tu.NewResource("example.org/v1", "XExampleResource", "test-xr").Build(),
 			expectResCount: 0,
 			expectError:    false,
 		},
@@ -781,55 +633,35 @@ func TestScanForTemplatedExtraResources(t *testing.T) {
 	}{
 		{
 			name: "No templated extra resources",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
-					Pipeline: []apiextensionsv1.PipelineStep{
-						{
-							Step:        "generate-resources",
-							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-							Input: &runtime.RawExtension{
-								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
-									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test"
-										}
-									}
-								}`),
-							},
+			composition: tu.NewComposition("test-comp").
+				WithPipelineMode().
+				WithPipelineStep("generate-resources", "function-go-templating", map[string]interface{}{
+					"apiVersion": "template.fn.crossplane.io/v1beta1",
+					"kind":       "GoTemplate",
+					"spec": map[string]interface{}{
+						"inline": map[string]interface{}{
+							"template": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test",
 						},
 					},
-				},
-			},
+				}).
+				Build(),
 			expectFound: false,
 			expectError: false,
 		},
 		{
 			name: "With templated extra resources",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
-					Pipeline: []apiextensionsv1.PipelineStep{
-						{
-							Step:        "generate-resources",
-							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-							Input: &runtime.RawExtension{
-								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
-									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap"
-										}
-									}
-								}`),
-							},
+			composition: tu.NewComposition("test-comp").
+				WithPipelineMode().
+				WithPipelineStep("generate-resources", "function-go-templating", map[string]interface{}{
+					"apiVersion": "template.fn.crossplane.io/v1beta1",
+					"kind":       "GoTemplate",
+					"spec": map[string]interface{}{
+						"inline": map[string]interface{}{
+							"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap",
 						},
 					},
-				},
-			},
+				}).
+				Build(),
 			expectFound: true,
 			expectError: false,
 		},
@@ -845,32 +677,21 @@ func TestScanForTemplatedExtraResources(t *testing.T) {
 		},
 		{
 			name: "Invalid template YAML",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionModePipeline),
-					Pipeline: []apiextensionsv1.PipelineStep{
-						{
-							Step:        "generate-resources",
-							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-go-templating"},
-							Input: &runtime.RawExtension{
-								Raw: []byte(`{
-									"apiVersion": "template.fn.crossplane.io/v1beta1",
-									"kind": "GoTemplate",
-									"spec": {
-										"inline": {
-											"template": "{{ invalid template"
-										}
-									}
-								}`),
-							},
+			composition: tu.NewComposition("test-comp").
+				WithPipelineMode().
+				WithPipelineStep("generate-resources", "function-go-templating", map[string]interface{}{
+					"apiVersion": "template.fn.crossplane.io/v1beta1",
+					"kind":       "GoTemplate",
+					"spec": map[string]interface{}{
+						"inline": map[string]interface{}{
+							"template": "{{ invalid template",
 						},
 					},
-				},
-			},
+				}).
+				Build(),
 			expectFound: false,
 			expectError: true,
 		},
-		// No additional test cases from the second function that aren't already covered
 	}
 
 	for _, tc := range tests {
@@ -890,6 +711,116 @@ func TestScanForTemplatedExtraResources(t *testing.T) {
 
 			if found != tc.expectFound {
 				t.Errorf("Expected found=%v, got %v", tc.expectFound, found)
+			}
+		})
+	}
+}
+
+func TestGetExtraResourcesFromResult(t *testing.T) {
+	tests := map[string]struct {
+		reason string
+		setup  func() *unstructured.Unstructured
+		want   struct {
+			resources []*unstructured.Unstructured
+			err       error
+		}
+	}{
+		"NoSpec": {
+			reason: "Should return error when result has no spec",
+			setup: func() *unstructured.Unstructured {
+				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+					Build()
+			},
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				resources: nil,
+				err:       errors.New("no spec found in ExtraResources result"),
+			},
+		},
+		"NoResources": {
+			reason: "Should return error when spec has no resources",
+			setup: func() *unstructured.Unstructured {
+				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+					WithSpecField("otherField", "value").
+					Build()
+			},
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				resources: nil,
+				err:       errors.New("no resources found in ExtraResources spec"),
+			},
+		},
+		"WithResources": {
+			reason: "Should return resources when they exist",
+			setup: func() *unstructured.Unstructured {
+				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
+					WithSpecField("resources", []interface{}{
+						tu.NewResource("v1", "ConfigMap", "resource-1").Build().Object,
+						tu.NewResource("v1", "Secret", "resource-2").Build().Object,
+					}).
+					Build()
+			},
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				resources: []*unstructured.Unstructured{
+					tu.NewResource("v1", "ConfigMap", "resource-1").Build(),
+					tu.NewResource("v1", "Secret", "resource-2").Build(),
+				},
+				err: nil,
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Setup the input for this test case
+			result := tc.setup()
+
+			// Call the function under test
+			got, err := GetExtraResourcesFromResult(result)
+
+			// Check error expectations
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want error, +got error:\n%s", tc.reason, diff)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("\n%s\nGetExtraResourcesFromResult(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			// Compare resource count
+			if diff := cmp.Diff(len(tc.want.resources), len(got)); diff != "" {
+				t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
+			}
+
+			// Check each resource
+			for i, wantRes := range tc.want.resources {
+				if i >= len(got) {
+					break
+				}
+
+				if diff := cmp.Diff(wantRes.GetKind(), got[i].GetKind()); diff != "" {
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want kind, +got kind at index %d:\n%s", tc.reason, i, diff)
+				}
+
+				if diff := cmp.Diff(wantRes.GetName(), got[i].GetName()); diff != "" {
+					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want name, +got name at index %d:\n%s", tc.reason, i, diff)
+				}
 			}
 		})
 	}

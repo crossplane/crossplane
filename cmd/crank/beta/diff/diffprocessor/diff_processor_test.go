@@ -44,7 +44,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 		WithCompositionResourceName("resA").
 		WithSpecField("param", "value").
 		Build()
-	
+
 	composedXrd := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
 		WithSpecField("group", "composed.org").
 		WithSpecField("names", map[string]interface{}{
@@ -252,130 +252,6 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 
 			if err != nil {
 				t.Errorf("ProcessResource(...): unexpected error: %v", err)
-			}
-		})
-	}
-}
-
-func TestGetExtraResourcesFromResult(t *testing.T) {
-	tests := map[string]struct {
-		reason string
-		setup  func() *unstructured.Unstructured
-		want   struct {
-			resources []*unstructured.Unstructured
-			err       error
-		}
-	}{
-		"NoSpec": {
-			reason: "Should return error when result has no spec",
-			setup: func() *unstructured.Unstructured {
-				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
-					Build()
-			},
-			want: struct {
-				resources []*unstructured.Unstructured
-				err       error
-			}{
-				resources: nil,
-				err:       errors.New("no spec found in ExtraResources result"),
-			},
-		},
-		"NoResources": {
-			reason: "Should return error when spec has no resources",
-			setup: func() *unstructured.Unstructured {
-				// Fixed: Need to set empty spec to match the function's expected behavior
-				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
-					WithSpecField("otherField", "value"). // Adding a field other than 'resources'
-					Build()
-			},
-			want: struct {
-				resources []*unstructured.Unstructured
-				err       error
-			}{
-				resources: nil,
-				err:       errors.New("no resources found in ExtraResources spec"),
-			},
-		},
-		"WithResources": {
-			reason: "Should return resources when they exist",
-			setup: func() *unstructured.Unstructured {
-				resourcesList := []interface{}{
-					map[string]interface{}{
-						"apiVersion": "v1",
-						"kind":       "ConfigMap",
-						"metadata": map[string]interface{}{
-							"name": "resource-1",
-						},
-					},
-					map[string]interface{}{
-						"apiVersion": "v1",
-						"kind":       "Secret",
-						"metadata": map[string]interface{}{
-							"name": "resource-2",
-						},
-					},
-				}
-
-				return tu.NewResource("render.crossplane.io/v1beta1", "ExtraResources", "result").
-					WithSpecField("resources", resourcesList).
-					Build()
-			},
-			want: struct {
-				resources []*unstructured.Unstructured
-				err       error
-			}{
-				resources: []*unstructured.Unstructured{
-					tu.NewResource("v1", "ConfigMap", "resource-1").Build(),
-					tu.NewResource("v1", "Secret", "resource-2").Build(),
-				},
-			},
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			// Setup the input for this test case
-			result := tc.setup()
-
-			// Call the function under test
-			got, err := GetExtraResourcesFromResult(result)
-
-			// Check error expectations
-			if tc.want.err != nil {
-				if err == nil {
-					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): expected error but got none", tc.reason)
-					return
-				}
-
-				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want error, +got error:\n%s", tc.reason, diff)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("\n%s\nGetExtraResourcesFromResult(...): unexpected error: %v", tc.reason, err)
-				return
-			}
-
-			// Compare resource count
-			if diff := cmp.Diff(len(tc.want.resources), len(got)); diff != "" {
-				t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want resource count, +got resource count:\n%s", tc.reason, diff)
-			}
-
-			// Check each resource
-			for i, wantRes := range tc.want.resources {
-				if i >= len(got) {
-					break
-				}
-
-				if diff := cmp.Diff(wantRes.GetKind(), got[i].GetKind()); diff != "" {
-					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want kind, +got kind at index %d:\n%s", tc.reason, i, diff)
-				}
-
-				if diff := cmp.Diff(wantRes.GetName(), got[i].GetName()); diff != "" {
-					t.Errorf("\n%s\nGetExtraResourcesFromResult(...): -want name, +got name at index %d:\n%s", tc.reason, i, diff)
-				}
 			}
 		})
 	}
