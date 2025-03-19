@@ -12,13 +12,13 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	stdlog "log"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"testing"
@@ -270,6 +270,54 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
+		{
+			// this one is ironically more complicated since it has to invoke render first to find the resources it needs
+			// to pull in, then pull them in, then render again with them.
+			name: "Diff with templated ExtraResources embedded in go-templating function",
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/functions.yaml",
+				"testdata/diff/resources/external-resource-configmap.yaml",
+				"testdata/diff/resources/external-res-gotpl-composition.yaml",
+				"testdata/diff/resources/existing-xr-with-external-dep.yaml",
+				"testdata/diff/resources/existing-downstream-with-external-dep.yaml",
+			},
+			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
+			expectedOutput: `
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+-   coolField: existing-value
+-   environment: staging
++   coolField: modified-with-external-dep
++   environment: testing
+
+---
+~~~ XDownstreamResource/test-resource
+  apiVersion: nop.example.org/v1alpha1
+  kind: XDownstreamResource
+  metadata:
+    annotations:
+      crossplane.io/composition-resource-name: nop-resource
+    generateName: test-resource-
+    labels:
+      crossplane.io/composite: test-resource
+    name: test-resource
+  spec:
+    forProvider:
+-     configData: existing-value
+-     roleName: old-role-name
++     configData: modified-with-external-dep
++     roleName: templated-external-resource-testing
+
+---
+`,
+			expectedError: false,
+			noColor:       true,
+		},
 	}
 
 	SetupTestLogger(t)
@@ -406,21 +454,19 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 			return fmt.Errorf("failed to read file %s: %w", path, err)
 		}
 
-		// Split the file into individual YAML documents
-		docs := bytes.Split(data, []byte("---"))
-
-		for _, doc := range docs {
-			// Skip empty documents
-			if len(bytes.TrimSpace(doc)) == 0 {
-				continue
-			}
-
+		// Use a proper YAML decoder that respects document structure
+		decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
+		for {
 			obj := &unstructured.Unstructured{}
-			if err := yaml.Unmarshal(doc, obj); err != nil {
-				return fmt.Errorf("failed to unmarshal YAML document from %s: %w", path, err)
+			err := decoder.Decode(obj)
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return fmt.Errorf("failed to decode YAML document from %s: %w", path, err)
 			}
 
-			// Skip empty objects
+			// Skip empty documents
 			if len(obj.Object) == 0 {
 				continue
 			}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"regexp"
 	"strings"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -436,12 +437,12 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 		return nil, nil
 	}
 
-	hasTemplatedExtra, err := p.ScanForTemplatedResources(comp)
+	matchingSteps, err := p.ScanForTemplatedResources(comp)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot scan for templated extra resources")
 	}
 
-	if !hasTemplatedExtra {
+	if len(matchingSteps) == 0 {
 		return nil, nil
 	}
 
@@ -463,7 +464,9 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 		renderResources = append(renderResources, *r)
 	}
 
-	// Perform a preliminary render to generate ExtraResources
+	// Perform a preliminary render to identify required ExtraResources
+	// TODO:  should we do what Render does and loop over this until the Requirements stabilize?
+	// or is once enough?
 	preliminary, err := p.renderFn(ctx, p.logger, render.Inputs{
 		CompositeResource: xrComposite,
 		Composition:       comp,
@@ -474,17 +477,100 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 		return nil, errors.Wrap(err, "cannot perform preliminary render")
 	}
 
-	var extraResources []*unstructured.Unstructured
+	// Process requirements from the preliminary render to get required resources
+	extraFromRequirements, err := p.ProcessRequirements(ctx, matchingSteps, preliminary)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot process requirements from preliminary render")
+	}
 
-	// Process the rendered results looking for ExtraResources objects
+	// TODO:  I don't think this actually needs to be done.
+	extraFromResults := []*unstructured.Unstructured{}
 	for _, result := range preliminary.Results {
 		if result.GetKind() == "ExtraResources" {
-			additional, err := p.GetExtraResourcesFromResult(&result)
+			additional, err := GetExtraResourcesFromResult(&result)
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot get extra resources from result")
 			}
+			extraFromResults = append(extraFromResults, additional...)
+		}
+	}
 
-			extraResources = append(extraResources, additional...)
+	// Combine both sets of extra resources
+	extraResources := append(extraFromRequirements, extraFromResults...)
+	return extraResources, nil
+}
+
+// ProcessRequirements extracts and fetches resources from Requirements in render output
+func (p *TemplatedExtraResourceProvider) ProcessRequirements(ctx context.Context, steps []string, prelimOutput render.Outputs) ([]*unstructured.Unstructured, error) {
+	var extraResources []*unstructured.Unstructured
+
+	// If no requirements, return empty slice
+	if len(prelimOutput.Requirements) == 0 {
+		return extraResources, nil
+	}
+
+	// Iterate over each step's requirements
+	for _, stepName := range steps {
+		reqs, found := prelimOutput.Requirements[stepName]
+		if !found {
+			continue
+		}
+
+		// Process each resource selector in ExtraResources
+		for _, selector := range reqs.ExtraResources {
+			// Convert to a standard ResourceSelector (from fnv1.ResourceSelector)
+			if selector == nil {
+				continue
+			}
+
+			// split apiVersion into group and version
+			group, version := "", ""
+			if parts := strings.SplitN(selector.ApiVersion, "/", 2); len(parts) == 2 {
+				// Normal case: group/version (e.g., "apps/v1")
+				group, version = parts[0], parts[1]
+			} else {
+				// Core case: version only (e.g., "v1")
+				version = selector.ApiVersion
+			}
+
+			// Determine the type of selector and fetch accordingly
+			switch {
+			case selector.GetMatchName() != "":
+				// Reference type (matchName)
+				gvk := schema.GroupVersionKind{
+					Group:   group,
+					Version: version,
+					Kind:    selector.Kind,
+				}
+
+				name := selector.GetMatchName()
+				// TODO namespacing?
+				ns := ""
+				resource, err := p.client.GetResource(ctx, gvk, ns, name)
+				if err != nil {
+					return nil, errors.Wrapf(err, "cannot get reference resource %s/%s from requirement in step %s", ns, name, stepName)
+				}
+				extraResources = append(extraResources, resource)
+
+			case selector.GetMatchLabels() != nil:
+				// Selector type (matchLabels)
+				gvr := schema.GroupVersionResource{
+					Group:    group,
+					Version:  version,
+					Resource: fmt.Sprintf("%ss", strings.ToLower(selector.Kind)), // naive pluralization
+				}
+
+				// Convert MatchLabels to LabelSelector
+				labelSelector := metav1.LabelSelector{
+					MatchLabels: selector.GetMatchLabels().GetLabels(),
+				}
+
+				resources, err := p.client.GetResourcesByLabel(ctx, "", gvr, labelSelector)
+				if err != nil {
+					return nil, errors.Wrapf(err, "cannot get resources matching labels for requirement in step %s", stepName)
+				}
+				extraResources = append(extraResources, resources...)
+			}
 		}
 	}
 
@@ -492,44 +578,37 @@ func (p *TemplatedExtraResourceProvider) GetExtraResources(ctx context.Context, 
 }
 
 // ScanForTemplatedResources checks if the composition has templated extra resources
-func (p *TemplatedExtraResourceProvider) ScanForTemplatedResources(comp *apiextensionsv1.Composition) (bool, error) {
+func (p *TemplatedExtraResourceProvider) ScanForTemplatedResources(comp *apiextensionsv1.Composition) ([]string, error) {
+
+	var matchingSteps []string
+
 	// Find steps with go-templating function
 	steps := p.FindStepsWithFunction(comp, "function-go-templating")
 	if len(steps) == 0 {
-		return false, nil
+		return matchingSteps, nil
 	}
 
 	for _, step := range steps {
 		input, err := p.ParseStepInput(step)
 		if err != nil {
-			return false, errors.Wrap(err, "cannot parse function input")
+			return matchingSteps, errors.Wrap(err, "cannot parse function input")
 		}
 
 		// Look for template string
-		template, found, err := unstructured.NestedString(input.Object, "spec", "inline", "template")
+		template, found, err := unstructured.NestedString(input.Object, "inline", "template")
 		if err != nil || !found {
 			continue
 		}
 
-		// Parse the template string as YAML and look for ExtraResources documents
-		decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(template), 4096)
-		for {
-			obj := make(map[string]interface{})
-			if err := decoder.Decode(&obj); err != nil {
-				if err == io.EOF {
-					break
-				}
-				return false, errors.Wrap(err, "cannot decode template YAML")
-			}
-
-			u := &unstructured.Unstructured{Object: obj}
-			if u.GetKind() == "ExtraResources" {
-				return true, nil
-			}
+		// Simple string search for the key pattern with whitespace variations
+		// This is much more reliable than trying to parse the template
+		patternRegex := regexp.MustCompile(`(?i)kind\s*:\s*['"]?ExtraResources['"]?`)
+		if patternRegex.MatchString(template) {
+			matchingSteps = append(matchingSteps, step.Step)
 		}
 	}
 
-	return false, nil
+	return matchingSteps, nil
 }
 
 // GetExtraResourcesFromResult extracts resources from an ExtraResources result
