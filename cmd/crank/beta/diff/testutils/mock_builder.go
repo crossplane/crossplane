@@ -4,13 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"io"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"strings"
 )
 
 // MockBuilder provides a fluent API for building mock objects used in testing.
@@ -142,7 +147,14 @@ func (b *ClusterClientBuilder) WithResourcesExist(resources ...*unstructured.Uns
 // WithResourceNotFound sets a GetResource implementation that always returns "not found".
 func (b *ClusterClientBuilder) WithResourceNotFound() *ClusterClientBuilder {
 	return b.WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-		return nil, errors.Errorf("resource %q not found", name)
+		// Create a proper Kubernetes "not found" error
+		return nil, apierrors.NewNotFound(
+			schema.GroupResource{
+				Group:    gvk.Group,
+				Resource: strings.ToLower(gvk.Kind) + "s", // Naive pluralization similar to the real code
+			},
+			name,
+		)
 	})
 }
 
@@ -202,9 +214,60 @@ func (b *ClusterClientBuilder) WithSuccessfulEnvironmentConfigsFetch(configs []*
 	})
 }
 
-// Build creates and returns the configured mock ClusterClient.
-func (b *ClusterClientBuilder) Build() *MockClusterClient {
-	return b.mock
+// WithGetResourceTree adds an implementation for the GetResourceTree method
+func (b *ClusterClientBuilder) WithGetResourceTree(fn func(context.Context, *unstructured.Unstructured) (*resource.Resource, error)) *ClusterClientBuilder {
+	b.mock.GetResourceTreeFn = fn
+	return b
+}
+
+// WithSuccessfulResourceTreeFetch sets a successful GetResourceTree implementation
+func (b *ClusterClientBuilder) WithSuccessfulResourceTreeFetch(resourceTree *resource.Resource) *ClusterClientBuilder {
+	return b.WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+		return resourceTree, nil
+	})
+}
+
+// WithEmptyResourceTree sets a GetResourceTree implementation that returns just the root with no children
+func (b *ClusterClientBuilder) WithEmptyResourceTree() *ClusterClientBuilder {
+	return b.WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+		return &resource.Resource{
+			Unstructured: *root.DeepCopy(),
+			Children:     []*resource.Resource{},
+		}, nil
+	})
+}
+
+// WithFailedResourceTreeFetch sets a failing GetResourceTree implementation
+func (b *ClusterClientBuilder) WithFailedResourceTreeFetch(errMsg string) *ClusterClientBuilder {
+	return b.WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+		return nil, errors.New(errMsg)
+	})
+}
+
+// WithResourceTreeFromXRAndComposed creates a basic resource tree from an XR and composed resources
+func (b *ClusterClientBuilder) WithResourceTreeFromXRAndComposed(xr *unstructured.Unstructured, composed []*unstructured.Unstructured) *ClusterClientBuilder {
+	return b.WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+		// Make sure we're looking for the right XR
+		if root.GetName() != xr.GetName() || root.GetKind() != xr.GetKind() {
+			return nil, errors.Errorf("unexpected resource %s/%s", root.GetKind(), root.GetName())
+		}
+
+		// Create the resource tree with the XR as root
+		resourceTree := &resource.Resource{
+			Unstructured: *xr.DeepCopy(),
+			Children:     make([]*resource.Resource, 0, len(composed)),
+		}
+
+		// Add composed resources as children
+		for _, comp := range composed {
+			resourceTree.Children = append(resourceTree.Children, &resource.Resource{
+				Unstructured: *comp.DeepCopy(),
+				Children:     []*resource.Resource{},
+			})
+		}
+
+		return resourceTree, nil
+	})
 }
 
 // WithResourcesByLabel adds an implementation for the GetResourcesByLabel method.
@@ -232,6 +295,11 @@ func (b *ClusterClientBuilder) WithComposedResourcesByOwner(resources ...*unstru
 		}
 		return []*unstructured.Unstructured{}, nil
 	})
+}
+
+// Build creates and returns the configured mock ClusterClient.
+func (b *ClusterClientBuilder) Build() *MockClusterClient {
+	return b.mock
 }
 
 // ======================================================================================
@@ -480,6 +548,19 @@ func (b *ResourceBuilder) WithCompositionResourceName(name string) *ResourceBuil
 // Build returns the built unstructured resource.
 func (b *ResourceBuilder) Build() *unstructured.Unstructured {
 	return b.resource.DeepCopy()
+}
+
+// BuildUcomposite returns the built unstructured resource as a *ucomposite.Unstructured.
+func (b *ResourceBuilder) BuildUComposite() *ucomposite.Unstructured {
+	built := &ucomposite.Unstructured{}
+	built.SetUnstructuredContent(b.Build().UnstructuredContent())
+	return built
+}
+
+func (b *ResourceBuilder) BuildUComposed() *composed.Unstructured {
+	built := &composed.Unstructured{}
+	built.SetUnstructuredContent(b.Build().UnstructuredContent())
+	return built
 }
 
 // ======================================================================================

@@ -10,34 +10,14 @@ import (
 	"strings"
 )
 
-// cleanupForDiff removes fields that shouldn't be included in the diff
-func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
-	// Remove server-side fields and metadata that we don't want to diff
-	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
-	if found {
-		// Remove fields that change automatically or are server-side
-		fieldsToRemove := []string{
-			"resourceVersion",
-			"uid",
-			"generation",
-			"creationTimestamp",
-			"managedFields",
-			"selfLink",
-			"ownerReferences",
-		}
+// DiffType represents the type of diff (added, removed, modified)
+type DiffType string
 
-		for _, field := range fieldsToRemove {
-			delete(metadata, field)
-		}
-
-		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
-	}
-
-	// Remove status field as we're focused on spec changes
-	delete(obj.Object, "status")
-
-	return obj
-}
+const (
+	DiffTypeAdded    DiffType = "+"
+	DiffTypeRemoved  DiffType = "-"
+	DiffTypeModified DiffType = "~"
+)
 
 // Colors for terminal output
 const (
@@ -68,6 +48,16 @@ type DiffOptions struct {
 
 	// Compact determines whether to show a compact diff
 	Compact bool
+}
+
+// ResourceDiff represents the diff for a specific resource
+type ResourceDiff struct {
+	ResourceKind string
+	ResourceName string
+	DiffType     DiffType
+	LineDiffs    []diffmatchpatch.Diff
+	Current      *unstructured.Unstructured // Optional, for reference
+	Desired      *unstructured.Unstructured // Optional, for reference
 }
 
 // DefaultDiffOptions returns the default options with colors enabled
@@ -113,6 +103,13 @@ func NewFormatter(compact bool) DiffFormatter {
 		return &CompactDiffFormatter{}
 	}
 	return &FullDiffFormatter{}
+}
+
+// FormatDiff formats a slice of diffs according to the provided options
+func FormatDiff(diffs []diffmatchpatch.Diff, options DiffOptions) string {
+	// Use the appropriate formatter
+	formatter := NewFormatter(options.Compact)
+	return formatter.Format(diffs, options)
 }
 
 // Format implements the DiffFormatter interface for FullDiffFormatter
@@ -252,8 +249,8 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 	return builder.String()
 }
 
-// GetLineDiff performs a proper line-by-line diff and returns the formatted result
-func GetLineDiff(oldText, newText string, options DiffOptions) string {
+// GetLineDiff performs a proper line-by-line diff and returns the raw diffs
+func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 	patch := diffmatchpatch.New()
 
 	// Use the line-to-char conversion to treat each line as an atomic unit
@@ -262,70 +259,83 @@ func GetLineDiff(oldText, newText string, options DiffOptions) string {
 	diff := patch.DiffMain(ch1, ch2, false)
 	patch.DiffCleanupSemantic(diff)
 
-	lineDiffs := patch.DiffCharsToLines(diff, lines)
-
-	// Use the appropriate formatter
-	formatter := NewFormatter(options.Compact)
-	return formatter.Format(lineDiffs, options)
+	return patch.DiffCharsToLines(diff, lines)
 }
 
-// GenerateDiffWithOptions produces a formatted diff between two unstructured objects with specified options
-func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, name string, options DiffOptions) (string, error) {
-	// If the objects are equal, return an empty diff
-	if equality.Semantic.DeepEqual(current, desired) {
-		return "", nil
-	}
+// GenerateDiffWithOptions produces a structured diff between two unstructured objects
+func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ DiffOptions) (*ResourceDiff, error) {
+	var diffType DiffType
 
-	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
-		if obj != nil {
-			clean := cleanupForDiff(obj.DeepCopy())
-
-			// Convert to YAML string for diffing
-			cleanYAML, err := sigsyaml.Marshal(clean.Object)
-			if err != nil {
-				return "", errors.Wrap(err, "cannot marshal current object to YAML")
-			}
-
-			return string(cleanYAML), nil
-		}
-		return "", nil
-	}
-
-	currentStr, err := cleanAndRender(current)
-	if err != nil {
-		return "", err
-	}
-
-	desiredStr, err := cleanAndRender(desired)
-	if err != nil {
-		return "", err
-	}
-
-	// Return an empty diff if content is identical
-	if desiredStr == currentStr {
-		return "", nil
-	}
-
-	// get the line by line diff with the specified options
-	diffResult := GetLineDiff(currentStr, desiredStr, options)
-
-	if diffResult == "" {
-		return "", nil
-	}
-
-	var leadChar string
-
+	// Determine diff type
 	switch {
-	case current == nil:
-		leadChar = "+++" // Resource does not exist (being added)
-	case desired == nil:
-		leadChar = "---" // Resource is being removed
+	case current == nil && desired != nil:
+		diffType = DiffTypeAdded
+	case current != nil && desired == nil:
+		diffType = DiffTypeRemoved
+	case current != nil: // && desired != nil:
+		diffType = DiffTypeModified
 	default:
-		leadChar = "~~~" // Resource exists and is changing
+		return nil, errors.New("both current and desired cannot be nil")
 	}
 
-	// Format the output with a resource header
-	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
+	// If objects are equal (for modifications), return nil to indicate no diff
+	if diffType == DiffTypeModified && equality.Semantic.DeepEqual(current, desired) {
+		return nil, nil
+	}
+
+	asString := func(obj *unstructured.Unstructured) (string, error) {
+		if obj == nil {
+			return "", nil
+		}
+		clean := cleanupForDiff(obj.DeepCopy())
+		yaml, err := sigsyaml.Marshal(clean.Object)
+		if err != nil {
+			return "", err
+		}
+		return string(yaml), nil
+
+	}
+
+	currentStr, err := asString(current)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal current object to YAML")
+	}
+
+	desiredStr, err := asString(desired)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal desired object to YAML")
+	}
+
+	// Return nil if content is identical
+	if desiredStr == currentStr {
+		return nil, nil
+	}
+
+	// Get the line by line diff
+	lineDiffs := GetLineDiff(currentStr, desiredStr)
+
+	if len(lineDiffs) == 0 {
+		return nil, nil
+	}
+
+	// Extract resource kind and name
+	var kind, name string
+	if desired != nil {
+		kind = desired.GetKind()
+		name = desired.GetName()
+	} else {
+		kind = current.GetKind()
+		name = current.GetName()
+	}
+
+	return &ResourceDiff{
+		ResourceKind: kind,
+		ResourceName: name,
+		DiffType:     diffType,
+		LineDiffs:    lineDiffs,
+		Current:      current,
+		Desired:      desired,
+	}, nil
 }
 
 // processLines extracts lines from a diff and processes them into a standardized format
@@ -380,4 +390,33 @@ func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOpti
 		return fmt.Sprintf("%s%s%s%s", colorStart, prefix, line, colorEnd)
 	}
 	return fmt.Sprintf("%s%s", prefix, line)
+}
+
+// cleanupForDiff removes fields that shouldn't be included in the diff
+func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	// Remove server-side fields and metadata that we don't want to diff
+	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
+	if found {
+		// Remove fields that change automatically or are server-side
+		fieldsToRemove := []string{
+			"resourceVersion",
+			"uid",
+			"generation",
+			"creationTimestamp",
+			"managedFields",
+			"selfLink",
+			"ownerReferences",
+		}
+
+		for _, field := range fieldsToRemove {
+			delete(metadata, field)
+		}
+
+		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
+	}
+
+	// Remove status field as we're focused on spec changes
+	delete(obj.Object, "status")
+
+	return obj
 }

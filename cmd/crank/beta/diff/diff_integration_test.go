@@ -7,18 +7,15 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/go-logr/stdr"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	stdlog "log"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"strconv"
 	"strings"
 	"testing"
@@ -320,7 +317,7 @@ func TestDiffIntegration(t *testing.T) {
 		},
 	}
 
-	SetupTestLogger(t)
+	tu.SetupKubeTestLogger(t)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -496,22 +493,4 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 		}
 	}
 	return nil
-}
-
-func SetupTestLogger(t *testing.T) {
-	// Create a logr.Logger that writes to testing.T.Log
-	testLogger := stdr.NewWithOptions(stdlog.New(testWriter{t}, "", 0), stdr.Options{LogCaller: stdr.All})
-
-	// Set the logger for controller-runtime
-	log.SetLogger(testLogger)
-}
-
-// testWriter adapts testing.T.Log to io.Writer
-type testWriter struct {
-	t *testing.T
-}
-
-func (tw testWriter) Write(p []byte) (int, error) {
-	tw.t.Log(string(p))
-	return len(p), nil
 }

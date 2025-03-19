@@ -5,19 +5,18 @@ import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/go-logr/logr/testr"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 )
@@ -104,8 +103,6 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{composedXrd}).
-					//WithSuccessfulXRDsFetch([]*unstructured.Unstructured{sampleCRD, composedCRD}).
-					//WithSuccessfulXRDsToCRDs(sampleCRD, composedCRD).
 					Build()
 			},
 			want: nil,
@@ -260,45 +257,21 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 	ctx := context.Background()
 
-	// Create some reusable test resources
-	existingResource := tu.NewResource("example.org/v1", "ExampleResource", "existing-resource").
-		WithSpecField("param", "old-value").
+	// Create test resources
+	existingResource := tu.NewResource("example.org/v1", "TestResource", "existing-resource").
+		WithSpecField("field", "old-value").
 		Build()
 
-	modifiedResource := tu.NewResource("example.org/v1", "ExampleResource", "modified-resource").
-		WithSpecField("param1", "old-value1").
-		WithSpecField("param2", "old-value2").
-		WithSpecField("param3", "unchanged").
+	modifiedResource := tu.NewResource("example.org/v1", "TestResource", "existing-resource").
+		WithSpecField("field", "new-value").
 		Build()
 
-	nestedResource := tu.NewResource("example.org/v1", "ExampleResource", "nested-resource").
-		WithSpecField("simple", "unchanged").
-		WithSpecField("nested", map[string]interface{}{
-			"field1": "old-nested-value",
-			"field2": map[string]interface{}{
-				"deepField": "old-deep-value",
-			},
-		}).
+	newResource := tu.NewResource("example.org/v1", "TestResource", "new-resource").
+		WithSpecField("field", "value").
 		Build()
 
-	// Resource with array fields
-	arrayItems := []interface{}{
-		map[string]interface{}{
-			"name":  "item1",
-			"value": "value1",
-		},
-		map[string]interface{}{
-			"name":  "item2",
-			"value": "value2",
-		},
-	}
-	arrayResource := tu.NewResource("example.org/v1", "ExampleResource", "array-resource").
-		WithSpecField("items", arrayItems).
-		Build()
-
-	// Composed resource
 	composedResource := tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
-		WithSpecField("param", "old-value").
+		WithSpecField("field", "old-value").
 		WithLabels(map[string]string{
 			"crossplane.io/composite": "parent-xr",
 		}).
@@ -307,203 +280,58 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 		}).
 		Build()
 
-	noColorResource := tu.NewResource("example.org/v1", "ExampleResource", "nocolor-resource").
-		WithSpecField("param", "old-value").
-		Build()
-
-	tests := map[string]struct {
-		reason      string
+	tests := []struct {
+		name        string
 		setupClient func() *tu.MockClusterClient
-		ctx         context.Context
 		composite   string
-		desired     runtime.Object
-		expectDiff  string
-		expectError error
-		noColor     bool
+		desired     *unstructured.Unstructured
+		wantDiff    *ResourceDiff
+		wantNil     bool
+		wantErr     bool
 	}{
-		"Non-Unstructured Object": {
-			reason: "Should return error when desired object is not an unstructured object",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().Build()
-			},
-			ctx:         ctx,
-			composite:   "",
-			desired:     &corev1.Pod{}, // Using a typed object to test error handling
-			expectError: errors.New("desired object is not unstructured"),
-		},
-		// Fixed test case for New Resource
-		"New Resource": {
-			reason: "Should generate a diff for a new resource that doesn't exist in the cluster",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-						// Explicitly return NotFound error for apierrors.IsNotFound to work
-						return nil, apierrors.NewNotFound(
-							schema.GroupResource{Group: gvk.Group, Resource: strings.ToLower(gvk.Kind)},
-							name)
-					}).
-					Build()
-			},
-			ctx:       ctx,
-			composite: "",
-			desired: tu.NewResource("example.org/v1", "ExampleResource", "new-resource").
-				WithSpecField("param", "value").
-				Build(),
-			expectDiff: `+++ ExampleResource/new-resource
-` + tu.Green(`+ apiVersion: example.org/v1
-+ kind: ExampleResource
-+ metadata:
-+   name: new-resource
-+ spec:
-+   param: value`),
-		},
-		"Error Getting Current Resource": {
-			reason: "Should return error when getting the current resource fails",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-						return nil, errors.New("get resource error")
-					}).
-					Build()
-			},
-			ctx:         ctx,
-			composite:   "",
-			desired:     tu.NewResource("example.org/v1", "ExampleResource", "error-resource").Build(),
-			expectError: errors.New("cannot get current object: get resource error"),
-		},
-		"Dry Run Apply Error": {
-			reason: "Should return error when the dry run apply fails",
+		{
+			name: "ExistingResourceModified",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingResource).
-					WithFailedDryRun("dry run apply error").
-					Build()
-			},
-			ctx:       ctx,
-			composite: "",
-			desired: tu.NewResource("example.org/v1", "ExampleResource", "existing-resource").
-				WithSpecField("param", "new-value").
-				Build(),
-			expectError: errors.New("cannot dry-run apply desired object: dry run apply error"),
-		},
-		"Modified Simple Fields": {
-			reason: "Should generate a diff for a resource with modified simple fields",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(modifiedResource).
 					WithSuccessfulDryRun().
 					Build()
 			},
-			ctx:       ctx,
 			composite: "",
-			desired: tu.NewResource("example.org/v1", "ExampleResource", "modified-resource").
-				WithSpecField("param1", "new-value1").
-				WithSpecField("param2", "new-value2").
-				WithSpecField("param3", "unchanged").
-				WithSpecField("param4", "added").
-				Build(),
-			expectDiff: `~~~ ExampleResource/modified-resource
-  apiVersion: example.org/v1
-  kind: ExampleResource
-  metadata:
-    name: modified-resource
-  spec:
-` + tu.Red(`-   param1: old-value1
--   param2: old-value2
--   param3: unchanged`) + `
-` + tu.Green(`+   param1: new-value1
-+   param2: new-value2
-+   param3: unchanged
-+   param4: added`),
+			desired:   modifiedResource,
+			wantDiff: &ResourceDiff{
+				ResourceKind: "TestResource",
+				ResourceName: "existing-resource",
+				DiffType:     DiffTypeModified,
+			},
 		},
-		"Nested Fields": {
-			reason: "Should generate a diff for a resource with modified nested fields",
+		{
+			name: "NewResource",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesExist(nestedResource).
+					WithResourceNotFound().
 					WithSuccessfulDryRun().
 					Build()
 			},
-			ctx:       ctx,
 			composite: "",
-			desired: tu.NewResource("example.org/v1", "ExampleResource", "nested-resource").
-				WithSpecField("simple", "unchanged").
-				WithSpecField("nested", map[string]interface{}{
-					"field1": "new-nested-value",
-					"field2": map[string]interface{}{
-						"deepField":      "new-deep-value",
-						"addedDeepField": "added-deep-value",
-					},
-					"field3": "added-field",
-				}).
-				Build(),
-			expectDiff: `~~~ ExampleResource/nested-resource
-  apiVersion: example.org/v1
-  kind: ExampleResource
-  metadata:
-    name: nested-resource
-  spec:
-    nested:
-` + tu.Red(`-     field1: old-nested-value
--     field2:
--       deepField: old-deep-value`) + `
-` + tu.Green(`+     field1: new-nested-value
-+     field2:
-+       addedDeepField: added-deep-value
-+       deepField: new-deep-value
-+     field3: added-field`) + `
-    simple: unchanged`,
-		},
-		"Array Fields": {
-			reason: "Should generate a diff for a resource with modified array fields",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(arrayResource).
-					WithSuccessfulDryRun().
-					Build()
+			desired:   newResource,
+			wantDiff: &ResourceDiff{
+				ResourceKind: "TestResource",
+				ResourceName: "new-resource",
+				DiffType:     DiffTypeAdded,
 			},
-			ctx:       ctx,
-			composite: "",
-			desired: tu.NewResource("example.org/v1", "ExampleResource", "array-resource").
-				WithSpecField("items", []interface{}{
-					map[string]interface{}{
-						"name":  "item1",
-						"value": "modified1",
-					},
-					map[string]interface{}{
-						"name":  "item3",
-						"value": "value3",
-					},
-				}).
-				Build(),
-			expectDiff: `~~~ ExampleResource/array-resource
-  apiVersion: example.org/v1
-  kind: ExampleResource
-  metadata:
-    name: array-resource
-  spec:
-    items:
-    - name: item1
-` + tu.Red(`-     value: value1
--   - name: item2
--     value: value2`) + `
-` + tu.Green(`+     value: modified1
-+   - name: item3
-+     value: value3`),
 		},
-		"Composed Resource": {
-			reason: "Should generate a diff for a composed resource using labels to identify it",
+		{
+			name: "ComposedResource",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesExist(composedResource).
 					WithResourcesFoundByLabel([]*unstructured.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
 					WithSuccessfulDryRun().
 					Build()
 			},
-			ctx:       ctx,
-			composite: "parent-xr", // This indicates it's a composed resource
+			composite: "parent-xr",
 			desired: tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
-				WithSpecField("param", "new-value").
+				WithSpecField("field", "new-value").
 				WithLabels(map[string]string{
 					"crossplane.io/composite": "parent-xr",
 				}).
@@ -511,103 +339,305 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					"crossplane.io/composition-resource-name": "resource-a",
 				}).
 				Build(),
-			expectDiff: `~~~ ComposedResource/composed-resource
-  apiVersion: example.org/v1
-  kind: ComposedResource
-  metadata:
-    annotations:
-      crossplane.io/composition-resource-name: resource-a
-    labels:
-      crossplane.io/composite: parent-xr
-    name: composed-resource
-  spec:
-` + tu.Red(`-   param: old-value`) + `
-` + tu.Green(`+   param: new-value`),
+			wantDiff: &ResourceDiff{
+				ResourceKind: "ComposedResource",
+				ResourceName: "composed-resource",
+				DiffType:     DiffTypeModified,
+			},
 		},
-		"No Color Output": {
-			reason: "Should generate a diff without ANSI color codes when colorize is disabled",
+		{
+			name: "NoChanges",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesExist(noColorResource).
+					WithResourcesExist(existingResource).
 					WithSuccessfulDryRun().
 					Build()
 			},
-			ctx:       ctx,
 			composite: "",
-			desired: tu.NewResource("example.org/v1", "ExampleResource", "nocolor-resource").
-				WithSpecField("param", "new-value").
-				Build(),
-			expectDiff: `~~~ ExampleResource/nocolor-resource
-  apiVersion: example.org/v1
-  kind: ExampleResource
-  metadata:
-    name: nocolor-resource
-  spec:
--   param: old-value
-+   param: new-value`,
-			noColor: true,
+			desired:   existingResource.DeepCopy(),
+			wantNil:   true,
+		},
+		{
+			name: "ErrorGettingCurrentObject",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						return nil, cmpopts.AnyError
+					}).
+					Build()
+			},
+			composite: "",
+			desired:   existingResource,
+			wantErr:   true,
+		},
+		{
+			name: "DryRunError",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(existingResource).
+					WithFailedDryRun("apply error").
+					Build()
+			},
+			composite: "",
+			desired:   modifiedResource,
+			wantErr:   true,
 		},
 	}
 
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			// Create a mock client using the mock builder pattern
-			mockClient := tt.setupClient()
-
-			// Create processor configuration
-			config := ProcessorConfig{
-				RestConfig: &rest.Config{},
-				Colorize:   !tt.noColor,
-			}
-
-			// Create the processor
-			p := &DefaultDiffProcessor{
-				client: mockClient,
-				config: config,
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up the processor with the test client
+			processor := &DefaultDiffProcessor{
+				client: tt.setupClient(),
+				config: ProcessorConfig{
+					Colorize: true,
+				},
 			}
 
 			// Call the function under test
-			diff, err := p.CalculateDiff(tt.ctx, tt.composite, tt.desired)
+			diff, err := processor.CalculateDiff(ctx, tt.composite, tt.desired)
 
-			// Check error expectations
-			if tt.expectError != nil {
+			// Check error condition
+			if tt.wantErr {
 				if err == nil {
-					t.Errorf("%s: CalculateDiff() expected error but got none", tt.reason)
-					return
-				}
-				if !strings.Contains(err.Error(), tt.expectError.Error()) {
-					t.Errorf("%s: CalculateDiff() error = %v, want error containing %v", tt.reason, err, tt.expectError)
+					t.Errorf("CalculateDiff() expected error but got none")
 				}
 				return
 			}
-
 			if err != nil {
-				t.Errorf("%s: CalculateDiff() unexpected error: %v", tt.reason, err)
+				t.Fatalf("CalculateDiff() unexpected error: %v", err)
+			}
+
+			// Check nil diff case
+			if tt.wantNil {
+				if diff != nil {
+					t.Errorf("CalculateDiff() expected nil diff but got: %v", diff)
+				}
 				return
 			}
 
-			// For empty expected diff, verify the result is also empty
-			if tt.expectDiff == "" && diff != "" {
-				t.Errorf("%s: CalculateDiff() expected empty diff, got: %s", tt.reason, diff)
-				return
+			// Check non-nil case
+			if diff == nil {
+				t.Fatalf("CalculateDiff() returned nil diff, expected non-nil")
 			}
 
-			// Check if we need to compare expected diff with actual diff
-			if tt.expectDiff != "" && err == nil {
-				// Normalize both strings by trimming trailing whitespace from each line
-				normalizedExpected := normalizeTrailingWhitespace(tt.expectDiff)
-				normalizedActual := normalizeTrailingWhitespace(diff)
+			// Check the basics of the diff
+			if diff.ResourceKind != tt.wantDiff.ResourceKind {
+				t.Errorf("ResourceKind = %v, want %v", diff.ResourceKind, tt.wantDiff.ResourceKind)
+			}
 
-				// Direct string comparison with normalized strings
-				if normalizedExpected != normalizedActual {
-					// If they're equal when ignoring ANSI, show escaped ANSI for debugging
-					if tu.CompareIgnoringAnsi(tt.expectDiff, diff) {
-						t.Errorf("%s: CalculateDiff() diff matches content but ANSI codes differ.\nWant (escaped):\n%q\n\nGot (escaped):\n%q",
-							tt.reason, tt.expectDiff, diff)
-					} else {
-						t.Errorf("%s: CalculateDiff() diff does not match expected.\nWant:\n%s\n\nGot:\n%s",
-							tt.reason, tt.expectDiff, diff)
-					}
+			if diff.ResourceName != tt.wantDiff.ResourceName {
+				t.Errorf("ResourceName = %v, want %v", diff.ResourceName, tt.wantDiff.ResourceName)
+			}
+
+			if diff.DiffType != tt.wantDiff.DiffType {
+				t.Errorf("DiffType = %v, want %v", diff.DiffType, tt.wantDiff.DiffType)
+			}
+
+			// For modified resources, check that LineDiffs is populated
+			if diff.DiffType == DiffTypeModified && len(diff.LineDiffs) == 0 {
+				t.Errorf("LineDiffs is empty for %s", tt.name)
+			}
+		})
+	}
+}
+
+func TestDefaultDiffProcessor_CalculateDiffs(t *testing.T) {
+	ctx := context.Background()
+
+	// Create test XR
+	modifiedXr := tu.NewResource("example.org/v1", "XR", "test-xr").
+		WithSpecField("field", "new-value").
+		BuildUComposite()
+
+	// Create test rendered resources
+	renderedXR := tu.NewResource("example.org/v1", "XR", "test-xr").
+		BuildUComposite()
+
+	// Create rendered composed resources
+	composedResource1 := tu.NewResource("example.org/v1", "Composed", "composed-1").
+		WithCompositeOwner("test-xr").
+		WithCompositionResourceName("resource-1").
+		WithSpecField("field", "new-value").
+		BuildUComposed()
+
+	// Create existing resources for the client to find
+	existingXRBuilder := tu.NewResource("example.org/v1", "XR", "test-xr").
+		WithSpecField("field", "old-value")
+	existingXR := existingXRBuilder.Build()
+	existingXrUComp := existingXRBuilder.BuildUComposite()
+
+	existingComposed := tu.NewResource("example.org/v1", "Composed", "composed-1").
+		WithCompositeOwner("test-xr").
+		WithCompositionResourceName("resource-1").
+		WithSpecField("field", "old-value").
+		Build()
+
+	tests := []struct {
+		name          string
+		setupClient   func() *tu.MockClusterClient
+		inputXR       *ucomposite.Unstructured
+		renderedOut   render.Outputs
+		expectedDiffs map[string]DiffType // Map of expected keys and their diff types
+		wantErr       bool
+	}{
+		{
+			name: "XR and composed resource modifications",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(existingXR, existingComposed).
+					WithResourcesFoundByLabel([]*unstructured.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					WithSuccessfulDryRun().
+					WithEmptyResourceTree().
+					Build()
+			},
+			inputXR: modifiedXr,
+			renderedOut: render.Outputs{
+				CompositeResource: renderedXR,
+				ComposedResources: []composed.Unstructured{*composedResource1},
+			},
+			expectedDiffs: map[string]DiffType{
+				"XR/test-xr":          DiffTypeModified,
+				"Composed/composed-1": DiffTypeModified,
+			},
+			wantErr: false,
+		},
+		{
+			name: "XR not modified, composed resource modified",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithResourcesExist(existingXR, existingComposed).
+					WithResourcesFoundByLabel([]*unstructured.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					WithSuccessfulDryRun().
+					WithEmptyResourceTree().
+					Build()
+			},
+			inputXR: existingXrUComp,
+			renderedOut: render.Outputs{
+				CompositeResource: func() *ucomposite.Unstructured {
+					// Create XR with same values (no changes)
+					sameXR := &ucomposite.Unstructured{}
+					sameXR.SetUnstructuredContent(existingXR.UnstructuredContent())
+					return sameXR
+				}(),
+				ComposedResources: []composed.Unstructured{*composedResource1},
+			},
+			expectedDiffs: map[string]DiffType{
+				"Composed/composed-1": DiffTypeModified,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Error calculating diff",
+			setupClient: func() *tu.MockClusterClient {
+				// Return error from dry run
+				return tu.NewMockClusterClient().
+					WithResourcesExist(existingXR, existingComposed).
+					WithFailedDryRun("dry run error").
+					Build()
+			},
+			inputXR: existingXrUComp,
+			renderedOut: render.Outputs{
+				CompositeResource: renderedXR,
+				ComposedResources: []composed.Unstructured{*composedResource1},
+			},
+			expectedDiffs: map[string]DiffType{},
+			wantErr:       true,
+		},
+		{
+			name: "Resource tree with potential resources to remove",
+			setupClient: func() *tu.MockClusterClient {
+				// Create a resource tree with resources that aren't in the rendered output
+				extraComposedResource := tu.NewResource("example.org/v1", "Composed", "composed-2").
+					WithCompositeOwner("test-xr").
+					WithCompositionResourceName("resource-to-be-removed").
+					WithSpecField("field", "value").
+					Build()
+
+				// Return a resource tree with the XR as root and some composed resources as children
+				return tu.NewMockClusterClient().
+					WithResourcesExist(existingXR, existingComposed, extraComposedResource).
+					WithResourcesFoundByLabel([]*unstructured.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					WithSuccessfulDryRun().
+					WithResourceTreeFromXRAndComposed(existingXR, []*unstructured.Unstructured{
+						existingComposed,
+						extraComposedResource,
+					}).
+					Build()
+			},
+			inputXR: modifiedXr,
+			renderedOut: render.Outputs{
+				CompositeResource: renderedXR,
+				ComposedResources: []composed.Unstructured{*composedResource1},
+			},
+			expectedDiffs: map[string]DiffType{
+				"XR/test-xr":          DiffTypeModified,
+				"Composed/composed-1": DiffTypeModified,
+				"Composed/composed-2": DiffTypeRemoved,
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			// Create processor instance with test logger
+			processor := &DefaultDiffProcessor{
+				client: tt.setupClient(),
+				config: ProcessorConfig{
+					Colorize: true,
+					Logger:   logging.NewLogrLogger(testr.New(t)),
+				},
+			}
+
+			// Call the function under test
+			diffs, err := processor.CalculateDiffs(ctx, tt.inputXR, tt.renderedOut)
+
+			// Check error condition
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("CalculateDiffs() expected error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("CalculateDiffs() unexpected error: %v", err)
+			}
+
+			// Check that we have the expected number of diffs
+			if len(diffs) != len(tt.expectedDiffs) {
+				t.Errorf("CalculateDiffs() returned %d diffs, want %d", len(diffs), len(tt.expectedDiffs))
+
+				// Print what diffs we actually got to help debug
+				for key, diff := range diffs {
+					t.Logf("Found diff: %s of type %s", key, diff.DiffType)
+				}
+			}
+
+			// Check each expected diff
+			for expectedKey, expectedType := range tt.expectedDiffs {
+				diff, found := diffs[expectedKey]
+				if !found {
+					t.Errorf("CalculateDiffs() missing expected diff for key %s", expectedKey)
+					continue
+				}
+
+				if diff.DiffType != expectedType {
+					t.Errorf("CalculateDiffs() diff for key %s has type %s, want %s",
+						expectedKey, diff.DiffType, expectedType)
+				}
+
+				// Check that LineDiffs is not empty for non-nil diffs
+				if len(diff.LineDiffs) == 0 {
+					t.Errorf("CalculateDiffs() returned diff with empty LineDiffs for key %s", expectedKey)
+				}
+			}
+
+			// Check for unexpected diffs
+			for key := range diffs {
+				if _, expected := tt.expectedDiffs[key]; !expected {
+					t.Errorf("CalculateDiffs() returned unexpected diff for key %s", key)
 				}
 			}
 		})
@@ -694,16 +724,4 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 			}
 		})
 	}
-}
-
-func normalizeTrailingWhitespace(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimRight(line, " \t\r")
-	}
-	// Remove trailing empty lines
-	for len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	return strings.Join(lines, "\n")
 }

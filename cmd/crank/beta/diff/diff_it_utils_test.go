@@ -3,34 +3,14 @@ package diff
 import (
 	"encoding/json"
 	"fmt"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/rest"
-
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Testing data for integration tests
-
-// createTestXR creates a test XR for validation
-func createTestXR() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "example.org/v1",
-			"kind":       "XExampleResource",
-			"metadata": map[string]interface{}{
-				"name": "test-xr",
-			},
-			"spec": map[string]interface{}{
-				"coolParam": "test-value",
-				"replicas":  3,
-			},
-		},
-	}
-}
 
 // createTestCompositionWithExtraResources creates a test Composition with a function-extra-resources step
 func createTestCompositionWithExtraResources() *apiextensionsv1.Composition {
@@ -254,8 +234,3 @@ func createMatchingComposedResource() *unstructured.Unstructured {
 
 // Define a var for fprintf to allow test overriding
 var fprintf = fmt.Fprintf
-
-// Define a var for getting dynamic client to allow test overriding
-var getDynamicClient = func(config *rest.Config) (dynamic.Interface, error) {
-	return dynamic.NewForConfig(config)
-}

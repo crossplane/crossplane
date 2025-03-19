@@ -1,8 +1,12 @@
 package testutils
 
 import (
+	"github.com/go-logr/stdr"
+	stdlog "log"
 	"regexp"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"strings"
+	"testing"
 )
 
 // Colors for terminal output
@@ -56,4 +60,22 @@ func CompareIgnoringAnsi(expected, actual string) bool {
 
 	// Compare the stripped strings
 	return expectedStripped == actualStripped
+}
+
+func SetupKubeTestLogger(t *testing.T) {
+	// Create a logr.Logger that writes to testing.T.Log
+	testLogger := stdr.NewWithOptions(stdlog.New(testWriter{t}, "", 0), stdr.Options{LogCaller: stdr.All})
+
+	// Set the logger for controller-runtime
+	log.SetLogger(testLogger)
+}
+
+// testWriter adapts testing.T.Log to io.Writer
+type testWriter struct {
+	t *testing.T
+}
+
+func (tw testWriter) Write(p []byte) (int, error) {
+	tw.t.Log(string(p))
+	return len(p), nil
 }

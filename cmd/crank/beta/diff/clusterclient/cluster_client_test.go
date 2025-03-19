@@ -3,6 +3,7 @@ package clusterclient
 import (
 	"context"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
@@ -1687,6 +1688,197 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			for _, wantRes := range tc.want.resources {
 				if !gotResources[wantRes.GetName()] {
 					t.Errorf("\n%s\nGetResourcesByLabel(...): missing expected resource: %s", tc.reason, wantRes.GetName())
+				}
+			}
+		})
+	}
+}
+
+func TestClusterClient_GetResourceTree(t *testing.T) {
+	// Setup test context
+	ctx := context.Background()
+
+	// Create test XR
+	xr := tu.NewResource("example.org/v1", "XExampleResource", "test-xr").
+		WithSpecField("coolParam", "cool-value").
+		Build()
+
+	// Create composed resources that would be children of the XR
+	composedResource1 := tu.NewResource("composed.org/v1", "ComposedResource", "child-1").
+		WithCompositeOwner("test-xr").
+		WithCompositionResourceName("resource-1").
+		WithSpecField("param", "value-1").
+		Build()
+
+	composedResource2 := tu.NewResource("composed.org/v1", "ComposedResource", "child-2").
+		WithCompositeOwner("test-xr").
+		WithCompositionResourceName("resource-2").
+		WithSpecField("param", "value-2").
+		Build()
+
+	// Create a test resource tree
+	testResourceTree := &resource.Resource{
+		Unstructured: *xr.DeepCopy(),
+		Children: []*resource.Resource{
+			{
+				Unstructured: *composedResource1.DeepCopy(),
+				Children:     []*resource.Resource{},
+			},
+			{
+				Unstructured: *composedResource2.DeepCopy(),
+				Children:     []*resource.Resource{},
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		clientSetup  func() *tu.MockClusterClient
+		input        *unstructured.Unstructured
+		expectOutput *resource.Resource
+		expectError  bool
+		errorPattern string
+	}{
+		{
+			name: "SuccessfulResourceTreeFetch",
+			clientSetup: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+						// Verify the input is our XR
+						if root.GetName() != "test-xr" || root.GetKind() != "XExampleResource" {
+							return nil, errors.New("unexpected input resource")
+						}
+						return testResourceTree, nil
+					}).
+					Build()
+			},
+			input:        xr,
+			expectOutput: testResourceTree,
+			expectError:  false,
+		},
+		{
+			name: "ResourceTreeNotFound",
+			clientSetup: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+						return nil, errors.New("resource tree not found")
+					}).
+					Build()
+			},
+			input:        xr,
+			expectOutput: nil,
+			expectError:  true,
+			errorPattern: "resource tree not found",
+		},
+		{
+			name: "EmptyResourceTree",
+			clientSetup: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+						// Return an empty resource tree (just the root, no children)
+						return &resource.Resource{
+							Unstructured: *root.DeepCopy(),
+							Children:     []*resource.Resource{},
+						}, nil
+					}).
+					Build()
+			},
+			input: xr,
+			expectOutput: &resource.Resource{
+				Unstructured: *xr.DeepCopy(),
+				Children:     []*resource.Resource{},
+			},
+			expectError: false,
+		},
+		{
+			name: "NilInputResource",
+			clientSetup: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+						if root == nil {
+							return nil, errors.New("nil resource provided")
+						}
+						return nil, nil
+					}).
+					Build()
+			},
+			input:        nil,
+			expectOutput: nil,
+			expectError:  true,
+			errorPattern: "nil resource provided",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create the client with our mock implementation
+			client := tc.clientSetup()
+
+			// Call the method we're testing
+			got, err := client.GetResourceTree(ctx, tc.input)
+
+			// Check for expected errors
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("GetResourceTree() expected error but got none")
+					return
+				}
+				if tc.errorPattern != "" && !strings.Contains(err.Error(), tc.errorPattern) {
+					t.Errorf("GetResourceTree() expected error containing %q, got: %v", tc.errorPattern, err)
+				}
+				return
+			}
+
+			// Check for unexpected errors
+			if err != nil {
+				t.Errorf("GetResourceTree() unexpected error: %v", err)
+				return
+			}
+
+			// Verify the output matches expectations
+			if diff := cmp.Diff(tc.expectOutput, got); diff != "" {
+				t.Errorf("GetResourceTree() -want, +got:\n%s", diff)
+			}
+
+			// Verify that the tree structure is correct when expected
+			if got != nil && tc.expectOutput != nil {
+				// Verify root properties
+				if diff := cmp.Diff(tc.expectOutput.Unstructured.GetName(), got.Unstructured.GetName()); diff != "" {
+					t.Errorf("GetResourceTree() root resource name mismatch -want, +got:\n%s", diff)
+				}
+
+				// Verify child count
+				if diff := cmp.Diff(len(tc.expectOutput.Children), len(got.Children)); diff != "" {
+					t.Errorf("GetResourceTree() child count mismatch -want, +got:\n%s", diff)
+				}
+
+				// Verify children names if there are any
+				if len(got.Children) > 0 {
+					// Create maps of child names for easier comparison
+					expectedNames := make(map[string]bool)
+					actualNames := make(map[string]bool)
+
+					for _, child := range tc.expectOutput.Children {
+						expectedNames[child.Unstructured.GetName()] = true
+					}
+
+					for _, child := range got.Children {
+						actualNames[child.Unstructured.GetName()] = true
+					}
+
+					// Check if any expected children are missing
+					for name := range expectedNames {
+						if !actualNames[name] {
+							t.Errorf("GetResourceTree() missing expected child with name %s", name)
+						}
+					}
+
+					// Check if there are any unexpected children
+					for name := range actualNames {
+						if !expectedNames[name] {
+							t.Errorf("GetResourceTree() unexpected child with name %s", name)
+						}
+					}
 				}
 			}
 		})
