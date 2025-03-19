@@ -44,8 +44,29 @@ import (
 type ClusterUsage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              UsageSpec   `json:"spec"`
-	Status            UsageStatus `json:"status,omitempty"`
+	Spec              ClusterUsageSpec `json:"spec"`
+	Status            UsageStatus      `json:"status,omitempty"`
+}
+
+// ClusterUsageSpec defines the desired state of a ClusterUsage.
+// +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
+type ClusterUsageSpec struct {
+	// Of is the resource that is "being used".
+	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
+	Of Resource `json:"of"`
+
+	// By is the resource that is "using the other resource".
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
+	By *Resource `json:"by,omitempty"`
+
+	// Reason is the reason for blocking deletion of the resource.
+	// +optional
+	Reason *string `json:"reason,omitempty"`
+
+	// ReplayDeletion will trigger a deletion on the used resource during the deletion of the usage itself, if it was attempted to be deleted at least once.
+	// +optional
+	ReplayDeletion *bool `json:"replayDeletion,omitempty"`
 }
 
 // GetUserOf gets the resource this ClusterUsage indicates a use of.

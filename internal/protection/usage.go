@@ -57,7 +57,11 @@ func InUseIndexValue(apiVersion, kind, name string) string {
 // ResourceRef is a reference to a resource.
 type ResourceRef struct {
 	// Name of the referent.
-	Name string `json:"name"`
+	Name string
+
+	// Namespace of the referent.
+	// Omit for cluster scoped referents, or referents in the same namespace.
+	Namespace *string
 }
 
 // ResourceSelector is a selector to a resource.
@@ -68,6 +72,11 @@ type ResourceSelector struct {
 	// MatchControllerRef ensures an object with the same controller reference
 	// as the selecting object is selected.
 	MatchControllerRef *bool
+
+	// Namespace of the referent.
+	// Omit for cluster scoped referents, or to match referents across all
+	// namespaces.
+	Namespace *string
 }
 
 // Resource defines a cluster-scoped resource.

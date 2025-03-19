@@ -25,6 +25,12 @@ import "github.com/crossplane/crossplane/internal/protection"
 // goverter:output:file ./zz_generated.conversion.go
 // +k8s:deepcopy-gen=false
 type ResourceConverter interface {
+	// goverter:ignore Namespace
+	ToInternalResourceRef(in ResourceRef) protection.ResourceRef
+
+	// goverter:ignore Namespace
+	ToInternalResourceSelector(in ResourceSelector) protection.ResourceSelector
+
 	ToInternal(in Resource) protection.Resource
 	FromInternal(in protection.Resource) Resource
 }
