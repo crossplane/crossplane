@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
@@ -38,10 +38,10 @@ func TestResolveSelectors(t *testing.T) {
 	valueTrue := true
 	type args struct {
 		client client.Client
-		u      *v1beta1.Usage
+		u      *v1beta1.ClusterUsage
 	}
 	type want struct {
-		u   *v1beta1.Usage
+		u   *v1beta1.ClusterUsage
 		err error
 	}
 	cases := map[string]struct {
@@ -52,7 +52,7 @@ func TestResolveSelectors(t *testing.T) {
 		"AlreadyResolved": {
 			reason: "If selectors resolved already, we should do nothing.",
 			args: args{
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -82,7 +82,7 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -115,7 +115,7 @@ func TestResolveSelectors(t *testing.T) {
 		"AlreadyResolvedNoUsing": {
 			reason: "If selectors resolved already, we should do nothing.",
 			args: args{
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -133,7 +133,7 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -159,7 +159,7 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -185,7 +185,7 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -238,7 +238,7 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -284,7 +284,7 @@ func TestResolveSelectors(t *testing.T) {
 						return errBoom
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -317,7 +317,7 @@ func TestResolveSelectors(t *testing.T) {
 						return nil
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -364,7 +364,7 @@ func TestResolveSelectors(t *testing.T) {
 						return nil
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					Spec: v1beta1.UsageSpec{
 						Of: v1beta1.Resource{
 							APIVersion: "v1",
@@ -441,7 +441,7 @@ func TestResolveSelectors(t *testing.T) {
 						return nil
 					},
 				},
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{
 							{
@@ -478,7 +478,7 @@ func TestResolveSelectors(t *testing.T) {
 				},
 			},
 			want: want{
-				u: &v1beta1.Usage{
+				u: &v1beta1.ClusterUsage{
 					ObjectMeta: metav1.ObjectMeta{
 						OwnerReferences: []metav1.OwnerReference{
 							{

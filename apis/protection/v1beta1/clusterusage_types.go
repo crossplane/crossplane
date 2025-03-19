@@ -38,9 +38,8 @@ import (
 type ClusterUsage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
-	Spec   UsageSpec   `json:"spec"`
-	Status UsageStatus `json:"status,omitempty"`
+	Spec              UsageSpec   `json:"spec"`
+	Status            UsageStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
