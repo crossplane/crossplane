@@ -25,7 +25,6 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -38,48 +37,24 @@ import (
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/internal/protection"
 	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 
+// Error strings.
 const (
-	// InUseIndexKey used to index CRDs by "Kind" and "group", to be used when
-	// indexing and retrieving needed CRDs.
-	InUseIndexKey = "inuse.apiversion.kind.name"
-
-	// AnnotationKeyDeletionAttempt is the annotation key used to record whether
-	// a deletion attempt was made and blocked by the Usage. The value stored is
-	// the propagation policy used with the deletion attempt.
-	AnnotationKeyDeletionAttempt = "usage.crossplane.io/deletion-attempt-with-policy"
-
-	// Error strings.
 	errFmtUnexpectedOp = "unexpected operation %q, expected \"DELETE\""
 )
-
-// IndexValueForObject returns the index value for the given object.
-func IndexValueForObject(u *unstructured.Unstructured) string {
-	return indexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())
-}
-
-func indexValue(apiVersion, kind, name string) string {
-	// There are two sources for "apiVersion" input, one is from the unstructured objects fetched from k8s and the other
-	// is from the Usage spec. The one from the objects from k8s is already validated by the k8s API server, so we don't
-	// need to validate it again. The one from the Usage spec is validated by the Usage controller, so we don't need to
-	// validate it as well. So we can safely ignore the error here.
-	// Another reason to ignore the error is that the IndexerFunc using this value to index the objects does not return
-	// an error, so we cannot bubble up the error here.
-	gr, _ := schema.ParseGroupVersion(apiVersion)
-	return fmt.Sprintf("%s.%s.%s", gr.Group, kind, name)
-}
 
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	indexer := mgr.GetFieldIndexer()
-	if err := indexer.IndexField(context.Background(), &v1beta1.Usage{}, InUseIndexKey, func(obj client.Object) []string {
+	if err := indexer.IndexField(context.Background(), &v1beta1.Usage{}, protection.InUseIndexKey, func(obj client.Object) []string {
 		u := obj.(*v1beta1.Usage) //nolint:forcetypeassert // Will always be a Usage.
 		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
 			return []string{}
 		}
-		return []string{indexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
+		return []string{protection.IndexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
 	}); err != nil {
 		return err
 	}
@@ -146,7 +121,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured, opts *metav1.DeleteOptions) admission.Response {
 	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
 	usageList := &v1beta1.UsageList{}
-	if err := h.client.List(ctx, usageList, client.MatchingFields{InUseIndexKey: IndexValueForObject(u)}); err != nil {
+	if err := h.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.IndexValueForObject(u)}); err != nil {
 		h.log.Debug("Error when getting Usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
@@ -161,9 +136,9 @@ func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstruct
 		}
 		// If the resource is being deleted, we want to record the first deletion attempt
 		// so that we can track whether a deletion was attempted at least once.
-		if u.GetAnnotations() == nil || u.GetAnnotations()[AnnotationKeyDeletionAttempt] != string(policy) {
+		if u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != string(policy) {
 			orig := u.DeepCopy()
-			xpmeta.AddAnnotations(u, map[string]string{AnnotationKeyDeletionAttempt: string(policy)})
+			xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: string(policy)})
 			// Patch the resource to add the deletion attempt annotation
 			if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
 				h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
