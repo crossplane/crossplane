@@ -22,3 +22,28 @@ spec:
                   type: string
                 environment:
                   type: string
+            status:
+              type: object
+              properties:
+                conditions:
+                  description: Conditions of the resource.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - lastTransitionTime
+                      - reason
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        type: string

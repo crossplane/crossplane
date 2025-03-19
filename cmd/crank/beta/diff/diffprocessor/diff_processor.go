@@ -178,8 +178,16 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		return errors.Wrap(err, "cannot render resources")
 	}
 
+	// Merge the result of the render together with the input XR
+	xrUnstructured, err := mergeUnstructured(
+		&unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()},
+		&unstructured.Unstructured{Object: xr.UnstructuredContent()})
+	if err != nil {
+		return errors.Wrap(err, "cannot merge input XR with result of rendered XR")
+	}
+
 	// Validate the resources
-	if err := p.ValidateResources(stdout, &unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}, desired.ComposedResources); err != nil {
+	if err := p.ValidateResources(stdout, ctx, xrUnstructured, desired.ComposedResources); err != nil {
 		return errors.Wrap(err, "cannot validate resources")
 	}
 
@@ -195,34 +203,152 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 }
 
 // ValidateResources validates the resources using schema validation
-func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
-	// Make sure we have CRDs before validation
-	if len(p.crds) == 0 {
-		return errors.New("no CRDs available for validation")
-	}
-
-	// Convert XR and composed resources to unstructured
+// Assumes that XRD-derived CRDs are already cached in p.crds
+func (p *DefaultDiffProcessor) ValidateResources(writer io.Writer, ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+	// Collect all resources that need to be validated
 	resources := make([]*unstructured.Unstructured, 0, len(composed)+1)
 
-	// Add the XR to the validation list; we've already taken care of merging it together with desired
+	// Add the XR to the validation list
 	resources = append(resources, xr)
 
 	// Add composed resources to validation list
 	for i := range composed {
-		// Use the correct index (i) for accessing composed resources
 		composedUnstr := &unstructured.Unstructured{Object: composed[i].UnstructuredContent()}
 		resources = append(resources, composedUnstr)
 	}
 
+	// Check if we have CRDs cached and fetch any that we're missing for composed resources
+	if len(p.crds) > 0 {
+		// We have some CRDs cached, but we need to ensure we have all required ones
+		// for the composed resources
+		p.ensureComposedResourceCRDs(ctx, resources)
+	} else {
+		// No CRDs cached, we need to fetch them
+		p.config.Logger.Debug("No cached CRDs found, fetching from cluster")
+		xrds, err := p.client.GetXRDs(ctx)
+		if err != nil {
+			return errors.Wrap(err, "cannot get XRDs from cluster")
+		}
+
+		crds, err := internal.ConvertToCRDs(xrds)
+		if err != nil {
+			return errors.Wrap(err, "cannot convert XRDs to CRDs")
+		}
+
+		p.crds = crds
+
+		// Now also ensure we have CRDs for the composed resources
+		p.ensureComposedResourceCRDs(ctx, resources)
+	}
+
+	// Create a logger writer to capture output
 	loggerWriter := internal.NewLoggerWriter(p.config.Logger)
 
-	// Validate using the converted CRD schema
-	// Do not actually write to stdout (as it can interfere with diffs) -- just use the logger
+	// Validate using the CRD schemas
+	// Use skipSuccessLogs=true to avoid cluttering the output with success messages
 	if err := validate.SchemaValidation(resources, p.crds, true, loggerWriter); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
 
 	return nil
+}
+
+// ensureComposedResourceCRDs checks if we have all the CRDs needed for the composed resources
+// and fetches any missing ones from the cluster
+func (p *DefaultDiffProcessor) ensureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) {
+	// Create a map of existing CRDs by GVK for quick lookup
+	existingCRDs := make(map[schema.GroupVersionKind]bool)
+	for _, crd := range p.crds {
+		for _, version := range crd.Spec.Versions {
+			gvk := schema.GroupVersionKind{
+				Group:   crd.Spec.Group,
+				Version: version.Name,
+				Kind:    crd.Spec.Names.Kind,
+			}
+			existingCRDs[gvk] = true
+		}
+	}
+
+	// Collect GVKs from resources that aren't already covered
+	missingGVKs := make(map[schema.GroupVersionKind]bool)
+	for _, res := range resources {
+		gvk := res.GroupVersionKind()
+		if !existingCRDs[gvk] {
+			missingGVKs[gvk] = true
+		}
+	}
+
+	// If we have all the CRDs already, we're done
+	if len(missingGVKs) == 0 {
+		return
+	}
+
+	p.config.Logger.Debug("Fetching additional CRDs for composed resources",
+		"missing", len(missingGVKs))
+
+	// Fetch missing CRDs
+	for gvk := range missingGVKs {
+		// Try to get the CRD by its conventional name pattern (plural.group)
+		// This is a naive approach to pluralization, might need improvement
+		// for irregular plurals
+		crdName := guessCRDName(gvk)
+
+		crdObj, err := p.client.GetResource(
+			ctx,
+			schema.GroupVersionKind{
+				Group:   "apiextensions.k8s.io",
+				Version: "v1",
+				Kind:    "CustomResourceDefinition",
+			},
+			"",
+			crdName,
+		)
+
+		if err != nil {
+			// Log but don't fail - we might not need all CRDs or it could
+			// be a built-in resource type without a CRD
+			p.config.Logger.Debug("Could not find CRD for resource",
+				"name", crdName,
+				"gvk", gvk.String(),
+				"error", err)
+			continue
+		}
+
+		// Convert to CRD
+		crd := &extv1.CustomResourceDefinition{}
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(crdObj.Object, crd); err != nil {
+			p.config.Logger.Debug("Error converting CRD", "error", err)
+			continue
+		}
+
+		// Add to our cache
+		p.crds = append(p.crds, crd)
+		p.config.Logger.Debug("Added CRD to cache", "name", crd.Name, "gvk", gvk.String())
+	}
+}
+
+// guessCRDName attempts to create the CRD name for a given GVK
+// using the conventional pattern (plural.group)
+func guessCRDName(gvk schema.GroupVersionKind) string {
+	// This is a naïve pluralization - in a real implementation
+	// we might want to handle irregular plurals or use a library
+	plural := strings.ToLower(gvk.Kind) + "s"
+
+	// Handle some common special cases
+	switch strings.ToLower(gvk.Kind) {
+	case "policy":
+		plural = "policies"
+	case "gateway":
+		plural = "gateways"
+	case "proxy":
+		plural = "proxies"
+	case "index":
+		plural = "indices"
+	case "matrix":
+		plural = "matrices"
+	}
+
+	return fmt.Sprintf("%s.%s", plural, gvk.Group)
 }
 
 // resourceKey generates a unique key for a resource based on GVK and name
@@ -289,12 +415,7 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 	renderedResources := make(map[string]bool)
 
 	// First, calculate diff for the XR itself
-	xrUnstructured, err := mergeUnstructured(&unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()}, &unstructured.Unstructured{Object: xr.UnstructuredContent()})
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot merge input XR with result of rendered XR")
-	}
-
-	xrDiff, err := p.CalculateDiff(ctx, "", xrUnstructured)
+	xrDiff, err := p.CalculateDiff(ctx, "", xr.GetUnstructured())
 	if err != nil {
 		errs = append(errs, errors.Wrap(err, "cannot calculate diff for XR"))
 	} else if xrDiff != nil {
