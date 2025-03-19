@@ -38,7 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
+	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
@@ -782,7 +782,7 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									o.SetAnnotations(map[string]string{usage.AnnotationKeyDeletionAttempt: string(metav1.DeletePropagationBackground)})
+									o.SetAnnotations(map[string]string{protection.AnnotationKeyDeletionAttempt: string(metav1.DeletePropagationBackground)})
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									return nil
 								}
