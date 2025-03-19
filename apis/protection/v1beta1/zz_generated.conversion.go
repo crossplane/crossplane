@@ -36,20 +36,16 @@ func (c *GeneratedResourceConverter) pProtectionResourceSelectorToPV1beta1Resour
 	var pV1beta1ResourceSelector *ResourceSelector
 	if source != nil {
 		var v1beta1ResourceSelector ResourceSelector
-		var mapStringString map[string]string
 		if (*source).MatchLabels != nil {
-			mapStringString = make(map[string]string, len((*source).MatchLabels))
+			v1beta1ResourceSelector.MatchLabels = make(map[string]string, len((*source).MatchLabels))
 			for key, value := range (*source).MatchLabels {
-				mapStringString[key] = value
+				v1beta1ResourceSelector.MatchLabels[key] = value
 			}
 		}
-		v1beta1ResourceSelector.MatchLabels = mapStringString
-		var pBool *bool
 		if (*source).MatchControllerRef != nil {
 			xbool := *(*source).MatchControllerRef
-			pBool = &xbool
+			v1beta1ResourceSelector.MatchControllerRef = &xbool
 		}
-		v1beta1ResourceSelector.MatchControllerRef = pBool
 		pV1beta1ResourceSelector = &v1beta1ResourceSelector
 	}
 	return pV1beta1ResourceSelector
@@ -67,20 +63,16 @@ func (c *GeneratedResourceConverter) pV1beta1ResourceSelectorToPProtectionResour
 	var pProtectionResourceSelector *protection.ResourceSelector
 	if source != nil {
 		var protectionResourceSelector protection.ResourceSelector
-		var mapStringString map[string]string
 		if (*source).MatchLabels != nil {
-			mapStringString = make(map[string]string, len((*source).MatchLabels))
+			protectionResourceSelector.MatchLabels = make(map[string]string, len((*source).MatchLabels))
 			for key, value := range (*source).MatchLabels {
-				mapStringString[key] = value
+				protectionResourceSelector.MatchLabels[key] = value
 			}
 		}
-		protectionResourceSelector.MatchLabels = mapStringString
-		var pBool *bool
 		if (*source).MatchControllerRef != nil {
 			xbool := *(*source).MatchControllerRef
-			pBool = &xbool
+			protectionResourceSelector.MatchControllerRef = &xbool
 		}
-		protectionResourceSelector.MatchControllerRef = pBool
 		pProtectionResourceSelector = &protectionResourceSelector
 	}
 	return pProtectionResourceSelector
