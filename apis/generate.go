@@ -59,6 +59,8 @@ limitations under the License.
 
 // Generate conversion code
 //go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./apiextensions/v1
+//go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./apiextensions/v1beta1
+//go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./protection/v1beta1
 //go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./pkg/meta/v1alpha1
 //go:generate go run -tags generate github.com/jmattheis/goverter/cmd/goverter gen -build-tags="" ./pkg/meta/v1beta1
 
