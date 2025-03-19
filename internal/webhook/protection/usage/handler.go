@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 

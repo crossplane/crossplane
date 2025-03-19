@@ -44,7 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured"
@@ -95,7 +95,7 @@ const (
 )
 
 type selectorResolver interface {
-	resolveSelectors(ctx context.Context, u *v1beta1.Usage) error
+	resolveSelectors(ctx context.Context, u *v1beta1.ClusterUsage) error
 }
 
 // Setup adds a controller that reconciles Usages by
@@ -224,7 +224,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	defer cancel()
 
 	// Get the usageResource resource for this request.
-	u := &v1beta1.Usage{}
+	u := &v1beta1.ClusterUsage{}
 	if err := r.client.Get(ctx, req.NamespacedName, u); err != nil {
 		log.Debug(errGetUsage, "error", err)
 		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
@@ -460,7 +460,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{RequeueAfter: r.pollInterval}, nil
 }
 
-func detailsAnnotation(u *v1beta1.Usage) string {
+func detailsAnnotation(u *v1beta1.ClusterUsage) string {
 	if u.Spec.Reason != nil {
 		return *u.Spec.Reason
 	}
