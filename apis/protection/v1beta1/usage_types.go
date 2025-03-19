@@ -1,3 +1,5 @@
+//go:build !goverter
+
 /*
 Copyright 2025 The Crossplane Authors.
 
