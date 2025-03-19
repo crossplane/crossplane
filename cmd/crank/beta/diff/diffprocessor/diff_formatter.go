@@ -10,63 +10,6 @@ import (
 	"strings"
 )
 
-// GenerateDiff produces a formatted diff between two unstructured objects
-func GenerateDiff(current, desired *unstructured.Unstructured, kind, name string) (string, error) {
-
-	// If the objects are equal, return an empty diff
-	if equality.Semantic.DeepEqual(current, desired) {
-		return "", nil
-	}
-
-	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
-		clean := cleanupForDiff(obj.DeepCopy())
-
-		// Convert both objects to YAML strings for diffing
-		cleanYAML, err := sigsyaml.Marshal(clean.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal current object to YAML")
-		}
-
-		return string(cleanYAML), nil
-	}
-
-	currentStr := ""
-	var err error
-	if current != nil {
-		currentStr, err = cleanAndRender(current)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	desiredStr, err := cleanAndRender(desired)
-
-	// Return an empty diff
-	if desiredStr == currentStr {
-		return "", nil
-	}
-
-	// get the full line by line diff
-	diffResult := GetLineDiff(currentStr, desiredStr, DefaultDiffOptions())
-
-	if diffResult == "" {
-		return "", nil
-	}
-
-	var leadChar string
-
-	switch current {
-	case nil:
-		leadChar = "+++" // Resource does not exist
-		// TODO: deleted resources should be shown as deleted
-	default:
-		leadChar = "~~~" // Resource exists and is changing
-	}
-
-	// Format the output with a resource header
-	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
-}
-
 // cleanupForDiff removes fields that shouldn't be included in the diff
 func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	// Remove server-side fields and metadata that we don't want to diff
@@ -334,24 +277,23 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, 
 	}
 
 	cleanAndRender := func(obj *unstructured.Unstructured) (string, error) {
-		clean := cleanupForDiff(obj.DeepCopy())
+		if obj != nil {
+			clean := cleanupForDiff(obj.DeepCopy())
 
-		// Convert both objects to YAML strings for diffing
-		cleanYAML, err := sigsyaml.Marshal(clean.Object)
-		if err != nil {
-			return "", errors.Wrap(err, "cannot marshal current object to YAML")
+			// Convert to YAML string for diffing
+			cleanYAML, err := sigsyaml.Marshal(clean.Object)
+			if err != nil {
+				return "", errors.Wrap(err, "cannot marshal current object to YAML")
+			}
+
+			return string(cleanYAML), nil
 		}
-
-		return string(cleanYAML), nil
+		return "", nil
 	}
 
-	currentStr := ""
-	var err error
-	if current != nil {
-		currentStr, err = cleanAndRender(current)
-		if err != nil {
-			return "", err
-		}
+	currentStr, err := cleanAndRender(current)
+	if err != nil {
+		return "", err
 	}
 
 	desiredStr, err := cleanAndRender(desired)
@@ -373,45 +315,17 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, kind, 
 
 	var leadChar string
 
-	switch current {
-	case nil:
-		leadChar = "+++" // Resource does not exist
+	switch {
+	case current == nil:
+		leadChar = "+++" // Resource does not exist (being added)
+	case desired == nil:
+		leadChar = "---" // Resource is being removed
 	default:
 		leadChar = "~~~" // Resource exists and is changing
 	}
 
 	// Format the output with a resource header
 	return fmt.Sprintf("%s %s/%s\n%s", leadChar, kind, name, diffResult), nil
-}
-
-// diffLine represents a line with its diff operation type
-type diffLine struct {
-	Type    diffmatchpatch.Operation
-	Content string
-}
-
-// splitDiffIntoLines splits the diff text into lines and handles trailing newlines correctly
-func splitDiffIntoLines(diff diffmatchpatch.Diff) ([]diffLine, bool) {
-	lines := strings.Split(diff.Text, "\n")
-	hasTrailingNewline := strings.HasSuffix(diff.Text, "\n")
-
-	result := make([]diffLine, 0, len(lines))
-
-	// If there's a trailing newline, the split will produce an empty string at the end
-	// that we should not treat as a separate line
-	end := len(lines)
-	if hasTrailingNewline && end > 0 {
-		end--
-	}
-
-	for i := 0; i < end; i++ {
-		result = append(result, diffLine{
-			Type:    diff.Type,
-			Content: lines[i],
-		})
-	}
-
-	return result, hasTrailingNewline
 }
 
 // processLines extracts lines from a diff and processes them into a standardized format

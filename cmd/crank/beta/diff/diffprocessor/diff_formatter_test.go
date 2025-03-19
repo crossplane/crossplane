@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// TODO:  add test for diffing removal
 func TestDiffFormatting(t *testing.T) {
 	// Test resources for GenerateDiff tests using the test builder
 	current := tu.NewResource("example.org/v1", "TestResource", "test-resource").
@@ -88,11 +89,20 @@ func TestDiffFormatting(t *testing.T) {
 				expectDiff:   true,
 				expectPrefix: "+++ TestResource/test-resource",
 			},
+			{
+				name:         "Removed Resource",
+				current:      current,
+				desired:      nil,
+				kind:         "TestResource",
+				resourceName: "test-resource",
+				expectDiff:   true,
+				expectPrefix: "--- TestResource/test-resource",
+			},
 		}
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				diff, err := GenerateDiff(tt.current, tt.desired, tt.kind, tt.resourceName)
+				diff, err := GenerateDiffWithOptions(tt.current, tt.desired, tt.kind, tt.resourceName, DefaultDiffOptions())
 
 				// Check for errors
 				if err != nil {
