@@ -97,7 +97,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.APIVersion = "/invalid/"
-								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								o.Spec.Of.ResourceSelector = &v1beta1.NamespacedResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
@@ -118,7 +118,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								o.Spec.Of.ResourceSelector = &v1beta1.NamespacedResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
@@ -144,7 +144,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+								o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								return nil
 							}),
 						},
@@ -173,7 +173,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+								o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(errBoom),
@@ -204,7 +204,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
 								case *v1beta1.Usage:
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return errBoom
 								}
@@ -240,7 +240,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
 								case *v1beta1.Usage:
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return nil
 								}
@@ -279,7 +279,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
 								case *v1beta1.Usage:
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
@@ -317,7 +317,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
@@ -367,7 +367,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
@@ -427,7 +427,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									o.Spec.Reason = &reason
 									return nil
 								}
@@ -478,7 +478,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -513,7 +513,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -549,7 +549,7 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
@@ -592,7 +592,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
@@ -634,7 +634,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -673,7 +673,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -715,7 +715,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -750,7 +750,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -799,7 +799,7 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.ReplayDeletion = ptr.To(true)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -852,7 +852,7 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",

@@ -21,6 +21,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -84,11 +85,29 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protectio
 		return errors.New(errNoSelectorToResolve)
 	}
 
-	l := composed.NewList(composed.FromReferenceToList(v1.ObjectReference{
-		APIVersion: rs.APIVersion,
-		Kind:       rs.Kind,
-	}))
-	if err := r.client.List(ctx, l, client.MatchingLabels(rs.ResourceSelector.MatchLabels)); err != nil {
+	// If this is the 'of' (used) selector the namespace will either be:
+	//
+	// - Empty, if this is a cluster scoped usage
+	// - The usage's namespace, if the selector doesn't specify one
+	// - The selector's namespace if it specifies one
+	//
+	// It'll always be empty for cluster scoped usages because they don't have a
+	// namespace, and don't support specifying one in their resource selectors.
+	//
+	// If this is the 'by' (using) selector the namespace will either be:
+	//
+	// - Empty, if this is a cluster scoped usage
+	// - The usage's namespace
+	//
+	// No usages support specifying a namespace in their 'by' resource selector.
+	// Namespaced Usages must therefore exist in the same namespace as the 'by'
+	// resource.
+	//
+	// The namespace is passed to client.InNamespace below. InNamespace is a
+	// no-op if the namespace is the empty string.
+	ns := ptr.Deref(rs.ResourceSelector.Namespace, usage.GetNamespace())
+	l := composed.NewList(composed.FromReferenceToList(v1.ObjectReference{APIVersion: rs.APIVersion, Kind: rs.Kind}))
+	if err := r.client.List(ctx, l, client.MatchingLabels(rs.ResourceSelector.MatchLabels), client.InNamespace(ns)); err != nil {
 		return errors.Wrap(err, errListResourceMatchingLabels)
 	}
 
@@ -101,6 +120,12 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, rs *protectio
 			continue
 		}
 		rs.ResourceRef = &protection.ResourceRef{Name: o.GetName()}
+
+		// Persist the namespace only if we selected a namespaced object that's
+		// not in the Usage's namespace (if it has one).
+		if o.GetNamespace() != usage.GetNamespace() {
+			rs.ResourceRef.Namespace = ptr.To(o.GetNamespace())
+		}
 		break
 	}
 

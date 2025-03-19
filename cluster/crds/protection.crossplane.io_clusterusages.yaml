@@ -57,7 +57,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: UsageSpec defines the desired state of Usage.
+            description: ClusterUsageSpec defines the desired state of a ClusterUsage.
             properties:
               by:
                 description: By is the resource that is "using the other resource".
