@@ -17,7 +17,44 @@ limitations under the License.
 // Package protection contains API types that protect resources from deletion.
 package protection
 
-import "github.com/crossplane/crossplane-runtime/pkg/resource"
+import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+)
+
+const (
+	// InUseIndexKey used to index CRDs by "Kind" and "group", to be used when
+	// indexing and retrieving needed CRDs.
+	InUseIndexKey = "inuse.apiversion.kind.name"
+
+	// AnnotationKeyDeletionAttempt is the annotation key used to record whether
+	// a deletion attempt was made and blocked by the Usage. The value stored is
+	// the propagation policy used with the deletion attempt.
+	AnnotationKeyDeletionAttempt = "usage.crossplane.io/deletion-attempt-with-policy"
+)
+
+// IndexValueForObject returns the index value for the given object.
+func IndexValueForObject(u *unstructured.Unstructured) string {
+	return IndexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())
+}
+
+// IndexValue returns an a string suitable to index Usages in the cache.
+func IndexValue(apiVersion, kind, name string) string {
+	// There are two sources for "apiVersion" input, one is from the
+	// unstructured objects fetched from k8s and the other is from the Usage
+	// spec. The one from the objects from k8s is already validated by the k8s
+	// API server, so we don't need to validate it again. The one from the Usage
+	// spec is validated by the Usage controller, so we don't need to validate
+	// it as well. So we can safely ignore the error here. Another reason to
+	// ignore the error is that the IndexerFunc using this value to index the
+	// objects does not return an error, so we cannot bubble up the error here.
+	gr, _ := schema.ParseGroupVersion(apiVersion)
+	return fmt.Sprintf("%s.%s.%s", gr.Group, kind, name)
+}
 
 // ResourceRef is a reference to a resource.
 type ResourceRef struct {

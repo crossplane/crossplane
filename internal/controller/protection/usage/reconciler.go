@@ -44,7 +44,7 @@ import (
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
+	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
@@ -312,7 +312,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// exists.
 		if err == nil {
 			usageList := &v1beta1.UsageList{}
-			if err = r.client.List(ctx, usageList, client.MatchingFields{usage.InUseIndexKey: usage.IndexValueForObject(used.GetUnstructured())}); err != nil {
+			if err = r.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.IndexValueForObject(used.GetUnstructured())}); err != nil {
 				log.Debug(errListUsages, "error", err)
 				err = errors.Wrap(err, errListUsages)
 				r.record.Event(u, event.Warning(reasonListUsages, err))
@@ -335,7 +335,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if u.Spec.ReplayDeletion != nil && *u.Spec.ReplayDeletion && used.GetAnnotations() != nil {
-			if policy, ok := used.GetAnnotations()[usage.AnnotationKeyDeletionAttempt]; ok {
+			if policy, ok := used.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]; ok {
 				// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
 
 				//nolint:contextcheck // We cannot use the context from the reconcile function since it will be cancelled after the reconciliation.
