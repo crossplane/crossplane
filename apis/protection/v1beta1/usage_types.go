@@ -57,6 +57,7 @@ type Resource struct {
 }
 
 // UsageSpec defines the desired state of Usage.
+// +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
 type UsageSpec struct {
 	// Of is the resource that is "being used".
 	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
@@ -96,9 +97,8 @@ type UsageStatus struct {
 type Usage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
-	Spec   UsageSpec   `json:"spec"`
-	Status UsageStatus `json:"status,omitempty"`
+	Spec              UsageSpec   `json:"spec"`
+	Status            UsageStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

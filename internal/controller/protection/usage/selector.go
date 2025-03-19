@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
@@ -47,7 +47,7 @@ func newAPISelectorResolver(c client.Client) *apiSelectorResolver {
 	return &apiSelectorResolver{client: c}
 }
 
-func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.Usage) error {
+func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.ClusterUsage) error {
 	of := u.Spec.Of
 	by := u.Spec.By
 
@@ -78,7 +78,7 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.U
 	return nil
 }
 
-func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1beta1.Usage, rs *v1beta1.Resource) error {
+func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1beta1.ClusterUsage, rs *v1beta1.Resource) error {
 	l := composed.NewList(composed.FromReferenceToList(v1.ObjectReference{
 		APIVersion: rs.APIVersion,
 		Kind:       rs.Kind,
