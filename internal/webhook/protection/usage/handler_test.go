@@ -178,7 +178,10 @@ func TestHandle(t *testing.T) {
 						return nil
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1beta1.UsageList)
+						l, ok := list.(*v1beta1.UsageList)
+						if !ok {
+							return nil
+						}
 						l.Items = []v1beta1.Usage{
 							{
 								ObjectMeta: metav1.ObjectMeta{
@@ -239,7 +242,10 @@ func TestHandle(t *testing.T) {
 						return nil
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1beta1.UsageList)
+						l, ok := list.(*v1beta1.UsageList)
+						if !ok {
+							return nil
+						}
 						l.Items = []v1beta1.Usage{
 							{
 								ObjectMeta: metav1.ObjectMeta{
@@ -294,7 +300,10 @@ func TestHandle(t *testing.T) {
 						return nil
 					},
 					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1beta1.UsageList)
+						l, ok := list.(*v1beta1.UsageList)
+						if !ok {
+							return nil
+						}
 						l.Items = []v1beta1.Usage{
 							{
 								ObjectMeta: metav1.ObjectMeta{

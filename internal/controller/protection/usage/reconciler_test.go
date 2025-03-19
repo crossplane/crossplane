@@ -44,10 +44,10 @@ import (
 )
 
 type fakeSelectorResolver struct {
-	resourceSelectorFn func(_ context.Context, _ *v1beta1.ClusterUsage) error
+	resourceSelectorFn func(_ context.Context, _ protection.Usage) error
 }
 
-func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.ClusterUsage) error {
+func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u protection.Usage) error {
 	return f.resourceSelectorFn(ctx, u)
 }
 
@@ -56,6 +56,7 @@ func TestReconcile(t *testing.T) {
 	reason := "protected"
 	type args struct {
 		mgr  manager.Manager
+		u    protection.Usage
 		opts []ReconcilerOption
 	}
 	type want struct {
@@ -72,6 +73,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not return an error if the Usage was not found.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -88,11 +90,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot parse APIVersion of used resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1beta1.ClusterUsage)
+								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.APIVersion = "/invalid/"
 								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
@@ -109,18 +112,19 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot resolve selectors.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1beta1.ClusterUsage)
+								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return errBoom
 						},
 					}),
@@ -134,18 +138,19 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1beta1.ClusterUsage)
+								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -162,11 +167,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add details annotation.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1beta1.ClusterUsage)
+								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								return nil
 							}),
@@ -174,7 +180,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -191,12 +197,13 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get used resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
-								case *v1beta1.ClusterUsage:
+								case *v1beta1.Usage:
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return errBoom
@@ -209,7 +216,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -226,12 +233,13 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot update used resource with in-use label",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
-								case *v1beta1.ClusterUsage:
+								case *v1beta1.Usage:
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return nil
@@ -247,7 +255,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -264,12 +272,13 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get using resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
-								case *v1beta1.ClusterUsage:
+								case *v1beta1.Usage:
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
@@ -285,7 +294,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -302,11 +311,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add owner reference to the Usage.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
@@ -324,7 +334,7 @@ func TestReconcile(t *testing.T) {
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if u, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if u, ok := obj.(*v1beta1.Usage); ok {
 									if u.GetOwnerReferences() != nil {
 										return errBoom
 									}
@@ -334,7 +344,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -351,11 +361,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
@@ -373,7 +384,7 @@ func TestReconcile(t *testing.T) {
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									if o.GetOwnerReferences() != nil {
 										owner := o.GetOwnerReferences()[0]
 										if owner.APIVersion != "v1" || owner.Kind != "AnotherKind" || owner.UID != "some-uid" {
@@ -384,7 +395,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
-								o := obj.(*v1beta1.ClusterUsage)
+								o := obj.(*v1beta1.Usage)
 								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
 								}
@@ -393,7 +404,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -410,11 +421,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									o.Spec.Reason = &reason
 									return nil
@@ -433,7 +445,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
-								o := obj.(*v1beta1.ClusterUsage)
+								o := obj.(*v1beta1.Usage)
 								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
 								}
@@ -442,7 +454,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -459,11 +471,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot remove the finalizer on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
@@ -476,7 +489,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -493,11 +506,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get used resource on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
@@ -510,7 +524,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -527,11 +541,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get using resource on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
@@ -553,7 +568,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -570,11 +585,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not get using resource on delete if the usage is not composed.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
@@ -597,7 +613,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -611,11 +627,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot list usages on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
@@ -632,7 +649,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -649,11 +666,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot remove in use label on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
@@ -673,7 +691,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -690,11 +708,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully deleted the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
@@ -707,7 +726,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -724,11 +743,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully deleted the usage resource by removing in use label.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
@@ -754,7 +774,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -771,11 +791,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should replay deletion after usage is gone and replayDeletion is true.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.ReplayDeletion = ptr.To(true)
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
@@ -806,7 +827,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -823,11 +844,12 @@ func TestReconcile(t *testing.T) {
 			reason: "We should wait until the using resource is deleted.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1beta1.ClusterUsage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
 									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
@@ -864,7 +886,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.ClusterUsage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -880,7 +902,7 @@ func TestReconcile(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, tc.args.opts...)
+			r := NewReconciler(tc.args.mgr, tc.args.u, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
