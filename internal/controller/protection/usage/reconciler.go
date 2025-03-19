@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -44,6 +45,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -95,14 +97,13 @@ const (
 )
 
 type selectorResolver interface {
-	resolveSelectors(ctx context.Context, u *v1beta1.ClusterUsage) error
+	resolveSelectors(ctx context.Context, u protection.Usage) error
 }
 
-// Setup adds a controller that reconciles Usages by
-// defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+// SetupUsage adds a controller that reconciles Usages.
+func SetupUsage(mgr ctrl.Manager, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.UsageGroupKind)
-	r := NewReconciler(mgr,
+	r := NewReconciler(mgr, &v1beta1.Usage{},
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithPollInterval(o.PollInterval))
@@ -110,6 +111,37 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1beta1.Usage{}).
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+}
+
+// SetupClusterUsage adds a controller that reconciles ClusterUsages.
+func SetupClusterUsage(mgr ctrl.Manager, o controller.Options) error {
+	name := "usage/" + strings.ToLower(v1beta1.ClusterUsageGroupKind)
+	r := NewReconciler(mgr, &v1beta1.ClusterUsage{},
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithPollInterval(o.PollInterval))
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1beta1.ClusterUsage{}).
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
+}
+
+// SetupLegacyUsage adds a controller that reconciles legacy Usages, i.e. those
+// in the apiextensions.crossplane.io API group.
+func SetupLegacyUsage(mgr ctrl.Manager, o controller.Options) error {
+	name := "usage/" + strings.ToLower(legacy.UsageGroupKind)
+	r := NewReconciler(mgr, &legacy.Usage{}, //nolint:staticcheck // It's deprecated, but we still need to support it.
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithPollInterval(o.PollInterval))
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&legacy.Usage{}). //nolint:staticcheck // It's deprecated, but we still need to support it.
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -171,8 +203,9 @@ type usageResource struct {
 	selectorResolver
 }
 
-// NewReconciler returns a Reconciler of Usages.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
+// NewReconciler returns a Reconciler of the supplied Usage type. Pass an empty
+// type that satsifes the Usage interface.
+func NewReconciler(mgr manager.Manager, u protection.Usage, opts ...ReconcilerOption) *Reconciler {
 	// TODO(negz): Stop using this wrapper? It's only necessary if the client is
 	// backed by a cache, and at the time of writing the manager's client isn't.
 	// It's configured not to automatically cache unstructured objects. The
@@ -186,6 +219,8 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     kube,
 			Applicator: xpresource.NewAPIUpdatingApplicator(kube),
 		},
+
+		u: u,
 
 		usage: usageResource{
 			Finalizer:        xpresource.NewAPIFinalizer(kube, finalizer),
@@ -207,6 +242,8 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 type Reconciler struct {
 	client xpresource.ClientApplicator
 
+	u protection.Usage
+
 	usage usageResource
 
 	log        logging.Logger
@@ -223,20 +260,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
-	// Get the usageResource resource for this request.
-	u := &v1beta1.ClusterUsage{}
+	u := r.u.DeepCopyObject().(protection.Usage) //nolint:forcetypeassert // Guaranteed to satisfy protection.Usage.
 	if err := r.client.Get(ctx, req.NamespacedName, u); err != nil {
 		log.Debug(errGetUsage, "error", err)
 		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
 	}
 
+	of := u.GetUserOf()
+	by := u.GetUsedBy()
+
 	// Validate APIVersion of used object provided as input.
 	// We parse this value while indexing the objects, and we need to make sure it is valid.
-	if _, err := schema.ParseGroupVersion(u.Spec.Of.APIVersion); err != nil {
+	if _, err := schema.ParseGroupVersion(of.APIVersion); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, errParseAPIVersion)
 	}
 
-	orig := u.DeepCopy()
+	orig := u.DeepCopyObject()
 
 	if err := r.usage.resolveSelectors(ctx, u); err != nil {
 		log.Debug(errResolveSelectors, "error", err)
@@ -245,8 +284,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	of := u.Spec.Of
-	by := u.Spec.By
 	status := r.conditions.For(u)
 
 	// Identify used xp composed as an unstructured object.
@@ -267,7 +304,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// as part of a higher-level Composition. Therefore, as an approximation
 		// we wait for the using resource to be deleted before deleting the
 		// usage resource, if the usage resource is part of a Composition.
-		if by != nil && u.Labels[xcrd.LabelKeyNamePrefixForComposed] != "" {
+		if by != nil && u.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 			// Identify using resource as an unstructured object.
 			using := composed.New(composed.FromReference(v1.ObjectReference{
 				Kind:       by.Kind,
@@ -330,7 +367,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 		}
 
-		if u.Spec.ReplayDeletion != nil && *u.Spec.ReplayDeletion && used.GetAnnotations() != nil {
+		if ptr.Deref(u.GetReplayDeletion(), false) && used.GetAnnotations() != nil {
 			if policy, ok := used.GetAnnotations()[protection.AnnotationKeyDeletionAttempt]; ok {
 				// We have already recorded a deletion attempt and want to replay deletion, let's delete the used resource.
 
@@ -460,12 +497,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{RequeueAfter: r.pollInterval}, nil
 }
 
-func detailsAnnotation(u *v1beta1.ClusterUsage) string {
-	if u.Spec.Reason != nil {
-		return *u.Spec.Reason
+func detailsAnnotation(u protection.Usage) string {
+	if r := ptr.Deref(u.GetReason(), ""); r != "" {
+		return r
 	}
-	if u.Spec.By != nil {
-		return fmt.Sprintf("%s/%s uses %s/%s", u.Spec.By.Kind, u.Spec.By.ResourceRef.Name, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)
+
+	by := u.GetUsedBy()
+	of := u.GetUserOf()
+	if by != nil {
+		return fmt.Sprintf("%s/%s uses %s/%s", by.Kind, by.ResourceRef.Name, of.Kind, of.ResourceRef.Name)
 	}
 
 	return "undefined"
