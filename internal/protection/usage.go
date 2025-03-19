@@ -20,15 +20,15 @@ package protection
 import (
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 const (
-	// InUseIndexKey used to index CRDs by "Kind" and "group", to be used when
-	// indexing and retrieving needed CRDs.
+	// InUseIndexKey is a controller-runtime cache index key. Use it to index
+	// usages by the 'of' resource - the resource being used. This allows you to
+	// quickly determine whether a usage of a resource exists.
 	InUseIndexKey = "inuse.apiversion.kind.name"
 
 	// AnnotationKeyDeletionAttempt is the annotation key used to record whether
@@ -37,13 +37,11 @@ const (
 	AnnotationKeyDeletionAttempt = "usage.crossplane.io/deletion-attempt-with-policy"
 )
 
-// IndexValueForObject returns the index value for the given object.
-func IndexValueForObject(u *unstructured.Unstructured) string {
-	return IndexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())
-}
-
-// IndexValue returns an a string suitable to index Usages in the cache.
-func IndexValue(apiVersion, kind, name string) string {
+// InUseIndexValue returns a controller-runtime cache index value. Use it to
+// index usages by the 'of' resource - the resource being used. This allows you
+// to quickly determine whether a usage of a resource exists. The supplied
+// apiVersion, kind, and name should represent the resource being used.
+func InUseIndexValue(apiVersion, kind, name string) string {
 	// There are two sources for "apiVersion" input, one is from the
 	// unstructured objects fetched from k8s and the other is from the Usage
 	// spec. The one from the objects from k8s is already validated by the k8s
