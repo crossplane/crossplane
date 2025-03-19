@@ -13,41 +13,33 @@ type GeneratedRevisionSpecConverter struct{}
 func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevisionSpec) CompositionSpec {
 	var v1CompositionSpec CompositionSpec
 	v1CompositionSpec.CompositeTypeRef = c.v1TypeReferenceToV1TypeReference(source.CompositeTypeRef)
-	v1CompositionSpec.Mode = CompositionMode(source.Mode)
-	var v1PipelineStepList []PipelineStep
+	v1CompositionSpec.Mode = c.v1CompositionModeToV1CompositionMode(source.Mode)
 	if source.Pipeline != nil {
-		v1PipelineStepList = make([]PipelineStep, len(source.Pipeline))
+		v1CompositionSpec.Pipeline = make([]PipelineStep, len(source.Pipeline))
 		for i := 0; i < len(source.Pipeline); i++ {
-			v1PipelineStepList[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
+			v1CompositionSpec.Pipeline[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
 		}
 	}
-	v1CompositionSpec.Pipeline = v1PipelineStepList
-	var pString *string
 	if source.WriteConnectionSecretsToNamespace != nil {
 		xstring := *source.WriteConnectionSecretsToNamespace
-		pString = &xstring
+		v1CompositionSpec.WriteConnectionSecretsToNamespace = &xstring
 	}
-	v1CompositionSpec.WriteConnectionSecretsToNamespace = pString
 	return v1CompositionSpec
 }
 func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) CompositionRevisionSpec {
 	var v1CompositionRevisionSpec CompositionRevisionSpec
 	v1CompositionRevisionSpec.CompositeTypeRef = c.v1TypeReferenceToV1TypeReference(source.CompositeTypeRef)
-	v1CompositionRevisionSpec.Mode = CompositionMode(source.Mode)
-	var v1PipelineStepList []PipelineStep
+	v1CompositionRevisionSpec.Mode = c.v1CompositionModeToV1CompositionMode(source.Mode)
 	if source.Pipeline != nil {
-		v1PipelineStepList = make([]PipelineStep, len(source.Pipeline))
+		v1CompositionRevisionSpec.Pipeline = make([]PipelineStep, len(source.Pipeline))
 		for i := 0; i < len(source.Pipeline); i++ {
-			v1PipelineStepList[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
+			v1CompositionRevisionSpec.Pipeline[i] = c.v1PipelineStepToV1PipelineStep(source.Pipeline[i])
 		}
 	}
-	v1CompositionRevisionSpec.Pipeline = v1PipelineStepList
-	var pString *string
 	if source.WriteConnectionSecretsToNamespace != nil {
 		xstring := *source.WriteConnectionSecretsToNamespace
-		pString = &xstring
+		v1CompositionRevisionSpec.WriteConnectionSecretsToNamespace = &xstring
 	}
-	v1CompositionRevisionSpec.WriteConnectionSecretsToNamespace = pString
 	return v1CompositionRevisionSpec
 }
 func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtension(source *runtime.RawExtension) *runtime.RawExtension {
@@ -68,10 +60,30 @@ func (c *GeneratedRevisionSpecConverter) pV1SecretReferenceToPV1SecretReference(
 	}
 	return pV1SecretReference
 }
+func (c *GeneratedRevisionSpecConverter) v1CompositionModeToV1CompositionMode(source CompositionMode) CompositionMode {
+	var v1CompositionMode CompositionMode
+	switch source {
+	case CompositionModePipeline:
+		v1CompositionMode = CompositionModePipeline
+	default: // ignored
+	}
+	return v1CompositionMode
+}
+func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source FunctionCredentialsSource) FunctionCredentialsSource {
+	var v1FunctionCredentialsSource FunctionCredentialsSource
+	switch source {
+	case FunctionCredentialsSourceNone:
+		v1FunctionCredentialsSource = FunctionCredentialsSourceNone
+	case FunctionCredentialsSourceSecret:
+		v1FunctionCredentialsSource = FunctionCredentialsSourceSecret
+	default: // ignored
+	}
+	return v1FunctionCredentialsSource
+}
 func (c *GeneratedRevisionSpecConverter) v1FunctionCredentialsToV1FunctionCredentials(source FunctionCredentials) FunctionCredentials {
 	var v1FunctionCredentials FunctionCredentials
 	v1FunctionCredentials.Name = source.Name
-	v1FunctionCredentials.Source = FunctionCredentialsSource(source.Source)
+	v1FunctionCredentials.Source = c.v1FunctionCredentialsSourceToV1FunctionCredentialsSource(source.Source)
 	v1FunctionCredentials.SecretRef = c.pV1SecretReferenceToPV1SecretReference(source.SecretRef)
 	return v1FunctionCredentials
 }
@@ -85,14 +97,12 @@ func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source P
 	v1PipelineStep.Step = source.Step
 	v1PipelineStep.FunctionRef = c.v1FunctionReferenceToV1FunctionReference(source.FunctionRef)
 	v1PipelineStep.Input = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Input)
-	var v1FunctionCredentialsList []FunctionCredentials
 	if source.Credentials != nil {
-		v1FunctionCredentialsList = make([]FunctionCredentials, len(source.Credentials))
+		v1PipelineStep.Credentials = make([]FunctionCredentials, len(source.Credentials))
 		for i := 0; i < len(source.Credentials); i++ {
-			v1FunctionCredentialsList[i] = c.v1FunctionCredentialsToV1FunctionCredentials(source.Credentials[i])
+			v1PipelineStep.Credentials[i] = c.v1FunctionCredentialsToV1FunctionCredentials(source.Credentials[i])
 		}
 	}
-	v1PipelineStep.Credentials = v1FunctionCredentialsList
 	return v1PipelineStep
 }
 func (c *GeneratedRevisionSpecConverter) v1TypeReferenceToV1TypeReference(source TypeReference) TypeReference {
