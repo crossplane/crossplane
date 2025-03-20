@@ -14,7 +14,7 @@ spec:
     listKind: ClusterUsageList
     plural: clusterusages
     singular: clusterusage
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .metadata.annotations.crossplane\.io/usage-details
@@ -212,4 +212,5 @@ spec:
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
