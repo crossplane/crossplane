@@ -386,6 +386,56 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
+		{
+			name: "Resource with generateName",
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/functions.yaml",
+				"testdata/diff/resources/generated-name-composition.yaml",
+			},
+			setupFilesWithOwnerRefs: []ownerRelationship{
+				{
+					// Set up the XR as the owner of the generated composed resource
+					ownerFile: "testdata/diff/resources/existing-xr.yaml",
+					ownedFiles: []string{
+						// This file has a generated name and is owned by the XR
+						"testdata/diff/resources/existing-downstream-with-generated-name.yaml",
+					},
+				},
+			},
+			// Use a composition that uses generateName for composed resources
+			inputFile: "testdata/diff/new-xr.yaml",
+			expectedOutput: `
+~~~ XDownstreamResource/test-resource-abc123
+  apiVersion: nop.example.org/v1alpha1
+  kind: XDownstreamResource
+  metadata:
+    annotations:
+      crossplane.io/composition-resource-name: nop-resource
+    generateName: test-resource-
+    labels:
+      crossplane.io/composite: test-resource
+    name: test-resource-abc123
+  spec:
+    forProvider:
+-     configData: existing-value
++     configData: new-value
+
+---
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+-   coolField: existing-value
++   coolField: new-value
+
+---
+`,
+			expectedError: false,
+			noColor:       true,
+		},
 	}
 
 	tu.SetupKubeTestLogger(t)
