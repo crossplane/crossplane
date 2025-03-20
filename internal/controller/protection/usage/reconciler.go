@@ -46,6 +46,7 @@ import (
 	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
@@ -63,7 +64,7 @@ const (
 
 	errGetUsage             = "cannot get usage"
 	errResolveSelectors     = "cannot resolve selectors"
-	errListUsages           = "cannot list usages"
+	errFindUsages           = "cannot find usages"
 	errGetUsing             = "cannot get using"
 	errGetUsed              = "cannot get used"
 	errAddOwnerToUsage      = "cannot update usage resource with owner ref"
@@ -79,7 +80,7 @@ const (
 // Event reasons.
 const (
 	reasonResolveSelectors event.Reason = "ResolveSelectors"
-	reasonListUsages       event.Reason = "ListUsages"
+	reasonFindUsages       event.Reason = "FindUsages"
 	reasonGetUsed          event.Reason = "GetUsedResource"
 	reasonGetUsing         event.Reason = "GetUsingResource"
 	reasonDetailsToUsage   event.Reason = "AddDetailsToUsage"
@@ -94,14 +95,15 @@ const (
 	reasonWaitUsing       event.Reason = "WaitingUsingDeleted"
 )
 
-type selectorResolver interface {
-	resolveSelectors(ctx context.Context, u protection.Usage) error
+// A SelectorResolver resolves a usage's resource selectors.
+type SelectorResolver interface {
+	ResolveSelectors(ctx context.Context, u protection.Usage) error
 }
 
 // SetupUsage adds a controller that reconciles Usages.
-func SetupUsage(mgr ctrl.Manager, o controller.Options) error {
+func SetupUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.UsageGroupKind)
-	r := NewReconciler(mgr, &v1beta1.Usage{},
+	r := NewReconciler(mgr, &v1beta1.Usage{}, f,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithPollInterval(o.PollInterval))
@@ -114,9 +116,9 @@ func SetupUsage(mgr ctrl.Manager, o controller.Options) error {
 }
 
 // SetupClusterUsage adds a controller that reconciles ClusterUsages.
-func SetupClusterUsage(mgr ctrl.Manager, o controller.Options) error {
+func SetupClusterUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(v1beta1.ClusterUsageGroupKind)
-	r := NewReconciler(mgr, &v1beta1.ClusterUsage{},
+	r := NewReconciler(mgr, &v1beta1.ClusterUsage{}, f,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithPollInterval(o.PollInterval))
@@ -130,9 +132,9 @@ func SetupClusterUsage(mgr ctrl.Manager, o controller.Options) error {
 
 // SetupLegacyUsage adds a controller that reconciles legacy Usages, i.e. those
 // in the apiextensions.crossplane.io API group.
-func SetupLegacyUsage(mgr ctrl.Manager, o controller.Options) error {
+func SetupLegacyUsage(mgr ctrl.Manager, f Finder, o controller.Options) error {
 	name := "usage/" + strings.ToLower(legacy.UsageGroupKind)
-	r := NewReconciler(mgr, &legacy.Usage{}, //nolint:staticcheck // It's deprecated, but we still need to support it.
+	r := NewReconciler(mgr, &legacy.Usage{}, f, //nolint:staticcheck // It's deprecated, but we still need to support it.
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithPollInterval(o.PollInterval))
@@ -179,9 +181,9 @@ func WithFinalizer(f xpresource.Finalizer) ReconcilerOption {
 
 // WithSelectorResolver specifies how the Reconciler should resolve any
 // resource references it encounters while reconciling Usages.
-func WithSelectorResolver(sr selectorResolver) ReconcilerOption {
+func WithSelectorResolver(sr SelectorResolver) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.usage.selectorResolver = sr
+		r.usage.SelectorResolver = sr
 	}
 }
 
@@ -196,14 +198,19 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 	}
 }
 
+// A Finder finds usages.
+type Finder interface {
+	FindUsageOf(ctx context.Context, o usage.Object) ([]protection.Usage, error)
+}
+
 type usageResource struct {
 	xpresource.Finalizer
-	selectorResolver
+	SelectorResolver
 }
 
 // NewReconciler returns a Reconciler of the supplied Usage type. Pass an empty
 // type that satsifes the Usage interface.
-func NewReconciler(mgr manager.Manager, u protection.Usage, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(mgr manager.Manager, u protection.Usage, f Finder, opts ...ReconcilerOption) *Reconciler {
 	// TODO(negz): Stop using this wrapper? It's only necessary if the client is
 	// backed by a cache, and at the time of writing the manager's client isn't.
 	// It's configured not to automatically cache unstructured objects. The
@@ -222,8 +229,9 @@ func NewReconciler(mgr manager.Manager, u protection.Usage, opts ...ReconcilerOp
 
 		usage: usageResource{
 			Finalizer:        xpresource.NewAPIFinalizer(kube, finalizer),
-			selectorResolver: newAPISelectorResolver(kube),
+			SelectorResolver: newAPISelectorResolver(kube),
 		},
+		resource: f,
 
 		log:        logging.NewNopLogger(),
 		record:     event.NewNopRecorder(),
@@ -242,7 +250,8 @@ type Reconciler struct {
 
 	u protection.Usage
 
-	usage usageResource
+	usage    usageResource
+	resource Finder
 
 	log        logging.Logger
 	record     event.Recorder
@@ -275,7 +284,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	orig := u.DeepCopyObject()
 
-	if err := r.usage.resolveSelectors(ctx, u); err != nil {
+	if err := r.usage.ResolveSelectors(ctx, u); err != nil {
 		log.Debug(errResolveSelectors, "error", err)
 		err = errors.Wrap(err, errResolveSelectors)
 		r.record.Event(u, event.Warning(reasonResolveSelectors, err))
@@ -346,18 +355,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		} else if err == nil {
 			// Remove the in-use label from the used resource if no other usages exists.
 
-			// TODO(negz): Whoops - this shouldn't be hardcoded to UsageList.
-			// Its type should be derived from the type of usage...
-			usageList := &v1beta1.UsageList{}
-			if err = r.client.List(ctx, usageList, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(used.GetAPIVersion(), used.GetKind(), used.GetName())}); err != nil {
-				log.Debug(errListUsages, "error", err)
-				err = errors.Wrap(err, errListUsages)
-				r.record.Event(u, event.Warning(reasonListUsages, err))
+			usages, err := r.resource.FindUsageOf(ctx, used)
+			if err != nil {
+				log.Debug(errFindUsages, "error", err)
+				err = errors.Wrap(err, errFindUsages)
+				r.record.Event(u, event.Warning(reasonFindUsages, err))
 				return reconcile.Result{}, err
 			}
 			// There are no "other" usageResource's referencing the used resource,
 			// so we can remove the in-use label from the used resource
-			if len(usageList.Items) < 2 {
+			if len(usages) < 2 {
 				meta.RemoveLabels(used, inUseLabelKey)
 				if err = r.client.Update(ctx, used); err != nil {
 					log.Debug(errRemoveInUseLabel, "error", err)
