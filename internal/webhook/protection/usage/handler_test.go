@@ -194,7 +194,8 @@ func TestHandle(t *testing.T) {
 					usages := []protection.Usage{
 						&v1beta1.Usage{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "used-by-some-resource",
+								Namespace: "default",
+								Name:      "used-by-some-resource",
 							},
 							Spec: v1beta1.UsageSpec{
 								Of: v1beta1.NamespacedResource{
@@ -238,7 +239,7 @@ func TestHandle(t *testing.T) {
 						Allowed: false,
 						Result: &metav1.Status{
 							Code:   int32(http.StatusConflict),
-							Reason: metav1.StatusReason("This resource is in-use by 1 Usage(s), including the Usage \"used-by-some-resource\" by resource NopResource/using-resource."),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-some-resource\" (in namespace \"default\") by resource NopResource/using-resource."),
 						},
 					},
 				},
@@ -294,7 +295,7 @@ func TestHandle(t *testing.T) {
 						Allowed: false,
 						Result: &metav1.Status{
 							Code:   int32(http.StatusConflict),
-							Reason: metav1.StatusReason("This resource is in-use by 1 Usage(s), including the Usage \"used-by-some-resource\" with reason: \"This resource is protected!\"."),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-some-resource\" with reason: \"This resource is protected!\"."),
 						},
 					},
 				},
@@ -349,7 +350,7 @@ func TestHandle(t *testing.T) {
 						Allowed: false,
 						Result: &metav1.Status{
 							Code:   int32(http.StatusConflict),
-							Reason: metav1.StatusReason("This resource is in-use by 1 Usage(s), including the Usage \"used-by-some-resource\"."),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-some-resource\"."),
 						},
 					},
 				},
