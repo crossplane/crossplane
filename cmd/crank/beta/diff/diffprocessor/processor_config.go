@@ -76,5 +76,6 @@ func (c *ProcessorConfig) GetDiffOptions() DiffOptions {
 	opts := DefaultDiffOptions()
 	opts.UseColors = c.Colorize
 	opts.Compact = c.Compact
+
 	return opts
 }

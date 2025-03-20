@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -71,19 +72,6 @@ func DefaultDiffOptions() DiffOptions {
 		ContextLines:   3,
 		ChunkSeparator: "...",
 		Compact:        false,
-	}
-}
-
-// CompactDiffOptions returns the default options with colors enabled
-func CompactDiffOptions() DiffOptions {
-	return DiffOptions{
-		UseColors:      true,
-		AddPrefix:      "+ ",
-		DeletePrefix:   "- ",
-		ContextPrefix:  "  ",
-		ContextLines:   3,
-		ChunkSeparator: "...",
-		Compact:        true,
 	}
 }
 
@@ -264,18 +252,43 @@ func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 }
 
 // GenerateDiffWithOptions produces a structured diff between two unstructured objects
-func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ DiffOptions) (*ResourceDiff, error) {
+func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger logging.Logger, _ DiffOptions) (*ResourceDiff, error) {
 	var diffType DiffType
+
+	// Log the inputs
+	currentName := "nil"
+	currentKind := "nil"
+	if current != nil {
+		currentName = current.GetName()
+		currentKind = current.GetKind()
+	}
+	desiredName := "nil"
+	desiredKind := "nil"
+	if desired != nil {
+		desiredName = desired.GetName()
+		desiredKind = desired.GetKind()
+	}
+
+	logger.Debug("Generating diff between resources",
+		"current", fmt.Sprintf("%s/%s", currentKind, currentName),
+		"desired", fmt.Sprintf("%s/%s", desiredKind, desiredName))
 
 	// Determine diff type
 	switch {
 	case current == nil && desired != nil:
 		diffType = DiffTypeAdded
+		logger.Debug("Diff type: Resource is being added",
+			"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
 	case current != nil && desired == nil:
 		diffType = DiffTypeRemoved
+		logger.Debug("Diff type: Resource is being removed",
+			"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
 	case current != nil: // && desired != nil:
 		diffType = DiffTypeModified
+		logger.Debug("Diff type: Resource is being modified",
+			"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
 	default:
+		logger.Debug("Error: both current and desired are nil")
 		return nil, errors.New("both current and desired cannot be nil")
 	}
 
@@ -283,26 +296,33 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ Diff
 	if diffType == DiffTypeModified {
 		if equality.Semantic.DeepEqual(current, desired) {
 			// Objects are completely equal, return nil to indicate no diff
+			logger.Debug("Resources are semantically equal",
+				"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
 			return equalDiff(current, desired), nil
 		}
 
 		// Clean up both objects for comparison
-		currentClean := cleanupForDiff(current.DeepCopy())
-		desiredClean := cleanupForDiff(desired.DeepCopy())
+		currentClean := cleanupForDiff(current.DeepCopy(), logger)
+		desiredClean := cleanupForDiff(desired.DeepCopy(), logger)
 
 		// Check if the cleaned objects are equal
 		if equality.Semantic.DeepEqual(currentClean.Object, desiredClean.Object) {
 			// Objects are equal in terms of the content we care about,
 			// but may have metadata differences - return DiffTypeEqual
+			logger.Debug("Resources are equal after cleanup (only metadata differences)",
+				"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
 			return equalDiff(current, desired), nil
 		}
+
+		logger.Debug("Resources are not equal, proceeding with diff calculation",
+			"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
 	}
 
 	asString := func(obj *unstructured.Unstructured) (string, error) {
 		if obj == nil {
 			return "", nil
 		}
-		clean := cleanupForDiff(obj.DeepCopy())
+		clean := cleanupForDiff(obj.DeepCopy(), logger)
 		yaml, err := sigsyaml.Marshal(clean.Object)
 		if err != nil {
 			return "", err
@@ -312,25 +332,37 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ Diff
 
 	currentStr, err := asString(current)
 	if err != nil {
+		logger.Debug("Error marshaling current object to YAML", "error", err)
 		return nil, errors.Wrap(err, "cannot marshal current object to YAML")
 	}
 
 	desiredStr, err := asString(desired)
 	if err != nil {
+		logger.Debug("Error marshaling desired object to YAML", "error", err)
 		return nil, errors.Wrap(err, "cannot marshal desired object to YAML")
 	}
 
 	// Return nil if content is identical
 	if desiredStr == currentStr {
+		logger.Debug("Resources have identical YAML representation after cleanup",
+			"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
 		return equalDiff(current, desired), nil
 	}
 
 	// Get the line by line diff
+	logger.Debug("Computing line-by-line diff",
+		"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
 	lineDiffs := GetLineDiff(currentStr, desiredStr)
 
 	if len(lineDiffs) == 0 {
+		logger.Debug("No differences found in line-by-line comparison",
+			"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
 		return equalDiff(current, desired), nil
 	}
+
+	logger.Debug("Diff calculation complete",
+		"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName),
+		"diff_chunks", len(lineDiffs))
 
 	// Extract resource kind and name
 	var kind, name string
@@ -418,7 +450,11 @@ func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOpti
 }
 
 // cleanupForDiff removes fields that shouldn't be included in the diff
-func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
+// cleanupForDiff removes fields that shouldn't be included in the diff
+func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unstructured.Unstructured {
+	resKind := obj.GetKind()
+	resName := obj.GetName()
+
 	// Remove server-side fields and metadata that we don't want to diff
 	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
 	if found {
@@ -433,8 +469,20 @@ func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
 			"ownerReferences",
 		}
 
+		// Track which fields were actually removed for debugging
+		removedFields := []string{}
 		for _, field := range fieldsToRemove {
-			delete(metadata, field)
+			if _, exists := metadata[field]; exists {
+				delete(metadata, field)
+				removedFields = append(removedFields, field)
+			}
+		}
+
+		// Only log if some fields were actually removed
+		if len(removedFields) > 0 {
+			logger.Debug("Removed metadata fields from diff calculation",
+				"resource", fmt.Sprintf("%s/%s", resKind, resName),
+				"removed_fields", strings.Join(removedFields, ", "))
 		}
 
 		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
@@ -444,12 +492,31 @@ func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
 	// This ensures it doesn't affect diff calculations
 	spec, found, _ := unstructured.NestedMap(obj.Object, "spec")
 	if found && spec != nil {
-		delete(spec, "resourceRefs")
+		resourceRefsRemoved := false
+		if _, exists := spec["resourceRefs"]; exists {
+			delete(spec, "resourceRefs")
+			resourceRefsRemoved = true
+		}
+
+		if resourceRefsRemoved {
+			logger.Debug("Removed resourceRefs from spec for diff calculation",
+				"resource", fmt.Sprintf("%s/%s", resKind, resName))
+		}
+
 		unstructured.SetNestedMap(obj.Object, spec, "spec")
 	}
 
 	// Remove status field as we're focused on spec changes
-	delete(obj.Object, "status")
+	statusRemoved := false
+	if _, exists := obj.Object["status"]; exists {
+		delete(obj.Object, "status")
+		statusRemoved = true
+	}
+
+	if statusRemoved {
+		logger.Debug("Removed status field for diff calculation",
+			"resource", fmt.Sprintf("%s/%s", resKind, resName))
+	}
 
 	return obj
 }

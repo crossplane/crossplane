@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"context"
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/go-logr/logr/testr"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -140,7 +141,7 @@ func TestSelectorExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			provider := NewSelectorExtraResourceProvider(tc.mockClient)
+			provider := NewSelectorExtraResourceProvider(tc.mockClient, logging.NewLogrLogger(testr.New(t)))
 			resources, err := provider.GetExtraResources(context.Background(), tc.composition, tc.xr, nil)
 
 			if tc.expectError {
@@ -295,7 +296,7 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			provider := NewReferenceExtraResourceProvider(tc.mockClient)
+			provider := NewReferenceExtraResourceProvider(tc.mockClient, logging.NewLogrLogger(testr.New(t)))
 			resources, err := provider.GetExtraResources(context.Background(), tc.composition, tc.xr, nil)
 
 			if tc.expectError {
@@ -626,7 +627,7 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			provider := NewCompositeExtraResourceProvider(tc.providers...)
+			provider := NewCompositeExtraResourceProvider(logging.NewLogrLogger(testr.New(t)), tc.providers...)
 			resources, err := provider.GetExtraResources(context.Background(), tc.composition, tc.xr, nil)
 
 			if tc.expectError {
@@ -652,98 +653,6 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 				if resources[i].GetName() != name {
 					t.Errorf("Resource at index %d: expected name '%s', got '%s'", i, name, resources[i].GetName())
 				}
-			}
-		})
-	}
-}
-
-func TestScanForTemplatedExtraResources(t *testing.T) {
-	tests := []struct {
-		name        string
-		composition *apiextensionsv1.Composition
-		expectFound bool
-		expectError bool
-	}{
-		{
-			name: "No templated extra resources",
-			composition: tu.NewComposition("test-comp").
-				WithPipelineMode().
-				WithPipelineStep("generate-resources", "function-go-templating", map[string]interface{}{
-					"apiVersion": "template.fn.crossplane.io/v1beta1",
-					"kind":       "GoTemplate",
-					"spec": map[string]interface{}{
-						"inline": map[string]interface{}{
-							"template": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test",
-						},
-					},
-				}).
-				Build(),
-			expectFound: false,
-			expectError: false,
-		},
-		{
-			name: "With templated extra resources",
-			composition: tu.NewComposition("test-comp").
-				WithPipelineMode().
-				WithPipelineStep("generate-resources", "function-go-templating", map[string]interface{}{
-					"apiVersion": "template.fn.crossplane.io/v1beta1",
-					"kind":       "GoTemplate",
-					"spec": map[string]interface{}{
-						"inline": map[string]interface{}{
-							"template": "apiVersion: render.crossplane.io/v1\nkind: ExtraResources\nspec:\n  resources:\n  - apiVersion: v1\n    kind: ConfigMap",
-						},
-					},
-				}).
-				Build(),
-			expectFound: true,
-			expectError: false,
-		},
-		{
-			name: "Non-pipeline composition",
-			composition: &apiextensionsv1.Composition{
-				Spec: apiextensionsv1.CompositionSpec{
-					Mode: composePtr(apiextensionsv1.CompositionMode("NonPipeline")),
-				},
-			},
-			expectFound: false,
-			expectError: false,
-		},
-		{
-			name: "Invalid template YAML",
-			composition: tu.NewComposition("test-comp").
-				WithPipelineMode().
-				WithPipelineStep("generate-resources", "function-go-templating", map[string]interface{}{
-					"apiVersion": "template.fn.crossplane.io/v1beta1",
-					"kind":       "GoTemplate",
-					"spec": map[string]interface{}{
-						"inline": map[string]interface{}{
-							"template": "{{ invalid template",
-						},
-					},
-				}).
-				Build(),
-			expectFound: false,
-			expectError: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			found, err := ScanForTemplatedExtraResources(tc.composition)
-
-			if tc.expectError {
-				if err == nil {
-					t.Fatalf("Expected an error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("ScanForTemplatedExtraResources() error = %v", err)
-			}
-
-			if found != tc.expectFound {
-				t.Errorf("Expected found=%v, got %v", tc.expectFound, found)
 			}
 		})
 	}
@@ -816,7 +725,7 @@ func TestGetExtraResourcesFromResult(t *testing.T) {
 			result := tc.setup()
 
 			// Call the function under test
-			got, err := GetExtraResourcesFromResult(result)
+			got, err := GetExtraResourcesFromResult(result, logging.NewLogrLogger(testr.New(t)))
 
 			// Check error expectations
 			if tc.want.err != nil {

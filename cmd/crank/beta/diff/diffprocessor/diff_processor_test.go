@@ -398,6 +398,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 				client: tt.setupClient(),
 				config: ProcessorConfig{
 					Colorize: true,
+					Logger:   logging.NewLogrLogger(testr.New(t)),
 				},
 			}
 

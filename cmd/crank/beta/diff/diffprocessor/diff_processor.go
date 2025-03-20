@@ -75,13 +75,14 @@ func NewDiffProcessor(client cc.ClusterClient, options ...DiffProcessorOption) (
 	}
 
 	// Create environment config provider with empty configs (will be populated in Initialize)
-	envConfigProvider := NewEnvironmentConfigProvider([]*unstructured.Unstructured{})
+	envConfigProvider := NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, config.Logger)
 
 	// Create the composite provider with all our extra resource providers
 	processor.extraResourceProvider = NewCompositeExtraResourceProvider(
+		config.Logger,
 		envConfigProvider,
-		NewSelectorExtraResourceProvider(client),
-		NewReferenceExtraResourceProvider(client),
+		NewSelectorExtraResourceProvider(client, config.Logger),
+		NewReferenceExtraResourceProvider(client, config.Logger),
 		NewTemplatedExtraResourceProvider(client, config.RenderFunc, config.Logger),
 	)
 
@@ -506,7 +507,7 @@ func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context
 			if !renderedResources[key] {
 				// This resource exists but wasn't rendered - it will be removed
 				diffOpts := p.config.GetDiffOptions()
-				diff, err := GenerateDiffWithOptions(&node.Unstructured, nil, diffOpts)
+				diff, err := GenerateDiffWithOptions(&node.Unstructured, nil, p.config.Logger, diffOpts)
 				if err != nil {
 					p.config.Logger.Debug("Cannot calculate removal diff", "resource", key, "error", err)
 					return
@@ -556,7 +557,7 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite *uns
 	diffOpts := p.config.GetDiffOptions()
 
 	// Generate diff with the configured options
-	return GenerateDiffWithOptions(current, wouldBeResult, diffOpts)
+	return GenerateDiffWithOptions(current, wouldBeResult, p.config.Logger, diffOpts)
 }
 
 // makeObjectValid makes sure all OwnerReferences have a valid UID
