@@ -36,8 +36,8 @@ import (
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
 	// Arguments.
-	Extensions string `arg:"" help:"Extensions source which can be a file, directory, or '-' for standard input."`
-	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
+	Extensions string `arg:"" help:"Extension sources as a comma-separated list of files, directories, or '-' for standard input."`
+	Resources  string `arg:"" help:"Resource sources as a comma-separated list of files, directories, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
 	CacheDir           string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."`
@@ -66,6 +66,9 @@ Examples:
 
   # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file
   crossplane beta validate extensions.yaml resources.yaml
+
+  # Validate all resources in the resourceDir folder against the extensions in the crossplane.yaml file and extensionsDir folder
+  crossplane beta validate crossplane.yaml,extensionsDir/ resourceDir/
 
   # Validate all resources in the resources.yaml file against the extensions in the extensions.yaml file using a specific Crossplane image version
   crossplane beta validate extensions.yaml resources.yaml --crossplane-image=xpkg.crossplane.io/crossplane/crossplane:v1.20.0
