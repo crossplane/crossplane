@@ -49,7 +49,7 @@ func newAPISelectorResolver(c client.Client) *apiSelectorResolver {
 	return &apiSelectorResolver{client: c}
 }
 
-func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u protection.Usage) error {
+func (r *apiSelectorResolver) ResolveSelectors(ctx context.Context, u protection.Usage) error {
 	of := u.GetUserOf()
 	by := u.GetUsedBy()
 

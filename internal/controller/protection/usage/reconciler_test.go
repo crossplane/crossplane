@@ -39,6 +39,7 @@ import (
 
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
@@ -47,8 +48,14 @@ type fakeSelectorResolver struct {
 	resourceSelectorFn func(_ context.Context, _ protection.Usage) error
 }
 
-func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u protection.Usage) error {
+func (f fakeSelectorResolver) ResolveSelectors(ctx context.Context, u protection.Usage) error {
 	return f.resourceSelectorFn(ctx, u)
+}
+
+type FinderFn func(ctx context.Context, o usage.Object) ([]protection.Usage, error)
+
+func (fn FinderFn) FindUsageOf(ctx context.Context, o usage.Object) ([]protection.Usage, error) {
+	return fn(ctx, o)
 }
 
 func TestReconcile(t *testing.T) {
@@ -57,6 +64,7 @@ func TestReconcile(t *testing.T) {
 	type args struct {
 		mgr  manager.Manager
 		u    protection.Usage
+		f    Finder
 		opts []ReconcilerOption
 	}
 	type want struct {
@@ -586,6 +594,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -608,7 +619,6 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList:   test.NewMockListFn(nil),
 							MockUpdate: test.NewMockUpdateFn(nil),
 						},
 					}),
@@ -623,11 +633,14 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 		},
-		"CannotListUsagesOnDelete": {
-			reason: "We should return an error if we cannot list usages on delete.",
+		"CannotFindUsagesOnDelete": {
+			reason: "We should return an error if we cannot find usages on delete.",
 			args: args{
 				mgr: &fake.Manager{},
 				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, errBoom
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -642,9 +655,6 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return errBoom
 							}),
 						},
 					}),
@@ -659,7 +669,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListUsages),
+				err: errors.Wrap(errBoom, errFindUsages),
 			},
 		},
 		"CannotRemoveLabelOnDelete": {
@@ -667,6 +677,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -681,9 +694,6 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
 								return errBoom
@@ -744,6 +754,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -758,9 +771,6 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -792,6 +802,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -808,9 +821,6 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -845,6 +855,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -870,9 +883,6 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -902,7 +912,7 @@ func TestReconcile(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, tc.args.u, tc.args.opts...)
+			r := NewReconciler(tc.args.mgr, tc.args.u, tc.args.f, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
