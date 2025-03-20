@@ -46,7 +46,7 @@ func RunDiff(t *testing.T, c *envconf.Config, crankPath string, resourcePaths ..
 	var err error
 
 	// Prepare the command to run
-	args := append([]string{"beta", "diff", "-n", namespace}, resourcePaths...)
+	args := append([]string{"--verbose", "beta", "diff", "-n", namespace}, resourcePaths...)
 	t.Logf("Running command: %s %s", crankPath, strings.Join(args, " "))
 	cmd := exec.Command(crankPath, args...)
 	cmd.Env = append(cmd.Env, "KUBECONFIG="+c.KubeconfigFile())
@@ -94,7 +94,7 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				}
 
 				// Verify the output contains the expected text for a new resource
-				if !strings.Contains(output, "+ XNopResource/new-resource") {
+				if !strings.Contains(output, "+++ XNopResource/new-resource") {
 					t.Errorf("Expected diff output to show new XNopResource, got: %s", output)
 				}
 

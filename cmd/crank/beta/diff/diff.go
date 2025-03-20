@@ -32,6 +32,7 @@ import (
 )
 
 // Cmd represents the diff command.
+// Cmd represents the diff command.
 type Cmd struct {
 	Namespace string   `default:"crossplane-system" help:"Namespace to compare resources against." name:"namespace" short:"n"`
 	Files     []string `arg:"" optional:"" help:"YAML files containing Crossplane resources to diff."`
@@ -40,6 +41,8 @@ type Cmd struct {
 	NoColor bool          `help:"Disable colorized output." name:"no-color"`
 	Compact bool          `help:"Show compact diffs with minimal context." name:"compact"`
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
+	QPS     float32       `help:"Maximum QPS to the API server." default:"0"`
+	Burst   int           `help:"Maximum burst for throttle." default:"0"`
 }
 
 // Help returns help instructions for the diff command.
@@ -70,9 +73,17 @@ Examples:
 // Run executes the diff command.
 func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) error {
 	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
-	// in their arguments.  that means we won't get errors for cases where the config isn't asked for.
+	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
-	client, err := ClusterClientFactory(config)
+	// TODO:  plumb logging through everywhere and add log statements
+	// TODO:  remove stdout except for printing (and for that, maybe add a file output option?)
+	// TODO:  test for handling entire dependency resource trees (beyond immediate children)
+	// TODO:  make sure namespacing works everywhere
+	// TODO:  fix naive pluralization
+	// TODO:  handle composition lookup with selectors if we find more than one matching the ref type
+	// TODO:  nested external resources
+
+	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {
 		return errors.Wrap(err, "cannot initialize cluster client")
 	}
@@ -124,8 +135,8 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 
 var (
 	// ClusterClientFactory Factory function for creating a new cluster client
-	ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
-		return cc.NewClusterClient(config)
+	ClusterClientFactory = func(config *rest.Config, opts ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+		return cc.NewClusterClient(config, opts...)
 	}
 
 	// DiffProcessorFactory Factory function for creating a new diff processor

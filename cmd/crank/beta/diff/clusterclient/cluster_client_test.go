@@ -2,8 +2,10 @@ package clusterclient
 
 import (
 	"context"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	"github.com/go-logr/logr/testr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
@@ -125,6 +127,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
+				logger:        logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.GetEnvironmentConfigs(tc.args.ctx)
@@ -294,6 +297,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
+				logger:        logging.NewLogrLogger(testr.New(t)),
 			}
 
 			err := c.Initialize(tc.args.ctx)
@@ -503,6 +507,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
+				logger:        logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.GetAllResourcesByLabels(tc.args.ctx, tc.args.gvrs, tc.args.selectors)
@@ -641,6 +646,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				compositions: tc.fields.compositions,
+				logger:       logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.FindMatchingComposition(tc.args.res)
@@ -894,6 +900,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				functions: tc.fields.functions,
+				logger:    logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.GetFunctionsFromPipeline(tc.args.comp)
@@ -1096,6 +1103,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
+				logger:        logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.GetXRDs(tc.args.ctx)
@@ -1299,6 +1307,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
+				logger:        logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.GetResource(tc.args.ctx, tc.args.gvk, tc.args.namespace, tc.args.name)
@@ -1640,6 +1649,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
+				logger:        logging.NewLogrLogger(testr.New(t)),
 			}
 
 			got, err := c.GetResourcesByLabel(tc.args.ctx, tc.args.namespace, tc.args.gvr, tc.args.selector)
@@ -1887,14 +1897,24 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 
 // TestNewClusterClient tests the creation of a new DefaultClusterClient instance
 func TestNewClusterClient(t *testing.T) {
+	// Set up a test logger
+	testLogger := logging.NewNopLogger()
+
 	// Skip the nil config test because we can't easily mock the underlying functions
 	// We'll just test the valid config case
 	validConfig := &rest.Config{
 		Host: "https://localhost:8080",
 	}
 
+	// Test without logger option
 	_, err := NewClusterClient(validConfig)
 	if err != nil {
 		t.Errorf("NewClusterClient(...): unexpected error with valid config: %v", err)
+	}
+
+	// Test with logger option
+	_, err = NewClusterClient(validConfig, WithLogger(testLogger))
+	if err != nil {
+		t.Errorf("NewClusterClient(...): unexpected error with valid config and logger: %v", err)
 	}
 }

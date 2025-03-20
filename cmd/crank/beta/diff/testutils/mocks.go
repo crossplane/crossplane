@@ -3,6 +3,7 @@ package testutils
 import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
@@ -241,6 +242,12 @@ type MockClusterClient struct {
 	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
 	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	logger                     logging.Logger
+}
+
+// Add a getter for the logger
+func (m *MockClusterClient) Logger() logging.Logger {
+	return m.logger
 }
 
 // Initialize implements the ClusterClient interface

@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+	"github.com/go-logr/logr/testr"
 	"github.com/google/go-cmp/cmp"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,13 +44,16 @@ import (
 )
 
 // Custom Run function for testing - this avoids calling the real Run()
-func testRun(ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, error)) error {
+func testRun(t *testing.T, ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, error)) error {
 	config, err := setupConfig()
 	if err != nil {
 		return errors.Wrap(err, "failed to get kubeconfig")
 	}
 
-	client, err := ClusterClientFactory(config)
+	// Create a NopLogger for testing
+	log := logging.NewLogrLogger(testr.New(t))
+
+	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {
 		return errors.Wrap(err, "cannot initialize cluster client")
 	}
@@ -182,7 +187,7 @@ func TestCmd_Run(t *testing.T) {
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -233,7 +238,7 @@ metadata:
 					WithFailedInitialize("failed to initialize cluster client").
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 			},
@@ -258,7 +263,7 @@ metadata:
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -306,7 +311,7 @@ metadata:
 			},
 			setupMocks: func() {
 				// Mock cluster client factory error
-				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 					return nil, errors.New("failed to create cluster client")
 				}
 			},
@@ -330,7 +335,7 @@ metadata:
 					WithSuccessfulInitialize().
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -381,7 +386,7 @@ metadata:
 			}
 
 			// Use our test version of Run() that doesn't call clientcmd.BuildConfigFromFlags
-			err := testRun(tc.args.ctx, c, func() (*rest.Config, error) {
+			err := testRun(t, tc.args.ctx, c, func() (*rest.Config, error) {
 				return &rest.Config{}, nil // Return a dummy config
 			})
 
@@ -533,7 +538,7 @@ spec:
 		DiffProcessorFactory = originalDiffProcessorFactory
 	}()
 
-	ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 		return mockClient, nil
 	}
 
@@ -559,7 +564,7 @@ spec:
 	}
 
 	// Execute the test
-	err = testRun(ctx, cmd, func() (*rest.Config, error) {
+	err = testRun(t, ctx, cmd, func() (*rest.Config, error) {
 		return &rest.Config{}, nil
 	})
 
@@ -689,7 +694,7 @@ spec:
 		DiffProcessorFactory = originalDiffProcessorFactory
 	}()
 
-	ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
 		return mockClient, nil
 	}
 
@@ -707,7 +712,7 @@ spec:
 	}
 
 	// Execute the test
-	err = testRun(ctx, cmd, func() (*rest.Config, error) {
+	err = testRun(t, ctx, cmd, func() (*rest.Config, error) {
 		return &rest.Config{}, nil
 	})
 

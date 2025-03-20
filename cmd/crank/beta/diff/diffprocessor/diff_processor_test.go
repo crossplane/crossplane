@@ -100,7 +100,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 					WithSuccessfulCompositionMatch(composition).
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					WithResourcesExist(xr, composedResource). // Add the XR to existing resources
+					WithResourcesExist(xr, composedResource).       // Add the XR to existing resources
 					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{composedXrd}).

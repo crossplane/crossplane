@@ -481,8 +481,8 @@ func TestDiffIntegration(t *testing.T) {
 
 			// TODO: This seems a bit redundant with the Kong binding?
 			// Use the real implementation but with our test config
-			ClusterClientFactory = func(config *rest.Config) (cc.ClusterClient, error) {
-				return cc.NewClusterClient(cfg)
+			ClusterClientFactory = func(config *rest.Config, opts ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+				return cc.NewClusterClient(cfg, opts...)
 			}
 
 			// Create a Kong context with stdout
