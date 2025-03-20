@@ -3,7 +3,6 @@ package diffprocessor
 import (
 	"context"
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	"github.com/go-logr/logr/testr"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -141,7 +140,7 @@ func TestSelectorExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			provider := NewSelectorExtraResourceProvider(tc.mockClient, logging.NewLogrLogger(testr.New(t)))
+			provider := NewSelectorExtraResourceProvider(tc.mockClient, tu.TestLogger(t))
 			resources, err := provider.GetExtraResources(context.Background(), tc.composition, tc.xr, nil)
 
 			if tc.expectError {
@@ -296,7 +295,7 @@ func TestReferenceExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			provider := NewReferenceExtraResourceProvider(tc.mockClient, logging.NewLogrLogger(testr.New(t)))
+			provider := NewReferenceExtraResourceProvider(tc.mockClient, tu.TestLogger(t))
 			resources, err := provider.GetExtraResources(context.Background(), tc.composition, tc.xr, nil)
 
 			if tc.expectError {
@@ -627,7 +626,7 @@ func TestCompositeExtraResourceProvider_GetExtraResources(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			provider := NewCompositeExtraResourceProvider(logging.NewLogrLogger(testr.New(t)), tc.providers...)
+			provider := NewCompositeExtraResourceProvider(tu.TestLogger(t), tc.providers...)
 			resources, err := provider.GetExtraResources(context.Background(), tc.composition, tc.xr, nil)
 
 			if tc.expectError {
@@ -725,7 +724,7 @@ func TestGetExtraResourcesFromResult(t *testing.T) {
 			result := tc.setup()
 
 			// Call the function under test
-			got, err := GetExtraResourcesFromResult(result, logging.NewLogrLogger(testr.New(t)))
+			got, err := GetExtraResourcesFromResult(result, tu.TestLogger(t))
 
 			// Check error expectations
 			if tc.want.err != nil {

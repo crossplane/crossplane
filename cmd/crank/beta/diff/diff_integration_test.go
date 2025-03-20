@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"github.com/alecthomas/kong"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/go-logr/logr/testr"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -496,7 +494,7 @@ func TestDiffIntegration(t *testing.T) {
 			}
 
 			// Run the diff command with the test environment's config
-			err = cmd.Run(kongCtx, logging.NewLogrLogger(testr.New(t)), cfg)
+			err = cmd.Run(kongCtx, tu.TestLogger(t), cfg)
 
 			if tt.expectedError && err == nil {
 				t.Fatal("expected error but got none")

@@ -8,7 +8,6 @@ import (
 	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	"github.com/go-logr/logr/testr"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
@@ -142,7 +141,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 
 			// Initialize the processor for the Success case only
 			if tc.name == "Success" {
-				if err := processor.Initialize(&stdout, ctx); err != nil {
+				if err := processor.Initialize(ctx); err != nil {
 					t.Fatalf("Failed to initialize processor: %v", err)
 				}
 			}
@@ -398,7 +397,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 				client: tt.setupClient(),
 				config: ProcessorConfig{
 					Colorize: true,
-					Logger:   logging.NewLogrLogger(testr.New(t)),
+					Logger:   tu.TestLogger(t),
 				},
 			}
 
@@ -644,7 +643,7 @@ func TestDefaultDiffProcessor_CalculateDiffs(t *testing.T) {
 				client: tt.setupClient(),
 				config: ProcessorConfig{
 					Colorize: true,
-					Logger:   logging.NewLogrLogger(testr.New(t)),
+					Logger:   tu.TestLogger(t),
 				},
 			}
 
@@ -784,7 +783,7 @@ func TestDefaultDiffProcessor_CalculateRemovedResourceDiffs(t *testing.T) {
 			processor := &DefaultDiffProcessor{
 				client: tt.setupClient(),
 				config: ProcessorConfig{
-					Logger: logging.NewLogrLogger(testr.New(t)),
+					Logger: tu.TestLogger(t),
 				},
 			}
 
@@ -890,11 +889,7 @@ func TestDiffProcessor_Initialize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a DiffProcessor that uses our mock client
 			p, _ := NewDiffProcessor(tc.client(), WithRestConfig(&rest.Config{}))
-
-			// Create a dummy writer for stdout
-			var stdout bytes.Buffer
-
-			err := p.Initialize(&stdout, ctx)
+			err := p.Initialize(ctx)
 
 			if tc.want != nil {
 				if err == nil {

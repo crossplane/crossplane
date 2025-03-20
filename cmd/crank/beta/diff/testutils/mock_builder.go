@@ -319,21 +319,21 @@ func NewMockDiffProcessor() *DiffProcessorBuilder {
 }
 
 // WithInitialize adds an implementation for the Initialize method.
-func (b *DiffProcessorBuilder) WithInitialize(fn func(io.Writer, context.Context) error) *DiffProcessorBuilder {
+func (b *DiffProcessorBuilder) WithInitialize(fn func(context.Context) error) *DiffProcessorBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
 // WithSuccessfulInitialize sets a successful Initialize implementation.
 func (b *DiffProcessorBuilder) WithSuccessfulInitialize() *DiffProcessorBuilder {
-	return b.WithInitialize(func(writer io.Writer, ctx context.Context) error {
+	return b.WithInitialize(func(ctx context.Context) error {
 		return nil
 	})
 }
 
 // WithFailedInitialize sets a failing Initialize implementation.
 func (b *DiffProcessorBuilder) WithFailedInitialize(errMsg string) *DiffProcessorBuilder {
-	return b.WithInitialize(func(writer io.Writer, ctx context.Context) error {
+	return b.WithInitialize(func(ctx context.Context) error {
 		return errors.New(errMsg)
 	})
 }

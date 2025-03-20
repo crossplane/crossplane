@@ -20,12 +20,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-	"github.com/go-logr/logr/testr"
 	"github.com/google/go-cmp/cmp"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,7 +49,7 @@ func testRun(t *testing.T, ctx context.Context, c *Cmd, setupConfig func() (*res
 	}
 
 	// Create a NopLogger for testing
-	log := logging.NewLogrLogger(testr.New(t))
+	log := tu.TestLogger(t)
 
 	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {
@@ -125,9 +123,8 @@ spec:
 		return errors.Wrap(err, "cannot create diff processor")
 	}
 
-	// Initialize the diff processor with a dummy writer
-	var dummyWriter bytes.Buffer
-	if err := processor.Initialize(&dummyWriter, ctx); err != nil {
+	// Initialize the diff processor
+	if err := processor.Initialize(ctx); err != nil {
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 

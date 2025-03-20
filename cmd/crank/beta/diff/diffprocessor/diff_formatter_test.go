@@ -2,9 +2,7 @@ package diffprocessor
 
 import (
 	"bytes"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/go-logr/logr/testr"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"strings"
@@ -116,7 +114,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			diff, err := GenerateDiffWithOptions(tt.current, tt.desired, logging.NewLogrLogger(testr.New(t)), tt.options)
+			diff, err := GenerateDiffWithOptions(tt.current, tt.desired, tu.TestLogger(t), tt.options)
 
 			if err != nil {
 				t.Fatalf("GenerateDiffWithOptions() returned error: %v", err)
@@ -305,6 +303,7 @@ func TestRenderDiffs(t *testing.T) {
 				config: ProcessorConfig{
 					Colorize: tt.options.UseColors,
 					Compact:  tt.options.Compact,
+					Logger:   tu.TestLogger(t),
 				},
 			}
 

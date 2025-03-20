@@ -1,6 +1,8 @@
 package testutils
 
 import (
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/go-logr/logr/testr"
 	"github.com/go-logr/stdr"
 	stdlog "log"
 	"regexp"
@@ -78,4 +80,8 @@ type testWriter struct {
 func (tw testWriter) Write(p []byte) (int, error) {
 	tw.t.Log(string(p))
 	return len(p), nil
+}
+
+func TestLogger(t *testing.T) logging.Logger {
+	return logging.NewLogrLogger(testr.New(t))
 }

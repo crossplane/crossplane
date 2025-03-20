@@ -121,7 +121,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 		return errors.Wrap(err, "cannot create diff processor")
 	}
 
-	err = processor.Initialize(k.Stdout, ctx)
+	err = processor.Initialize(ctx)
 	if err != nil {
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}

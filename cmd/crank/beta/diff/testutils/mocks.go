@@ -20,7 +20,7 @@ import (
 
 // DiffProcessor defines the interface for processing resources for diffing
 type DiffProcessor interface {
-	Initialize(writer io.Writer, ctx context.Context) error
+	Initialize(ctx context.Context) error
 	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
 	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
 }
@@ -333,15 +333,15 @@ func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstr
 // MockDiffProcessor implements the DiffProcessor interface for testing
 type MockDiffProcessor struct {
 	// Function fields for mocking behavior
-	InitializeFn      func(writer io.Writer, ctx context.Context) error
+	InitializeFn      func(ctx context.Context) error
 	ProcessAllFn      func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
 	ProcessResourceFn func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
 }
 
 // Initialize implements the DiffProcessor interface
-func (m *MockDiffProcessor) Initialize(stdout io.Writer, ctx context.Context) error {
+func (m *MockDiffProcessor) Initialize(ctx context.Context) error {
 	if m.InitializeFn != nil {
-		return m.InitializeFn(stdout, ctx)
+		return m.InitializeFn(ctx)
 	}
 	return nil
 }
