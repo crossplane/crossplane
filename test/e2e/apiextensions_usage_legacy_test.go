@@ -19,9 +19,9 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
-// TestUsageStandalone tests scenarios for Crossplane's `Usage` resource without
-// a composition involved.
-func TestUsageStandalone(t *testing.T) {
+// TestLegacyUsageStandalone tests scenarios for Crossplane's legacy `Usage`
+// resource without a composition involved.
+func TestLegacyUsageStandalone(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/standalone"
 
 	cases := features.Table{
@@ -84,7 +84,7 @@ func TestUsageStandalone(t *testing.T) {
 	)
 }
 
-func TestUsageComposition(t *testing.T) {
+func TestLegacyUsageComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/composition"
 
 	usageList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: crossplane-system # I'm lazy and don't want to create a namespace for this test.
+  name: used-resource
+  labels:
+    foo: bar
+data:
+  super: interesting
