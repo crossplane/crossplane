@@ -40,7 +40,7 @@ const LabelAreaDiff = "diff"
 
 // RunDiff runs the crossplane diff command on the provided resources.
 // It returns the output and any error encountered.
-func RunDiff(t *testing.T, c *envconf.Config, crankPath string, resourcePaths ...string) (string, error) {
+func RunDiff(t *testing.T, c *envconf.Config, crankPath string, resourcePaths ...string) (string, string, error) {
 	t.Helper()
 
 	var err error
@@ -59,12 +59,8 @@ func RunDiff(t *testing.T, c *envconf.Config, crankPath string, resourcePaths ..
 
 	// Run the command
 	err = cmd.Run()
-	if err != nil {
-		t.Logf("Error running diff command: %v", err)
-		t.Logf("stderr: %s", stderr.String())
-	}
 
-	return stdout.String(), err
+	return stdout.String(), stderr.String(), err
 }
 
 // TestCrossplaneDiffCommand tests the functionality of the crossplane diff command.
@@ -88,19 +84,19 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				crankPath := funcs.FindCrankBinary(t)
 
 				// Run the diff command on a new resource that doesn't exist yet
-				output, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "new-xr.yaml"))
+				output, log, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "new-xr.yaml"))
 				if err != nil {
 					t.Fatalf("Error running diff command: %v", err)
 				}
 
 				// Verify the output contains the expected text for a new resource
 				if !strings.Contains(output, "+++ XNopResource/new-resource") {
-					t.Errorf("Expected diff output to show new XNopResource, got: %s", output)
+					t.Errorf("Expected diff output to show new XNopResource, got: %s\nLog output:\n%s", output, log)
 				}
 
 				// Verify the output contains the expected text for a composed resource
-				if !strings.Contains(output, "+ NopResource") {
-					t.Errorf("Expected diff output to show new NopResource, got: %s", output)
+				if !strings.Contains(output, "+++ NopResource") {
+					t.Errorf("Expected diff output to show new NopResource, got: %s\nLog output:\n%s", output, log)
 				}
 
 				return ctx
@@ -129,19 +125,19 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				crankPath := funcs.FindCrankBinary(t)
 
 				// Run the diff command on a modified existing resource
-				output, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "modified-xr.yaml"))
+				output, log, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "modified-xr.yaml"))
 				if err != nil {
-					t.Fatalf("Error running diff command: %v", err)
+					t.Fatalf("Error running diff command: %v\n Log output:\n%s", err, log)
 				}
 
 				// Verify the output contains the expected text for a modified resource
-				if !strings.Contains(output, "~ XNopResource/existing-resource") {
-					t.Errorf("Expected diff output to show modified XNopResource, got: %s", output)
+				if !strings.Contains(output, "~~~ XNopResource/existing-resource") {
+					t.Errorf("Expected diff output to show modified XNopResource, got: %s\nLog output:\n%s", output, log)
 				}
 
 				// Verify output contains patch-specific changes
 				if !strings.Contains(output, "\"coolField\": \"I'm modified!\"") {
-					t.Errorf("Expected diff output to show coolField modification, got: %s", output)
+					t.Errorf("Expected diff output to show coolField modification, got: %s\nLog output:\n%s", output, log)
 				}
 
 				return ctx

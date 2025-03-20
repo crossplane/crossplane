@@ -466,6 +466,14 @@ func (b *ResourceBuilder) InNamespace(namespace string) *ResourceBuilder {
 	return b
 }
 
+// WithGenerateName sets the namespace for the resource.
+func (b *ResourceBuilder) WithGenerateName(generateName string) *ResourceBuilder {
+	if generateName != "" {
+		b.resource.SetGenerateName(generateName)
+	}
+	return b
+}
+
 // WithLabels adds labels to the resource.
 func (b *ResourceBuilder) WithLabels(labels map[string]string) *ResourceBuilder {
 	if len(labels) > 0 {

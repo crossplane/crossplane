@@ -255,38 +255,27 @@ func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger logging.Logger, _ DiffOptions) (*ResourceDiff, error) {
 	var diffType DiffType
 
-	// Log the inputs
-	currentName := "nil"
-	currentKind := "nil"
-	if current != nil {
-		currentName = current.GetName()
-		currentKind = current.GetKind()
-	}
-	desiredName := "nil"
-	desiredKind := "nil"
+	// Determine resource identifiers upfront
+	resourceKey := "unknown/unknown"
 	if desired != nil {
-		desiredName = desired.GetName()
-		desiredKind = desired.GetKind()
+		resourceKey = fmt.Sprintf("%s/%s", desired.GetKind(), desired.GetName())
+	} else if current != nil {
+		resourceKey = fmt.Sprintf("%s/%s", current.GetKind(), current.GetName())
 	}
 
-	logger.Debug("Generating diff between resources",
-		"current", fmt.Sprintf("%s/%s", currentKind, currentName),
-		"desired", fmt.Sprintf("%s/%s", desiredKind, desiredName))
+	logger.Debug("Generating diff", "resource", resourceKey)
 
 	// Determine diff type
 	switch {
 	case current == nil && desired != nil:
 		diffType = DiffTypeAdded
-		logger.Debug("Diff type: Resource is being added",
-			"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
+		logger.Debug("Diff type: Resource is being added", "resource", resourceKey)
 	case current != nil && desired == nil:
 		diffType = DiffTypeRemoved
-		logger.Debug("Diff type: Resource is being removed",
-			"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
+		logger.Debug("Diff type: Resource is being removed", "resource", resourceKey)
 	case current != nil: // && desired != nil:
 		diffType = DiffTypeModified
-		logger.Debug("Diff type: Resource is being modified",
-			"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
+		logger.Debug("Diff type: Resource is being modified", "resource", resourceKey)
 	default:
 		logger.Debug("Error: both current and desired are nil")
 		return nil, errors.New("both current and desired cannot be nil")
@@ -294,10 +283,9 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 
 	// For modifications, check if objects are semantically equal
 	if diffType == DiffTypeModified {
+		// Check for deep equality first
 		if equality.Semantic.DeepEqual(current, desired) {
-			// Objects are completely equal, return nil to indicate no diff
-			logger.Debug("Resources are semantically equal",
-				"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
+			logger.Debug("Resources are semantically equal", "resource", resourceKey)
 			return equalDiff(current, desired), nil
 		}
 
@@ -307,17 +295,14 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 
 		// Check if the cleaned objects are equal
 		if equality.Semantic.DeepEqual(currentClean.Object, desiredClean.Object) {
-			// Objects are equal in terms of the content we care about,
-			// but may have metadata differences - return DiffTypeEqual
-			logger.Debug("Resources are equal after cleanup (only metadata differences)",
-				"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
+			logger.Debug("Resources are equal after cleanup (only metadata differences)", "resource", resourceKey)
 			return equalDiff(current, desired), nil
 		}
 
-		logger.Debug("Resources are not equal, proceeding with diff calculation",
-			"resource", fmt.Sprintf("%s/%s", currentKind, currentName))
+		logger.Debug("Resources are not equal after cleanup", "resource", resourceKey)
 	}
 
+	// Convert to YAML for text diff
 	asString := func(obj *unstructured.Unstructured) (string, error) {
 		if obj == nil {
 			return "", nil
@@ -344,34 +329,37 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 
 	// Return nil if content is identical
 	if desiredStr == currentStr {
-		logger.Debug("Resources have identical YAML representation after cleanup",
-			"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
+		logger.Debug("Resources have identical YAML representation", "resource", resourceKey)
 		return equalDiff(current, desired), nil
 	}
 
 	// Get the line by line diff
-	logger.Debug("Computing line-by-line diff",
-		"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
+	logger.Debug("Computing line-by-line diff", "resource", resourceKey)
 	lineDiffs := GetLineDiff(currentStr, desiredStr)
 
 	if len(lineDiffs) == 0 {
-		logger.Debug("No differences found in line-by-line comparison",
-			"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName))
+		logger.Debug("No differences found in line-by-line comparison", "resource", resourceKey)
 		return equalDiff(current, desired), nil
 	}
 
-	logger.Debug("Diff calculation complete",
-		"resource", fmt.Sprintf("%s/%s", desiredKind, desiredName),
-		"diff_chunks", len(lineDiffs))
+	logger.Debug("Diff calculation complete", "resource", resourceKey, "diff_chunks", len(lineDiffs))
 
 	// Extract resource kind and name
 	var kind, name string
-	if desired != nil {
-		kind = desired.GetKind()
-		name = desired.GetName()
-	} else {
+	// For removed resources, use current's kind and name
+	if diffType == DiffTypeRemoved { // current != nil
 		kind = current.GetKind()
 		name = current.GetName()
+	} else { // desired != nil
+		// For added or modified resources, use desired's kind
+		kind = desired.GetKind()
+
+		// For name, prefer the current resource name if it exists (for generateName cases)
+		if current != nil && current.GetName() != "" {
+			name = current.GetName()
+		} else {
+			name = desired.GetName()
+		}
 	}
 
 	return &ResourceDiff{
@@ -450,10 +438,13 @@ func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOpti
 }
 
 // cleanupForDiff removes fields that shouldn't be included in the diff
-// cleanupForDiff removes fields that shouldn't be included in the diff
 func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unstructured.Unstructured {
 	resKind := obj.GetKind()
 	resName := obj.GetName()
+	resKey := fmt.Sprintf("%s/%s", resKind, resName)
+
+	// Track all modifications for a single consolidated log message
+	modifications := []string{}
 
 	// Remove server-side fields and metadata that we don't want to diff
 	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
@@ -478,44 +469,36 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 			}
 		}
 
-		// Only log if some fields were actually removed
+		// Only record if some fields were actually removed
 		if len(removedFields) > 0 {
-			logger.Debug("Removed metadata fields from diff calculation",
-				"resource", fmt.Sprintf("%s/%s", resKind, resName),
-				"removed_fields", strings.Join(removedFields, ", "))
+			modifications = append(modifications, fmt.Sprintf("metadata fields: %s", strings.Join(removedFields, ", ")))
 		}
 
 		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
 	}
 
 	// Remove resourceRefs field from spec if it exists
-	// This ensures it doesn't affect diff calculations
 	spec, found, _ := unstructured.NestedMap(obj.Object, "spec")
 	if found && spec != nil {
-		resourceRefsRemoved := false
 		if _, exists := spec["resourceRefs"]; exists {
 			delete(spec, "resourceRefs")
-			resourceRefsRemoved = true
-		}
-
-		if resourceRefsRemoved {
-			logger.Debug("Removed resourceRefs from spec for diff calculation",
-				"resource", fmt.Sprintf("%s/%s", resKind, resName))
+			modifications = append(modifications, "resourceRefs from spec")
 		}
 
 		unstructured.SetNestedMap(obj.Object, spec, "spec")
 	}
 
 	// Remove status field as we're focused on spec changes
-	statusRemoved := false
 	if _, exists := obj.Object["status"]; exists {
 		delete(obj.Object, "status")
-		statusRemoved = true
+		modifications = append(modifications, "status field")
 	}
 
-	if statusRemoved {
-		logger.Debug("Removed status field for diff calculation",
-			"resource", fmt.Sprintf("%s/%s", resKind, resName))
+	// Log a single consolidated message if any modifications were made
+	if len(modifications) > 0 {
+		logger.Debug("Cleaned object for diff",
+			"resource", resKey,
+			"removed", strings.Join(modifications, ", "))
 	}
 
 	return obj

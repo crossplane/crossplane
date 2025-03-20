@@ -1002,39 +1002,47 @@ type CompositeExtraResourceProvider struct {
 // GetExtraResources implements the ExtraResourceProvider interface.
 // It calls each provider in sequence, accumulating resources as it goes.
 func (p *CompositeExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	p.logger.Debug("Getting extra resources from all providers",
-		"providers_count", len(p.providers),
-		"input_resources_count", len(resources))
+	compName := comp.GetName()
+	xrName := xr.GetName()
+
+	p.logger.Debug("Getting extra resources",
+		"composition", compName,
+		"xr", xrName,
+		"providersCount", len(p.providers),
+		"existingResourcesCount", len(resources))
 
 	allResources := make([]*unstructured.Unstructured, len(resources))
 	copy(allResources, resources)
 
 	for i, provider := range p.providers {
-		p.logger.Debug("Getting resources from provider",
+		providerType := fmt.Sprintf("%T", provider)
+
+		p.logger.Debug("Querying provider",
 			"index", i,
-			"provider_type", fmt.Sprintf("%T", provider))
+			"type", providerType)
 
 		extraResources, err := provider.GetExtraResources(ctx, comp, xr, allResources)
 		if err != nil {
-			p.logger.Debug("Provider returned error",
-				"index", i,
+			p.logger.Debug("Provider error",
+				"type", providerType,
 				"error", err)
 			return nil, err
 		}
 
-		if extraResources != nil {
+		if len(extraResources) > 0 {
 			p.logger.Debug("Provider returned resources",
-				"index", i,
+				"type", providerType,
 				"count", len(extraResources))
 			allResources = append(allResources, extraResources...)
-		} else {
-			p.logger.Debug("Provider returned no resources", "index", i)
 		}
 	}
 
 	// Return just the newly added resources (excluding the initial resources)
 	newlyAddedResources := allResources[len(resources):]
-	p.logger.Debug("Returning newly added resources",
+
+	p.logger.Debug("Extra resources collected",
+		"composition", compName,
+		"xr", xrName,
 		"count", len(newlyAddedResources))
 
 	return newlyAddedResources, nil

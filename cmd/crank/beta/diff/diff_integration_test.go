@@ -469,14 +469,6 @@ func TestDiffIntegration(t *testing.T) {
 				NoColor:   tt.noColor,
 			}
 
-			// Use real implementations
-			origClusterClientFactory := ClusterClientFactory
-			origDiffProcessorFactory := DiffProcessorFactory
-			defer func() {
-				ClusterClientFactory = origClusterClientFactory
-				DiffProcessorFactory = origDiffProcessorFactory
-			}()
-
 			// TODO: This seems a bit redundant with the Kong binding?
 			// Use the real implementation but with our test config
 			ClusterClientFactory = func(config *rest.Config, opts ...cc.ClusterClientOption) (cc.ClusterClient, error) {

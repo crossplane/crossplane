@@ -140,14 +140,23 @@ func NewClusterClient(config *rest.Config, opts ...ClusterClientOption) (*Defaul
 func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 	c.logger.Debug("Initializing cluster client")
 
+	// Fetch compositions
 	compositions, err := c.listCompositions(ctx)
 	if err != nil {
-		c.logger.Debug("Failed to list compositions", "error", err)
 		return errors.Wrap(err, "cannot list compositions")
 	}
 
-	c.logger.Debug("Retrieved compositions from cluster", "count", len(compositions))
+	// Fetch functions
+	functions, err := c.listFunctions(ctx)
+	if err != nil {
+		return errors.Wrap(err, "cannot list functions")
+	}
+
+	// Initialize and populate maps
 	c.compositions = make(map[compositionCacheKey]*apiextensionsv1.Composition, len(compositions))
+	c.functions = make(map[string]pkgv1.Function, len(functions))
+
+	// Process compositions
 	for i := range compositions {
 		key := compositionCacheKey{
 			apiVersion: compositions[i].Spec.CompositeTypeRef.APIVersion,
@@ -156,14 +165,7 @@ func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 		c.compositions[key] = &compositions[i]
 	}
 
-	functions, err := c.listFunctions(ctx)
-	if err != nil {
-		c.logger.Debug("Failed to list functions", "error", err)
-		return errors.Wrap(err, "cannot list functions")
-	}
-
-	c.logger.Debug("Retrieved functions from cluster", "count", len(functions))
-	c.functions = make(map[string]pkgv1.Function, len(functions))
+	// Process functions
 	for i := range functions {
 		c.functions[functions[i].GetName()] = functions[i]
 	}
@@ -319,7 +321,10 @@ func (c *DefaultClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Co
 				}
 				return string(*comp.Spec.Mode)
 			}())
-		return nil, nil
+		if comp.Spec.Mode != nil {
+			return nil, errors.New(fmt.Sprintf("Unsupported composition Mode '%s'; supported types are [%s]", *comp.Spec.Mode, apiextensionsv1.CompositionModePipeline))
+		}
+		return nil, errors.New("Unsupported Composition; no Mode found.")
 	}
 
 	functions := make([]pkgv1.Function, 0, len(comp.Spec.Pipeline))
@@ -474,10 +479,8 @@ func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Uns
 
 // GetResource retrieves a resource from the cluster using the dynamic client
 func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
-	c.logger.Debug("Getting resource from cluster",
-		"gvk", gvk.String(),
-		"namespace", namespace,
-		"name", name)
+	resourceID := fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
+	c.logger.Debug("Getting resource from cluster", "resource", resourceID)
 
 	// Create a GroupVersionResource from the GroupVersionKind
 	gvr := schema.GroupVersionResource{
@@ -497,9 +500,6 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 		// Add other special cases as needed
 	}
 
-	c.logger.Debug("Using GVR for resource",
-		"gvr", gvr.String())
-
 	// Get the resource
 	var res *unstructured.Unstructured
 	var err error
@@ -509,17 +509,16 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 
 	if err != nil {
 		c.logger.Debug("Failed to get resource",
-			"gvk", gvk.String(),
-			"namespace", namespace,
-			"name", name,
+			"resource", resourceID,
+			"gvr", gvr.String(),
 			"error", err)
 		return nil, errors.Wrapf(err, "cannot get resource %s/%s of kind %s", namespace, name, gvk.Kind)
 	}
 
-	c.logger.Debug("Successfully retrieved resource",
-		"gvk", gvk.String(),
-		"name", name,
-		"uid", res.GetUID())
+	c.logger.Debug("Retrieved resource",
+		"resource", resourceID,
+		"uid", res.GetUID(),
+		"resourceVersion", res.GetResourceVersion())
 	return res, nil
 }
 
@@ -555,10 +554,8 @@ func (c *DefaultClusterClient) GetResourceTree(ctx context.Context, root *unstru
 
 // DryRunApply performs a server-side apply with dry-run flag for diffing
 func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	c.logger.Debug("Performing dry-run apply",
-		"resource_kind", obj.GetKind(),
-		"resource_name", obj.GetName(),
-		"namespace", obj.GetNamespace())
+	resourceID := fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())
+	c.logger.Debug("Performing dry-run apply", "resource", resourceID)
 
 	// Create GVR from the object
 	gvk := obj.GroupVersionKind()
@@ -568,42 +565,29 @@ func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructure
 		Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // naive pluralization
 	}
 
-	c.logger.Debug("Using GVR for dry-run apply",
-		"gvr", gvr.String())
-
 	// Get the resource client for the namespace
-	// if obj.namespace is empty, calling Namespace() is a no-op.
 	resourceClient := c.dynamicClient.Resource(gvr).Namespace(obj.GetNamespace())
-
-	// Set a field manager for server-side apply
-	fieldManager := "crossplane-diff"
 
 	// Create apply options for a dry run
 	applyOptions := metav1.ApplyOptions{
-		FieldManager: fieldManager,
+		FieldManager: "crossplane-diff",
 		Force:        true,
 		DryRun:       []string{metav1.DryRunAll},
 	}
 
 	// Perform a dry-run server-side apply
-	c.logger.Debug("Executing dry-run server-side apply")
 	result, err := resourceClient.Apply(ctx, obj.GetName(), obj, applyOptions)
 	if err != nil {
-		// Log the error details for debugging
 		c.logger.Debug("Dry-run apply failed",
-			"resource_kind", obj.GetKind(),
-			"resource_name", obj.GetName(),
-			"namespace", obj.GetNamespace(),
+			"resource", resourceID,
 			"error", err)
 		return nil, errors.Wrapf(err, "failed to apply resource %s/%s: %v",
 			obj.GetNamespace(), obj.GetName(), err)
 	}
 
 	c.logger.Debug("Dry-run apply successful",
-		"resource_kind", result.GetKind(),
-		"resource_name", result.GetName(),
-		"resource_uid", result.GetUID(),
-		"resource_version", result.GetResourceVersion())
+		"resource", resourceID,
+		"resourceVersion", result.GetResourceVersion())
 	return result, nil
 }
 

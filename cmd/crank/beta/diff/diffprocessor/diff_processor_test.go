@@ -9,6 +9,7 @@ import (
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 	"testing"
@@ -208,7 +209,7 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 					Build()
 			},
 			resources: []*unstructured.Unstructured{resource1},
-			want:      errors.New("unable to process resource my-xr-1: cannot find matching composition: composition not found"),
+			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
 		},
 		{
 			name: "MultipleResourceErrors",
@@ -220,8 +221,8 @@ func TestDiffProcessor_ProcessAll(t *testing.T) {
 					Build()
 			},
 			resources: []*unstructured.Unstructured{resource1, resource2},
-			want: errors.New("[unable to process resource my-xr-1: cannot find matching composition: composition not found, " +
-				"unable to process resource my-xr-2: cannot find matching composition: composition not found]"),
+			want: errors.New("[unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found, " +
+				"unable to process resource XR1/my-xr-2: cannot find matching composition: composition not found]"),
 		},
 	}
 
@@ -387,6 +388,74 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 			composite: nil,
 			desired:   modifiedResource,
 			wantErr:   true,
+		},
+		{
+			name: "Successfully find and diff resource with generateName",
+			setupClient: func() *tu.MockClusterClient {
+				// The composed resource with generateName
+				composedWithGenName := tu.NewResource("example.org/v1", "ComposedResource", "").
+					WithLabels(map[string]string{
+						"crossplane.io/composite": "parent-xr",
+					}).
+					WithAnnotations(map[string]string{
+						"crossplane.io/composition-resource-name": "resource-a",
+					}).
+					Build()
+
+				// Set generateName instead of name
+				composedWithGenName.SetGenerateName("test-resource-")
+
+				// The existing resource on the cluster with a generated name
+				existingComposed := tu.NewResource("example.org/v1", "ComposedResource", "test-resource-abc123").
+					WithLabels(map[string]string{
+						"crossplane.io/composite": "parent-xr",
+					}).
+					WithAnnotations(map[string]string{
+						"crossplane.io/composition-resource-name": "resource-a",
+					}).
+					WithSpecField("field", "old-value").
+					Build()
+
+				// Create a mock client that will return resources by label
+				return tu.NewMockClusterClient().
+					// Return "not found" for direct name lookup
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						// This should fail as the resource has generateName, not name
+						return nil, apierrors.NewNotFound(
+							schema.GroupResource{
+								Group:    gvk.Group,
+								Resource: strings.ToLower(gvk.Kind) + "s",
+							},
+							name,
+						)
+					}).
+					// Return our existing resource when looking up by label
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+						// Verify we're looking up with the right composite owner label
+						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
+							return []*unstructured.Unstructured{existingComposed}, nil
+						}
+						return []*unstructured.Unstructured{}, nil
+					}).
+					WithSuccessfulDryRun().
+					Build()
+			},
+			composite: tu.NewResource("example.org/v1", "XR", "parent-xr").Build(),
+			desired: tu.NewResource("example.org/v1", "ComposedResource", "").
+				WithLabels(map[string]string{
+					"crossplane.io/composite": "parent-xr",
+				}).
+				WithAnnotations(map[string]string{
+					"crossplane.io/composition-resource-name": "resource-a",
+				}).
+				WithSpecField("field", "new-value").
+				WithGenerateName("test-resource-").
+				Build(),
+			wantDiff: &ResourceDiff{
+				ResourceKind: "ComposedResource",
+				ResourceName: "test-resource-abc123", // Should have found the existing resource name
+				DiffType:     DiffTypeModified,
+			},
 		},
 	}
 

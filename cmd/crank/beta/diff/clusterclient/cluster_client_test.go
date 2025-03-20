@@ -708,7 +708,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 		want   want
 	}{
 		"NonPipelineMode": {
-			reason: "Should return nil when composition is not in pipeline mode",
+			reason: "Should throw an error when composition is not in pipeline mode",
 			fields: fields{
 				functions: map[string]pkgv1.Function{},
 			},
@@ -720,11 +720,11 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 				},
 			},
 			want: want{
-				functions: nil,
+				err: errors.New("Unsupported composition Mode 'NonPipeline'; supported types are [Pipeline]"),
 			},
 		},
 		"NoModeSpecified": {
-			reason: "Should return nil when composition mode is not specified",
+			reason: "Should throw an error when composition mode is not specified",
 			fields: fields{
 				functions: map[string]pkgv1.Function{},
 			},
@@ -736,7 +736,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 				},
 			},
 			want: want{
-				functions: nil,
+				err: errors.New("Unsupported Composition; no Mode found."),
 			},
 		},
 		"EmptyPipeline": {
