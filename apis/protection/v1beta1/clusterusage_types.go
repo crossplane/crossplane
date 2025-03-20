@@ -20,10 +20,6 @@ package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
-	"github.com/crossplane/crossplane/internal/protection"
 )
 
 // A ClusterUsage defines a deletion blocking relationship between two
@@ -67,71 +63,6 @@ type ClusterUsageSpec struct {
 	// ReplayDeletion will trigger a deletion on the used resource during the deletion of the usage itself, if it was attempted to be deleted at least once.
 	// +optional
 	ReplayDeletion *bool `json:"replayDeletion,omitempty"`
-}
-
-// GetUserOf gets the resource this ClusterUsage indicates a use of.
-func (u *ClusterUsage) GetUserOf() protection.Resource {
-	conv := GeneratedResourceConverter{}
-	return conv.ToInternal(u.Spec.Of)
-}
-
-// SetUserOf sets the resource this ClusterUsage indicates a use of.
-func (u *ClusterUsage) SetUserOf(r protection.Resource) {
-	conv := GeneratedResourceConverter{}
-	u.Spec.Of = conv.FromInternal(r)
-}
-
-// GetUsedBy gets the resource this ClusterUsage indicates a use by.
-func (u *ClusterUsage) GetUsedBy() *protection.Resource {
-	if u.Spec.By == nil {
-		return nil
-	}
-	conv := GeneratedResourceConverter{}
-	out := conv.ToInternal(*u.Spec.By)
-	return &out
-}
-
-// SetUsedBy sets the resource this ClusterUsage indicates a use by.
-func (u *ClusterUsage) SetUsedBy(r *protection.Resource) {
-	if r == nil {
-		u.Spec.By = nil
-		return
-	}
-	conv := GeneratedResourceConverter{}
-	out := conv.FromInternal(*r)
-	u.Spec.By = &out
-}
-
-// GetReason gets the reason this ClusterUsage exists.
-func (u *ClusterUsage) GetReason() *string {
-	return u.Spec.Reason
-}
-
-// SetReason sets the reason this ClusterUsage exists.
-func (u *ClusterUsage) SetReason(reason *string) {
-	u.Spec.Reason = reason
-}
-
-// GetReplayDeletion gets a boolean that indicates whether deletion of the used
-// resource will be replayed when this ClusterUsage is deleted.
-func (u *ClusterUsage) GetReplayDeletion() *bool {
-	return u.Spec.ReplayDeletion
-}
-
-// SetReplayDeletion specifies whether deletion of the used resource will be
-// replayed when this ClusterUsage is deleted.
-func (u *ClusterUsage) SetReplayDeletion(replay *bool) {
-	u.Spec.ReplayDeletion = replay
-}
-
-// GetCondition of this ClusterUsage.
-func (u *ClusterUsage) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	return u.Status.GetCondition(ct)
-}
-
-// SetConditions of this ClusterUsage.
-func (u *ClusterUsage) SetConditions(c ...xpv1.Condition) {
-	u.Status.SetConditions(c...)
 }
 
 // +kubebuilder:object:root=true
