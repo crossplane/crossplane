@@ -23,6 +23,29 @@ spec:
               properties:
                 configKey:
                   type: string
+                resourceRefs:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - apiVersion
+                      - kind
+                      - name
+                    properties:
+                      apiVersion:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      uid:
+                        type: string
+                      resourceVersion:
+                        type: string
+                      fieldPath:
+                        type: string
             status:
               type: object
               properties:

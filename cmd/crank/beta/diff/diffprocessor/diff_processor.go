@@ -415,10 +415,10 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 	renderedResources := make(map[string]bool)
 
 	// First, calculate diff for the XR itself
-	xrDiff, err := p.CalculateDiff(ctx, "", xr.GetUnstructured())
-	if err != nil {
-		errs = append(errs, errors.Wrap(err, "cannot calculate diff for XR"))
-	} else if xrDiff != nil {
+	xrDiff, err := p.CalculateDiff(ctx, nil, xr.GetUnstructured())
+	if err != nil || xrDiff == nil {
+		return nil, errors.Wrap(err, "cannot calculate diff for XR")
+	} else if xrDiff.DiffType != DiffTypeEqual {
 		key := fmt.Sprintf("%s/%s", xrDiff.ResourceKind, xrDiff.ResourceName)
 		diffs[key] = xrDiff
 		p.config.Logger.Debug("Added XR diff", "key", key)
@@ -437,7 +437,7 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 		key := fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
 		renderedResources[key] = true
 
-		diff, err := p.CalculateDiff(ctx, xr.GetName(), un)
+		diff, err := p.CalculateDiff(ctx, xrDiff.Current, un)
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "cannot calculate diff for %s", key))
 			continue
@@ -534,14 +534,14 @@ func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context
 }
 
 // CalculateDiff calculates the diff for a single resource
-func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite string, desired *unstructured.Unstructured) (*ResourceDiff, error) {
+func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*ResourceDiff, error) {
 	// Fetch current object from cluster
 	current, _, err := p.fetchCurrentObject(ctx, composite, desired)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot fetch current object")
 	}
 
-	p.makeObjectValid(desired)
+	p.updateOwnerRefs(composite, desired)
 
 	wouldBeResult := desired
 	if current != nil {
@@ -560,28 +560,47 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite stri
 }
 
 // makeObjectValid makes sure all OwnerReferences have a valid UID
-func (p *DefaultDiffProcessor) makeObjectValid(obj *unstructured.Unstructured) {
+func (p *DefaultDiffProcessor) updateOwnerRefs(parent *unstructured.Unstructured, child *unstructured.Unstructured) {
+
+	// if there's no parent, we are the parent.
+	if parent == nil {
+		return
+	}
+
+	uid := parent.GetUID()
+
 	// Get the current owner references
-	refs := obj.GetOwnerReferences()
+	refs := child.GetOwnerReferences()
 
 	// Create new slice to hold the updated references
 	updatedRefs := make([]metav1.OwnerReference, 0, len(refs))
 
 	// Set a valid UID for each reference
 	for _, ref := range refs {
+		// if there is an owner ref on the dependent that we are pretty sure comes from us,
+		// point the UID to the parent.
+		if ref.Name == parent.GetName() &&
+			ref.APIVersion == parent.GetAPIVersion() &&
+			ref.Kind == parent.GetKind() &&
+			ref.UID == "" {
+			ref.UID = uid
+		}
+
+		// if we have a non-matching owner ref don't use the parent UID.
 		if ref.UID == "" {
 			ref.UID = uuid.NewUUID()
 		}
+
 		updatedRefs = append(updatedRefs, ref)
 	}
 
 	// Update the object with the modified owner references
-	obj.SetOwnerReferences(updatedRefs)
+	child.SetOwnerReferences(updatedRefs)
 }
 
 // fetchCurrentObject retrieves the current state of the object from the cluster
 // It returns the current object, a boolean indicating if it's a new object, and any error
-func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite string, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
 	// Get the GroupVersionKind and name/namespace for lookup
 	gvk := desired.GroupVersionKind()
 	name := desired.GetName()
@@ -591,40 +610,30 @@ func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite
 	var err error
 	isNewObject := false
 
-	if composite != "" {
-		// For composed resources, use the label selector approach
-		sel := metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"crossplane.io/composite": composite,
-			},
-		}
-		gvr := schema.GroupVersionResource{
-			Group:    gvk.Group,
-			Version:  gvk.Version,
-			Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // naive pluralization
-		}
+	// For all resources, use direct lookup by GVK and name
+	current, err = p.client.GetResource(ctx, gvk, namespace, name)
+	if apierrors.IsNotFound(err) {
+		// If the resource is not found, it's a new object
+		isNewObject = true
+		err = nil // Clear the error since this is an expected condition
+	} else if err != nil {
+		// For any other error, return it
+		return nil, false, errors.Wrap(err, "cannot get current object")
+	}
 
-		// Get the current object from the cluster using ClusterClient
-		currents, err := p.client.GetResourcesByLabel(ctx, namespace, gvr, sel)
-		if err != nil {
-			return nil, false, errors.Wrap(err, "cannot get current object")
-		}
-		if len(currents) > 1 {
-			return nil, false, errors.New(fmt.Sprintf("more than one matching resource found for %s/%s", gvk.Kind, name))
-		}
-
-		if len(currents) == 1 {
-			current = currents[0]
-		} else {
-			isNewObject = true
-		}
-	} else {
-		// For XRs, use direct lookup by name
-		current, err = p.client.GetResource(ctx, gvk, namespace, name)
-		if apierrors.IsNotFound(err) {
-			isNewObject = true
-		} else if err != nil {
-			return nil, false, errors.Wrap(err, "cannot get current object")
+	// If the object exists and we have a composite parent to check against...
+	if current != nil && composite != nil {
+		// Check if this resource is already owned by a different composite
+		if labels := current.GetLabels(); labels != nil {
+			if owner, exists := labels["crossplane.io/composite"]; exists && owner != composite.GetName() {
+				// Log a warning if the resource is owned by a different composite
+				p.config.Logger.Info(
+					"Warning: Resource already belongs to another composite",
+					"resource", fmt.Sprintf("%s/%s", gvk.Kind, name),
+					"currentOwner", owner,
+					"newOwner", composite,
+				)
+			}
 		}
 	}
 
@@ -646,6 +655,11 @@ func (p *DefaultDiffProcessor) RenderDiffs(stdout io.Writer, diffs map[string]*R
 	for _, key := range keys {
 		diff := diffs[key]
 
+		// Skip rendering equal resources
+		if diff.DiffType == DiffTypeEqual {
+			continue
+		}
+
 		// Format the diff header based on the diff type
 		var header string
 		switch diff.DiffType {
@@ -655,6 +669,8 @@ func (p *DefaultDiffProcessor) RenderDiffs(stdout io.Writer, diffs map[string]*R
 			header = fmt.Sprintf("--- %s/%s", diff.ResourceKind, diff.ResourceName)
 		case DiffTypeModified:
 			header = fmt.Sprintf("~~~ %s/%s", diff.ResourceKind, diff.ResourceName)
+		case DiffTypeEqual: // technically a nop, but for completeness
+			header = fmt.Sprintf("=== %s/%s", diff.ResourceKind, diff.ResourceName)
 		}
 
 		// Format the diff content

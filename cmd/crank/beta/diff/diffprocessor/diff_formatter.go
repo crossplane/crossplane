@@ -17,6 +17,7 @@ const (
 	DiffTypeAdded    DiffType = "+"
 	DiffTypeRemoved  DiffType = "-"
 	DiffTypeModified DiffType = "~"
+	DiffTypeEqual    DiffType = "="
 )
 
 // Colors for terminal output
@@ -278,9 +279,23 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ Diff
 		return nil, errors.New("both current and desired cannot be nil")
 	}
 
-	// If objects are equal (for modifications), return nil to indicate no diff
-	if diffType == DiffTypeModified && equality.Semantic.DeepEqual(current, desired) {
-		return nil, nil
+	// For modifications, check if objects are semantically equal
+	if diffType == DiffTypeModified {
+		if equality.Semantic.DeepEqual(current, desired) {
+			// Objects are completely equal, return nil to indicate no diff
+			return equalDiff(current, desired), nil
+		}
+
+		// Clean up both objects for comparison
+		currentClean := cleanupForDiff(current.DeepCopy())
+		desiredClean := cleanupForDiff(desired.DeepCopy())
+
+		// Check if the cleaned objects are equal
+		if equality.Semantic.DeepEqual(currentClean.Object, desiredClean.Object) {
+			// Objects are equal in terms of the content we care about,
+			// but may have metadata differences - return DiffTypeEqual
+			return equalDiff(current, desired), nil
+		}
 	}
 
 	asString := func(obj *unstructured.Unstructured) (string, error) {
@@ -293,7 +308,6 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ Diff
 			return "", err
 		}
 		return string(yaml), nil
-
 	}
 
 	currentStr, err := asString(current)
@@ -308,14 +322,14 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ Diff
 
 	// Return nil if content is identical
 	if desiredStr == currentStr {
-		return nil, nil
+		return equalDiff(current, desired), nil
 	}
 
 	// Get the line by line diff
 	lineDiffs := GetLineDiff(currentStr, desiredStr)
 
 	if len(lineDiffs) == 0 {
-		return nil, nil
+		return equalDiff(current, desired), nil
 	}
 
 	// Extract resource kind and name
@@ -336,6 +350,17 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, _ Diff
 		Current:      current,
 		Desired:      desired,
 	}, nil
+}
+
+func equalDiff(current *unstructured.Unstructured, desired *unstructured.Unstructured) *ResourceDiff {
+	return &ResourceDiff{
+		ResourceKind: current.GetKind(),
+		ResourceName: current.GetName(),
+		DiffType:     DiffTypeEqual,
+		LineDiffs:    []diffmatchpatch.Diff{},
+		Current:      current,
+		Desired:      desired,
+	}
 }
 
 // processLines extracts lines from a diff and processes them into a standardized format
@@ -413,6 +438,14 @@ func cleanupForDiff(obj *unstructured.Unstructured) *unstructured.Unstructured {
 		}
 
 		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
+	}
+
+	// Remove resourceRefs field from spec if it exists
+	// This ensures it doesn't affect diff calculations
+	spec, found, _ := unstructured.NestedMap(obj.Object, "spec")
+	if found && spec != nil {
+		delete(spec, "resourceRefs")
+		unstructured.SetNestedMap(obj.Object, spec, "spec")
 	}
 
 	// Remove status field as we're focused on spec changes

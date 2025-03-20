@@ -283,7 +283,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 	tests := []struct {
 		name        string
 		setupClient func() *tu.MockClusterClient
-		composite   string
+		composite   *unstructured.Unstructured
 		desired     *unstructured.Unstructured
 		wantDiff    *ResourceDiff
 		wantNil     bool
@@ -297,7 +297,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					WithSuccessfulDryRun().
 					Build()
 			},
-			composite: "",
+			composite: nil,
 			desired:   modifiedResource,
 			wantDiff: &ResourceDiff{
 				ResourceKind: "TestResource",
@@ -313,7 +313,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					WithSuccessfulDryRun().
 					Build()
 			},
-			composite: "",
+			composite: nil,
 			desired:   newResource,
 			wantDiff: &ResourceDiff{
 				ResourceKind: "TestResource",
@@ -329,7 +329,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					WithSuccessfulDryRun().
 					Build()
 			},
-			composite: "parent-xr",
+			composite: tu.NewResource("foo", "bar", "parent-xr").Build(),
 			desired: tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
 				WithSpecField("field", "new-value").
 				WithLabels(map[string]string{
@@ -353,9 +353,13 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					WithSuccessfulDryRun().
 					Build()
 			},
-			composite: "",
+			composite: nil,
 			desired:   existingResource.DeepCopy(),
-			wantNil:   true,
+			wantDiff: &ResourceDiff{
+				ResourceKind: "TestResource",
+				ResourceName: "existing-resource",
+				DiffType:     DiffTypeEqual,
+			},
 		},
 		{
 			name: "ErrorGettingCurrentObject",
@@ -366,7 +370,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					}).
 					Build()
 			},
-			composite: "",
+			composite: nil,
 			desired:   existingResource,
 			wantErr:   true,
 		},
@@ -378,7 +382,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 					WithFailedDryRun("apply error").
 					Build()
 			},
-			composite: "",
+			composite: nil,
 			desired:   modifiedResource,
 			wantErr:   true,
 		},

@@ -60,7 +60,13 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			kind:    "TestResource",
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
-			wantNil: true,
+			wantDiff: &ResourceDiff{
+				ResourceKind: "TestResource",
+				ResourceName: "test-resource",
+				DiffType:     DiffTypeEqual,
+				Current:      current,
+				Desired:      noChanges,
+			},
 		},
 		{
 			name:    "NewResource",
@@ -139,7 +145,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			}
 
 			// Check for line diffs - should be non-empty for changed resources
-			if !tt.wantNil && len(diff.LineDiffs) == 0 {
+			if diff.DiffType != DiffTypeEqual && len(diff.LineDiffs) == 0 {
 				t.Errorf("LineDiffs is empty for %s", tt.name)
 			}
 
