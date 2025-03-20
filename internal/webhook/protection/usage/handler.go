@@ -37,9 +37,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	xpmeta "github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	legacy "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 
@@ -49,52 +48,21 @@ const (
 )
 
 // SetupWebhookWithManager sets up the webhook with the manager.
-func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
-	fi := mgr.GetFieldIndexer()
+func SetupWebhookWithManager(mgr ctrl.Manager, f Finder, options controller.Options) {
+	h := NewHandler(xpunstructured.NewClient(mgr.GetClient()), f, WithLogger(options.Logger.WithValues("webhook", "no-usages")))
+	mgr.GetWebhookServer().Register("/validate-no-usages", &webhook.Admission{Handler: h})
+}
 
-	if err := fi.IndexField(context.Background(), &v1beta1.Usage{}, protection.InUseIndexKey, func(obj client.Object) []string {
-		u := obj.(*v1beta1.Usage) //nolint:forcetypeassert // Will always be a Usage.
-		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
-			return []string{}
-		}
-		return []string{protection.InUseIndexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
-	}); err != nil {
-		return err
-	}
-
-	if err := fi.IndexField(context.Background(), &v1beta1.ClusterUsage{}, protection.InUseIndexKey, func(obj client.Object) []string {
-		u := obj.(*v1beta1.ClusterUsage) //nolint:forcetypeassert // Will always be a ClusterUsage.
-		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
-			return []string{}
-		}
-		return []string{protection.InUseIndexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
-	}); err != nil {
-		return err
-	}
-
-	//nolint:staticcheck // Usage is deprecated but we still need to support it.
-	if err := fi.IndexField(context.Background(), &legacy.Usage{}, protection.InUseIndexKey, func(obj client.Object) []string {
-		u := obj.(*legacy.Usage) //nolint:forcetypeassert,staticcheck // This'll always be a Usage. Which, as above, is deprecated.
-		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
-			return []string{}
-		}
-		return []string{protection.InUseIndexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
-	}); err != nil {
-		return err
-	}
-
-	mgr.GetWebhookServer().Register("/validate-no-usages",
-		&webhook.Admission{Handler: NewHandler(
-			xpunstructured.NewClient(mgr.GetClient()),
-			WithLogger(options.Logger.WithValues("webhook", "no-usages")),
-		)})
-	return nil
+// A Finder finds usages.
+type Finder interface {
+	FindUsageOf(ctx context.Context, o usage.Object) ([]protection.Usage, error)
 }
 
 // Handler implements the admission Handler for Composition.
 type Handler struct {
-	client client.Client
-	log    logging.Logger
+	client   client.Client
+	resource Finder
+	log      logging.Logger
 }
 
 // HandlerOption is used to configure the Handler.
@@ -108,10 +76,11 @@ func WithLogger(l logging.Logger) HandlerOption {
 }
 
 // NewHandler returns a new Handler.
-func NewHandler(client client.Client, opts ...HandlerOption) *Handler {
+func NewHandler(client client.Client, f Finder, opts ...HandlerOption) *Handler {
 	h := &Handler{
-		client: client,
-		log:    logging.NewNopLogger(),
+		client:   client,
+		resource: f,
+		log:      logging.NewNopLogger(),
 	}
 
 	for _, opt := range opts {
@@ -136,73 +105,47 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 		if err := yaml.Unmarshal(request.Options.Raw, opts); err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		return h.validateNoUsages(ctx, u, opts)
-	default:
-		return admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, request.Operation))
-	}
-}
 
-func (h *Handler) validateNoUsages(ctx context.Context, u *unstructured.Unstructured, opts *metav1.DeleteOptions) admission.Response {
-	h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
+		h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
 
-	usages := make([]protection.Usage, 0)
-
-	ul := &v1beta1.UsageList{}
-	if err := h.client.List(ctx, ul, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())}); err != nil {
-		h.log.Debug("Error when getting usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "type", v1beta1.UsageGroupVersionKind, "err", err)
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-	for _, u := range ul.Items {
-		usages = append(usages, &u)
-	}
-
-	cul := &v1beta1.ClusterUsageList{}
-	if err := h.client.List(ctx, cul, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())}); err != nil {
-		h.log.Debug("Error when getting usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "type", v1beta1.ClusterUsageGroupVersionKind, "err", err)
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-	for _, u := range cul.Items {
-		usages = append(usages, &u)
-	}
-
-	lul := &legacy.UsageList{} //nolint:staticcheck // It's deprecated but we still need to support it.
-	if err := h.client.List(ctx, lul, client.MatchingFields{protection.InUseIndexKey: protection.InUseIndexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())}); err != nil {
-		h.log.Debug("Error when getting usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "type", legacy.UsageGroupVersionKind, "err", err)
-		return admission.Errored(http.StatusInternalServerError, err)
-	}
-	for _, u := range lul.Items {
-		usages = append(usages, &u)
-	}
-
-	if len(usages) == 0 {
-		h.log.Debug("No usage found, deletion allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName())
-		return admission.Allowed("")
-	}
-
-	msg := inUseMessage(usages)
-	h.log.Debug("Usage found, deletion not allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "msg", msg)
-
-	// If the resource is being deleted, we want to record the first deletion attempt
-	// so that we can track whether a deletion was attempted at least once.
-	policy := string(ptr.Deref(opts.PropagationPolicy, metav1.DeletePropagationBackground))
-	if u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != policy {
-		orig := u.DeepCopy()
-		xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: policy})
-		// Patch the resource to add the deletion attempt annotation
-		if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
-			h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
+		usages, err := h.resource.FindUsageOf(ctx, u)
+		if err != nil {
+			h.log.Debug("Error when getting usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
-	}
 
-	return admission.Response{
-		AdmissionResponse: admissionv1.AdmissionResponse{
-			Allowed: false,
-			Result: &metav1.Status{
-				Code:   int32(http.StatusConflict),
-				Reason: metav1.StatusReason(msg),
+		if len(usages) == 0 {
+			h.log.Debug("No usages found, deletion allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName())
+			return admission.Allowed("")
+		}
+
+		msg := inUseMessage(usages)
+		h.log.Debug("Usages found, deletion not allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "msg", msg)
+
+		// If the resource is being deleted, we want to record the first deletion attempt
+		// so that we can track whether a deletion was attempted at least once.
+		policy := string(ptr.Deref(opts.PropagationPolicy, metav1.DeletePropagationBackground))
+		if u.GetAnnotations() == nil || u.GetAnnotations()[protection.AnnotationKeyDeletionAttempt] != policy {
+			orig := u.DeepCopy()
+			xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: policy})
+			// Patch the resource to add the deletion attempt annotation
+			if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
+				h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
+				return admission.Errored(http.StatusInternalServerError, err)
+			}
+		}
+
+		return admission.Response{
+			AdmissionResponse: admissionv1.AdmissionResponse{
+				Allowed: false,
+				Result: &metav1.Status{
+					Code:   int32(http.StatusConflict),
+					Reason: metav1.StatusReason(msg),
+				},
 			},
-		},
+		}
+	default:
+		return admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, request.Operation))
 	}
 }
 

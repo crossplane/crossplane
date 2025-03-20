@@ -57,8 +57,9 @@ import (
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/metrics"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/transport"
-	"github.com/crossplane/crossplane/internal/webhook/protection/usage"
+	usagehook "github.com/crossplane/crossplane/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured"
@@ -435,18 +436,18 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot add package manager controllers to manager")
 	}
 
-	if err := protection.Setup(mgr, o); err != nil {
-		return errors.Wrap(err, "cannot add protection controllers to manager")
-	}
-
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.WebhookEnabled {
-		if o.Features.Enabled(features.EnableBetaUsages) {
-			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
-				return errors.Wrap(err, "cannot setup webhook for usages")
-			}
+	if o.Features.Enabled(features.EnableBetaUsages) && c.WebhookEnabled {
+		f, err := usage.NewFinder(mgr.GetClient(), mgr.GetFieldIndexer())
+		if err != nil {
+			return errors.Wrap(err, "cannot setup usage finder")
 		}
+		if err := protection.Setup(mgr, f, o); err != nil {
+			return errors.Wrap(err, "cannot add protection (usage) controllers to manager")
+		}
+
+		usagehook.SetupWebhookWithManager(mgr, f, o)
 	}
 
 	if err := c.SetupProbes(mgr); err != nil {

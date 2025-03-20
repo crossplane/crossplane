@@ -18,41 +18,13 @@ limitations under the License.
 package protection
 
 import (
-	"fmt"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-const (
-	// InUseIndexKey is a controller-runtime cache index key. Use it to index
-	// usages by the 'of' resource - the resource being used. This allows you to
-	// quickly determine whether a usage of a resource exists.
-	InUseIndexKey = "inuse.apiversion.kind.name"
-
-	// AnnotationKeyDeletionAttempt is the annotation key used to record whether
-	// a deletion attempt was made and blocked by the Usage. The value stored is
-	// the propagation policy used with the deletion attempt.
-	AnnotationKeyDeletionAttempt = "usage.crossplane.io/deletion-attempt-with-policy"
-)
-
-// InUseIndexValue returns a controller-runtime cache index value. Use it to
-// index usages by the 'of' resource - the resource being used. This allows you
-// to quickly determine whether a usage of a resource exists. The supplied
-// apiVersion, kind, and name should represent the resource being used.
-func InUseIndexValue(apiVersion, kind, name string) string {
-	// There are two sources for "apiVersion" input, one is from the
-	// unstructured objects fetched from k8s and the other is from the Usage
-	// spec. The one from the objects from k8s is already validated by the k8s
-	// API server, so we don't need to validate it again. The one from the Usage
-	// spec is validated by the Usage controller, so we don't need to validate
-	// it as well. So we can safely ignore the error here. Another reason to
-	// ignore the error is that the IndexerFunc using this value to index the
-	// objects does not return an error, so we cannot bubble up the error here.
-	gr, _ := schema.ParseGroupVersion(apiVersion)
-	return fmt.Sprintf("%s.%s.%s", gr.Group, kind, name)
-}
+// AnnotationKeyDeletionAttempt is the annotation key used to record whether
+// a deletion attempt was made and blocked by the Usage. The value stored is
+// the propagation policy used with the deletion attempt.
+const AnnotationKeyDeletionAttempt = "usage.crossplane.io/deletion-attempt-with-policy"
 
 // ResourceRef is a reference to a resource.
 type ResourceRef struct {
