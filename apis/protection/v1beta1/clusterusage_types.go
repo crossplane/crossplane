@@ -35,8 +35,8 @@ import (
 // +kubebuilder:printcolumn:name="DETAILS",type="string",JSONPath=".metadata.annotations.crossplane\\.io/usage-details"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:categories=crossplane
-// +kubebuilder:scope=cluster,subresource:status
+// +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:subresource:status
 type ClusterUsage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
