@@ -32,7 +32,8 @@ type ResourceRef struct {
 	Name string
 
 	// Namespace of the referent.
-	// Omit for cluster scoped referents, or referents in the same namespace.
+	// Omit for cluster scoped referents, or to reference a referent in the same
+	// namespace as the usage.
 	Namespace *string
 }
 
@@ -46,8 +47,8 @@ type ResourceSelector struct {
 	MatchControllerRef *bool
 
 	// Namespace of the referent.
-	// Omit for cluster scoped referents, or to match referents across all
-	// namespaces.
+	// Omit for cluster scoped referents, or to match referents in the same
+	// namespace as the usage.
 	Namespace *string
 }
 
