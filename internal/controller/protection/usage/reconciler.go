@@ -517,6 +517,9 @@ func detailsAnnotation(u protection.Usage) string {
 	by := u.GetUsedBy()
 	of := u.GetUserOf()
 	if by != nil {
+		if ns := ptr.Deref(of.ResourceRef.Namespace, ""); ns != "" {
+			return fmt.Sprintf("%s/%s uses %s/%s in namespace %s", by.Kind, by.ResourceRef.Name, of.Kind, of.ResourceRef.Name, ns)
+		}
 		return fmt.Sprintf("%s/%s uses %s/%s", by.Kind, by.ResourceRef.Name, of.Kind, of.ResourceRef.Name)
 	}
 
