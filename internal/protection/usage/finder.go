@@ -24,6 +24,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -42,7 +43,7 @@ const indexKey = "inuse.apiversion.kind.name"
 // usages by the 'of' resource - the resource being used. This allows us to
 // quickly determine whether a usage of a resource exists. The supplied
 // apiVersion, kind, and name should represent the resource being used.
-func indexVal(apiVersion, kind, name string) string {
+func indexVal(apiVersion, kind, name, namespace string) string {
 	// There are two sources for "apiVersion" input, one is from the
 	// unstructured objects fetched from k8s and the other is from the Usage
 	// spec. The one from the objects from k8s is already validated by the k8s
@@ -52,7 +53,7 @@ func indexVal(apiVersion, kind, name string) string {
 	// ignore the error is that the IndexerFunc using this value to index the
 	// objects does not return an error, so we cannot bubble up the error here.
 	gr, _ := schema.ParseGroupVersion(apiVersion)
-	return fmt.Sprintf("%s.%s.%s", gr.Group, kind, name)
+	return fmt.Sprintf("%s.%s.%s.%s", gr.Group, kind, name, namespace)
 }
 
 // A Finder finds all usages of a resource. It supports all known types of usage
@@ -73,7 +74,7 @@ func NewFinder(r client.Reader, fi client.FieldIndexer) (*Finder, error) {
 		if u.Spec.Of.ResourceRef == nil || u.Spec.Of.ResourceRef.Name == "" {
 			return []string{}
 		}
-		return []string{indexVal(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
+		return []string{indexVal(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name, ptr.Deref(u.Spec.Of.ResourceRef.Namespace, u.GetNamespace()))}
 	}); err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func NewFinder(r client.Reader, fi client.FieldIndexer) (*Finder, error) {
 		if u.Spec.Of.ResourceRef == nil || u.Spec.Of.ResourceRef.Name == "" {
 			return []string{}
 		}
-		return []string{indexVal(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
+		return []string{indexVal(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name, "")}
 	}); err != nil {
 		return nil, err
 	}
@@ -94,7 +95,7 @@ func NewFinder(r client.Reader, fi client.FieldIndexer) (*Finder, error) {
 		if u.Spec.Of.ResourceRef == nil || u.Spec.Of.ResourceRef.Name == "" {
 			return []string{}
 		}
-		return []string{indexVal(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
+		return []string{indexVal(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name, "")}
 	}); err != nil {
 		return nil, err
 	}
@@ -114,7 +115,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	usages := make([]protection.Usage, 0)
 
 	ul := &v1beta1.UsageList{}
-	if err := f.client.List(ctx, ul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName())}); err != nil {
+	if err := f.client.List(ctx, ul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName(), o.GetNamespace())}); err != nil {
 		return nil, errors.Wrapf(err, "cannot list %s", v1beta1.UsageGroupVersionKind)
 	}
 	for _, u := range ul.Items {
@@ -122,7 +123,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	}
 
 	cul := &v1beta1.ClusterUsageList{}
-	if err := f.client.List(ctx, cul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName())}); err != nil {
+	if err := f.client.List(ctx, cul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName(), "")}); err != nil {
 		return nil, errors.Wrapf(err, "cannot list %s", v1beta1.ClusterUsageGroupVersionKind)
 	}
 	for _, u := range cul.Items {
@@ -130,7 +131,7 @@ func (f *Finder) FindUsageOf(ctx context.Context, o Object) ([]protection.Usage,
 	}
 
 	lul := &legacy.UsageList{} //nolint:staticcheck // It's deprecated but we still need to support it.
-	if err := f.client.List(ctx, lul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName())}); err != nil {
+	if err := f.client.List(ctx, lul, client.MatchingFields{indexKey: indexVal(o.GetAPIVersion(), o.GetKind(), o.GetName(), "")}); err != nil {
 		return nil, errors.Wrapf(err, "cannot list %s", legacy.UsageGroupVersionKind)
 	}
 	for _, u := range lul.Items {
