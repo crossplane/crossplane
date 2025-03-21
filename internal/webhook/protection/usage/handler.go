@@ -106,21 +106,31 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 			return admission.Errored(http.StatusBadRequest, err)
 		}
 
-		h.log.Debug("Validating no usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "policy", opts.PropagationPolicy)
+		log := h.log.WithValues(
+			"apiVersion", u.GetAPIVersion(),
+			"kind", u.GetKind(),
+			"name", u.GetName(),
+			"policy", opts.PropagationPolicy,
+		)
+		if u.GetNamespace() != "" {
+			log = log.WithValues("namespace", u.GetNamespace())
+		}
+
+		log.Debug("Validating no usages")
 
 		usages, err := h.resource.FindUsageOf(ctx, u)
 		if err != nil {
-			h.log.Debug("Error when getting usages", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
+			log.Debug("Error when getting usages", "err", err)
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
 		if len(usages) == 0 {
-			h.log.Debug("No usages found, deletion allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName())
+			log.Debug("No usages found, deletion allowed")
 			return admission.Allowed("")
 		}
 
 		msg := inUseMessage(usages)
-		h.log.Debug("Usages found, deletion not allowed", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "msg", msg)
+		log.Debug("Usages found, deletion not allowed", "msg", msg)
 
 		// If the resource is being deleted, we want to record the first deletion attempt
 		// so that we can track whether a deletion was attempted at least once.
@@ -130,7 +140,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 			xpmeta.AddAnnotations(u, map[string]string{protection.AnnotationKeyDeletionAttempt: policy})
 			// Patch the resource to add the deletion attempt annotation
 			if err := h.client.Patch(ctx, u, client.MergeFrom(orig)); err != nil {
-				h.log.Debug("Error when patching the resource to add the deletion attempt annotation", "apiVersion", u.GetAPIVersion(), "kind", u.GetKind(), "name", u.GetName(), "err", err)
+				log.Debug("Error when patching the resource to add the deletion attempt annotation", "err", err)
 				return admission.Errored(http.StatusInternalServerError, err)
 			}
 		}
