@@ -17,13 +17,18 @@ limitations under the License.
 package e2e
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
@@ -46,7 +51,7 @@ func RunDiff(t *testing.T, c *envconf.Config, crankPath string, resourcePaths ..
 	var err error
 
 	// Prepare the command to run
-	args := append([]string{"--verbose", "beta", "diff", "-n", namespace}, resourcePaths...)
+	args := append([]string{"--verbose", "beta", "diff", "--timeout=2m", "-n", namespace}, resourcePaths...)
 	t.Logf("Running command: %s %s", crankPath, strings.Join(args, " "))
 	cmd := exec.Command(crankPath, args...)
 	cmd.Env = append(cmd.Env, "KUBECONFIG="+c.KubeconfigFile())
@@ -66,6 +71,7 @@ func RunDiff(t *testing.T, c *envconf.Config, crankPath string, resourcePaths ..
 // TestCrossplaneDiffCommand tests the functionality of the crossplane diff command.
 func TestCrossplaneDiffCommand(t *testing.T) {
 	manifests := "test/e2e/manifests/beta/diff"
+	crankPath := "./crank"
 
 	environment.Test(t,
 		// Create a test for a new resource - should show all resources being created
@@ -80,24 +86,14 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("DiffNewResource", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				// Find the crank binary
-				crankPath := funcs.FindCrankBinary(t)
 
 				// Run the diff command on a new resource that doesn't exist yet
 				output, log, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "new-xr.yaml"))
 				if err != nil {
-					t.Fatalf("Error running diff command: %v", err)
+					t.Fatalf("Error running diff command: %v\nLog output:\n%s", err, log)
 				}
 
-				// Verify the output contains the expected text for a new resource
-				if !strings.Contains(output, "+++ XNopResource/new-resource") {
-					t.Errorf("Expected diff output to show new XNopResource, got: %s\nLog output:\n%s", output, log)
-				}
-
-				// Verify the output contains the expected text for a composed resource
-				if !strings.Contains(output, "+++ NopResource") {
-					t.Errorf("Expected diff output to show new NopResource, got: %s\nLog output:\n%s", output, log)
-				}
+				assertDiffMatchesFile(t, output, filepath.Join(manifests, "expect/new-xr.ansi"), log)
 
 				return ctx
 			}).
@@ -121,8 +117,6 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "existing-xr.yaml", xpv1.Available()),
 			)).
 			Assess("DiffModifiedResource", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-				// Find the crank binary
-				crankPath := funcs.FindCrankBinary(t)
 
 				// Run the diff command on a modified existing resource
 				output, log, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "modified-xr.yaml"))
@@ -130,15 +124,7 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 					t.Fatalf("Error running diff command: %v\n Log output:\n%s", err, log)
 				}
 
-				// Verify the output contains the expected text for a modified resource
-				if !strings.Contains(output, "~~~ XNopResource/existing-resource") {
-					t.Errorf("Expected diff output to show modified XNopResource, got: %s\nLog output:\n%s", output, log)
-				}
-
-				// Verify output contains patch-specific changes
-				if !strings.Contains(output, "\"coolField\": \"I'm modified!\"") {
-					t.Errorf("Expected diff output to show coolField modification, got: %s\nLog output:\n%s", output, log)
-				}
+				assertDiffMatchesFile(t, output, filepath.Join(manifests, "expect/existing-xr.ansi"), log)
 
 				return ctx
 			}).
@@ -149,4 +135,139 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
 			Feature(),
 	)
+}
+
+// Regular expressions to match the dynamic parts
+var (
+	resourceNameRegex        = regexp.MustCompile(`(existing-resource)-[a-z0-9]{5,}`)
+	compositionRevisionRegex = regexp.MustCompile(`(xnopresources\.diff\.example\.org)-[a-z0-9]{7,}`)
+	ansiEscapeRegex          = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+)
+
+// NormalizeLine replaces dynamic parts with fixed placeholders
+func normalizeLine(line string) string {
+	// Remove ANSI escape sequences
+	line = ansiEscapeRegex.ReplaceAllString(line, "")
+
+	// Replace resource names with random suffixes
+	line = resourceNameRegex.ReplaceAllString(line, "${1}-XXXXX")
+
+	// Replace composition revision refs with random hash
+	line = compositionRevisionRegex.ReplaceAllString(line, "${1}-XXXXXXX")
+
+	// Trim trailing whitespace
+	line = strings.TrimRight(line, " ")
+
+	return line
+}
+
+// parseStringContent converts a string to raw and normalized lines
+func parseStringContent(content string) ([]string, []string) {
+	var rawLines []string
+	var normalizedLines []string
+
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		rawLine := scanner.Text()
+		rawLines = append(rawLines, rawLine)
+		normalizedLines = append(normalizedLines, normalizeLine(rawLine))
+	}
+
+	return rawLines, normalizedLines
+}
+
+// AssertDiffMatchesFile compares a diff output with an expected file, ignoring dynamic parts
+func assertDiffMatchesFile(t *testing.T, actual, expectedSource, log string) {
+	t.Helper()
+
+	expected, err := os.ReadFile(expectedSource)
+	if err != nil {
+		t.Fatalf("Failed to read expected file: %v", err)
+	}
+
+	expectedRaw, expectedNormalized := parseStringContent(string(expected))
+	actualRaw, actualNormalized := parseStringContent(actual)
+
+	if len(expectedNormalized) != len(actualNormalized) {
+		t.Errorf("Line count mismatch: expected %d lines in %s, got %d lines in output",
+			len(expectedNormalized), expectedSource,
+			len(actualNormalized))
+	}
+
+	maxLines := len(expectedNormalized)
+	if len(actualNormalized) > maxLines {
+		maxLines = len(actualNormalized)
+	}
+
+	failed := false
+	for i := 0; i < maxLines; i++ {
+		if i >= len(expectedNormalized) {
+			t.Errorf("Line %d: Extra line in output: %s",
+				i+1, makeStringReadable(actualRaw[i]))
+			failed = true
+			continue
+		}
+		if i >= len(actualNormalized) {
+			t.Errorf("Line %d: Missing line in output: %s",
+				i+1, makeStringReadable(expectedRaw[i]))
+			failed = true
+			continue
+		}
+		if expectedNormalized[i] != actualNormalized[i] {
+
+			// ignore white space at end of lines
+			//if strings.TrimRight(expectedNormalized[i], " ") == strings.TrimRight(actualNormalized[i], " ") {
+			//	continue
+			//}
+
+			rawExpected := ""
+			if i < len(expectedRaw) {
+				rawExpected = expectedRaw[i]
+			}
+
+			rawActual := ""
+			if i < len(actualRaw) {
+				rawActual = actualRaw[i]
+			}
+
+			t.Errorf("Line %d mismatch:\n  Expected: %s\n  Actual:   %s\n\n"+
+				"Raw Values (with escape chars visible):\n"+
+				"  Expected Raw: %s\n"+
+				"  Actual Raw:   %s",
+				i+1,
+				expectedNormalized[i],
+				actualNormalized[i],
+				makeStringReadable(rawExpected),
+				makeStringReadable(rawActual))
+			failed = true
+		}
+	}
+
+	if failed {
+		t.Fatalf("Log output:\n%s", log)
+	}
+}
+
+// makeStringReadable converts a string to a form where all non-printable characters
+// (including ANSI escape codes) are converted to visible escape sequences
+func makeStringReadable(s string) string {
+	var result strings.Builder
+	for _, r := range s {
+		if r == '\x1b' {
+			result.WriteString("\\x1b")
+		} else if r == '\n' {
+			result.WriteString("\\n")
+		} else if r == '\r' {
+			result.WriteString("\\r")
+		} else if r == '\t' {
+			result.WriteString("\\t")
+		} else if r == ' ' {
+			result.WriteString("\\space")
+		} else if !unicode.IsPrint(r) {
+			result.WriteString(fmt.Sprintf("\\x%02x", r))
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }

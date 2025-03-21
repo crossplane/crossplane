@@ -1,0 +1,62 @@
+~~~ NopResource/existing-resource-czpjg
+  apiVersion: nop.crossplane.io/v1alpha1
+  kind: NopResource
+  metadata:
+    annotations:
+[31m-     cool-field: I'm existing![0m
+[32m+     cool-field: I'm modified![0m
+      crossplane.io/composition-resource-name: nop-resource
+      crossplane.io/external-name: existing-resource-czpjg
+[31m-     setting: original[0m
+[32m+     setting: changed[0m
+    finalizers:
+    - finalizer.managedresource.crossplane.io
+    generateName: existing-resource-
+    labels:
+      crossplane.io/claim-name: ""
+      crossplane.io/claim-namespace: ""
+      crossplane.io/composite: existing-resource
+    name: existing-resource-czpjg
+  spec:
+    deletionPolicy: Delete
+    forProvider:
+      conditionAfter:
+      - conditionStatus: "True"
+        conditionType: Ready
+        time: 0s
+    managementPolicies:
+    - '*'
+    providerConfigRef:
+      name: default
+
+---
+~~~ XNopResource/existing-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    finalizers:
+    - composite.apiextensions.crossplane.io
+    labels:
+      crossplane.io/composite: existing-resource
+    name: existing-resource
+  spec:
+    compositionRef:
+      name: xnopresources.diff.example.org
+    compositionRevisionRef:
+      name: xnopresources.diff.example.org-acd5cd1
+    compositionUpdatePolicy: Automatic
+[31m-   coolField: I'm existing![0m
+[32m+   coolField: I'm modified![0m
+    parameters:
+      config:
+[31m-       setting1: original[0m
+[31m-       setting2: original[0m
+[32m+       setting1: changed[0m
+[32m+       setting2: original[0m
+[32m+       setting3: new-value[0m
+
+
+
+---
+
+Summary: 2 modified
