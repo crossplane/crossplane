@@ -2,6 +2,8 @@ package diffprocessor
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 )
 
@@ -24,6 +26,27 @@ type ProcessorConfig struct {
 
 	// RenderFunc is the function to use for rendering resources
 	RenderFunc RenderFunc
+
+	// ComponentFactories provide factory functions for creating components
+	ComponentFactories ComponentFactories
+}
+
+// ComponentFactories contains factory functions for creating processor components
+type ComponentFactories struct {
+	// ResourceManagerFactory creates a ResourceManager
+	ResourceManagerFactory func(client cc.ClusterClient, logger logging.Logger) ResourceManager
+
+	// SchemaValidatorFactory creates a SchemaValidator
+	SchemaValidatorFactory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator
+
+	// DiffCalculatorFactory creates a DiffCalculator
+	DiffCalculatorFactory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator
+
+	// DiffRendererFactory creates a DiffRenderer
+	DiffRendererFactory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer
+
+	// ExtraResourceProviderFactory creates an ExtraResourceProvider
+	ExtraResourceProviderFactory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider
 }
 
 // DiffProcessorOption defines a function that can modify a ProcessorConfig
@@ -71,6 +94,41 @@ func WithRestConfig(restConfig *rest.Config) DiffProcessorOption {
 	}
 }
 
+// WithResourceManagerFactory sets the ResourceManager factory function
+func WithResourceManagerFactory(factory func(client cc.ClusterClient, logger logging.Logger) ResourceManager) DiffProcessorOption {
+	return func(config *ProcessorConfig) {
+		config.ComponentFactories.ResourceManagerFactory = factory
+	}
+}
+
+// WithSchemaValidatorFactory sets the SchemaValidator factory function
+func WithSchemaValidatorFactory(factory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator) DiffProcessorOption {
+	return func(config *ProcessorConfig) {
+		config.ComponentFactories.SchemaValidatorFactory = factory
+	}
+}
+
+// WithDiffCalculatorFactory sets the DiffCalculator factory function
+func WithDiffCalculatorFactory(factory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator) DiffProcessorOption {
+	return func(config *ProcessorConfig) {
+		config.ComponentFactories.DiffCalculatorFactory = factory
+	}
+}
+
+// WithDiffRendererFactory sets the DiffRenderer factory function
+func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer) DiffProcessorOption {
+	return func(config *ProcessorConfig) {
+		config.ComponentFactories.DiffRendererFactory = factory
+	}
+}
+
+// WithExtraResourceProviderFactory sets the ExtraResourceProvider factory function
+func WithExtraResourceProviderFactory(factory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider) DiffProcessorOption {
+	return func(config *ProcessorConfig) {
+		config.ComponentFactories.ExtraResourceProviderFactory = factory
+	}
+}
+
 // GetDiffOptions returns DiffOptions based on the ProcessorConfig
 func (c *ProcessorConfig) GetDiffOptions() DiffOptions {
 	opts := DefaultDiffOptions()
@@ -78,4 +136,39 @@ func (c *ProcessorConfig) GetDiffOptions() DiffOptions {
 	opts.Compact = c.Compact
 
 	return opts
+}
+
+// SetDefaultFactories sets default component factory functions if not already set
+func (c *ProcessorConfig) SetDefaultFactories() {
+	if c.ComponentFactories.ResourceManagerFactory == nil {
+		c.ComponentFactories.ResourceManagerFactory = NewResourceManager
+	}
+
+	if c.ComponentFactories.SchemaValidatorFactory == nil {
+		c.ComponentFactories.SchemaValidatorFactory = NewSchemaValidator
+	}
+
+	if c.ComponentFactories.DiffCalculatorFactory == nil {
+		c.ComponentFactories.DiffCalculatorFactory = NewDiffCalculator
+	}
+
+	if c.ComponentFactories.DiffRendererFactory == nil {
+		c.ComponentFactories.DiffRendererFactory = NewDiffRenderer
+	}
+
+	if c.ComponentFactories.ExtraResourceProviderFactory == nil {
+		c.ComponentFactories.ExtraResourceProviderFactory = func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider {
+			// Create environment config provider with empty configs (will be populated in Initialize)
+			envConfigProvider := NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, logger)
+
+			// Create the composite provider with all our extra resource providers
+			return NewCompositeExtraResourceProvider(
+				logger,
+				envConfigProvider,
+				NewSelectorExtraResourceProvider(client, logger),
+				NewReferenceExtraResourceProvider(client, logger),
+				NewTemplatedExtraResourceProvider(client, renderFunc, logger),
+			)
+		}
+	}
 }

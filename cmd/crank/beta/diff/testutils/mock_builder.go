@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 )
 
@@ -525,6 +526,28 @@ func (b *ResourceBuilder) WithStatusField(name string, value interface{}) *Resou
 	}
 	status[name] = value
 	_ = unstructured.SetNestedMap(b.resource.Object, status, "status")
+	return b
+}
+
+// WithOwnerReference appends an owner ref to a resource.
+func (b *ResourceBuilder) WithOwnerReference(kind, name, apiVersion, uid string) *ResourceBuilder {
+	// Get existing owner references, or create an empty slice if none exist
+	ownerRefs := b.resource.GetOwnerReferences()
+
+	// Create the new owner reference
+	newOwnerRef := metav1.OwnerReference{
+		APIVersion: apiVersion,
+		Kind:       kind,
+		Name:       name,
+		UID:        types.UID(uid),
+	}
+
+	// Append the new owner reference
+	ownerRefs = append(ownerRefs, newOwnerRef)
+
+	// Set the updated owner references on the resource
+	b.resource.SetOwnerReferences(ownerRefs)
+
 	return b
 }
 
