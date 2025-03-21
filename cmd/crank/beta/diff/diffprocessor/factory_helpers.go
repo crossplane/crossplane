@@ -2,9 +2,6 @@ package diffprocessor
 
 import (
 	"context"
-	"io"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"k8s.io/client-go/rest"
@@ -81,65 +78,4 @@ func (f *ProcessorFactory) BuildAndInitialize(ctx context.Context, client cc.Clu
 	}
 
 	return processor, nil
-}
-
-// ProcessResources is a helper function that creates a processor and processes resources
-func ProcessResources(
-	ctx context.Context,
-	stdout io.Writer,
-	client cc.ClusterClient,
-	resources []*unstructured.Unstructured,
-	options ...DiffProcessorOption) error {
-
-	// Add default REST config to the options
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		// Use an empty config as fallback
-		config = &rest.Config{}
-	}
-	allOptions := append([]DiffProcessorOption{WithRestConfig(config)}, options...)
-
-	// Create and initialize processor
-	processor, err := NewDiffProcessor(client, allOptions...)
-	if err != nil {
-		return err
-	}
-
-	if err := processor.Initialize(ctx); err != nil {
-		return err
-	}
-
-	// Process resources
-	return processor.ProcessAll(stdout, ctx, resources)
-}
-
-// DefaultComponentFactories creates default component factories based on the configuration
-func DefaultComponentFactories(config ProcessorConfig) ComponentFactories {
-	return ComponentFactories{
-		ResourceManagerFactory: func(client cc.ClusterClient, logger logging.Logger) ResourceManager {
-			return NewResourceManager(client, logger)
-		},
-		SchemaValidatorFactory: func(client cc.ClusterClient, logger logging.Logger) SchemaValidator {
-			return NewSchemaValidator(client, logger)
-		},
-		DiffCalculatorFactory: func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator {
-			return NewDiffCalculator(client, resourceManager, logger, diffOptions)
-		},
-		DiffRendererFactory: func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer {
-			return NewDiffRenderer(logger, diffOptions)
-		},
-		ExtraResourceProviderFactory: func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider {
-			// Create environment config provider with empty configs (will be populated in Initialize)
-			envConfigProvider := NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, logger)
-
-			// Create the composite provider with all our extra resource providers
-			return NewCompositeExtraResourceProvider(
-				logger,
-				envConfigProvider,
-				NewSelectorExtraResourceProvider(client, logger),
-				NewReferenceExtraResourceProvider(client, logger),
-				NewTemplatedExtraResourceProvider(client, renderFunc, logger),
-			)
-		},
-	}
 }
