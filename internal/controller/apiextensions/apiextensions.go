@@ -24,8 +24,6 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/definition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
-	"github.com/crossplane/crossplane/internal/features"
 )
 
 // Setup API extensions controllers.
@@ -36,12 +34,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if err := definition.Setup(mgr, o); err != nil {
 		return err
-	}
-
-	if o.Features.Enabled(features.EnableBetaUsages) {
-		if err := usage.Setup(mgr, o); err != nil {
-			return err
-		}
 	}
 
 	return offered.Setup(mgr, o)

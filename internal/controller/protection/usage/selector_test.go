@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
@@ -54,13 +54,13 @@ func TestResolveSelectors(t *testing.T) {
 			args: args{
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -84,13 +84,13 @@ func TestResolveSelectors(t *testing.T) {
 			want: want{
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -117,13 +117,13 @@ func TestResolveSelectors(t *testing.T) {
 			args: args{
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -135,13 +135,13 @@ func TestResolveSelectors(t *testing.T) {
 			want: want{
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -161,10 +161,10 @@ func TestResolveSelectors(t *testing.T) {
 				},
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -187,10 +187,10 @@ func TestResolveSelectors(t *testing.T) {
 				},
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
 						},
@@ -240,10 +240,10 @@ func TestResolveSelectors(t *testing.T) {
 				},
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -286,10 +286,10 @@ func TestResolveSelectors(t *testing.T) {
 				},
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
 						},
@@ -319,10 +319,10 @@ func TestResolveSelectors(t *testing.T) {
 				},
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -366,10 +366,10 @@ func TestResolveSelectors(t *testing.T) {
 				},
 				u: &v1beta1.Usage{
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -454,10 +454,10 @@ func TestResolveSelectors(t *testing.T) {
 						},
 					},
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -491,13 +491,13 @@ func TestResolveSelectors(t *testing.T) {
 						},
 					},
 					Spec: v1beta1.UsageSpec{
-						Of: v1beta1.Resource{
+						Of: v1beta1.NamespacedResource{
 							APIVersion: "v1",
 							Kind:       "SomeKind",
-							ResourceRef: &v1beta1.ResourceRef{
+							ResourceRef: &v1beta1.NamespacedResourceRef{
 								Name: "some",
 							},
-							ResourceSelector: &v1beta1.ResourceSelector{
+							ResourceSelector: &v1beta1.NamespacedResourceSelector{
 								MatchLabels: map[string]string{
 									"foo": "bar",
 								},
@@ -524,7 +524,7 @@ func TestResolveSelectors(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := newAPISelectorResolver(tc.args.client)
-			err := r.resolveSelectors(context.Background(), tc.args.u)
+			err := r.ResolveSelectors(context.Background(), tc.args.u)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nr.resolveSelectors(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

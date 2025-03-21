@@ -29,20 +29,31 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 )
 
 var _ admission.Handler = &Handler{}
+
+type FinderFn func(ctx context.Context, o usage.Object) ([]protection.Usage, error)
+
+func (fn FinderFn) FindUsageOf(ctx context.Context, o usage.Object) ([]protection.Usage, error) {
+	return fn(ctx, o)
+}
 
 var errBoom = errors.New("boom")
 
 func TestHandle(t *testing.T) {
 	protected := "This resource is protected!"
+	type params struct {
+		client client.Client
+		f      Finder
+		opts   []HandlerOption
+	}
 	type args struct {
-		client  client.Client
 		request admission.Request
 	}
 	type want struct {
@@ -50,6 +61,7 @@ func TestHandle(t *testing.T) {
 	}
 	cases := map[string]struct {
 		reason string
+		params params
 		args   args
 		want   want
 	}{
@@ -120,12 +132,12 @@ func TestHandle(t *testing.T) {
 		},
 		"DeleteAllowedNoUsages": {
 			reason: "We should allow a delete request if there is no usages for the given object.",
+			params: params{
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
+			},
 			args: args{
-				client: &test.MockClient{
-					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
-						return nil
-					},
-				},
 				request: admission.Request{
 					AdmissionRequest: admissionv1.AdmissionRequest{
 						Operation: admissionv1.Delete,
@@ -146,12 +158,12 @@ func TestHandle(t *testing.T) {
 		},
 		"DeleteRejectedCannotList": {
 			reason: "We should reject a delete request if we cannot list usages.",
+			params: params{
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, errBoom
+				}),
+			},
 			args: args{
-				client: &test.MockClient{
-					MockList: func(_ context.Context, _ client.ObjectList, _ ...client.ListOption) error {
-						return errBoom
-					},
-				},
 				request: admission.Request{
 					AdmissionRequest: admissionv1.AdmissionRequest{
 						Operation: admissionv1.Delete,
@@ -172,39 +184,41 @@ func TestHandle(t *testing.T) {
 		},
 		"DeleteBlockedWithUsageBy": {
 			reason: "We should reject a delete request if there are usages for the given object with \"by\" defined.",
-			args: args{
+			params: params{
 				client: &test.MockClient{
 					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1beta1.UsageList)
-						l.Items = []v1beta1.Usage{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "used-by-some-resource",
-								},
-								Spec: v1beta1.UsageSpec{
-									Of: v1beta1.Resource{
-										APIVersion: "nop.crossplane.io/v1alpha1",
-										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
-											Name: "used-resource",
-										},
+				},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					usages := []protection.Usage{
+						&v1beta1.Usage{
+							ObjectMeta: metav1.ObjectMeta{
+								Namespace: "default",
+								Name:      "used-by-some-resource",
+							},
+							Spec: v1beta1.UsageSpec{
+								Of: v1beta1.NamespacedResource{
+									APIVersion: "nop.crossplane.io/v1alpha1",
+									Kind:       "NopResource",
+									ResourceRef: &v1beta1.NamespacedResourceRef{
+										Name: "used-resource",
 									},
-									By: &v1beta1.Resource{
-										APIVersion: "nop.crossplane.io/v1alpha1",
-										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
-											Name: "using-resource",
-										},
+								},
+								By: &v1beta1.Resource{
+									APIVersion: "nop.crossplane.io/v1alpha1",
+									Kind:       "NopResource",
+									ResourceRef: &v1beta1.ResourceRef{
+										Name: "using-resource",
 									},
 								},
 							},
-						}
-						return nil
-					},
-				},
+						},
+					}
+					return usages, nil
+				}),
+			},
+			args: args{
 				request: admission.Request{
 					AdmissionRequest: admissionv1.AdmissionRequest{
 						Operation: admissionv1.Delete,
@@ -225,7 +239,7 @@ func TestHandle(t *testing.T) {
 						Allowed: false,
 						Result: &metav1.Status{
 							Code:   int32(http.StatusConflict),
-							Reason: metav1.StatusReason("This resource is in-use by 1 Usage(s), including the Usage \"used-by-some-resource\" by resource NopResource/using-resource."),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-some-resource\" (in namespace \"default\") by resource NopResource/using-resource."),
 						},
 					},
 				},
@@ -233,33 +247,34 @@ func TestHandle(t *testing.T) {
 		},
 		"DeleteBlockedWithUsageReason": {
 			reason: "We should reject a delete request if there are usages for the given object with \"reason\" defined.",
-			args: args{
+			params: params{
 				client: &test.MockClient{
 					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1beta1.UsageList)
-						l.Items = []v1beta1.Usage{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "used-by-some-resource",
-								},
-								Spec: v1beta1.UsageSpec{
-									Of: v1beta1.Resource{
-										APIVersion: "nop.crossplane.io/v1alpha1",
-										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
-											Name: "used-resource",
-										},
-									},
-									Reason: &protected,
-								},
-							},
-						}
-						return nil
-					},
 				},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					usages := []protection.Usage{
+						&v1beta1.Usage{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "used-by-some-resource",
+							},
+							Spec: v1beta1.UsageSpec{
+								Of: v1beta1.NamespacedResource{
+									APIVersion: "nop.crossplane.io/v1alpha1",
+									Kind:       "NopResource",
+									ResourceRef: &v1beta1.NamespacedResourceRef{
+										Name: "used-resource",
+									},
+								},
+								Reason: &protected,
+							},
+						},
+					}
+					return usages, nil
+				}),
+			},
+			args: args{
 				request: admission.Request{
 					AdmissionRequest: admissionv1.AdmissionRequest{
 						Operation: admissionv1.Delete,
@@ -280,7 +295,7 @@ func TestHandle(t *testing.T) {
 						Allowed: false,
 						Result: &metav1.Status{
 							Code:   int32(http.StatusConflict),
-							Reason: metav1.StatusReason("This resource is in-use by 1 Usage(s), including the Usage \"used-by-some-resource\" with reason: \"This resource is protected!\"."),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-some-resource\" with reason: \"This resource is protected!\"."),
 						},
 					},
 				},
@@ -288,32 +303,33 @@ func TestHandle(t *testing.T) {
 		},
 		"DeleteBlockedWithUsageNone": {
 			reason: "We should reject a delete request if there are usages for the given object without \"reason\" or \"by\" defined.",
-			args: args{
+			params: params{
 				client: &test.MockClient{
 					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						return nil
 					},
-					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
-						l := list.(*v1beta1.UsageList)
-						l.Items = []v1beta1.Usage{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "used-by-some-resource",
-								},
-								Spec: v1beta1.UsageSpec{
-									Of: v1beta1.Resource{
-										APIVersion: "nop.crossplane.io/v1alpha1",
-										Kind:       "NopResource",
-										ResourceRef: &v1beta1.ResourceRef{
-											Name: "used-resource",
-										},
+				},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					usages := []protection.Usage{
+						&v1beta1.Usage{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "used-by-some-resource",
+							},
+							Spec: v1beta1.UsageSpec{
+								Of: v1beta1.NamespacedResource{
+									APIVersion: "nop.crossplane.io/v1alpha1",
+									Kind:       "NopResource",
+									ResourceRef: &v1beta1.NamespacedResourceRef{
+										Name: "used-resource",
 									},
 								},
 							},
-						}
-						return nil
-					},
-				},
+						},
+					}
+					return usages, nil
+				}),
+			},
+			args: args{
 				request: admission.Request{
 					AdmissionRequest: admissionv1.AdmissionRequest{
 						Operation: admissionv1.Delete,
@@ -334,7 +350,7 @@ func TestHandle(t *testing.T) {
 						Allowed: false,
 						Result: &metav1.Status{
 							Code:   int32(http.StatusConflict),
-							Reason: metav1.StatusReason("This resource is in-use by 1 Usage(s), including the Usage \"used-by-some-resource\"."),
+							Reason: metav1.StatusReason("This resource is in-use by 1 usage(s), including the *v1beta1.Usage \"used-by-some-resource\"."),
 						},
 					},
 				},
@@ -343,7 +359,7 @@ func TestHandle(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewHandler(tc.args.client, WithLogger(logging.NewNopLogger()))
+			h := NewHandler(tc.params.client, tc.params.f, tc.params.opts...)
 			got := h.Handle(context.Background(), tc.args.request)
 			if diff := cmp.Diff(tc.want.resp, got); diff != "" {
 				t.Errorf("%s\nHandle(...): -want response, +got:\n%s", tc.reason, diff)

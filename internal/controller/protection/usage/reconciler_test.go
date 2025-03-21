@@ -37,18 +37,25 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	"github.com/crossplane/crossplane/internal/usage"
+	"github.com/crossplane/crossplane/apis/protection/v1beta1"
+	"github.com/crossplane/crossplane/internal/protection"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
 type fakeSelectorResolver struct {
-	resourceSelectorFn func(_ context.Context, _ *v1beta1.Usage) error
+	resourceSelectorFn func(_ context.Context, _ protection.Usage) error
 }
 
-func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.Usage) error {
+func (f fakeSelectorResolver) ResolveSelectors(ctx context.Context, u protection.Usage) error {
 	return f.resourceSelectorFn(ctx, u)
+}
+
+type FinderFn func(ctx context.Context, o usage.Object) ([]protection.Usage, error)
+
+func (fn FinderFn) FindUsageOf(ctx context.Context, o usage.Object) ([]protection.Usage, error) {
+	return fn(ctx, o)
 }
 
 func TestReconcile(t *testing.T) {
@@ -56,6 +63,8 @@ func TestReconcile(t *testing.T) {
 	reason := "protected"
 	type args struct {
 		mgr  manager.Manager
+		u    protection.Usage
+		f    Finder
 		opts []ReconcilerOption
 	}
 	type want struct {
@@ -72,6 +81,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not return an error if the Usage was not found.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -88,13 +98,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot parse APIVersion of used resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.APIVersion = "/invalid/"
-								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								o.Spec.Of.ResourceSelector = &v1beta1.NamespacedResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
@@ -109,18 +120,19 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot resolve selectors.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								o.Spec.Of.ResourceSelector = &v1beta1.NamespacedResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return errBoom
 						},
 					}),
@@ -134,18 +146,19 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+								o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -162,19 +175,20 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add details annotation.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								o := obj.(*v1beta1.Usage)
-								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+								o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(errBoom),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -191,13 +205,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get used resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
 								case *v1beta1.Usage:
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return errBoom
 								}
@@ -209,7 +224,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -226,13 +241,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot update used resource with in-use label",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
 								case *v1beta1.Usage:
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return nil
 								}
@@ -247,7 +263,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -264,13 +280,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get using resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
 								case *v1beta1.Usage:
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
@@ -285,7 +302,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -302,12 +319,13 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot add owner reference to the Usage.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
@@ -334,7 +352,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -351,12 +369,13 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
@@ -393,7 +412,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -410,12 +429,13 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully reconciled the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									o.Spec.Reason = &reason
 									return nil
 								}
@@ -442,7 +462,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -459,13 +479,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot remove the finalizer on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -476,7 +497,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -493,13 +514,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get used resource on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -510,7 +532,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -527,6 +549,7 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return an error if we cannot get using resource on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -534,7 +557,7 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
@@ -553,7 +576,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -570,13 +593,17 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not get using resource on delete if the usage is not composed.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
@@ -592,12 +619,11 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList:   test.NewMockListFn(nil),
 							MockUpdate: test.NewMockUpdateFn(nil),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -607,17 +633,21 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 		},
-		"CannotListUsagesOnDelete": {
-			reason: "We should return an error if we cannot list usages on delete.",
+		"CannotFindUsagesOnDelete": {
+			reason: "We should return an error if we cannot find usages on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, errBoom
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -626,13 +656,10 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return errBoom
-							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -642,20 +669,24 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListUsages),
+				err: errors.Wrap(errBoom, errFindUsages),
 			},
 		},
 		"CannotRemoveLabelOnDelete": {
 			reason: "We should return an error if we cannot remove in use label on delete.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -664,16 +695,13 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
-							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
 								return errBoom
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -690,13 +718,14 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully deleted the usage resource.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -707,7 +736,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -724,13 +753,17 @@ func TestReconcile(t *testing.T) {
 			reason: "We should return no error once we have successfully deleted the usage resource by removing in use label.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -738,9 +771,6 @@ func TestReconcile(t *testing.T) {
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -754,7 +784,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -771,6 +801,10 @@ func TestReconcile(t *testing.T) {
 			reason: "We should replay deletion after usage is gone and replayDeletion is true.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -778,18 +812,15 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.ReplayDeletion = ptr.To(true)
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
-									o.SetAnnotations(map[string]string{usage.AnnotationKeyDeletionAttempt: string(metav1.DeletePropagationBackground)})
+									o.SetAnnotations(map[string]string{protection.AnnotationKeyDeletionAttempt: string(metav1.DeletePropagationBackground)})
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									return nil
 								}
 								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -806,7 +837,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -823,6 +854,10 @@ func TestReconcile(t *testing.T) {
 			reason: "We should wait until the using resource is deleted.",
 			args: args{
 				mgr: &fake.Manager{},
+				u:   &v1beta1.Usage{},
+				f: FinderFn(func(_ context.Context, _ usage.Object) ([]protection.Usage, error) {
+					return nil, nil
+				}),
 				opts: []ReconcilerOption{
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
@@ -830,7 +865,7 @@ func TestReconcile(t *testing.T) {
 								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
-									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.Of.ResourceRef = &v1beta1.NamespacedResourceRef{Name: "used"}
 									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
@@ -849,9 +884,6 @@ func TestReconcile(t *testing.T) {
 								}
 								return errors.New("unexpected object type")
 							}),
-							MockList: test.NewMockListFn(nil, func(_ client.ObjectList) error {
-								return nil
-							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetLabels()[inUseLabelKey] != "" {
@@ -864,7 +896,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ protection.Usage) error {
 							return nil
 						},
 					}),
@@ -880,7 +912,7 @@ func TestReconcile(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, tc.args.opts...)
+			r := NewReconciler(tc.args.mgr, tc.args.u, tc.args.f, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
