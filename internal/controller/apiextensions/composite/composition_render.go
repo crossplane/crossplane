@@ -83,9 +83,11 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 		return errors.Errorf(errFmtNamePrefixLabel, xcrd.LabelKeyNamePrefixForComposed)
 	}
 
-	// We also set generate name in case we haven't yet named this composed
-	// resource.
-	cd.SetGenerateName(xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+	// We recommend composed resources let us generate a name for them. They're
+	// allowed to explicitly specify a name if they want though.
+	if cd.GetName() == "" && cd.GetGenerateName() == "" {
+		cd.SetGenerateName(xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+	}
 
 	// If the XR is namespaced it can only create composed resources in its own
 	// namespace. Cluster scoped XRs can compose cluster scoped resources, or
