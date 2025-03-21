@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/protection/usage"
 )
 
-// Setup API extensions controllers.
+// Setup protection controllers.
 func Setup(mgr ctrl.Manager, f usage.Finder, o controller.Options) error {
 	for _, fn := range []func(mgr ctrl.Manager, f usage.Finder, o controller.Options) error{
 		usage.SetupUsage,
