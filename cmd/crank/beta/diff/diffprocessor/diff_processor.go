@@ -1,6 +1,7 @@
 package diffprocessor
 
 import (
+	"cmp"
 	"context"
 	"dario.cat/mergo"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	"github.com/crossplane/crossplane/cmd/crank/render"
+	"golang.org/x/exp/maps"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -231,8 +233,10 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		"composedCount", len(desired.ComposedResources))
 
 	xrUnstructured, err := mergeUnstructured(
-		&unstructured.Unstructured{Object: desired.CompositeResource.UnstructuredContent()},
-		&unstructured.Unstructured{Object: xr.UnstructuredContent()})
+		desired.CompositeResource.GetUnstructured(),
+		xr.GetUnstructured(),
+	)
+
 	if err != nil {
 		p.config.Logger.Debug("Failed to merge XR", "resource", resourceID, "error", err)
 		return errors.Wrap(err, "cannot merge input XR with result of rendered XR")
@@ -498,7 +502,7 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 	if err != nil || xrDiff == nil {
 		return nil, errors.Wrap(err, "cannot calculate diff for XR")
 	} else if xrDiff.DiffType != DiffTypeEqual {
-		key := fmt.Sprintf("%s/%s", xrDiff.ResourceKind, xrDiff.ResourceName)
+		key := xrDiff.GetDiffKey()
 		diffs[key] = xrDiff
 	}
 
@@ -510,19 +514,22 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 		apiVersion := un.GetAPIVersion()
 		kind := un.GetKind()
 		name := un.GetName()
-		resourceID := fmt.Sprintf("%s/%s", kind, name)
+		generateName := un.GetGenerateName()
 
-		// Skip resources without names (likely a template issue)
-		if name == "" {
-			p.config.Logger.Debug("Skipping resource with empty name",
+		// For logging purposes - create a resource ID that might use generateName
+		resourceID := fmt.Sprintf("%s/%s", kind, name)
+		if name == "" && generateName != "" {
+			resourceID = fmt.Sprintf("%s/%s*", kind, generateName)
+		}
+
+		// For resources using generateName, the name will be empty but we shouldn't skip them
+		// Only skip if both name and generateName are empty (likely a template issue)
+		if name == "" && generateName == "" {
+			p.config.Logger.Debug("Skipping resource with empty name and generateName",
 				"kind", kind,
 				"apiVersion", apiVersion)
 			continue
 		}
-
-		// Track this resource as rendered (for detecting removals)
-		key := fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
-		renderedResources[key] = true
 
 		diff, err := p.CalculateDiff(ctx, xrDiff.Current, un)
 		if err != nil {
@@ -531,21 +538,25 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 			continue
 		}
 
-		if diff != nil && diff.DiffType != DiffTypeEqual {
-			diffKey := fmt.Sprintf("%s/%s", diff.ResourceKind, diff.ResourceName)
+		diffKey := diff.GetDiffKey()
+		if diff.DiffType != DiffTypeEqual {
 			diffs[diffKey] = diff
 		}
+
+		renderedResources[diffKey] = true
 	}
 
-	// Find resources that would be removed
-	p.config.Logger.Debug("Finding resources to be removed", "xr", xrName)
-	removedDiffs, err := p.CalculateRemovedResourceDiffs(ctx, xr, renderedResources)
-	if err != nil {
-		p.config.Logger.Debug("Error calculating removed resources (continuing)", "error", err)
-	} else if len(removedDiffs) > 0 {
-		// Add removed resources to the diffs map
-		for key, diff := range removedDiffs {
-			diffs[key] = diff
+	if xrDiff.Current != nil {
+		// it only makes sense to calculate removal of things if we have a current XR.
+		p.config.Logger.Debug("Finding resources to be removed", "xr", xrName)
+		removedDiffs, err := p.CalculateRemovedResourceDiffs(ctx, xrDiff.Current, renderedResources)
+		if err != nil {
+			p.config.Logger.Debug("Error calculating removed resources (continuing)", "error", err)
+		} else if len(removedDiffs) > 0 {
+			// Add removed resources to the diffs map
+			for key, diff := range removedDiffs {
+				diffs[key] = diff
+			}
 		}
 	}
 
@@ -562,8 +573,12 @@ func (p *DefaultDiffProcessor) CalculateDiffs(ctx context.Context, xr *ucomposit
 	return diffs, nil
 }
 
+func makeDiffKey(apiVersion, kind, name string) string {
+	return fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
+}
+
 // CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs
-func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context, xr *ucomposite.Unstructured, renderedResources map[string]bool) (map[string]*ResourceDiff, error) {
+func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*ResourceDiff, error) {
 	xrName := xr.GetName()
 	p.config.Logger.Debug("Checking for resources to be removed",
 		"xr", xrName,
@@ -571,17 +586,8 @@ func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context
 
 	removedDiffs := make(map[string]*ResourceDiff)
 
-	// Try to find the XR and get its resource tree
-	gvk := xr.GroupVersionKind()
-	xrRes, err := p.client.GetResource(ctx, gvk, "", xrName)
-	if err != nil {
-		// Log the error but continue - we just won't detect removed resources
-		p.config.Logger.Debug("Cannot find XR to check for removed resources (continuing)", "error", err)
-		return removedDiffs, nil
-	}
-
 	// Try to get the resource tree
-	resourceTree, err := p.client.GetResourceTree(ctx, xrRes)
+	resourceTree, err := p.client.GetResourceTree(ctx, xr)
 	if err != nil {
 		// Log the error but continue - we just won't detect removed resources
 		p.config.Logger.Debug("Cannot get resource tree (continuing)", "error", err)
@@ -599,7 +605,7 @@ func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context
 			resourceID := fmt.Sprintf("%s/%s", kind, name)
 
 			// Use the same key format as in CalculateDiffs to check if this resource was rendered
-			key := fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
+			key := makeDiffKey(apiVersion, kind, name)
 
 			if !renderedResources[key] {
 				// This resource exists but wasn't rendered - it will be removed
@@ -615,7 +621,7 @@ func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context
 				}
 
 				if diff != nil {
-					diffKey := fmt.Sprintf("%s/%s", diff.ResourceKind, diff.ResourceName)
+					diffKey := diff.GetDiffKey()
 					removedDiffs[diffKey] = diff
 				}
 			}
@@ -638,7 +644,21 @@ func (p *DefaultDiffProcessor) CalculateRemovedResourceDiffs(ctx context.Context
 
 // CalculateDiff calculates the diff for a single resource
 func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*ResourceDiff, error) {
-	resourceID := fmt.Sprintf("%s/%s", desired.GetKind(), desired.GetName())
+	// Get resource identification information
+	//gvk := desired.GroupVersionKind()
+	name := desired.GetName()
+	generateName := desired.GetGenerateName()
+
+	// Create a resource ID for logging purposes
+	var resourceID string
+	if name != "" {
+		resourceID = fmt.Sprintf("%s/%s", desired.GetKind(), name)
+	} else if generateName != "" {
+		resourceID = fmt.Sprintf("%s/%s*", desired.GetKind(), generateName)
+	} else {
+		resourceID = fmt.Sprintf("%s/<no-name>", desired.GetKind())
+	}
+
 	p.config.Logger.Debug("Calculating diff", "resource", resourceID)
 
 	// Fetch current object from cluster
@@ -654,17 +674,35 @@ func (p *DefaultDiffProcessor) CalculateDiff(ctx context.Context, composite *uns
 	} else if current != nil {
 		p.config.Logger.Debug("Found existing resource",
 			"resource", resourceID,
+			"existingName", current.GetName(),
 			"resourceVersion", current.GetResourceVersion())
 	}
 
 	// Update owner references if needed
 	p.updateOwnerRefs(composite, desired)
 
+	// If this is an existing resource but our desired object uses generateName,
+	// set the name from the current resource for the dry-run apply
+	if current != nil && name == "" && generateName != "" {
+		currentName := current.GetName()
+		p.config.Logger.Debug("Using existing resource name for desired object with generateName",
+			"resource", resourceID,
+			"currentName", currentName)
+
+		// Create a copy of the desired object and set the name from the current resource
+		// This is needed for server-side apply which requires a name
+		desiredCopy := desired.DeepCopy()
+		desiredCopy.SetName(currentName)
+		desired = desiredCopy
+	}
+
 	// Determine what the resource would look like after application
 	wouldBeResult := desired
 	if current != nil {
 		// Perform a dry-run apply to get the result after we'd apply
-		p.config.Logger.Debug("Performing dry-run apply", "resource", resourceID)
+		p.config.Logger.Debug("Performing dry-run apply",
+			"resource", resourceID,
+			"name", desired.GetName())
 		wouldBeResult, err = p.client.DryRunApply(ctx, desired)
 		if err != nil {
 			p.config.Logger.Debug("Dry-run apply failed", "resource", resourceID, "error", err)
@@ -757,42 +795,57 @@ func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite
 	// Get the GroupVersionKind and name/namespace for lookup
 	gvk := desired.GroupVersionKind()
 	name := desired.GetName()
+	generateName := desired.GetGenerateName()
 	namespace := desired.GetNamespace()
-	resourceID := fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
 
-	p.config.Logger.Debug("Fetching current object state", "resource", resourceID)
+	// For logging - create a resource ID that might use generateName
+	var resourceID string
+	if name != "" {
+		resourceID = fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
+	} else if generateName != "" {
+		resourceID = fmt.Sprintf("%s/%s/%s*", gvk.String(), namespace, generateName)
+	} else {
+		resourceID = fmt.Sprintf("%s/<no-name>", gvk.String())
+	}
+
+	p.config.Logger.Debug("Fetching current object state",
+		"resource", resourceID,
+		"hasName", name != "",
+		"hasGenerateName", generateName != "")
 
 	var current *unstructured.Unstructured
 	var err error
 	isNewObject := false
 
-	// First, try direct lookup by GVK and name
-	current, err = p.client.GetResource(ctx, gvk, namespace, name)
-	if err == nil && current != nil {
-		p.config.Logger.Debug("Found resource by direct lookup",
-			"resource", resourceID,
-			"resourceVersion", current.GetResourceVersion())
+	// If there's a name, try direct lookup first
+	if name != "" {
+		current, err = p.client.GetResource(ctx, gvk, namespace, name)
+		if err == nil && current != nil {
+			p.config.Logger.Debug("Found resource by direct lookup",
+				"resource", resourceID,
+				"resourceVersion", current.GetResourceVersion())
 
-		// Check if this resource is already owned by a different composite
-		if composite != nil {
-			if labels := current.GetLabels(); labels != nil {
-				if owner, exists := labels["crossplane.io/composite"]; exists && owner != composite.GetName() {
-					// Log a warning if the resource is owned by a different composite
-					p.config.Logger.Info(
-						"Warning: Resource already belongs to another composite",
-						"resource", resourceID,
-						"currentOwner", owner,
-						"newOwner", composite.GetName(),
-					)
+			// Check if this resource is already owned by a different composite
+			if composite != nil {
+				if labels := current.GetLabels(); labels != nil {
+					if owner, exists := labels["crossplane.io/composite"]; exists && owner != composite.GetName() {
+						// Log a warning if the resource is owned by a different composite
+						p.config.Logger.Info(
+							"Warning: Resource already belongs to another composite",
+							"resource", resourceID,
+							"currentOwner", owner,
+							"newOwner", composite.GetName(),
+						)
+					}
 				}
 			}
+			return current, false, nil
 		}
-		return current, false, nil
 	}
 
-	// Handle the resource not found case - this might be a genuinely new resource
-	// or it might be a composed resource that we need to look up differently
-	if apierrors.IsNotFound(err) {
+	// Handle the resource not found case or resources with only generateName
+	// This might be a genuinely new resource or one we need to look up differently
+	if name == "" || apierrors.IsNotFound(err) {
 		// If this is the XR itself (composite is nil), it's genuinely new
 		if composite == nil {
 			p.config.Logger.Debug("XR not found, creating new", "resource", resourceID)
@@ -835,10 +888,11 @@ func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite
 			return nil, true, nil
 		}
 
-		p.config.Logger.Debug("Resource not found by direct lookup, trying Crossplane labels",
+		p.config.Logger.Debug("Resource needs lookup by labels and annotations",
 			"resource", resourceID,
 			"compositeName", composite.GetName(),
-			"compositionResourceName", compResourceName)
+			"compositionResourceName", compResourceName,
+			"hasGenerateName", generateName != "")
 
 		// Only proceed if we have necessary identifiers
 		if composite.GetName() != "" {
@@ -898,6 +952,18 @@ func (p *DefaultDiffProcessor) fetchCurrentObject(ctx context.Context, composite
 					}
 
 					if resourceNameMatch {
+						// If this resource has generateName and we found a match,
+						// verify the match starts with our generateName prefix if provided
+						if generateName != "" {
+							resName := res.GetName()
+							if !strings.HasPrefix(resName, generateName) {
+								p.config.Logger.Debug("Found resource with matching composition name but wrong generateName prefix",
+									"expectedPrefix", generateName,
+									"actualName", resName)
+								continue
+							}
+						}
+
 						p.config.Logger.Debug("Found matching resource by composition-resource-name",
 							"resource", fmt.Sprintf("%s/%s", res.GetKind(), res.GetName()),
 							"annotation", compResourceName)
@@ -929,11 +995,12 @@ func (p *DefaultDiffProcessor) RenderDiffs(stdout io.Writer, diffs map[string]*R
 	diffOpts := p.config.GetDiffOptions()
 
 	// Sort the keys to ensure a consistent output order
-	keys := make([]string, 0, len(diffs))
-	for key := range diffs {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	d := maps.Values(diffs)
+
+	// but we need to sort over GetKindName and not GVKN, because Key is how it's displayed to the user
+	slices.SortFunc(d, func(a, b *ResourceDiff) int {
+		return cmp.Compare(a.getKindName(), b.getKindName())
+	})
 
 	// Track stats for summary logging
 	addedCount := 0
@@ -942,9 +1009,8 @@ func (p *DefaultDiffProcessor) RenderDiffs(stdout io.Writer, diffs map[string]*R
 	equalCount := 0
 	outputCount := 0
 
-	for _, key := range keys {
-		diff := diffs[key]
-		resourceID := fmt.Sprintf("%s/%s", diff.ResourceKind, diff.ResourceName)
+	for _, diff := range d {
+		resourceID := diff.getKindName()
 
 		// Count by diff type for summary
 		switch diff.DiffType {

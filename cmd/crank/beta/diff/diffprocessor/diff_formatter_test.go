@@ -5,6 +5,7 @@ import (
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 	"testing"
 
@@ -45,7 +46,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          current.GroupVersionKind(),
 				ResourceName: "test-resource",
 				DiffType:     DiffTypeModified,
 				Current:      current,
@@ -61,7 +62,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          current.GroupVersionKind(),
 				ResourceName: "test-resource",
 				DiffType:     DiffTypeEqual,
 				Current:      current,
@@ -76,7 +77,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          desired.GroupVersionKind(),
 				ResourceName: "test-resource",
 				DiffType:     DiffTypeAdded,
 				Current:      nil,
@@ -92,7 +93,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          current.GroupVersionKind(),
 				ResourceName: "test-resource",
 				DiffType:     DiffTypeRemoved,
 				Current:      current,
@@ -132,8 +133,8 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			}
 
 			// Check the basic properties
-			if diff.ResourceKind != tt.wantDiff.ResourceKind {
-				t.Errorf("ResourceKind = %v, want %v", diff.ResourceKind, tt.wantDiff.ResourceKind)
+			if diff.Gvk != tt.wantDiff.Gvk {
+				t.Errorf("Gvk = %v, want %v", diff.Gvk.String(), tt.wantDiff.Gvk.String())
 			}
 
 			if diff.ResourceName != tt.wantDiff.ResourceName {
@@ -164,7 +165,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 func TestRenderDiffs(t *testing.T) {
 	// Test diffs for different scenarios
 	addedDiff := &ResourceDiff{
-		ResourceKind: "TestResource",
+		Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 		ResourceName: "added-resource",
 		DiffType:     DiffTypeAdded,
 		LineDiffs: []diffmatchpatch.Diff{
@@ -173,7 +174,7 @@ func TestRenderDiffs(t *testing.T) {
 	}
 
 	removedDiff := &ResourceDiff{
-		ResourceKind: "TestResource",
+		Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 		ResourceName: "removed-resource",
 		DiffType:     DiffTypeRemoved,
 		LineDiffs: []diffmatchpatch.Diff{
@@ -182,7 +183,7 @@ func TestRenderDiffs(t *testing.T) {
 	}
 
 	modifiedDiff := &ResourceDiff{
-		ResourceKind: "TestResource",
+		Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 		ResourceName: "modified-resource",
 		DiffType:     DiffTypeModified,
 		LineDiffs: []diffmatchpatch.Diff{

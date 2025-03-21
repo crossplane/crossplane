@@ -536,7 +536,7 @@ func TestDiffIntegration(t *testing.T) {
 			}
 
 			// Run the diff command with the test environment's config
-			err = cmd.Run(kongCtx, tu.TestLogger(t), cfg)
+			err = cmd.Run(kongCtx, tu.VerboseTestLogger(t), cfg)
 
 			if tt.expectedError && err == nil {
 				t.Fatal("expected error but got none")

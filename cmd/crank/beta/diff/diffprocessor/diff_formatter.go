@@ -7,6 +7,7 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
 )
@@ -54,12 +55,20 @@ type DiffOptions struct {
 
 // ResourceDiff represents the diff for a specific resource
 type ResourceDiff struct {
-	ResourceKind string
+	Gvk          schema.GroupVersionKind
 	ResourceName string
 	DiffType     DiffType
 	LineDiffs    []diffmatchpatch.Diff
 	Current      *unstructured.Unstructured // Optional, for reference
 	Desired      *unstructured.Unstructured // Optional, for reference
+}
+
+func (d *ResourceDiff) getKindName() string {
+	return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
+}
+
+func (d *ResourceDiff) GetDiffKey() string {
+	return makeDiffKey(d.Gvk.Group+"/"+d.Gvk.Version, d.Gvk.Kind, d.ResourceName)
 }
 
 // DefaultDiffOptions returns the default options with colors enabled
@@ -345,14 +354,15 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 	logger.Debug("Diff calculation complete", "resource", resourceKey, "diff_chunks", len(lineDiffs))
 
 	// Extract resource kind and name
-	var kind, name string
+	var name string
+	var gvk schema.GroupVersionKind
 	// For removed resources, use current's kind and name
 	if diffType == DiffTypeRemoved { // current != nil
-		kind = current.GetKind()
 		name = current.GetName()
+		gvk = current.GroupVersionKind()
 	} else { // desired != nil
 		// For added or modified resources, use desired's kind
-		kind = desired.GetKind()
+		gvk = desired.GroupVersionKind()
 
 		// For name, prefer the current resource name if it exists (for generateName cases)
 		if current != nil && current.GetName() != "" {
@@ -363,7 +373,7 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 	}
 
 	return &ResourceDiff{
-		ResourceKind: kind,
+		Gvk:          gvk,
 		ResourceName: name,
 		DiffType:     diffType,
 		LineDiffs:    lineDiffs,
@@ -374,7 +384,7 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 
 func equalDiff(current *unstructured.Unstructured, desired *unstructured.Unstructured) *ResourceDiff {
 	return &ResourceDiff{
-		ResourceKind: current.GetKind(),
+		Gvk:          current.GroupVersionKind(),
 		ResourceName: current.GetName(),
 		DiffType:     DiffTypeEqual,
 		LineDiffs:    []diffmatchpatch.Diff{},

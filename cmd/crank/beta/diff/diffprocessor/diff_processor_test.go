@@ -100,7 +100,7 @@ func TestDiffProcessor_ProcessResource(t *testing.T) {
 					WithSuccessfulCompositionMatch(composition).
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					WithResourcesExist(xr, composedResource).       // Add the XR to existing resources
+					WithResourcesExist(xr, composedResource). // Add the XR to existing resources
 					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{composedXrd}).
@@ -301,7 +301,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 			composite: nil,
 			desired:   modifiedResource,
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "existing-resource",
 				DiffType:     DiffTypeModified,
 			},
@@ -317,7 +317,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 			composite: nil,
 			desired:   newResource,
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "new-resource",
 				DiffType:     DiffTypeAdded,
 			},
@@ -343,7 +343,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 				}).
 				Build(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "ComposedResource",
+				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
 				ResourceName: "composed-resource",
 				DiffType:     DiffTypeModified,
 			},
@@ -359,7 +359,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 			composite: nil,
 			desired:   existingResource.DeepCopy(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "TestResource",
+				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "existing-resource",
 				DiffType:     DiffTypeEqual,
 			},
@@ -452,7 +452,7 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 				WithGenerateName("test-resource-").
 				Build(),
 			wantDiff: &ResourceDiff{
-				ResourceKind: "ComposedResource",
+				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
 				ResourceName: "test-resource-abc123", // Should have found the existing resource name
 				DiffType:     DiffTypeModified,
 			},
@@ -498,8 +498,8 @@ func TestDefaultDiffProcessor_CalculateDiff(t *testing.T) {
 			}
 
 			// Check the basics of the diff
-			if diff.ResourceKind != tt.wantDiff.ResourceKind {
-				t.Errorf("ResourceKind = %v, want %v", diff.ResourceKind, tt.wantDiff.ResourceKind)
+			if diff.Gvk != tt.wantDiff.Gvk {
+				t.Errorf("Gvk = %v, want %v", diff.Gvk.String(), tt.wantDiff.Gvk.String())
 			}
 
 			if diff.ResourceName != tt.wantDiff.ResourceName {
@@ -573,8 +573,8 @@ func TestDefaultDiffProcessor_CalculateDiffs(t *testing.T) {
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]DiffType{
-				"XR/test-xr":          DiffTypeModified,
-				"Composed/composed-1": DiffTypeModified,
+				"example.org/v1/XR/test-xr":          DiffTypeModified,
+				"example.org/v1/Composed/composed-1": DiffTypeModified,
 			},
 			wantErr: false,
 		},
@@ -599,7 +599,7 @@ func TestDefaultDiffProcessor_CalculateDiffs(t *testing.T) {
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]DiffType{
-				"Composed/composed-1": DiffTypeModified,
+				"example.org/v1/Composed/composed-1": DiffTypeModified,
 			},
 			wantErr: false,
 		},
@@ -647,9 +647,9 @@ func TestDefaultDiffProcessor_CalculateDiffs(t *testing.T) {
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]DiffType{
-				"XR/test-xr":          DiffTypeModified,
-				"Composed/composed-1": DiffTypeModified,
-				"Composed/composed-2": DiffTypeRemoved,
+				"example.org/v1/XR/test-xr":          DiffTypeModified,
+				"example.org/v1/Composed/composed-1": DiffTypeModified,
+				"example.org/v1/Composed/composed-2": DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
@@ -696,9 +696,9 @@ func TestDefaultDiffProcessor_CalculateDiffs(t *testing.T) {
 					BuildUComposed()},
 			},
 			expectedDiffs: map[string]DiffType{
-				"XR/test-xr":                  DiffTypeModified,
-				"Composed/composed-1":         DiffTypeModified,
-				"Composed/resource-to-remove": DiffTypeRemoved,
+				"example.org/v1/XR/test-xr":                  DiffTypeModified,
+				"example.org/v1/Composed/composed-1":         DiffTypeModified,
+				"example.org/v1/Composed/resource-to-remove": DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
@@ -774,7 +774,7 @@ func TestDefaultDiffProcessor_CalculateRemovedResourceDiffs(t *testing.T) {
 
 	// Create a test XR
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").
-		BuildUComposite()
+		Build()
 
 	// Create a resource tree with two resources
 	resourceToKeep := tu.NewResource("example.org/v1", "Composed", "resource-to-keep").
@@ -798,9 +798,9 @@ func TestDefaultDiffProcessor_CalculateRemovedResourceDiffs(t *testing.T) {
 			name: "IdentifiesRemovedResources",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesExist(xr.GetUnstructured()).
+					WithResourcesExist(xr).
 					WithResourceTreeFromXRAndComposed(
-						xr.GetUnstructured(),
+						xr,
 						[]*unstructured.Unstructured{resourceToKeep, resourceToRemove},
 					).
 					Build()
@@ -817,9 +817,9 @@ func TestDefaultDiffProcessor_CalculateRemovedResourceDiffs(t *testing.T) {
 			name: "NoRemovedResources",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesExist(xr.GetUnstructured()).
+					WithResourcesExist(xr).
 					WithResourceTreeFromXRAndComposed(
-						xr.GetUnstructured(),
+						xr,
 						[]*unstructured.Unstructured{resourceToKeep, resourceToRemove},
 					).
 					Build()
@@ -836,7 +836,7 @@ func TestDefaultDiffProcessor_CalculateRemovedResourceDiffs(t *testing.T) {
 			name: "ErrorGettingResourceTree",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesExist(xr.GetUnstructured()).
+					WithResourcesExist(xr).
 					WithFailedResourceTreeFetch("failed to get resource tree").
 					Build()
 			},

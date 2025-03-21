@@ -85,3 +85,7 @@ func (tw testWriter) Write(p []byte) (int, error) {
 func TestLogger(t *testing.T) logging.Logger {
 	return logging.NewLogrLogger(testr.New(t))
 }
+
+func VerboseTestLogger(t *testing.T) logging.Logger {
+	return logging.NewLogrLogger(testr.NewWithOptions(t, testr.Options{Verbosity: 1}))
+}
