@@ -38,7 +38,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 		}).
 		Build()
 
-	// Existing resource that matches generateName pattern
+	// Existing resource that matches generateName pattern but has different resource name
 	existingGeneratedResourceWithDifferentResName := tu.NewResource("example.org/v1", "TestResource", "test-resource-abc123").
 		WithSpecField("field", "value").
 		WithLabels(map[string]string{
@@ -140,7 +140,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 							name,
 						)
 					}).
-					// Return existing resource when looking up by label
+					// Return existing resource when looking up by label AND check the composition-resource-name annotation
 					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
 							return []*unstructured.Unstructured{existingGeneratedResource, existingGeneratedResourceWithDifferentResName}, nil
@@ -167,10 +167,15 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			name: "ComposedResource_FoundByLabelAndAnnotation",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					// Return "not found" for direct name lookup
+					// Return "not found" for direct name lookup to force label lookup
 					WithResourceNotFound().
-					// Return our existing resource when looking up by label
-					WithResourcesFoundByLabel([]*unstructured.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
+					// Return our existing resource when looking up by label AND check the composition-resource-name annotation
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
+							return []*unstructured.Unstructured{composedResource}, nil
+						}
+						return []*unstructured.Unstructured{}, nil
+					}).
 					Build()
 			},
 			composite: parentXR,

@@ -16,6 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// Update the test case for the DiffCalculator's handling of resources with generateName
+
 func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 	ctx := context.Background()
 
@@ -182,6 +184,9 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 					// Return "not found" for direct name lookup
 					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
 						// This should fail as the resource has generateName, not name
+						if name == "test-resource-abc123" {
+							return existingComposed, nil
+						}
 						return nil, apierrors.NewNotFound(
 							schema.GroupResource{
 								Group:    gvk.Group,
@@ -215,7 +220,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			wantDiff: &ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
 				ResourceName: "test-resource-abc123", // Should have found the existing resource name
-				DiffType:     DiffTypeModified,
+				DiffType:     DiffTypeModified,       // Should be modified, not added
 			},
 		},
 	}

@@ -219,27 +219,32 @@ func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composi
 
 							// If we have a match, ensure the labels are consistent
 							// This is especially important for resources managed by XRs with generateName
-							if composite != nil {
-								labels := res.GetLabels()
-								if labels == nil {
-									labels = make(map[string]string)
-								}
+							labels := res.GetLabels()
+							if labels == nil {
+								labels = make(map[string]string)
+							}
 
-								// Use the composite's generateName if needed
-								compositeName := composite.GetName()
-								if compositeName == "" && composite.GetGenerateName() != "" {
-									compositeName = composite.GetGenerateName()
-								}
+							// Use the composite's generateName if needed
+							compositeName := composite.GetName()
+							if compositeName == "" && composite.GetGenerateName() != "" {
+								compositeName = composite.GetGenerateName()
+							}
 
-								if compositeName != "" && labels["crossplane.io/composite"] != compositeName {
-									m.logger.Debug("Updating composite label for resource with generateName",
-										"resource", res.GetName(),
-										"compositeName", compositeName)
-									labels["crossplane.io/composite"] = compositeName
-									res.SetLabels(labels)
-								}
+							if compositeName != "" && labels["crossplane.io/composite"] != compositeName {
+								m.logger.Debug("Updating composite label for resource with generateName",
+									"resource", res.GetName(),
+									"compositeName", compositeName)
+								labels["crossplane.io/composite"] = compositeName
+								res.SetLabels(labels)
 							}
 						}
+
+						// We found a match!
+						m.logger.Debug("Found resource by label and annotation",
+							"resource", res.GetName(),
+							"compositeName", composite.GetName(),
+							"compositionResourceName", compResourceName)
+						return res, false, nil
 					}
 				}
 			}
