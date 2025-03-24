@@ -1,0 +1,12 @@
+apiVersion: nop.example.org/v1alpha1
+kind: XDownstreamResource
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: resource2-child
+  generateName: test-resource-child-
+  labels:
+    crossplane.io/composite: test-resource
+  name: resource-to-be-removed-child
+spec:
+  forProvider:
+    configData: child-value

@@ -5,16 +5,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/alecthomas/kong"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/ptr"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -26,7 +21,6 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,11 +29,6 @@ import (
 const (
 	timeout = 60 * time.Second
 )
-
-type ownerRelationship struct {
-	ownerFile  string
-	ownedFiles []string
-}
 
 // TestDiffIntegration runs an integration test for the diff command
 func TestDiffIntegration(t *testing.T) {
@@ -58,7 +47,7 @@ func TestDiffIntegration(t *testing.T) {
 	tests := []struct {
 		name                    string
 		setupFiles              []string
-		setupFilesWithOwnerRefs []ownerRelationship
+		setupFilesWithOwnerRefs []HierarchicalOwnershipRelation
 		inputFile               string
 		expectedOutput          string
 		expectedError           bool
@@ -324,13 +313,18 @@ func TestDiffIntegration(t *testing.T) {
 			noColor:       true,
 		},
 		{
-			name: "Resource removal detection",
-			setupFilesWithOwnerRefs: []ownerRelationship{
+			name: "Resource removal detection with hierarchy",
+			setupFilesWithOwnerRefs: []HierarchicalOwnershipRelation{
 				{
-					ownerFile: "testdata/diff/resources/existing-xr.yaml",
-					ownedFiles: []string{
-						"testdata/diff/resources/removal-test-downstream-resource1.yaml", // Will be kept
-						"testdata/diff/resources/removal-test-downstream-resource2.yaml", // Will be removed
+					OwnerFile: "testdata/diff/resources/existing-xr.yaml",
+					OwnedFiles: map[string]*HierarchicalOwnershipRelation{
+						"testdata/diff/resources/removal-test-downstream-resource1.yaml": nil, // Will be kept
+						"testdata/diff/resources/removal-test-downstream-resource2.yaml": {
+							// This resource will be removed and has a child
+							OwnedFiles: map[string]*HierarchicalOwnershipRelation{
+								"testdata/diff/resources/removal-test-downstream-resource2-child.yaml": nil, // Child will also be removed
+							},
+						},
 					},
 				},
 			},
@@ -372,6 +366,21 @@ func TestDiffIntegration(t *testing.T) {
 -     configData: existing-value
 
 ---
+--- XDownstreamResource/resource-to-be-removed-child
+- apiVersion: nop.example.org/v1alpha1
+- kind: XDownstreamResource
+- metadata:
+-   annotations:
+-     crossplane.io/composition-resource-name: resource2-child
+-   generateName: test-resource-child-
+-   labels:
+-     crossplane.io/composite: test-resource
+-   name: resource-to-be-removed-child
+- spec:
+-   forProvider:
+-     configData: child-value
+
+---
 ~~~ XNopResource/test-resource
   apiVersion: diff.example.org/v1alpha1
   kind: XNopResource
@@ -393,13 +402,13 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/functions.yaml",
 				"testdata/diff/resources/generated-name-composition.yaml",
 			},
-			setupFilesWithOwnerRefs: []ownerRelationship{
+			setupFilesWithOwnerRefs: []HierarchicalOwnershipRelation{
 				{
 					// Set up the XR as the owner of the generated composed resource
-					ownerFile: "testdata/diff/resources/existing-xr.yaml",
-					ownedFiles: []string{
+					OwnerFile: "testdata/diff/resources/existing-xr.yaml",
+					OwnedFiles: map[string]*HierarchicalOwnershipRelation{
 						// This file has a generated name and is owned by the XR
-						"testdata/diff/resources/existing-downstream-with-generated-name.yaml",
+						"testdata/diff/resources/existing-downstream-with-generated-name.yaml": nil,
 					},
 				},
 			},
@@ -481,7 +490,7 @@ func TestDiffIntegration(t *testing.T) {
 
 			// Apply resources with owner references
 			if len(tt.setupFilesWithOwnerRefs) > 0 {
-				if err := applyResourcesWithOwnership(ctx, k8sClient, tt.setupFilesWithOwnerRefs); err != nil {
+				if err := applyHierarchicalOwnership(ctx, k8sClient, tt.setupFilesWithOwnerRefs); err != nil {
 					t.Fatalf("failed to setup owner references: %v", err)
 				}
 			}
@@ -561,223 +570,4 @@ func TestDiffIntegration(t *testing.T) {
 			}
 		})
 	}
-}
-
-// applyResourcesFromFiles loads and applies resources from YAML files
-func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []string) error {
-	for _, path := range paths {
-		if err := applyAllResourcesFromFile(ctx, c, path, nil); err != nil {
-			return fmt.Errorf("failed to apply resources from %s: %w", path, err)
-		}
-	}
-	return nil
-}
-
-// applyResourcesWithOwnership loads and applies resources, handling owner relationships
-func applyResourcesWithOwnership(ctx context.Context, c client.Client, relationships []ownerRelationship) error {
-	// Process each owner-owned relationship
-	for _, rel := range relationships {
-		// First, apply the owner file and get the owner resource
-		// Note: We assume owner file has only a single document as specified in requirements
-		owner, err := applySingleResourceFromFile(ctx, c, rel.ownerFile)
-		if err != nil {
-			return fmt.Errorf("failed to apply owner resource %s: %w", rel.ownerFile, err)
-		}
-
-		// Now apply all owned resources with the owner reference
-		for _, ownedFile := range rel.ownedFiles {
-			if err := applyAllResourcesFromFile(ctx, c, ownedFile, owner); err != nil {
-				return fmt.Errorf("failed to apply owned resource %s: %w", ownedFile, err)
-			}
-		}
-	}
-	return nil
-}
-
-// applySingleResourceFromFile loads and applies a single resource from a file
-// This function assumes the file contains only a single document
-func applySingleResourceFromFile(ctx context.Context, c client.Client, path string) (*unstructured.Unstructured, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
-	}
-
-	// Parse the resource (assuming single document)
-	resource := &unstructured.Unstructured{}
-	if err := yaml.Unmarshal(data, resource); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML from %s: %w", path, err)
-	}
-
-	// Skip empty documents
-	if len(resource.Object) == 0 {
-		return nil, fmt.Errorf("file %s contains empty document", path)
-	}
-
-	// Create or update the resource
-	if err := createOrUpdateResource(ctx, c, resource); err != nil {
-		return nil, err
-	}
-
-	return resource, nil
-}
-
-// applyAllResourcesFromFile loads and applies resources from a file
-// If owner is provided, adds owner reference to all resources
-func applyAllResourcesFromFile(ctx context.Context, c client.Client, path string, owner *unstructured.Unstructured) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read file %s: %w", path, err)
-	}
-
-	// Use a YAML decoder to handle multiple documents
-	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
-	var resources []*unstructured.Unstructured
-
-	for {
-		resource := &unstructured.Unstructured{}
-		err := decoder.Decode(resource)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return fmt.Errorf("failed to decode YAML document from %s: %w", path, err)
-		}
-
-		// Skip empty documents
-		if len(resource.Object) == 0 {
-			continue
-		}
-
-		// Add owner reference if owner is provided
-		if owner != nil {
-			// Set the child's owner reference pointing to the parent
-			setOwnerReference(resource, owner)
-		}
-
-		// Add to our list of resources
-		resources = append(resources, resource)
-	}
-
-	// Create/update all resources first
-	for _, resource := range resources {
-		if err := createOrUpdateResource(ctx, c, resource); err != nil {
-			return err
-		}
-	}
-
-	// Update the owner with references to all resources
-	if owner != nil && len(resources) > 0 {
-		// Make sure we have the latest version of the owner from the server
-		existingOwner := &unstructured.Unstructured{}
-		existingOwner.SetGroupVersionKind(owner.GroupVersionKind())
-
-		err := c.Get(ctx, client.ObjectKey{
-			Name:      owner.GetName(),
-			Namespace: owner.GetNamespace(),
-		}, existingOwner)
-
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return fmt.Errorf("failed to get existing owner: %w", err)
-			}
-
-			// Owner doesn't exist yet, create it first
-			if err := c.Create(ctx, owner); err != nil {
-				return fmt.Errorf("failed to create owner: %w", err)
-			}
-		} else {
-			// Owner exists, use its resourceVersion
-			owner.SetResourceVersion(existingOwner.GetResourceVersion())
-			owner.SetUID(existingOwner.GetUID())
-		}
-
-		// Add references to all resources
-		for _, resource := range resources {
-			if err := addResourceRef(owner, resource); err != nil {
-				return fmt.Errorf("unable to add resource ref: %w", err)
-			}
-		}
-
-		// Update the owner
-		if err := c.Update(ctx, owner); err != nil {
-			return fmt.Errorf("failed to update owner with resource references: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// setOwnerReference adds an owner reference to the resource
-func setOwnerReference(resource, owner *unstructured.Unstructured) {
-	// Create owner reference
-	ownerRef := metav1.OwnerReference{
-		APIVersion:         owner.GetAPIVersion(),
-		Kind:               owner.GetKind(),
-		Name:               owner.GetName(),
-		UID:                owner.GetUID(),
-		Controller:         ptr.To(true),
-		BlockOwnerDeletion: ptr.To(true),
-	}
-
-	// Set the owner reference
-	resource.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
-}
-
-// addResourceRef adds a reference to the child resource in the parent's resourceRefs array
-func addResourceRef(parent, child *unstructured.Unstructured) error {
-	// Create the resource reference
-	ref := map[string]interface{}{
-		"apiVersion": child.GetAPIVersion(),
-		"kind":       child.GetKind(),
-		"name":       child.GetName(),
-	}
-
-	// If the child has a namespace, include it
-	if ns := child.GetNamespace(); ns != "" {
-		ref["namespace"] = ns
-	}
-
-	// Get current resourceRefs or initialize if not present
-	resourceRefs, found, err := unstructured.NestedSlice(parent.Object, "spec", "resourceRefs")
-	if err != nil {
-		return errors.Wrap(err, "cannot get resourceRefs from parent")
-	}
-
-	if !found || resourceRefs == nil {
-		resourceRefs = []interface{}{}
-	}
-
-	// Add the new reference and update the parent
-	resourceRefs = append(resourceRefs, ref)
-	return unstructured.SetNestedSlice(parent.Object, resourceRefs, "spec", "resourceRefs")
-}
-
-// createOrUpdateResource creates or updates a resource in the cluster
-func createOrUpdateResource(ctx context.Context, c client.Client, obj *unstructured.Unstructured) error {
-	err := c.Create(ctx, obj)
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			// If the resource already exists, update it
-			existing := &unstructured.Unstructured{}
-			existing.SetGroupVersionKind(obj.GroupVersionKind())
-			if err := c.Get(ctx, client.ObjectKey{
-				Name:      obj.GetName(),
-				Namespace: obj.GetNamespace(),
-			}, existing); err != nil {
-				return fmt.Errorf("failed to get existing resource: %w", err)
-			}
-
-			// Copy resource version to avoid conflicts
-			obj.SetResourceVersion(existing.GetResourceVersion())
-			// Copy UID to ensure we're updating the same object
-			obj.SetUID(existing.GetUID())
-
-			if err := c.Update(ctx, obj); err != nil {
-				return fmt.Errorf("failed to update resource: %w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to create resource: %w", err)
-		}
-	}
-	return nil
 }

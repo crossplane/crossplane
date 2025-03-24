@@ -59,6 +59,8 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 	equalCount := 0
 	outputCount := 0
 
+	// TODO:  handle the case of net-new XRs with generated names; currently they show "XRKind/(blank)" in the header
+	// as illustrated in the e2e. add a UT for the case.
 	for _, diff := range d {
 		resourceID := diff.getKindName()
 

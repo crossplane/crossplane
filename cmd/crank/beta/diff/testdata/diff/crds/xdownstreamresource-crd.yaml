@@ -29,6 +29,33 @@ spec:
                     roleName:
                       type: string
                       description: "Name of an external cluster role referenced by the resource"
+                    parentRef:
+                      type: string
+                      description: "Reference to parent resource if part of a hierarchy"
+                resourceRefs:
+                  type: array
+                  description: "References to resources that this resource depends on"
+                  items:
+                    type: object
+                    required:
+                      - apiVersion
+                      - kind
+                      - name
+                    properties:
+                      apiVersion:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      uid:
+                        type: string
+                      resourceVersion:
+                        type: string
+                      fieldPath:
+                        type: string
             status:
               type: object
               properties:

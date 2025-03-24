@@ -1,13 +1,25 @@
 package diff
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	gyaml "gopkg.in/yaml.v3"
+	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/yaml"
+
+	"k8s.io/utils/ptr"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sort"
 )
 
 // Testing data for integration tests
@@ -234,3 +246,372 @@ func createMatchingComposedResource() *unstructured.Unstructured {
 
 // Define a var for fprintf to allow test overriding
 var fprintf = fmt.Fprintf
+
+// HierarchicalOwnershipRelation represents an ownership tree structure
+type HierarchicalOwnershipRelation struct {
+	OwnerFile  string                                    // The file containing the owner resource
+	OwnedFiles map[string]*HierarchicalOwnershipRelation // Map of owned file paths to their own relationships
+}
+
+// setOwnerReference adds an owner reference to the resource
+func setOwnerReference(resource, owner *unstructured.Unstructured) {
+	// Create owner reference
+	ownerRef := metav1.OwnerReference{
+		APIVersion:         owner.GetAPIVersion(),
+		Kind:               owner.GetKind(),
+		Name:               owner.GetName(),
+		UID:                owner.GetUID(),
+		Controller:         ptr.To(true),
+		BlockOwnerDeletion: ptr.To(true),
+	}
+
+	// Set the owner reference
+	resource.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
+}
+
+// addResourceRef adds a reference to the child resource in the parent's resourceRefs array
+func addResourceRef(parent, child *unstructured.Unstructured) error {
+	// Create the resource reference
+	ref := map[string]interface{}{
+		"apiVersion": child.GetAPIVersion(),
+		"kind":       child.GetKind(),
+		"name":       child.GetName(),
+	}
+
+	// If the child has a namespace, include it
+	if ns := child.GetNamespace(); ns != "" {
+		ref["namespace"] = ns
+	}
+
+	// Get current resourceRefs or initialize if not present
+	resourceRefs, found, err := unstructured.NestedSlice(parent.Object, "spec", "resourceRefs")
+	if err != nil {
+		return errors.Wrap(err, "cannot get resourceRefs from parent")
+	}
+
+	if !found || resourceRefs == nil {
+		resourceRefs = []interface{}{}
+	}
+
+	// Add the new reference and update the parent
+	resourceRefs = append(resourceRefs, ref)
+	return unstructured.SetNestedSlice(parent.Object, resourceRefs, "spec", "resourceRefs")
+}
+
+// applyResourcesFromFiles loads and applies resources from YAML files
+// Under the assumption that no resource should already exist
+func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []string) error {
+	// Collect all resources from all files first
+	var allResources []*unstructured.Unstructured
+	for _, path := range paths {
+		resources, err := readResourcesFromFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read resources from %s: %w", path, err)
+		}
+		allResources = append(allResources, resources...)
+	}
+
+	// Apply all resources as new resources
+	return createResources(ctx, c, allResources)
+}
+
+// readResourcesFromFile reads YAML resources from a file
+func readResourcesFromFile(path string) ([]*unstructured.Unstructured, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
+	}
+
+	// Use a YAML decoder to handle multiple documents
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
+	var resources []*unstructured.Unstructured
+
+	for {
+		resource := &unstructured.Unstructured{}
+		err := decoder.Decode(resource)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("failed to decode YAML document from %s: %w", path, err)
+		}
+
+		// Skip empty documents
+		if len(resource.Object) == 0 {
+			continue
+		}
+
+		resources = append(resources, resource)
+	}
+
+	return resources, nil
+}
+
+// createResources creates all resources in the cluster
+// Assumes resources don't already exist - fails if they do
+func createResources(ctx context.Context, c client.Client, resources []*unstructured.Unstructured) error {
+	for _, resource := range resources {
+		if err := c.Create(ctx, resource.DeepCopy()); err != nil {
+			if apierrors.IsAlreadyExists(err) {
+				return fmt.Errorf("resource %s/%s of kind %s already exists - test setup error",
+					resource.GetNamespace(), resource.GetName(), resource.GetKind())
+			}
+			return fmt.Errorf("failed to create resource %s/%s: %w",
+				resource.GetNamespace(), resource.GetName(), err)
+		}
+	}
+	return nil
+}
+
+// applyHierarchicalOwnership applies a hierarchical ownership structure
+func applyHierarchicalOwnership(ctx context.Context, c client.Client, hierarchies []HierarchicalOwnershipRelation) error {
+	// Map to store created resources by file path
+	createdResources := make(map[string]*unstructured.Unstructured)
+	// Map to track parent-child relationships for establishing resourceRefs
+	parentChildRelationships := make(map[string]string) // child file -> parent file
+
+	// First pass: Create all resources and collect parent-child relationships
+	if err := createAllResourcesInHierarchy(ctx, c, hierarchies, createdResources, parentChildRelationships); err != nil {
+		return err
+	}
+
+	// Second pass: Apply all owner references and resource refs between parents and children
+	if err := applyAllRelationships(ctx, c, createdResources, parentChildRelationships); err != nil {
+		return err
+	}
+
+	// Third pass: Log the final state of all resources for debugging
+	//if err := logResourcesAsYAML(ctx, c, createdResources); err != nil {
+	//	// Just log the error but don't fail the test
+	//	fmt.Printf("Warning: Failed to log resources as YAML: %v\n", err)
+	//}
+
+	return nil
+}
+
+// Unused but useful for debugging; leave it here.
+// logResourcesAsYAML fetches the latest version of each resource and logs it as YAML
+func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources map[string]*unstructured.Unstructured) error {
+	fmt.Printf("\n===== FINAL STATE OF CREATED RESOURCES =====\n\n")
+
+	// Sort the file paths for consistent output order
+	filePaths := make([]string, 0, len(createdResources))
+	for filePath := range createdResources {
+		filePaths = append(filePaths, filePath)
+	}
+	sort.Strings(filePaths)
+
+	for _, filePath := range filePaths {
+		resource := createdResources[filePath]
+
+		// Fetch the latest version of the resource
+		latest := &unstructured.Unstructured{}
+		latest.SetGroupVersionKind(resource.GroupVersionKind())
+
+		if err := c.Get(ctx, client.ObjectKey{
+			Name:      resource.GetName(),
+			Namespace: resource.GetNamespace(),
+		}, latest); err != nil {
+			return fmt.Errorf("failed to get latest version of resource %s/%s: %w",
+				resource.GetNamespace(), resource.GetName(), err)
+		}
+
+		// Convert to YAML
+		yamlData, err := gyaml.Marshal(latest.Object)
+		if err != nil {
+			return fmt.Errorf("failed to marshal resource to YAML: %w", err)
+		}
+
+		// Print the resource file path and its YAML representation
+		fmt.Printf("--- Source: %s\nResourceName: %s/%s\n%s\n\n",
+			filePath, latest.GetKind(), latest.GetName(), string(yamlData))
+	}
+
+	fmt.Printf("===== END OF RESOURCES =====\n\n")
+	return nil
+}
+
+// createAllResourcesInHierarchy creates all resources in a hierarchy and tracks relationships
+func createAllResourcesInHierarchy(ctx context.Context, c client.Client,
+	hierarchies []HierarchicalOwnershipRelation,
+	createdResources map[string]*unstructured.Unstructured,
+	parentChildRelationships map[string]string) error {
+
+	for _, hierarchy := range hierarchies {
+		// Create the owner resource first
+		_, err := createResourceFromFile(ctx, c, hierarchy.OwnerFile, createdResources)
+		if err != nil {
+			return err
+		}
+
+		// Create all owned resources without setting references yet
+		for ownedFile, childHierarchy := range hierarchy.OwnedFiles {
+			// Track the parent-child relationship
+			parentChildRelationships[ownedFile] = hierarchy.OwnerFile
+
+			// Create the owned resource without setting references
+			_, err := createResourceFromFile(ctx, c, ownedFile, createdResources)
+			if err != nil {
+				return err
+			}
+
+			// Process nested hierarchies recursively
+			if childHierarchy != nil && len(childHierarchy.OwnedFiles) > 0 {
+				childHierarchies := []HierarchicalOwnershipRelation{
+					{
+						OwnerFile:  ownedFile,
+						OwnedFiles: childHierarchy.OwnedFiles,
+					},
+				}
+
+				if err := createAllResourcesInHierarchy(ctx, c, childHierarchies,
+					createdResources, parentChildRelationships); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// createResourceFromFile creates a resource from a file without setting ownership
+func createResourceFromFile(ctx context.Context, c client.Client, path string,
+	createdResources map[string]*unstructured.Unstructured) (*unstructured.Unstructured, error) {
+
+	// Check if we've already processed this resource
+	if resource, exists := createdResources[path]; exists {
+		return resource, nil
+	}
+
+	// Read the resource from file
+	resources, err := readResourcesFromFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("no resources found in file %s", path)
+	}
+
+	resource := resources[0]
+
+	// Create the resource
+	if err := c.Create(ctx, resource.DeepCopy()); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// If it already exists, fetch the current version
+			existing := &unstructured.Unstructured{}
+			existing.SetGroupVersionKind(resource.GroupVersionKind())
+
+			if err := c.Get(ctx, client.ObjectKey{
+				Name:      resource.GetName(),
+				Namespace: resource.GetNamespace(),
+			}, existing); err != nil {
+				return nil, fmt.Errorf("failed to get existing resource: %w", err)
+			}
+
+			// Store and return the existing resource
+			createdResources[path] = existing
+			return existing, nil
+		}
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+
+	// Get the resource back from the server
+	serverResource := &unstructured.Unstructured{}
+	serverResource.SetGroupVersionKind(resource.GroupVersionKind())
+
+	if err := c.Get(ctx, client.ObjectKey{
+		Name:      resource.GetName(),
+		Namespace: resource.GetNamespace(),
+	}, serverResource); err != nil {
+		return nil, fmt.Errorf("failed to get created resource: %w", err)
+	}
+
+	// Store and return the created resource
+	createdResources[path] = serverResource
+	return serverResource, nil
+}
+
+// applyAllRelationships applies all owner references and resource refs
+func applyAllRelationships(ctx context.Context, c client.Client,
+	createdResources map[string]*unstructured.Unstructured,
+	parentChildRelationships map[string]string) error {
+
+	// Process all parent-child relationships
+	for childFile, parentFile := range parentChildRelationships {
+		childResource := createdResources[childFile]
+		parentResource := createdResources[parentFile]
+
+		if childResource == nil || parentResource == nil {
+			return fmt.Errorf("missing resource in relationship: parent=%s, child=%s",
+				parentFile, childFile)
+		}
+
+		// 1. Set the owner reference in the child's metadata
+		if err := setOwnerReferenceAndUpdate(ctx, c, parentResource, childResource); err != nil {
+			return err
+		}
+
+		// 2. Add the child resource reference to the parent
+		if err := addResourceRefAndUpdate(ctx, c, parentResource, childResource); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setOwnerReferenceAndUpdate sets the owner reference in the child and updates it
+func setOwnerReferenceAndUpdate(ctx context.Context, c client.Client,
+	owner *unstructured.Unstructured, child *unstructured.Unstructured) error {
+
+	// Get the latest version of the child
+	latestChild := &unstructured.Unstructured{}
+	latestChild.SetGroupVersionKind(child.GroupVersionKind())
+
+	if err := c.Get(ctx, client.ObjectKey{
+		Name:      child.GetName(),
+		Namespace: child.GetNamespace(),
+	}, latestChild); err != nil {
+		return fmt.Errorf("failed to get child resource: %w", err)
+	}
+
+	// Set the owner reference
+	setOwnerReference(latestChild, owner)
+
+	// Update the child
+	if err := c.Update(ctx, latestChild); err != nil {
+		return fmt.Errorf("failed to update child with owner reference: %w", err)
+	}
+
+	return nil
+}
+
+// addResourceRefAndUpdate adds a resource reference to the owner and updates it
+func addResourceRefAndUpdate(ctx context.Context, c client.Client,
+	owner *unstructured.Unstructured, owned *unstructured.Unstructured) error {
+
+	// Get the latest version of the owner
+	latestOwner := &unstructured.Unstructured{}
+	latestOwner.SetGroupVersionKind(owner.GroupVersionKind())
+
+	if err := c.Get(ctx, client.ObjectKey{
+		Name:      owner.GetName(),
+		Namespace: owner.GetNamespace(),
+	}, latestOwner); err != nil {
+		return fmt.Errorf("failed to get owner for updating references: %w", err)
+	}
+
+	// Add the resource reference
+	if err := addResourceRef(latestOwner, owned); err != nil {
+		return fmt.Errorf("unable to add resource ref: %w", err)
+	}
+
+	// Update the owner with the new reference
+	if err := c.Update(ctx, latestOwner); err != nil {
+		return fmt.Errorf("failed to update owner with resource reference: %w", err)
+	}
+
+	return nil
+}
