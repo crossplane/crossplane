@@ -307,7 +307,8 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		for _, rs := range rsp.GetResults() {
 			switch rs.GetSeverity() { //nolint:exhaustive // We intentionally have a broad default case.
 			case fnv1.Severity_SEVERITY_FATAL:
-				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
+				// Even in the fatal case, return requirements if they exist, so that the caller can try to satisfy them
+				return Outputs{Requirements: requirements}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
 					"apiVersion": "render.crossplane.io/v1beta1",
