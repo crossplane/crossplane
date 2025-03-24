@@ -445,6 +445,43 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
+		{
+			name: "New XR with generateName",
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/composition.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// We don't add any existing XR, as we're testing creation of a new one
+			},
+			inputFile: "testdata/diff/generated-name-xr.yaml",
+			expectedOutput: `
++++ XDownstreamResource/generated-xr-(generated)
++ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: nop-resource
++   generateName: generated-xr-
++   labels:
++     crossplane.io/composite: generated-xr-(generated)
++ spec:
++   forProvider:
++     configData: new-value
+
+---
++++ XNopResource/generated-xr-(generated)
++ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   generateName: generated-xr-
++ spec:
++   coolField: new-value
+
+---
+`,
+			expectedError: false,
+			noColor:       true,
+		},
 	}
 
 	tu.SetupKubeTestLogger(t)

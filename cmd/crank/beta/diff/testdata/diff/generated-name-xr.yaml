@@ -1,0 +1,6 @@
+apiVersion: diff.example.org/v1alpha1
+kind: XNopResource
+metadata:
+  generateName: generated-xr-
+spec:
+  coolField: "new-value"

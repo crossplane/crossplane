@@ -216,12 +216,30 @@ func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composi
 									"actualName", resName)
 								continue
 							}
-						}
 
-						m.logger.Debug("Found matching resource by composition-resource-name",
-							"resource", fmt.Sprintf("%s/%s", res.GetKind(), res.GetName()),
-							"annotation", compResourceName)
-						return res, false, nil
+							// If we have a match, ensure the labels are consistent
+							// This is especially important for resources managed by XRs with generateName
+							if composite != nil {
+								labels := res.GetLabels()
+								if labels == nil {
+									labels = make(map[string]string)
+								}
+
+								// Use the composite's generateName if needed
+								compositeName := composite.GetName()
+								if compositeName == "" && composite.GetGenerateName() != "" {
+									compositeName = composite.GetGenerateName()
+								}
+
+								if compositeName != "" && labels["crossplane.io/composite"] != compositeName {
+									m.logger.Debug("Updating composite label for resource with generateName",
+										"resource", res.GetName(),
+										"compositeName", compositeName)
+									labels["crossplane.io/composite"] = compositeName
+									res.SetLabels(labels)
+								}
+							}
+						}
 					}
 				}
 			}
@@ -292,7 +310,32 @@ func (m *DefaultResourceManager) UpdateOwnerRefs(parent *unstructured.Unstructur
 
 	// Update the object with the modified owner references
 	child.SetOwnerReferences(updatedRefs)
-	m.logger.Debug("Updated owner references",
+	// Ensure the correct composite label is set on the child
+	// This is especially important for XRs with generateName
+	if parent != nil {
+		// Get current labels or create a new map
+		labels := child.GetLabels()
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+
+		// Set the composite owner label
+		parentName := parent.GetName()
+		if parentName == "" && parent.GetGenerateName() != "" {
+			// For XRs with only generateName, use the generateName prefix
+			parentName = parent.GetGenerateName()
+		}
+
+		if parentName != "" {
+			labels["crossplane.io/composite"] = parentName
+			child.SetLabels(labels)
+			m.logger.Debug("Updated composite owner label",
+				"label", parentName,
+				"child", child.GetName())
+		}
+	}
+
+	m.logger.Debug("Updated owner references and labels",
 		"newCount", len(updatedRefs))
 }
 

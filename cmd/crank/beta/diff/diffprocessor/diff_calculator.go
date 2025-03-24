@@ -59,7 +59,8 @@ func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un
 	if name != "" {
 		resourceID = fmt.Sprintf("%s/%s", desired.GetKind(), name)
 	} else if generateName != "" {
-		resourceID = fmt.Sprintf("%s/%s*", desired.GetKind(), generateName)
+		// Format the resource ID as "Kind/prefix-(generated)"
+		resourceID = fmt.Sprintf("%s/%s(generated)", desired.GetKind(), generateName)
 	} else {
 		resourceID = fmt.Sprintf("%s/<no-name>", desired.GetKind())
 	}

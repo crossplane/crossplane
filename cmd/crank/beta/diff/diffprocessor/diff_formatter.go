@@ -64,6 +64,12 @@ type ResourceDiff struct {
 }
 
 func (d *ResourceDiff) getKindName() string {
+	// Check if the name indicates a generated name (ends with "(generated)")
+	if strings.HasSuffix(d.ResourceName, "(generated)") {
+		return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
+	}
+
+	// Regular case with a specific name
 	return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
 }
 
@@ -368,7 +374,14 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 		if current != nil && current.GetName() != "" {
 			name = current.GetName()
 		} else {
-			name = desired.GetName()
+			// If desired has a name, use it
+			if desired.GetName() != "" {
+				name = desired.GetName()
+			} else if desired.GetGenerateName() != "" {
+				// Special handling for resources with generateName
+				// Format as "prefix-(generated)" to match expected naming pattern
+				name = desired.GetGenerateName() + "(generated)"
+			}
 		}
 	}
 
@@ -459,6 +472,32 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 	// Remove server-side fields and metadata that we don't want to diff
 	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
 	if found {
+		// Special handling for objects with both name and generateName
+		// If the name looks like a generated display name (ends with "(generated)")
+		// and generateName is also present, remove the name to avoid confusion
+		name, nameFound, _ := unstructured.NestedString(metadata, "name")
+		generateName, genNameFound, _ := unstructured.NestedString(metadata, "generateName")
+
+		if nameFound && genNameFound && strings.HasSuffix(name, "(generated)") {
+			// This is a display name we added for diffing purposes - remove it
+			// since we only added it for diffing but don't want it to show in the actual diff
+			delete(metadata, "name")
+			modifications = append(modifications, fmt.Sprintf("removed display name %q", name))
+
+			// Also normalize generateName by removing any "(generated)" suffix
+			if strings.HasSuffix(generateName, "(generated)-") {
+				// For downstream resources that have generateName mangled with the parent's display name
+				// Strip the "(generated)" part to match the original input
+				originalGenName := strings.TrimSuffix(generateName, "(generated)-")
+				metadata["generateName"] = originalGenName
+				modifications = append(modifications, fmt.Sprintf("normalized generateName from %q to %q", generateName, originalGenName))
+			}
+
+			// Don't change the composite label - it should keep the (generated) suffix
+			// This is because downstream resources should refer to their parent
+			// with the same display name that appears in the diff
+		}
+
 		// Remove fields that change automatically or are server-side
 		fieldsToRemove := []string{
 			"resourceVersion",

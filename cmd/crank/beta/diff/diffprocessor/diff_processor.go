@@ -186,11 +186,9 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
 
-	// Convert the unstructured resource to a composite unstructured for rendering
-	xr := ucomposite.New()
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
-		p.config.Logger.Debug("Failed to convert resource", "resource", resourceID, "error", err)
-		return errors.Wrap(err, "cannot convert XR to composite unstructured")
+	xr, err, done := p.SanitizeXR(res, resourceID)
+	if done {
+		return err
 	}
 
 	// Find the matching composition
@@ -283,6 +281,30 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		"hasErrors", err != nil)
 
 	return err
+}
+
+func (p *DefaultDiffProcessor) SanitizeXR(res *unstructured.Unstructured, resourceID string) (*ucomposite.Unstructured, error, bool) {
+	// Convert the unstructured resource to a composite unstructured for rendering
+	xr := ucomposite.New()
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
+		p.config.Logger.Debug("Failed to convert resource", "resource", resourceID, "error", err)
+		return nil, errors.Wrap(err, "cannot convert XR to composite unstructured"), true
+	}
+
+	// Handle XRs with generateName but no name
+	if xr.GetName() == "" && xr.GetGenerateName() != "" {
+		// Create a display name for the diff
+		displayName := xr.GetGenerateName() + "(generated)"
+		p.config.Logger.Debug("Setting display name for XR with generateName",
+			"generateName", xr.GetGenerateName(),
+			"displayName", displayName)
+
+		// Set this display name on the XR for rendering
+		xrCopy := xr.DeepCopy()
+		xrCopy.SetName(displayName)
+		xr = xrCopy
+	}
+	return xr, nil, false
 }
 
 // mergeUnstructured merges two unstructured objects
