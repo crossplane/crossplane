@@ -75,13 +75,14 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
 	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
-	// TODO:  plumb logging through everywhere and add log statements
-	// TODO:  remove stdout except for printing (and for that, maybe add a file output option?)
+	// TODO:  add a file output option
 	// TODO:  test for handling entire dependency resource trees (beyond immediate children)
 	// TODO:  make sure namespacing works everywhere
 	// TODO:  fix naive pluralization
 	// TODO:  handle composition lookup with selectors if we find more than one matching the ref type
-	// TODO:  nested external resources
+	// TODO:  nested external resources?
+	// TODO:  can we skip the whole template lookup of external resources in favor of always invoking render to get
+	// requirements?
 
 	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {
