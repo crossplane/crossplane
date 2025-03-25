@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/spf13/afero"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
@@ -160,4 +162,73 @@ func AnnotateLayers(i v1.Image) (v1.Image, error) {
 	}
 
 	return mutate.ConfigFile(img, cfgFile)
+}
+
+// LayerFromFiles creates a flattened v1.Layer of arbitrary files.
+// It performs no interpretation (parsing) of the files.
+func LayerFromFiles(filepaths []string, fs afero.Fs) (v1.Layer, error) {
+	// Since there is an arbitrary directory of mostly small files, we'll
+	// forego streaming in-memory at the expense of some disk I/O.
+	tmpFile, err := os.CreateTemp("", "extension-*.tar")
+	if err != nil {
+		return nil, err
+	}
+
+	tw := tar.NewWriter(tmpFile)
+
+	defer func() { _ = tw.Close() }()
+	defer func() { _ = tmpFile.Close() }()
+
+	for _, path := range filepaths {
+		// Get file info for the tar header
+		info, err := fs.Stat(path)
+		if err != nil {
+			return nil, err
+		}
+		if info.IsDir() {
+			continue
+		}
+		if err := createTarball(tw, path, info, fs); err != nil {
+			return nil, err
+		}
+	}
+	// Close the tar writer to flush all data
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+
+	// Reset file pointer to beginning of file
+	if _, err := tmpFile.Seek(0, 0); err != nil {
+		return nil, err
+	}
+
+	// Create layer from the tarball file
+	layer, err := tarball.LayerFromFile(tmpFile.Name())
+
+	return layer, err
+}
+
+func createTarball(tw *tar.Writer, path string, info os.FileInfo, fs afero.Fs) error {
+	f, err := fs.Open(path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+
+	// Create tar header, and flatten for the layer.
+	header := &tar.Header{
+		Name:     filepath.Base(path),
+		Size:     info.Size(),
+		Mode:     int64(info.Mode()),
+		ModTime:  info.ModTime(),
+		Typeflag: tar.TypeReg,
+	}
+
+	if err := tw.WriteHeader(header); err != nil {
+		return err
+	}
+	if _, err := io.Copy(tw, f); err != nil {
+		return err
+	}
+	return nil
 }

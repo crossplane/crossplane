@@ -110,6 +110,15 @@ the `io.crossplane.xpkg` annotation in any subsequent layers is discouraged, as
 it may lead to confusion if a third-party is consuming content from the
 flattened filesystem.
 
+Alternatively, third-party `xpkg` content for downstream consumers may also be
+referenced by a separate manifest in the image index. This manifest would not
+have any platform annotations, so container runtimes and OCI clients will
+ignore it by default. This would be a suitable option for consumers that are
+more sensitive to unrelated data being pulled onto their nodes or iterating
+over the layers in a manifest to selectively download blobs.
+The inclusion of this manifest in the image index is optional, and Crossplane
+will neither download nor interpret its contents.
+
 ### Configuration
 
 Crossplane imposes no additional requirements on image configuration and does
