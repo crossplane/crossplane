@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -96,7 +100,7 @@ func TestDefaultDiffProcessor_ProcessResource(t *testing.T) {
 					WithSuccessfulCompositionMatch(composition).
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					WithResourcesExist(xr, composedResource).       // Add the XR to existing resources
+					WithResourcesExist(xr, composedResource). // Add the XR to existing resources
 					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{composedXrd}).
@@ -142,15 +146,13 @@ func TestDefaultDiffProcessor_ProcessResource(t *testing.T) {
 				schemaValidator,
 				diffCalculator,
 				diffRenderer,
-				NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, logger),
+				mockRenderFn,
+				[]*unstructured.Unstructured{},
 				logger,
 			)
 			if err != nil {
 				t.Fatalf("Failed to create processor: %v", err)
 			}
-
-			// Override the render function
-			processor.(*DefaultDiffProcessor).config.RenderFunc = mockRenderFn
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
@@ -261,7 +263,8 @@ func TestDefaultDiffProcessor_ProcessAll(t *testing.T) {
 				schemaValidator,
 				diffCalculator,
 				diffRenderer,
-				NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, logger),
+				render.Render,
+				[]*unstructured.Unstructured{},
 				logger,
 			)
 			if err != nil {
@@ -366,7 +369,8 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 				schemaValidator,
 				diffCalculator,
 				diffRenderer,
-				NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, logger),
+				render.Render,
+				[]*unstructured.Unstructured{},
 				logger,
 			)
 			if err != nil {
@@ -394,6 +398,471 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 	}
 }
 
+func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
+	ctx := context.Background()
+
+	// Create test resources
+	xr := tu.NewResource("example.org/v1", "XR", "test-xr").BuildUComposite()
+
+	// Create a composition with pipeline mode
+	pipelineMode := apiextensionsv1.CompositionModePipeline
+	composition := &apiextensionsv1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-composition",
+		},
+		Spec: apiextensionsv1.CompositionSpec{
+			Mode: &pipelineMode,
+		},
+	}
+
+	// Create a non-pipeline composition
+	nonPipelineMode := apiextensionsv1.CompositionMode("NonPipeline")
+	nonPipelineComposition := &apiextensionsv1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "non-pipeline-composition",
+		},
+		Spec: apiextensionsv1.CompositionSpec{
+			Mode: &nonPipelineMode,
+		},
+	}
+
+	// Create test functions
+	functions := []pkgv1.Function{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-function",
+			},
+		},
+	}
+
+	// Create test resources for requirements
+	configMap := tu.NewResource("v1", "ConfigMap", "config1").Build()
+	secret := tu.NewResource("v1", "Secret", "secret1").Build()
+
+	tests := []struct {
+		name                 string
+		xr                   *ucomposite.Unstructured
+		composition          *apiextensionsv1.Composition
+		functions            []pkgv1.Function
+		resourceID           string
+		setupClient          func() *tu.MockClusterClient
+		setupRenderFunc      func() RenderFunc
+		wantComposedCount    int
+		wantRenderIterations int
+		wantErr              bool
+	}{
+		{
+			name:        "NonPipelineComposition",
+			xr:          xr,
+			composition: nonPipelineComposition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				iteration := 0
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					iteration++
+					// Return a simple output with no requirements
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+								"apiVersion": "example.org/v1",
+								"kind":       "ComposedResource",
+								"metadata": map[string]interface{}{
+									"name": "composed1",
+								},
+							}}},
+						},
+					}, nil
+				}
+			},
+			wantComposedCount:    1,
+			wantRenderIterations: 1, // Only renders once for non-pipeline
+			wantErr:              false,
+		},
+		{
+			name:        "NoRequirements",
+			xr:          xr,
+			composition: composition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				iteration := 0
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					iteration++
+					// Return a simple output with no requirements
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+								"apiVersion": "example.org/v1",
+								"kind":       "ComposedResource",
+								"metadata": map[string]interface{}{
+									"name": "composed1",
+								},
+							}}},
+						},
+						Requirements: map[string]v1.Requirements{},
+					}, nil
+				}
+			},
+			wantComposedCount:    1,
+			wantRenderIterations: 1, // Only renders once when no requirements
+			wantErr:              false,
+		},
+		{
+			name:        "SingleIterationWithRequirements",
+			xr:          xr,
+			composition: composition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						if gvk.Kind == "ConfigMap" && name == "config1" {
+							return configMap, nil
+						}
+						return nil, errors.New("resource not found")
+					}).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				iteration := 0
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					iteration++
+
+					// First render includes requirements, second should have no requirements
+					var reqs map[string]v1.Requirements
+					if iteration == 1 {
+						reqs = map[string]v1.Requirements{
+							"step1": {
+								ExtraResources: map[string]*v1.ResourceSelector{
+									"config": {
+										ApiVersion: "v1",
+										Kind:       "ConfigMap",
+										Match: &v1.ResourceSelector_MatchName{
+											MatchName: "config1",
+										},
+									},
+								},
+							},
+						}
+					} else {
+						reqs = map[string]v1.Requirements{}
+					}
+
+					// Return a simple output
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+								"apiVersion": "example.org/v1",
+								"kind":       "ComposedResource",
+								"metadata": map[string]interface{}{
+									"name": "composed1",
+								},
+							}}},
+						},
+						Requirements: reqs,
+					}, nil
+				}
+			},
+			wantComposedCount:    1,
+			wantRenderIterations: 2, // Renders once with requirements, then once more to confirm no new requirements
+			wantErr:              false,
+		},
+		{
+			name:        "MultipleIterationsWithRequirements",
+			xr:          xr,
+			composition: composition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						if gvk.Kind == "ConfigMap" && name == "config1" {
+							return configMap, nil
+						}
+						if gvk.Kind == "Secret" && name == "secret1" {
+							return secret, nil
+						}
+						return nil, errors.New("resource not found")
+					}).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				iteration := 0
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					iteration++
+
+					// Track existing resources to simulate dependencies
+					hasConfig := false
+					hasSecret := false
+
+					for _, res := range in.ExtraResources {
+						if res.GetKind() == "ConfigMap" && res.GetName() == "config1" {
+							hasConfig = true
+						}
+						if res.GetKind() == "Secret" && res.GetName() == "secret1" {
+							hasSecret = true
+						}
+					}
+
+					// Build requirements based on what we already have
+					var reqs map[string]*v1.ResourceSelector
+
+					if !hasConfig {
+						// First iteration - request ConfigMap
+						reqs = map[string]*v1.ResourceSelector{
+							"config": {
+								ApiVersion: "v1",
+								Kind:       "ConfigMap",
+								Match: &v1.ResourceSelector_MatchName{
+									MatchName: "config1",
+								},
+							},
+						}
+					} else if !hasSecret {
+						// Second iteration - request Secret
+						reqs = map[string]*v1.ResourceSelector{
+							"secret": {
+								ApiVersion: "v1",
+								Kind:       "Secret",
+								Match: &v1.ResourceSelector_MatchName{
+									MatchName: "secret1",
+								},
+							},
+						}
+					}
+
+					requirements := map[string]v1.Requirements{}
+					if len(reqs) > 0 {
+						requirements["step1"] = v1.Requirements{
+							ExtraResources: reqs,
+						}
+					}
+
+					// Return a simple output
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+								"apiVersion": "example.org/v1",
+								"kind":       "ComposedResource",
+								"metadata": map[string]interface{}{
+									"name": "composed1",
+								},
+							}}},
+						},
+						Requirements: requirements,
+					}, nil
+				}
+			},
+			wantComposedCount:    1,
+			wantRenderIterations: 3, // Iterations: 1. Request ConfigMap, 2. Request Secret, 3. No more requirements
+			wantErr:              false,
+		},
+		{
+			name:        "RenderError",
+			xr:          xr,
+			composition: composition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					return render.Outputs{}, errors.New("render error")
+				}
+			},
+			wantComposedCount:    0,
+			wantRenderIterations: 1,
+			wantErr:              true,
+		},
+		{
+			name:        "RenderErrorWithRequirements",
+			xr:          xr,
+			composition: composition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						if gvk.Kind == "ConfigMap" && name == "config1" {
+							return configMap, nil
+						}
+						return nil, errors.New("resource not found")
+					}).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				iteration := 0
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					iteration++
+
+					// First render has requirements but errors
+					if iteration == 1 {
+						reqs := map[string]v1.Requirements{
+							"step1": {
+								ExtraResources: map[string]*v1.ResourceSelector{
+									"config": {
+										ApiVersion: "v1",
+										Kind:       "ConfigMap",
+										Match: &v1.ResourceSelector_MatchName{
+											MatchName: "config1",
+										},
+									},
+								},
+							},
+						}
+
+						return render.Outputs{
+							Requirements: reqs,
+						}, errors.New("render error with requirements")
+					}
+
+					// Second render succeeds
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+								"apiVersion": "example.org/v1",
+								"kind":       "ComposedResource",
+								"metadata": map[string]interface{}{
+									"name": "composed1",
+								},
+							}}},
+						},
+					}, nil
+				}
+			},
+			wantComposedCount:    1,
+			wantRenderIterations: 2,     // Renders once with error but requirements, then once more successfully
+			wantErr:              false, // Should not error as the second render succeeds
+		},
+		{
+			name:        "RequirementsProcessingError",
+			xr:          xr,
+			composition: composition,
+			functions:   functions,
+			resourceID:  "XR/test-xr",
+			setupClient: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						return nil, errors.New("resource not found")
+					}).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			setupRenderFunc: func() RenderFunc {
+				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					reqs := map[string]v1.Requirements{
+						"step1": {
+							ExtraResources: map[string]*v1.ResourceSelector{
+								"config": {
+									ApiVersion: "v1",
+									Kind:       "ConfigMap",
+									Match: &v1.ResourceSelector_MatchName{
+										MatchName: "missing-config",
+									},
+								},
+							},
+						},
+					}
+
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						Requirements:      reqs,
+					}, nil
+				}
+			},
+			wantComposedCount:    0,
+			wantRenderIterations: 1,
+			wantErr:              true, // Should error because requirements processing fails
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up mock client and renderFunc
+			mockClient := tt.setupClient()
+			renderFunc := tt.setupRenderFunc()
+
+			// Create a render iteration counter to verify
+			renderCount := 0
+			countingRenderFunc := func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				renderCount++
+				return renderFunc(ctx, log, in)
+			}
+
+			// Create a logger
+			logger := tu.TestLogger(t)
+
+			// Create a requirements provider
+			requirementsProvider := NewRequirementsProvider(mockClient, countingRenderFunc, logger)
+
+			// Create the processor components
+			resourceManager := NewResourceManager(mockClient, logger)
+			diffOptions := DefaultDiffOptions()
+
+			// Create the processor
+			processor := &DefaultDiffProcessor{
+				client: mockClient,
+				config: ProcessorConfig{
+					Logger:     logger,
+					RenderFunc: countingRenderFunc,
+				},
+				resourceManager:      resourceManager,
+				requirementsProvider: requirementsProvider,
+				diffCalculator:       NewDiffCalculator(mockClient, resourceManager, logger, diffOptions),
+				diffRenderer:         NewDiffRenderer(logger, diffOptions),
+			}
+
+			// Call the method under test
+			output, err := processor.RenderWithRequirements(ctx, tt.xr, tt.composition, tt.functions, tt.resourceID)
+
+			// Check error expectations
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("RenderWithRequirements() expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("RenderWithRequirements() unexpected error: %v", err)
+				return
+			}
+
+			// Check render iterations
+			if renderCount != tt.wantRenderIterations {
+				t.Errorf("RenderWithRequirements() called render func %d times, want %d",
+					renderCount, tt.wantRenderIterations)
+			}
+
+			// Check composed resource count
+			if len(output.ComposedResources) != tt.wantComposedCount {
+				t.Errorf("RenderWithRequirements() returned %d composed resources, want %d",
+					len(output.ComposedResources), tt.wantComposedCount)
+			}
+		})
+	}
+}
+
 // Helper functions for processor testing
 
 // CreateTestProcessor creates a processor with the provided components for testing
@@ -403,23 +872,24 @@ func CreateTestProcessor(
 	schemaValidator SchemaValidator,
 	diffCalculator DiffCalculator,
 	diffRenderer DiffRenderer,
-	extraResourceProvider ExtraResourceProvider,
+	renderFunc RenderFunc,
+	environmentConfigs []*unstructured.Unstructured,
 	logger logging.Logger,
 ) (DiffProcessor, error) {
 	// Create processor with custom components
 	processor := &DefaultDiffProcessor{
-		client:                client,
-		resourceManager:       resourceManager,
-		schemaValidator:       schemaValidator,
-		diffCalculator:        diffCalculator,
-		diffRenderer:          diffRenderer,
-		extraResourceProvider: extraResourceProvider,
+		client:               client,
+		resourceManager:      resourceManager,
+		schemaValidator:      schemaValidator,
+		diffCalculator:       diffCalculator,
+		diffRenderer:         diffRenderer,
+		requirementsProvider: NewRequirementsProvider(client, renderFunc, logger),
 		config: ProcessorConfig{
 			Namespace:  "default",
 			Colorize:   true,
 			Compact:    false,
 			Logger:     logger,
-			RenderFunc: render.Render,
+			RenderFunc: renderFunc,
 			RestConfig: &rest.Config{},
 		},
 	}

@@ -82,6 +82,9 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// TODO:  make sure namespacing works everywhere
 	// TODO:  fix naive pluralization
 	// TODO:  nested external resources?
+	// TODO:  FetchCurrentObject refactor
+	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field
+	// TODO:  test for multiple new or changed XRs
 
 	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {

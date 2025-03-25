@@ -3,7 +3,6 @@ package diffprocessor
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 )
 
@@ -45,8 +44,8 @@ type ComponentFactories struct {
 	// DiffRendererFactory creates a DiffRenderer
 	DiffRendererFactory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer
 
-	// ExtraResourceProviderFactory creates an ExtraResourceProvider
-	ExtraResourceProviderFactory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider
+	// RequirementsProviderFactory creates an ExtraResourceProvider
+	RequirementsProviderFactory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider
 }
 
 // DiffProcessorOption defines a function that can modify a ProcessorConfig
@@ -122,10 +121,10 @@ func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions Dif
 	}
 }
 
-// WithExtraResourceProviderFactory sets the ExtraResourceProvider factory function
-func WithExtraResourceProviderFactory(factory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider) DiffProcessorOption {
+// WithRequirementsProviderFactory sets the RequirementsProvider factory function
+func WithRequirementsProviderFactory(factory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider) DiffProcessorOption {
 	return func(config *ProcessorConfig) {
-		config.ComponentFactories.ExtraResourceProviderFactory = factory
+		config.ComponentFactories.RequirementsProviderFactory = factory
 	}
 }
 
@@ -156,19 +155,10 @@ func (c *ProcessorConfig) SetDefaultFactories() {
 		c.ComponentFactories.DiffRendererFactory = NewDiffRenderer
 	}
 
-	if c.ComponentFactories.ExtraResourceProviderFactory == nil {
-		c.ComponentFactories.ExtraResourceProviderFactory = func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) ExtraResourceProvider {
-			// Create environment config provider with empty configs (will be populated in Initialize)
-			envConfigProvider := NewEnvironmentConfigProvider([]*unstructured.Unstructured{}, logger)
-
-			// Create the composite provider with all our extra resource providers
-			return NewCompositeExtraResourceProvider(
-				logger,
-				envConfigProvider,
-				NewSelectorExtraResourceProvider(client, logger),
-				NewReferenceExtraResourceProvider(client, logger),
-				NewTemplatedExtraResourceProvider(client, renderFunc, logger),
-			)
+	if c.ComponentFactories.RequirementsProviderFactory == nil {
+		c.ComponentFactories.RequirementsProviderFactory = func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider {
+			// Create a new unified provider with empty environment configs (will be populated in Initialize)
+			return NewRequirementsProvider(client, renderFunc, logger)
 		}
 	}
 }
