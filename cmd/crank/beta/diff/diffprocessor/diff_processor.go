@@ -22,11 +22,8 @@ type RenderFunc func(ctx context.Context, log logging.Logger, in render.Inputs) 
 
 // DiffProcessor interface for processing resources
 type DiffProcessor interface {
-	// ProcessAll handles all resources stored in the processor
-	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
-
-	// ProcessResource handles one resource at a time
-	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
+	// PerformDiff processes all resources and produces a diff output
+	PerformDiff(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
 
 	// Initialize loads required resources like CRDs and environment configs
 	Initialize(ctx context.Context) error
@@ -125,8 +122,8 @@ func (p *DefaultDiffProcessor) initializeSchemaValidator(ctx context.Context) er
 	return nil
 }
 
-// ProcessAll handles all resources stored in the processor. Each resource is a separate XR which will render a separate diff.
-func (p *DefaultDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
+// PerformDiff processes all resources and produces a diff output
+func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 	p.config.Logger.Debug("Processing resources", "count", len(resources))
 
 	if len(resources) == 0 {
@@ -134,48 +131,61 @@ func (p *DefaultDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context,
 		return nil
 	}
 
+	// Collect all diffs across all resources
+	allDiffs := make(map[string]*ResourceDiff)
 	var errs []error
-	var processedCount, errorCount int
 
 	for _, res := range resources {
 		resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 
-		if err := p.ProcessResource(stdout, ctx, res); err != nil {
+		diffs, err := p.DiffSingleResource(ctx, res)
+		if err != nil {
 			p.config.Logger.Debug("Failed to process resource", "resource", resourceID, "error", err)
 			errs = append(errs, errors.Wrapf(err, "unable to process resource %s", resourceID))
-			errorCount++
-		} else {
-			processedCount++
+		} else if diffs != nil {
+			// Merge the diffs into our combined map
+			for k, v := range diffs {
+				allDiffs[k] = v
+			}
 		}
 	}
 
+	// Only render diffs if we found some
+	if len(allDiffs) > 0 {
+		// Render all diffs in a single pass
+		if err := p.diffRenderer.RenderDiffs(stdout, allDiffs); err != nil {
+			p.config.Logger.Debug("Failed to render diffs", "error", err)
+			errs = append(errs, errors.Wrap(err, "failed to render diffs"))
+		}
+	}
+
+	p.config.Logger.Debug("Processing complete",
+		"resourceCount", len(resources),
+		"totalDiffs", len(allDiffs),
+		"errorCount", len(errs))
+
 	if len(errs) > 0 {
-		p.config.Logger.Debug("Completed processing with errors",
-			"totalResources", len(resources),
-			"successful", processedCount,
-			"failed", errorCount)
 		return errors.Join(errs...)
 	}
 
-	p.config.Logger.Debug("Successfully processed all resources", "count", processedCount)
 	return nil
 }
 
-// ProcessResource handles one resource at a time with better separation of concerns
-func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
+// DiffSingleResource handles one resource at a time and returns its diffs
+func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *unstructured.Unstructured) (map[string]*ResourceDiff, error) {
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
 
 	xr, err, done := p.SanitizeXR(res, resourceID)
 	if done {
-		return err
+		return nil, err
 	}
 
 	// Find the matching composition
 	comp, err := p.client.FindMatchingComposition(res)
 	if err != nil {
 		p.config.Logger.Debug("No matching composition found", "resource", resourceID, "error", err)
-		return errors.Wrap(err, "cannot find matching composition")
+		return nil, errors.Wrap(err, "cannot find matching composition")
 	}
 
 	p.config.Logger.Debug("Resource setup complete",
@@ -186,14 +196,14 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 	fns, err := p.client.GetFunctionsFromPipeline(comp)
 	if err != nil {
 		p.config.Logger.Debug("Failed to get functions", "resource", resourceID, "error", err)
-		return errors.Wrap(err, "cannot get functions from pipeline")
+		return nil, errors.Wrap(err, "cannot get functions from pipeline")
 	}
 
 	// Perform iterative rendering and requirements reconciliation
 	desired, err := p.RenderWithRequirements(ctx, xr, comp, fns, resourceID)
 	if err != nil {
 		p.config.Logger.Debug("Resource rendering failed", "resource", resourceID, "error", err)
-		return errors.Wrap(err, "cannot render resources with requirements")
+		return nil, errors.Wrap(err, "cannot render resources with requirements")
 	}
 
 	// Merge the result of the render together with the input XR
@@ -208,13 +218,13 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 
 	if err != nil {
 		p.config.Logger.Debug("Failed to merge XR", "resource", resourceID, "error", err)
-		return errors.Wrap(err, "cannot merge input XR with result of rendered XR")
+		return nil, errors.Wrap(err, "cannot merge input XR with result of rendered XR")
 	}
 
 	// Validate the resources
 	if err := p.schemaValidator.ValidateResources(ctx, xrUnstructured, desired.ComposedResources); err != nil {
 		p.config.Logger.Debug("Resource validation failed", "resource", resourceID, "error", err)
-		return errors.Wrap(err, "cannot validate resources")
+		return nil, errors.Wrap(err, "cannot validate resources")
 	}
 
 	// Calculate all diffs
@@ -225,19 +235,12 @@ func (p *DefaultDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Con
 		p.config.Logger.Debug("Partial error calculating diffs", "resource", resourceID, "error", err)
 	}
 
-	// Render and print the diffs
-	diffErr := p.diffRenderer.RenderDiffs(stdout, diffs)
-	if diffErr != nil {
-		p.config.Logger.Debug("Failed to render diffs", "resource", resourceID, "error", diffErr)
-		return diffErr
-	}
-
 	p.config.Logger.Debug("Resource processing complete",
 		"resource", resourceID,
 		"diffCount", len(diffs),
 		"hasErrors", err != nil)
 
-	return err
+	return diffs, err
 }
 
 func (p *DefaultDiffProcessor) SanitizeXR(res *unstructured.Unstructured, resourceID string) (*ucomposite.Unstructured, error, bool) {

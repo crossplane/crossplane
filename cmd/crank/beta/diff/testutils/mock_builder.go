@@ -339,22 +339,22 @@ func (b *DiffProcessorBuilder) WithFailedInitialize(errMsg string) *DiffProcesso
 	})
 }
 
-// WithProcessResource adds an implementation for the ProcessResource method.
-func (b *DiffProcessorBuilder) WithProcessResource(fn func(io.Writer, context.Context, *unstructured.Unstructured) error) *DiffProcessorBuilder {
-	b.mock.ProcessResourceFn = fn
+// WithPerformDiff adds an implementation for the PerformDiff method.
+func (b *DiffProcessorBuilder) WithPerformDiff(fn func(io.Writer, context.Context, []*unstructured.Unstructured) error) *DiffProcessorBuilder {
+	b.mock.PerformDiffFn = fn
 	return b
 }
 
-// WithSuccessfulResourceProcessing sets a successful ProcessResource implementation.
-func (b *DiffProcessorBuilder) WithSuccessfulResourceProcessing() *DiffProcessorBuilder {
-	return b.WithProcessResource(func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
+// WithSuccessfulPerformDiff sets a successful PerformDiff implementation.
+func (b *DiffProcessorBuilder) WithSuccessfulPerformDiff() *DiffProcessorBuilder {
+	return b.WithPerformDiff(func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 		return nil
 	})
 }
 
-// WithResourceProcessingOutput sets a ProcessResource implementation that writes a specific output.
-func (b *DiffProcessorBuilder) WithResourceProcessingOutput(output string) *DiffProcessorBuilder {
-	return b.WithProcessResource(func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
+// WithDiffOutput sets a PerformDiff implementation that writes a specific output.
+func (b *DiffProcessorBuilder) WithDiffOutput(output string) *DiffProcessorBuilder {
+	return b.WithPerformDiff(func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 		if stdout != nil {
 			_, _ = io.WriteString(stdout, output)
 		}
@@ -362,29 +362,9 @@ func (b *DiffProcessorBuilder) WithResourceProcessingOutput(output string) *Diff
 	})
 }
 
-// WithFailedResourceProcessing sets a failing ProcessResource implementation.
-func (b *DiffProcessorBuilder) WithFailedResourceProcessing(errMsg string) *DiffProcessorBuilder {
-	return b.WithProcessResource(func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
-		return errors.New(errMsg)
-	})
-}
-
-// WithProcessAll adds an implementation for the ProcessAll method.
-func (b *DiffProcessorBuilder) WithProcessAll(fn func(io.Writer, context.Context, []*unstructured.Unstructured) error) *DiffProcessorBuilder {
-	b.mock.ProcessAllFn = fn
-	return b
-}
-
-// WithSuccessfulAllProcessing sets a successful ProcessAll implementation.
-func (b *DiffProcessorBuilder) WithSuccessfulAllProcessing() *DiffProcessorBuilder {
-	return b.WithProcessAll(func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
-		return nil
-	})
-}
-
-// WithFailedAllProcessing sets a failing ProcessAll implementation.
-func (b *DiffProcessorBuilder) WithFailedAllProcessing(errMsg string) *DiffProcessorBuilder {
-	return b.WithProcessAll(func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
+// WithFailedPerformDiff sets a failing PerformDiff implementation.
+func (b *DiffProcessorBuilder) WithFailedPerformDiff(errMsg string) *DiffProcessorBuilder {
+	return b.WithPerformDiff(func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
 		return errors.New(errMsg)
 	})
 }

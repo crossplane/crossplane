@@ -48,14 +48,14 @@ func TestDiffIntegration(t *testing.T) {
 		name                    string
 		setupFiles              []string
 		setupFilesWithOwnerRefs []HierarchicalOwnershipRelation
-		inputFile               string
+		inputFiles              []string
 		expectedOutput          string
 		expectedError           bool
 		noColor                 bool
 	}{
 		{
-			name:      "New resource shows color diff",
-			inputFile: "testdata/diff/new-xr.yaml",
+			name:       "New resource shows color diff",
+			inputFiles: []string{"testdata/diff/new-xr.yaml"},
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -100,7 +100,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/existing-downstream-resource.yaml",
 				"testdata/diff/resources/existing-xr.yaml",
 			},
-			inputFile: "testdata/diff/modified-xr.yaml",
+			inputFiles: []string{"testdata/diff/modified-xr.yaml"},
 			expectedOutput: `
 ~~~ XDownstreamResource/test-resource
   apiVersion: nop.example.org/v1alpha1
@@ -139,7 +139,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/functions.yaml",
 				"testdata/diff/resources/existing-xr.yaml",
 			},
-			inputFile: "testdata/diff/modified-xr.yaml",
+			inputFiles: []string{"testdata/diff/modified-xr.yaml"},
 			expectedOutput: `
 +++ XDownstreamResource/test-resource
 ` + tu.Green(`+ apiVersion: nop.example.org/v1alpha1
@@ -180,7 +180,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/existing-env-downstream-resource.yaml",
 				"testdata/diff/resources/existing-env-xr.yaml",
 			},
-			inputFile: "testdata/diff/modified-env-xr.yaml",
+			inputFiles: []string{"testdata/diff/modified-env-xr.yaml"},
 			expectedOutput: `
 ~~~ XDownstreamEnvResource/test-env-resource
   apiVersion: nop.example.org/v1alpha1
@@ -228,7 +228,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/existing-downstream-with-external-dep.yaml",
 				"testdata/diff/resources/external-named-clusterrole.yaml",
 			},
-			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
+			inputFiles: []string{"testdata/diff/modified-xr-with-external-dep.yaml"},
 			expectedOutput: `
 ~~~ XDownstreamResource/test-resource
   apiVersion: nop.example.org/v1alpha1
@@ -276,7 +276,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/existing-xr-with-external-dep.yaml",
 				"testdata/diff/resources/existing-downstream-with-external-dep.yaml",
 			},
-			inputFile: "testdata/diff/modified-xr-with-external-dep.yaml",
+			inputFiles: []string{"testdata/diff/modified-xr-with-external-dep.yaml"},
 			expectedOutput: `
 ~~~ XDownstreamResource/test-resource
   apiVersion: nop.example.org/v1alpha1
@@ -333,7 +333,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/removal-test-composition.yaml",
 				"testdata/diff/resources/functions.yaml",
 			},
-			inputFile: "testdata/diff/modified-xr.yaml",
+			inputFiles: []string{"testdata/diff/modified-xr.yaml"},
 			expectedOutput: `
 ~~~ XDownstreamResource/resource-to-be-kept
   apiVersion: nop.example.org/v1alpha1
@@ -413,7 +413,7 @@ func TestDiffIntegration(t *testing.T) {
 				},
 			},
 			// Use a composition that uses generateName for composed resources
-			inputFile: "testdata/diff/new-xr.yaml",
+			inputFiles: []string{"testdata/diff/new-xr.yaml"},
 			expectedOutput: `
 ~~~ XDownstreamResource/test-resource-abc123
   apiVersion: nop.example.org/v1alpha1
@@ -453,7 +453,7 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/functions.yaml",
 				// We don't add any existing XR, as we're testing creation of a new one
 			},
-			inputFile: "testdata/diff/generated-name-xr.yaml",
+			inputFiles: []string{"testdata/diff/generated-name-xr.yaml"},
 			expectedOutput: `
 +++ XDownstreamResource/generated-xr-(generated)
 + apiVersion: nop.example.org/v1alpha1
@@ -478,6 +478,73 @@ func TestDiffIntegration(t *testing.T) {
 +   coolField: new-value
 
 ---
+`,
+			expectedError: false,
+			noColor:       true,
+		},
+		{
+			name: "Multiple XRs",
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/composition.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// We don't add any existing resources - we're testing creating multiple new ones
+			},
+			inputFiles: []string{
+				"testdata/diff/first-xr.yaml",
+				"testdata/diff/second-xr.yaml",
+			},
+			expectedOutput: `
++++ XDownstreamResource/first-resource
++ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: nop-resource
++   generateName: first-resource-
++   labels:
++     crossplane.io/composite: first-resource
++   name: first-resource
++ spec:
++   forProvider:
++     configData: first-value
+
+---
++++ XDownstreamResource/second-resource
++ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: nop-resource
++   generateName: second-resource-
++   labels:
++     crossplane.io/composite: second-resource
++   name: second-resource
++ spec:
++   forProvider:
++     configData: second-value
+
+---
++++ XNopResource/first-resource
++ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   name: first-resource
++ spec:
++   coolField: first-value
+
+---
++++ XNopResource/second-resource
++ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   name: second-resource
++ spec:
++   coolField: second-value
+
+---
+
+Summary: 4 added
 `,
 			expectedError: false,
 			noColor:       true,
@@ -534,17 +601,20 @@ func TestDiffIntegration(t *testing.T) {
 
 			// Set up the test file
 			tempDir := t.TempDir()
-			testFile := filepath.Join(tempDir, "test.yaml")
+			var testFiles []string
 
-			// Read the test file content from the inputFile path
-			content, err := os.ReadFile(tt.inputFile)
-			if err != nil {
-				t.Fatalf("failed to read input file: %v", err)
-			}
-
-			err = os.WriteFile(testFile, content, 0644)
-			if err != nil {
-				t.Fatalf("failed to write test file: %v", err)
+			// Handle any additional input files
+			for i, inputFile := range tt.inputFiles {
+				testFile := filepath.Join(tempDir, fmt.Sprintf("test_%d.yaml", i))
+				content, err := os.ReadFile(inputFile)
+				if err != nil {
+					t.Fatalf("failed to read input file: %v", err)
+				}
+				err = os.WriteFile(testFile, content, 0644)
+				if err != nil {
+					t.Fatalf("failed to write test file: %v", err)
+				}
+				testFiles = append(testFiles, testFile)
 			}
 
 			// Create a buffer to capture the output
@@ -560,7 +630,7 @@ func TestDiffIntegration(t *testing.T) {
 			// Set up the diff command
 			cmd := &Cmd{
 				Namespace: "default",
-				Files:     []string{testFile},
+				Files:     testFiles,
 				Timeout:   timeout,
 				NoColor:   tt.noColor,
 			}

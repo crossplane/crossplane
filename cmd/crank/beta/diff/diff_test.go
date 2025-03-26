@@ -128,7 +128,7 @@ spec:
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	if err := processor.ProcessAll(nil, ctx, resources); err != nil {
+	if err := processor.PerformDiff(nil, ctx, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 
@@ -191,7 +191,7 @@ func TestCmd_Run(t *testing.T) {
 				// Set up mock processor using the builder pattern
 				mockProcessor := tu.NewMockDiffProcessor().
 					WithSuccessfulInitialize().
-					WithSuccessfulAllProcessing().
+					WithSuccessfulPerformDiff().
 					Build()
 
 				DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
@@ -267,7 +267,7 @@ metadata:
 				// Set up mock processor with processing error
 				mockProcessor := tu.NewMockDiffProcessor().
 					WithSuccessfulInitialize().
-					WithFailedAllProcessing("processing error").
+					WithFailedPerformDiff("processing error").
 					Build()
 
 				DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
@@ -542,7 +542,7 @@ spec:
 	// Set up mock diff processor
 	mockProcessor := tu.NewMockDiffProcessor().
 		WithSuccessfulInitialize().
-		WithProcessResource(func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
+		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*unstructured.Unstructured) error {
 			// Generate a mock diff for our test
 			fmt.Fprintf(&buf, `~ ComposedResource/test-xr-composed-resource
 {
@@ -698,7 +698,7 @@ spec:
 	// Set up mock diff processor
 	mockProcessor := tu.NewMockDiffProcessor().
 		WithSuccessfulInitialize().
-		WithProcessResource(func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
+		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*unstructured.Unstructured) error {
 			// For matching resources, we don't produce any output
 			return nil
 		}).

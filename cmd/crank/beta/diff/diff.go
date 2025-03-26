@@ -82,6 +82,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// TODO:  FetchCurrentObject refactor
 	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field
 	// TODO:  test for multiple new or changed XRs
+	// TODO: test case for non-pipeline composition should expect error
 
 	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {
@@ -126,7 +127,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	if err := processor.ProcessAll(k.Stdout, ctx, resources); err != nil {
+	if err := processor.PerformDiff(k.Stdout, ctx, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 

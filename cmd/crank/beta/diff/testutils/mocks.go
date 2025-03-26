@@ -333,9 +333,8 @@ func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstr
 // MockDiffProcessor implements the DiffProcessor interface for testing
 type MockDiffProcessor struct {
 	// Function fields for mocking behavior
-	InitializeFn      func(ctx context.Context) error
-	ProcessAllFn      func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
-	ProcessResourceFn func(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
+	InitializeFn  func(ctx context.Context) error
+	PerformDiffFn func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
 }
 
 // Initialize implements the DiffProcessor interface
@@ -346,24 +345,10 @@ func (m *MockDiffProcessor) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// ProcessAll implements the DiffProcessor.ProcessAll method
-func (m *MockDiffProcessor) ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
-	if m.ProcessAllFn != nil {
-		return m.ProcessAllFn(stdout, ctx, resources)
-	}
-	// Default implementation processes each resource
-	for _, res := range resources {
-		if err := m.ProcessResource(stdout, ctx, res); err != nil {
-			return errors.Wrapf(err, "unable to process resource %s", res.GetName())
-		}
-	}
-	return nil
-}
-
-// ProcessResource implements the DiffProcessor.ProcessResource method
-func (m *MockDiffProcessor) ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error {
-	if m.ProcessResourceFn != nil {
-		return m.ProcessResourceFn(stdout, ctx, res)
+// PerformDiff implements the DiffProcessor.PerformDiff method
+func (m *MockDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
+	if m.PerformDiffFn != nil {
+		return m.PerformDiffFn(stdout, ctx, resources)
 	}
 	return nil
 }

@@ -10,6 +10,7 @@ import (
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -25,55 +26,87 @@ import (
 // Ensure MockDiffProcessor implements the DiffProcessor interface
 var _ DiffProcessor = &tu.MockDiffProcessor{}
 
-func TestDefaultDiffProcessor_ProcessResource(t *testing.T) {
+func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
+	// Setup test context
 	ctx := context.Background()
 
 	// Create test resources
-	xr := tu.NewResource("example.org/v1", "XR1", "my-xr").
-		WithSpecField("coolField", "test-value").
+	resource1 := tu.NewResource("example.org/v1", "XR1", "my-xr-1").
+		WithSpecField("coolField", "test-value-1").
 		Build()
 
+	resource2 := tu.NewResource("example.org/v1", "XR1", "my-xr-2").
+		WithSpecField("coolField", "test-value-2").
+		Build()
+
+	// Create a composition for testing
 	composition := tu.NewComposition("test-comp").
 		WithCompositeTypeRef("example.org/v1", "XR1").
 		WithPipelineMode().
 		WithPipelineStep("step1", "function-test", nil).
 		Build()
 
+	// Create a composed resource for testing
 	composedResource := tu.NewResource("composed.org/v1", "ComposedResource", "resource1").
-		WithCompositeOwner("my-xr").
+		WithCompositeOwner("my-xr-1").
 		WithCompositionResourceName("resA").
 		WithSpecField("param", "value").
 		Build()
 
-	composedXrd := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
-		WithSpecField("group", "composed.org").
-		WithSpecField("names", map[string]interface{}{
-			"kind":     "ComposedResource",
-			"plural":   "composedresources",
-			"singular": "composedresource",
-		}).
-		Build()
-
 	// Test cases
-	tests := []struct {
-		name      string
-		mockSetup func() *tu.MockClusterClient
-		want      error
+	tests := map[string]struct {
+		client       func() *tu.MockClusterClient
+		resources    []*unstructured.Unstructured
+		mockRender   func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
+		verifyOutput func(t *testing.T, output string)
+		want         error
 	}{
-		{
-			name: "CompositionNotFound",
-			mockSetup: func() *tu.MockClusterClient {
+		"NoResources": {
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			resources: []*unstructured.Unstructured{},
+			want:      nil,
+		},
+		"DiffSingleResourceError": {
+			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
 					WithNoMatchingComposition().
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
 					Build()
 			},
-			want: errors.Wrap(errors.New("composition not found"), "cannot find matching composition"),
+			resources: []*unstructured.Unstructured{resource1},
+			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
 		},
-		{
-			name: "GetFunctionsError",
-			mockSetup: func() *tu.MockClusterClient {
+		"MultipleResourceErrors": {
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithNoMatchingComposition().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			resources: []*unstructured.Unstructured{resource1, resource2},
+			want: errors.New("[unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found, " +
+				"unable to process resource XR1/my-xr-2: cannot find matching composition: composition not found]"),
+		},
+		"CompositionNotFound": {
+			client: func() *tu.MockClusterClient {
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithNoMatchingComposition().
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					Build()
+			},
+			resources: []*unstructured.Unstructured{resource1},
+			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
+		},
+		"GetFunctionsError": {
+			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
 					WithSuccessfulCompositionMatch(composition).
@@ -81,11 +114,11 @@ func TestDefaultDiffProcessor_ProcessResource(t *testing.T) {
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
 					Build()
 			},
-			want: errors.Wrap(errors.New("function not found"), "cannot get functions from pipeline"),
+			resources: []*unstructured.Unstructured{resource1},
+			want:      errors.New("unable to process resource XR1/my-xr-1: cannot get functions from pipeline: function not found"),
 		},
-		{
-			name: "Success",
-			mockSetup: func() *tu.MockClusterClient {
+		"SuccessfulDiff": {
+			client: func() *tu.MockClusterClient {
 				// Create mock functions that render will call successfully
 				functions := []pkgv1.Function{
 					{
@@ -100,23 +133,14 @@ func TestDefaultDiffProcessor_ProcessResource(t *testing.T) {
 					WithSuccessfulCompositionMatch(composition).
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					WithResourcesExist(xr, composedResource). // Add the XR to existing resources
-					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
+					WithResourcesExist(resource1, composedResource). // Add resources to existing resources
+					WithComposedResourcesByOwner(composedResource).  // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
-					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{composedXrd}).
+					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					Build()
 			},
-			want: nil,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// Create a DiffProcessor with our mock client
-			mockClient := tc.mockSetup()
-
-			// Create a mock render function
-			mockRenderFn := func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+			resources: []*unstructured.Unstructured{resource1},
+			mockRender: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 				return render.Outputs{
 					CompositeResource: in.CompositeResource,
 					ComposedResources: []composed.Unstructured{
@@ -127,126 +151,26 @@ func TestDefaultDiffProcessor_ProcessResource(t *testing.T) {
 						},
 					},
 				}, nil
-			}
-
-			// Create a logger
-			logger := tu.TestLogger(t)
-
-			// Create mock components for the processor
-			resourceManager := NewResourceManager(mockClient, logger)
-			schemaValidator := NewSchemaValidator(mockClient, logger)
-			diffOptions := DefaultDiffOptions()
-			diffCalculator := NewDiffCalculator(mockClient, resourceManager, logger, diffOptions)
-			diffRenderer := NewDiffRenderer(logger, diffOptions)
-
-			// Create the processor with our mock components
-			processor, err := CreateTestProcessor(
-				mockClient,
-				resourceManager,
-				schemaValidator,
-				diffCalculator,
-				diffRenderer,
-				mockRenderFn,
-				[]*unstructured.Unstructured{},
-				logger,
-			)
-			if err != nil {
-				t.Fatalf("Failed to create processor: %v", err)
-			}
-
-			// Create a dummy writer for stdout
-			var stdout bytes.Buffer
-
-			// Initialize the processor for the Success case only
-			if tc.name == "Success" {
-				if err := processor.Initialize(ctx); err != nil {
-					t.Fatalf("Failed to initialize processor: %v", err)
-				}
-			}
-
-			err = processor.ProcessResource(&stdout, ctx, xr)
-
-			if tc.want != nil {
-				if err == nil {
-					t.Errorf("ProcessResource(...): expected error but got none")
-					return
+			},
+			verifyOutput: func(t *testing.T, output string) {
+				// We should have some output from the diff
+				if output == "" {
+					t.Errorf("Expected non-empty diff output")
 				}
 
-				if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
-					t.Errorf("ProcessResource(...): -want error, +got error:\n%s", diff)
+				// Simple check for expected output format
+				if !strings.Contains(output, "Summary:") {
+					t.Errorf("Expected diff output to contain a Summary section")
 				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("ProcessResource(...): unexpected error: %v", err)
-			}
-		})
-	}
-}
-
-func TestDefaultDiffProcessor_ProcessAll(t *testing.T) {
-	// Setup test context
-	ctx := context.Background()
-
-	// Create test resources
-	resource1 := tu.NewResource("example.org/v1", "XR1", "my-xr-1").
-		WithSpecField("coolField", "test-value-1").
-		Build()
-
-	resource2 := tu.NewResource("example.org/v1", "XR1", "my-xr-2").
-		WithSpecField("coolField", "test-value-2").
-		Build()
-
-	// Test cases
-	tests := []struct {
-		name      string
-		client    func() *tu.MockClusterClient
-		resources []*unstructured.Unstructured
-		want      error
-	}{
-		{
-			name: "NoResources",
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					Build()
 			},
-			resources: []*unstructured.Unstructured{},
-			want:      nil,
-		},
-		{
-			name: "ProcessResourceError",
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					Build()
-			},
-			resources: []*unstructured.Unstructured{resource1},
-			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
-		},
-		{
-			name: "MultipleResourceErrors",
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
-					Build()
-			},
-			resources: []*unstructured.Unstructured{resource1, resource2},
-			want: errors.New("[unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found, " +
-				"unable to process resource XR1/my-xr-2: cannot find matching composition: composition not found]"),
+			want: nil,
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Create components for testing
-			mockClient := tc.client()
+			mockClient := tt.client()
 			logger := tu.TestLogger(t)
 
 			// Create mock components for the processor
@@ -263,8 +187,7 @@ func TestDefaultDiffProcessor_ProcessAll(t *testing.T) {
 				schemaValidator,
 				diffCalculator,
 				diffRenderer,
-				render.Render,
-				[]*unstructured.Unstructured{},
+				tt.mockRender,
 				logger,
 			)
 			if err != nil {
@@ -274,22 +197,22 @@ func TestDefaultDiffProcessor_ProcessAll(t *testing.T) {
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
 
-			err = processor.ProcessAll(&stdout, ctx, tc.resources)
+			err = processor.PerformDiff(&stdout, ctx, tt.resources)
 
-			if tc.want != nil {
+			if tt.want != nil {
 				if err == nil {
-					t.Errorf("ProcessAll(...): expected error but got none")
+					t.Errorf("PerformDiff(...): expected error but got none")
 					return
 				}
 
-				if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
-					t.Errorf("ProcessResource(...): -want error, +got error:\n%s", diff)
+				if diff := cmp.Diff(tt.want.Error(), err.Error()); diff != "" {
+					t.Errorf("PerformDiff(...): -want error, +got error:\n%s", diff)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Errorf("ProcessResource(...): unexpected error: %v", err)
+				t.Errorf("PerformDiff(...): unexpected error: %v", err)
 			}
 		})
 	}
@@ -370,7 +293,6 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 				diffCalculator,
 				diffRenderer,
 				render.Render,
-				[]*unstructured.Unstructured{},
 				logger,
 			)
 			if err != nil {
@@ -873,7 +795,6 @@ func CreateTestProcessor(
 	diffCalculator DiffCalculator,
 	diffRenderer DiffRenderer,
 	renderFunc RenderFunc,
-	environmentConfigs []*unstructured.Unstructured,
 	logger logging.Logger,
 ) (DiffProcessor, error) {
 	// Create processor with custom components
