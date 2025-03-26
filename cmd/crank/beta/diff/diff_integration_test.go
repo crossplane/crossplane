@@ -488,11 +488,13 @@ func TestDiffIntegration(t *testing.T) {
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
 				"testdata/diff/resources/functions.yaml",
-				// We don't add any existing resources - we're testing creating multiple new ones
+				// Add an existing XR and downstream resource to test modification
+				"testdata/diff/resources/existing-xr.yaml",
+				"testdata/diff/resources/existing-downstream-resource.yaml",
 			},
 			inputFiles: []string{
 				"testdata/diff/first-xr.yaml",
-				"testdata/diff/second-xr.yaml",
+				"testdata/diff/modified-xr.yaml",
 			},
 			expectedOutput: `
 +++ XDownstreamResource/first-resource
@@ -510,19 +512,20 @@ func TestDiffIntegration(t *testing.T) {
 +     configData: first-value
 
 ---
-+++ XDownstreamResource/second-resource
-+ apiVersion: nop.example.org/v1alpha1
-+ kind: XDownstreamResource
-+ metadata:
-+   annotations:
-+     crossplane.io/composition-resource-name: nop-resource
-+   generateName: second-resource-
-+   labels:
-+     crossplane.io/composite: second-resource
-+   name: second-resource
-+ spec:
-+   forProvider:
-+     configData: second-value
+~~~ XDownstreamResource/test-resource
+  apiVersion: nop.example.org/v1alpha1
+  kind: XDownstreamResource
+  metadata:
+    annotations:
+      crossplane.io/composition-resource-name: nop-resource
+    generateName: test-resource-
+    labels:
+      crossplane.io/composite: test-resource
+    name: test-resource
+  spec:
+    forProvider:
+-     configData: existing-value
++     configData: modified-value
 
 ---
 +++ XNopResource/first-resource
@@ -534,17 +537,18 @@ func TestDiffIntegration(t *testing.T) {
 +   coolField: first-value
 
 ---
-+++ XNopResource/second-resource
-+ apiVersion: diff.example.org/v1alpha1
-+ kind: XNopResource
-+ metadata:
-+   name: second-resource
-+ spec:
-+   coolField: second-value
+~~~ XNopResource/test-resource
+  apiVersion: diff.example.org/v1alpha1
+  kind: XNopResource
+  metadata:
+    name: test-resource
+  spec:
+-   coolField: existing-value
++   coolField: modified-value
 
 ---
 
-Summary: 4 added
+Summary: 2 added, 2 modified
 `,
 			expectedError: false,
 			noColor:       true,
