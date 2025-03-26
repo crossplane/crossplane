@@ -1740,16 +1740,14 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name         string
+	tests := map[string]struct {
 		clientSetup  func() *tu.MockClusterClient
 		input        *unstructured.Unstructured
 		expectOutput *resource.Resource
 		expectError  bool
 		errorPattern string
 	}{
-		{
-			name: "SuccessfulResourceTreeFetch",
+		"SuccessfulResourceTreeFetch": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
@@ -1765,8 +1763,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 			expectOutput: testResourceTree,
 			expectError:  false,
 		},
-		{
-			name: "ResourceTreeNotFound",
+		"ResourceTreeNotFound": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
@@ -1779,8 +1776,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 			expectError:  true,
 			errorPattern: "resource tree not found",
 		},
-		{
-			name: "EmptyResourceTree",
+		"EmptyResourceTree": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
@@ -1799,8 +1795,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 			},
 			expectError: false,
 		},
-		{
-			name: "NilInputResource",
+		"NilInputResource": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
@@ -1818,8 +1813,8 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Create the client with our mock implementation
 			client := tc.clientSetup()
 
@@ -1894,6 +1889,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 	}
 }
 
+// TODO:  table driven
 // TestNewClusterClient tests the creation of a new DefaultClusterClient instance
 func TestNewClusterClient(t *testing.T) {
 	// Set up a test logger

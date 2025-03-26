@@ -16,8 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Update the test case for the DiffCalculator's handling of resources with generateName
-
 func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 	ctx := context.Background()
 
@@ -44,8 +42,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		}).
 		Build()
 
-	tests := []struct {
-		name        string
+	tests := map[string]struct {
 		setupClient func() *tu.MockClusterClient
 		composite   *unstructured.Unstructured
 		desired     *unstructured.Unstructured
@@ -53,8 +50,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		wantNil     bool
 		wantErr     bool
 	}{
-		{
-			name: "ExistingResourceModified",
+		"ExistingResourceModified": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingResource).
@@ -69,8 +65,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				DiffType:     DiffTypeModified,
 			},
 		},
-		{
-			name: "NewResource",
+		"NewResource": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
@@ -85,8 +80,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				DiffType:     DiffTypeAdded,
 			},
 		},
-		{
-			name: "ComposedResource",
+		"ComposedResource": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesFoundByLabel([]*unstructured.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
@@ -111,8 +105,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				DiffType:     DiffTypeModified,
 			},
 		},
-		{
-			name: "NoChanges",
+		"NoChanges": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingResource).
@@ -127,8 +120,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				DiffType:     DiffTypeEqual,
 			},
 		},
-		{
-			name: "ErrorGettingCurrentObject",
+		"ErrorGettingCurrentObject": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
@@ -140,8 +132,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			desired:   existingResource,
 			wantErr:   true,
 		},
-		{
-			name: "DryRunError",
+		"DryRunError": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingResource).
@@ -152,8 +143,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			desired:   modifiedResource,
 			wantErr:   true,
 		},
-		{
-			name: "Successfully find and diff resource with generateName",
+		"Successfully find and diff resource with generateName": {
 			setupClient: func() *tu.MockClusterClient {
 				// The composed resource with generateName
 				composedWithGenName := tu.NewResource("example.org/v1", "ComposedResource", "").
@@ -225,8 +215,8 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t)
 
 			// Setup a resource manager
@@ -282,7 +272,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 
 			// For modified resources, check that LineDiffs is populated
 			if diff.DiffType == DiffTypeModified && len(diff.LineDiffs) == 0 {
-				t.Errorf("LineDiffs is empty for %s", tt.name)
+				t.Errorf("LineDiffs is empty for %s", name)
 			}
 		})
 	}
@@ -319,16 +309,14 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 		WithSpecField("field", "old-value").
 		Build()
 
-	tests := []struct {
-		name          string
+	tests := map[string]struct {
 		setupClient   func() *tu.MockClusterClient
 		inputXR       *ucomposite.Unstructured
 		renderedOut   render.Outputs
 		expectedDiffs map[string]DiffType // Map of expected keys and their diff types
 		wantErr       bool
 	}{
-		{
-			name: "XR and composed resource modifications",
+		"XR and composed resource modifications": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingXR, existingComposed).
@@ -348,8 +336,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "XR not modified, composed resource modified",
+		"XR not modified, composed resource modified": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingXR, existingComposed).
@@ -373,8 +360,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "Error calculating diff",
+		"Error calculating diff": {
 			setupClient: func() *tu.MockClusterClient {
 				// Return error from dry run
 				return tu.NewMockClusterClient().
@@ -390,8 +376,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			expectedDiffs: map[string]DiffType{},
 			wantErr:       true,
 		},
-		{
-			name: "Resource tree with potential resources to remove",
+		"Resource tree with potential resources to remove": {
 			setupClient: func() *tu.MockClusterClient {
 				// Create a resource tree with resources that aren't in the rendered output
 				extraComposedResource := tu.NewResource("example.org/v1", "Composed", "composed-2").
@@ -423,8 +408,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "Resource removal detection",
+		"Resource removal detection": {
 			setupClient: func() *tu.MockClusterClient {
 				// Create existing version of the resource
 				existingComposedWithOldValue := tu.NewResource("example.org/v1", "Composed", "composed-1").
@@ -474,8 +458,8 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t)
 
 			// Setup the mock client
@@ -563,15 +547,13 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 		WithCompositionResourceName("resource-to-remove").
 		Build()
 
-	tests := []struct {
-		name              string
+	tests := map[string]struct {
 		setupClient       func() *tu.MockClusterClient
 		renderedResources map[string]bool
 		expectedRemoved   []string
 		wantErr           bool
 	}{
-		{
-			name: "IdentifiesRemovedResources",
+		"IdentifiesRemovedResources": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(xr).
@@ -589,8 +571,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			expectedRemoved: []string{"resource-to-remove"},
 			wantErr:         false,
 		},
-		{
-			name: "NoRemovedResources",
+		"NoRemovedResources": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(xr).
@@ -608,8 +589,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			expectedRemoved: []string{},
 			wantErr:         false,
 		},
-		{
-			name: "ErrorGettingResourceTree",
+		"ErrorGettingResourceTree": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(xr).
@@ -622,8 +602,8 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t)
 
 			// Setup mock client

@@ -47,21 +47,18 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 	)
 
 	// Test cases
-	tests := []struct {
-		name         string
+	tests := map[string]struct {
 		requirements map[string]v1.Requirements
 		wantCount    int
 		wantNames    []string
 		wantErr      bool
 	}{
-		{
-			name:         "EmptyRequirements",
+		"EmptyRequirements": {
 			requirements: map[string]v1.Requirements{},
 			wantCount:    0,
 			wantErr:      false,
 		},
-		{
-			name: "NameSelector",
+		"NameSelector": {
 			requirements: map[string]v1.Requirements{
 				"step1": {
 					ExtraResources: map[string]*v1.ResourceSelector{
@@ -79,8 +76,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 			wantNames: []string{"config1"},
 			wantErr:   false,
 		},
-		{
-			name: "LabelSelector",
+		"LabelSelector": {
 			requirements: map[string]v1.Requirements{
 				"step1": {
 					ExtraResources: map[string]*v1.ResourceSelector{
@@ -102,8 +98,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 			wantNames: []string{"config1"},
 			wantErr:   false,
 		},
-		{
-			name: "MultipleSelectors",
+		"MultipleSelectors": {
 			requirements: map[string]v1.Requirements{
 				"step1": {
 					ExtraResources: map[string]*v1.ResourceSelector{
@@ -128,8 +123,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 			wantNames: []string{"config1", "secret1"},
 			wantErr:   false,
 		},
-		{
-			name: "ResourceNotFound",
+		"ResourceNotFound": {
 			requirements: map[string]v1.Requirements{
 				"step1": {
 					ExtraResources: map[string]*v1.ResourceSelector{
@@ -147,8 +141,8 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			resources, err := provider.ProvideRequirements(ctx, tt.requirements)
 
 			// Check error cases

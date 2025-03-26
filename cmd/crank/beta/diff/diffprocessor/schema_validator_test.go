@@ -40,8 +40,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 	xrCRD := makeCRD("xrs.example.org", "XR", "example.org", "v1")
 	composedCRD := makeCRD("composedresources.composed.org", "ComposedResource", "composed.org", "v1")
 
-	tests := []struct {
-		name           string
+	tests := map[string]struct {
 		setupClient    func() *tu.MockClusterClient
 		xr             *unstructured.Unstructured
 		composed       []composed.Unstructured
@@ -49,8 +48,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 		expectedErr    bool
 		expectedErrMsg string
 	}{
-		{
-			name: "SuccessfulValidationWithPreloadedCRDs",
+		"SuccessfulValidationWithPreloadedCRDs": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().Build()
 			},
@@ -59,8 +57,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			preloadedCRDs: []*extv1.CustomResourceDefinition{xrCRD, composedCRD},
 			expectedErr:   false,
 		},
-		{
-			name: "SuccessfulValidationWithFetchedCRDs",
+		"SuccessfulValidationWithFetchedCRDs": {
 			setupClient: func() *tu.MockClusterClient {
 				// Convert CRDs to unstructured for the mock client
 				xrCRDUn := &unstructured.Unstructured{}
@@ -93,8 +90,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			preloadedCRDs: []*extv1.CustomResourceDefinition{},
 			expectedErr:   false,
 		},
-		{
-			name: "MissingCRD",
+		"MissingCRD": {
 			setupClient: func() *tu.MockClusterClient {
 				// Only provide the XR CRD, not the composed resource CRD
 				xrCRDUn := &unstructured.Unstructured{}
@@ -120,8 +116,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			// Still succeeds because we don't require all CRDs to be found
 			expectedErr: false,
 		},
-		{
-			name: "ValidationError",
+		"ValidationError": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().Build()
 			},
@@ -135,8 +130,8 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			mockClient := tt.setupClient()
 			logger := tu.TestLogger(t)
 
@@ -182,15 +177,13 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 	xrCRD := makeCRD("xrs.example.org", "XR", "example.org", "v1")
 	composedCRD := makeCRD("composedresources.composed.org", "ComposedResource", "composed.org", "v1")
 
-	tests := []struct {
-		name           string
+	tests := map[string]struct {
 		setupClient    func() *tu.MockClusterClient
 		initialCRDs    []*extv1.CustomResourceDefinition
 		resources      []*unstructured.Unstructured
 		expectedCRDLen int
 	}{
-		{
-			name: "AllCRDsAlreadyCached",
+		"AllCRDsAlreadyCached": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().Build()
 			},
@@ -198,8 +191,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 			resources:      []*unstructured.Unstructured{xr, composed},
 			expectedCRDLen: 2, // No change, all CRDs already cached
 		},
-		{
-			name: "FetchMissingCRDs",
+		"FetchMissingCRDs": {
 			setupClient: func() *tu.MockClusterClient {
 				// Convert the composed CRD to unstructured for the mock
 				composedCRDUn := &unstructured.Unstructured{}
@@ -221,8 +213,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 			resources:      []*unstructured.Unstructured{xr, composed},
 			expectedCRDLen: 2, // Should fetch the missing composed CRD
 		},
-		{
-			name: "SomeCRDsMissing",
+		"SomeCRDsMissing": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
@@ -237,8 +228,8 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			mockClient := tt.setupClient()
 			logger := tu.TestLogger(t)
 
@@ -272,13 +263,11 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 		}).
 		Build()
 
-	tests := []struct {
-		name        string
+	tests := map[string]struct {
 		setupClient func() *tu.MockClusterClient
 		expectedErr bool
 	}{
-		{
-			name: "SuccessfulLoad",
+		"SuccessfulLoad": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{xrdUn}).
@@ -286,8 +275,7 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 			},
 			expectedErr: false,
 		},
-		{
-			name: "XRDFetchError",
+		"XRDFetchError": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithFailedXRDsFetch("failed to fetch XRDs").
@@ -297,8 +285,8 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			mockClient := tt.setupClient()
 			logger := tu.TestLogger(t)
 
@@ -330,14 +318,13 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 	}
 }
 
+// TODO:  nuke this from orbit and do something better
 func TestGuessCRDName(t *testing.T) {
-	tests := []struct {
-		name     string
+	tests := map[string]struct {
 		gvk      schema.GroupVersionKind
 		expected string
 	}{
-		{
-			name: "StandardPlural",
+		"StandardPlural": {
 			gvk: schema.GroupVersionKind{
 				Group:   "example.org",
 				Version: "v1",
@@ -345,8 +332,7 @@ func TestGuessCRDName(t *testing.T) {
 			},
 			expected: "resources.example.org",
 		},
-		{
-			name: "IrregularPlural_Policy",
+		"IrregularPlural_Policy": {
 			gvk: schema.GroupVersionKind{
 				Group:   "example.org",
 				Version: "v1",
@@ -354,8 +340,7 @@ func TestGuessCRDName(t *testing.T) {
 			},
 			expected: "policies.example.org",
 		},
-		{
-			name: "IrregularPlural_Gateway",
+		"IrregularPlural_Gateway": {
 			gvk: schema.GroupVersionKind{
 				Group:   "networking.k8s.io",
 				Version: "v1",
@@ -363,8 +348,7 @@ func TestGuessCRDName(t *testing.T) {
 			},
 			expected: "gateways.networking.k8s.io",
 		},
-		{
-			name: "IrregularPlural_Proxy",
+		"IrregularPlural_Proxy": {
 			gvk: schema.GroupVersionKind{
 				Group:   "example.org",
 				Version: "v1",
@@ -372,8 +356,7 @@ func TestGuessCRDName(t *testing.T) {
 			},
 			expected: "proxies.example.org",
 		},
-		{
-			name: "CaseSensitivity",
+		"CaseSensitivity": {
 			gvk: schema.GroupVersionKind{
 				Group:   "example.org",
 				Version: "v1",
@@ -383,8 +366,8 @@ func TestGuessCRDName(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			result := guessCRDName(tt.gvk)
 			if result != tt.expected {
 				t.Errorf("guessCRDName(%v) = %q, want %q",

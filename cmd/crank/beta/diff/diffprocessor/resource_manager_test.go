@@ -65,8 +65,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 		WithSpecField("field", "value").
 		Build()
 
-	tests := []struct {
-		name           string
+	tests := map[string]struct {
 		setupClient    func() *tu.MockClusterClient
 		composite      *unstructured.Unstructured
 		desired        *unstructured.Unstructured
@@ -74,8 +73,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 		wantResourceID string
 		wantErr        bool
 	}{
-		{
-			name: "ExistingResourceFoundDirectly",
+		"ExistingResourceFoundDirectly": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingResource).
@@ -87,8 +85,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "existing-resource",
 			wantErr:        false,
 		},
-		{
-			name: "ResourceNotFound",
+		"ResourceNotFound": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
@@ -100,8 +97,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "",
 			wantErr:        false,
 		},
-		{
-			name: "CompositeIsNil_NewXR",
+		"CompositeIsNil_NewXR": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
@@ -113,8 +109,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "",
 			wantErr:        false,
 		},
-		{
-			name: "ResourceWithGenerateName_NotFound",
+		"ResourceWithGenerateName_NotFound": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
@@ -126,8 +121,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "",
 			wantErr:        false,
 		},
-		{
-			name: "ResourceWithGenerateName_FoundByLabelAndAnnotation",
+		"ResourceWithGenerateName_FoundByLabelAndAnnotation": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					// Return "not found" for direct name lookup
@@ -163,8 +157,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "test-resource-abc123",
 			wantErr:        false,
 		},
-		{
-			name: "ComposedResource_FoundByLabelAndAnnotation",
+		"ComposedResource_FoundByLabelAndAnnotation": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					// Return "not found" for direct name lookup to force label lookup
@@ -191,8 +184,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "composed-resource",
 			wantErr:        false,
 		},
-		{
-			name: "NoAnnotations_NewResource",
+		"NoAnnotations_NewResource": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
@@ -209,8 +201,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "",
 			wantErr:        false,
 		},
-		{
-			name: "GenerateNameMismatch",
+		"GenerateNameMismatch": {
 			setupClient: func() *tu.MockClusterClient {
 				mismatchedResource := tu.NewResource("example.org/v1", "TestResource", "different-prefix-abc123").
 					WithLabels(map[string]string{
@@ -240,8 +231,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantResourceID: "",
 			wantErr:        false,
 		},
-		{
-			name: "ErrorLookingUpResources",
+		"ErrorLookingUpResources": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
@@ -265,8 +255,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Create the resource manager
 			rm := NewResourceManager(tt.setupClient(), tu.VerboseTestLogger(t))
 
@@ -313,14 +303,12 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 	parentXR := tu.NewResource("example.org/v1", "XR", "parent-xr").Build()
 	parentXR.SetUID("parent-uid")
 
-	tests := []struct {
-		name     string
+	tests := map[string]struct {
 		parent   *unstructured.Unstructured
 		child    *unstructured.Unstructured
 		validate func(t *testing.T, child *unstructured.Unstructured)
 	}{
-		{
-			name:   "NilParent_NoChange",
+		"NilParent_NoChange": {
 			parent: nil,
 			child: tu.NewResource("example.org/v1", "Child", "child-resource").
 				WithOwnerReference("some-api-version", "SomeKind", "some-name", "foobar").
@@ -340,8 +328,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				}
 			},
 		},
-		{
-			name:   "MatchingOwnerRef_UpdatedWithParentUID",
+		"MatchingOwnerRef_UpdatedWithParentUID": {
 			parent: parentXR,
 			child: tu.NewResource("example.org/v1", "Child", "child-resource").
 				WithOwnerReference("XR", "parent-xr", "example.org/v1", "").
@@ -357,8 +344,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				}
 			},
 		},
-		{
-			name:   "NonMatchingOwnerRef_GenerateRandomUID",
+		"NonMatchingOwnerRef_GenerateRandomUID": {
 			parent: parentXR,
 			child: tu.NewResource("example.org/v1", "Child", "child-resource").
 				WithOwnerReference("other-api-version", "OtherKind", "other-name", "").
@@ -377,8 +363,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				}
 			},
 		},
-		{
-			name:   "MultipleOwnerRefs_OnlyUpdateMatching",
+		"MultipleOwnerRefs_OnlyUpdateMatching": {
 			parent: parentXR,
 			child: func() *unstructured.Unstructured {
 				child := tu.NewResource("example.org/v1", "Child", "child-resource").Build()
@@ -435,8 +420,8 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Create the resource manager
 			rm := NewResourceManager(tu.NewMockClusterClient().Build(), tu.TestLogger(t))
 

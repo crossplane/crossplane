@@ -26,8 +26,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 	// Identical to current, for no-change test
 	noChanges := current.DeepCopy()
 
-	tests := []struct {
-		name     string
+	tests := map[string]struct {
 		current  *unstructured.Unstructured
 		desired  *unstructured.Unstructured
 		kind     string
@@ -36,8 +35,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 		wantDiff *ResourceDiff
 		wantNil  bool
 	}{
-		{
-			name:    "ModifiedResource",
+		"ModifiedResource": {
 			current: current,
 			desired: desired,
 			kind:    "TestResource",
@@ -52,8 +50,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 				// LineDiffs will be checked separately
 			},
 		},
-		{
-			name:    "NoChanges",
+		"NoChanges": {
 			current: current,
 			desired: noChanges,
 			kind:    "TestResource",
@@ -67,8 +64,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 				Desired:      noChanges,
 			},
 		},
-		{
-			name:    "NewResource",
+		"NewResource": {
 			current: nil,
 			desired: desired,
 			kind:    "TestResource",
@@ -83,8 +79,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 				// LineDiffs will be checked separately
 			},
 		},
-		{
-			name:    "RemovedResource",
+		"RemovedResource": {
 			current: current,
 			desired: nil,
 			kind:    "TestResource",
@@ -99,9 +94,8 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 				// LineDiffs will be checked separately
 			},
 		},
-		//		{
+		//	"BothNil":	{
 		// TODO:  this should check for an error.  illegal condition.
-		//name:    "BothNil",
 		//current: nil,
 		//desired: nil,
 		//kind:    "TestResource",
@@ -110,9 +104,8 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 		//wantNil: true,
 		//		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			diff, err := GenerateDiffWithOptions(tt.current, tt.desired, tu.TestLogger(t), tt.options)
 
 			if err != nil {
@@ -145,7 +138,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 
 			// Check for line diffs - should be non-empty for changed resources
 			if diff.DiffType != DiffTypeEqual && len(diff.LineDiffs) == 0 {
-				t.Errorf("LineDiffs is empty for %s", tt.name)
+				t.Errorf("LineDiffs is empty for %s", name)
 			}
 
 			// Check Current and Desired references
@@ -169,23 +162,19 @@ func TestFormatDiff(t *testing.T) {
 		{Type: diffmatchpatch.DiffEqual, Text: "another unchanged line\n"},
 	}
 
-	// Create test cases
-	tests := []struct {
-		name     string
+	tests := map[string]struct {
 		diffs    []diffmatchpatch.Diff
 		options  DiffOptions
 		contains []string
 		excludes []string
 	}{
-		{
-			name:     "EmptyDiffs",
+		"EmptyDiffs": {
 			diffs:    []diffmatchpatch.Diff{},
 			options:  DefaultDiffOptions(),
 			contains: []string{},
 			excludes: []string{"unchanged", "deleted", "inserted"},
 		},
-		{
-			name:    "StandardFormatting",
+		"StandardFormatting": {
 			diffs:   simpleDiffs,
 			options: DefaultDiffOptions(),
 			contains: []string{
@@ -195,8 +184,7 @@ func TestFormatDiff(t *testing.T) {
 				"another unchanged line",
 			},
 		},
-		{
-			name:  "WithoutColors",
+		"WithoutColors": {
 			diffs: simpleDiffs,
 			options: func() DiffOptions {
 				opts := DefaultDiffOptions()
@@ -214,8 +202,7 @@ func TestFormatDiff(t *testing.T) {
 				"\x1b[32m", // Green color code
 			},
 		},
-		{
-			name:  "WithColors",
+		"WithColors": {
 			diffs: simpleDiffs,
 			options: func() DiffOptions {
 				opts := DefaultDiffOptions()
@@ -228,8 +215,7 @@ func TestFormatDiff(t *testing.T) {
 				"inserted line",
 			},
 		},
-		{
-			name: "CompactFormat",
+		"CompactFormat": {
 			diffs: []diffmatchpatch.Diff{
 				{Type: diffmatchpatch.DiffEqual, Text: "context line 1\ncontext line 2\ncontext line 3\n"},
 				{Type: diffmatchpatch.DiffDelete, Text: "deleted line 1\ndeleted line 2\n"},
@@ -257,8 +243,7 @@ func TestFormatDiff(t *testing.T) {
 				"context line 6",
 			},
 		},
-		{
-			name:  "CustomPrefixes",
+		"CustomPrefixes": {
 			diffs: simpleDiffs,
 			options: func() DiffOptions {
 				opts := DefaultDiffOptions()
@@ -277,8 +262,8 @@ func TestFormatDiff(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Format the diff
 			result := FormatDiff(tt.diffs, tt.options)
 

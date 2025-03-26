@@ -10,40 +10,35 @@ func TestNewDiffProcessor(t *testing.T) {
 	mockClient := &tu.MockClusterClient{}
 	testConfig := &rest.Config{}
 
-	tests := []struct {
-		name        string
+	tests := map[string]struct {
 		client      *tu.MockClusterClient
 		options     []DiffProcessorOption
 		expectError bool
 	}{
-		{
-			name:        "MissingRestConfig",
+		"MissingRestConfig": {
 			client:      mockClient,
 			options:     []DiffProcessorOption{},
 			expectError: true,
 		},
-		//{  // in this test, it's a pointer to nil, which is not nil
-		//	name:        "NilClient",
+		//"NilClient": {  // TODO in this test, it's a pointer to nil, which is not nil
 		//	client:      nil,
 		//	options:     []DiffProcessorOption{WithRestConfig(testConfig)},
 		//	expectError: true,
 		//},
-		{
-			name:        "WithOptions",
+		"WithOptions": {
 			client:      mockClient,
 			options:     []DiffProcessorOption{WithRestConfig(testConfig), WithNamespace("test"), WithColorize(false), WithCompact(true)},
 			expectError: false,
 		},
-		{
-			name:        "BasicOptions",
+		"BasicOptions": {
 			client:      mockClient,
 			options:     []DiffProcessorOption{WithRestConfig(testConfig)},
 			expectError: false,
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			processor, err := NewDiffProcessor(tt.client, tt.options...)
 
 			if tt.expectError {

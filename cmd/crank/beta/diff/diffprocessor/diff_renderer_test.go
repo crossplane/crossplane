@@ -47,15 +47,13 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 		LineDiffs:    []diffmatchpatch.Diff{},
 	}
 
-	tests := []struct {
-		name            string
+	tests := map[string]struct {
 		diffs           map[string]*ResourceDiff
 		options         DiffOptions
 		expectedOutputs []string
 		notExpected     []string
 	}{
-		{
-			name: "RenderAllDiffTypes",
+		"RenderAllDiffTypes": {
 			diffs: map[string]*ResourceDiff{
 				addedDiff.GetDiffKey():    addedDiff,
 				modifiedDiff.GetDiffKey(): modifiedDiff,
@@ -85,8 +83,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 				"TestResource/equal-resource", // Equal resources should not be rendered
 			},
 		},
-		{
-			name: "CompactMode",
+		"CompactMode": {
 			diffs: map[string]*ResourceDiff{
 				modifiedDiff.GetDiffKey(): modifiedDiff,
 			},
@@ -111,8 +108,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 				"  metadata:",
 			},
 		},
-		{
-			name:  "EmptyDiffs",
+		"EmptyDiffs": {
 			diffs: map[string]*ResourceDiff{},
 			options: DiffOptions{
 				UseColors:      false,
@@ -125,8 +121,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 			},
 			expectedOutputs: []string{},
 		},
-		{
-			name: "OnlyEqualDiffs",
+		"OnlyEqualDiffs": {
 			diffs: map[string]*ResourceDiff{
 				equalDiff.GetDiffKey(): equalDiff,
 			},
@@ -142,8 +137,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 			expectedOutputs: []string{},
 			notExpected:     []string{"TestResource/equal-resource"},
 		},
-		{
-			name: "SummaryOutput",
+		"SummaryOutput": {
 			diffs: map[string]*ResourceDiff{
 				addedDiff.GetDiffKey():    addedDiff,
 				modifiedDiff.GetDiffKey(): modifiedDiff,
@@ -164,8 +158,8 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t)
 
 			// Create a renderer
@@ -201,22 +195,19 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 }
 
 func TestGetLineDiff(t *testing.T) {
-	tests := []struct {
-		name     string
+	tests := map[string]struct {
 		oldText  string
 		newText  string
 		expected []diffmatchpatch.Operation
 	}{
-		{
-			name:    "NoChanges",
+		"NoChanges": {
 			oldText: "line1\nline2\nline3\n",
 			newText: "line1\nline2\nline3\n",
 			expected: []diffmatchpatch.Operation{
 				diffmatchpatch.DiffEqual,
 			},
 		},
-		{
-			name:    "LineAdded",
+		"LineAdded": {
 			oldText: "line1\nline2\n",
 			newText: "line1\nline2\nline3\n",
 			expected: []diffmatchpatch.Operation{
@@ -224,8 +215,7 @@ func TestGetLineDiff(t *testing.T) {
 				diffmatchpatch.DiffInsert,
 			},
 		},
-		{
-			name:    "LineRemoved",
+		"LineRemoved": {
 			oldText: "line1\nline2\nline3\n",
 			newText: "line1\nline3\n",
 			expected: []diffmatchpatch.Operation{
@@ -234,8 +224,7 @@ func TestGetLineDiff(t *testing.T) {
 				diffmatchpatch.DiffEqual,
 			},
 		},
-		{
-			name:    "LineModified",
+		"LineModified": {
 			oldText: "line1\nline2\nline3\n",
 			newText: "line1\nmodified2\nline3\n",
 			expected: []diffmatchpatch.Operation{
@@ -247,8 +236,8 @@ func TestGetLineDiff(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			result := GetLineDiff(tt.oldText, tt.newText)
 
 			// Check that we have the expected diff types

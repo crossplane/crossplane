@@ -233,13 +233,11 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 		Build()
 
 	// Test cases
-	tests := []struct {
-		name   string
+	tests := map[string]struct {
 		client func() *tu.MockClusterClient
 		want   error
 	}{
-		{
-			name: "XRDsError",
+		"XRDsError": {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithFailedXRDsFetch("XRD not found").
@@ -248,8 +246,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 			},
 			want: errors.Wrap(errors.Wrap(errors.New("XRD not found"), "cannot get XRDs"), "cannot load CRDs"),
 		},
-		{
-			name: "EnvConfigsError",
+		"EnvConfigsError": {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
@@ -260,8 +257,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 			},
 			want: errors.Wrap(errors.New("env configs not found"), "cannot get environment configs"),
 		},
-		{
-			name: "Success",
+		"Success": {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{xrd1}).
@@ -272,8 +268,8 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor with our components
 			mockClient := tc.client()
 			logger := tu.TestLogger(t)
@@ -361,8 +357,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 	configMap := tu.NewResource("v1", "ConfigMap", "config1").Build()
 	secret := tu.NewResource("v1", "Secret", "secret1").Build()
 
-	tests := []struct {
-		name                 string
+	tests := map[string]struct {
 		xr                   *ucomposite.Unstructured
 		composition          *apiextensionsv1.Composition
 		functions            []pkgv1.Function
@@ -373,8 +368,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 		wantRenderIterations int
 		wantErr              bool
 	}{
-		{
-			name:        "NonPipelineComposition",
+		"NonPipelineComposition": {
 			xr:          xr,
 			composition: nonPipelineComposition,
 			functions:   functions,
@@ -405,8 +399,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			wantRenderIterations: 1, // Only renders once for non-pipeline
 			wantErr:              false,
 		},
-		{
-			name:        "NoRequirements",
+		"NoRequirements": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
@@ -440,8 +433,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			wantRenderIterations: 1, // Only renders once when no requirements
 			wantErr:              false,
 		},
-		{
-			name:        "SingleIterationWithRequirements",
+		"SingleIterationWithRequirements": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
@@ -502,8 +494,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			wantRenderIterations: 2, // Renders once with requirements, then once more to confirm no new requirements
 			wantErr:              false,
 		},
-		{
-			name:        "MultipleIterationsWithRequirements",
+		"MultipleIterationsWithRequirements": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
@@ -594,8 +585,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			wantRenderIterations: 3, // Iterations: 1. Request ConfigMap, 2. Request Secret, 3. No more requirements
 			wantErr:              false,
 		},
-		{
-			name:        "RenderError",
+		"RenderError": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
@@ -614,8 +604,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			wantRenderIterations: 1,
 			wantErr:              true,
 		},
-		{
-			name:        "RenderErrorWithRequirements",
+		"RenderErrorWithRequirements": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
@@ -676,8 +665,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			wantRenderIterations: 2,     // Renders once with error but requirements, then once more successfully
 			wantErr:              false, // Should not error as the second render succeeds
 		},
-		{
-			name:        "RequirementsProcessingError",
+		"RequirementsProcessingError": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
@@ -718,8 +706,8 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Set up mock client and renderFunc
 			mockClient := tt.setupClient()
 			renderFunc := tt.setupRenderFunc()
