@@ -79,7 +79,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// TODO:  add a file output option
 	// TODO:  make sure namespacing works everywhere
 	// TODO:  fix naive pluralization
-	// TODO:  FetchCurrentObject refactor
 	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field
 	// TODO: test case for non-pipeline composition should expect error
 

@@ -3,13 +3,12 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,9 +23,6 @@ type ResourceManager interface {
 
 	// UpdateOwnerRefs ensures all OwnerReferences have valid UIDs
 	UpdateOwnerRefs(parent *unstructured.Unstructured, child *unstructured.Unstructured)
-
-	// FindResourcesToBeRemoved identifies resources that exist in the current state but are not in the processed list
-	FindResourcesToBeRemoved(ctx context.Context, composite string, processedResources map[string]bool) ([]*unstructured.Unstructured, error)
 }
 
 // DefaultResourceManager implements ResourceManager interface
@@ -52,213 +48,267 @@ func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composi
 	generateName := desired.GetGenerateName()
 	namespace := desired.GetNamespace()
 
-	// For logging - create a resource ID that might use generateName
-	var resourceID string
-	if name != "" {
-		resourceID = fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
-	} else if generateName != "" {
-		resourceID = fmt.Sprintf("%s/%s/%s*", gvk.String(), namespace, generateName)
-	} else {
-		resourceID = fmt.Sprintf("%s/<no-name>", gvk.String())
-	}
+	// Create a resource ID for logging
+	resourceID := m.createResourceID(gvk, namespace, name, generateName)
 
 	m.logger.Debug("Fetching current object state",
 		"resource", resourceID,
 		"hasName", name != "",
 		"hasGenerateName", generateName != "")
 
-	var current *unstructured.Unstructured
-	var err error
-	isNewObject := false
-
-	// If there's a name, try direct lookup first
+	// Try direct lookup by name if available
 	if name != "" {
-		current, err = m.client.GetResource(ctx, gvk, namespace, name)
+		current, err := m.client.GetResource(ctx, gvk, namespace, name)
 		if err == nil && current != nil {
 			m.logger.Debug("Found resource by direct lookup",
 				"resource", resourceID,
 				"resourceVersion", current.GetResourceVersion())
 
-			// Check if this resource is already owned by a different composite
-			if composite != nil {
-				if labels := current.GetLabels(); labels != nil {
-					if owner, exists := labels["crossplane.io/composite"]; exists && owner != composite.GetName() {
-						// Log a warning if the resource is owned by a different composite
-						m.logger.Info(
-							"Warning: Resource already belongs to another composite",
-							"resource", resourceID,
-							"currentOwner", owner,
-							"newOwner", composite.GetName(),
-						)
-					}
-				}
+			m.checkCompositeOwnership(current, composite)
+			return current, false, nil
+		}
+
+		// If it's not a NotFound error, propagate it
+		if err != nil && !apierrors.IsNotFound(err) {
+			m.logger.Debug("Error getting resource",
+				"resource", resourceID,
+				"error", err)
+			return nil, false, err
+		}
+	}
+
+	// If direct lookup failed, try looking up by labels and annotations
+	if composite != nil {
+		current, found, err := m.lookupByComposite(ctx, composite, desired)
+		if err != nil {
+			// For resources that primarily use generateName, errors in label-based lookup
+			// should result in a new resource rather than an error.
+			// This matches the original behavior.
+			if generateName != "" {
+				m.logger.Debug("Error during label-based lookup for resource with generateName (treating as new)",
+					"resource", resourceID,
+					"error", err)
+				return nil, true, nil
 			}
+
+			// For direct name lookups, propagate the error
+			m.logger.Debug("Error during label-based lookup",
+				"resource", resourceID,
+				"error", err)
+			return nil, false, err
+		}
+
+		if found {
 			return current, false, nil
 		}
 	}
 
-	// Handle the resource not found case or resources with only generateName
-	// This might be a genuinely new resource or one we need to look up differently
-	if name == "" || apierrors.IsNotFound(err) {
-		// If this is the XR itself (composite is nil), it's genuinely new
-		if composite == nil {
-			m.logger.Debug("XR not found, creating new", "resource", resourceID)
-			return nil, true, nil
+	// We didn't find a matching resource using any strategy
+	m.logger.Debug("No matching resource found", "resource", resourceID)
+	return nil, true, nil
+}
+
+// createResourceID generates a resource ID string for logging purposes
+func (m *DefaultResourceManager) createResourceID(gvk schema.GroupVersionKind, namespace, name, generateName string) string {
+	// Handle case with a proper name
+	if name != "" {
+		if namespace != "" {
+			return fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
 		}
-
-		// Check if we have annotations
-		annotations := desired.GetAnnotations()
-		if annotations == nil {
-			m.logger.Debug("Resource not found and has no annotations, creating new",
-				"resource", resourceID)
-			return nil, true, nil
-		}
-
-		// Look for composition resource name annotation
-		var compResourceName string
-		var hasCompResourceName bool
-
-		// First check standard annotation
-		if value, exists := annotations["crossplane.io/composition-resource-name"]; exists {
-			compResourceName = value
-			hasCompResourceName = true
-		}
-
-		// Then check function-specific variations if not found
-		if !hasCompResourceName {
-			for key, value := range annotations {
-				if strings.HasSuffix(key, "/composition-resource-name") {
-					compResourceName = value
-					hasCompResourceName = true
-					break
-				}
-			}
-		}
-
-		// If we don't have a composition resource name, it's a new resource
-		if !hasCompResourceName {
-			m.logger.Debug("Resource not found and has no composition-resource-name, creating new",
-				"resource", resourceID)
-			return nil, true, nil
-		}
-
-		m.logger.Debug("Resource needs lookup by labels and annotations",
-			"resource", resourceID,
-			"compositeName", composite.GetName(),
-			"compositionResourceName", compResourceName,
-			"hasGenerateName", generateName != "")
-
-		// Only proceed if we have necessary identifiers
-		if composite.GetName() != "" {
-			// Create a label selector to find resources managed by this composite
-			labelSelector := metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"crossplane.io/composite": composite.GetName(),
-				},
-			}
-
-			// Convert the GVK to GVR for the client call
-			gvr := schema.GroupVersionResource{
-				Group:    gvk.Group,
-				Version:  gvk.Version,
-				Resource: strings.ToLower(gvk.Kind) + "s", // Naive pluralization
-			}
-
-			// Handle special cases for some well-known types
-			switch gvk.Kind {
-			case "Ingress":
-				gvr.Resource = "ingresses"
-			case "Endpoints":
-				gvr.Resource = "endpoints"
-			case "ConfigMap":
-				gvr.Resource = "configmaps"
-				// Add other special cases as needed
-			}
-
-			// Look up resources with the composite label
-			resources, err := m.client.GetResourcesByLabel(ctx, namespace, gvr, labelSelector)
-			if err != nil {
-				m.logger.Debug("Error looking up resources by label",
-					"resource", resourceID,
-					"composite", composite.GetName(),
-					"error", err)
-			} else if len(resources) > 0 {
-				m.logger.Debug("Found potential matches by label",
-					"resource", resourceID,
-					"matchCount", len(resources))
-
-				// Iterate through results to find one with matching composition-resource-name
-				for _, res := range resources {
-					resAnnotations := res.GetAnnotations()
-					if resAnnotations == nil {
-						continue
-					}
-
-					// Check both the standard annotation and function-specific variations
-					resourceNameMatch := false
-					for key, value := range resAnnotations {
-						if (key == "crossplane.io/composition-resource-name" ||
-							strings.HasSuffix(key, "/composition-resource-name")) &&
-							value == compResourceName {
-							resourceNameMatch = true
-							break
-						}
-					}
-
-					if resourceNameMatch {
-						// If this resource has generateName and we found a match,
-						// verify the match starts with our generateName prefix if provided
-						if generateName != "" {
-							resName := res.GetName()
-							if !strings.HasPrefix(resName, generateName) {
-								m.logger.Debug("Found resource with matching composition name but wrong generateName prefix",
-									"expectedPrefix", generateName,
-									"actualName", resName)
-								continue
-							}
-
-							// If we have a match, ensure the labels are consistent
-							// This is especially important for resources managed by XRs with generateName
-							labels := res.GetLabels()
-							if labels == nil {
-								labels = make(map[string]string)
-							}
-
-							// Use the composite's generateName if needed
-							compositeName := composite.GetName()
-							if compositeName == "" && composite.GetGenerateName() != "" {
-								compositeName = composite.GetGenerateName()
-							}
-
-							if compositeName != "" && labels["crossplane.io/composite"] != compositeName {
-								m.logger.Debug("Updating composite label for resource with generateName",
-									"resource", res.GetName(),
-									"compositeName", compositeName)
-								labels["crossplane.io/composite"] = compositeName
-								res.SetLabels(labels)
-							}
-						}
-
-						// We found a match!
-						m.logger.Debug("Found resource by label and annotation",
-							"resource", res.GetName(),
-							"compositeName", composite.GetName(),
-							"compositionResourceName", compResourceName)
-						return res, false, nil
-					}
-				}
-			}
-		}
-
-		// We didn't find a matching resource using any strategy
-		m.logger.Debug("No matching resource found by label and annotation",
-			"resource", resourceID,
-			"compResourceName", compResourceName)
-		isNewObject = true
-		err = nil // Clear the error since this is an expected condition
+		return fmt.Sprintf("%s/%s", gvk.String(), name)
 	}
 
-	return nil, isNewObject, err
+	// Handle case with generateName
+	if generateName != "" {
+		if namespace != "" {
+			return fmt.Sprintf("%s/%s/%s*", gvk.String(), namespace, generateName)
+		}
+		return fmt.Sprintf("%s/%s*", gvk.String(), generateName)
+	}
+
+	// Fallback case when neither name nor generateName is provided
+	return fmt.Sprintf("%s/<no-name>", gvk.String())
+}
+
+// checkCompositeOwnership logs a warning if the resource is owned by a different composite
+func (m *DefaultResourceManager) checkCompositeOwnership(current *unstructured.Unstructured, composite *unstructured.Unstructured) {
+	if composite == nil {
+		return
+	}
+
+	if labels := current.GetLabels(); labels != nil {
+		if owner, exists := labels["crossplane.io/composite"]; exists && owner != composite.GetName() {
+			// Log a warning if the resource is owned by a different composite
+			m.logger.Info(
+				"Warning: Resource already belongs to another composite",
+				"resource", fmt.Sprintf("%s/%s", current.GetKind(), current.GetName()),
+				"currentOwner", owner,
+				"newOwner", composite.GetName(),
+			)
+		}
+	}
+}
+
+// lookupByComposite attempts to find a resource by looking at composite ownership and composition resource name
+func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+	// Derive parameters from the provided arguments
+	gvk := desired.GroupVersionKind()
+	namespace := desired.GetNamespace()
+	generateName := desired.GetGenerateName()
+	resourceID := m.createResourceID(gvk, namespace, desired.GetName(), generateName)
+
+	// Check if we have annotations
+	annotations := desired.GetAnnotations()
+	if annotations == nil {
+		m.logger.Debug("Resource has no annotations, creating new",
+			"resource", resourceID)
+		return nil, false, nil
+	}
+
+	// Extract the composition resource name from annotations
+	compResourceName := m.getCompositionResourceName(annotations)
+	if compResourceName == "" {
+		m.logger.Debug("Resource has no composition-resource-name, creating new",
+			"resource", resourceID)
+		return nil, false, nil
+	}
+
+	m.logger.Debug("Looking up resource by labels and annotations",
+		"resource", resourceID,
+		"compositeName", composite.GetName(),
+		"compositionResourceName", compResourceName,
+		"hasGenerateName", generateName != "")
+
+	// Only proceed if we have a composite name
+	if composite.GetName() == "" {
+		return nil, false, nil
+	}
+
+	// Create a label selector to find resources managed by this composite
+	labelSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"crossplane.io/composite": composite.GetName(),
+		},
+	}
+
+	// Convert the GVK to GVR for the client call
+	gvr := m.convertGVKtoGVR(gvk)
+
+	// Look up resources with the composite label
+	resources, err := m.client.GetResourcesByLabel(ctx, namespace, gvr, labelSelector)
+	if err != nil {
+		return nil, false, errors.Wrapf(err, "cannot list resources for composite %s", composite.GetName())
+	}
+
+	if len(resources) == 0 {
+		m.logger.Debug("No resources found with composite owner label",
+			"composite", composite.GetName())
+		return nil, false, nil
+	}
+
+	m.logger.Debug("Found potential matches by label",
+		"resource", resourceID,
+		"matchCount", len(resources))
+
+	// Find a resource with matching composition-resource-name
+	return m.findMatchingResource(resources, compResourceName, generateName)
+}
+
+// getCompositionResourceName extracts the composition resource name from annotations
+func (m *DefaultResourceManager) getCompositionResourceName(annotations map[string]string) string {
+	// First check standard annotation
+	if value, exists := annotations["crossplane.io/composition-resource-name"]; exists {
+		return value
+	}
+
+	// Then check function-specific variations
+	for key, value := range annotations {
+		if strings.HasSuffix(key, "/composition-resource-name") {
+			return value
+		}
+	}
+
+	return ""
+}
+
+// convertGVKtoGVR converts a GroupVersionKind to GroupVersionResource
+func (m *DefaultResourceManager) convertGVKtoGVR(gvk schema.GroupVersionKind) schema.GroupVersionResource {
+	resource := strings.ToLower(gvk.Kind) + "s" // Naive pluralization
+
+	// Handle special cases for some well-known types
+	switch gvk.Kind {
+	case "Ingress":
+		resource = "ingresses"
+	case "Endpoints":
+		resource = "endpoints"
+	case "ConfigMap":
+		resource = "configmaps"
+	case "Policy":
+		resource = "policies"
+	}
+
+	return schema.GroupVersionResource{
+		Group:    gvk.Group,
+		Version:  gvk.Version,
+		Resource: resource,
+	}
+}
+
+// findMatchingResource looks through resources to find one matching the composition resource name
+func (m *DefaultResourceManager) findMatchingResource(
+	resources []*unstructured.Unstructured,
+	compResourceName string,
+	generateName string,
+) (*unstructured.Unstructured, bool, error) {
+	for _, res := range resources {
+		resAnnotations := res.GetAnnotations()
+		if resAnnotations == nil {
+			continue
+		}
+
+		// Check if this resource has a matching composition resource name
+		if !m.hasMatchingResourceName(resAnnotations, compResourceName) {
+			continue
+		}
+
+		// If we have a generateName, verify the match has the right prefix
+		if generateName != "" {
+			resName := res.GetName()
+			if !strings.HasPrefix(resName, generateName) {
+				m.logger.Debug("Found resource with matching composition name but wrong generateName prefix",
+					"expectedPrefix", generateName,
+					"actualName", resName)
+				continue
+			}
+		}
+
+		// We found a match!
+		m.logger.Debug("Found resource by label and annotation",
+			"resource", res.GetName(),
+			"compositionResourceName", compResourceName)
+		return res, true, nil
+	}
+
+	m.logger.Debug("No matching resource found with composition resource name",
+		"compositionResourceName", compResourceName)
+	return nil, false, nil
+}
+
+// hasMatchingResourceName checks if annotations have a matching composition-resource-name
+func (m *DefaultResourceManager) hasMatchingResourceName(annotations map[string]string, compResourceName string) bool {
+	// Check standard annotation
+	if value, exists := annotations["crossplane.io/composition-resource-name"]; exists && value == compResourceName {
+		return true
+	}
+
+	// Check function-specific variations
+	for key, value := range annotations {
+		if strings.HasSuffix(key, "/composition-resource-name") && value == compResourceName {
+			return true
+		}
+	}
+
+	return false
 }
 
 // UpdateOwnerRefs ensures all OwnerReferences have valid UIDs
@@ -315,85 +365,38 @@ func (m *DefaultResourceManager) UpdateOwnerRefs(parent *unstructured.Unstructur
 
 	// Update the object with the modified owner references
 	child.SetOwnerReferences(updatedRefs)
-	// Ensure the correct composite label is set on the child
-	// This is especially important for XRs with generateName
-	if parent != nil {
-		// Get current labels or create a new map
-		labels := child.GetLabels()
-		if labels == nil {
-			labels = make(map[string]string)
-		}
 
-		// Set the composite owner label
-		parentName := parent.GetName()
-		if parentName == "" && parent.GetGenerateName() != "" {
-			// For XRs with only generateName, use the generateName prefix
-			parentName = parent.GetGenerateName()
-		}
-
-		if parentName != "" {
-			labels["crossplane.io/composite"] = parentName
-			child.SetLabels(labels)
-			m.logger.Debug("Updated composite owner label",
-				"label", parentName,
-				"child", child.GetName())
-		}
-	}
+	// Update composite owner label
+	m.updateCompositeOwnerLabel(parent, child)
 
 	m.logger.Debug("Updated owner references and labels",
 		"newCount", len(updatedRefs))
 }
 
-// FindResourcesToBeRemoved identifies resources that exist in the current state but are not in the processed list
-func (m *DefaultResourceManager) FindResourcesToBeRemoved(ctx context.Context, composite string, processedResources map[string]bool) ([]*unstructured.Unstructured, error) {
-	// Find the XR
-	xrRes, err := m.client.GetResource(ctx, schema.GroupVersionKind{
-		Group:   "example.org", // This needs to be determined dynamically based on the XR
-		Version: "v1alpha1",    // This needs to be determined dynamically
-		Kind:    "XRKind",      // This needs to be determined dynamically
-	}, "", composite)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot find composite resource")
+// updateCompositeOwnerLabel updates the crossplane.io/composite label on the child
+func (m *DefaultResourceManager) updateCompositeOwnerLabel(parent, child *unstructured.Unstructured) {
+	if parent == nil {
+		return
 	}
 
-	// Get the resource tree
-	resourceTree, err := m.client.GetResourceTree(ctx, xrRes)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot get resource tree")
+	// Get current labels or create a new map
+	labels := child.GetLabels()
+	if labels == nil {
+		labels = make(map[string]string)
 	}
 
-	// Find resources that weren't processed (meaning they would be removed)
-	var toBeRemoved []*unstructured.Unstructured
-
-	// Function to recursively traverse the tree and find composed resources
-	var findComposedResources func(node *resource.Resource)
-	findComposedResources = func(node *resource.Resource) {
-		// Skip the root (XR) node
-		if node.Unstructured.GetAnnotations()["crossplane.io/composition-resource-name"] != "" {
-			key := resourceKey(&node.Unstructured)
-			if !processedResources[key] {
-				// This resource exists but wasn't in our desired resources - it will be removed
-				toBeRemoved = append(toBeRemoved, &node.Unstructured)
-			}
-		}
-
-		for _, child := range node.Children {
-			findComposedResources(child)
-		}
+	// Set the composite owner label
+	parentName := parent.GetName()
+	if parentName == "" && parent.GetGenerateName() != "" {
+		// For XRs with only generateName, use the generateName prefix
+		parentName = parent.GetGenerateName()
 	}
 
-	// Start the traversal from the root's children to skip the XR itself
-	for _, child := range resourceTree.Children {
-		findComposedResources(child)
+	if parentName != "" {
+		labels["crossplane.io/composite"] = parentName
+		child.SetLabels(labels)
+		m.logger.Debug("Updated composite owner label",
+			"label", parentName,
+			"child", child.GetName())
 	}
-
-	return toBeRemoved, nil
-}
-
-// resourceKey generates a unique key for a resource based on GVK and name
-func resourceKey(res *unstructured.Unstructured) string {
-	return fmt.Sprintf("%s/%s/%s",
-		res.GetAPIVersion(),
-		res.GetKind(),
-		res.GetName())
 }
