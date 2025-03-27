@@ -298,6 +298,40 @@ func (b *ClusterClientBuilder) WithComposedResourcesByOwner(resources ...*unstru
 	})
 }
 
+// WithIsCRDRequired adds an implementation for the IsCRDRequired method.
+func (b *ClusterClientBuilder) WithIsCRDRequired(fn func(context.Context, schema.GroupVersionKind) bool) *ClusterClientBuilder {
+	b.mock.IsCRDRequiredFn = fn
+	return b
+}
+
+// WithResourcesRequiringCRDs sets only the specified GVKs to require CRDs.
+// All other resources will be considered as not requiring CRDs.
+func (b *ClusterClientBuilder) WithResourcesRequiringCRDs(crdsRequiredGVKs ...schema.GroupVersionKind) *ClusterClientBuilder {
+	requiresCRD := make(map[schema.GroupVersionKind]bool)
+	for _, gvk := range crdsRequiredGVKs {
+		requiresCRD[gvk] = true
+	}
+
+	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
+		// Only require CRDs for specified GVKs
+		return requiresCRD[gvk]
+	})
+}
+
+// WithAllResourcesRequiringCRDs sets all resources to require CRDs.
+func (b *ClusterClientBuilder) WithAllResourcesRequiringCRDs() *ClusterClientBuilder {
+	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
+		return true
+	})
+}
+
+// WithNoResourcesRequiringCRDs sets all resources to not require CRDs.
+func (b *ClusterClientBuilder) WithNoResourcesRequiringCRDs() *ClusterClientBuilder {
+	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
+		return false
+	})
+}
+
 // Build creates and returns the configured mock ClusterClient.
 func (b *ClusterClientBuilder) Build() *MockClusterClient {
 	return b.mock

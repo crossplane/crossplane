@@ -277,7 +277,7 @@ func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstru
 	return result, nil
 }
 
-// renderWithRequirements performs an iterative rendering process that discovers and fulfills requirements
+// RenderWithRequirements performs an iterative rendering process that discovers and fulfills requirements
 func (p *DefaultDiffProcessor) RenderWithRequirements(
 	ctx context.Context,
 	xr *ucomposite.Unstructured,
@@ -285,19 +285,6 @@ func (p *DefaultDiffProcessor) RenderWithRequirements(
 	fns []pkgv1.Function,
 	resourceID string,
 ) (render.Outputs, error) {
-	// Skip if not in pipeline mode
-	if comp.Spec.Mode == nil || *comp.Spec.Mode != apiextensionsv1.CompositionModePipeline {
-		p.config.Logger.Debug("Skipping requirements discovery for non-pipeline composition")
-
-		// Perform a single render without extra resources
-		return p.config.RenderFunc(ctx, p.config.Logger, render.Inputs{
-			CompositeResource: xr,
-			Composition:       comp,
-			Functions:         fns,
-			ExtraResources:    []unstructured.Unstructured{},
-		})
-	}
-
 	// Start with environment configs as baseline extra resources
 	renderResources := []unstructured.Unstructured{}
 
@@ -356,7 +343,7 @@ func (p *DefaultDiffProcessor) RenderWithRequirements(
 		}
 
 		// Log if we're continuing despite render errors
-		if renderErr != nil && hasRequirements {
+		if renderErr != nil { // && hasRequirements {
 			p.config.Logger.Debug("Resource rendering had errors but returned requirements",
 				"resource", resourceID,
 				"iteration", iteration,

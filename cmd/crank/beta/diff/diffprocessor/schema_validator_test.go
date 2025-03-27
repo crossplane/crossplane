@@ -108,17 +108,37 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 						// Return not found for composed resource CRD
 						return nil, errors.New("CRD not found")
 					}).
+					// Add this line to make only Composed resources require CRDs:
+					WithResourcesRequiringCRDs(
+						schema.GroupVersionKind{Group: "composed.org", Version: "v1", Kind: "ComposedResource"},
+					).
 					Build()
 			},
 			xr:            xr,
 			composed:      []composed.Unstructured{*composedResource1, *composedResource2},
 			preloadedCRDs: []*extv1.CustomResourceDefinition{},
-			// Still succeeds because we don't require all CRDs to be found
-			expectedErr: false,
+			// Now we expect an error because we've configured it to require a CRD but can't find it
+			expectedErr:    true,
+			expectedErrMsg: "unable to find CRD for composed.org/v1, Kind=ComposedResource",
 		},
 		"ValidationError": {
 			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().Build()
+				// Convert CRDs to unstructured for the mock
+				composedCRDUn := &unstructured.Unstructured{}
+				runtime.DefaultUnstructuredConverter.FromUnstructured(
+					MustToUnstructured(createCRDWithStringField(composedCRD)),
+					composedCRDUn,
+				)
+
+				return tu.NewMockClusterClient().
+					// Make the GetResource return the CRD when requested
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+						if name == "composedresources.composed.org" {
+							return composedCRDUn, nil
+						}
+						return nil, errors.New("CRD not found")
+					}).
+					Build()
 			},
 			xr: tu.NewResource("example.org/v1", "XR", "test-xr").
 				WithSpecField("field", int64(123)).

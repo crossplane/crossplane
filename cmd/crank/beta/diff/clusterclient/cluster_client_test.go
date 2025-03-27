@@ -7,6 +7,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
 	"strings"
 	"testing"
 
@@ -16,8 +17,10 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
+
 	kt "k8s.io/client-go/testing"
 
 	"k8s.io/client-go/rest"
@@ -1884,6 +1887,188 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 						}
 					}
 				}
+			}
+		})
+	}
+}
+
+func TestClusterClient_IsCRDRequired(t *testing.T) {
+	// Set up context for tests
+	ctx := context.Background()
+
+	tests := map[string]struct {
+		setupDiscovery func() discovery.DiscoveryInterface
+		gvk            schema.GroupVersionKind
+		want           bool
+	}{
+		"CoreResource": {
+			setupDiscovery: func() discovery.DiscoveryInterface {
+				// Create a fake discovery client that returns core API resources
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+				fakeDiscovery.Resources = []*metav1.APIResourceList{
+					{
+						GroupVersion: "v1",
+						APIResources: []metav1.APIResource{
+							{
+								Name: "pods",
+								Kind: "Pod",
+							},
+						},
+					},
+				}
+				return fakeDiscovery
+			},
+			gvk: schema.GroupVersionKind{
+				Group:   "",
+				Version: "v1",
+				Kind:    "Pod",
+			},
+			want: false, // Core API resource should not require a CRD
+		},
+		"KubernetesExtensionResource": {
+			setupDiscovery: func() discovery.DiscoveryInterface {
+				// Create a fake discovery client that returns Kubernetes extension resources
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+				fakeDiscovery.Resources = []*metav1.APIResourceList{
+					{
+						GroupVersion: "apps/v1",
+						APIResources: []metav1.APIResource{
+							{
+								Name: "deployments",
+								Kind: "Deployment",
+							},
+						},
+					},
+				}
+				return fakeDiscovery
+			},
+			gvk: schema.GroupVersionKind{
+				Group:   "apps",
+				Version: "v1",
+				Kind:    "Deployment",
+			},
+			want: false, // Kubernetes extension should not require a CRD
+		},
+		"CustomResource": {
+			setupDiscovery: func() discovery.DiscoveryInterface {
+				// Create a fake discovery client with no knowledge of this resource
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+				fakeDiscovery.Resources = []*metav1.APIResourceList{
+					{
+						GroupVersion: "v1",
+						APIResources: []metav1.APIResource{
+							{
+								Name: "pods",
+								Kind: "Pod",
+							},
+						},
+					},
+				}
+				return fakeDiscovery
+			},
+			gvk: schema.GroupVersionKind{
+				Group:   "example.org",
+				Version: "v1",
+				Kind:    "XResource",
+			},
+			want: true, // Custom resource should require a CRD
+		},
+		"CustomResourceDiscovered": {
+			setupDiscovery: func() discovery.DiscoveryInterface {
+				// Create a fake discovery client that is aware of this custom resource
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+				fakeDiscovery.Resources = []*metav1.APIResourceList{
+					{
+						GroupVersion: "example.org/v1",
+						APIResources: []metav1.APIResource{
+							{
+								Name: "xresources",
+								Kind: "XResource",
+							},
+						},
+					},
+				}
+				return fakeDiscovery
+			},
+			gvk: schema.GroupVersionKind{
+				Group:   "example.org",
+				Version: "v1",
+				Kind:    "XResource",
+			},
+			want: true, // Custom resource should require a CRD even when discovered
+		},
+		"APIExtensionResource": {
+			setupDiscovery: func() discovery.DiscoveryInterface {
+				// Create a fake discovery client that returns apiextensions resources
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+				fakeDiscovery.Resources = []*metav1.APIResourceList{
+					{
+						GroupVersion: "apiextensions.k8s.io/v1",
+						APIResources: []metav1.APIResource{
+							{
+								Name: "customresourcedefinitions",
+								Kind: "CustomResourceDefinition",
+							},
+						},
+					},
+				}
+				return fakeDiscovery
+			},
+			gvk: schema.GroupVersionKind{
+				Group:   "apiextensions.k8s.io",
+				Version: "v1",
+				Kind:    "CustomResourceDefinition",
+			},
+			want: true, // APIExtensions resources are handled specially and require CRDs
+		},
+		"DiscoveryFailure": {
+			setupDiscovery: func() discovery.DiscoveryInterface {
+				// Create a fake discovery client that returns an error
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+				// Set up to generate an error when called
+				fakeDiscovery.Fake.AddReactor("*", "*", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("discovery failed")
+				})
+				return fakeDiscovery
+			},
+			gvk: schema.GroupVersionKind{
+				Group:   "example.org",
+				Version: "v1",
+				Kind:    "XResource",
+			},
+			want: true, // Default to requiring CRD on discovery failure
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			logger := tu.TestLogger(t)
+
+			// Create a cluster client with the test discovery client
+			c := &DefaultClusterClient{
+				discoveryClient: tt.setupDiscovery(),
+				logger:          logger,
+				resourceMap:     make(map[schema.GroupVersionKind]bool),
+			}
+
+			// Call the method under test
+			got := c.IsCRDRequired(ctx, tt.gvk)
+
+			// Verify result
+			if got != tt.want {
+				t.Errorf("IsCRDRequired() = %v, want %v", got, tt.want)
 			}
 		})
 	}

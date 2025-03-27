@@ -23,7 +23,7 @@ type SchemaValidator interface {
 	ValidateResources(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error
 
 	// EnsureComposedResourceCRDs ensures we have all required CRDs for validation
-	EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured)
+	EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) error
 }
 
 // DefaultSchemaValidator implements SchemaValidator interface
@@ -94,18 +94,12 @@ func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *unst
 	}
 
 	// Ensure we have all the required CRDs
-	if len(v.crds) > 0 {
-		v.logger.Debug("Ensuring required CRDs for validation",
-			"cachedCRDs", len(v.crds),
-			"resourceCount", len(resources))
-		v.EnsureComposedResourceCRDs(ctx, resources)
-	} else {
-		// No CRDs cached, we need to fetch them
-		v.logger.Debug("Fetching CRDs for validation")
-		if err := v.LoadCRDs(ctx); err != nil {
-			return errors.Wrap(err, "cannot load CRDs from cluster")
-		}
-		v.EnsureComposedResourceCRDs(ctx, resources)
+	v.logger.Debug("Ensuring required CRDs for validation",
+		"cachedCRDs", len(v.crds),
+		"resourceCount", len(resources))
+	
+	if err := v.EnsureComposedResourceCRDs(ctx, resources); err != nil {
+		return errors.Wrap(err, "unable to ensure CRDs")
 	}
 
 	// Create a logger writer to capture output
@@ -124,7 +118,7 @@ func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *unst
 
 // EnsureComposedResourceCRDs checks if we have all the CRDs needed for the composed resources
 // and fetches any missing ones from the cluster
-func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) {
+func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) error {
 	// Create a map of existing CRDs by GVK for quick lookup
 	existingCRDs := make(map[schema.GroupVersionKind]bool)
 	for _, crd := range v.crds {
@@ -150,13 +144,20 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 	// If we have all the CRDs already, we're done
 	if len(missingGVKs) == 0 {
 		v.logger.Debug("All required CRDs are already cached")
-		return
+		return nil
 	}
 
 	v.logger.Debug("Fetching additional CRDs", "missingCount", len(missingGVKs))
 
 	// Fetch missing CRDs
 	for gvk := range missingGVKs {
+		// Skip resources that don't require CRDs
+		if !v.client.IsCRDRequired(ctx, gvk) {
+			v.logger.Debug("Skipping built-in resource type, no CRD required",
+				"gvk", gvk.String())
+			continue
+		}
+
 		// Try to get the CRD by its conventional name pattern (plural.group)
 		crdName := guessCRDName(gvk)
 
@@ -176,12 +177,10 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 		)
 
 		if err != nil {
-			// Log but don't fail - we might not need all CRDs or it could
-			// be a built-in resource type without a CRD
 			v.logger.Debug("CRD not found (continuing)",
 				"gvk", gvk.String(),
 				"crdName", crdName)
-			continue
+			return errors.New("unable to find CRD for " + gvk.String())
 		}
 
 		// Convert to CRD
@@ -199,6 +198,7 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 	}
 
 	v.logger.Debug("Finished ensuring CRDs", "totalCRDs", len(v.crds))
+	return nil
 }
 
 // guessCRDName attempts to create the CRD name for a given GVK

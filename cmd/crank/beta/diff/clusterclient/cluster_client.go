@@ -15,11 +15,13 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
+	"sync"
 )
 
 type compositionCacheKey struct {
@@ -59,15 +61,22 @@ type ClusterClient interface {
 
 	// DryRunApply performs a server-side apply with dry-run flag for diffing
 	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+
+	// IsCRDRequired checks if a resource requires a CRD
+	IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool
 }
 
 // DefaultClusterClient handles all interactions with the Kubernetes cluster.
 type DefaultClusterClient struct {
-	dynamicClient dynamic.Interface
-	xrmClient     *xrm.Client
-	compositions  map[compositionCacheKey]*apiextensionsv1.Composition
-	functions     map[string]pkgv1.Function
-	logger        logging.Logger
+	dynamicClient          dynamic.Interface
+	xrmClient              *xrm.Client
+	discoveryClient        discovery.DiscoveryInterface
+	compositions           map[compositionCacheKey]*apiextensionsv1.Composition
+	functions              map[string]pkgv1.Function
+	logger                 logging.Logger
+	resourceMap            map[schema.GroupVersionKind]bool
+	resourceMapMutex       sync.RWMutex
+	resourceMapInitialized bool
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
@@ -129,10 +138,18 @@ func NewClusterClient(config *rest.Config, opts ...ClusterClientOption) (*Defaul
 		return nil, errors.Wrap(err, "cannot create resource tree client")
 	}
 
+	// Create discovery client
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(config)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create discovery client")
+	}
+
 	return &DefaultClusterClient{
-		dynamicClient: dynamicClient,
-		xrmClient:     xrmClient,
-		logger:        options.Logger,
+		dynamicClient:   dynamicClient,
+		xrmClient:       xrmClient,
+		logger:          options.Logger,
+		discoveryClient: discoveryClient,
+		resourceMap:     make(map[schema.GroupVersionKind]bool),
 	}, nil
 }
 
@@ -589,6 +606,103 @@ func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructure
 		"resource", resourceID,
 		"resourceVersion", result.GetResourceVersion())
 	return result, nil
+}
+
+func (c *DefaultClusterClient) IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool {
+	// Core API resources never need CRDs
+	if gvk.Group == "" {
+		return false
+	}
+
+	// Standard Kubernetes API groups
+	builtInGroups := []string{
+		"apps", "batch", "extensions", "policy", "autoscaling",
+	}
+	for _, group := range builtInGroups {
+		if gvk.Group == group {
+			return false
+		}
+	}
+
+	// k8s.io domain suffix groups are typically built-in
+	// (except apiextensions.k8s.io which defines CRDs themselves)
+	if strings.HasSuffix(gvk.Group, ".k8s.io") &&
+		gvk.Group != "apiextensions.k8s.io" {
+		return false
+	}
+
+	// All other groups likely require CRDs
+	return true
+}
+
+// Private helper methods
+func (c *DefaultClusterClient) ensureResourceMapLoaded(ctx context.Context) {
+	c.resourceMapMutex.RLock()
+	if c.resourceMapInitialized {
+		c.resourceMapMutex.RUnlock()
+		return
+	}
+	c.resourceMapMutex.RUnlock()
+
+	// Need to load resources, acquire write lock
+	c.resourceMapMutex.Lock()
+	defer c.resourceMapMutex.Unlock()
+
+	// Check again in case another goroutine loaded while we were waiting
+	if c.resourceMapInitialized {
+		return
+	}
+
+	c.logger.Debug("Loading API resources from server")
+
+	// Initialize if needed
+	if c.resourceMap == nil {
+		c.resourceMap = make(map[schema.GroupVersionKind]bool)
+	}
+
+	// Get API resources from the server
+	_, apiResourceLists, err := c.discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		// This can return a partial error, so we'll still process what we got
+		if !discovery.IsGroupDiscoveryFailedError(err) {
+			c.logger.Debug("Failed to get server resources (continuing)", "error", err)
+			// Mark as initialized anyway so we don't repeatedly try on failure
+			c.resourceMapInitialized = true
+			return
+		}
+		// Log the partial error but continue
+		c.logger.Debug("Partial error getting API resources", "error", err)
+	}
+
+	// Process discovered resources
+	for _, apiResourceList := range apiResourceLists {
+		gv, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
+		if err != nil {
+			c.logger.Debug("Failed to parse group version",
+				"groupVersion", apiResourceList.GroupVersion,
+				"error", err)
+			continue
+		}
+
+		for _, apiResource := range apiResourceList.APIResources {
+			gvk := schema.GroupVersionKind{
+				Group:   gv.Group,
+				Version: gv.Version,
+				Kind:    apiResource.Kind,
+			}
+			c.resourceMap[gvk] = true
+		}
+	}
+
+	c.logger.Debug("Loaded API resources", "count", len(c.resourceMap))
+	c.resourceMapInitialized = true
+}
+
+func (c *DefaultClusterClient) isKnownResource(gvk schema.GroupVersionKind) bool {
+	c.resourceMapMutex.RLock()
+	defer c.resourceMapMutex.RUnlock()
+
+	return c.resourceMap[gvk]
 }
 
 // ClusterClientOptions holds configuration options for the cluster client

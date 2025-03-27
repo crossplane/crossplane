@@ -140,7 +140,8 @@ func (m *DefaultResourceManager) checkCompositeOwnership(current *unstructured.U
 		if owner, exists := labels["crossplane.io/composite"]; exists && owner != composite.GetName() {
 			// Log a warning if the resource is owned by a different composite
 			m.logger.Info(
-				"Warning: Resource already belongs to another composite",
+				// TODO:  should we fail by default here?  maybe require a --force flag to proceed?
+				"Warning: Resource already belongs to another composite.  Applying this diff will assume ownership!",
 				"resource", fmt.Sprintf("%s/%s", current.GetKind(), current.GetName()),
 				"currentOwner", owner,
 				"newOwner", composite.GetName(),

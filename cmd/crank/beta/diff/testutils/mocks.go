@@ -242,6 +242,7 @@ type MockClusterClient struct {
 	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
 	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	IsCRDRequiredFn            func(ctx context.Context, gvk schema.GroupVersionKind) bool
 	logger                     logging.Logger
 }
 
@@ -328,6 +329,15 @@ func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstr
 		return m.GetEnvironmentConfigsFn(ctx)
 	}
 	return nil, errors.New("GetEnvironmentConfigs not implemented")
+}
+
+// IsCRDRequired implements the ClusterClient interface
+func (m *MockClusterClient) IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool {
+	if m.IsCRDRequiredFn != nil {
+		return m.IsCRDRequiredFn(ctx, gvk)
+	}
+	// Default behavior if not implemented - assume CRD is required
+	return true
 }
 
 // MockDiffProcessor implements the DiffProcessor interface for testing

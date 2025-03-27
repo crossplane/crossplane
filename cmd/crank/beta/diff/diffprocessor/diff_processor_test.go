@@ -137,6 +137,8 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithComposedResourcesByOwner(composedResource).  // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
+					// Add this line to make test resources not require CRDs:
+					WithNoResourcesRequiringCRDs().
 					Build()
 			},
 			resources: []*unstructured.Unstructured{resource1},
