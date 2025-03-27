@@ -80,7 +80,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// TODO:  make sure namespacing works everywhere
 	// TODO:  fix naive pluralization
 	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field
-	// TODO: test case for non-pipeline composition should expect error
 	// TODO:  diff against upgraded schema that isn't applied yet
 	// TODO:  diff against upgraded composition that isn't applied yet
 	// TODO:  diff against upgraded composition version that is already available

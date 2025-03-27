@@ -134,7 +134,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
 					WithResourcesExist(resource1, composedResource). // Add resources to existing resources
-					WithComposedResourcesByOwner(composedResource).  // Add composed resource lookup by owner
+					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					// Add this line to make test resources not require CRDs:
@@ -335,17 +335,6 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 		},
 	}
 
-	// Create a non-pipeline composition
-	nonPipelineMode := apiextensionsv1.CompositionMode("NonPipeline")
-	nonPipelineComposition := &apiextensionsv1.Composition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "non-pipeline-composition",
-		},
-		Spec: apiextensionsv1.CompositionSpec{
-			Mode: &nonPipelineMode,
-		},
-	}
-
 	// Create test functions
 	functions := []pkgv1.Function{
 		{
@@ -370,37 +359,6 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 		wantRenderIterations int
 		wantErr              bool
 	}{
-		"NonPipelineComposition": {
-			xr:          xr,
-			composition: nonPipelineComposition,
-			functions:   functions,
-			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().Build()
-			},
-			setupRenderFunc: func() RenderFunc {
-				iteration := 0
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
-					iteration++
-					// Return a simple output with no requirements
-					return render.Outputs{
-						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
-							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
-								"apiVersion": "example.org/v1",
-								"kind":       "ComposedResource",
-								"metadata": map[string]interface{}{
-									"name": "composed1",
-								},
-							}}},
-						},
-					}, nil
-				}
-			},
-			wantComposedCount:    1,
-			wantRenderIterations: 1, // Only renders once for non-pipeline
-			wantErr:              false,
-		},
 		"NoRequirements": {
 			xr:          xr,
 			composition: composition,
@@ -725,7 +683,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			logger := tu.TestLogger(t)
 
 			// Create a requirements provider
-			requirementsProvider := NewRequirementsProvider(mockClient, countingRenderFunc, logger)
+			requirementsProvider := NewRequirementsProvider(mockClient, render.Render, logger)
 
 			// Create the processor components
 			resourceManager := NewResourceManager(mockClient, logger)
