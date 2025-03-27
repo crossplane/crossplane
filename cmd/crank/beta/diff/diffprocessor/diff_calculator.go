@@ -236,8 +236,8 @@ func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Contex
 	resourceTree, err := c.client.GetResourceTree(ctx, xr)
 	if err != nil {
 		// Log the error but continue - we just won't detect removed resources
-		c.logger.Debug("Cannot get resource tree (continuing)", "error", err)
-		return removedDiffs, nil
+		c.logger.Debug("Cannot get resource tree; aborting", "error", err)
+		return nil, errors.New("cannot get resource tree")
 	}
 
 	// Create a handler function to recursively traverse the tree and find composed resources

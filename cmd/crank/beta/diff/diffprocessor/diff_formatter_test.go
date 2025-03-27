@@ -33,7 +33,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 		resName  string
 		options  DiffOptions
 		wantDiff *ResourceDiff
-		wantNil  bool
+		wantErr  bool
 	}{
 		"ModifiedResource": {
 			current: current,
@@ -94,29 +94,28 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 				// LineDiffs will be checked separately
 			},
 		},
-		//	"BothNil":	{
-		// TODO:  this should check for an error.  illegal condition.
-		//current: nil,
-		//desired: nil,
-		//kind:    "TestResource",
-		//resName: "test-resource",
-		//options: DefaultDiffOptions(),
-		//wantNil: true,
-		//		},
+		"BothNil": {
+			current: nil,
+			desired: nil,
+			kind:    "TestResource",
+			resName: "test-resource",
+			options: DefaultDiffOptions(),
+			wantErr: true,
+		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			diff, err := GenerateDiffWithOptions(tt.current, tt.desired, tu.TestLogger(t), tt.options)
 
-			if err != nil {
-				t.Fatalf("GenerateDiffWithOptions() returned error: %v", err)
-			}
-
-			if tt.wantNil {
-				if diff != nil {
-					t.Errorf("GenerateDiffWithOptions() = %v, want nil", diff)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("GenerateDiffWithOptions() expected error but got none")
 				}
 				return
+			}
+
+			if err != nil {
+				t.Fatalf("GenerateDiffWithOptions() returned error: %v", err)
 			}
 
 			if diff == nil {

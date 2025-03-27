@@ -598,7 +598,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			},
 			renderedResources: map[string]bool{},
 			expectedRemoved:   []string{},
-			wantErr:           false, // Should log error but not fail
+			wantErr:           true,
 		},
 	}
 
