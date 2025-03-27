@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -164,7 +163,7 @@ func AnnotateLayers(i v1.Image) (v1.Image, error) {
 	return mutate.ConfigFile(img, cfgFile)
 }
 
-// LayerFromFiles creates a flattened v1.Layer of arbitrary files.
+// LayerFromFiles creates a single v1.Layer of arbitrary files.
 // It performs no interpretation (parsing) of the files.
 func LayerFromFiles(filepaths []string, fs afero.Fs) (v1.Layer, error) {
 	// Since there is an arbitrary directory of mostly small files, we'll
@@ -215,9 +214,9 @@ func createTarball(tw *tar.Writer, path string, info os.FileInfo, fs afero.Fs) e
 	}
 	defer func() { _ = f.Close() }()
 
-	// Create tar header, and flatten for the layer.
+	// Create tar header
 	header := &tar.Header{
-		Name:     filepath.Base(path),
+		Name:     path,
 		Size:     info.Size(),
 		Mode:     int64(info.Mode()),
 		ModTime:  info.ModTime(),

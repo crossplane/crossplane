@@ -47,22 +47,24 @@ const (
 func (c *Cmd) AfterApply() error {
 	// TODO(jastang): consider prompting about re-signing if already signed
 	c.fs = afero.NewOsFs()
-	root, err := filepath.Abs(c.ExtensionsRoot)
+	paths := []string{}
+
+	err := os.Chdir(c.ExtensionsRoot)
 	if err != nil {
 		return err
 	}
-	paths := []string{}
-	err = afero.Walk(c.fs, root, func(path string, _ os.FileInfo, err error) error {
+	err = afero.Walk(c.fs, c.ExtensionsRoot, func(path string, _ os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		paths = append(paths, path)
+		relpath, _ := filepath.Rel(c.ExtensionsRoot, path)
+		paths = append(paths, relpath)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	c.absPaths = paths
+	c.relPaths = paths
 
 	// Get default docker auth.
 	c.keychain = remote.WithAuthFromKeychain(authn.NewMultiKeychain(authn.DefaultKeychain))
@@ -93,7 +95,7 @@ type Cmd struct {
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
 	fs       afero.Fs
-	absPaths []string
+	relPaths []string
 	indexRef name.Reference
 	keychain remote.Option
 	appender *xpkg.Appender
@@ -119,7 +121,7 @@ Examples:
 func (c *Cmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("cmd", "xpkg-append")
 
-	extLayer, err := xpkg.LayerFromFiles(c.absPaths, c.fs)
+	extLayer, err := xpkg.LayerFromFiles(c.relPaths, c.fs)
 	if err != nil {
 		return errors.Wrap(err, errCreateExtensionsTarball)
 	}
