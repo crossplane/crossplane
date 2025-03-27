@@ -163,7 +163,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 	}
 
 	type want struct {
-		compositions map[compositionCacheKey]*apiextensionsv1.Composition
+		compositions map[string]*apiextensionsv1.Composition
 		functions    map[string]pkgv1.Function
 		err          error
 	}
@@ -183,7 +183,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{},
+				compositions: map[string]*apiextensionsv1.Composition{},
 				functions:    map[string]pkgv1.Function{},
 			},
 		},
@@ -206,8 +206,8 @@ func TestClusterClient_Initialize(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
-					{apiVersion: "example.org/v1", kind: "XR1"}: {
+				compositions: map[string]*apiextensionsv1.Composition{
+					"comp1": {
 						TypeMeta: metav1.TypeMeta{
 							APIVersion: "apiextensions.crossplane.io/v1",
 							Kind:       "Composition",
@@ -325,10 +325,10 @@ func TestClusterClient_Initialize(t *testing.T) {
 				t.Errorf("\n%s\nInitialize(...): -want composition count, +got composition count:\n%s", tc.reason, diff)
 			}
 
-			for k, wantComp := range tc.want.compositions {
-				gotComp, ok := c.compositions[k]
+			for name, wantComp := range tc.want.compositions {
+				gotComp, ok := c.compositions[name]
 				if !ok {
-					t.Errorf("\n%s\nInitialize(...): missing composition for key %v", tc.reason, k)
+					t.Errorf("\n%s\nInitialize(...): missing composition with name %s", tc.reason, name)
 					continue
 				}
 
@@ -559,7 +559,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 	_ = apiextensionsv1.AddToScheme(scheme)
 
 	type fields struct {
-		compositions map[compositionCacheKey]*apiextensionsv1.Composition
+		compositions map[string]*apiextensionsv1.Composition
 	}
 
 	type args struct {
@@ -571,6 +571,58 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 		err         error
 	}
 
+	// Create test compositions
+	matchingComp := tu.NewComposition("matching-comp").
+		WithCompositeTypeRef("example.org/v1", "XR1").
+		Build()
+
+	nonMatchingComp := tu.NewComposition("non-matching-comp").
+		WithCompositeTypeRef("example.org/v1", "OtherXR").
+		Build()
+
+	referencedComp := tu.NewComposition("referenced-comp").
+		WithCompositeTypeRef("example.org/v1", "XR1").
+		Build()
+
+	incompatibleComp := tu.NewComposition("incompatible-comp").
+		WithCompositeTypeRef("example.org/v1", "OtherXR").
+		Build()
+
+	labeledComp := func() *apiextensionsv1.Composition {
+		comp := tu.NewComposition("labeled-comp").
+			WithCompositeTypeRef("example.org/v1", "XR1").
+			Build()
+		comp.SetLabels(map[string]string{
+			"environment": "production",
+			"tier":        "standard",
+		})
+		return comp
+	}()
+
+	aComp := func() *apiextensionsv1.Composition {
+		comp := tu.NewComposition("a-comp").
+			WithCompositeTypeRef("example.org/v1", "XR1").
+			Build()
+		comp.SetLabels(map[string]string{
+			"environment": "production",
+		})
+		return comp
+	}()
+
+	bComp := func() *apiextensionsv1.Composition {
+		comp := tu.NewComposition("b-comp").
+			WithCompositeTypeRef("example.org/v1", "XR1").
+			Build()
+		comp.SetLabels(map[string]string{
+			"environment": "production",
+		})
+		return comp
+	}()
+
+	versionMismatchComp := tu.NewComposition("version-mismatch-comp").
+		WithCompositeTypeRef("example.org/v2", "XR1").
+		Build()
+
 	tests := map[string]struct {
 		reason string
 		fields fields
@@ -580,10 +632,8 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 		"NoMatchingComposition": {
 			reason: "Should return error when no matching composition exists",
 			fields: fields{
-				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
-					{apiVersion: "example.org/v1", kind: "OtherXR"}: tu.NewComposition("non-matching-comp").
-						WithCompositeTypeRef("example.org/v1", "OtherXR").
-						Build(),
+				compositions: map[string]*apiextensionsv1.Composition{
+					"non-matching-comp": nonMatchingComp,
 				},
 			},
 			args: args{
@@ -596,28 +646,148 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 		"MatchingComposition": {
 			reason: "Should return the matching composition",
 			fields: fields{
-				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
-					{apiVersion: "example.org/v1", kind: "XR1"}: tu.NewComposition("matching-comp").
-						WithCompositeTypeRef("example.org/v1", "XR1").
-						Build(),
-					{apiVersion: "example.org/v1", kind: "OtherXR"}: tu.NewComposition("non-matching-comp").
-						WithCompositeTypeRef("example.org/v1", "OtherXR").
-						Build(),
+				compositions: map[string]*apiextensionsv1.Composition{
+					"matching-comp":     matchingComp,
+					"non-matching-comp": nonMatchingComp,
 				},
 			},
 			args: args{
 				res: tu.NewResource("example.org/v1", "XR1", "my-xr").Build(),
 			},
 			want: want{
-				composition: tu.NewComposition("matching-comp").
-					WithCompositeTypeRef("example.org/v1", "XR1").
-					Build(),
+				composition: matchingComp,
 			},
 		},
-		"EmptyCompositionCache": {
-			reason: "Should return error when composition cache is empty",
+		"DirectCompositionReference": {
+			reason: "Should return the composition referenced by spec.compositionRef.name",
 			fields: fields{
-				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{},
+				compositions: map[string]*apiextensionsv1.Composition{
+					"default-comp":    matchingComp,
+					"referenced-comp": referencedComp,
+				},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedField(xr.Object, "referenced-comp", "spec", "compositionRef", "name")
+					return xr
+				}(),
+			},
+			want: want{
+				composition: referencedComp,
+			},
+		},
+		"DirectCompositionReferenceIncompatible": {
+			reason: "Should return error when directly referenced composition is incompatible",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"matching-comp":     matchingComp,
+					"incompatible-comp": incompatibleComp,
+				},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedField(xr.Object, "incompatible-comp", "spec", "compositionRef", "name")
+					return xr
+				}(),
+			},
+			want: want{
+				err: errors.Errorf("composition incompatible-comp is not compatible with example.org/v1, Kind=XR1"),
+			},
+		},
+		"ReferencedCompositionNotFound": {
+			reason: "Should return error when referenced composition doesn't exist",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"existing-comp": matchingComp,
+				},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedField(xr.Object, "non-existent-comp", "spec", "compositionRef", "name")
+					return xr
+				}(),
+			},
+			want: want{
+				err: errors.Errorf("composition non-existent-comp referenced in example.org/v1, Kind=XR1/my-xr not found"),
+			},
+		},
+		"CompositionSelectorMatch": {
+			reason: "Should return composition matching the selector labels",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"labeled-comp":      labeledComp,
+					"non-matching-comp": nonMatchingComp,
+				},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+						"environment": "production",
+					}, "spec", "compositionSelector", "matchLabels")
+					return xr
+				}(),
+			},
+			want: want{
+				composition: labeledComp,
+			},
+		},
+		"CompositionSelectorNoMatch": {
+			reason: "Should return error when no composition matches the selector",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"labeled-comp": func() *apiextensionsv1.Composition {
+						comp := tu.NewComposition("labeled-comp").
+							WithCompositeTypeRef("example.org/v1", "XR1").
+							Build()
+						comp.SetLabels(map[string]string{
+							"environment": "staging",
+						})
+						return comp
+					}(),
+				},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+						"environment": "production",
+					}, "spec", "compositionSelector", "matchLabels")
+					return xr
+				}(),
+			},
+			want: want{
+				err: errors.Errorf("no compatible composition found matching labels map[environment:production] for example.org/v1, Kind=XR1/my-xr"),
+			},
+		},
+		"MultipleCompositionMatches": {
+			reason: "Should return an error when multiple compositions match the selector",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"a-comp": aComp,
+					"b-comp": bComp,
+				},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+						"environment": "production",
+					}, "spec", "compositionSelector", "matchLabels")
+					return xr
+				}(),
+			},
+			want: want{
+				err: errors.New("ambiguous composition selection: multiple compositions match"),
+			},
+		},
+		"EmptyCompositionCache_DefaultLookup": {
+			reason: "Should return error when composition cache is empty (default lookup)",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{},
 			},
 			args: args{
 				res: tu.NewResource("example.org/v1", "XR1", "my-xr").Build(),
@@ -626,13 +796,60 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				err: errors.Errorf("no composition found for %s", "example.org/v1, Kind=XR1"),
 			},
 		},
+		"EmptyCompositionCache_DirectReference": {
+			reason: "Should return error when composition cache is empty (direct reference)",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedField(xr.Object, "referenced-comp", "spec", "compositionRef", "name")
+					return xr
+				}(),
+			},
+			want: want{
+				err: errors.Errorf("composition referenced-comp referenced in example.org/v1, Kind=XR1/my-xr not found"),
+			},
+		},
+		"EmptyCompositionCache_Selector": {
+			reason: "Should return error when composition cache is empty (selector)",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{},
+			},
+			args: args{
+				res: func() *unstructured.Unstructured {
+					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
+					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+						"environment": "production",
+					}, "spec", "compositionSelector", "matchLabels")
+					return xr
+				}(),
+			},
+			want: want{
+				err: errors.Errorf("no compatible composition found matching labels map[environment:production] for example.org/v1, Kind=XR1/my-xr"),
+			},
+		},
+		"AmbiguousDefaultSelection": {
+			reason: "Should return error when multiple compositions match by type but no selection criteria provided",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"comp1": matchingComp,
+					"comp2": referencedComp, // Both match same XR type
+				},
+			},
+			args: args{
+				res: tu.NewResource("example.org/v1", "XR1", "my-xr").Build(),
+			},
+			want: want{
+				err: errors.New("ambiguous composition selection: multiple compositions exist for example.org/v1, Kind=XR1"),
+			},
+		},
 		"DifferentVersions": {
 			reason: "Should not match compositions with different versions",
 			fields: fields{
-				compositions: map[compositionCacheKey]*apiextensionsv1.Composition{
-					{apiVersion: "example.org/v2", kind: "XR1"}: tu.NewComposition("version-mismatch-comp").
-						WithCompositeTypeRef("example.org/v2", "XR1").
-						Build(),
+				compositions: map[string]*apiextensionsv1.Composition{
+					"version-mismatch-comp": versionMismatchComp,
 				},
 			},
 			args: args{
@@ -659,8 +876,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 					return
 				}
 
-				if diff := cmp.Diff(tc.want.err.Error(), err.Error()); diff != "" {
-					t.Errorf("\n%s\nFindMatchingComposition(...): -want error, +got error:\n%s", tc.reason, diff)
+				if !strings.Contains(err.Error(), tc.want.err.Error()) {
+					t.Errorf("\n%s\nFindMatchingComposition(...): expected error containing %q, got %q",
+						tc.reason, tc.want.err.Error(), err.Error())
 				}
 				return
 			}

@@ -25,6 +25,18 @@ spec:
                   type: string
                 environment:
                   type: string
+                compositionRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                compositionSelector:
+                  type: object
+                  properties:
+                    matchLabels:
+                      type: object
+                      additionalProperties:
+                        type: string
                 resourceRefs:
                   type: array
                   items:

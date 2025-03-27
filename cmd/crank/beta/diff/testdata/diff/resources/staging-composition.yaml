@@ -1,0 +1,35 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: staging-composition
+  labels:
+    provider: aws
+    environment: staging
+spec:
+  compositeTypeRef:
+    apiVersion: diff.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+    - step: generate-staging-resources
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: template.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            apiVersion: nop.example.org/v1alpha1
+            kind: XDownstreamResource
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: staging-resource
+            spec:
+              forProvider:
+                configData: {{ .observed.composite.resource.spec.coolField }}
+                resourceTier: "staging"
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

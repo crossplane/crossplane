@@ -44,17 +44,16 @@ func TestDiffIntegration(t *testing.T) {
 	_ = extv1.AddToScheme(scheme)
 
 	// Test cases
-	tests := []struct {
-		name                    string
+	tests := map[string]struct {
 		setupFiles              []string
 		setupFilesWithOwnerRefs []HierarchicalOwnershipRelation
 		inputFiles              []string
 		expectedOutput          string
 		expectedError           bool
+		expectedErrorContains   string
 		noColor                 bool
 	}{
-		{
-			name:       "New resource shows color diff",
+		"New resource shows color diff": {
 			inputFiles: []string{"testdata/diff/new-xr.yaml"},
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
@@ -90,8 +89,7 @@ func TestDiffIntegration(t *testing.T) {
 			}, ""),
 			expectedError: false,
 		},
-		{
-			name: "Modified resource shows color diff",
+		"Modified resource shows color diff": {
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -131,8 +129,7 @@ func TestDiffIntegration(t *testing.T) {
 `,
 			expectedError: false,
 		},
-		{
-			name: "Modified XR that creates new downstream resource shows color diff",
+		"Modified XR that creates new downstream resource shows color diff": {
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -169,8 +166,7 @@ func TestDiffIntegration(t *testing.T) {
 `,
 			expectedError: false,
 		},
-		{
-			name: "EnvironmentConfig incorporation in diff",
+		"EnvironmentConfig incorporation in diff": {
 			setupFiles: []string{
 				"testdata/diff/resources/xdownstreamenvresource-xrd.yaml",
 				"testdata/diff/resources/env-xrd.yaml",
@@ -215,10 +211,9 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
-		{
+		"Diff with external resource dependencies via fn-external-resources": {
 			// this test does a weird thing where it changes the XR but all the downstream changes come from external
 			// resources, including a field path from the XR itself.
-			name: "Diff with external resource dependencies via fn-external-resources",
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/functions.yaml",
@@ -264,10 +259,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
-		{
-			// this one is ironically more complicated since it has to invoke render first to find the resources it needs
-			// to pull in, then pull them in, then render again with them.
-			name: "Diff with templated ExtraResources embedded in go-templating function",
+		"Diff with templated ExtraResources embedded in go-templating function": {
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/functions.yaml",
@@ -312,8 +304,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
-		{
-			name: "Resource removal detection with hierarchy",
+		"Resource removal detection with hierarchy": {
 			setupFilesWithOwnerRefs: []HierarchicalOwnershipRelation{
 				{
 					OwnerFile: "testdata/diff/resources/existing-xr.yaml",
@@ -395,8 +386,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
-		{
-			name: "Resource with generateName",
+		"Resource with generateName": {
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/functions.yaml",
@@ -445,8 +435,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
-		{
-			name: "New XR with generateName",
+		"New XR with generateName": {
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -482,8 +471,7 @@ func TestDiffIntegration(t *testing.T) {
 			expectedError: false,
 			noColor:       true,
 		},
-		{
-			name: "Multiple XRs",
+		"Multiple XRs": {
 			setupFiles: []string{
 				"testdata/diff/resources/xrd.yaml",
 				"testdata/diff/resources/composition.yaml",
@@ -553,12 +541,114 @@ Summary: 2 added, 2 modified
 			expectedError: false,
 			noColor:       true,
 		},
+		"SelectCompositionByDirectReference": {
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// Add multiple compositions for the same XR type
+				"testdata/diff/resources/default-composition.yaml",
+				"testdata/diff/resources/production-composition.yaml",
+				"testdata/diff/resources/staging-composition.yaml",
+			},
+			inputFiles: []string{
+				"testdata/diff/xr-with-composition-ref.yaml",
+			},
+			expectedOutput: `
++++ XDownstreamResource/test-resource
++ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: production-resource
++   generateName: test-resource-
++   labels:
++     crossplane.io/composite: test-resource
++   name: test-resource
++ spec:
++   forProvider:
++     configData: test-value
++     resourceTier: production
+
+---
++++ XNopResource/test-resource
++ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   name: test-resource
++ spec:
++   compositionRef:
++     name: production-composition
++   coolField: test-value
+`,
+			expectedError: false,
+			noColor:       true,
+		},
+		"SelectCompositionByLabelSelector": {
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// Add multiple compositions for the same XR type
+				"testdata/diff/resources/default-composition.yaml",
+				"testdata/diff/resources/production-composition.yaml",
+				"testdata/diff/resources/staging-composition.yaml",
+			},
+			inputFiles: []string{
+				"testdata/diff/xr-with-composition-selector.yaml",
+			},
+			expectedOutput: `
++++ XDownstreamResource/test-resource
++ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: staging-resource
++   generateName: test-resource-
++   labels:
++     crossplane.io/composite: test-resource
++   name: test-resource
++ spec:
++   forProvider:
++     configData: test-value
++     resourceTier: staging
+
+---
++++ XNopResource/test-resource
++ apiVersion: diff.example.org/v1alpha1
++ kind: XNopResource
++ metadata:
++   name: test-resource
++ spec:
++   compositionSelector:
++     matchLabels:
++       environment: staging
++       provider: aws
++   coolField: test-value
+`,
+			expectedError: false,
+			noColor:       true,
+		},
+		"Error on ambiguous composition selection": {
+			setupFiles: []string{
+				"testdata/diff/resources/xrd.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// Add multiple compositions for the same XR type
+				"testdata/diff/resources/default-composition.yaml",
+				"testdata/diff/resources/production-composition.yaml",
+				"testdata/diff/resources/staging-composition.yaml",
+			},
+			inputFiles: []string{
+				"testdata/diff/xr-with-ambiguous-selector.yaml",
+			},
+			expectedError:         true,
+			expectedErrorContains: "ambiguous composition selection: multiple compositions match labels",
+			noColor:               true,
+		},
 	}
 
 	tu.SetupKubeTestLogger(t)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			// Setup a brand new test environment for each test case
 			testEnv := &envtest.Environment{
 				CRDDirectoryPaths: []string{
@@ -663,6 +753,22 @@ Summary: 2 added, 2 modified
 			}
 			if !tt.expectedError && err != nil {
 				t.Fatalf("expected no error but got: %v", err)
+			}
+
+			// Check for specific error message if expected
+			if err != nil {
+				if tt.expectedErrorContains != "" && strings.Contains(err.Error(), tt.expectedErrorContains) {
+					// This is an expected error with the expected message
+					t.Logf("Got expected error containing: %s", tt.expectedErrorContains)
+				} else {
+					t.Errorf("Expected no error or specific error message, got: %v", err)
+				}
+			}
+
+			// For expected errors with specific messages, we've already checked above
+			if tt.expectedError && tt.expectedErrorContains != "" {
+				// Skip output check for expected error cases
+				return
 			}
 
 			// Check the output

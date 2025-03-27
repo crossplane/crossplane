@@ -71,7 +71,7 @@ type DefaultClusterClient struct {
 	dynamicClient          dynamic.Interface
 	xrmClient              *xrm.Client
 	discoveryClient        discovery.DiscoveryInterface
-	compositions           map[compositionCacheKey]*apiextensionsv1.Composition
+	compositions           map[string]*apiextensionsv1.Composition
 	functions              map[string]pkgv1.Function
 	logger                 logging.Logger
 	resourceMap            map[schema.GroupVersionKind]bool
@@ -170,16 +170,13 @@ func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 	}
 
 	// Initialize and populate maps
-	c.compositions = make(map[compositionCacheKey]*apiextensionsv1.Composition, len(compositions))
+	c.compositions = make(map[string]*apiextensionsv1.Composition, len(compositions))
 	c.functions = make(map[string]pkgv1.Function, len(functions))
 
 	// Process compositions
 	for i := range compositions {
-		key := compositionCacheKey{
-			apiVersion: compositions[i].Spec.CompositeTypeRef.APIVersion,
-			kind:       compositions[i].Spec.CompositeTypeRef.Kind,
-		}
-		c.compositions[key] = &compositions[i]
+		comp := compositions[i]
+		c.compositions[comp.GetName()] = &comp
 	}
 
 	// Process functions
@@ -301,28 +298,140 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 // FindMatchingComposition finds a composition matching the given resource.
 func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 	xrGVK := res.GroupVersionKind()
-	key := compositionCacheKey{
-		apiVersion: xrGVK.GroupVersion().String(),
-		kind:       xrGVK.Kind,
-	}
+	resourceID := fmt.Sprintf("%s/%s", xrGVK.String(), res.GetName())
 
 	c.logger.Debug("Finding matching composition",
 		"resource_name", res.GetName(),
-		"gvk", xrGVK.String(),
-		"key", fmt.Sprintf("%s/%s", key.apiVersion, key.kind))
+		"gvk", xrGVK.String())
 
-	comp, ok := c.compositions[key]
-	if !ok {
+	// Case 1: Check for direct composition reference in spec.compositionRef.name
+	compositionRefName, compositionRefFound, err := unstructured.NestedString(res.Object, "spec", "compositionRef", "name")
+	if err == nil && compositionRefFound && compositionRefName != "" {
+		c.logger.Debug("Found direct composition reference",
+			"resource", resourceID,
+			"compositionName", compositionRefName)
+
+		// Look up composition by name
+		if comp, ok := c.compositions[compositionRefName]; ok {
+			// Validate that the composition's compositeTypeRef matches the XR's GVK
+			if !isCompositionCompatible(comp, xrGVK) {
+				return nil, errors.Errorf("composition %s is not compatible with %s",
+					compositionRefName, xrGVK.String())
+			}
+
+			c.logger.Debug("Found composition by direct reference",
+				"resource", resourceID,
+				"composition", comp.GetName())
+			return comp, nil
+		}
+
+		// If we got here, the named composition wasn't found
+		return nil, errors.Errorf("composition %s referenced in %s not found",
+			compositionRefName, resourceID)
+	}
+
+	// Case 2: Check for selector-based composition reference in spec.compositionSelector.matchLabels
+	matchLabels, selectorFound, err := unstructured.NestedMap(res.Object, "spec", "compositionSelector", "matchLabels")
+	if err == nil && selectorFound && len(matchLabels) > 0 {
+		c.logger.Debug("Found composition selector",
+			"resource", resourceID,
+			"matchLabels", matchLabels)
+
+		// Convert matchLabels to string map for comparison
+		stringLabels := make(map[string]string)
+		for k, v := range matchLabels {
+			if strVal, ok := v.(string); ok {
+				stringLabels[k] = strVal
+			}
+		}
+
+		// Find compositions with matching labels
+		var matchingCompositions []*apiextensionsv1.Composition
+
+		// Search through all compositions looking for compatible ones with matching labels
+		for _, comp := range c.compositions {
+			// Check if this composition is for the right XR type
+			if isCompositionCompatible(comp, xrGVK) {
+				// Check if labels match
+				if labelsMatch(comp.GetLabels(), stringLabels) {
+					matchingCompositions = append(matchingCompositions, comp)
+				}
+			}
+		}
+
+		// Handle matching results
+		switch len(matchingCompositions) {
+		case 0:
+			return nil, errors.Errorf("no compatible composition found matching labels %v for %s",
+				stringLabels, resourceID)
+		case 1:
+			c.logger.Debug("Found composition by label selector",
+				"resource", resourceID,
+				"composition", matchingCompositions[0].GetName())
+			return matchingCompositions[0], nil
+		default:
+			// Multiple matches - this is ambiguous and should fail
+			names := make([]string, len(matchingCompositions))
+			for i, comp := range matchingCompositions {
+				names[i] = comp.GetName()
+			}
+			return nil, errors.Errorf("ambiguous composition selection: multiple compositions match labels %v for %s: %s",
+				stringLabels, resourceID, strings.Join(names, ", "))
+		}
+	}
+
+	// Case 3: Look up by composite type reference (original behavior)
+	// We need to get all compositions that match this XR type
+	var compatibleCompositions []*apiextensionsv1.Composition
+
+	for _, comp := range c.compositions {
+		if comp.Spec.CompositeTypeRef.APIVersion == xrGVK.GroupVersion().String() &&
+			comp.Spec.CompositeTypeRef.Kind == xrGVK.Kind {
+			compatibleCompositions = append(compatibleCompositions, comp)
+		}
+	}
+
+	if len(compatibleCompositions) == 0 {
 		c.logger.Debug("No matching composition found",
-			"gvk", xrGVK.String(),
-			"compositions_count", len(c.compositions))
+			"gvk", xrGVK.String())
 		return nil, errors.Errorf("no composition found for %s", xrGVK.String())
 	}
 
-	c.logger.Debug("Found matching composition",
+	if len(compatibleCompositions) > 1 {
+		// Multiple compositions match, but no selection criteria was provided
+		// This is an ambiguous situation - in a real Crossplane implementation,
+		// Crossplane might choose one based on some default rule, but for our diff tool,
+		// we should fail to ensure accuracy
+		names := make([]string, len(compatibleCompositions))
+		for i, comp := range compatibleCompositions {
+			names[i] = comp.GetName()
+		}
+		return nil, errors.Errorf("ambiguous composition selection: multiple compositions exist for %s, but no selection criteria provided. Available compositions: %s",
+			xrGVK.String(), strings.Join(names, ", "))
+	}
+
+	// We have exactly one matching composition
+	c.logger.Debug("Found matching composition by type reference",
 		"resource_name", res.GetName(),
-		"composition_name", comp.GetName())
-	return comp, nil
+		"composition_name", compatibleCompositions[0].GetName())
+	return compatibleCompositions[0], nil
+}
+
+// Helper function to check if a composition is compatible with an XR's GVK
+func isCompositionCompatible(comp *apiextensionsv1.Composition, xrGVK schema.GroupVersionKind) bool {
+	return comp.Spec.CompositeTypeRef.APIVersion == xrGVK.GroupVersion().String() &&
+		comp.Spec.CompositeTypeRef.Kind == xrGVK.Kind
+}
+
+// Helper function to check if labels match the selector
+func labelsMatch(labels, selector map[string]string) bool {
+	// A resource matches a selector if all the selector's labels exist in the resource's labels
+	for k, v := range selector {
+		if labels[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // GetFunctionsFromPipeline returns functions referenced in the composition pipeline.

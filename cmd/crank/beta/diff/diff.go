@@ -75,8 +75,8 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
 	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
-	// TODO:  handle composition lookup with selectors if we find more than one matching the ref type
 	// TODO:  add a file output option
+	// TODO:  test with claims
 	// TODO:  make sure namespacing works everywhere
 	// TODO:  fix naive pluralization
 	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field

@@ -29,9 +29,9 @@ spec:
                     roleName:
                       type: string
                       description: "Name of an external cluster role referenced by the resource"
-                    parentRef:
+                    resourceTier:
                       type: string
-                      description: "Reference to parent resource if part of a hierarchy"
+                      description: "Tier of the resource (e.g., default, production, staging)"
                 resourceRefs:
                   type: array
                   description: "References to resources that this resource depends on"
