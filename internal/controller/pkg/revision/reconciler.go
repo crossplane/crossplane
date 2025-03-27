@@ -27,6 +27,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -311,6 +312,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
@@ -425,6 +427,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.FunctionRevision{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
