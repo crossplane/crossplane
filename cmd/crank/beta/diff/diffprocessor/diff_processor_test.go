@@ -134,7 +134,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
 					WithResourcesExist(resource1, composedResource). // Add resources to existing resources
-					WithComposedResourcesByOwner(composedResource).  // Add composed resource lookup by owner
+					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					// Add this line to make test resources not require CRDs:
@@ -683,7 +683,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			logger := tu.TestLogger(t)
 
 			// Create a requirements provider
-			requirementsProvider := NewRequirementsProvider(mockClient, render.Render, logger)
+			requirementsProvider := NewRequirementsProvider(mockClient, countingRenderFunc, logger)
 
 			// Create the processor components
 			resourceManager := NewResourceManager(mockClient, logger)
