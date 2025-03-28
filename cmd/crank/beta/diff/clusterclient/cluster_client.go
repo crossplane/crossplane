@@ -24,11 +24,6 @@ import (
 	"sync"
 )
 
-type compositionCacheKey struct {
-	apiVersion string
-	kind       string
-}
-
 // ClusterClient defines the interface for interacting with a Kubernetes cluster
 // to retrieve Crossplane resources for diffing.
 type ClusterClient interface {
@@ -243,13 +238,14 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 		"gvk", gvk.String(),
 		"selector", sel.MatchLabels)
 
-	// Convert GVK to GVR internally
+	// Convert GVK to GVR - now with proper error handling
 	gvr, err := c.gvkToGVR(ctx, gvk)
 	if err != nil {
 		c.logger.Debug("Failed to convert GVK to GVR",
 			"gvk", gvk.String(),
 			"error", err)
-		return nil, errors.Wrapf(err, "cannot convert GVK to GVR for %s", gvk.String())
+		return nil, errors.Wrapf(err, "cannot list resources for '%s' matching '%s'",
+			gvk.String(), labels.Set(sel.MatchLabels).String())
 	}
 
 	var resources []*unstructured.Unstructured
@@ -267,7 +263,8 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 			"gvk", gvk.String(),
 			"labelSelector", opts.LabelSelector,
 			"error", err)
-		return nil, errors.Wrapf(err, "cannot list resources for '%s' matching '%s'", gvk.String(), opts.LabelSelector)
+		return nil, errors.Wrapf(err, "cannot list resources for '%s' matching '%s'",
+			gvk.String(), opts.LabelSelector)
 	}
 
 	for _, item := range list.Items {
@@ -527,31 +524,6 @@ func (c *DefaultClusterClient) listCompositions(ctx context.Context) ([]apiexten
 	return compositions, nil
 }
 
-func (c *DefaultClusterClient) findMatchingComposition(res *unstructured.Unstructured, compositionMap map[compositionCacheKey]*apiextensionsv1.Composition) (*apiextensionsv1.Composition, error) {
-	xrGVK := res.GroupVersionKind()
-	key := compositionCacheKey{
-		apiVersion: xrGVK.GroupVersion().String(),
-		kind:       xrGVK.Kind,
-	}
-
-	c.logger.Debug("Finding matching composition in provided map",
-		"resource_name", res.GetName(),
-		"gvk", xrGVK.String(),
-		"key", fmt.Sprintf("%s/%s", key.apiVersion, key.kind),
-		"available_compositions", len(compositionMap))
-
-	comp, ok := compositionMap[key]
-	if !ok {
-		c.logger.Debug("No matching composition found in map", "gvk", xrGVK.String())
-		return nil, errors.Errorf("no composition found for %s", xrGVK.String())
-	}
-
-	c.logger.Debug("Found matching composition in map",
-		"resource_name", res.GetName(),
-		"composition_name", comp.GetName())
-	return comp, nil
-}
-
 func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Function, error) {
 	c.logger.Debug("Listing functions from cluster")
 
@@ -624,13 +596,13 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	resourceID := fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
 	c.logger.Debug("Getting resource from cluster", "resource", resourceID)
 
-	// Convert GVK to GVR internally
+	// Convert GVK to GVR with error handling
 	gvr, err := c.gvkToGVR(ctx, gvk)
 	if err != nil {
 		c.logger.Debug("Failed to convert GVK to GVR",
 			"gvk", gvk.String(),
 			"error", err)
-		return nil, errors.Wrapf(err, "cannot convert GVK to GVR for %s", gvk.String())
+		return nil, errors.Wrapf(err, "cannot get resource %s/%s of kind %s", namespace, name, gvk.Kind)
 	}
 
 	// Get the resource
@@ -692,13 +664,13 @@ func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructure
 	// Get the GVK from the object
 	gvk := obj.GroupVersionKind()
 
-	// Convert GVK to GVR internally
+	// Convert GVK to GVR with error handling
 	gvr, err := c.gvkToGVR(ctx, gvk)
 	if err != nil {
 		c.logger.Debug("Failed to convert GVK to GVR",
 			"gvk", gvk.String(),
 			"error", err)
-		return nil, errors.Wrapf(err, "cannot convert GVK to GVR for %s", gvk.String())
+		return nil, errors.Wrapf(err, "cannot perform dry-run apply for %s", resourceID)
 	}
 
 	// Get the resource client for the namespace
@@ -727,6 +699,7 @@ func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructure
 	return result, nil
 }
 
+// IsCRDRequired checks if a resource requires a CRD
 func (c *DefaultClusterClient) IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool {
 	// Core API resources never need CRDs
 	if gvk.Group == "" {
@@ -750,48 +723,49 @@ func (c *DefaultClusterClient) IsCRDRequired(ctx context.Context, gvk schema.Gro
 		return false
 	}
 
-	// All other groups likely require CRDs
+	// If we get here, assume it requires a CRD unless we can prove otherwise
+	// Try to query the discovery API to see if this resource exists
+	_, err := c.getResourceForGVK(ctx, gvk)
+	if err != nil {
+		// If we couldn't find it through discovery, it likely requires a CRD
+		c.logger.Debug("Resource not found in discovery, assuming CRD is required",
+			"gvk", gvk.String(),
+			"error", err)
+		return true
+	}
+
+	// We found the resource, but it's not in the built-in list we checked above
+	// This is most likely a CRD
 	return true
 }
 
 // GetCRD retrieves the CustomResourceDefinition for a given GVK
 func (c *DefaultClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
-	// Try to look up the CRD using discovery API first
-	var crdName string
-
-	// Try to get the plural form using discovery
-	if c.discoveryClient != nil {
-		resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
-		if err == nil && resources != nil {
-			for _, r := range resources.APIResources {
-				if r.Kind == gvk.Kind {
-					crdName = fmt.Sprintf("%s.%s", r.Name, gvk.Group)
-					c.logger.Debug("Found CRD name from discovery",
-						"gvk", gvk.String(),
-						"crdName", crdName)
-					break
-				}
-			}
-		}
-	}
-
-	// If discovery didn't find the name, use our pluralization logic
-	if crdName == "" {
-		pluralName := c.pluralizeResourceName(gvk.Kind)
-		crdName = fmt.Sprintf("%s.%s", pluralName, gvk.Group)
-		c.logger.Debug("Using pluralization for CRD name",
+	// Get the resource name using the central method
+	resourceName, err := c.getResourceForGVK(ctx, gvk)
+	if err != nil {
+		c.logger.Debug("Failed to get resource name for GVK",
 			"gvk", gvk.String(),
-			"crdName", crdName)
+			"error", err)
+		return nil, errors.Wrapf(err, "cannot determine resource name for %s", gvk.String())
 	}
 
-	// Now fetch the CRD itself
-	crdGVK := schema.GroupVersionKind{
-		Group:   "apiextensions.k8s.io",
-		Version: "v1",
-		Kind:    "CustomResourceDefinition",
+	// Construct the CRD name using the resource name and group
+	crdName := fmt.Sprintf("%s.%s", resourceName, gvk.Group)
+
+	c.logger.Debug("Looking up CRD",
+		"gvk", gvk.String(),
+		"crdName", crdName)
+
+	// Define the CRD GVR directly to avoid recursion
+	crdGVR := schema.GroupVersionResource{
+		Group:    "apiextensions.k8s.io",
+		Version:  "v1",
+		Resource: "customresourcedefinitions",
 	}
 
-	crd, err := c.GetResource(ctx, crdGVK, "", crdName)
+	// Fetch the CRD
+	crd, err := c.dynamicClient.Resource(crdGVR).Get(ctx, crdName, metav1.GetOptions{})
 	if err != nil {
 		c.logger.Debug("Failed to get CRD",
 			"gvk", gvk.String(),
@@ -806,78 +780,8 @@ func (c *DefaultClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersi
 	return crd, nil
 }
 
-// Private helper methods
-func (c *DefaultClusterClient) ensureResourceMapLoaded(ctx context.Context) {
-	c.resourceMapMutex.RLock()
-	if c.resourceMapInitialized {
-		c.resourceMapMutex.RUnlock()
-		return
-	}
-	c.resourceMapMutex.RUnlock()
-
-	// Need to load resources, acquire write lock
-	c.resourceMapMutex.Lock()
-	defer c.resourceMapMutex.Unlock()
-
-	// Check again in case another goroutine loaded while we were waiting
-	if c.resourceMapInitialized {
-		return
-	}
-
-	c.logger.Debug("Loading API resources from server")
-
-	// Initialize if needed
-	if c.resourceMap == nil {
-		c.resourceMap = make(map[schema.GroupVersionKind]bool)
-	}
-
-	// Get API resources from the server
-	_, apiResourceLists, err := c.discoveryClient.ServerGroupsAndResources()
-	if err != nil {
-		// This can return a partial error, so we'll still process what we got
-		if !discovery.IsGroupDiscoveryFailedError(err) {
-			c.logger.Debug("Failed to get server resources (continuing)", "error", err)
-			// Mark as initialized anyway so we don't repeatedly try on failure
-			c.resourceMapInitialized = true
-			return
-		}
-		// Log the partial error but continue
-		c.logger.Debug("Partial error getting API resources", "error", err)
-	}
-
-	// Process discovered resources
-	for _, apiResourceList := range apiResourceLists {
-		gv, err := schema.ParseGroupVersion(apiResourceList.GroupVersion)
-		if err != nil {
-			c.logger.Debug("Failed to parse group version",
-				"groupVersion", apiResourceList.GroupVersion,
-				"error", err)
-			continue
-		}
-
-		for _, apiResource := range apiResourceList.APIResources {
-			gvk := schema.GroupVersionKind{
-				Group:   gv.Group,
-				Version: gv.Version,
-				Kind:    apiResource.Kind,
-			}
-			c.resourceMap[gvk] = true
-		}
-	}
-
-	c.logger.Debug("Loaded API resources", "count", len(c.resourceMap))
-	c.resourceMapInitialized = true
-}
-
-func (c *DefaultClusterClient) isKnownResource(gvk schema.GroupVersionKind) bool {
-	c.resourceMapMutex.RLock()
-	defer c.resourceMapMutex.RUnlock()
-
-	return c.resourceMap[gvk]
-}
-
 // gvkToGVR converts a GroupVersionKind to a GroupVersionResource
-// using the discovery client when possible, with fallback mechanisms
+// using the discovery client, returning an error if the mapping cannot be determined.
 func (c *DefaultClusterClient) gvkToGVR(ctx context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 	// Use the cached mapping if we have it
 	c.gvkToGVRMutex.RLock()
@@ -887,46 +791,23 @@ func (c *DefaultClusterClient) gvkToGVR(ctx context.Context, gvk schema.GroupVer
 	}
 	c.gvkToGVRMutex.RUnlock()
 
-	// Fetch the appropriate resource mapping using discovery API
-	if c.discoveryClient != nil {
-		resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
-		if err == nil && resources != nil {
-			for _, r := range resources.APIResources {
-				if r.Kind == gvk.Kind {
-					// Found the correct resource name from discovery
-					gvr := schema.GroupVersionResource{
-						Group:    gvk.Group,
-						Version:  gvk.Version,
-						Resource: r.Name,
-					}
-
-					// Cache this mapping for future use
-					c.gvkToGVRMutex.Lock()
-					if c.gvkToGVRMap == nil {
-						c.gvkToGVRMap = make(map[schema.GroupVersionKind]schema.GroupVersionResource)
-					}
-					c.gvkToGVRMap[gvk] = gvr
-					c.gvkToGVRMutex.Unlock()
-
-					return gvr, nil
-				}
-			}
-		}
-		// If we got here, either we encountered an error or didn't find a matching resource
-		c.logger.Debug("Could not find resource via discovery",
+	// Get the resource name using the central method
+	resourceName, err := c.getResourceForGVK(ctx, gvk)
+	if err != nil {
+		c.logger.Debug("Failed to get resource for GVK",
 			"gvk", gvk.String(),
 			"error", err)
+		return schema.GroupVersionResource{}, err
 	}
 
-	// Fallback to special cases for well-known types
-	resource := c.pluralizeResourceName(gvk.Kind)
+	// Create the GVR
 	gvr := schema.GroupVersionResource{
 		Group:    gvk.Group,
 		Version:  gvk.Version,
-		Resource: resource,
+		Resource: resourceName,
 	}
 
-	// Cache this fallback mapping
+	// Cache this mapping for future use
 	c.gvkToGVRMutex.Lock()
 	if c.gvkToGVRMap == nil {
 		c.gvkToGVRMap = make(map[schema.GroupVersionKind]schema.GroupVersionResource)
@@ -937,41 +818,30 @@ func (c *DefaultClusterClient) gvkToGVR(ctx context.Context, gvk schema.GroupVer
 	return gvr, nil
 }
 
-// pluralizeResourceName handles falling back to static mapping of resource kinds to plural forms
-func (c *DefaultClusterClient) pluralizeResourceName(kind string) string {
-	// Convert to lowercase for consistent handling
-	lowerKind := strings.ToLower(kind)
+// getResourceForGVK returns the resource name for a given GroupVersionKind using the discovery client.
+// It returns an error if the resource cannot be determined or if the discovery client fails.
+func (c *DefaultClusterClient) getResourceForGVK(ctx context.Context, gvk schema.GroupVersionKind) (string, error) {
 
-	// Handle irregular plurals
-	switch lowerKind {
-	case "ingress":
-		return "ingresses"
-	case "endpoints":
-		return "endpoints" // Already plural, no change
-	case "configmap":
-		return "configmaps"
-	case "policy":
-		return "policies"
-	case "gateway":
-		return "gateways"
-	case "proxy":
-		return "proxies"
-	case "index":
-		return "indices"
-	case "matrix":
-		return "matrices"
-	case "status":
-		return "statuses"
-	case "patch":
-		return "patches"
-	case "address":
-		return "addresses"
-	case "discovery":
-		return "discoveries"
+	// Get resources for the specified group version
+	resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to discover resources for %s", gvk.GroupVersion().String())
 	}
 
-	// Default pluralization by adding 's'
-	return lowerKind + "s"
+	if resources == nil || len(resources.APIResources) == 0 {
+		return "", errors.Errorf("no resources found for group version %s", gvk.GroupVersion().String())
+	}
+
+	// Find the API resource that matches our kind
+	for _, r := range resources.APIResources {
+		if r.Kind == gvk.Kind {
+			return r.Name, nil
+		}
+	}
+
+	// If we get here, we couldn't find a matching resource kind
+	return "", errors.Errorf("no resource found for kind %s in group version %s",
+		gvk.Kind, gvk.GroupVersion().String())
 }
 
 // ClusterClientOptions holds configuration options for the cluster client

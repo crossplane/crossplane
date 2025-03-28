@@ -84,7 +84,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// TODO:  diff against upgraded composition that isn't applied yet
 	// TODO:  diff against upgraded composition version that is already available
 
-	client, err := ClusterClientFactory(config, cc.WithLogger(log))
+	client, err := ClusterClientFactory(config, cc.WithLogger(log), cc.WithQPS(c.QPS), cc.WithBurst(c.Burst))
 	if err != nil {
 		return errors.Wrap(err, "cannot initialize cluster client")
 	}

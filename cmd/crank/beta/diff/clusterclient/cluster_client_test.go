@@ -2,7 +2,6 @@ package clusterclient
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,8 +22,6 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 
 	kt "k8s.io/client-go/testing"
-
-	"k8s.io/client-go/rest"
 )
 
 // Ensure MockClusterClient implements the ClusterClient interface.
@@ -1400,13 +1397,13 @@ func TestClusterClient_GetResource(t *testing.T) {
 
 	tests := map[string]struct {
 		reason string
-		setup  func() dynamic.Interface
+		setup  func() (dynamic.Interface, discovery.DiscoveryInterface)
 		args   args
 		want   want
 	}{
 		"NamespacedResourceFound": {
 			reason: "Should return the resource when it exists in a namespace",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				// Use the resource builder to create test objects
 				objects := []runtime.Object{
 					tu.NewResource("example.org/v1", "ExampleResource", "test-resource").
@@ -1414,7 +1411,19 @@ func TestClusterClient_GetResource(t *testing.T) {
 						WithSpecField("property", "value").
 						Build(),
 				}
-				return fake.NewSimpleDynamicClient(scheme, objects...)
+
+				dynamicClient := fake.NewSimpleDynamicClient(scheme, objects...)
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "exampleresources",
+							Kind: "ExampleResource",
+						},
+					},
+				}
+				return dynamicClient, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -1435,13 +1444,25 @@ func TestClusterClient_GetResource(t *testing.T) {
 		},
 		"ClusterScopedResourceFound": {
 			reason: "Should return the resource when it exists at cluster scope",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				objects := []runtime.Object{
 					tu.NewResource("example.org/v1", "ClusterResource", "test-cluster-resource").
 						WithSpecField("property", "value").
 						Build(),
 				}
-				return fake.NewSimpleDynamicClient(scheme, objects...)
+
+				dynamicClient := fake.NewSimpleDynamicClient(scheme, objects...)
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "clusterresources",
+							Kind: "ClusterResource",
+						},
+					},
+				}
+				return dynamicClient, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -1461,12 +1482,22 @@ func TestClusterClient_GetResource(t *testing.T) {
 		},
 		"ResourceNotFound": {
 			reason: "Should return an error when the resource doesn't exist",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClient(scheme)
 				dc.Fake.PrependReactor("get", "*", func(action kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("resource not found")
 				})
-				return dc
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "exampleresources",
+							Kind: "ExampleResource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -1485,7 +1516,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 		},
 		"SpecialResourceType": {
 			reason: "Should handle special resource types with non-standard pluralization",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				objects := []runtime.Object{
 					tu.NewResource("v1", "Endpoints", "test-endpoints").
 						InNamespace("test-namespace").
@@ -1500,7 +1531,19 @@ func TestClusterClient_GetResource(t *testing.T) {
 						}).
 						Build(),
 				}
-				return fake.NewSimpleDynamicClient(scheme, objects...)
+
+				dynamicClient := fake.NewSimpleDynamicClient(scheme, objects...)
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"v1": {
+						{
+							Name: "endpoints",
+							Kind: "Endpoints",
+						},
+					},
+				}
+				return dynamicClient, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -1527,13 +1570,49 @@ func TestClusterClient_GetResource(t *testing.T) {
 					Build(),
 			},
 		},
+		"DiscoveryError": {
+			reason: "Should propagate errors from the discovery client",
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
+				dynamicClient := fake.NewSimpleDynamicClient(scheme)
+
+				// Create fake discovery client that returns an error
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+
+				// Set up the discovery client to return an error
+				fakeDiscovery.Fake.AddReactor("get", "resources", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("discovery error")
+				})
+
+				return dynamicClient, fakeDiscovery
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "ExampleResource",
+				},
+				namespace: "test-namespace",
+				name:      "test-resource",
+			},
+			want: want{
+				resource: nil,
+				err:      errors.New("failed to discover resources for example.org/v1"),
+			},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			dynamicClient, discoveryClient := tc.setup()
+
 			c := &DefaultClusterClient{
-				dynamicClient: tc.setup(),
-				logger:        tu.TestLogger(t),
+				dynamicClient:   dynamicClient,
+				discoveryClient: discoveryClient,
+				logger:          tu.TestLogger(t),
+				gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 
 			got, err := c.GetResource(tc.args.ctx, tc.args.gvk, tc.args.namespace, tc.args.name)
@@ -1545,7 +1624,8 @@ func TestClusterClient_GetResource(t *testing.T) {
 				}
 
 				if !strings.Contains(err.Error(), tc.want.err.Error()) {
-					t.Errorf("\n%s\nGetResource(...): expected error containing %q, got %q", tc.reason, tc.want.err.Error(), err.Error())
+					t.Errorf("\n%s\nGetResource(...): expected error containing %q, got %q",
+						tc.reason, tc.want.err.Error(), err.Error())
 				}
 				return
 			}
@@ -1715,7 +1795,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 
 	tests := map[string]struct {
 		reason string
-		setup  func() dynamic.Interface
+		setup  func() (dynamic.Interface, discovery.DiscoveryInterface)
 		args   struct {
 			ctx       context.Context
 			namespace string
@@ -1729,12 +1809,22 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 	}{
 		"NoMatchingResources": {
 			reason: "Should return empty list when no resources match selector",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
 					map[schema.GroupVersionResource]string{
 						{Group: "example.org", Version: "v1", Resource: "resources"}: "ResourceList",
 					})
-				return dc
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "resources",
+							Kind: "Resource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: struct {
 				ctx       context.Context
@@ -1762,7 +1852,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 		},
 		"MatchingResources": {
 			reason: "Should return resources matching label selector",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				// Use resource builders for cleaner test objects
 				objects := []runtime.Object{
 					// Resource that matches our selector
@@ -1791,7 +1881,19 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 						}).
 						Build(),
 				}
-				return fake.NewSimpleDynamicClient(scheme, objects...)
+
+				dc := fake.NewSimpleDynamicClient(scheme, objects...)
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "resources",
+							Kind: "Resource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: struct {
 				ctx       context.Context
@@ -1835,15 +1937,26 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 		},
 		"ListError": {
 			reason: "Should propagate errors from the Kubernetes API",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
 					map[schema.GroupVersionResource]string{
 						{Group: "example.org", Version: "v1", Resource: "resources"}: "ResourceList",
 					})
+
 				dc.Fake.PrependReactor("list", "resources", func(action kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("list error")
 				})
-				return dc
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "resources",
+							Kind: "Resource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: struct {
 				ctx       context.Context
@@ -1869,17 +1982,58 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				err: errors.New("cannot list resources for 'example.org/v1, Kind=Resource' matching 'app=test': list error"),
 			},
 		},
+		"DiscoveryError": {
+			reason: "Should propagate errors from the discovery client",
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
+				dc := fake.NewSimpleDynamicClient(scheme)
+
+				// Create fake discovery client that returns an error
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+
+				// Set up the discovery client to return an error
+				fakeDiscovery.Fake.AddReactor("get", "resource", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("discovery error")
+				})
+
+				return dc, fakeDiscovery
+			},
+			args: struct {
+				ctx       context.Context
+				namespace string
+				gvk       schema.GroupVersionKind
+				selector  metav1.LabelSelector
+			}{
+				ctx:       context.Background(),
+				namespace: "test-namespace",
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "Resource",
+				},
+				selector: metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "test"},
+				},
+			},
+			want: struct {
+				resources []*unstructured.Unstructured
+				err       error
+			}{
+				err: errors.New("failed to discover resources for example.org/v1"),
+			},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			dynamicClient, discoveryClient := tc.setup()
+
 			c := &DefaultClusterClient{
-				dynamicClient: tc.setup(),
-				logger:        tu.TestLogger(t),
-				// Add GVK to GVR mapping for testing
-				gvkToGVRMap: map[schema.GroupVersionKind]schema.GroupVersionResource{
-					{Group: "example.org", Version: "v1", Kind: "Resource"}: {Group: "example.org", Version: "v1", Resource: "resources"},
-				},
+				dynamicClient:   dynamicClient,
+				discoveryClient: discoveryClient,
+				logger:          tu.TestLogger(t),
+				gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 
 			got, err := c.GetResourcesByLabel(tc.args.ctx, tc.args.namespace, tc.args.gvk, tc.args.selector)
@@ -2346,15 +2500,15 @@ func TestClusterClient_GetCRD(t *testing.T) {
 
 	tests := map[string]struct {
 		reason     string
-		setup      func() dynamic.Interface
+		setup      func() (dynamic.Interface, discovery.DiscoveryInterface)
 		args       args
 		want       want
 		resourceID string
 	}{
 		"SuccessfulCRDRetrieval": {
 			reason: "Should retrieve CRD when it exists",
-			setup: func() dynamic.Interface {
-				// Set up the client to return our test CRD
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
+				// Set up the dynamic client to return our test CRD
 				dc := fake.NewSimpleDynamicClient(scheme)
 				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
 					getAction := action.(kt.GetAction)
@@ -2363,7 +2517,17 @@ func TestClusterClient_GetCRD(t *testing.T) {
 					}
 					return false, nil, nil
 				})
-				return dc
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "xresources",
+							Kind: "XResource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -2380,7 +2544,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 		},
 		"CRDNotFound": {
 			reason: "Should return error when CRD doesn't exist",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClient(scheme)
 				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
 					return true, nil, apierrors.NewNotFound(
@@ -2388,9 +2552,19 @@ func TestClusterClient_GetCRD(t *testing.T) {
 							Group:    "apiextensions.k8s.io",
 							Resource: "customresourcedefinitions",
 						},
-						"nonexistent.example.org")
+						"nonexistentresources.example.org")
 				})
-				return dc
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "nonexistentresources",
+							Kind: "NonexistentResource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -2407,12 +2581,22 @@ func TestClusterClient_GetCRD(t *testing.T) {
 		},
 		"ServerError": {
 			reason: "Should propagate server errors",
-			setup: func() dynamic.Interface {
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClient(scheme)
 				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("server error")
 				})
-				return dc
+
+				// Create fake discovery client with resources
+				resources := map[string][]metav1.APIResource{
+					"example.org/v1": {
+						{
+							Name: "xresources",
+							Kind: "XResource",
+						},
+					},
+				}
+				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
 				ctx: context.Background(),
@@ -2427,19 +2611,49 @@ func TestClusterClient_GetCRD(t *testing.T) {
 				err: errors.New("cannot get CRD xresources.example.org for example.org/v1, Kind=XResource"),
 			},
 		},
+		"DiscoveryError": {
+			reason: "Should propagate discovery errors",
+			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
+				dc := fake.NewSimpleDynamicClient(scheme)
+
+				// Create fake discovery client that returns an error
+				fakeDiscovery := &fakediscovery.FakeDiscovery{
+					Fake: &kt.Fake{},
+				}
+
+				// Set up to generate an error when called
+				fakeDiscovery.Fake.AddReactor("*", "*", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("discovery failed")
+				})
+
+				return dc, fakeDiscovery
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "XResource",
+				},
+			},
+			want: want{
+				crd: nil,
+				err: errors.New("failed to discover resources for example.org/v1"),
+			},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Create the client with discovery setup
-			c := &DefaultClusterClient{
-				dynamicClient: tc.setup(),
-				logger:        tu.TestLogger(t),
-			}
+			dynamicClient, discoveryClient := tc.setup()
 
-			// Initialize resource map to avoid nil panic
-			c.resourceMap = make(map[schema.GroupVersionKind]bool)
-			c.gvkToGVRMap = make(map[schema.GroupVersionKind]schema.GroupVersionResource)
+			c := &DefaultClusterClient{
+				dynamicClient:   dynamicClient,
+				discoveryClient: discoveryClient,
+				logger:          tu.TestLogger(t),
+				gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
+			}
 
 			// Call the method under test
 			crd, err := c.GetCRD(tc.args.ctx, tc.args.gvk)
@@ -2486,27 +2700,21 @@ func TestClusterClient_GetCRD(t *testing.T) {
 	}
 }
 
-// TODO:  table driven
-// TestNewClusterClient tests the creation of a new DefaultClusterClient instance
-func TestNewClusterClient(t *testing.T) {
-	// Set up a test logger
-	testLogger := logging.NewNopLogger()
-
-	// Skip the nil config test because we can't easily mock the underlying functions
-	// We'll just test the valid config case
-	validConfig := &rest.Config{
-		Host: "https://localhost:8080",
+// Helper function to create a fake discovery client for testing
+func createFakeDiscoveryClient(resources map[string][]metav1.APIResource) discovery.DiscoveryInterface {
+	fakeDiscovery := &fakediscovery.FakeDiscovery{
+		Fake: &kt.Fake{},
 	}
 
-	// Test without logger option
-	_, err := NewClusterClient(validConfig)
-	if err != nil {
-		t.Errorf("NewClusterClient(...): unexpected error with valid config: %v", err)
+	apiResourceLists := []*metav1.APIResourceList{}
+
+	for gv, apiResources := range resources {
+		apiResourceLists = append(apiResourceLists, &metav1.APIResourceList{
+			GroupVersion: gv,
+			APIResources: apiResources,
+		})
 	}
 
-	// Test with logger option
-	_, err = NewClusterClient(validConfig, WithLogger(testLogger))
-	if err != nil {
-		t.Errorf("NewClusterClient(...): unexpected error with valid config and logger: %v", err)
-	}
+	fakeDiscovery.Resources = apiResourceLists
+	return fakeDiscovery
 }
