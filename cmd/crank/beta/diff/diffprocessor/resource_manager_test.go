@@ -135,7 +135,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 						)
 					}).
 					// Return existing resource when looking up by label AND check the composition-resource-name annotation
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
 							return []*unstructured.Unstructured{existingGeneratedResource, existingGeneratedResourceWithDifferentResName}, nil
 						}
@@ -163,7 +163,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 					// Return "not found" for direct name lookup to force label lookup
 					WithResourceNotFound().
 					// Return our existing resource when looking up by label AND check the composition-resource-name annotation
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
 							return []*unstructured.Unstructured{composedResource}, nil
 						}
@@ -235,7 +235,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 						return nil, errors.New("error looking up resources")
 					}).
 					Build()

@@ -7,7 +7,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -157,28 +156,12 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 			continue
 		}
 
-		// Try to get the CRD by its conventional name pattern (plural.group)
-		crdName := resourceutils.GuessCRDName(gvk)
-
-		v.logger.Debug("Fetching CRD",
-			"gvk", gvk.String(),
-			"crdName", crdName)
-
-		crdObj, err := v.client.GetResource(
-			ctx,
-			schema.GroupVersionKind{
-				Group:   "apiextensions.k8s.io",
-				Version: "v1",
-				Kind:    "CustomResourceDefinition",
-			},
-			"",
-			crdName,
-		)
-
+		// Try to get the CRD using the client's GetCRD method
+		crdObj, err := v.client.GetCRD(ctx, gvk)
 		if err != nil {
 			v.logger.Debug("CRD not found (continuing)",
 				"gvk", gvk.String(),
-				"crdName", crdName)
+				"error", err)
 			return errors.New("unable to find CRD for " + gvk.String())
 		}
 
@@ -187,7 +170,7 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(crdObj.Object, crd); err != nil {
 			v.logger.Debug("Error converting CRD (continuing)",
 				"gvk", gvk.String(),
-				"crdName", crdName)
+				"error", err)
 			continue
 		}
 

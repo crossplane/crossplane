@@ -5,6 +5,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -363,7 +364,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 
 	type args struct {
 		ctx       context.Context
-		gvrs      []schema.GroupVersionResource
+		gvks      []schema.GroupVersionKind
 		selectors []metav1.LabelSelector
 	}
 
@@ -378,20 +379,20 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"MismatchedGVRsAndSelectors": {
-			reason: "Should return error when GVRs and selectors count mismatch",
+		"MismatchedGVKsAndSelectors": {
+			reason: "Should return error when GVKs and selectors count mismatch",
 			setup: func() dynamic.Interface {
 				return fake.NewSimpleDynamicClient(scheme)
 			},
 			args: args{
 				ctx: context.Background(),
-				gvrs: []schema.GroupVersionResource{
-					{Group: "example.org", Version: "v1", Resource: "resources"},
+				gvks: []schema.GroupVersionKind{
+					{Group: "example.org", Version: "v1", Kind: "Resource"},
 				},
 				selectors: []metav1.LabelSelector{},
 			},
 			want: want{
-				err: errors.New("number of GVRs must match number of selectors"),
+				err: errors.New("number of GVKs must match number of selectors"),
 			},
 		},
 		"NoMatchingResources": {
@@ -405,8 +406,8 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				gvrs: []schema.GroupVersionResource{
-					{Group: "example.org", Version: "v1", Resource: "resources"},
+				gvks: []schema.GroupVersionKind{
+					{Group: "example.org", Version: "v1", Kind: "Resource"},
 				},
 				selectors: []metav1.LabelSelector{
 					{
@@ -444,9 +445,9 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				gvrs: []schema.GroupVersionResource{
-					{Group: "example.org", Version: "v1", Resource: "resources"},
-					{Group: "example.org", Version: "v2", Resource: "otherresources"},
+				gvks: []schema.GroupVersionKind{
+					{Group: "example.org", Version: "v1", Kind: "Resource"},
+					{Group: "example.org", Version: "v2", Kind: "OtherResource"},
 				},
 				selectors: []metav1.LabelSelector{
 					{
@@ -487,8 +488,8 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				gvrs: []schema.GroupVersionResource{
-					{Group: "example.org", Version: "v1", Resource: "resources"},
+				gvks: []schema.GroupVersionKind{
+					{Group: "example.org", Version: "v1", Kind: "Resource"},
 				},
 				selectors: []metav1.LabelSelector{
 					{
@@ -499,7 +500,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 			want: want{
 				err: errors.Wrap(errors.Wrapf(errors.New("list error"),
 					"cannot list resources for '%s' matching '%s'",
-					schema.GroupVersionResource{Group: "example.org", Version: "v1", Resource: "resources"}, "app=test"),
+					"example.org/v1, Kind=Resource", "app=test"),
 					"cannot get all resources"),
 			},
 		},
@@ -510,9 +511,14 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
 				logger:        tu.TestLogger(t),
+				// Add GVK to GVR mappings for testing
+				gvkToGVRMap: map[schema.GroupVersionKind]schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Kind: "Resource"}:      {Group: "example.org", Version: "v1", Resource: "resources"},
+					{Group: "example.org", Version: "v2", Kind: "OtherResource"}: {Group: "example.org", Version: "v2", Resource: "otherresources"},
+				},
 			}
 
-			got, err := c.GetAllResourcesByLabels(tc.args.ctx, tc.args.gvrs, tc.args.selectors)
+			got, err := c.GetAllResourcesByLabels(tc.args.ctx, tc.args.gvks, tc.args.selectors)
 
 			if tc.want.err != nil {
 				if err == nil {
@@ -1713,7 +1719,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 		args   struct {
 			ctx       context.Context
 			namespace string
-			gvr       schema.GroupVersionResource
+			gvk       schema.GroupVersionKind
 			selector  metav1.LabelSelector
 		}
 		want struct {
@@ -1733,15 +1739,15 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			args: struct {
 				ctx       context.Context
 				namespace string
-				gvr       schema.GroupVersionResource
+				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
 				ctx:       context.Background(),
 				namespace: "test-namespace",
-				gvr: schema.GroupVersionResource{
-					Group:    "example.org",
-					Version:  "v1",
-					Resource: "resources",
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "Resource",
 				},
 				selector: metav1.LabelSelector{
 					MatchLabels: map[string]string{"app": "test"},
@@ -1790,15 +1796,15 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			args: struct {
 				ctx       context.Context
 				namespace string
-				gvr       schema.GroupVersionResource
+				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
 				ctx:       context.Background(),
 				namespace: "test-namespace",
-				gvr: schema.GroupVersionResource{
-					Group:    "example.org",
-					Version:  "v1",
-					Resource: "resources",
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "Resource",
 				},
 				selector: metav1.LabelSelector{
 					MatchLabels: map[string]string{"app": "test"},
@@ -1842,15 +1848,15 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			args: struct {
 				ctx       context.Context
 				namespace string
-				gvr       schema.GroupVersionResource
+				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
 				ctx:       context.Background(),
 				namespace: "test-namespace",
-				gvr: schema.GroupVersionResource{
-					Group:    "example.org",
-					Version:  "v1",
-					Resource: "resources",
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "Resource",
 				},
 				selector: metav1.LabelSelector{
 					MatchLabels: map[string]string{"app": "test"},
@@ -1860,7 +1866,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				resources []*unstructured.Unstructured
 				err       error
 			}{
-				err: errors.New("cannot list resources for 'example.org/v1, Resource=resources' matching 'app=test': list error"),
+				err: errors.New("cannot list resources for 'example.org/v1, Kind=Resource' matching 'app=test': list error"),
 			},
 		},
 	}
@@ -1870,9 +1876,13 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
 				logger:        tu.TestLogger(t),
+				// Add GVK to GVR mapping for testing
+				gvkToGVRMap: map[schema.GroupVersionKind]schema.GroupVersionResource{
+					{Group: "example.org", Version: "v1", Kind: "Resource"}: {Group: "example.org", Version: "v1", Resource: "resources"},
+				},
 			}
 
-			got, err := c.GetResourcesByLabel(tc.args.ctx, tc.args.namespace, tc.args.gvr, tc.args.selector)
+			got, err := c.GetResourcesByLabel(tc.args.ctx, tc.args.namespace, tc.args.gvk, tc.args.selector)
 
 			if tc.want.err != nil {
 				if err == nil {
@@ -2287,6 +2297,190 @@ func TestClusterClient_IsCRDRequired(t *testing.T) {
 			// Verify result
 			if got != tt.want {
 				t.Errorf("IsCRDRequired() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClusterClient_GetCRD(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = pkgv1.AddToScheme(scheme)
+	_ = apiextensionsv1.AddToScheme(scheme)
+
+	type args struct {
+		ctx context.Context
+		gvk schema.GroupVersionKind
+	}
+
+	type want struct {
+		crd *unstructured.Unstructured
+		err error
+	}
+
+	// Create a test CRD as unstructured
+	testCRD := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "apiextensions.k8s.io/v1",
+			"kind":       "CustomResourceDefinition",
+			"metadata": map[string]interface{}{
+				"name": "xresources.example.org",
+			},
+			"spec": map[string]interface{}{
+				"group": "example.org",
+				"names": map[string]interface{}{
+					"kind":     "XResource",
+					"plural":   "xresources",
+					"singular": "xresource",
+				},
+				"scope": "Namespaced",
+				"versions": []interface{}{
+					map[string]interface{}{
+						"name":    "v1",
+						"served":  true,
+						"storage": true,
+					},
+				},
+			},
+		},
+	}
+
+	tests := map[string]struct {
+		reason     string
+		setup      func() dynamic.Interface
+		args       args
+		want       want
+		resourceID string
+	}{
+		"SuccessfulCRDRetrieval": {
+			reason: "Should retrieve CRD when it exists",
+			setup: func() dynamic.Interface {
+				// Set up the client to return our test CRD
+				dc := fake.NewSimpleDynamicClient(scheme)
+				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					getAction := action.(kt.GetAction)
+					if getAction.GetName() == "xresources.example.org" {
+						return true, testCRD, nil
+					}
+					return false, nil, nil
+				})
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "XResource",
+				},
+			},
+			want: want{
+				crd: testCRD,
+				err: nil,
+			},
+		},
+		"CRDNotFound": {
+			reason: "Should return error when CRD doesn't exist",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClient(scheme)
+				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, apierrors.NewNotFound(
+						schema.GroupResource{
+							Group:    "apiextensions.k8s.io",
+							Resource: "customresourcedefinitions",
+						},
+						"nonexistent.example.org")
+				})
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "NonexistentResource",
+				},
+			},
+			want: want{
+				crd: nil,
+				err: errors.New("cannot get CRD nonexistentresources.example.org for example.org/v1, Kind=NonexistentResource"),
+			},
+		},
+		"ServerError": {
+			reason: "Should propagate server errors",
+			setup: func() dynamic.Interface {
+				dc := fake.NewSimpleDynamicClient(scheme)
+				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("server error")
+				})
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+				gvk: schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "XResource",
+				},
+			},
+			want: want{
+				crd: nil,
+				err: errors.New("cannot get CRD xresources.example.org for example.org/v1, Kind=XResource"),
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Create the client with discovery setup
+			c := &DefaultClusterClient{
+				dynamicClient: tc.setup(),
+				logger:        tu.TestLogger(t),
+			}
+
+			// Initialize resource map to avoid nil panic
+			c.resourceMap = make(map[schema.GroupVersionKind]bool)
+			c.gvkToGVRMap = make(map[schema.GroupVersionKind]schema.GroupVersionResource)
+
+			// Call the method under test
+			crd, err := c.GetCRD(tc.args.ctx, tc.args.gvk)
+
+			// Check for expected errors
+			if tc.want.err != nil {
+				if err == nil {
+					t.Errorf("\n%s\nGetCRD(...): expected error but got none", tc.reason)
+					return
+				}
+
+				if !strings.Contains(err.Error(), tc.want.err.Error()) {
+					t.Errorf("\n%s\nGetCRD(...): expected error to contain %q but got %q",
+						tc.reason, tc.want.err.Error(), err.Error())
+				}
+				return
+			}
+
+			// Check for unexpected errors
+			if err != nil {
+				t.Errorf("\n%s\nGetCRD(...): unexpected error: %v", tc.reason, err)
+				return
+			}
+
+			// Verify the response matches what we expected
+			if crd == nil && tc.want.crd != nil {
+				t.Errorf("\n%s\nGetCRD(...): got nil result, want non-nil", tc.reason)
+				return
+			}
+
+			if crd != nil && tc.want.crd == nil {
+				t.Errorf("\n%s\nGetCRD(...): got non-nil result, want nil", tc.reason)
+				return
+			}
+
+			if crd != nil && tc.want.crd != nil {
+				// Compare the name as basic validation
+				if crd.GetName() != tc.want.crd.GetName() {
+					t.Errorf("\n%s\nGetCRD(...): got CRD named %q, want %q",
+						tc.reason, crd.GetName(), tc.want.crd.GetName())
+				}
 			}
 		})
 	}

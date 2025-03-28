@@ -29,13 +29,16 @@ type DiffProcessor interface {
 type ClusterClient interface {
 	Initialize(ctx context.Context) error
 	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error)
+	GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
-	GetResourceTree(ctx context.Context, resource *unstructured.Unstructured) (*resource.Resource, error)
+	GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error)
+	GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	GetResourcesByLabel(ctx context.Context, ns string, sel metav1.LabelSelector, gvr schema.GroupVersionResource) ([]*unstructured.Unstructured, error)
+	GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error)
+	IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool
 }
 
 // MockDynamicClient mocks the dynamic.Interface
@@ -239,16 +242,12 @@ type MockClusterClient struct {
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
 	GetResourceTreeFn          func(context.Context, *unstructured.Unstructured) (*resource.Resource, error)
 	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
-	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
 	IsCRDRequiredFn            func(ctx context.Context, gvk schema.GroupVersionKind) bool
+	GetCRDFn                   func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error)
 	logger                     logging.Logger
-}
-
-// Add a getter for the logger
-func (m *MockClusterClient) Logger() logging.Logger {
-	return m.logger
 }
 
 // Initialize implements the ClusterClient interface
@@ -268,9 +267,9 @@ func (m *MockClusterClient) FindMatchingComposition(res *unstructured.Unstructur
 }
 
 // GetAllResourcesByLabels implements the ClusterClient interface
-func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 	if m.GetAllResourcesByLabelsFn != nil {
-		return m.GetAllResourcesByLabelsFn(ctx, gvrs, selectors)
+		return m.GetAllResourcesByLabelsFn(ctx, gvks, selectors)
 	}
 	return nil, errors.New("GetAllResourcesByLabels not implemented")
 }
@@ -308,9 +307,10 @@ func (m *MockClusterClient) GetResourceTree(ctx context.Context, root *unstructu
 }
 
 // GetResourcesByLabel implements the ClusterClient interface
-func (m *MockClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+// Updated to accept GVK instead of GVR
+func (m *MockClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 	if m.GetResourcesByLabelFn != nil {
-		return m.GetResourcesByLabelFn(ctx, ns, gvr, selector)
+		return m.GetResourcesByLabelFn(ctx, ns, gvk, selector)
 	}
 	return nil, errors.New("GetResourcesByLabel not implemented")
 }
@@ -338,6 +338,14 @@ func (m *MockClusterClient) IsCRDRequired(ctx context.Context, gvk schema.GroupV
 	}
 	// Default behavior if not implemented - assume CRD is required
 	return true
+}
+
+// GetCRD implements the ClusterClient interface
+func (m *MockClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+	if m.GetCRDFn != nil {
+		return m.GetCRDFn(ctx, gvk)
+	}
+	return nil, errors.New("GetCRD not implemented")
 }
 
 // MockDiffProcessor implements the DiffProcessor interface for testing

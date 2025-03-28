@@ -74,15 +74,18 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
-						if name == "xrs.example.org" {
+					// Add GetCRD implementation
+					WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+						if gvk.Group == "example.org" && gvk.Kind == "XR" {
 							return xrCRDUn, nil
 						}
-						if name == "composedresources.composed.org" {
+						if gvk.Group == "composed.org" && gvk.Kind == "ComposedResource" {
 							return composedCRDUn, nil
 						}
 						return nil, errors.New("CRD not found")
 					}).
+					// Implement IsCRDRequired to return true for our test resources
+					WithAllResourcesRequiringCRDs().
 					Build()
 			},
 			xr:            xr,
@@ -131,13 +134,18 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 				)
 
 				return tu.NewMockClusterClient().
-					// Make the GetResource return the CRD when requested
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
-						if name == "composedresources.composed.org" {
+					// Add GetCRD implementation
+					WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+						if gvk.Group == "example.org" && gvk.Kind == "XR" {
+							return nil, errors.New("CRD not found") // Force validation to use preloaded CRDs
+						}
+						if gvk.Group == "composed.org" && gvk.Kind == "ComposedResource" {
 							return composedCRDUn, nil
 						}
 						return nil, errors.New("CRD not found")
 					}).
+					// Setup IsCRDRequired to return true for our test resources
+					WithAllResourcesRequiringCRDs().
 					Build()
 			},
 			xr: tu.NewResource("example.org/v1", "XR", "test-xr").
@@ -221,12 +229,17 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 				)
 
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
-						if name == "composedresources.composed.org" {
+					// Use the new GetCRD method instead of GetResource
+					WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+						if gvk.Group == "composed.org" && gvk.Kind == "ComposedResource" {
 							return composedCRDUn, nil
 						}
 						return nil, errors.New("CRD not found")
 					}).
+					// Make sure composed resources require CRDs
+					WithResourcesRequiringCRDs(
+						schema.GroupVersionKind{Group: "composed.org", Version: "v1", Kind: "ComposedResource"},
+					).
 					Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD}, // Only XR CRD is cached
@@ -333,65 +346,6 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 			crds := validator.(*DefaultSchemaValidator).GetCRDs()
 			if len(crds) == 0 {
 				t.Errorf("LoadCRDs() did not load any CRDs")
-			}
-		})
-	}
-}
-
-// TODO:  nuke this from orbit and do something better
-func TestGuessCRDName(t *testing.T) {
-	tests := map[string]struct {
-		gvk      schema.GroupVersionKind
-		expected string
-	}{
-		"StandardPlural": {
-			gvk: schema.GroupVersionKind{
-				Group:   "example.org",
-				Version: "v1",
-				Kind:    "Resource",
-			},
-			expected: "resources.example.org",
-		},
-		"IrregularPlural_Policy": {
-			gvk: schema.GroupVersionKind{
-				Group:   "example.org",
-				Version: "v1",
-				Kind:    "Policy",
-			},
-			expected: "policies.example.org",
-		},
-		"IrregularPlural_Gateway": {
-			gvk: schema.GroupVersionKind{
-				Group:   "networking.k8s.io",
-				Version: "v1",
-				Kind:    "Gateway",
-			},
-			expected: "gateways.networking.k8s.io",
-		},
-		"IrregularPlural_Proxy": {
-			gvk: schema.GroupVersionKind{
-				Group:   "example.org",
-				Version: "v1",
-				Kind:    "Proxy",
-			},
-			expected: "proxies.example.org",
-		},
-		"CaseSensitivity": {
-			gvk: schema.GroupVersionKind{
-				Group:   "example.org",
-				Version: "v1",
-				Kind:    "CamelCase",
-			},
-			expected: "camelcases.example.org",
-		},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			result := guessCRDName(tt.gvk)
-			if result != tt.expected {
-				t.Errorf("guessCRDName(%v) = %q, want %q",
-					tt.gvk, result, tt.expected)
 			}
 		})
 	}

@@ -429,20 +429,20 @@ func TestDiffWithExtraResources(t *testing.T) {
 			}
 			return testComposition, nil
 		}).
-		WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-			// Validate the GVR and selector match what we expect
-			if len(gvrs) != 1 || len(selectors) != 1 {
-				return nil, errors.New("unexpected number of GVRs or selectors")
+		WithGetAllResourcesByLabels(func(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+			// Validate the GVK and selector match what we expect
+			if len(gvks) != 1 || len(selectors) != 1 {
+				return nil, errors.New("unexpected number of GVKs or selectors")
 			}
 
-			// Verify the GVR matches our extra resource
-			expectedGVR := schema.GroupVersionResource{
-				Group:    "example.org",
-				Version:  "v1",
-				Resource: "extraresources",
+			// Verify the GVK matches our extra resource - using GVK now instead of GVR
+			expectedGVK := schema.GroupVersionKind{
+				Group:   "example.org",
+				Version: "v1",
+				Kind:    "ExtraResource",
 			}
-			if gvrs[0] != expectedGVR {
-				return nil, errors.Errorf("unexpected GVR: %v", gvrs[0])
+			if gvks[0] != expectedGVK {
+				return nil, errors.Errorf("unexpected GVK: %v", gvks[0])
 			}
 
 			// Verify the selector matches our label selector
@@ -483,6 +483,13 @@ func TestDiffWithExtraResources(t *testing.T) {
 			}
 			return nil, errors.Errorf("resource %q not found", name)
 		}).
+		// Add GetCRD implementation for our test
+		WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+			// For this test, we can return nil as it doesn't focus on validation
+			return nil, errors.New("CRD not found")
+		}).
+		// Set IsCRDRequired to return false for our test resources to avoid validation
+		WithNoResourcesRequiringCRDs().
 		WithSuccessfulDryRun().
 		Build()
 
@@ -611,7 +618,7 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	mockClient := tu.NewMockClusterClient().
 		WithSuccessfulInitialize().
 		WithSuccessfulCompositionMatch(testComposition).
-		WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionResource, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+		WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			return []*unstructured.Unstructured{testExtraResource}, nil
 		}).
 		WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {

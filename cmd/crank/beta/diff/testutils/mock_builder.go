@@ -180,14 +180,14 @@ func (b *ClusterClientBuilder) WithFailedDryRun(errMsg string) *ClusterClientBui
 }
 
 // WithGetResourcesByLabel adds an implementation for the GetResourcesByLabel method.
-func (b *ClusterClientBuilder) WithGetResourcesByLabel(fn func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)) *ClusterClientBuilder {
+func (b *ClusterClientBuilder) WithGetResourcesByLabel(fn func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*unstructured.Unstructured, error)) *ClusterClientBuilder {
 	b.mock.GetResourcesByLabelFn = fn
 	return b
 }
 
 // WithResourcesFoundByLabel sets a GetResourcesByLabel implementation that returns resources for a specific label.
 func (b *ClusterClientBuilder) WithResourcesFoundByLabel(resources []*unstructured.Unstructured, label string, value string) *ClusterClientBuilder {
-	return b.WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+	return b.WithGetResourcesByLabel(func(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 		// Check if the selector matches our expected label
 		if labelValue, exists := selector.MatchLabels[label]; exists && labelValue == value {
 			return resources, nil
@@ -197,7 +197,7 @@ func (b *ClusterClientBuilder) WithResourcesFoundByLabel(resources []*unstructur
 }
 
 // WithGetAllResourcesByLabels adds an implementation for the GetAllResourcesByLabels method.
-func (b *ClusterClientBuilder) WithGetAllResourcesByLabels(fn func(context.Context, []schema.GroupVersionResource, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)) *ClusterClientBuilder {
+func (b *ClusterClientBuilder) WithGetAllResourcesByLabels(fn func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)) *ClusterClientBuilder {
 	b.mock.GetAllResourcesByLabelsFn = fn
 	return b
 }
@@ -272,14 +272,14 @@ func (b *ClusterClientBuilder) WithResourceTreeFromXRAndComposed(xr *unstructure
 }
 
 // WithResourcesByLabel adds an implementation for the GetResourcesByLabel method.
-func (b *ClusterClientBuilder) WithResourcesByLabel(fn func(context.Context, string, schema.GroupVersionResource, metav1.LabelSelector) ([]*unstructured.Unstructured, error)) *ClusterClientBuilder {
+func (b *ClusterClientBuilder) WithResourcesByLabel(fn func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*unstructured.Unstructured, error)) *ClusterClientBuilder {
 	b.mock.GetResourcesByLabelFn = fn
 	return b
 }
 
 // WithComposedResourcesByOwner sets up a GetResourcesByLabel implementation that returns resources by owner
 func (b *ClusterClientBuilder) WithComposedResourcesByOwner(resources ...*unstructured.Unstructured) *ClusterClientBuilder {
-	return b.WithResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+	return b.WithResourcesByLabel(func(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 		// Check if this is looking for composed resources with crossplane.io/composite label
 		if val, exists := selector.MatchLabels["crossplane.io/composite"]; exists {
 			// Filter resources with this composite owner
@@ -329,6 +329,22 @@ func (b *ClusterClientBuilder) WithAllResourcesRequiringCRDs() *ClusterClientBui
 func (b *ClusterClientBuilder) WithNoResourcesRequiringCRDs() *ClusterClientBuilder {
 	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
 		return false
+	})
+}
+
+// WithGetCRD adds an implementation for the GetCRD method.
+func (b *ClusterClientBuilder) WithGetCRD(fn func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error)) *ClusterClientBuilder {
+	b.mock.GetCRDFn = fn
+	return b
+}
+
+// WithSuccessfulCRDFetch sets a GetCRD implementation that returns a specific CRD.
+func (b *ClusterClientBuilder) WithSuccessfulCRDFetch(crd *unstructured.Unstructured) *ClusterClientBuilder {
+	return b.WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+		if crd.GetKind() != "CustomResourceDefinition" {
+			return nil, errors.Errorf("setup error:  desired return from GetCRD isn't a CRD but a %s", crd.GetKind())
+		}
+		return crd, nil
 	})
 }
 

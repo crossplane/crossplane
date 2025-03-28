@@ -3,7 +3,6 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
@@ -193,11 +192,8 @@ func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composit
 		},
 	}
 
-	// Convert the GVK to GVR for the client call
-	gvr := resourceutils.KindToResource(gvk)
-
 	// Look up resources with the composite label
-	resources, err := m.client.GetResourcesByLabel(ctx, namespace, gvr, labelSelector)
+	resources, err := m.client.GetResourcesByLabel(ctx, namespace, gvk, labelSelector)
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "cannot list resources for composite %s", composite.GetName())
 	}

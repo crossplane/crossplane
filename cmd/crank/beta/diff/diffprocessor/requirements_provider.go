@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	"strings"
 	"sync"
 
@@ -147,7 +146,6 @@ func (p *RequirementsProvider) ProvideRequirements(
 			case selector.GetMatchLabels() != nil:
 				// Label selectors always go to the cluster
 				// (Can't efficiently check cache for label matches)
-				gvr := resourceutils.KindToResource(gvk)
 
 				// Convert MatchLabels to LabelSelector
 				labelSelector := metav1.LabelSelector{
@@ -155,10 +153,10 @@ func (p *RequirementsProvider) ProvideRequirements(
 				}
 
 				p.logger.Debug("Fetching resources by label",
-					"gvr", gvr.String(),
+					"gvk", gvk.String(),
 					"labels", labelSelector.MatchLabels)
 
-				resources, err := p.client.GetResourcesByLabel(ctx, "", gvr, labelSelector)
+				resources, err := p.client.GetResourcesByLabel(ctx, "", gvk, labelSelector)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot get resources by label")
 				}

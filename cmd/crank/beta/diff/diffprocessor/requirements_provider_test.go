@@ -30,7 +30,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 			}
 			return nil, errors.New("resource not found")
 		}).
-		WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+		WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 			// Return resources for label-based selectors
 			if sel.MatchLabels["app"] == "test-app" {
 				return []*unstructured.Unstructured{configMap}, nil

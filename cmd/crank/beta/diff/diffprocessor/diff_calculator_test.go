@@ -186,7 +186,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 						)
 					}).
 					// Return our existing resource when looking up by label
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionResource, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
 						// Verify we're looking up with the right composite owner label
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
 							return []*unstructured.Unstructured{existingComposed}, nil
