@@ -640,8 +640,97 @@ Summary: 2 added, 2 modified
 				"testdata/diff/xr-with-ambiguous-selector.yaml",
 			},
 			expectedError:         true,
-			expectedErrorContains: "ambiguous composition selection: multiple compositions match labels",
+			expectedErrorContains: "ambiguous composition selection: multiple compositions match",
 			noColor:               true,
+		},
+		"NewClaimShowsDiff": {
+			setupFiles: []string{
+				"testdata/diff/resources/existing-namespace.yaml",
+				// Add the necessary CRDs and compositions for claim diffing
+				"testdata/diff/resources/claim-xrd.yaml",
+				"testdata/diff/resources/claim-composition.yaml",
+				"testdata/diff/resources/functions.yaml",
+			},
+			inputFiles: []string{"testdata/diff/new-claim.yaml"},
+			expectedOutput: `
++++ NopClaim/test-claim
++ apiVersion: diff.example.org/v1alpha1
++ kind: NopClaim
++ metadata:
++   name: test-claim
++   namespace: existing-namespace
++ spec:
++   compositionRef:
++     name: claim-composition
++   coolField: new-value
+
+---
++++ XDownstreamResource/test-claim
++ apiVersion: nop.example.org/v1alpha1
++ kind: XDownstreamResource
++ metadata:
++   annotations:
++     crossplane.io/composition-resource-name: nop-resource
++   generateName: test-claim-
++   labels:
++     crossplane.io/composite: test-claim
++   name: test-claim
++ spec:
++   forProvider:
++     configData: new-value
+
+---
+
+Summary: 2 added`,
+			expectedError: false,
+			noColor:       true,
+		},
+		"ModifiedClaimShowsDiff": {
+			setupFiles: []string{
+				"testdata/diff/resources/existing-namespace.yaml",
+				// Add necessary CRDs and composition
+				"testdata/diff/resources/claim-xrd.yaml",
+				"testdata/diff/resources/claim-composition.yaml",
+				"testdata/diff/resources/functions.yaml",
+				// Add existing resources for comparison
+				"testdata/diff/resources/existing-claim.yaml",
+				"testdata/diff/resources/existing-claim-downstream-resource.yaml",
+			},
+			inputFiles: []string{"testdata/diff/modified-claim.yaml"},
+			expectedOutput: `
+~~~ NopClaim/test-claim
+  apiVersion: diff.example.org/v1alpha1
+  kind: NopClaim
+  metadata:
+    name: test-claim
+    namespace: existing-namespace
+  spec:
+    compositionRef:
+      name: claim-composition
+-   coolField: existing-value
++   coolField: modified-value
+
+---
+~~~ XDownstreamResource/test-claim
+  apiVersion: nop.example.org/v1alpha1
+  kind: XDownstreamResource
+  metadata:
+    annotations:
+      crossplane.io/composition-resource-name: nop-resource
+    generateName: test-claim-
+    labels:
+      crossplane.io/composite: test-claim
+    name: test-claim
+  spec:
+    forProvider:
+-     configData: existing-value
++     configData: modified-value
+
+---
+
+Summary: 2 modified`,
+			expectedError: false,
+			noColor:       true,
 		},
 	}
 

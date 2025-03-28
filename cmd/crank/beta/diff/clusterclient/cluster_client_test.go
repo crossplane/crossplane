@@ -626,6 +626,16 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 		WithCompositeTypeRef("example.org/v2", "XR1").
 		Build()
 
+	// Create a fake dynamic client that can respond to XRD requests
+	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
+
+	// Set up the dynamic client to return an empty list for XRD requests
+	fakeDynamicClient.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+		return true, &unstructured.UnstructuredList{
+			Items: []unstructured.Unstructured{},
+		}, nil
+	})
+
 	tests := map[string]struct {
 		reason string
 		fields fields
@@ -867,8 +877,10 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
-				compositions: tc.fields.compositions,
-				logger:       tu.TestLogger(t),
+				compositions:  tc.fields.compositions,
+				logger:        tu.TestLogger(t),
+				dynamicClient: fakeDynamicClient,
+				gvkToGVRMap:   make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 
 			got, err := c.FindMatchingComposition(tc.args.res)

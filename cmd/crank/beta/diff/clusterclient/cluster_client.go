@@ -309,15 +309,106 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 }
 
 // FindMatchingComposition finds a composition matching the given resource.
+// It handles both XRs and Claims, finding the appropriate composition in each case.
 func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
-	xrGVK := res.GroupVersionKind()
-	resourceID := fmt.Sprintf("%s/%s", xrGVK.String(), res.GetName())
+	// Determine if we're dealing with a claim or an XR
+	gvk := res.GroupVersionKind()
+	resourceID := fmt.Sprintf("%s/%s", gvk.String(), res.GetName())
 
 	c.logger.Debug("Finding matching composition",
 		"resource_name", res.GetName(),
-		"gvk", xrGVK.String())
+		"gvk", gvk.String())
+
+	// First, check if this is a claim by looking for an XRD that defines this as a claim
+	isClaimType, xrdForClaim, err := c.isClaimType(gvk)
+	if err != nil {
+		c.logger.Debug("Error checking if resource is claim type",
+			"resource", resourceID,
+			"error", err)
+		// Continue as if not a claim - we'll try normal composition matching
+	}
+
+	// TODO:  clean up the fallback here
+	// If it's a claim, we need to find compositions for the corresponding XR type
+	var targetGVK schema.GroupVersionKind
+	if isClaimType && xrdForClaim != nil {
+		targetGVK, err = c.getXRTypeFromXRD(xrdForClaim, resourceID)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Not a claim or couldn't determine XRD - use the actual resource GVK
+		targetGVK = gvk
+	}
 
 	// Case 1: Check for direct composition reference in spec.compositionRef.name
+	comp, err := c.findByDirectReference(res, targetGVK, resourceID)
+	if err != nil || comp != nil {
+		return comp, err
+	}
+
+	// Case 2: Check for selector-based composition reference in spec.compositionSelector.matchLabels
+	comp, err = c.findByLabelSelector(res, targetGVK, resourceID)
+	if err != nil || comp != nil {
+		return comp, err
+	}
+
+	// Case 3: Look up by composite type reference (original behavior)
+	return c.findByTypeReference(targetGVK, resourceID)
+}
+
+// getXRTypeFromXRD extracts the XR GroupVersionKind from an XRD
+func (c *DefaultClusterClient) getXRTypeFromXRD(xrdForClaim *unstructured.Unstructured, resourceID string) (schema.GroupVersionKind, error) {
+	// Get the XR type from the XRD
+	xrGroup, found, _ := unstructured.NestedString(xrdForClaim.Object, "spec", "group")
+	xrKind, kindFound, _ := unstructured.NestedString(xrdForClaim.Object, "spec", "names", "kind")
+
+	if found && kindFound {
+		// First, check if the XRD defines a specific version
+		xrVersion := ""
+		versions, versionsFound, _ := unstructured.NestedSlice(xrdForClaim.Object, "spec", "versions")
+		if versionsFound && len(versions) > 0 {
+			// Try to get the first served & referenceable version
+			for _, versionObj := range versions {
+				if version, ok := versionObj.(map[string]interface{}); ok {
+					served, servedFound, _ := unstructured.NestedBool(version, "served")
+					ref, refFound, _ := unstructured.NestedBool(version, "referenceable")
+					if servedFound && refFound && served && ref {
+						if name, nameFound, _ := unstructured.NestedString(version, "name"); nameFound {
+							xrVersion = name
+							break
+						}
+					}
+				}
+			}
+		}
+
+		// TODO:  this seems like it needs to be fixed
+		// If no specific version found, use "v1"
+		if xrVersion == "" {
+			xrVersion = "v1"
+		}
+
+		targetGVK := schema.GroupVersionKind{
+			Group:   xrGroup,
+			Version: xrVersion,
+			Kind:    xrKind,
+		}
+
+		c.logger.Debug("Claim resource detected - targeting XR type for composition matching",
+			"claim", resourceID,
+			"targetXR", targetGVK.String())
+
+		return targetGVK, nil
+	}
+
+	c.logger.Debug("Found claim type but couldn't determine XR type from XRD",
+		"claim", resourceID)
+	return schema.GroupVersionKind{}, errors.New("cannot determine target XR type from XRD")
+}
+
+// findByDirectReference attempts to find a composition directly referenced by name
+func (c *DefaultClusterClient) findByDirectReference(res *unstructured.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
 	compositionRefName, compositionRefFound, err := unstructured.NestedString(res.Object, "spec", "compositionRef", "name")
 	if err == nil && compositionRefFound && compositionRefName != "" {
 		c.logger.Debug("Found direct composition reference",
@@ -326,10 +417,10 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 
 		// Look up composition by name
 		if comp, ok := c.compositions[compositionRefName]; ok {
-			// Validate that the composition's compositeTypeRef matches the XR's GVK
-			if !isCompositionCompatible(comp, xrGVK) {
+			// Validate that the composition's compositeTypeRef matches the target GVK
+			if !isCompositionCompatible(comp, targetGVK) {
 				return nil, errors.Errorf("composition %s is not compatible with %s",
-					compositionRefName, xrGVK.String())
+					compositionRefName, targetGVK.String())
 			}
 
 			c.logger.Debug("Found composition by direct reference",
@@ -343,7 +434,11 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 			compositionRefName, resourceID)
 	}
 
-	// Case 2: Check for selector-based composition reference in spec.compositionSelector.matchLabels
+	return nil, nil // No direct reference found
+}
+
+// findByLabelSelector attempts to find compositions that match label selectors
+func (c *DefaultClusterClient) findByLabelSelector(res *unstructured.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
 	matchLabels, selectorFound, err := unstructured.NestedMap(res.Object, "spec", "compositionSelector", "matchLabels")
 	if err == nil && selectorFound && len(matchLabels) > 0 {
 		c.logger.Debug("Found composition selector",
@@ -364,7 +459,7 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 		// Search through all compositions looking for compatible ones with matching labels
 		for _, comp := range c.compositions {
 			// Check if this composition is for the right XR type
-			if isCompositionCompatible(comp, xrGVK) {
+			if isCompositionCompatible(comp, targetGVK) {
 				// Check if labels match
 				if labelsMatch(comp.GetLabels(), stringLabels) {
 					matchingCompositions = append(matchingCompositions, comp)
@@ -388,46 +483,89 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 			for i, comp := range matchingCompositions {
 				names[i] = comp.GetName()
 			}
-			return nil, errors.Errorf("ambiguous composition selection: multiple compositions match labels %v for %s: %s",
-				stringLabels, resourceID, strings.Join(names, ", "))
+			return nil, errors.New("ambiguous composition selection: multiple compositions match")
 		}
 	}
 
-	// Case 3: Look up by composite type reference (original behavior)
-	// We need to get all compositions that match this XR type
+	return nil, nil // No label selector found or no matches
+}
+
+// findByTypeReference attempts to find a composition by matching the type reference
+func (c *DefaultClusterClient) findByTypeReference(targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
+	// We need to get all compositions that match this target type
 	var compatibleCompositions []*apiextensionsv1.Composition
 
 	for _, comp := range c.compositions {
-		if comp.Spec.CompositeTypeRef.APIVersion == xrGVK.GroupVersion().String() &&
-			comp.Spec.CompositeTypeRef.Kind == xrGVK.Kind {
+		if comp.Spec.CompositeTypeRef.APIVersion == targetGVK.GroupVersion().String() &&
+			comp.Spec.CompositeTypeRef.Kind == targetGVK.Kind {
 			compatibleCompositions = append(compatibleCompositions, comp)
 		}
 	}
 
 	if len(compatibleCompositions) == 0 {
 		c.logger.Debug("No matching composition found",
-			"gvk", xrGVK.String())
-		return nil, errors.Errorf("no composition found for %s", xrGVK.String())
+			"targetGVK", targetGVK.String())
+		return nil, errors.Errorf("no composition found for %s", targetGVK.String())
 	}
 
 	if len(compatibleCompositions) > 1 {
 		// Multiple compositions match, but no selection criteria was provided
-		// This is an ambiguous situation - in a real Crossplane implementation,
-		// Crossplane might choose one based on some default rule, but for our diff tool,
-		// we should fail to ensure accuracy
+		// This is an ambiguous situation
 		names := make([]string, len(compatibleCompositions))
 		for i, comp := range compatibleCompositions {
 			names[i] = comp.GetName()
 		}
-		return nil, errors.Errorf("ambiguous composition selection: multiple compositions exist for %s, but no selection criteria provided. Available compositions: %s",
-			xrGVK.String(), strings.Join(names, ", "))
+		return nil, errors.Errorf("ambiguous composition selection: multiple compositions exist for %s", targetGVK.String())
 	}
 
 	// We have exactly one matching composition
 	c.logger.Debug("Found matching composition by type reference",
-		"resource_name", res.GetName(),
+		"resource_name", resourceID,
 		"composition_name", compatibleCompositions[0].GetName())
 	return compatibleCompositions[0], nil
+}
+
+// isClaimType checks if the given GVK is a claim type by looking for an XRD that defines it
+func (c *DefaultClusterClient) isClaimType(gvk schema.GroupVersionKind) (bool, *unstructured.Unstructured, error) {
+	c.logger.Debug("Checking if resource is a claim type",
+		"gvk", gvk.String())
+
+	// List all XRDs
+	xrds, err := c.GetXRDs(context.Background())
+	if err != nil {
+		c.logger.Debug("Error getting XRDs",
+			"error", err)
+		return false, nil, err
+	}
+
+	// Loop through XRDs to find one that defines this GVK as a claim
+	for _, xrd := range xrds {
+		claimGroup, found, _ := unstructured.NestedString(xrd.Object, "spec", "group")
+
+		// Skip if group doesn't match
+		if !found || claimGroup != gvk.Group {
+			continue
+		}
+
+		// Check claim kind
+		claimNames, found, _ := unstructured.NestedMap(xrd.Object, "spec", "claimNames")
+		if !found || claimNames == nil {
+			continue
+		}
+
+		claimKind, found, _ := unstructured.NestedString(claimNames, "kind")
+		if !found || claimKind != gvk.Kind {
+			continue
+		}
+
+		c.logger.Debug("Found matching XRD for claim type",
+			"gvk", gvk.String(),
+			"xrd", xrd.GetName())
+
+		return true, xrd, nil
+	}
+
+	return false, nil, nil
 }
 
 // Helper function to check if a composition is compatible with an XR's GVK
