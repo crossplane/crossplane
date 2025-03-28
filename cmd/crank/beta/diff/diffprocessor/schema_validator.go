@@ -3,13 +3,11 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
-	"strings"
-
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -200,28 +198,4 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 
 	v.logger.Debug("Finished ensuring CRDs", "totalCRDs", len(v.crds))
 	return nil
-}
-
-// guessCRDName attempts to create the CRD name for a given GVK
-// using the conventional pattern (plural.group)
-func guessCRDName(gvk schema.GroupVersionKind) string {
-	// This is a naïve pluralization - in a real implementation
-	// we might want to handle irregular plurals or use a library
-	plural := strings.ToLower(gvk.Kind) + "s"
-
-	// Handle some common special cases
-	switch strings.ToLower(gvk.Kind) {
-	case "policy":
-		plural = "policies"
-	case "gateway":
-		plural = "gateways"
-	case "proxy":
-		plural = "proxies"
-	case "index":
-		plural = "indices"
-	case "matrix":
-		plural = "matrices"
-	}
-
-	return fmt.Sprintf("%s.%s", plural, gvk.Group)
 }
