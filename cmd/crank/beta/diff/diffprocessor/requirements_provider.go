@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	"strings"
 	"sync"
 
@@ -106,6 +107,12 @@ func (p *RequirementsProvider) ProvideRequirements(
 			// Parse apiVersion into group/version
 			group, version := parseAPIVersion(selector.ApiVersion)
 
+			gvk := schema.GroupVersionKind{
+				Group:   group,
+				Version: version,
+				Kind:    selector.Kind,
+			}
+
 			// Process by selector type
 			switch {
 			case selector.GetMatchName() != "":
@@ -123,12 +130,6 @@ func (p *RequirementsProvider) ProvideRequirements(
 				}
 
 				// Not in cache, fetch from cluster
-				gvk := schema.GroupVersionKind{
-					Group:   group,
-					Version: version,
-					Kind:    selector.Kind,
-				}
-
 				ns := "" // TODO: handle namespaced resources
 
 				p.logger.Debug("Fetching reference by name",
@@ -146,11 +147,7 @@ func (p *RequirementsProvider) ProvideRequirements(
 			case selector.GetMatchLabels() != nil:
 				// Label selectors always go to the cluster
 				// (Can't efficiently check cache for label matches)
-				gvr := schema.GroupVersionResource{
-					Group:    group,
-					Version:  version,
-					Resource: pluralize(selector.Kind),
-				}
+				gvr := resourceutils.KindToResource(gvk)
 
 				// Convert MatchLabels to LabelSelector
 				labelSelector := metav1.LabelSelector{
@@ -210,27 +207,4 @@ func parseAPIVersion(apiVersion string) (string, string) {
 		version = apiVersion
 	}
 	return group, version
-}
-
-// Helper to pluralize resource kinds to resource names
-func pluralize(kind string) string {
-	resource := strings.ToLower(kind) + "s" // Naive pluralization
-
-	// Handle special cases
-	switch strings.ToLower(kind) {
-	case "ingress":
-		resource = "ingresses"
-	case "endpoints":
-		resource = "endpoints"
-	case "configmap":
-		resource = "configmaps"
-	case "policy":
-		resource = "policies"
-	case "gateway":
-		resource = "gateways"
-	case "proxy":
-		resource = "proxies"
-	}
-
-	return resource
 }

@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
@@ -193,7 +194,7 @@ func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composit
 	}
 
 	// Convert the GVK to GVR for the client call
-	gvr := m.convertGVKtoGVR(gvk)
+	gvr := resourceutils.KindToResource(gvk)
 
 	// Look up resources with the composite label
 	resources, err := m.client.GetResourcesByLabel(ctx, namespace, gvr, labelSelector)
@@ -230,29 +231,6 @@ func (m *DefaultResourceManager) getCompositionResourceName(annotations map[stri
 	}
 
 	return ""
-}
-
-// convertGVKtoGVR converts a GroupVersionKind to GroupVersionResource
-func (m *DefaultResourceManager) convertGVKtoGVR(gvk schema.GroupVersionKind) schema.GroupVersionResource {
-	resource := strings.ToLower(gvk.Kind) + "s" // Naive pluralization
-
-	// Handle special cases for some well-known types
-	switch gvk.Kind {
-	case "Ingress":
-		resource = "ingresses"
-	case "Endpoints":
-		resource = "endpoints"
-	case "ConfigMap":
-		resource = "configmaps"
-	case "Policy":
-		resource = "policies"
-	}
-
-	return schema.GroupVersionResource{
-		Group:    gvk.Group,
-		Version:  gvk.Version,
-		Resource: resource,
-	}
 }
 
 // findMatchingResource looks through resources to find one matching the composition resource name

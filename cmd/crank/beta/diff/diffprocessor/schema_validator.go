@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	"strings"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -97,7 +98,7 @@ func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *unst
 	v.logger.Debug("Ensuring required CRDs for validation",
 		"cachedCRDs", len(v.crds),
 		"resourceCount", len(resources))
-	
+
 	if err := v.EnsureComposedResourceCRDs(ctx, resources); err != nil {
 		return errors.Wrap(err, "unable to ensure CRDs")
 	}
@@ -159,7 +160,7 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 		}
 
 		// Try to get the CRD by its conventional name pattern (plural.group)
-		crdName := guessCRDName(gvk)
+		crdName := resourceutils.GuessCRDName(gvk)
 
 		v.logger.Debug("Fetching CRD",
 			"gvk", gvk.String(),

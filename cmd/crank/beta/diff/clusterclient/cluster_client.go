@@ -8,6 +8,7 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/pkg"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/resourceutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xrm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -608,23 +609,8 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	resourceID := fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
 	c.logger.Debug("Getting resource from cluster", "resource", resourceID)
 
-	// Create a GroupVersionResource from the GroupVersionKind
-	gvr := schema.GroupVersionResource{
-		Group:    gvk.Group,
-		Version:  gvk.Version,
-		Resource: strings.ToLower(gvk.Kind) + "s", // Naive pluralization
-	}
-
-	// Handle special cases for some well-known types
-	switch gvk.Kind {
-	case "Ingress":
-		gvr.Resource = "ingresses"
-	case "Endpoints":
-		gvr.Resource = "endpoints"
-	case "ConfigMap":
-		gvr.Resource = "configmaps"
-		// Add other special cases as needed
-	}
+	// Create a GroupVersionResource from the GroupVersionKind using the centralized utility
+	gvr := resourceutils.KindToResource(gvk)
 
 	// Get the resource
 	var res *unstructured.Unstructured
@@ -685,11 +671,7 @@ func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructure
 
 	// Create GVR from the object
 	gvk := obj.GroupVersionKind()
-	gvr := schema.GroupVersionResource{
-		Group:    gvk.Group,
-		Version:  gvk.Version,
-		Resource: fmt.Sprintf("%ss", strings.ToLower(gvk.Kind)), // naive pluralization
-	}
+	gvr := resourceutils.KindToResource(gvk)
 
 	// Get the resource client for the namespace
 	resourceClient := c.dynamicClient.Resource(gvr).Namespace(obj.GetNamespace())
