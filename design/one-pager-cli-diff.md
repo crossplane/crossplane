@@ -76,11 +76,12 @@ The implementation consists of several components:
 
 The process flow is:
 1. Load resources from files/stdin
-1. For each resource, find the matching composition
-1. Identify and fetch any required external resources
-1. Render what the resources would look like if applied (using `render`)
-1. Validate the results against the schemas loaded into the cluster (using `beta validate`)
-1. Compare against current state in the cluster (using `beta trace` for child tracking)
+1. For each resource: 
+   1. find the matching composition
+   1. Render what the resources would look like if applied (using `render`)
+   1. While there are unresolved Requirements, fetch them and try to `render` again 
+   1. Validate the results against the schemas loaded into the cluster (using `beta validate`)
+   1. Compare against current state in the cluster (using `beta trace` for child tracking)
 1. Format and display differences
 
 ### Output Format
@@ -170,7 +171,9 @@ The implementation should include:
 
 While the initial implementation provides significant value, future enhancements could include:
 
-1. Additional output formats (JSON, YAML) for programmatic consumption
+1. Diff against a server with local overrides (e.g. to validate against an unreleased schema)
+1. Diff for an upgrade to a new composition version
+1. Additional output formats (e.g. gnu .diff) for programmatic consumption
 1. Integration with policy tools to evaluate changes against compliance rules
 1. Web UI visualization for complex differences
 1. Ability to save/export diffs for review or documentation purposes
@@ -180,4 +183,5 @@ While the initial implementation provides significant value, future enhancements
 1. **External diffing tool**: Building a completely separate tool outside of Crossplane. This would require duplicating 
    significant logic from crank and would be harder to maintain.
 1. **Server-side diffing**: Implementing diffing functionality server-side in Crossplane controllers. While this would 
-   potentially be more efficient, it would be more complex to implement and require some level of visualization.
+   potentially be more accurate and efficient, it would be more complex to implement and require changes to both the 
+   server and the CLI.  Isolating our changes to the CLI reduces the blast radius significantly.
