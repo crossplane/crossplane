@@ -76,9 +76,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
 	// TODO:  add a file output option
-	// TODO:  add unit test for claims (ITs work)
-	// todo:  cache XRDs when we get them in cluster client the first time
-	// TODO:  cleanup implementation of the split FindMatchingCompositions method(s)
 	// TODO:  make sure namespacing works everywhere
 	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field
 	// TODO:  diff against upgraded schema that isn't applied yet
