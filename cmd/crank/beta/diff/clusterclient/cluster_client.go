@@ -320,7 +320,7 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 		"gvk", gvk.String())
 
 	// First, check if this is a claim by looking for an XRD that defines this as a claim
-	isClaimType, xrdForClaim, err := c.isClaimType(gvk)
+	xrdForClaim, err := c.findClaimXRD(gvk)
 	if err != nil {
 		c.logger.Debug("Error checking if resource is claim type",
 			"resource", resourceID,
@@ -328,13 +328,12 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 		// Continue as if not a claim - we'll try normal composition matching
 	}
 
-	// TODO:  clean up the fallback here
 	// If it's a claim, we need to find compositions for the corresponding XR type
 	var targetGVK schema.GroupVersionKind
-	if isClaimType && xrdForClaim != nil {
+	if xrdForClaim != nil {
 		targetGVK, err = c.getXRTypeFromXRD(xrdForClaim, resourceID)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, "claim %s requires its XR type to find a composition", resourceID)
 		}
 	} else {
 		// Not a claim or couldn't determine XRD - use the actual resource GVK
@@ -363,48 +362,45 @@ func (c *DefaultClusterClient) getXRTypeFromXRD(xrdForClaim *unstructured.Unstru
 	xrGroup, found, _ := unstructured.NestedString(xrdForClaim.Object, "spec", "group")
 	xrKind, kindFound, _ := unstructured.NestedString(xrdForClaim.Object, "spec", "names", "kind")
 
-	if found && kindFound {
-		// First, check if the XRD defines a specific version
-		xrVersion := ""
-		versions, versionsFound, _ := unstructured.NestedSlice(xrdForClaim.Object, "spec", "versions")
-		if versionsFound && len(versions) > 0 {
-			// Try to get the first served & referenceable version
-			for _, versionObj := range versions {
-				if version, ok := versionObj.(map[string]interface{}); ok {
-					served, servedFound, _ := unstructured.NestedBool(version, "served")
-					ref, refFound, _ := unstructured.NestedBool(version, "referenceable")
-					if servedFound && refFound && served && ref {
-						if name, nameFound, _ := unstructured.NestedString(version, "name"); nameFound {
-							xrVersion = name
-							break
-						}
+	if !found || !kindFound {
+		return schema.GroupVersionKind{}, errors.New("could not determine group or kind from XRD")
+	}
+
+	// Find the referenceable version - there should be exactly one
+	xrVersion := ""
+	versions, versionsFound, _ := unstructured.NestedSlice(xrdForClaim.Object, "spec", "versions")
+	if versionsFound && len(versions) > 0 {
+		// Look for the one version that is marked referenceable
+		for _, versionObj := range versions {
+			if version, ok := versionObj.(map[string]interface{}); ok {
+				ref, refFound, _ := unstructured.NestedBool(version, "referenceable")
+				if refFound && ref {
+					name, nameFound, _ := unstructured.NestedString(version, "name")
+					if nameFound {
+						xrVersion = name
+						break
 					}
 				}
 			}
 		}
-
-		// TODO:  this seems like it needs to be fixed
-		// If no specific version found, use "v1"
-		if xrVersion == "" {
-			xrVersion = "v1"
-		}
-
-		targetGVK := schema.GroupVersionKind{
-			Group:   xrGroup,
-			Version: xrVersion,
-			Kind:    xrKind,
-		}
-
-		c.logger.Debug("Claim resource detected - targeting XR type for composition matching",
-			"claim", resourceID,
-			"targetXR", targetGVK.String())
-
-		return targetGVK, nil
 	}
 
-	c.logger.Debug("Found claim type but couldn't determine XR type from XRD",
-		"claim", resourceID)
-	return schema.GroupVersionKind{}, errors.New("cannot determine target XR type from XRD")
+	// If no referenceable version found, we shouldn't guess
+	if xrVersion == "" {
+		return schema.GroupVersionKind{}, errors.New("no referenceable version found in XRD")
+	}
+
+	targetGVK := schema.GroupVersionKind{
+		Group:   xrGroup,
+		Version: xrVersion,
+		Kind:    xrKind,
+	}
+
+	c.logger.Debug("Claim resource detected - targeting XR type for composition matching",
+		"claim", resourceID,
+		"targetXR", targetGVK.String())
+
+	return targetGVK, nil
 }
 
 // findByDirectReference attempts to find a composition directly referenced by name
@@ -525,8 +521,8 @@ func (c *DefaultClusterClient) findByTypeReference(targetGVK schema.GroupVersion
 	return compatibleCompositions[0], nil
 }
 
-// isClaimType checks if the given GVK is a claim type by looking for an XRD that defines it
-func (c *DefaultClusterClient) isClaimType(gvk schema.GroupVersionKind) (bool, *unstructured.Unstructured, error) {
+// findClaimXRD checks if the given GVK is a claim type and returns the corresponding XRD if found
+func (c *DefaultClusterClient) findClaimXRD(gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
 	c.logger.Debug("Checking if resource is a claim type",
 		"gvk", gvk.String())
 
@@ -535,7 +531,7 @@ func (c *DefaultClusterClient) isClaimType(gvk schema.GroupVersionKind) (bool, *
 	if err != nil {
 		c.logger.Debug("Error getting XRDs",
 			"error", err)
-		return false, nil, err
+		return nil, errors.Wrap(err, "cannot get XRDs")
 	}
 
 	// Loop through XRDs to find one that defines this GVK as a claim
@@ -562,10 +558,11 @@ func (c *DefaultClusterClient) isClaimType(gvk schema.GroupVersionKind) (bool, *
 			"gvk", gvk.String(),
 			"xrd", xrd.GetName())
 
-		return true, xrd, nil
+		return xrd, nil
 	}
 
-	return false, nil, nil
+	// No matching XRD found - not a claim type
+	return nil, nil
 }
 
 // Helper function to check if a composition is compatible with an XR's GVK

@@ -873,8 +873,8 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 						},
 						Spec: apiextensionsv1.CompositionSpec{
 							CompositeTypeRef: apiextensionsv1.TypeReference{
-								APIVersion: "example.org/v1",
-								Kind:       "XExampleResource", // This matches the XR defined in the XRD
+								APIVersion: "example.org/v2", // Match the referenceable version v2
+								Kind:       "XExampleResource",
 							},
 						},
 					},
@@ -899,7 +899,17 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 									map[string]interface{}{
 										"name":          "v1",
 										"served":        true,
-										"referenceable": true,
+										"referenceable": false,
+									},
+									map[string]interface{}{
+										"name":          "v2",
+										"served":        true,
+										"referenceable": true, // This is the version compositions should reference
+									},
+									map[string]interface{}{
+										"name":          "v3alpha1",
+										"served":        true,
+										"referenceable": false,
 									},
 								},
 							},
@@ -921,12 +931,73 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 					},
 					Spec: apiextensionsv1.CompositionSpec{
 						CompositeTypeRef: apiextensionsv1.TypeReference{
-							APIVersion: "example.org/v1",
+							APIVersion: "example.org/v2",
 							Kind:       "XExampleResource",
 						},
 					},
 				},
 				err: nil,
+			},
+		},
+		"ClaimResourceWithNoReferenceableVersion": {
+			reason: "Should return error when XRD has no referenceable version",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"matching-comp": {
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "matching-comp",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v1",
+								Kind:       "XExampleResource",
+							},
+						},
+					},
+				},
+				xrds: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xexampleresources.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind": "XExampleResource",
+								},
+								"claimNames": map[string]interface{}{
+									"kind": "ExampleResourceClaim",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":          "v1",
+										"served":        true,
+										"referenceable": false, // No referenceable version
+									},
+									map[string]interface{}{
+										"name":          "v2",
+										"served":        true,
+										"referenceable": false, // No referenceable version
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				res: tu.NewResource("example.org/v1", "ExampleResourceClaim", "test-claim").
+					WithSpecField("compositionRef", map[string]interface{}{
+						"name": "matching-comp",
+					}).
+					Build(),
+			},
+			want: want{
+				composition: nil,
+				err:         errors.New("no referenceable version found in XRD"), // Should fail with this error
 			},
 		},
 	}
