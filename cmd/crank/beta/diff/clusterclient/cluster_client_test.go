@@ -563,6 +563,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 
 	type fields struct {
 		compositions map[string]*apiextensionsv1.Composition
+		xrds         []*unstructured.Unstructured
 	}
 
 	type args struct {
@@ -625,16 +626,6 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 	versionMismatchComp := tu.NewComposition("version-mismatch-comp").
 		WithCompositeTypeRef("example.org/v2", "XR1").
 		Build()
-
-	// Create a fake dynamic client that can respond to XRD requests
-	fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
-
-	// Set up the dynamic client to return an empty list for XRD requests
-	fakeDynamicClient.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
-		return true, &unstructured.UnstructuredList{
-			Items: []unstructured.Unstructured{},
-		}, nil
-	})
 
 	tests := map[string]struct {
 		reason string
@@ -872,10 +863,89 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				err: errors.Errorf("no composition found for %s", "example.org/v1, Kind=XR1"),
 			},
 		},
+		"ClaimResource": {
+			reason: "Should find composition for a claim type by determining XR type from XRD",
+			fields: fields{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"matching-comp": {
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "matching-comp",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v1",
+								Kind:       "XExampleResource", // This matches the XR defined in the XRD
+							},
+						},
+					},
+				},
+				xrds: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "apiextensions.crossplane.io/v1",
+							"kind":       "CompositeResourceDefinition",
+							"metadata": map[string]interface{}{
+								"name": "xexampleresources.example.org",
+							},
+							"spec": map[string]interface{}{
+								"group": "example.org",
+								"names": map[string]interface{}{
+									"kind": "XExampleResource",
+								},
+								"claimNames": map[string]interface{}{
+									"kind": "ExampleResourceClaim",
+								},
+								"versions": []interface{}{
+									map[string]interface{}{
+										"name":          "v1",
+										"served":        true,
+										"referenceable": true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				res: tu.NewResource("example.org/v1", "ExampleResourceClaim", "test-claim").
+					WithSpecField("compositionRef", map[string]interface{}{
+						"name": "matching-comp",
+					}).
+					Build(),
+			},
+			want: want{
+				composition: &apiextensionsv1.Composition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "matching-comp",
+					},
+					Spec: apiextensionsv1.CompositionSpec{
+						CompositeTypeRef: apiextensionsv1.TypeReference{
+							APIVersion: "example.org/v1",
+							Kind:       "XExampleResource",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+
+			// Set up fake dynamic client with XRDs
+			fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
+			fakeDynamicClient.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				unstructuredList := &unstructured.UnstructuredList{}
+				if tc.fields.xrds != nil {
+					for _, xrd := range tc.fields.xrds {
+						unstructuredList.Items = append(unstructuredList.Items, *xrd)
+					}
+				}
+				return true, unstructuredList, nil
+			})
+
 			c := &DefaultClusterClient{
 				compositions:  tc.fields.compositions,
 				logger:        tu.TestLogger(t),
