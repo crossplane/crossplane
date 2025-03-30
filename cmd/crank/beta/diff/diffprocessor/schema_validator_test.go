@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"strings"
 	"testing"
 
@@ -15,6 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
+
+var _ cc.ClusterClient = (*tu.MockClusterClient)(nil)
 
 func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 	ctx := context.Background()
@@ -297,11 +300,16 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 		Build()
 
 	tests := map[string]struct {
-		setupClient func() *tu.MockClusterClient
-		expectedErr bool
+		setupClient    func() cc.ClusterClient
+		preloadedCRDs  []*extv1.CustomResourceDefinition
+		expectedErr    bool
+		expectedErrMsg string
+		// for caching tests
+		callTwice      bool // Test making two calls to LoadCRDs
+		expectXRDCalls int  // Expected number of calls to GetXRDs
 	}{
 		"SuccessfulLoad": {
-			setupClient: func() *tu.MockClusterClient {
+			setupClient: func() cc.ClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{xrdUn}).
 					Build()
@@ -309,12 +317,26 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 			expectedErr: false,
 		},
 		"XRDFetchError": {
-			setupClient: func() *tu.MockClusterClient {
+			setupClient: func() cc.ClusterClient {
 				return tu.NewMockClusterClient().
 					WithFailedXRDsFetch("failed to fetch XRDs").
 					Build()
 			},
 			expectedErr: true,
+		},
+		"UsesCachedXRDs": {
+			setupClient: func() cc.ClusterClient {
+				// Create a tracking client that counts GetXRDs calls
+				return &xrdCountingClient{
+					MockClusterClient: *tu.NewMockClusterClient().
+						WithSuccessfulXRDsFetch([]*unstructured.Unstructured{xrdUn}).
+						Build(),
+				}
+			},
+			preloadedCRDs:  nil, // No preloaded CRDs
+			expectedErr:    false,
+			callTwice:      true, // Make two calls to LoadCRDs
+			expectXRDCalls: 1,    // GetXRDs should only be called once due to caching
 		},
 	}
 
@@ -409,4 +431,16 @@ func MustToUnstructured(obj interface{}) map[string]interface{} {
 		panic(err)
 	}
 	return u
+}
+
+// Helper type to track GetXRDs calls
+type xrdCountingClient struct {
+	tu.MockClusterClient
+	getXRDsCallCount int
+}
+
+// Override GetXRDs to count calls
+func (c *xrdCountingClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+	c.getXRDsCallCount++
+	return c.MockClusterClient.GetXRDs(ctx)
 }

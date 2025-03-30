@@ -66,17 +66,26 @@ type ClusterClient interface {
 
 // DefaultClusterClient handles all interactions with the Kubernetes cluster.
 type DefaultClusterClient struct {
-	dynamicClient          dynamic.Interface
-	xrmClient              *xrm.Client
-	discoveryClient        discovery.DiscoveryInterface
-	compositions           map[string]*apiextensionsv1.Composition
-	functions              map[string]pkgv1.Function
-	logger                 logging.Logger
+	dynamicClient   dynamic.Interface
+	xrmClient       *xrm.Client
+	discoveryClient discovery.DiscoveryInterface
+	compositions    map[string]*apiextensionsv1.Composition
+	functions       map[string]pkgv1.Function
+	logger          logging.Logger
+
+	// Resource caching
 	resourceMap            map[schema.GroupVersionKind]bool
 	resourceMapMutex       sync.RWMutex
 	resourceMapInitialized bool
-	gvkToGVRMap            map[schema.GroupVersionKind]schema.GroupVersionResource
-	gvkToGVRMutex          sync.RWMutex
+
+	// GVK caching
+	gvkToGVRMap   map[schema.GroupVersionKind]schema.GroupVersionResource
+	gvkToGVRMutex sync.RWMutex
+
+	// XRD caching
+	xrds       []*unstructured.Unstructured
+	xrdsMutex  sync.RWMutex
+	xrdsLoaded bool
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
@@ -183,6 +192,14 @@ func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 	// Process functions
 	for i := range functions {
 		c.functions[functions[i].GetName()] = functions[i]
+	}
+
+	// Preload XRDs to populate the cache
+	_, err = c.GetXRDs(ctx)
+	if err != nil {
+		c.logger.Debug("Failed to preload XRDs",
+			"error", err)
+		return errors.Wrap(err, "Failed to preload XRDs")
 	}
 
 	c.logger.Debug("Cluster client initialization complete",
@@ -695,7 +712,27 @@ func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Funct
 }
 
 func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error) {
-	c.logger.Debug("Getting XRDs from cluster")
+	// Check if XRDs are already loaded
+	c.xrdsMutex.RLock()
+	if c.xrdsLoaded {
+		xrds := c.xrds
+		c.xrdsMutex.RUnlock()
+		c.logger.Debug("Using cached XRDs", "count", len(xrds))
+		return xrds, nil
+	}
+	c.xrdsMutex.RUnlock()
+
+	// Need to load XRDs
+	c.xrdsMutex.Lock()
+	defer c.xrdsMutex.Unlock()
+
+	// Double-check now that we have the write lock
+	if c.xrdsLoaded {
+		c.logger.Debug("Using cached XRDs (after recheck)", "count", len(c.xrds))
+		return c.xrds, nil
+	}
+
+	c.logger.Debug("Fetching XRDs from cluster")
 
 	// Create a dynamic resource interface for XRDs
 	xrdsGVR := schema.GroupVersionResource{
@@ -722,7 +759,11 @@ func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Uns
 		result[i] = &items[i]
 	}
 
-	c.logger.Debug("Successfully retrieved XRDs", "count", len(result))
+	// Cache the result
+	c.xrds = result
+	c.xrdsLoaded = true
+
+	c.logger.Debug("Successfully retrieved and cached XRDs", "count", len(result))
 	return result, nil
 }
 

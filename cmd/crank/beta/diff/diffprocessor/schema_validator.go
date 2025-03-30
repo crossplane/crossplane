@@ -44,7 +44,7 @@ func NewSchemaValidator(client cc.ClusterClient, logger logging.Logger) SchemaVa
 func (v *DefaultSchemaValidator) LoadCRDs(ctx context.Context) error {
 	v.logger.Debug("Loading CRDs from cluster")
 
-	// Fetch XRDs from cluster
+	// Get XRDs from the client (which will use its cache when available)
 	xrds, err := v.client.GetXRDs(ctx)
 	if err != nil {
 		v.logger.Debug("Failed to get XRDs", "error", err)
@@ -59,7 +59,7 @@ func (v *DefaultSchemaValidator) LoadCRDs(ctx context.Context) error {
 	}
 
 	v.crds = crds
-	v.logger.Debug("Loaded CRDs from cluster", "count", len(crds))
+	v.logger.Debug("Loaded CRDs", "count", len(crds))
 	return nil
 }
 

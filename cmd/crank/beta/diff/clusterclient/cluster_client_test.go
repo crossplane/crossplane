@@ -164,6 +164,8 @@ func TestClusterClient_Initialize(t *testing.T) {
 		compositions map[string]*apiextensionsv1.Composition
 		functions    map[string]pkgv1.Function
 		err          error
+		// XRD cache state
+		xrdsLoaded bool
 	}
 
 	cases := map[string]struct {
@@ -291,6 +293,104 @@ func TestClusterClient_Initialize(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errors.New("function list error"), "cannot list functions from cluster"), "cannot list functions"),
 			},
 		},
+		"PreloadsXRDs": {
+			reason: "Should preload XRDs during initialization",
+			setup: func() dynamic.Interface {
+				// Create test XRDs
+				xrd1 := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
+					WithSpecField("group", "example.org").
+					WithSpecField("names", map[string]interface{}{
+						"kind":     "XR1",
+						"plural":   "xr1s",
+						"singular": "xr1",
+					}).
+					Build()
+
+				// Setup dynamic client to return compositions, functions, and XRDs
+				objects := []runtime.Object{
+					// Composition
+					tu.NewResource("apiextensions.crossplane.io/v1", "Composition", "comp1").
+						WithSpecField("compositeTypeRef", map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "XR1",
+						}).
+						Build(),
+					// Function
+					tu.NewResource("pkg.crossplane.io/v1", "Function", "func1").Build(),
+					// XRD
+					xrd1,
+				}
+
+				return fake.NewSimpleDynamicClient(scheme, objects...)
+			},
+			args: args{
+				ctx: context.Background(),
+			},
+			want: want{
+				compositions: map[string]*apiextensionsv1.Composition{
+					"comp1": {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "apiextensions.crossplane.io/v1",
+							Kind:       "Composition",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "comp1",
+						},
+						Spec: apiextensionsv1.CompositionSpec{
+							CompositeTypeRef: apiextensionsv1.TypeReference{
+								APIVersion: "example.org/v1",
+								Kind:       "XR1",
+							},
+						},
+					},
+				},
+				functions: map[string]pkgv1.Function{
+					"func1": {
+						TypeMeta: metav1.TypeMeta{
+							APIVersion: "pkg.crossplane.io/v1",
+							Kind:       "Function",
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "func1",
+						},
+					},
+				},
+				err:        nil,
+				xrdsLoaded: true, // XRDs should be loaded after initialization
+			},
+		},
+		"XRDsFetchError": {
+			reason: "Should fail initialization when XRDs cannot be loaded",
+			setup: func() dynamic.Interface {
+				// Set up dynamic client to return compositions and functions successfully
+				objects := []runtime.Object{
+					// Add a test composition
+					tu.NewResource("apiextensions.crossplane.io/v1", "Composition", "test-comp").
+						WithSpecField("compositeTypeRef", map[string]interface{}{
+							"apiVersion": "example.org/v1",
+							"kind":       "XR1",
+						}).
+						Build(),
+					// Add a test function
+					tu.NewResource("pkg.crossplane.io/v1", "Function", "test-func").Build(),
+				}
+
+				dc := fake.NewSimpleDynamicClient(scheme, objects...)
+
+				// But make XRD fetch fail
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					return true, nil, errors.New("failed to fetch XRDs")
+				})
+
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errors.New("failed to fetch XRDs"), "cannot list XRDs"), "Failed to preload XRDs"),
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -317,6 +417,11 @@ func TestClusterClient_Initialize(t *testing.T) {
 			if err != nil {
 				t.Errorf("\n%s\nInitialize(...): unexpected error: %v", tc.reason, err)
 				return
+			}
+
+			// Check if XRDs were loaded if expected
+			if tc.want.xrdsLoaded && !c.xrdsLoaded {
+				t.Errorf("\n%s\nInitialize(...): expected XRDs to be loaded, but they weren't", tc.reason)
 			}
 
 			if diff := cmp.Diff(len(tc.want.compositions), len(c.compositions)); diff != "" {
@@ -1322,6 +1427,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 	}
 }
 
+// Modify the existing TestClusterClient_GetXRDs to add caching test cases
 func TestClusterClient_GetXRDs(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = pkgv1.AddToScheme(scheme)
@@ -1336,11 +1442,33 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 		err  error
 	}
 
+	// Create test XRDs for our test cases
+	xrd1 := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
+		WithSpecField("group", "example.org").
+		WithSpecField("names", map[string]interface{}{
+			"kind":     "XR1",
+			"plural":   "xr1s",
+			"singular": "xr1",
+		}).
+		Build()
+
+	xrd2 := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd2").
+		WithSpecField("group", "example.org").
+		WithSpecField("names", map[string]interface{}{
+			"kind":     "XR2",
+			"plural":   "xr2s",
+			"singular": "xr2",
+		}).
+		Build()
+
 	tests := map[string]struct {
 		reason string
 		setup  func() dynamic.Interface
 		args   args
 		want   want
+		// for caching tests
+		secondCall   bool // Whether to make a second call to GetXRDs
+		apiCallCount int  // Expected API call count after test
 	}{
 		"NoXRDsFound": {
 			reason: "Should return empty slice when no XRDs exist",
@@ -1363,46 +1491,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 			setup: func() dynamic.Interface {
 				objects := []runtime.Object{
 					// Use resource builders for XRDs
-					tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xr1s.example.org").
-						WithSpecField("group", "example.org").
-						WithSpecField("names", map[string]interface{}{
-							"kind":     "XR1",
-							"plural":   "xr1s",
-							"singular": "xr1",
-						}).
-						WithSpecField("versions", []interface{}{
-							map[string]interface{}{
-								"name":    "v1",
-								"served":  true,
-								"storage": true,
-								"schema": map[string]interface{}{
-									"openAPIV3Schema": map[string]interface{}{
-										"type": "object",
-										"properties": map[string]interface{}{
-											"spec": map[string]interface{}{
-												"type": "object",
-											},
-										},
-									},
-								},
-							},
-						}).
-						Build(),
-					tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xr2s.example.org").
-						WithSpecField("group", "example.org").
-						WithSpecField("names", map[string]interface{}{
-							"kind":     "XR2",
-							"plural":   "xr2s",
-							"singular": "xr2",
-						}).
-						WithSpecField("versions", []interface{}{
-							map[string]interface{}{
-								"name":    "v1",
-								"served":  true,
-								"storage": true,
-							},
-						}).
-						Build(),
+					xrd1, xrd2,
 				}
 				return fake.NewSimpleDynamicClient(scheme, objects...)
 			},
@@ -1411,46 +1500,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 			},
 			want: want{
 				xrds: []*unstructured.Unstructured{
-					tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xr1s.example.org").
-						WithSpecField("group", "example.org").
-						WithSpecField("names", map[string]interface{}{
-							"kind":     "XR1",
-							"plural":   "xr1s",
-							"singular": "xr1",
-						}).
-						WithSpecField("versions", []interface{}{
-							map[string]interface{}{
-								"name":    "v1",
-								"served":  true,
-								"storage": true,
-								"schema": map[string]interface{}{
-									"openAPIV3Schema": map[string]interface{}{
-										"type": "object",
-										"properties": map[string]interface{}{
-											"spec": map[string]interface{}{
-												"type": "object",
-											},
-										},
-									},
-								},
-							},
-						}).
-						Build(),
-					tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xr2s.example.org").
-						WithSpecField("group", "example.org").
-						WithSpecField("names", map[string]interface{}{
-							"kind":     "XR2",
-							"plural":   "xr2s",
-							"singular": "xr2",
-						}).
-						WithSpecField("versions", []interface{}{
-							map[string]interface{}{
-								"name":    "v1",
-								"served":  true,
-								"storage": true,
-							},
-						}).
-						Build(),
+					xrd1, xrd2,
 				},
 			},
 		},
@@ -1461,9 +1511,11 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 					map[schema.GroupVersionResource]string{
 						{Group: "apiextensions.crossplane.io", Version: "v1", Resource: "compositeresourcedefinitions"}: "CompositeResourceDefinitionList",
 					})
+
 				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("list error")
 				})
+
 				return dc
 			},
 			args: args{
@@ -1473,17 +1525,75 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				err: errors.Wrap(errors.New("list error"), "cannot list XRDs"),
 			},
 		},
+
+		// Add new test cases for caching
+		"CachesXRDsCorrectly": {
+			reason: "Should cache XRDs after first call and not make additional API requests",
+			setup: func() dynamic.Interface {
+				// Setup dynamic client to return our XRDs
+				objects := []runtime.Object{xrd1, xrd2}
+				dc := fake.NewSimpleDynamicClient(scheme, objects...)
+
+				// *Important*: Create a list reactor that can be tracked
+				// We must use PrependReactor instead of just counting total actions at the end
+				// because the list happens inside the GetXRDs method
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					// Don't handle the reaction, just pass through
+					return false, nil, nil
+				})
+
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+			},
+			want: want{
+				xrds: []*unstructured.Unstructured{xrd1, xrd2},
+				err:  nil,
+			},
+			secondCall:   true, // Make a second call to test caching
+			apiCallCount: 1,    // Should only make one API call despite two GetXRDs calls
+		},
+		"EmptyCacheNoError": {
+			reason: "Should cache empty XRD list without error",
+			setup: func() dynamic.Interface {
+				// Return empty list, but prepare a reactor to track the call
+				dc := fake.NewSimpleDynamicClient(scheme)
+
+				// Prepend a reactor to track API calls
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+					// Don't handle the reaction, just pass through
+					return false, nil, nil
+				})
+
+				return dc
+			},
+			args: args{
+				ctx: context.Background(),
+			},
+			want: want{
+				xrds: []*unstructured.Unstructured{},
+				err:  nil,
+			},
+			secondCall:   true, // Make a second call to test caching
+			apiCallCount: 1,    // Should only make one API call despite two GetXRDs calls
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			// Create client setup
+			dc := tc.setup()
+
 			c := &DefaultClusterClient{
-				dynamicClient: tc.setup(),
+				dynamicClient: dc,
 				logger:        tu.TestLogger(t),
 			}
 
+			// First call to GetXRDs
 			got, err := c.GetXRDs(tc.args.ctx)
 
+			// Handle error check and verification of first call results
 			if tc.want.err != nil {
 				if err == nil {
 					t.Errorf("\n%s\nGetXRDs(...): expected error but got none", tc.reason)
@@ -1501,6 +1611,42 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				return
 			}
 
+			// For caching test, verify cache state and make a second call if needed
+			if tc.secondCall {
+				// Verify cache is populated
+				if !c.xrdsLoaded {
+					t.Errorf("\n%s\nGetXRDs(...): cache not marked as loaded after first call", tc.reason)
+				}
+
+				// Make second call to test cache
+				gotSecond, errSecond := c.GetXRDs(tc.args.ctx)
+
+				// Verify second call succeeds
+				if errSecond != nil {
+					t.Errorf("\n%s\nGetXRDs(...): second call unexpected error: %v", tc.reason, errSecond)
+					return
+				}
+
+				// Verify second call returns same count of XRDs
+				if len(got) != len(gotSecond) {
+					t.Errorf("\n%s\nGetXRDs(...): second call returned %d XRDs, first call returned %d", tc.reason, len(gotSecond), len(got))
+				}
+
+				// Count the actual number of "list" actions in the tracker
+				apiCalls := 0
+				for _, action := range dc.(*fake.FakeDynamicClient).Fake.Actions() {
+					if action.GetVerb() == "list" && action.GetResource().Resource == "compositeresourcedefinitions" {
+						apiCalls++
+					}
+				}
+
+				// Verify API call count
+				if tc.apiCallCount > 0 && apiCalls != tc.apiCallCount {
+					t.Errorf("\n%s\nGetXRDs(...): expected %d API calls, got %d", tc.reason, tc.apiCallCount, apiCalls)
+				}
+			}
+
+			// Verify the returned XRD count matches what's expected
 			if diff := cmp.Diff(len(tc.want.xrds), len(got)); diff != "" {
 				t.Errorf("\n%s\nGetXRDs(...): -want xrd count, +got xrd count:\n%s", tc.reason, diff)
 			}
