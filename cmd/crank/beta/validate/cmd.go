@@ -84,7 +84,8 @@ Examples:
   # cache directory and clean the cache directory before downloading schemas
   crossplane beta validate extensionsDir/ resourceDir/ --cache-dir .cache --clean-cache
   
-  # Validate resources with old resources
+  # Validate all resources in the resourceDir folder against the extensions in the extensionDir folder, and use resources
+  # in the oldResourceDir folder for CEL validation that require previous state.
   crossplane beta validate extensionsDir/ resourceDir/ --old-resources oldResourceDir/
 `
 }
