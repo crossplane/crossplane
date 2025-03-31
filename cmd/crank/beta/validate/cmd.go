@@ -41,11 +41,12 @@ type Cmd struct {
 	Resources  string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags. Keep them in alphabetical order.
-	CacheDir           string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."`
-	CleanCache         bool   `help:"Clean the cache directory before downloading package schemas."`
-	CrossplaneImage    string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
-	OldResources       string `help:"Old Resources source which can be a file, directory."`
-	SkipSuccessResults bool   `help:"Skip printing success results."`
+	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."`
+	CleanCache            bool   `help:"Clean the cache directory before downloading package schemas."`
+	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
+	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
+	OldResources          string `help:"Old Resources source which can be a file, directory."`
+	SkipSuccessResults    bool   `help:"Skip printing success results."`
 
 	fs afero.Fs
 }
@@ -82,7 +83,7 @@ Examples:
   # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder using provided
   # cache directory and clean the cache directory before downloading schemas
   crossplane beta validate extensionsDir/ resourceDir/ --cache-dir .cache --clean-cache
-
+  
   # Validate resources with old resources
   crossplane beta validate extensionsDir/ resourceDir/ --old-resources oldResourceDir/
 `
