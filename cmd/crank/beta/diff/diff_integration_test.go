@@ -12,6 +12,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"
 	"path/filepath"
+	run "runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"strconv"
 	"strings"
@@ -739,12 +740,15 @@ Summary: 2 modified`,
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Setup a brand new test environment for each test case
+			_, thisFile, _, _ := run.Caller(0)
+			thisDir := filepath.Dir(thisFile)
+
 			testEnv := &envtest.Environment{
 				CRDDirectoryPaths: []string{
-					filepath.Join("..", "..", "..", "..", "cluster", "crds"),
-					filepath.Join("testdata", "diff", "crds"),
+					filepath.Join(thisDir, "..", "..", "..", "..", "cluster", "crds"),
+					filepath.Join(thisDir, "testdata", "diff", "crds"),
 				},
-				ErrorIfCRDPathMissing: false,
+				ErrorIfCRDPathMissing: true,
 				Scheme:                scheme,
 			}
 

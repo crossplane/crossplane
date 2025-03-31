@@ -213,10 +213,23 @@ go-build-e2e:
 
 # go-test runs Go unit tests.
 go-test:
+  ARG KUBE_VERSION=1.30.3
   FROM +go-modules
+  DO github.com/earthly/lib+INSTALL_DIND
   CACHE --id go-build --sharing shared /root/.cache/go-build
-  COPY --dir apis/ cmd/ internal/ pkg/ .
-  RUN go test -covermode=count -coverprofile=coverage.txt ./...
+  COPY --dir apis/ cmd/ internal/ pkg/ cluster/ .
+  COPY --dir +envtest-setup/envtest /usr/local/kubebuilder/bin
+  # a bit dirty but preload the cache with the images we use in IT (found in functions.yaml)
+  WITH DOCKER \
+    --pull xpkg.upbound.io/crossplane-contrib/function-go-templating:v0.9.0 \
+    --pull xpkg.upbound.io/crossplane-contrib/function-auto-ready:v0.4.2 \
+    --pull xpkg.upbound.io/crossplane-contrib/function-environment-configs:v0.2.0 \
+    --pull xpkg.upbound.io/crossplane-contrib/function-extra-resources:v0.0.3
+    # this is silly, but we put these files into the default KUBEBUILDER_ASSETS location, because if we set
+    # KUBEBUILDER_ASSETS on `go test` to the artifact path, which is perhaps more intuitive, the syntax highlighting
+    # in intellij breaks due to the word BUILD in all caps.
+    RUN go test -covermode=count -coverprofile=coverage.txt ./...
+  END
   SAVE ARTIFACT coverage.txt AS LOCAL _output/tests/coverage.txt
 
 # go-lint lints Go code.
@@ -298,6 +311,18 @@ helm-build:
   RUN helm dependency update
   RUN helm package --version ${CROSSPLANE_CHART_VERSION} --app-version ${CROSSPLANE_CHART_VERSION} -d output .
   SAVE ARTIFACT output AS LOCAL _output/charts
+
+# envtest-setup is used by other targets to setup envtest.
+envtest-setup:
+  ARG KUBE_VERSION=1.30.3
+  ARG TARGETOS
+  ARG TARGETARCH
+  FROM +go-modules
+  CACHE --id go-build --sharing shared /root/.cache/go-build
+  # pin for golang 1.23.  when upgrading to 1.24, upgrade this version to latest(ish):
+  RUN go install sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.20
+  RUN setup-envtest use ${KUBE_VERSION} --os ${TARGETOS} --arch ${TARGETARCH} --bin-dir ./envtest
+  SAVE ARTIFACT ./envtest/k8s/${KUBE_VERSION}-${TARGETOS}-${TARGETARCH} ./envtest
 
 # kubectl-setup is used by other targets to setup kubectl.
 kubectl-setup:
