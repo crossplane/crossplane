@@ -95,7 +95,7 @@ func (m *MockNamespaceableResourceInterface) Update(ctx context.Context, obj *un
 }
 
 // UpdateStatus implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) UpdateStatus(_ context.Context, _ *unstructured.Unstructured, _ metav1.UpdateOptions) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
@@ -108,7 +108,7 @@ func (m *MockNamespaceableResourceInterface) Delete(ctx context.Context, name st
 }
 
 // DeleteCollection implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (m *MockNamespaceableResourceInterface) DeleteCollection(_ context.Context, _ metav1.DeleteOptions, _ metav1.ListOptions) error {
 	return nil
 }
 
@@ -129,7 +129,7 @@ func (m *MockNamespaceableResourceInterface) List(ctx context.Context, opts meta
 }
 
 // Watch implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+func (m *MockNamespaceableResourceInterface) Watch(_ context.Context, _ metav1.ListOptions) (watch.Interface, error) {
 	return nil, nil
 }
 
@@ -142,12 +142,12 @@ func (m *MockNamespaceableResourceInterface) Patch(ctx context.Context, name str
 }
 
 // Apply implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) Apply(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions, _ ...string) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
 // ApplyStatus implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) ApplyStatus(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) ApplyStatus(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
@@ -178,7 +178,7 @@ func (m *MockResourceInterface) Update(ctx context.Context, obj *unstructured.Un
 }
 
 // UpdateStatus implements dynamic.ResourceInterface
-func (m *MockResourceInterface) UpdateStatus(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) UpdateStatus(_ context.Context, _ *unstructured.Unstructured, _ metav1.UpdateOptions) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
@@ -191,7 +191,7 @@ func (m *MockResourceInterface) Delete(ctx context.Context, name string, options
 }
 
 // DeleteCollection implements dynamic.ResourceInterface
-func (m *MockResourceInterface) DeleteCollection(ctx context.Context, options metav1.DeleteOptions, listOptions metav1.ListOptions) error {
+func (m *MockResourceInterface) DeleteCollection(_ context.Context, _ metav1.DeleteOptions, _ metav1.ListOptions) error {
 	return nil
 }
 
@@ -212,7 +212,7 @@ func (m *MockResourceInterface) List(ctx context.Context, opts metav1.ListOption
 }
 
 // Watch implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+func (m *MockResourceInterface) Watch(_ context.Context, _ metav1.ListOptions) (watch.Interface, error) {
 	return nil, nil
 }
 
@@ -225,12 +225,12 @@ func (m *MockResourceInterface) Patch(ctx context.Context, name string, pt types
 }
 
 // Apply implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Apply(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) Apply(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions, _ ...string) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
 // ApplyStatus implements dynamic.ResourceInterface
-func (m *MockResourceInterface) ApplyStatus(ctx context.Context, name string, obj *unstructured.Unstructured, options metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) ApplyStatus(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions) (*unstructured.Unstructured, error) {
 	return nil, nil
 }
 
@@ -381,7 +381,7 @@ func (m *MockLoader) Load() ([]*unstructured.Unstructured, error) {
 	return m.Resources, m.Err
 }
 
-// Helper type for mocking providers
+// MockExtraResourceProvider Helper type for mocking providers
 type MockExtraResourceProvider struct {
 	GetExtraResourcesFn func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
 }
@@ -390,7 +390,7 @@ func (m *MockExtraResourceProvider) GetExtraResources(ctx context.Context, comp 
 	return m.GetExtraResourcesFn(ctx, comp, xr, resources)
 }
 
-// Mock schema validator
+// MockSchemaValidator Mock schema validator
 type MockSchemaValidator struct {
 	ValidateResourcesFn func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error
 }
@@ -402,7 +402,7 @@ func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *unstruc
 	return nil
 }
 
-// Implement other required methods of the SchemaValidator interface
-func (m *MockSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) error {
+// EnsureComposedResourceCRDs Implement other required methods of the SchemaValidator interface
+func (m *MockSchemaValidator) EnsureComposedResourceCRDs(_ context.Context, _ []*unstructured.Unstructured) error {
 	return nil
 }

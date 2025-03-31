@@ -467,7 +467,7 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 	resKey := fmt.Sprintf("%s/%s", resKind, resName)
 
 	// Track all modifications for a single consolidated log message
-	modifications := []string{}
+	var modifications []string
 
 	// Remove server-side fields and metadata that we don't want to diff
 	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
@@ -510,7 +510,7 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 		}
 
 		// Track which fields were actually removed for debugging
-		removedFields := []string{}
+		var removedFields []string
 		for _, field := range fieldsToRemove {
 			if _, exists := metadata[field]; exists {
 				delete(metadata, field)
@@ -523,7 +523,7 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 			modifications = append(modifications, fmt.Sprintf("metadata fields: %s", strings.Join(removedFields, ", ")))
 		}
 
-		unstructured.SetNestedMap(obj.Object, metadata, "metadata")
+		_ = unstructured.SetNestedMap(obj.Object, metadata, "metadata")
 	}
 
 	// Remove resourceRefs field from spec if it exists
@@ -534,7 +534,7 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 			modifications = append(modifications, "resourceRefs from spec")
 		}
 
-		unstructured.SetNestedMap(obj.Object, spec, "spec")
+		_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
 	}
 
 	// Remove status field as we're focused on spec changes

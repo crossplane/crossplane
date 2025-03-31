@@ -18,7 +18,7 @@ const (
 	ColorReset = "\x1b[0m"
 )
 
-// green takes a multiline string, splits it by line, and adds green coloring to each line.
+// Green takes a multiline string, splits it by line, and adds green coloring to each line.
 // It returns a single string with all lines joined back together.
 func Green(input string) string {
 	lines := strings.Split(input, "\n")
@@ -36,7 +36,7 @@ func Green(input string) string {
 	return strings.Join(coloredLines, "\n")
 }
 
-// red takes a multiline string, splits it by line, and adds red coloring to each line.
+// Red takes a multiline string, splits it by line, and adds red coloring to each line.
 // It returns a single string with all lines joined back together.
 func Red(input string) string {
 	lines := strings.Split(input, "\n")

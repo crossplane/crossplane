@@ -425,47 +425,6 @@ func (b *DiffProcessorBuilder) Build() *MockDiffProcessor {
 }
 
 // ======================================================================================
-// ExtraResourceProvider Mock Builder
-// ======================================================================================
-
-// ExtraResourceProviderBuilder helps build mock ExtraResourceProvider instances.
-type ExtraResourceProviderBuilder struct {
-	mock *MockExtraResourceProvider
-}
-
-// NewMockExtraResourceProvider creates a new ExtraResourceProviderBuilder.
-func NewMockExtraResourceProvider() *ExtraResourceProviderBuilder {
-	return &ExtraResourceProviderBuilder{
-		mock: &MockExtraResourceProvider{},
-	}
-}
-
-// WithGetExtraResources adds an implementation for the GetExtraResources method.
-func (b *ExtraResourceProviderBuilder) WithGetExtraResources(fn func(context.Context, *apiextensionsv1.Composition, *unstructured.Unstructured, []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)) *ExtraResourceProviderBuilder {
-	b.mock.GetExtraResourcesFn = fn
-	return b
-}
-
-// WithSuccessfulExtraResourcesFetch sets a successful GetExtraResources implementation.
-func (b *ExtraResourceProviderBuilder) WithSuccessfulExtraResourcesFetch(resources []*unstructured.Unstructured) *ExtraResourceProviderBuilder {
-	return b.WithGetExtraResources(func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, existing []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-		return resources, nil
-	})
-}
-
-// WithFailedExtraResourcesFetch sets a failing GetExtraResources implementation.
-func (b *ExtraResourceProviderBuilder) WithFailedExtraResourcesFetch(errMsg string) *ExtraResourceProviderBuilder {
-	return b.WithGetExtraResources(func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, existing []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-		return nil, errors.New(errMsg)
-	})
-}
-
-// Build creates and returns the configured mock ExtraResourceProvider.
-func (b *ExtraResourceProviderBuilder) Build() *MockExtraResourceProvider {
-	return b.mock
-}
-
-// ======================================================================================
 // Resource Building Helpers
 // ======================================================================================
 
@@ -611,7 +570,7 @@ func (b *ResourceBuilder) Build() *unstructured.Unstructured {
 	return b.resource.DeepCopy()
 }
 
-// BuildUcomposite returns the built unstructured resource as a *ucomposite.Unstructured.
+// BuildUComposite returns the built unstructured resource as a *ucomposite.Unstructured.
 func (b *ResourceBuilder) BuildUComposite() *ucomposite.Unstructured {
 	built := &ucomposite.Unstructured{}
 	built.SetUnstructuredContent(b.Build().UnstructuredContent())
@@ -689,9 +648,4 @@ func (b *CompositionBuilder) WithPipelineStep(step, functionName string, input m
 // Build returns the built Composition.
 func (b *CompositionBuilder) Build() *apiextensionsv1.Composition {
 	return b.composition.DeepCopy()
-}
-
-// Helper function to create a pointer to a CompositionMode
-func ComposePtr(mode apiextensionsv1.CompositionMode) *apiextensionsv1.CompositionMode {
-	return &mode
 }

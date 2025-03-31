@@ -28,7 +28,7 @@ var _ DiffProcessor = &tu.MockDiffProcessor{}
 
 func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 	// Setup test context
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create test resources
 	resource1 := tu.NewResource("example.org/v1", "XR1", "my-xr-1").
@@ -55,9 +55,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 
 	// Test cases
 	tests := map[string]struct {
-		client          func() *tu.MockClusterClient
-		resources       []*unstructured.Unstructured
-		mockRender      func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
+		client    func() *tu.MockClusterClient
+		resources []*unstructured.Unstructured
+		//mockRender      func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
+		processorOpts   []ProcessorOption
 		verifyOutput    func(t *testing.T, output string)
 		want            error
 		validationError bool
@@ -135,7 +136,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithSuccessfulFunctionsFetch(functions).
 					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
 					WithResourcesExist(resource1, composedResource). // Add resources to existing resources
-					WithComposedResourcesByOwner(composedResource).  // Add composed resource lookup by owner
+					WithComposedResourcesByOwner(composedResource). // Add composed resource lookup by owner
 					WithSuccessfulDryRun().
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					// Add this line to make test resources not require CRDs:
@@ -143,17 +144,19 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					Build()
 			},
 			resources: []*unstructured.Unstructured{resource1},
-			mockRender: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
-				return render.Outputs{
-					CompositeResource: in.CompositeResource,
-					ComposedResources: []composed.Unstructured{
-						{
-							Unstructured: unstructured.Unstructured{
-								Object: composedResource.Object,
+			processorOpts: []ProcessorOption{
+				WithRenderFunc(func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{
+								Unstructured: unstructured.Unstructured{
+									Object: composedResource.Object,
+								},
 							},
 						},
-					},
-				}, nil
+					}, nil
+				}),
 			},
 			verifyOutput: func(t *testing.T, output string) {
 				// We should have some output from the diff
@@ -168,7 +171,6 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			},
 			want: nil,
 		},
-		// Add this test case to the tests map in TestDefaultDiffProcessor_PerformDiff
 		"ValidationError": {
 			client: func() *tu.MockClusterClient {
 				// Create mock functions that render will call successfully
@@ -193,18 +195,20 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					Build()
 			},
 			resources: []*unstructured.Unstructured{resource1},
-			mockRender: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
-				// Return valid render outputs
-				return render.Outputs{
-					CompositeResource: in.CompositeResource,
-					ComposedResources: []composed.Unstructured{
-						{
-							Unstructured: unstructured.Unstructured{
-								Object: composedResource.Object,
+			processorOpts: []ProcessorOption{
+				WithRenderFunc(func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+					// Return valid render outputs
+					return render.Outputs{
+						CompositeResource: in.CompositeResource,
+						ComposedResources: []composed.Unstructured{
+							{
+								Unstructured: unstructured.Unstructured{
+									Object: composedResource.Object,
+								},
 							},
 						},
-					},
-				}, nil
+					}, nil
+				}),
 			},
 			want:            errors.New("unable to process resource XR1/my-xr-1: cannot validate resources: validation error"),
 			validationError: true,
@@ -215,43 +219,33 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Create components for testing
 			mockClient := tt.client()
-			logger := tu.TestLogger(t)
 
-			// Create a mock schema validator that always succeeds
-			mockSchemaValidator := &tu.MockSchemaValidator{
-				ValidateResourcesFn: func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
-					if tt.validationError {
-						return errors.New("validation error")
-					}
-					return nil // Always succeed
-				},
+			// Add common options
+			options := []ProcessorOption{
+				WithLogger(tu.TestLogger(t)),
+				WithRestConfig(&rest.Config{}),
+				WithSchemaValidatorFactory(
+					// Create a mock schema validator that succeeds unless we request an error
+					func(client cc.ClusterClient, logger logging.Logger) SchemaValidator {
+						return &tu.MockSchemaValidator{
+							ValidateResourcesFn: func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+								if tt.validationError {
+									return errors.New("validation error")
+								}
+								return nil // succeed
+							},
+						}
+					},
+				),
 			}
+			options = append(options, tt.processorOpts...)
 
-			// Create mock components for the processor
-			resourceManager := NewResourceManager(mockClient, logger)
-			schemaValidator := mockSchemaValidator
-			diffOptions := DefaultDiffOptions()
-			diffCalculator := NewDiffCalculator(mockClient, resourceManager, logger, diffOptions)
-			diffRenderer := NewDiffRenderer(logger, diffOptions)
-
-			// Create the processor with test components
-			processor, err := CreateTestProcessor(
-				mockClient,
-				resourceManager,
-				schemaValidator,
-				diffCalculator,
-				diffRenderer,
-				tt.mockRender,
-				logger,
-			)
-			if err != nil {
-				t.Fatalf("Failed to create processor: %v", err)
-			}
+			processor, _ := NewDiffProcessor(mockClient, options...)
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
 
-			err = processor.PerformDiff(&stdout, ctx, tt.resources)
+			err := processor.PerformDiff(&stdout, ctx, tt.resources)
 
 			if tt.want != nil {
 				if err == nil {
@@ -274,7 +268,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 
 func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 	// Setup test context
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create test resources
 	xrd1 := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
@@ -328,28 +322,15 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 			mockClient := tc.client()
 			logger := tu.TestLogger(t)
 
-			// Create mock components for the processor
-			resourceManager := NewResourceManager(mockClient, logger)
-			schemaValidator := NewSchemaValidator(mockClient, logger)
-			diffOptions := DefaultDiffOptions()
-			diffCalculator := NewDiffCalculator(mockClient, resourceManager, logger, diffOptions)
-			diffRenderer := NewDiffRenderer(logger, diffOptions)
-
-			// Create the processor with our mock components
-			processor, err := CreateTestProcessor(
-				mockClient,
-				resourceManager,
-				schemaValidator,
-				diffCalculator,
-				diffRenderer,
-				render.Render,
-				logger,
-			)
-			if err != nil {
-				t.Fatalf("Failed to create processor: %v", err)
+			// Build processor options
+			options := []ProcessorOption{
+				WithLogger(logger),
+				WithRestConfig(&rest.Config{}),
 			}
 
-			err = processor.Initialize(ctx)
+			processor, _ := NewDiffProcessor(mockClient, options...)
+
+			err := processor.Initialize(ctx)
 
 			if tc.want != nil {
 				if err == nil {
@@ -371,7 +352,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 }
 
 func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create test resources
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").BuildUComposite()
@@ -722,6 +703,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Set up mock client and renderFunc
 			mockClient := tt.setupClient()
+
+			// Create a logger
+			logger := tu.TestLogger(t)
 			renderFunc := tt.setupRenderFunc()
 
 			// Create a render iteration counter to verify
@@ -731,31 +715,17 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 				return renderFunc(ctx, log, in)
 			}
 
-			// Create a logger
-			logger := tu.TestLogger(t)
-
-			// Create a requirements provider
-			requirementsProvider := NewRequirementsProvider(mockClient, countingRenderFunc, logger)
-
-			// Create the processor components
-			resourceManager := NewResourceManager(mockClient, logger)
-			diffOptions := DefaultDiffOptions()
-
-			// Create the processor
-			processor := &DefaultDiffProcessor{
-				client: mockClient,
-				config: ProcessorConfig{
-					Logger:     logger,
-					RenderFunc: countingRenderFunc,
-				},
-				resourceManager:      resourceManager,
-				requirementsProvider: requirementsProvider,
-				diffCalculator:       NewDiffCalculator(mockClient, resourceManager, logger, diffOptions),
-				diffRenderer:         NewDiffRenderer(logger, diffOptions),
+			// Build processor options
+			options := []ProcessorOption{
+				WithLogger(logger),
+				WithRestConfig(&rest.Config{}),
+				WithRenderFunc(countingRenderFunc),
 			}
 
+			processor, _ := NewDiffProcessor(mockClient, options...)
+
 			// Call the method under test
-			output, err := processor.RenderWithRequirements(ctx, tt.xr, tt.composition, tt.functions, tt.resourceID)
+			output, err := processor.(*DefaultDiffProcessor).RenderWithRequirements(ctx, tt.xr, tt.composition, tt.functions, tt.resourceID)
 
 			// Check error expectations
 			if tt.wantErr {
@@ -783,37 +753,4 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper functions for processor testing
-
-// CreateTestProcessor creates a processor with the provided components for testing
-func CreateTestProcessor(
-	client cc.ClusterClient,
-	resourceManager ResourceManager,
-	schemaValidator SchemaValidator,
-	diffCalculator DiffCalculator,
-	diffRenderer DiffRenderer,
-	renderFunc RenderFunc,
-	logger logging.Logger,
-) (DiffProcessor, error) {
-	// Create processor with custom components
-	processor := &DefaultDiffProcessor{
-		client:               client,
-		resourceManager:      resourceManager,
-		schemaValidator:      schemaValidator,
-		diffCalculator:       diffCalculator,
-		diffRenderer:         diffRenderer,
-		requirementsProvider: NewRequirementsProvider(client, renderFunc, logger),
-		config: ProcessorConfig{
-			Namespace:  "default",
-			Colorize:   true,
-			Compact:    false,
-			Logger:     logger,
-			RenderFunc: renderFunc,
-			RestConfig: &rest.Config{},
-		},
-	}
-
-	return processor, nil
 }

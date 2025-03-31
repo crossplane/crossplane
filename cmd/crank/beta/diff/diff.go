@@ -106,7 +106,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	}
 
 	// Create the options for the processor
-	options := []dp.DiffProcessorOption{
+	options := []dp.ProcessorOption{
 		dp.WithRestConfig(config),
 		dp.WithNamespace(c.Namespace),
 		dp.WithLogger(log),
@@ -116,7 +116,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	}
 
 	// Create the processor with all options
-	processor, err := DiffProcessorFactory(client, options...)
+	processor, err := ProcessorFactory(client, options...)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
@@ -135,12 +135,12 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 
 var (
 	// ClusterClientFactory Factory function for creating a new cluster client
-	ClusterClientFactory = func(config *rest.Config, opts ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(config *rest.Config, opts ...cc.Option) (cc.ClusterClient, error) {
 		return cc.NewClusterClient(config, opts...)
 	}
 
-	// DiffProcessorFactory Factory function for creating a new diff processor
-	DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+	// ProcessorFactory Factory function for creating a new diff processor
+	ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 
 		// Create the processor with all options
 		return dp.NewDiffProcessor(client, opts...)

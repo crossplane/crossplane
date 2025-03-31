@@ -771,7 +771,7 @@ Summary: 2 modified`,
 				t.Fatalf("failed to create client: %v", err)
 			}
 
-			ctx, cancel := context.WithTimeout(t.Context(), timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
 			// Apply the setup resources
@@ -824,7 +824,7 @@ Summary: 2 modified`,
 
 			// TODO: This seems a bit redundant with the Kong binding?
 			// Use the real implementation but with our test config
-			ClusterClientFactory = func(config *rest.Config, opts ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+			ClusterClientFactory = func(config *rest.Config, opts ...cc.Option) (cc.ClusterClient, error) {
 				return cc.NewClusterClient(cfg, opts...)
 			}
 

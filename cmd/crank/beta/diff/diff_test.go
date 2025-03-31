@@ -111,14 +111,14 @@ spec:
 	}
 
 	// Create the options for the processor
-	options := []dp.DiffProcessorOption{
+	options := []dp.ProcessorOption{
 		dp.WithRestConfig(config),
 		dp.WithNamespace(c.Namespace),
 		dp.WithColorize(!c.NoColor),
 		dp.WithCompact(c.Compact),
 	}
 
-	processor, err := DiffProcessorFactory(client, options...)
+	processor, err := ProcessorFactory(client, options...)
 	if err != nil {
 		return errors.Wrap(err, "cannot create diff processor")
 	}
@@ -136,16 +136,16 @@ spec:
 }
 
 func TestCmd_Run(t *testing.T) {
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Save original factory functions
 	originalClusterClientFactory := ClusterClientFactory
-	originalDiffProcessorFactory := DiffProcessorFactory
+	originalDiffProcessorFactory := ProcessorFactory
 
 	// Restore original functions at the end of the test
 	defer func() {
 		ClusterClientFactory = originalClusterClientFactory
-		DiffProcessorFactory = originalDiffProcessorFactory
+		ProcessorFactory = originalDiffProcessorFactory
 	}()
 
 	type fields struct {
@@ -184,7 +184,7 @@ func TestCmd_Run(t *testing.T) {
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -194,7 +194,7 @@ func TestCmd_Run(t *testing.T) {
 					WithSuccessfulPerformDiff().
 					Build()
 
-				DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+				ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -204,7 +204,7 @@ func TestCmd_Run(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to create temp dir: %v", err)
 				}
-				t.Cleanup(func() { os.RemoveAll(tempDir) })
+				t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
 
 				tempFile := filepath.Join(tempDir, "test-resource.yaml")
 				content := `
@@ -235,7 +235,7 @@ metadata:
 					WithFailedInitialize("failed to initialize cluster client").
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 			},
@@ -260,7 +260,7 @@ metadata:
 					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -270,7 +270,7 @@ metadata:
 					WithFailedPerformDiff("processing error").
 					Build()
 
-				DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+				ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -280,7 +280,7 @@ metadata:
 				if err != nil {
 					t.Fatalf("Failed to create temp dir: %v", err)
 				}
-				t.Cleanup(func() { os.RemoveAll(tempDir) })
+				t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
 
 				tempFile := filepath.Join(tempDir, "test-resource.yaml")
 				content := `
@@ -308,7 +308,7 @@ metadata:
 			},
 			setupMocks: func() {
 				// Mock cluster client factory error
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 					return nil, errors.New("failed to create cluster client")
 				}
 			},
@@ -332,12 +332,12 @@ metadata:
 					WithSuccessfulInitialize().
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
 				// Mock diff processor factory error
-				DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+				ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 					return nil, errors.New("failed to create diff processor")
 				}
 			},
@@ -347,7 +347,7 @@ metadata:
 				if err != nil {
 					t.Fatalf("Failed to create temp dir: %v", err)
 				}
-				t.Cleanup(func() { os.RemoveAll(tempDir) })
+				t.Cleanup(func() { _ = os.RemoveAll(tempDir) })
 
 				tempFile := filepath.Join(tempDir, "test-resource.yaml")
 				content := `
@@ -403,7 +403,7 @@ metadata:
 // TestDiffWithExtraResources tests that a resource with differing values produces a diff
 func TestDiffWithExtraResources(t *testing.T) {
 	// Set up the test context
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create test resources
 	testComposition := createTestCompositionWithExtraResources()
@@ -536,13 +536,13 @@ spec:
 
 	// Save original ClusterClientFactory and restore after test
 	originalClusterClientFactory := ClusterClientFactory
-	originalDiffProcessorFactory := DiffProcessorFactory
+	originalDiffProcessorFactory := ProcessorFactory
 	defer func() {
 		ClusterClientFactory = originalClusterClientFactory
-		DiffProcessorFactory = originalDiffProcessorFactory
+		ProcessorFactory = originalDiffProcessorFactory
 	}()
 
-	ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 		return mockClient, nil
 	}
 
@@ -551,7 +551,7 @@ spec:
 		WithSuccessfulInitialize().
 		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*unstructured.Unstructured) error {
 			// Generate a mock diff for our test
-			fmt.Fprintf(&buf, `~ ComposedResource/test-xr-composed-resource
+			_, _ = fmt.Fprintf(&buf, `~ ComposedResource/test-xr-composed-resource
 {
   "spec": {
     "coolParam": "test-value",
@@ -563,7 +563,7 @@ spec:
 		}).
 		Build()
 
-	DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+	ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 		return mockProcessor, nil
 	}
 
@@ -598,7 +598,7 @@ spec:
 // TestDiffWithMatchingResources tests that a resource with matching values produces no diff
 func TestDiffWithMatchingResources(t *testing.T) {
 	// Set up the test context
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create test resources
 	testComposition := createTestCompositionWithExtraResources()
@@ -692,13 +692,13 @@ spec:
 
 	// Mock the factory functions
 	originalClusterClientFactory := ClusterClientFactory
-	originalDiffProcessorFactory := DiffProcessorFactory
+	originalDiffProcessorFactory := ProcessorFactory
 	defer func() {
 		ClusterClientFactory = originalClusterClientFactory
-		DiffProcessorFactory = originalDiffProcessorFactory
+		ProcessorFactory = originalDiffProcessorFactory
 	}()
 
-	ClusterClientFactory = func(config *rest.Config, _ ...cc.ClusterClientOption) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
 		return mockClient, nil
 	}
 
@@ -711,7 +711,7 @@ spec:
 		}).
 		Build()
 
-	DiffProcessorFactory = func(client cc.ClusterClient, opts ...dp.DiffProcessorOption) (dp.DiffProcessor, error) {
+	ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 		return mockProcessor, nil
 	}
 

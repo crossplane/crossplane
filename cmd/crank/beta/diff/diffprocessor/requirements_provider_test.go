@@ -13,7 +13,7 @@ import (
 )
 
 func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create resources for testing
 	configMap := tu.NewResource("v1", "ConfigMap", "config1").Build()

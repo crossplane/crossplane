@@ -48,81 +48,81 @@ type ComponentFactories struct {
 	RequirementsProviderFactory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider
 }
 
-// DiffProcessorOption defines a function that can modify a ProcessorConfig
-type DiffProcessorOption func(*ProcessorConfig)
+// ProcessorOption defines a function that can modify a ProcessorConfig
+type ProcessorOption func(*ProcessorConfig)
 
 // WithNamespace sets the namespace for the processor
-func WithNamespace(namespace string) DiffProcessorOption {
+func WithNamespace(namespace string) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.Namespace = namespace
 	}
 }
 
 // WithColorize sets whether to use colors in diff output
-func WithColorize(colorize bool) DiffProcessorOption {
+func WithColorize(colorize bool) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.Colorize = colorize
 	}
 }
 
 // WithCompact sets whether to use compact diff format
-func WithCompact(compact bool) DiffProcessorOption {
+func WithCompact(compact bool) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.Compact = compact
 	}
 }
 
 // WithLogger sets the logger for the processor
-func WithLogger(logger logging.Logger) DiffProcessorOption {
+func WithLogger(logger logging.Logger) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.Logger = logger
 	}
 }
 
 // WithRenderFunc sets the render function for the processor
-func WithRenderFunc(renderFn RenderFunc) DiffProcessorOption {
+func WithRenderFunc(renderFn RenderFunc) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.RenderFunc = renderFn
 	}
 }
 
 // WithRestConfig sets the REST config for the processor
-func WithRestConfig(restConfig *rest.Config) DiffProcessorOption {
+func WithRestConfig(restConfig *rest.Config) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.RestConfig = restConfig
 	}
 }
 
 // WithResourceManagerFactory sets the ResourceManager factory function
-func WithResourceManagerFactory(factory func(client cc.ClusterClient, logger logging.Logger) ResourceManager) DiffProcessorOption {
+func WithResourceManagerFactory(factory func(client cc.ClusterClient, logger logging.Logger) ResourceManager) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.ResourceManagerFactory = factory
 	}
 }
 
 // WithSchemaValidatorFactory sets the SchemaValidator factory function
-func WithSchemaValidatorFactory(factory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator) DiffProcessorOption {
+func WithSchemaValidatorFactory(factory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.SchemaValidatorFactory = factory
 	}
 }
 
 // WithDiffCalculatorFactory sets the DiffCalculator factory function
-func WithDiffCalculatorFactory(factory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator) DiffProcessorOption {
+func WithDiffCalculatorFactory(factory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.DiffCalculatorFactory = factory
 	}
 }
 
 // WithDiffRendererFactory sets the DiffRenderer factory function
-func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer) DiffProcessorOption {
+func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.DiffRendererFactory = factory
 	}
 }
 
 // WithRequirementsProviderFactory sets the RequirementsProvider factory function
-func WithRequirementsProviderFactory(factory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider) DiffProcessorOption {
+func WithRequirementsProviderFactory(factory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.RequirementsProviderFactory = factory
 	}
@@ -156,9 +156,6 @@ func (c *ProcessorConfig) SetDefaultFactories() {
 	}
 
 	if c.ComponentFactories.RequirementsProviderFactory == nil {
-		c.ComponentFactories.RequirementsProviderFactory = func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider {
-			// Create a new unified provider with empty environment configs (will be populated in Initialize)
-			return NewRequirementsProvider(client, renderFunc, logger)
-		}
+		c.ComponentFactories.RequirementsProviderFactory = NewRequirementsProvider
 	}
 }

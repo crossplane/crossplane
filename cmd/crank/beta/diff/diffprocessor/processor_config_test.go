@@ -12,27 +12,27 @@ func TestNewDiffProcessor(t *testing.T) {
 
 	tests := map[string]struct {
 		client      *tu.MockClusterClient
-		options     []DiffProcessorOption
+		options     []ProcessorOption
 		expectError bool
 	}{
 		"MissingRestConfig": {
 			client:      mockClient,
-			options:     []DiffProcessorOption{},
+			options:     []ProcessorOption{},
 			expectError: true,
 		},
 		//"NilClient": {  // TODO in this test, it's a pointer to nil, which is not nil
 		//	client:      nil,
-		//	options:     []DiffProcessorOption{WithRestConfig(testConfig)},
+		//	options:     []ProcessorOption{WithRestConfig(testConfig)},
 		//	expectError: true,
 		//},
 		"WithOptions": {
 			client:      mockClient,
-			options:     []DiffProcessorOption{WithRestConfig(testConfig), WithNamespace("test"), WithColorize(false), WithCompact(true)},
+			options:     []ProcessorOption{WithRestConfig(testConfig), WithNamespace("test"), WithColorize(false), WithCompact(true)},
 			expectError: false,
 		},
 		"BasicOptions": {
 			client:      mockClient,
-			options:     []DiffProcessorOption{WithRestConfig(testConfig)},
+			options:     []ProcessorOption{WithRestConfig(testConfig)},
 			expectError: false,
 		},
 	}
@@ -125,12 +125,12 @@ func TestDiffOptions(t *testing.T) {
 func TestWithOptions(t *testing.T) {
 	tests := []struct {
 		name     string
-		options  []DiffProcessorOption
+		options  []ProcessorOption
 		expected ProcessorConfig
 	}{
 		{
 			name: "WithNamespace",
-			options: []DiffProcessorOption{
+			options: []ProcessorOption{
 				WithNamespace("test-namespace"),
 			},
 			expected: ProcessorConfig{
@@ -141,7 +141,7 @@ func TestWithOptions(t *testing.T) {
 		},
 		{
 			name: "WithMultipleOptions",
-			options: []DiffProcessorOption{
+			options: []ProcessorOption{
 				WithNamespace("test-namespace"),
 				WithColorize(false),
 				WithCompact(true),

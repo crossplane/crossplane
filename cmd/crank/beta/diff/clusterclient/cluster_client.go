@@ -89,9 +89,9 @@ type DefaultClusterClient struct {
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
-func NewClusterClient(config *rest.Config, opts ...ClusterClientOption) (*DefaultClusterClient, error) {
+func NewClusterClient(config *rest.Config, opts ...Option) (*DefaultClusterClient, error) {
 	// Set up default configuration
-	options := &ClusterClientOptions{
+	options := &Options{
 		Logger: logging.NewNopLogger(),
 	}
 
@@ -996,7 +996,7 @@ func (c *DefaultClusterClient) gvkToGVR(ctx context.Context, gvk schema.GroupVer
 
 // getResourceForGVK returns the resource name for a given GroupVersionKind using the discovery client.
 // It returns an error if the resource cannot be determined or if the discovery client fails.
-func (c *DefaultClusterClient) getResourceForGVK(ctx context.Context, gvk schema.GroupVersionKind) (string, error) {
+func (c *DefaultClusterClient) getResourceForGVK(_ context.Context, gvk schema.GroupVersionKind) (string, error) {
 
 	// Get resources for the specified group version
 	resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
@@ -1020,8 +1020,8 @@ func (c *DefaultClusterClient) getResourceForGVK(ctx context.Context, gvk schema
 		gvk.Kind, gvk.GroupVersion().String())
 }
 
-// ClusterClientOptions holds configuration options for the cluster client
-type ClusterClientOptions struct {
+// Options holds configuration options for the cluster client
+type Options struct {
 	// Logger is the logger to use
 	Logger logging.Logger
 
@@ -1032,26 +1032,26 @@ type ClusterClientOptions struct {
 	Burst int
 }
 
-// ClusterClientOption defines a function that can modify ClusterClientOptions
-type ClusterClientOption func(*ClusterClientOptions)
+// Option defines a function that can modify Options
+type Option func(*Options)
 
 // WithLogger sets the logger for the cluster client
-func WithLogger(logger logging.Logger) ClusterClientOption {
-	return func(o *ClusterClientOptions) {
+func WithLogger(logger logging.Logger) Option {
+	return func(o *Options) {
 		o.Logger = logger
 	}
 }
 
 // WithQPS sets the QPS for the client
-func WithQPS(qps float32) ClusterClientOption {
-	return func(o *ClusterClientOptions) {
+func WithQPS(qps float32) Option {
+	return func(o *Options) {
 		o.QPS = qps
 	}
 }
 
 // WithBurst sets the Burst for the client
-func WithBurst(burst int) ClusterClientOption {
-	return func(o *ClusterClientOptions) {
+func WithBurst(burst int) Option {
+	return func(o *Options) {
 		o.Burst = burst
 	}
 }

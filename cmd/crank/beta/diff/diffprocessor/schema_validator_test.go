@@ -20,7 +20,7 @@ import (
 var _ cc.ClusterClient = (*tu.MockClusterClient)(nil)
 
 func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create a sample XR and composed resources for validation
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").
@@ -64,13 +64,13 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				// Convert CRDs to unstructured for the mock client
 				xrCRDUn := &unstructured.Unstructured{}
-				runtime.DefaultUnstructuredConverter.FromUnstructured(
+				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
 					MustToUnstructured(xrCRD),
 					xrCRDUn,
 				)
 
 				composedCRDUn := &unstructured.Unstructured{}
-				runtime.DefaultUnstructuredConverter.FromUnstructured(
+				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
 					MustToUnstructured(composedCRD),
 					composedCRDUn,
 				)
@@ -100,7 +100,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				// Only provide the XR CRD, not the composed resource CRD
 				xrCRDUn := &unstructured.Unstructured{}
-				runtime.DefaultUnstructuredConverter.FromUnstructured(
+				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
 					MustToUnstructured(xrCRD),
 					xrCRDUn,
 				)
@@ -131,7 +131,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				// Convert CRDs to unstructured for the mock
 				composedCRDUn := &unstructured.Unstructured{}
-				runtime.DefaultUnstructuredConverter.FromUnstructured(
+				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
 					MustToUnstructured(createCRDWithStringField(composedCRD)),
 					composedCRDUn,
 				)
@@ -198,11 +198,11 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 }
 
 func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create sample resources
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").Build()
-	composed := tu.NewResource("composed.org/v1", "ComposedResource", "resource1").Build()
+	cmpd := tu.NewResource("composed.org/v1", "ComposedResource", "resource1").Build()
 
 	// Create sample CRDs
 	xrCRD := makeCRD("xrs.example.org", "XR", "example.org", "v1")
@@ -219,14 +219,14 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 				return tu.NewMockClusterClient().Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD, composedCRD},
-			resources:      []*unstructured.Unstructured{xr, composed},
+			resources:      []*unstructured.Unstructured{xr, cmpd},
 			expectedCRDLen: 2, // No change, all CRDs already cached
 		},
 		"FetchMissingCRDs": {
 			setupClient: func() *tu.MockClusterClient {
 				// Convert the composed CRD to unstructured for the mock
 				composedCRDUn := &unstructured.Unstructured{}
-				runtime.DefaultUnstructuredConverter.FromUnstructured(
+				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
 					MustToUnstructured(composedCRD),
 					composedCRDUn,
 				)
@@ -246,7 +246,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 					Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD}, // Only XR CRD is cached
-			resources:      []*unstructured.Unstructured{xr, composed},
+			resources:      []*unstructured.Unstructured{xr, cmpd},
 			expectedCRDLen: 2, // Should fetch the missing composed CRD
 		},
 		"SomeCRDsMissing": {
@@ -259,7 +259,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 					Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD}, // Only XR CRD is cached
-			resources:      []*unstructured.Unstructured{xr, composed},
+			resources:      []*unstructured.Unstructured{xr, cmpd},
 			expectedCRDLen: 1, // Still only has the initial XR CRD
 		},
 	}
@@ -274,7 +274,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 			validator.(*DefaultSchemaValidator).SetCRDs(tt.initialCRDs)
 
 			// Call the function under test
-			validator.(*DefaultSchemaValidator).EnsureComposedResourceCRDs(ctx, tt.resources)
+			_ = validator.(*DefaultSchemaValidator).EnsureComposedResourceCRDs(ctx, tt.resources)
 
 			// Verify the CRD count
 			crds := validator.(*DefaultSchemaValidator).GetCRDs()
@@ -287,7 +287,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 }
 
 func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
-	ctx := t.Context()
+	ctx := context.Background()
 
 	// Create sample CRDs as unstructured
 	xrdUn := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").

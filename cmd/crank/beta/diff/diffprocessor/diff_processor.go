@@ -41,7 +41,7 @@ type DefaultDiffProcessor struct {
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor with the provided options
-func NewDiffProcessor(client cc.ClusterClient, options ...DiffProcessorOption) (DiffProcessor, error) {
+func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (DiffProcessor, error) {
 	if client == nil {
 		return nil, errors.New("client cannot be nil")
 	}
@@ -286,10 +286,10 @@ func (p *DefaultDiffProcessor) RenderWithRequirements(
 	resourceID string,
 ) (render.Outputs, error) {
 	// Start with environment configs as baseline extra resources
-	renderResources := []unstructured.Unstructured{}
+	var renderResources []unstructured.Unstructured
 
 	// Track all discovered extra resources to return at the end
-	discoveredResources := []*unstructured.Unstructured{}
+	var discoveredResources []*unstructured.Unstructured
 
 	// Track resources we've already discovered to detect when we're done
 	discoveredResourcesMap := make(map[string]bool)
