@@ -18,14 +18,10 @@ limitations under the License.
 package xpkgappend
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/spf13/afero"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -35,6 +31,7 @@ import (
 
 const (
 	errParseReference          = "error parsing remote reference"
+	errParseDestReference      = "error parsing destination reference"
 	errCreateExtensionsTarball = "error creating package extensions tarball"
 	errAppendExtensions        = "error appending package extensions to image"
 	errReadIndex               = "error reading remote index"
@@ -46,26 +43,6 @@ const (
 // that have Run() methods that receive it.
 func (c *Cmd) AfterApply() error {
 	// TODO(jastang): consider prompting about re-signing if already signed
-	c.fs = afero.NewOsFs()
-	paths := []string{}
-
-	err := os.Chdir(c.ExtensionsRoot)
-	if err != nil {
-		return err
-	}
-	err = afero.Walk(c.fs, c.ExtensionsRoot, func(path string, _ os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		relpath, _ := filepath.Rel(c.ExtensionsRoot, path)
-		paths = append(paths, relpath)
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	c.relPaths = paths
-
 	// Get default docker auth.
 	c.keychain = remote.WithAuthFromKeychain(authn.NewMultiKeychain(authn.DefaultKeychain))
 
@@ -75,7 +52,16 @@ func (c *Cmd) AfterApply() error {
 		return errors.Wrap(err, errParseReference)
 	}
 
-	c.indexRef = ref
+	c.indexRef, c.destRef = ref, ref
+
+	// Write to an explicit desintation ref if set
+	if c.Destination != "" {
+		dest, err := name.ParseReference(c.Destination)
+		if err != nil {
+			return errors.Wrap(err, errParseDestReference)
+		}
+		c.destRef = dest
+	}
 
 	c.appender = xpkg.NewAppender(
 		c.keychain,
@@ -91,12 +77,12 @@ type Cmd struct {
 	RemoteRef string `arg:"" help:"The fully qualified remote image reference" required:""`
 
 	// Flags. Keep sorted alphabetically.
-	ExtensionsRoot string `default:"./extensions" help:"An optional directory of arbitrary files for additional consumers of the package." placeholder:"PATH" type:"path"`
+	Destination    string `help:"Optional OCI reference to write to. If not set, the command will modify the input reference." optional:""`
+	ExtensionsRoot string `default:"./extensions"                                                                              help:"An optional directory of arbitrary files for additional consumers of the package." placeholder:"PATH" type:"path"`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
-	fs       afero.Fs
-	relPaths []string
 	indexRef name.Reference
+	destRef  name.Reference
 	keychain remote.Option
 	appender *xpkg.Appender
 }
@@ -121,7 +107,8 @@ Examples:
 func (c *Cmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("cmd", "xpkg-append")
 
-	extLayer, err := xpkg.LayerFromFiles(c.relPaths, c.fs)
+	// Create a layered v1.Image from the extensions root dir.
+	extManifest, err := xpkg.ImageFromFiles(c.ExtensionsRoot)
 	if err != nil {
 		return errors.Wrap(err, errCreateExtensionsTarball)
 	}
@@ -135,7 +122,7 @@ func (c *Cmd) Run(logger logging.Logger) error {
 	}
 	// Construct a new image index with the extensions manifest appended.
 	// Passing a different extensions directory overwrites the previous manifest if one exists.
-	newIndex, err := c.appender.Append(index, extLayer, xpkg.WithAuth(c.keychain))
+	newIndex, err := c.appender.Append(index, extManifest, xpkg.WithAuth(c.keychain))
 	if err != nil {
 		return errors.Wrap(err, errAppendExtensions)
 	}
@@ -147,7 +134,7 @@ func (c *Cmd) Run(logger logging.Logger) error {
 	if noop {
 		return nil
 	}
-	err = remote.WriteIndex(c.indexRef, newIndex, c.keychain)
+	err = remote.WriteIndex(c.destRef, newIndex, c.keychain)
 	if err != nil {
 		return errors.Wrap(err, errWriteIndex)
 	}
