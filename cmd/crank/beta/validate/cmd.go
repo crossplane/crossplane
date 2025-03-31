@@ -159,7 +159,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, oldResources, m.crds, c.SkipSuccessResults, k.Stdout); err != nil {
+	if err := SchemaValidation(resources, oldResources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 
