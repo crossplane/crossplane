@@ -35,7 +35,10 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Names specifies the resource and kind names of the defined composite
 	// resource.
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == oldSelf.plural",message="plural is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.singular == oldSelf.singular",message="singular is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.kind == oldSelf.kind",message="kind is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.listKind == oldSelf.listKind",message="listKind is immutable"
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
@@ -47,7 +50,10 @@ type CompositeResourceDefinitionSpec struct {
 	// claim names to an existing CompositeResourceDefinition, but they cannot
 	// be changed or removed once they have been set.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="Value is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.plural == oldSelf.plural",message="plural is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.singular == oldSelf.singular",message="singular is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.kind == oldSelf.kind",message="kind is immutable"
+	// +kubebuilder:validation:XValidation:rule="self.listKind == oldSelf.listKind",message="listKind is immutable"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end

@@ -114,8 +114,14 @@ spec:
                 - plural
                 type: object
                 x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
+                - message: plural is immutable
+                  rule: self.plural == oldSelf.plural
+                - message: singular is immutable
+                  rule: self.singular == oldSelf.singular
+                - message: kind is immutable
+                  rule: self.kind == oldSelf.kind
+                - message: listKind is immutable
+                  rule: self.listKind == oldSelf.listKind
               connectionSecretKeys:
                 description: |-
                   ConnectionSecretKeys is the list of keys that will be exposed to the end
@@ -353,8 +359,14 @@ spec:
                 - plural
                 type: object
                 x-kubernetes-validations:
-                - message: Value is immutable
-                  rule: self == oldSelf
+                - message: plural is immutable
+                  rule: self.plural == oldSelf.plural
+                - message: singular is immutable
+                  rule: self.singular == oldSelf.singular
+                - message: kind is immutable
+                  rule: self.kind == oldSelf.kind
+                - message: listKind is immutable
+                  rule: self.listKind == oldSelf.listKind
               versions:
                 description: |-
                   Versions is the list of all API versions of the defined composite
