@@ -771,7 +771,7 @@ Summary: 2 modified`,
 				t.Fatalf("failed to create client: %v", err)
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			ctx, cancel := context.WithTimeout(t.Context(), timeout)
 			defer cancel()
 
 			// Apply the setup resources

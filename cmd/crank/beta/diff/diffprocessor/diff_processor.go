@@ -182,7 +182,7 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *unst
 	}
 
 	// Find the matching composition
-	comp, err := p.client.FindMatchingComposition(res)
+	comp, err := p.client.FindMatchingComposition(ctx, res)
 	if err != nil {
 		p.config.Logger.Debug("No matching composition found", "resource", resourceID, "error", err)
 		return nil, errors.Wrap(err, "cannot find matching composition")

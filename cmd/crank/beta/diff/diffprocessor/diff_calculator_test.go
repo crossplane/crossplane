@@ -17,7 +17,7 @@ import (
 )
 
 func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	existingResource := tu.NewResource("example.org/v1", "TestResource", "existing-resource").
@@ -279,7 +279,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 }
 
 func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test XR
 	modifiedXr := tu.NewResource("example.org/v1", "XR", "test-xr").
@@ -530,7 +530,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 }
 
 func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a test XR
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").

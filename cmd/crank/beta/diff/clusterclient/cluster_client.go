@@ -31,7 +31,7 @@ type ClusterClient interface {
 	Initialize(ctx context.Context) error
 
 	// FindMatchingComposition finds a composition that matches the given XR
-	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
+	FindMatchingComposition(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
 
 	// GetEnvironmentConfigs fetches environment configs from the cluster
 	GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error)
@@ -327,7 +327,7 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 
 // FindMatchingComposition finds a composition matching the given resource.
 // It handles both XRs and Claims, finding the appropriate composition in each case.
-func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+func (c *DefaultClusterClient) FindMatchingComposition(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 	// Determine if we're dealing with a claim or an XR
 	gvk := res.GroupVersionKind()
 	resourceID := fmt.Sprintf("%s/%s", gvk.String(), res.GetName())
@@ -337,7 +337,7 @@ func (c *DefaultClusterClient) FindMatchingComposition(res *unstructured.Unstruc
 		"gvk", gvk.String())
 
 	// First, check if this is a claim by looking for an XRD that defines this as a claim
-	xrdForClaim, err := c.findClaimXRD(gvk)
+	xrdForClaim, err := c.findClaimXRD(ctx, gvk)
 	if err != nil {
 		c.logger.Debug("Error checking if resource is claim type",
 			"resource", resourceID,
@@ -539,12 +539,12 @@ func (c *DefaultClusterClient) findByTypeReference(targetGVK schema.GroupVersion
 }
 
 // findClaimXRD checks if the given GVK is a claim type and returns the corresponding XRD if found
-func (c *DefaultClusterClient) findClaimXRD(gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) findClaimXRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
 	c.logger.Debug("Checking if resource is a claim type",
 		"gvk", gvk.String())
 
 	// List all XRDs
-	xrds, err := c.GetXRDs(context.Background())
+	xrds, err := c.GetXRDs(ctx)
 	if err != nil {
 		c.logger.Debug("Error getting XRDs",
 			"error", err)

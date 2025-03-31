@@ -57,7 +57,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				envConfigs: []*unstructured.Unstructured{},
@@ -82,7 +82,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme, objects...)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				envConfigs: []*unstructured.Unstructured{
@@ -114,7 +114,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				envConfigs: nil,
@@ -180,7 +180,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				compositions: map[string]*apiextensionsv1.Composition{},
@@ -203,7 +203,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme, objects...)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -252,7 +252,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errors.New("composition list error"), "cannot list compositions from cluster"), "cannot list compositions"),
@@ -287,7 +287,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errors.New("function list error"), "cannot list functions from cluster"), "cannot list functions"),
@@ -324,7 +324,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme, objects...)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -385,7 +385,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errors.New("failed to fetch XRDs"), "cannot list XRDs"), "Failed to preload XRDs"),
@@ -487,7 +487,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvks: []schema.GroupVersionKind{
 					{Group: "example.org", Version: "v1", Kind: "Resource"},
 				},
@@ -507,7 +507,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 				return c
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvks: []schema.GroupVersionKind{
 					{Group: "example.org", Version: "v1", Kind: "Resource"},
 				},
@@ -546,7 +546,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme, objects...)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvks: []schema.GroupVersionKind{
 					{Group: "example.org", Version: "v1", Kind: "Resource"},
 					{Group: "example.org", Version: "v2", Kind: "OtherResource"},
@@ -589,7 +589,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvks: []schema.GroupVersionKind{
 					{Group: "example.org", Version: "v1", Kind: "Resource"},
 				},
@@ -1129,7 +1129,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				gvkToGVRMap:   make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 
-			got, err := c.FindMatchingComposition(tc.args.res)
+			got, err := c.FindMatchingComposition(t.Context(), tc.args.res)
 
 			if tc.want.err != nil {
 				if err == nil {
@@ -1480,7 +1480,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				xrds: []*unstructured.Unstructured{},
@@ -1496,7 +1496,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				return fake.NewSimpleDynamicClient(scheme, objects...)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				xrds: []*unstructured.Unstructured{
@@ -1519,7 +1519,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				err: errors.Wrap(errors.New("list error"), "cannot list XRDs"),
@@ -1545,7 +1545,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				xrds: []*unstructured.Unstructured{xrd1, xrd2},
@@ -1569,7 +1569,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				return dc
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 			},
 			want: want{
 				xrds: []*unstructured.Unstructured{},
@@ -1725,7 +1725,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 				return dynamicClient, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -1764,7 +1764,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 				return dynamicClient, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -1799,7 +1799,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -1845,7 +1845,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 				return dynamicClient, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "",
 					Version: "v1",
@@ -1887,7 +1887,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 				return dynamicClient, fakeDiscovery
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -1985,7 +1985,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 				}
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				obj: tu.NewResource("example.org/v1", "ExampleResource", "test-resource").
 					InNamespace("test-namespace").
 					WithSpecField("property", "new-value").
@@ -2011,7 +2011,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 				}
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				obj: tu.NewResource("example.org/v1", "ClusterResource", "test-cluster-resource").
 					WithSpecField("property", "new-value").
 					Build(),
@@ -2032,7 +2032,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 				}
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				obj: tu.NewResource("example.org/v1", "ExampleResource", "test-resource").
 					InNamespace("test-namespace").
 					Build(),
@@ -2131,7 +2131,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				namespace: "test-namespace",
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
@@ -2200,7 +2200,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				namespace: "test-namespace",
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
@@ -2263,7 +2263,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				namespace: "test-namespace",
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
@@ -2304,7 +2304,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				gvk       schema.GroupVersionKind
 				selector  metav1.LabelSelector
 			}{
-				ctx:       context.Background(),
+				ctx:       t.Context(),
 				namespace: "test-namespace",
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
@@ -2389,7 +2389,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 
 func TestClusterClient_GetResourceTree(t *testing.T) {
 	// Setup test context
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test XR
 	xr := tu.NewResource("example.org/v1", "XExampleResource", "test-xr").
@@ -2575,7 +2575,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 
 func TestClusterClient_IsCRDRequired(t *testing.T) {
 	// Set up context for tests
-	ctx := context.Background()
+	ctx := t.Context()
 
 	tests := map[string]struct {
 		setupDiscovery func() discovery.DiscoveryInterface
@@ -2829,7 +2829,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -2866,7 +2866,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -2898,7 +2898,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 				return dc, createFakeDiscoveryClient(resources)
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",
@@ -2928,7 +2928,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 				return dc, fakeDiscovery
 			},
 			args: args{
-				ctx: context.Background(),
+				ctx: t.Context(),
 				gvk: schema.GroupVersionKind{
 					Group:   "example.org",
 					Version: "v1",

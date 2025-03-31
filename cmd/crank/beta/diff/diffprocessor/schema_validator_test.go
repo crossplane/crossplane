@@ -20,7 +20,7 @@ import (
 var _ cc.ClusterClient = (*tu.MockClusterClient)(nil)
 
 func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a sample XR and composed resources for validation
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").
@@ -198,7 +198,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 }
 
 func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create sample resources
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").Build()
@@ -287,7 +287,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 }
 
 func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create sample CRDs as unstructured
 	xrdUn := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").

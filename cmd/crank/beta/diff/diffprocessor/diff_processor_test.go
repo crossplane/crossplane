@@ -28,7 +28,7 @@ var _ DiffProcessor = &tu.MockDiffProcessor{}
 
 func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 	// Setup test context
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	resource1 := tu.NewResource("example.org/v1", "XR1", "my-xr-1").
@@ -55,11 +55,12 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 
 	// Test cases
 	tests := map[string]struct {
-		client       func() *tu.MockClusterClient
-		resources    []*unstructured.Unstructured
-		mockRender   func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
-		verifyOutput func(t *testing.T, output string)
-		want         error
+		client          func() *tu.MockClusterClient
+		resources       []*unstructured.Unstructured
+		mockRender      func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
+		verifyOutput    func(t *testing.T, output string)
+		want            error
+		validationError bool
 	}{
 		"NoResources": {
 			client: func() *tu.MockClusterClient {
@@ -167,6 +168,47 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			},
 			want: nil,
 		},
+		// Add this test case to the tests map in TestDefaultDiffProcessor_PerformDiff
+		"ValidationError": {
+			client: func() *tu.MockClusterClient {
+				// Create mock functions that render will call successfully
+				functions := []pkgv1.Function{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "function-test",
+						},
+					},
+				}
+
+				// Setup a client that provides all the necessary data for rendering
+				// but validation will fail in a separate mock
+				return tu.NewMockClusterClient().
+					WithSuccessfulInitialize().
+					WithSuccessfulCompositionMatch(composition).
+					WithSuccessfulFunctionsFetch(functions).
+					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithResourcesExist(resource1).
+					WithSuccessfulDryRun().
+					WithNoResourcesRequiringCRDs().
+					Build()
+			},
+			resources: []*unstructured.Unstructured{resource1},
+			mockRender: func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				// Return valid render outputs
+				return render.Outputs{
+					CompositeResource: in.CompositeResource,
+					ComposedResources: []composed.Unstructured{
+						{
+							Unstructured: unstructured.Unstructured{
+								Object: composedResource.Object,
+							},
+						},
+					},
+				}, nil
+			},
+			want:            errors.New("unable to process resource XR1/my-xr-1: cannot validate resources: validation error"),
+			validationError: true,
+		},
 	}
 
 	for name, tt := range tests {
@@ -175,9 +217,19 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			mockClient := tt.client()
 			logger := tu.TestLogger(t)
 
+			// Create a mock schema validator that always succeeds
+			mockSchemaValidator := &tu.MockSchemaValidator{
+				ValidateResourcesFn: func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+					if tt.validationError {
+						return errors.New("validation error")
+					}
+					return nil // Always succeed
+				},
+			}
+
 			// Create mock components for the processor
 			resourceManager := NewResourceManager(mockClient, logger)
-			schemaValidator := NewSchemaValidator(mockClient, logger)
+			schemaValidator := mockSchemaValidator
 			diffOptions := DefaultDiffOptions()
 			diffCalculator := NewDiffCalculator(mockClient, resourceManager, logger, diffOptions)
 			diffRenderer := NewDiffRenderer(logger, diffOptions)
@@ -222,7 +274,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 
 func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 	// Setup test context
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	xrd1 := tu.NewResource("apiextensions.crossplane.io/v1", "CompositeResourceDefinition", "xrd1").
@@ -319,7 +371,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 }
 
 func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	xr := tu.NewResource("example.org/v1", "XR", "test-xr").BuildUComposite()

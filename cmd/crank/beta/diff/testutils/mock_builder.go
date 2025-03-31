@@ -59,21 +59,21 @@ func (b *ClusterClientBuilder) WithFailedInitialize(errMsg string) *ClusterClien
 }
 
 // WithFindMatchingComposition adds an implementation for the FindMatchingComposition method.
-func (b *ClusterClientBuilder) WithFindMatchingComposition(fn func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)) *ClusterClientBuilder {
+func (b *ClusterClientBuilder) WithFindMatchingComposition(fn func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.Composition, error)) *ClusterClientBuilder {
 	b.mock.FindMatchingCompositionFn = fn
 	return b
 }
 
 // WithSuccessfulCompositionMatch sets a successful FindMatchingComposition implementation.
 func (b *ClusterClientBuilder) WithSuccessfulCompositionMatch(comp *apiextensionsv1.Composition) *ClusterClientBuilder {
-	return b.WithFindMatchingComposition(func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	return b.WithFindMatchingComposition(func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 		return comp, nil
 	})
 }
 
 // WithNoMatchingComposition sets a FindMatchingComposition implementation that returns "not found".
 func (b *ClusterClientBuilder) WithNoMatchingComposition() *ClusterClientBuilder {
-	return b.WithFindMatchingComposition(func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+	return b.WithFindMatchingComposition(func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 		return nil, errors.New("composition not found")
 	})
 }

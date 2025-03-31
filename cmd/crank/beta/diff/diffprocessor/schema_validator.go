@@ -106,7 +106,7 @@ func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *unst
 	// Validate using the CRD schemas
 	// Use skipSuccessLogs=true to avoid cluttering the output with success messages
 	v.logger.Debug("Performing schema validation", "resourceCount", len(resources))
-	if err := validate.SchemaValidation(resources, v.crds, true, loggerWriter); err != nil {
+	if err := validate.SchemaValidation(resources, v.crds, true, true, loggerWriter); err != nil {
 		return errors.Wrap(err, "schema validation failed")
 	}
 

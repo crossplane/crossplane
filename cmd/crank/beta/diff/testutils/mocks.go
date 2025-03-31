@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
@@ -236,7 +237,7 @@ func (m *MockResourceInterface) ApplyStatus(ctx context.Context, name string, ob
 // MockClusterClient implements the ClusterClient interface for testing
 type MockClusterClient struct {
 	InitializeFn               func(context.Context) error
-	FindMatchingCompositionFn  func(*unstructured.Unstructured) (*apiextensionsv1.Composition, error)
+	FindMatchingCompositionFn  func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
 	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
 	GetXRDsFn                  func(context.Context) ([]*unstructured.Unstructured, error)
 	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
@@ -259,9 +260,9 @@ func (m *MockClusterClient) Initialize(ctx context.Context) error {
 }
 
 // FindMatchingComposition implements the ClusterClient interface
-func (m *MockClusterClient) FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+func (m *MockClusterClient) FindMatchingComposition(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 	if m.FindMatchingCompositionFn != nil {
-		return m.FindMatchingCompositionFn(res)
+		return m.FindMatchingCompositionFn(ctx, res)
 	}
 	return nil, errors.New("FindMatchingComposition not implemented")
 }
@@ -387,4 +388,21 @@ type MockExtraResourceProvider struct {
 
 func (m *MockExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
 	return m.GetExtraResourcesFn(ctx, comp, xr, resources)
+}
+
+// Mock schema validator
+type MockSchemaValidator struct {
+	ValidateResourcesFn func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error
+}
+
+func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+	if m.ValidateResourcesFn != nil {
+		return m.ValidateResourcesFn(ctx, xr, composed)
+	}
+	return nil
+}
+
+// Implement other required methods of the SchemaValidator interface
+func (m *MockSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) error {
+	return nil
 }

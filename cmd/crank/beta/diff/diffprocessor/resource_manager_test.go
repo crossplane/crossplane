@@ -14,7 +14,7 @@ import (
 )
 
 func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	existingResource := tu.NewResource("example.org/v1", "TestResource", "existing-resource").

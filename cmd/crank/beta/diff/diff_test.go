@@ -136,7 +136,7 @@ spec:
 }
 
 func TestCmd_Run(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Save original factory functions
 	originalClusterClientFactory := ClusterClientFactory
@@ -403,7 +403,7 @@ metadata:
 // TestDiffWithExtraResources tests that a resource with differing values produces a diff
 func TestDiffWithExtraResources(t *testing.T) {
 	// Set up the test context
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	testComposition := createTestCompositionWithExtraResources()
@@ -422,7 +422,7 @@ func TestDiffWithExtraResources(t *testing.T) {
 	// Set up the mock client using the builder pattern
 	mockClient := tu.NewMockClusterClient().
 		WithSuccessfulInitialize().
-		WithFindMatchingComposition(func(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+		WithFindMatchingComposition(func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
 			// Validate the input XR
 			if res.GetAPIVersion() != "example.org/v1" || res.GetKind() != "XExampleResource" {
 				return nil, errors.New("unexpected resource type")
@@ -598,7 +598,7 @@ spec:
 // TestDiffWithMatchingResources tests that a resource with matching values produces no diff
 func TestDiffWithMatchingResources(t *testing.T) {
 	// Set up the test context
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources
 	testComposition := createTestCompositionWithExtraResources()

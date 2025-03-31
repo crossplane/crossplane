@@ -76,7 +76,8 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
 	// TODO:  add a file output option
-	// TODO:  make sure namespacing works everywhere
+	// TODO:  make sure namespacing works everywhere; what to do with the -n argument?
+	// TODO:  test for the case of applying a namespaced object inside a composition using fn-gotemplating inside fn-kubectl?
 	// TODO:  add test for new vs updated XRs with downstream fields plumbed from Status field
 	// TODO:  diff against upgraded schema that isn't applied yet
 	// TODO:  diff against upgraded composition that isn't applied yet
