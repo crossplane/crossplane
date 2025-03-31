@@ -19,7 +19,6 @@ package xpkg
 import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -28,9 +27,8 @@ import (
 )
 
 const (
-	errGetManifestList          = "error retrieving manifest list"
-	errManifestDigest           = "error getting manifest digest"
-	errCreateExtensionsManifest = "error creating package extensions manifest"
+	errGetManifestList = "error retrieving manifest list"
+	errManifestDigest  = "error getting manifest digest"
 
 	// ManifestAnnotation is the annotation value for an xpkg extensions manifest.
 	ManifestAnnotation = "xpkg-extensions"
@@ -65,26 +63,14 @@ func NewAppender(keychain remote.Option, remoteImg name.Reference) *Appender {
 }
 
 // Append mutates a remote xpkg to add a manifest referencing a layer of optional package extensions.
-func (a *Appender) Append(index v1.ImageIndex, layer v1.Layer, opts ...AppendOpt) (v1.ImageIndex, error) {
+func (a *Appender) Append(index v1.ImageIndex, extImg v1.Image, opts ...AppendOpt) (v1.ImageIndex, error) {
 	config := &appendOpts{}
 	for _, o := range opts {
 		o(config)
 	}
 
 	// Create the extensions manifest
-	extManifest, err := mutate.Append(
-		empty.Image,
-		mutate.Addendum{
-			Layer: layer,
-			Annotations: map[string]string{
-				AnnotationKey: ManifestAnnotation,
-			},
-		})
-	if err != nil {
-		return nil, errors.Wrap(err, errCreateExtensionsManifest)
-	}
-
-	extManifestDigest, err := extManifest.Digest()
+	extManifestDigest, err := extImg.Digest()
 	if err != nil {
 		return nil, errors.Wrap(err, errManifestDigest)
 	}
@@ -103,7 +89,7 @@ func (a *Appender) Append(index v1.ImageIndex, layer v1.Layer, opts ...AppendOpt
 
 	// Create the new index to replace
 	newIndex := mutate.AppendManifests(index, mutate.IndexAddendum{
-		Add: extManifest,
+		Add: extImg,
 		Descriptor: v1.Descriptor{
 			MediaType: types.OCIManifestSchema1,
 			Digest:    extManifestDigest,
