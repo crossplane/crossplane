@@ -58,6 +58,7 @@ const (
 	// AnnotationKeyRuntimeEnvironmentVariables sets the environment variables
 	// that will be used for the container. This is helpful to control kpm registry
 	// access to use a different registry.
+	// It is a comma separated string of key=value pairs e.g. "key1=value1,key2=value2".
 	AnnotationKeyRuntimeEnvironmentVariables = "render.crossplane.io/runtime-docker-env"
 )
 
