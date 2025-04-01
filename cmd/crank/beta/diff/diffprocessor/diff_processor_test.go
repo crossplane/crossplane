@@ -145,7 +145,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			},
 			resources: []*un.Unstructured{resource1},
 			processorOpts: []ProcessorOption{
-				WithRenderFunc(func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				WithRenderFunc(func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
 						ComposedResources: []cpd.Unstructured{
@@ -197,7 +197,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			},
 			resources: []*un.Unstructured{resource1},
 			processorOpts: []ProcessorOption{
-				WithRenderFunc(func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				WithRenderFunc(func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					// Return valid render outputs
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
@@ -227,9 +227,9 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 				WithRestConfig(&rest.Config{}),
 				WithSchemaValidatorFactory(
 					// Create a mock schema validator that succeeds unless we request an error
-					func(client cc.ClusterClient, logger logging.Logger) SchemaValidator {
+					func(_ cc.ClusterClient, _ logging.Logger) SchemaValidator {
 						return &tu.MockSchemaValidator{
-							ValidateResourcesFn: func(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error {
+							ValidateResourcesFn: func(_ context.Context, _ *un.Unstructured, _ []cpd.Unstructured) error {
 								if tt.validationError {
 									return errors.New("validation error")
 								}
@@ -246,7 +246,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
 
-			err := processor.PerformDiff(&stdout, ctx, tt.resources)
+			err := processor.PerformDiff(ctx, &stdout, tt.resources)
 
 			if tt.want != nil {
 				if err == nil {
@@ -299,7 +299,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
-					WithEnvironmentConfigs(func(ctx context.Context) ([]*un.Unstructured, error) {
+					WithEnvironmentConfigs(func(_ context.Context) ([]*un.Unstructured, error) {
 						return nil, errors.New("env configs not found")
 					}).
 					Build()
@@ -405,7 +405,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			},
 			setupRenderFunc: func() RenderFunc {
 				iteration := 0
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					iteration++
 					// Return a simple output with no requirements
 					return render.Outputs{
@@ -434,7 +434,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if gvk.Kind == "ConfigMap" && name == "config1" {
 							return configMap, nil
 						}
@@ -445,7 +445,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			},
 			setupRenderFunc: func() RenderFunc {
 				iteration := 0
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					iteration++
 
 					// First render includes requirements, second should have no requirements
@@ -495,7 +495,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if gvk.Kind == "ConfigMap" && name == "config1" {
 							return configMap, nil
 						}
@@ -509,7 +509,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			},
 			setupRenderFunc: func() RenderFunc {
 				iteration := 0
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					iteration++
 
 					// Track existing resources to simulate dependencies
@@ -590,7 +590,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error) {
 					return render.Outputs{}, errors.New("render error")
 				}
 			},
@@ -605,7 +605,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if gvk.Kind == "ConfigMap" && name == "config1" {
 							return configMap, nil
 						}
@@ -616,7 +616,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			},
 			setupRenderFunc: func() RenderFunc {
 				iteration := 0
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					iteration++
 
 					// First render has requirements but errors
@@ -666,14 +666,14 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
 						return nil, errors.New("resource not found")
 					}).
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
-				return func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
+				return func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					reqs := map[string]v1.Requirements{
 						"step1": {
 							ExtraResources: map[string]*v1.ResourceSelector{

@@ -42,7 +42,9 @@ import (
 )
 
 // Custom Run function for testing - this avoids calling the real Run()
-func testRun(t *testing.T, ctx context.Context, c *Cmd, setupConfig func() (*rest.Config, error)) error {
+func testRun(ctx context.Context, t *testing.T, c *Cmd, setupConfig func() (*rest.Config, error)) error {
+	t.Helper()
+
 	config, err := setupConfig()
 	if err != nil {
 		return errors.Wrap(err, "failed to get kubeconfig")
@@ -65,14 +67,13 @@ func testRun(t *testing.T, ctx context.Context, c *Cmd, setupConfig func() (*res
 	stdinUsed := false
 
 	for _, f := range c.Files {
-		if f == "test-xr.yaml" {
-			// Create a temp file with test content
+		switch {
+		case f == "test-xr.yaml":
 			tempDir, err := os.MkdirTemp("", "diff-test")
 			if err != nil {
 				return errors.Wrap(err, "failed to create temp dir")
 			}
 			defer os.RemoveAll(tempDir)
-
 			tempFile := filepath.Join(tempDir, "test-xr.yaml")
 			content := `
 apiVersion: example.org/v1
@@ -86,15 +87,13 @@ spec:
 			if err := os.WriteFile(tempFile, []byte(content), 0600); err != nil {
 				return errors.Wrap(err, "failed to write temp file")
 			}
-
 			tempFiles = append(tempFiles, tempFile)
-		} else if f == "-" {
+		case f == "-":
 			if !stdinUsed {
 				tempFiles = append(tempFiles, "-")
 				stdinUsed = true
 			}
-			// Skip duplicate stdin markers
-		} else {
+		default:
 			tempFiles = append(tempFiles, f)
 		}
 	}
@@ -128,7 +127,7 @@ spec:
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	if err := processor.PerformDiff(nil, ctx, resources); err != nil {
+	if err := processor.PerformDiff(ctx, nil, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 
@@ -184,7 +183,7 @@ func TestCmd_Run(t *testing.T) {
 					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -194,7 +193,7 @@ func TestCmd_Run(t *testing.T) {
 					WithSuccessfulPerformDiff().
 					Build()
 
-				ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
+				ProcessorFactory = func(cc.ClusterClient, ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -235,7 +234,7 @@ metadata:
 					WithFailedInitialize("failed to initialize cluster client").
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 			},
@@ -260,7 +259,7 @@ metadata:
 					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
@@ -270,7 +269,7 @@ metadata:
 					WithFailedPerformDiff("processing error").
 					Build()
 
-				ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
+				ProcessorFactory = func(cc.ClusterClient, ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 					return mockProcessor, nil
 				}
 			},
@@ -308,7 +307,7 @@ metadata:
 			},
 			setupMocks: func() {
 				// Mock cluster client factory error
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 					return nil, errors.New("failed to create cluster client")
 				}
 			},
@@ -332,12 +331,12 @@ metadata:
 					WithSuccessfulInitialize().
 					Build()
 
-				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+				ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 					return mockClient, nil
 				}
 
 				// Mock diff processor factory error
-				ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
+				ProcessorFactory = func(cc.ClusterClient, ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 					return nil, errors.New("failed to create diff processor")
 				}
 			},
@@ -383,7 +382,7 @@ metadata:
 			}
 
 			// Use our test version of Run() that doesn't call clientcmd.BuildConfigFromFlags
-			err := testRun(t, tc.args.ctx, c, func() (*rest.Config, error) {
+			err := testRun(tc.args.ctx, t, c, func() (*rest.Config, error) {
 				return &rest.Config{}, nil // Return a dummy config
 			})
 
@@ -413,7 +412,7 @@ func TestDiffWithExtraResources(t *testing.T) {
 	// Create test existing resource with different values
 	existingResource := createExistingComposedResource()
 
-	// Convert the test XRD to un for GetXRDs to return
+	// Convert the test XRD to unstructured for GetXRDs to return
 	xrdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(testXRD)
 	if err != nil {
 		t.Fatalf("Failed to convert XRD to un: %v", err)
@@ -422,14 +421,14 @@ func TestDiffWithExtraResources(t *testing.T) {
 	// Set up the mock client using the builder pattern
 	mockClient := tu.NewMockClusterClient().
 		WithSuccessfulInitialize().
-		WithFindMatchingComposition(func(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
+		WithFindMatchingComposition(func(_ context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
 			// Validate the input XR
 			if res.GetAPIVersion() != "example.org/v1" || res.GetKind() != "XExampleResource" {
 				return nil, errors.New("unexpected resource type")
 			}
 			return testComposition, nil
 		}).
-		WithGetAllResourcesByLabels(func(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
+		WithGetAllResourcesByLabels(func(_ context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
 			// Validate the GVK and selector match what we expect
 			if len(gvks) != 1 || len(selectors) != 1 {
 				return nil, errors.New("unexpected number of GVKs or selectors")
@@ -457,7 +456,7 @@ func TestDiffWithExtraResources(t *testing.T) {
 
 			return []*un.Unstructured{testExtraResource}, nil
 		}).
-		WithGetFunctionsFromPipeline(func(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
+		WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 			// Return functions for the composition pipeline
 			return []pkgv1.Function{
 				{
@@ -472,19 +471,19 @@ func TestDiffWithExtraResources(t *testing.T) {
 				},
 			}, nil
 		}).
-		WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+		WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 			return []*un.Unstructured{
 				{Object: xrdUnstructured},
 			}, nil
 		}).
-		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
+		WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 			if name == "test-xr-composed-resource" {
 				return existingResource, nil
 			}
 			return nil, errors.Errorf("resource %q not found", name)
 		}).
 		// Add GetCRD implementation for our test
-		WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+		WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
 			// For this test, we can return nil as it doesn't focus on validation
 			return nil, errors.New("CRD not found")
 		}).
@@ -500,8 +499,9 @@ func TestDiffWithExtraResources(t *testing.T) {
 	origFprintf := fprintf
 	defer func() { fprintf = origFprintf }()
 
+	// TODO:  is this necessary?
 	// Override fprintf to write to our buffer
-	fprintf = func(w io.Writer, format string, a ...interface{}) (int, error) {
+	fprintf = func(_ io.Writer, format string, a ...interface{}) (int, error) {
 		// For our test, redirect all output to our buffer regardless of the writer
 		return fmt.Fprintf(&buf, format, a...)
 	}
@@ -542,14 +542,14 @@ spec:
 		ProcessorFactory = originalDiffProcessorFactory
 	}()
 
-	ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 		return mockClient, nil
 	}
 
 	// Set up mock diff processor
 	mockProcessor := tu.NewMockDiffProcessor().
 		WithSuccessfulInitialize().
-		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*un.Unstructured) error {
+		WithPerformDiff(func(io.Writer, context.Context, []*un.Unstructured) error {
 			// Generate a mock diff for our test
 			_, _ = fmt.Fprintf(&buf, `~ ComposedResource/test-xr-composed-resource
 {
@@ -563,12 +563,12 @@ spec:
 		}).
 		Build()
 
-	ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
+	ProcessorFactory = func(cc.ClusterClient, ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 		return mockProcessor, nil
 	}
 
 	// Execute the test
-	err = testRun(t, ctx, cmd, func() (*rest.Config, error) {
+	err = testRun(ctx, t, cmd, func() (*rest.Config, error) {
 		return &rest.Config{}, nil
 	})
 
@@ -608,7 +608,7 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	// Create test existing resource with matching values
 	matchingResource := createMatchingComposedResource()
 
-	// Convert the test XRD to un for GetXRDs to return
+	// Convert the test XRD to unstructured for GetXRDs to return
 	xrdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(testXRD)
 	if err != nil {
 		t.Fatalf("Failed to convert XRD to un: %v", err)
@@ -618,10 +618,10 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	mockClient := tu.NewMockClusterClient().
 		WithSuccessfulInitialize().
 		WithSuccessfulCompositionMatch(testComposition).
-		WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
+		WithGetAllResourcesByLabels(func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error) {
 			return []*un.Unstructured{testExtraResource}, nil
 		}).
-		WithGetFunctionsFromPipeline(func(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
+		WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 			return []pkgv1.Function{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -635,12 +635,12 @@ func TestDiffWithMatchingResources(t *testing.T) {
 				},
 			}, nil
 		}).
-		WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+		WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 			return []*un.Unstructured{
 				{Object: xrdUnstructured},
 			}, nil
 		}).
-		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
+		WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 			if name == "test-xr-composed-resource" {
 				return matchingResource, nil
 			}
@@ -657,7 +657,7 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	defer func() { fprintf = origFprintf }()
 
 	// Override fprintf to write to our buffer
-	fprintf = func(w io.Writer, format string, a ...interface{}) (int, error) {
+	fprintf = func(_ io.Writer, format string, a ...interface{}) (int, error) {
 		// For our test, redirect all output to our buffer regardless of the writer
 		return fmt.Fprintf(&buf, format, a...)
 	}
@@ -698,25 +698,25 @@ spec:
 		ProcessorFactory = originalDiffProcessorFactory
 	}()
 
-	ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
+	ClusterClientFactory = func(*rest.Config, ...cc.Option) (cc.ClusterClient, error) {
 		return mockClient, nil
 	}
 
 	// Set up mock diff processor
 	mockProcessor := tu.NewMockDiffProcessor().
 		WithSuccessfulInitialize().
-		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*un.Unstructured) error {
+		WithPerformDiff(func(io.Writer, context.Context, []*un.Unstructured) error {
 			// For matching resources, we don't produce any output
 			return nil
 		}).
 		Build()
 
-	ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
+	ProcessorFactory = func(cc.ClusterClient, ...dp.ProcessorOption) (dp.DiffProcessor, error) {
 		return mockProcessor, nil
 	}
 
 	// Execute the test
-	err = testRun(t, ctx, cmd, func() (*rest.Config, error) {
+	err = testRun(ctx, t, cmd, func() (*rest.Config, error) {
 		return &rest.Config{}, nil
 	})
 

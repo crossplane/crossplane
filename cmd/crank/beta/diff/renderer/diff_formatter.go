@@ -17,16 +17,23 @@ import (
 type DiffType string
 
 const (
-	DiffTypeAdded    DiffType = "+"
-	DiffTypeRemoved  DiffType = "-"
+	// DiffTypeAdded an added section
+	DiffTypeAdded DiffType = "+"
+	// DiffTypeRemoved a removed section
+	DiffTypeRemoved DiffType = "-"
+	// DiffTypeModified a modified section
 	DiffTypeModified DiffType = "~"
-	DiffTypeEqual    DiffType = "="
+	// DiffTypeEqual an unchanged section
+	DiffTypeEqual DiffType = "="
 )
 
 // Colors for terminal output
 const (
-	ColorRed   = "\x1b[31m"
+	// ColorRed an ANSI "begin red" character
+	ColorRed = "\x1b[31m"
+	// ColorGreen an ANSI "begin green" character
 	ColorGreen = "\x1b[32m"
+	// ColorReset an ANSI "reset color" character
 	ColorReset = "\x1b[0m"
 )
 
@@ -74,6 +81,7 @@ func (d *ResourceDiff) getKindName() string {
 	return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
 }
 
+// GetDiffKey returns a key that can be used to identify this object for use in a map.
 func (d *ResourceDiff) GetDiffKey() string {
 	return MakeDiffKey(d.Gvk.Group+"/"+d.Gvk.Version, d.Gvk.Kind, d.ResourceName)
 }
@@ -175,8 +183,8 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 	var currentBlock *changeBlock
 
 	// Identify all the change blocks
-	for i := range len(allLines) {
-		if allLines[i].Type != diffmatchpatch.DiffEqual {
+	for i, line := range allLines {
+		if line.Type != diffmatchpatch.DiffEqual {
 			// Start a new block if we don't have one
 			if currentBlock == nil {
 				currentBlock = &changeBlock{StartIdx: i, EndIdx: i}
@@ -267,7 +275,7 @@ func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 	return patch.DiffCharsToLines(diff, lines)
 }
 
-// GenerateDiffWithOptions produces a structured diff between two un objects
+// GenerateDiffWithOptions produces a structured diff between two unstructured objects
 func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.Logger, _ DiffOptions) (*ResourceDiff, error) {
 	var diffType DiffType
 
@@ -418,7 +426,7 @@ func processLines(diff diffmatchpatch.Diff, options DiffOptions) ([]string, bool
 		lines = lines[:len(lines)-1]
 	}
 
-	var result []string
+	result := make([]string, 0, len(lines))
 
 	// Format each line with appropriate prefix and color
 	for _, line := range lines {

@@ -42,7 +42,6 @@ const (
 )
 
 // Manager defines a Manager for preparing Crossplane packages for validation.
-// TODO:  consider that this struct is write-only; we should have some way to read its outputs, maybe an output object?
 type Manager struct {
 	fetcher ImageFetcher
 	cache   Cache

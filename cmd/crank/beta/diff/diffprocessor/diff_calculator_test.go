@@ -124,7 +124,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		"ErrorGettingCurrentObject": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
 						return nil, errors.New("resource not found")
 					}).
 					Build()
@@ -173,7 +173,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				// Create a mock client that will return resources by label
 				return tu.NewMockClusterClient().
 					// Return "not found" for direct name lookup
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						// This should fail as the resource has generateName, not name
 						if name == "test-resource-abc123" {
 							return existingComposed, nil
@@ -187,7 +187,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 						)
 					}).
 					// Return our existing resource when looking up by label
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
+					WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 						// Verify we're looking up with the right composite owner label
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
 							return []*un.Unstructured{existingComposed}, nil

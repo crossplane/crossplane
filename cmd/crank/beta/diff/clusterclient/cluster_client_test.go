@@ -107,7 +107,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 						{Group: "apiextensions.crossplane.io", Version: "v1alpha1", Resource: "environmentconfigs"}: "EnvironmentConfigList",
 					})
 
-				dc.Fake.PrependReactor("list", "environmentconfigs", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "environmentconfigs", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("api server down")
 				})
 
@@ -245,7 +245,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 						{Group: "pkg.crossplane.io", Version: "v1", Resource: "functions"}:              "FunctionList",
 					})
 
-				dc.Fake.PrependReactor("list", "compositions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "compositions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("composition list error")
 				})
 
@@ -261,11 +261,6 @@ func TestClusterClient_Initialize(t *testing.T) {
 		"FunctionListError": {
 			reason: "Should propagate errors from function listing",
 			setup: func() dynamic.Interface {
-				dc := fake.NewSimpleDynamicClientWithCustomListKinds(scheme,
-					map[schema.GroupVersionResource]string{
-						{Group: "apiextensions.crossplane.io", Version: "v1", Resource: "compositions"}: "CompositionList",
-						{Group: "pkg.crossplane.io", Version: "v1", Resource: "functions"}:              "FunctionList",
-					})
 
 				// Setup compositions to respond normally
 				objects := []runtime.Object{
@@ -277,10 +272,10 @@ func TestClusterClient_Initialize(t *testing.T) {
 						Build(),
 				}
 
-				dc = fake.NewSimpleDynamicClient(scheme, objects...)
+				dc := fake.NewSimpleDynamicClient(scheme, objects...)
 
 				// But make functions fail
-				dc.Fake.PrependReactor("list", "functions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "functions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("function list error")
 				})
 
@@ -378,7 +373,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 				dc := fake.NewSimpleDynamicClient(scheme, objects...)
 
 				// But make XRD fetch fail
-				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("failed to fetch XRDs")
 				})
 
@@ -583,7 +578,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 					map[schema.GroupVersionResource]string{
 						{Group: "example.org", Version: "v1", Resource: "resources"}: "ResourceList",
 					})
-				dc.Fake.PrependReactor("list", "resources", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "resources", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("list error")
 				})
 				return dc
@@ -1112,7 +1107,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 
 			// Set up fake dynamic client with XRDs
 			fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
-			fakeDynamicClient.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+			fakeDynamicClient.PrependReactor("list", "compositeresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 				unstructuredList := &un.UnstructuredList{}
 				if tc.fields.xrds != nil {
 					for _, xrd := range tc.fields.xrds {
@@ -1202,7 +1197,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New("Unsupported composition Mode 'NonPipeline'; supported types are [Pipeline]"),
+				err: errors.New("unsupported composition Mode 'NonPipeline'; supported types are [Pipeline]"),
 			},
 		},
 		"NoModeSpecified": {
@@ -1218,7 +1213,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New("Unsupported Composition; no Mode found."),
+				err: errors.New("unsupported Composition; no Mode found"),
 			},
 		},
 		"EmptyPipeline": {
@@ -1512,7 +1507,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 						{Group: "apiextensions.crossplane.io", Version: "v1", Resource: "compositeresourcedefinitions"}: "CompositeResourceDefinitionList",
 					})
 
-				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("list error")
 				})
 
@@ -1537,7 +1532,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				// *Important*: Create a list reactor that can be tracked
 				// We must use PrependReactor instead of just counting total actions at the end
 				// because the list happens inside the GetXRDs method
-				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					// Don't handle the reaction, just pass through
 					return false, nil, nil
 				})
@@ -1561,7 +1556,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				dc := fake.NewSimpleDynamicClient(scheme)
 
 				// Prepend a reactor to track API calls
-				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "compositeresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					// Don't handle the reaction, just pass through
 					return false, nil, nil
 				})
@@ -1783,7 +1778,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 			reason: "Should return an error when the resource doesn't exist",
 			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClient(scheme)
-				dc.Fake.PrependReactor("get", "*", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("get", "*", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("resource not found")
 				})
 
@@ -1880,7 +1875,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 				}
 
 				// Set up the discovery client to return an error
-				fakeDiscovery.Fake.AddReactor("get", "resources", func(action kt.Action) (bool, runtime.Object, error) {
+				fakeDiscovery.Fake.AddReactor("get", "resources", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("discovery error")
 				})
 
@@ -1976,7 +1971,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			reason: "Should successfully apply a namespaced resource",
 			setup: func() *tu.MockClusterClient {
 				return &tu.MockClusterClient{
-					DryRunApplyFn: func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+					DryRunApplyFn: func(_ context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 						// Create a modified copy of the input object
 						result := obj.DeepCopy()
 						result.SetResourceVersion("1000")
@@ -2002,7 +1997,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			reason: "Should successfully apply a cluster-scoped resource",
 			setup: func() *tu.MockClusterClient {
 				return &tu.MockClusterClient{
-					DryRunApplyFn: func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+					DryRunApplyFn: func(_ context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 						// Create a modified copy of the input object
 						result := obj.DeepCopy()
 						result.SetResourceVersion("1000")
@@ -2026,7 +2021,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			reason: "Should return error when apply fails",
 			setup: func() *tu.MockClusterClient {
 				return &tu.MockClusterClient{
-					DryRunApplyFn: func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+					DryRunApplyFn: func(context.Context, *un.Unstructured) (*un.Unstructured, error) {
 						return nil, errors.New("apply failed")
 					},
 				}
@@ -2242,7 +2237,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 						{Group: "example.org", Version: "v1", Resource: "resources"}: "ResourceList",
 					})
 
-				dc.Fake.PrependReactor("list", "resources", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.Fake.PrependReactor("list", "resources", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("list error")
 				})
 
@@ -2292,7 +2287,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				}
 
 				// Set up the discovery client to return an error
-				fakeDiscovery.Fake.AddReactor("get", "resource", func(action kt.Action) (bool, runtime.Object, error) {
+				fakeDiscovery.Fake.AddReactor("get", "resource", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("discovery error")
 				})
 
@@ -2434,7 +2429,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"SuccessfulResourceTreeFetch": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						// Verify the input is our XR
 						if root.GetName() != "test-xr" || root.GetKind() != "XExampleResource" {
 							return nil, errors.New("unexpected input resource")
@@ -2450,7 +2445,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"ResourceTreeNotFound": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
 						return nil, errors.New("resource tree not found")
 					}).
 					Build()
@@ -2463,7 +2458,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"EmptyResourceTree": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						// Return an empty resource tree (just the root, no children)
 						return &resource.Resource{
 							Unstructured: *root.DeepCopy(),
@@ -2482,7 +2477,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"NilInputResource": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						if root == nil {
 							return nil, errors.New("nil resource provided")
 						}
@@ -2719,7 +2714,7 @@ func TestClusterClient_IsCRDRequired(t *testing.T) {
 					Fake: &kt.Fake{},
 				}
 				// Set up to generate an error when called
-				fakeDiscovery.Fake.AddReactor("*", "*", func(action kt.Action) (bool, runtime.Object, error) {
+				fakeDiscovery.Fake.AddReactor("*", "*", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("discovery failed")
 				})
 				return fakeDiscovery
@@ -2845,7 +2840,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 			reason: "Should return error when CRD doesn't exist",
 			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClient(scheme)
-				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.PrependReactor("get", "customresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, apierrors.NewNotFound(
 						schema.GroupResource{
 							Group:    "apiextensions.k8s.io",
@@ -2882,7 +2877,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 			reason: "Should propagate server errors",
 			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dc := fake.NewSimpleDynamicClient(scheme)
-				dc.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dc.PrependReactor("get", "customresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("server error")
 				})
 
@@ -2921,7 +2916,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 				}
 
 				// Set up to generate an error when called
-				fakeDiscovery.Fake.AddReactor("*", "*", func(action kt.Action) (bool, runtime.Object, error) {
+				fakeDiscovery.Fake.AddReactor("*", "*", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("discovery failed")
 				})
 
@@ -3005,7 +3000,7 @@ func createFakeDiscoveryClient(resources map[string][]metav1.APIResource) discov
 		Fake: &kt.Fake{},
 	}
 
-	var apiResourceLists []*metav1.APIResourceList
+	apiResourceLists := make([]*metav1.APIResourceList, 0, len(resources))
 
 	for gv, apiResources := range resources {
 		apiResourceLists = append(apiResourceLists, &metav1.APIResourceList{

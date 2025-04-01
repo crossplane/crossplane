@@ -1,3 +1,4 @@
+// Package clusterclient contains the base level client(s) responsible for interacting with the kubernetes cluster.
 package clusterclient
 
 import (
@@ -74,9 +75,7 @@ type DefaultClusterClient struct {
 	logger          logging.Logger
 
 	// Resource caching
-	resourceMap            map[schema.GroupVersionKind]bool
-	resourceMapMutex       sync.RWMutex
-	resourceMapInitialized bool
+	resourceMap map[schema.GroupVersionKind]bool
 
 	// GVK caching
 	gvkToGVRMap   map[schema.GroupVersionKind]schema.GroupVersionResource
@@ -89,7 +88,7 @@ type DefaultClusterClient struct {
 }
 
 // NewClusterClient creates a new DefaultClusterClient instance.
-func NewClusterClient(config *rest.Config, opts ...Option) (*DefaultClusterClient, error) {
+func NewClusterClient(config *rest.Config, opts ...Option) (ClusterClient, error) {
 	// Set up default configuration
 	options := &Options{
 		Logger: logging.NewNopLogger(),
@@ -153,14 +152,16 @@ func NewClusterClient(config *rest.Config, opts ...Option) (*DefaultClusterClien
 		return nil, errors.Wrap(err, "cannot create discovery client")
 	}
 
-	return &DefaultClusterClient{
+	cc := DefaultClusterClient{
 		dynamicClient:   dynamicClient,
 		xrmClient:       xrmClient,
 		logger:          options.Logger,
 		discoveryClient: discoveryClient,
 		resourceMap:     make(map[schema.GroupVersionKind]bool),
 		gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
-	}, nil
+	}
+
+	return &cc, nil
 }
 
 // Initialize loads compositions and functions from the cluster.
@@ -265,8 +266,6 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 			gvk.String(), labels.Set(sel.MatchLabels).String())
 	}
 
-	var resources []*un.Unstructured
-
 	opts := metav1.ListOptions{}
 	if len(sel.MatchLabels) > 0 {
 		opts.LabelSelector = labels.Set(sel.MatchLabels).String()
@@ -284,6 +283,7 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 			gvk.String(), opts.LabelSelector)
 	}
 
+	resources := make([]*un.Unstructured, 0, len(list.Items))
 	for _, item := range list.Items {
 		// Create a pointer to each item
 		resources = append(resources, &item)
@@ -613,9 +613,9 @@ func (c *DefaultClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Co
 				return string(*comp.Spec.Mode)
 			}())
 		if comp.Spec.Mode != nil {
-			return nil, errors.New(fmt.Sprintf("Unsupported composition Mode '%s'; supported types are [%s]", *comp.Spec.Mode, apiextensionsv1.CompositionModePipeline))
+			return nil, fmt.Errorf("unsupported composition Mode '%s'; supported types are [%s]", *comp.Spec.Mode, apiextensionsv1.CompositionModePipeline)
 		}
-		return nil, errors.New("Unsupported Composition; no Mode found.")
+		return nil, errors.New("unsupported Composition; no Mode found")
 	}
 
 	functions := make([]pkgv1.Function, 0, len(comp.Spec.Pipeline))
@@ -667,7 +667,7 @@ func (c *DefaultClusterClient) listCompositions(ctx context.Context) ([]apiexten
 			c.logger.Debug("Failed to convert composition from un",
 				"name", obj.GetName(),
 				"error", err)
-			return nil, errors.Wrap(err, "cannot convert un to Composition")
+			return nil, errors.Wrap(err, "cannot convert unstructured to Composition")
 		}
 		compositions = append(compositions, *comp)
 	}
@@ -702,7 +702,7 @@ func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Funct
 			c.logger.Debug("Failed to convert function from un",
 				"name", obj.GetName(),
 				"error", err)
-			return nil, errors.Wrap(err, "cannot convert un to Function")
+			return nil, errors.Wrap(err, "cannot convert unstructured to Function")
 		}
 		functions = append(functions, *fn)
 	}
@@ -711,6 +711,7 @@ func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Funct
 	return functions, nil
 }
 
+// GetXRDs returns the set of all XRDs in the cluster and caches them.
 func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
 	// Check if XRDs are already loaded
 	c.xrdsMutex.RLock()
@@ -802,6 +803,7 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	return res, nil
 }
 
+// GetResourceTree returns the tree of children beneath a given root.
 func (c *DefaultClusterClient) GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 	c.logger.Debug("Getting resource tree",
 		"resource_kind", root.GetKind(),

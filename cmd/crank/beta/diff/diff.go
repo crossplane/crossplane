@@ -126,7 +126,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	if err := processor.PerformDiff(k.Stdout, ctx, resources); err != nil {
+	if err := processor.PerformDiff(ctx, k.Stdout, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 
@@ -135,14 +135,8 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 
 var (
 	// ClusterClientFactory Factory function for creating a new cluster client
-	ClusterClientFactory = func(config *rest.Config, opts ...cc.Option) (cc.ClusterClient, error) {
-		return cc.NewClusterClient(config, opts...)
-	}
+	ClusterClientFactory = cc.NewClusterClient
 
 	// ProcessorFactory Factory function for creating a new diff processor
-	ProcessorFactory = func(client cc.ClusterClient, opts ...dp.ProcessorOption) (dp.DiffProcessor, error) {
-
-		// Create the processor with all options
-		return dp.NewDiffProcessor(client, opts...)
-	}
+	ProcessorFactory = dp.NewDiffProcessor
 )

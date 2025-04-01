@@ -475,6 +475,7 @@ spec:
 				resourceCount: 1,
 				resourceNames: []string{"stdin-resource"},
 				setup: func(t *testing.T) func() {
+					t.Helper()
 					// Create a pipe to simulate stdin
 					r, w, err := os.Pipe()
 					if err != nil {
@@ -509,6 +510,7 @@ spec:
 				resourceCount: 2,
 				resourceNames: []string{"resource-one", "stdin-resource"},
 				setup: func(t *testing.T) func() {
+					t.Helper()
 					// Create a pipe to simulate stdin
 					r, w, err := os.Pipe()
 					if err != nil {
@@ -543,6 +545,7 @@ spec:
 				resourceCount: 2,
 				resourceNames: []string{"stdin-resource", "resource-one"},
 				setup: func(t *testing.T) func() {
+					t.Helper()
 					// Create a pipe to simulate stdin
 					r, w, err := os.Pipe()
 					if err != nil {
@@ -577,6 +580,7 @@ spec:
 				resourceCount: 2,
 				resourceNames: []string{"stdin-resource", "resource-one"},
 				setup: func(t *testing.T) func() {
+					t.Helper()
 					// Create a pipe to simulate stdin
 					r, w, err := os.Pipe()
 					if err != nil {

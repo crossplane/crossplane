@@ -1,8 +1,9 @@
+// Package internal is for internal functions and helpers shared between components.
 package internal
 
 import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -11,16 +12,8 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-func DereferenceSlice[T any](slice []*T) []T {
-	result := make([]T, len(slice))
-	for i, element := range slice {
-		result[i] = *element
-	}
-	return result
-}
-
 // ConvertToCRDs Helper function to convert XRDs/CRDs to CRDs
-func ConvertToCRDs(extensions []*unstructured.Unstructured) ([]*extv1.CustomResourceDefinition, error) {
+func ConvertToCRDs(extensions []*un.Unstructured) ([]*extv1.CustomResourceDefinition, error) {
 	crds := make([]*extv1.CustomResourceDefinition, 0)
 
 	for _, e := range extensions {

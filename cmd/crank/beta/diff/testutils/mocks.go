@@ -3,7 +3,6 @@ package testutils
 import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -248,7 +247,6 @@ type MockClusterClient struct {
 	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error)
 	IsCRDRequiredFn            func(ctx context.Context, gvk schema.GroupVersionKind) bool
 	GetCRDFn                   func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
-	logger                     logging.Logger
 }
 
 // Initialize implements the ClusterClient interface
@@ -365,36 +363,28 @@ func (m *MockDiffProcessor) Initialize(ctx context.Context) error {
 }
 
 // PerformDiff implements the DiffProcessor.PerformDiff method
-func (m *MockDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
+func (m *MockDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer, resources []*un.Unstructured) error {
 	if m.PerformDiffFn != nil {
 		return m.PerformDiffFn(stdout, ctx, resources)
 	}
 	return nil
 }
 
-type MockLoader struct {
-	Resources []*un.Unstructured
-	Err       error
-}
-
-func (m *MockLoader) Load() ([]*un.Unstructured, error) {
-	return m.Resources, m.Err
-}
-
-// MockExtraResourceProvider Helper type for mocking providers
-type MockExtraResourceProvider struct {
-	GetExtraResourcesFn func(ctx context.Context, comp *xpextv1.Composition, xr *un.Unstructured, resources []*un.Unstructured) ([]*un.Unstructured, error)
-}
-
-func (m *MockExtraResourceProvider) GetExtraResources(ctx context.Context, comp *xpextv1.Composition, xr *un.Unstructured, resources []*un.Unstructured) ([]*un.Unstructured, error) {
-	return m.GetExtraResourcesFn(ctx, comp, xr, resources)
-}
+//type MockLoader struct {
+//	Resources []*un.Unstructured
+//	Err       error
+//}
+//
+//func (m *MockLoader) Load() ([]*un.Unstructured, error) {
+//	return m.Resources, m.Err
+//}
 
 // MockSchemaValidator Mock schema validator
 type MockSchemaValidator struct {
 	ValidateResourcesFn func(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error
 }
 
+// ValidateResources validates a set of resources against schemas from the cluster
 func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error {
 	if m.ValidateResourcesFn != nil {
 		return m.ValidateResourcesFn(ctx, xr, composed)

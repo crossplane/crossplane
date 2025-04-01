@@ -330,7 +330,7 @@ func readResourcesFromFile(path string) ([]*un.Unstructured, error) {
 		resource := &un.Unstructured{}
 		err := decoder.Decode(resource)
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("failed to decode YAML document from %s: %w", path, err)

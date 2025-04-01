@@ -807,10 +807,11 @@ Summary: 2 modified`,
 			// Create a buffer to capture the output
 			var stdout bytes.Buffer
 
+			// TODO:  is this necessary?
 			// Override fprintf to capture output
 			origFprintf := fprintf
 			defer func() { fprintf = origFprintf }()
-			fprintf = func(w io.Writer, format string, a ...interface{}) (int, error) {
+			fprintf = func(_ io.Writer, format string, a ...interface{}) (int, error) {
 				return fmt.Fprintf(&stdout, format, a...)
 			}
 
@@ -824,7 +825,7 @@ Summary: 2 modified`,
 
 			// TODO: This seems a bit redundant with the Kong binding?
 			// Use the real implementation but with our test config
-			ClusterClientFactory = func(config *rest.Config, opts ...cc.Option) (cc.ClusterClient, error) {
+			ClusterClientFactory = func(_ *rest.Config, opts ...cc.Option) (cc.ClusterClient, error) {
 				return cc.NewClusterClient(cfg, opts...)
 			}
 

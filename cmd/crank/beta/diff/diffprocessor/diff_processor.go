@@ -25,7 +25,7 @@ type RenderFunc func(ctx context.Context, log logging.Logger, in render.Inputs) 
 // DiffProcessor interface for processing resources
 type DiffProcessor interface {
 	// PerformDiff processes all resources and produces a diff output
-	PerformDiff(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error
+	PerformDiff(ctx context.Context, stdout io.Writer, resources []*un.Unstructured) error
 
 	// Initialize loads required resources like CRDs and environment configs
 	Initialize(ctx context.Context) error
@@ -123,7 +123,7 @@ func (p *DefaultDiffProcessor) initializeSchemaValidator(ctx context.Context) er
 }
 
 // PerformDiff processes all resources and produces a diff output
-func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
+func (p *DefaultDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer, resources []*un.Unstructured) error {
 	p.config.Logger.Debug("Processing resources", "count", len(resources))
 
 	if len(resources) == 0 {
@@ -176,7 +176,7 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.U
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
 
-	xr, err, done := p.SanitizeXR(res, resourceID)
+	xr, done, err := p.SanitizeXR(res, resourceID)
 	if done {
 		return nil, err
 	}
@@ -243,12 +243,13 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.U
 	return diffs, err
 }
 
-func (p *DefaultDiffProcessor) SanitizeXR(res *un.Unstructured, resourceID string) (*cmp.Unstructured, error, bool) {
-	// Convert the un resource to a composite un for rendering
+// SanitizeXR makes an XR into a valid unstructured object that we can use in a dry-run apply
+func (p *DefaultDiffProcessor) SanitizeXR(res *un.Unstructured, resourceID string) (*cmp.Unstructured, bool, error) {
+	// Convert the unstructured resource to a composite unstructured for rendering
 	xr := cmp.New()
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
 		p.config.Logger.Debug("Failed to convert resource", "resource", resourceID, "error", err)
-		return nil, errors.Wrap(err, "cannot convert XR to composite un"), true
+		return nil, true, errors.Wrap(err, "cannot convert XR to composite unstructured")
 	}
 
 	// Handle XRs with generateName but no name
@@ -264,15 +265,15 @@ func (p *DefaultDiffProcessor) SanitizeXR(res *un.Unstructured, resourceID strin
 		xrCopy.SetName(displayName)
 		xr = xrCopy
 	}
-	return xr, nil, false
+	return xr, false, nil
 }
 
-// mergeUnstructured merges two un objects
+// mergeUnstructured merges two unstructured objects
 func mergeUnstructured(dest *un.Unstructured, src *un.Unstructured) (*un.Unstructured, error) {
 	// Start with a deep copy of the rendered resource
 	result := dest.DeepCopy()
 	if err := mergo.Merge(&result.Object, src.Object, mergo.WithOverride); err != nil {
-		return nil, errors.Wrap(err, "cannot merge un objects")
+		return nil, errors.Wrap(err, "cannot merge unstructured objects")
 	}
 	return result, nil
 }

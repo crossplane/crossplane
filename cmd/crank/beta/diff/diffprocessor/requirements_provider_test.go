@@ -21,7 +21,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 
 	// Mock client that returns appropriate resources
 	mockClient := tu.NewMockClusterClient().
-		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+		WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 			if gvk.Kind == "ConfigMap" && name == "config1" {
 				return configMap, nil
 			}
@@ -30,7 +30,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 			}
 			return nil, errors.New("resource not found")
 		}).
-		WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
+		WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 			// Return resources for label-based selectors
 			if sel.MatchLabels["app"] == "test-app" {
 				return []*un.Unstructured{configMap}, nil

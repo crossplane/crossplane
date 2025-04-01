@@ -193,7 +193,7 @@ func (p *RequirementsProvider) ClearCache() {
 
 // Helper to parse apiVersion into group and version
 func parseAPIVersion(apiVersion string) (string, string) {
-	group, version := "", ""
+	var group, version string
 	if parts := strings.SplitN(apiVersion, "/", 2); len(parts) == 2 {
 		// Normal case: group/version (e.g., "apps/v1")
 		group, version = parts[0], parts[1]

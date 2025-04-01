@@ -62,7 +62,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 		},
 		"SuccessfulValidationWithFetchedCRDs": {
 			setupClient: func() *tu.MockClusterClient {
-				// Convert CRDs to un for the mock client
+				// Convert CRDs to unstructured for the mock client
 				xrCRDUn := &un.Unstructured{}
 				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
 					MustToUnstructured(xrCRD),
@@ -78,7 +78,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
 					// Add GetCRD implementation
-					WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						if gvk.Group == "example.org" && gvk.Kind == "XR" {
 							return xrCRDUn, nil
 						}
@@ -107,7 +107,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 
 				return tu.NewMockClusterClient().
 					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if name == "xrs.example.org" {
 							return xrCRDUn, nil
 						}
@@ -138,7 +138,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 
 				return tu.NewMockClusterClient().
 					// Add GetCRD implementation
-					WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						if gvk.Group == "example.org" && gvk.Kind == "XR" {
 							return nil, errors.New("CRD not found") // Force validation to use preloaded CRDs
 						}
@@ -233,7 +233,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 
 				return tu.NewMockClusterClient().
 					// Use the new GetCRD method instead of GetResource
-					WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						if gvk.Group == "cpd.org" && gvk.Kind == "ComposedResource" {
 							return composedCRDUn, nil
 						}
@@ -252,7 +252,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 		"SomeCRDsMissing": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
+					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
 						// Return not found for all CRDs
 						return nil, errors.New("CRD not found")
 					}).

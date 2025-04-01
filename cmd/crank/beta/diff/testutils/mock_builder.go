@@ -46,14 +46,14 @@ func (b *ClusterClientBuilder) WithInitialize(fn func(context.Context) error) *C
 
 // WithSuccessfulInitialize sets a successful Initialize implementation.
 func (b *ClusterClientBuilder) WithSuccessfulInitialize() *ClusterClientBuilder {
-	return b.WithInitialize(func(ctx context.Context) error {
+	return b.WithInitialize(func(context.Context) error {
 		return nil
 	})
 }
 
 // WithFailedInitialize sets a failing Initialize implementation.
 func (b *ClusterClientBuilder) WithFailedInitialize(errMsg string) *ClusterClientBuilder {
-	return b.WithInitialize(func(ctx context.Context) error {
+	return b.WithInitialize(func(context.Context) error {
 		return errors.New(errMsg)
 	})
 }
@@ -66,14 +66,14 @@ func (b *ClusterClientBuilder) WithFindMatchingComposition(fn func(context.Conte
 
 // WithSuccessfulCompositionMatch sets a successful FindMatchingComposition implementation.
 func (b *ClusterClientBuilder) WithSuccessfulCompositionMatch(comp *xpextv1.Composition) *ClusterClientBuilder {
-	return b.WithFindMatchingComposition(func(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
+	return b.WithFindMatchingComposition(func(context.Context, *un.Unstructured) (*xpextv1.Composition, error) {
 		return comp, nil
 	})
 }
 
 // WithNoMatchingComposition sets a FindMatchingComposition implementation that returns "not found".
 func (b *ClusterClientBuilder) WithNoMatchingComposition() *ClusterClientBuilder {
-	return b.WithFindMatchingComposition(func(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
+	return b.WithFindMatchingComposition(func(context.Context, *un.Unstructured) (*xpextv1.Composition, error) {
 		return nil, errors.New("composition not found")
 	})
 }
@@ -86,14 +86,14 @@ func (b *ClusterClientBuilder) WithGetFunctionsFromPipeline(fn func(*xpextv1.Com
 
 // WithSuccessfulFunctionsFetch sets a successful GetFunctionsFromPipeline implementation.
 func (b *ClusterClientBuilder) WithSuccessfulFunctionsFetch(functions []pkgv1.Function) *ClusterClientBuilder {
-	return b.WithGetFunctionsFromPipeline(func(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
+	return b.WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 		return functions, nil
 	})
 }
 
 // WithFailedFunctionsFetch sets a failing GetFunctionsFromPipeline implementation.
 func (b *ClusterClientBuilder) WithFailedFunctionsFetch(errMsg string) *ClusterClientBuilder {
-	return b.WithGetFunctionsFromPipeline(func(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
+	return b.WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 		return nil, errors.New(errMsg)
 	})
 }
@@ -106,14 +106,14 @@ func (b *ClusterClientBuilder) WithGetXRDs(fn func(context.Context) ([]*un.Unstr
 
 // WithSuccessfulXRDsFetch sets a successful GetXRDs implementation.
 func (b *ClusterClientBuilder) WithSuccessfulXRDsFetch(xrds []*un.Unstructured) *ClusterClientBuilder {
-	return b.WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 		return xrds, nil
 	})
 }
 
 // WithFailedXRDsFetch sets a failing GetXRDs implementation.
 func (b *ClusterClientBuilder) WithFailedXRDsFetch(errMsg string) *ClusterClientBuilder {
-	return b.WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 		return nil, errors.New(errMsg)
 	})
 }
@@ -135,7 +135,7 @@ func (b *ClusterClientBuilder) WithResourcesExist(resources ...*un.Unstructured)
 		resourceMap[key] = res
 	}
 
-	return b.WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
+	return b.WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 		// Try to find the resource by name and kind
 		key := name + "|" + gvk.Kind
 		if res, found := resourceMap[key]; found {
@@ -147,7 +147,7 @@ func (b *ClusterClientBuilder) WithResourcesExist(resources ...*un.Unstructured)
 
 // WithResourceNotFound sets a GetResource implementation that always returns "not found".
 func (b *ClusterClientBuilder) WithResourceNotFound() *ClusterClientBuilder {
-	return b.WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
+	return b.WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 		// Create a proper Kubernetes "not found" error
 		return nil, apierrors.NewNotFound(
 			schema.GroupResource{
@@ -167,14 +167,14 @@ func (b *ClusterClientBuilder) WithDryRunApply(fn func(context.Context, *un.Unst
 
 // WithSuccessfulDryRun sets a DryRunApply implementation that returns the input resource.
 func (b *ClusterClientBuilder) WithSuccessfulDryRun() *ClusterClientBuilder {
-	return b.WithDryRunApply(func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+	return b.WithDryRunApply(func(_ context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 		return obj, nil
 	})
 }
 
 // WithFailedDryRun sets a DryRunApply implementation that returns an error.
 func (b *ClusterClientBuilder) WithFailedDryRun(errMsg string) *ClusterClientBuilder {
-	return b.WithDryRunApply(func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+	return b.WithDryRunApply(func(context.Context, *un.Unstructured) (*un.Unstructured, error) {
 		return nil, errors.New(errMsg)
 	})
 }
@@ -187,7 +187,7 @@ func (b *ClusterClientBuilder) WithGetResourcesByLabel(fn func(context.Context, 
 
 // WithResourcesFoundByLabel sets a GetResourcesByLabel implementation that returns resources for a specific label.
 func (b *ClusterClientBuilder) WithResourcesFoundByLabel(resources []*un.Unstructured, label string, value string) *ClusterClientBuilder {
-	return b.WithGetResourcesByLabel(func(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
+	return b.WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
 		// Check if the selector matches our expected label
 		if labelValue, exists := selector.MatchLabels[label]; exists && labelValue == value {
 			return resources, nil
@@ -210,7 +210,7 @@ func (b *ClusterClientBuilder) WithEnvironmentConfigs(fn func(context.Context) (
 
 // WithSuccessfulEnvironmentConfigsFetch sets a successful GetEnvironmentConfigs implementation.
 func (b *ClusterClientBuilder) WithSuccessfulEnvironmentConfigsFetch(configs []*un.Unstructured) *ClusterClientBuilder {
-	return b.WithEnvironmentConfigs(func(ctx context.Context) ([]*un.Unstructured, error) {
+	return b.WithEnvironmentConfigs(func(context.Context) ([]*un.Unstructured, error) {
 		return configs, nil
 	})
 }
@@ -223,14 +223,14 @@ func (b *ClusterClientBuilder) WithGetResourceTree(fn func(context.Context, *un.
 
 // WithSuccessfulResourceTreeFetch sets a successful GetResourceTree implementation
 func (b *ClusterClientBuilder) WithSuccessfulResourceTreeFetch(resourceTree *resource.Resource) *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+	return b.WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
 		return resourceTree, nil
 	})
 }
 
 // WithEmptyResourceTree sets a GetResourceTree implementation that returns just the root with no children
 func (b *ClusterClientBuilder) WithEmptyResourceTree() *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+	return b.WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 		return &resource.Resource{
 			Unstructured: *root.DeepCopy(),
 			Children:     []*resource.Resource{},
@@ -240,14 +240,14 @@ func (b *ClusterClientBuilder) WithEmptyResourceTree() *ClusterClientBuilder {
 
 // WithFailedResourceTreeFetch sets a failing GetResourceTree implementation
 func (b *ClusterClientBuilder) WithFailedResourceTreeFetch(errMsg string) *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+	return b.WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
 		return nil, errors.New(errMsg)
 	})
 }
 
 // WithResourceTreeFromXRAndComposed creates a basic resource tree from an XR and cpd resources
 func (b *ClusterClientBuilder) WithResourceTreeFromXRAndComposed(xr *un.Unstructured, composed []*un.Unstructured) *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+	return b.WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 		// Make sure we're looking for the right XR
 		if root.GetName() != xr.GetName() || root.GetKind() != xr.GetKind() {
 			return nil, errors.Errorf("unexpected resource %s/%s", root.GetKind(), root.GetName())
@@ -279,7 +279,7 @@ func (b *ClusterClientBuilder) WithResourcesByLabel(fn func(context.Context, str
 
 // WithComposedResourcesByOwner sets up a GetResourcesByLabel implementation that returns resources by owner
 func (b *ClusterClientBuilder) WithComposedResourcesByOwner(resources ...*un.Unstructured) *ClusterClientBuilder {
-	return b.WithResourcesByLabel(func(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
+	return b.WithResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
 		// Check if this is looking for cpd resources with crossplane.io/composite label
 		if val, exists := selector.MatchLabels["crossplane.io/composite"]; exists {
 			// Filter resources with this composite owner
@@ -312,7 +312,7 @@ func (b *ClusterClientBuilder) WithResourcesRequiringCRDs(crdsRequiredGVKs ...sc
 		requiresCRD[gvk] = true
 	}
 
-	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
+	return b.WithIsCRDRequired(func(_ context.Context, gvk schema.GroupVersionKind) bool {
 		// Only require CRDs for specified GVKs
 		return requiresCRD[gvk]
 	})
@@ -320,27 +320,27 @@ func (b *ClusterClientBuilder) WithResourcesRequiringCRDs(crdsRequiredGVKs ...sc
 
 // WithAllResourcesRequiringCRDs sets all resources to require CRDs.
 func (b *ClusterClientBuilder) WithAllResourcesRequiringCRDs() *ClusterClientBuilder {
-	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
+	return b.WithIsCRDRequired(func(context.Context, schema.GroupVersionKind) bool {
 		return true
 	})
 }
 
 // WithNoResourcesRequiringCRDs sets all resources to not require CRDs.
 func (b *ClusterClientBuilder) WithNoResourcesRequiringCRDs() *ClusterClientBuilder {
-	return b.WithIsCRDRequired(func(ctx context.Context, gvk schema.GroupVersionKind) bool {
+	return b.WithIsCRDRequired(func(context.Context, schema.GroupVersionKind) bool {
 		return false
 	})
 }
 
 // WithGetCRD adds an implementation for the GetCRD method.
-func (b *ClusterClientBuilder) WithGetCRD(fn func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)) *ClusterClientBuilder {
+func (b *ClusterClientBuilder) WithGetCRD(fn func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error)) *ClusterClientBuilder {
 	b.mock.GetCRDFn = fn
 	return b
 }
 
 // WithSuccessfulCRDFetch sets a GetCRD implementation that returns a specific CRD.
 func (b *ClusterClientBuilder) WithSuccessfulCRDFetch(crd *un.Unstructured) *ClusterClientBuilder {
-	return b.WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+	return b.WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
 		if crd.GetKind() != "CustomResourceDefinition" {
 			return nil, errors.Errorf("setup error:  desired return from GetCRD isn't a CRD but a %s", crd.GetKind())
 		}
@@ -377,14 +377,14 @@ func (b *DiffProcessorBuilder) WithInitialize(fn func(context.Context) error) *D
 
 // WithSuccessfulInitialize sets a successful Initialize implementation.
 func (b *DiffProcessorBuilder) WithSuccessfulInitialize() *DiffProcessorBuilder {
-	return b.WithInitialize(func(ctx context.Context) error {
+	return b.WithInitialize(func(context.Context) error {
 		return nil
 	})
 }
 
 // WithFailedInitialize sets a failing Initialize implementation.
 func (b *DiffProcessorBuilder) WithFailedInitialize(errMsg string) *DiffProcessorBuilder {
-	return b.WithInitialize(func(ctx context.Context) error {
+	return b.WithInitialize(func(context.Context) error {
 		return errors.New(errMsg)
 	})
 }
@@ -397,14 +397,14 @@ func (b *DiffProcessorBuilder) WithPerformDiff(fn func(io.Writer, context.Contex
 
 // WithSuccessfulPerformDiff sets a successful PerformDiff implementation.
 func (b *DiffProcessorBuilder) WithSuccessfulPerformDiff() *DiffProcessorBuilder {
-	return b.WithPerformDiff(func(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
+	return b.WithPerformDiff(func(io.Writer, context.Context, []*un.Unstructured) error {
 		return nil
 	})
 }
 
 // WithDiffOutput sets a PerformDiff implementation that writes a specific output.
 func (b *DiffProcessorBuilder) WithDiffOutput(output string) *DiffProcessorBuilder {
-	return b.WithPerformDiff(func(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
+	return b.WithPerformDiff(func(stdout io.Writer, _ context.Context, _ []*un.Unstructured) error {
 		if stdout != nil {
 			_, _ = io.WriteString(stdout, output)
 		}
@@ -414,7 +414,7 @@ func (b *DiffProcessorBuilder) WithDiffOutput(output string) *DiffProcessorBuild
 
 // WithFailedPerformDiff sets a failing PerformDiff implementation.
 func (b *DiffProcessorBuilder) WithFailedPerformDiff(errMsg string) *DiffProcessorBuilder {
-	return b.WithPerformDiff(func(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
+	return b.WithPerformDiff(func(io.Writer, context.Context, []*un.Unstructured) error {
 		return errors.New(errMsg)
 	})
 }
@@ -428,7 +428,7 @@ func (b *DiffProcessorBuilder) Build() *MockDiffProcessor {
 // Resource Building Helpers
 // ======================================================================================
 
-// ResourceBuilder helps construct un resources for testing.
+// ResourceBuilder helps construct unstructured resources for testing.
 type ResourceBuilder struct {
 	resource *un.Unstructured
 }
@@ -565,12 +565,12 @@ func (b *ResourceBuilder) WithCompositionResourceName(name string) *ResourceBuil
 	return b
 }
 
-// Build returns the built un resource.
+// Build returns the built unstructured resource.
 func (b *ResourceBuilder) Build() *un.Unstructured {
 	return b.resource.DeepCopy()
 }
 
-// BuildUComposite returns the built un resource as a *cmp.Unstructured.
+// BuildUComposite returns the built unstructured resource as a *cmp.Unstructured.
 func (b *ResourceBuilder) BuildUComposite() *cmp.Unstructured {
 	built := &cmp.Unstructured{}
 	built.SetUnstructuredContent(b.Build().UnstructuredContent())
