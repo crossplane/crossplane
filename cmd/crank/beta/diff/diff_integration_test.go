@@ -21,9 +21,6 @@ import (
 
 	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
-	"k8s.io/client-go/rest"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -823,12 +820,6 @@ Summary: 2 modified`,
 				NoColor:   tt.noColor,
 			}
 
-			// TODO: This seems a bit redundant with the Kong binding?
-			// Use the real implementation but with our test config
-			ClusterClientFactory = func(_ *rest.Config, opts ...cc.Option) (cc.ClusterClient, error) {
-				return cc.NewClusterClient(cfg, opts...)
-			}
-
 			// Create a Kong context with stdout
 			parser, err := kong.New(&struct{}{}, kong.Writers(&stdout, &stdout))
 			if err != nil {
@@ -839,8 +830,21 @@ Summary: 2 modified`,
 				t.Fatalf("failed to parse kong context: %v", err)
 			}
 
+			logger := tu.TestLogger(t, true)
+			cclient, err := getDefaultClusterClient(cmd, cfg, logger)
+			if err != nil {
+				t.Fatalf("failed to create cluster client: %v", err)
+			}
+
+			proc, err := getDefaultProc(cmd, cfg, logger, cclient)
+			if err != nil {
+				t.Fatalf("failed to create diff processor: %v", err)
+			}
+
+			load, err := getDefaultLoader(cmd)
+
 			// Run the diff command with the test environment's config
-			err = cmd.Run(kongCtx, tu.TestLogger(t, true), cfg)
+			err = cmd.Run(kongCtx, logger, cclient, proc, load)
 
 			if tt.expectedError && err == nil {
 				t.Fatal("expected error but got none")

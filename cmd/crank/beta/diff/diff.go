@@ -70,8 +70,56 @@ Examples:
 `
 }
 
+// AfterApply implements kong's AfterApply method to bind our dependencies
+func (c *Cmd) AfterApply(ctx *kong.Context, log logging.Logger, config *rest.Config) error {
+
+	client, err := getDefaultClusterClient(c, config, log)
+	if err != nil {
+		return errors.Wrap(err, "unable to create cluster client for binding")
+	}
+
+	proc, err := getDefaultProc(c, config, log, client)
+	if err != nil {
+		return errors.Wrap(err, "unable to create diff processor for binding")
+	}
+
+	loader, err := getDefaultLoader(c)
+	if err != nil {
+		return errors.Wrap(err, "cannot create resource loader")
+	}
+
+	ctx.BindTo(client, (*cc.ClusterClient)(nil))
+	ctx.BindTo(proc, (*dp.DiffProcessor)(nil))
+	ctx.BindTo(loader, (*internal.Loader)(nil))
+	return nil
+}
+
+func getDefaultProc(c *Cmd, config *rest.Config, log logging.Logger, client cc.ClusterClient) (dp.DiffProcessor, error) {
+	// Create the options for the processor
+	options := []dp.ProcessorOption{
+		dp.WithRestConfig(config),
+		dp.WithNamespace(c.Namespace),
+		dp.WithLogger(log),
+		dp.WithRenderFunc(render.Render),
+		dp.WithColorize(!c.NoColor),
+		dp.WithCompact(c.Compact),
+	}
+	return dp.NewDiffProcessor(client, options...)
+}
+
+func getDefaultClusterClient(c *Cmd, config *rest.Config, log logging.Logger) (cc.ClusterClient, error) {
+	return cc.NewClusterClient(config,
+		cc.WithLogger(log),
+		cc.WithQPS(c.QPS),
+		cc.WithBurst(c.Burst))
+}
+
+func getDefaultLoader(c *Cmd) (internal.Loader, error) {
+	return internal.NewCompositeLoader(c.Files)
+}
+
 // Run executes the diff command.
-func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) error {
+func (c *Cmd) Run(k *kong.Context, _ logging.Logger, client cc.ClusterClient, proc dp.DiffProcessor, loader internal.Loader) error {
 	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
 	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
@@ -83,11 +131,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 	// TODO:  diff against upgraded composition that isn't applied yet
 	// TODO:  diff against upgraded composition version that is already available
 
-	client, err := ClusterClientFactory(config, cc.WithLogger(log), cc.WithQPS(c.QPS), cc.WithBurst(c.Burst))
-	if err != nil {
-		return errors.Wrap(err, "cannot initialize cluster client")
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
@@ -95,48 +138,19 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger, config *rest.Config) erro
 		return errors.Wrap(err, "cannot initialize client")
 	}
 
-	loader, err := internal.NewCompositeLoader(c.Files)
-	if err != nil {
-		return errors.Wrap(err, "cannot create resource loader")
-	}
-
 	resources, err := loader.Load()
 	if err != nil {
 		return errors.Wrap(err, "cannot load resources")
 	}
 
-	// Create the options for the processor
-	options := []dp.ProcessorOption{
-		dp.WithRestConfig(config),
-		dp.WithNamespace(c.Namespace),
-		dp.WithLogger(log),
-		dp.WithRenderFunc(render.Render),
-		dp.WithColorize(!c.NoColor),
-		dp.WithCompact(c.Compact),
-	}
-
-	// Create the processor with all options
-	processor, err := ProcessorFactory(client, options...)
-	if err != nil {
-		return errors.Wrap(err, "cannot create diff processor")
-	}
-
-	err = processor.Initialize(ctx)
+	err = proc.Initialize(ctx)
 	if err != nil {
 		return errors.Wrap(err, "cannot initialize diff processor")
 	}
 
-	if err := processor.PerformDiff(ctx, k.Stdout, resources); err != nil {
+	if err := proc.PerformDiff(ctx, k.Stdout, resources); err != nil {
 		return errors.Wrap(err, "unable to process one or more resources")
 	}
 
 	return nil
 }
-
-var (
-	// ClusterClientFactory Factory function for creating a new cluster client
-	ClusterClientFactory = cc.NewClusterClient
-
-	// ProcessorFactory Factory function for creating a new diff processor
-	ProcessorFactory = dp.NewDiffProcessor
-)
