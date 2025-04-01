@@ -18,6 +18,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"fmt"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"os"
@@ -140,7 +141,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
+	if err := SchemaValidation(context.Background(), resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 
