@@ -159,6 +159,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 				}),
 			},
 			verifyOutput: func(t *testing.T, output string) {
+				t.Helper()
 				// We should have some output from the diff
 				if output == "" {
 					t.Errorf("Expected non-empty diff output")

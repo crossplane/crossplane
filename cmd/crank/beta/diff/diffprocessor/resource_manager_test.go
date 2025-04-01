@@ -314,6 +314,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				WithOwnerReference("some-api-version", "SomeKind", "some-name", "foobar").
 				Build(),
 			validate: func(t *testing.T, child *unstructured.Unstructured) {
+				t.Helper()
 				// Owner refs should be unchanged
 				ownerRefs := child.GetOwnerReferences()
 				if len(ownerRefs) != 1 {
@@ -334,6 +335,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				WithOwnerReference("XR", "parent-xr", "example.org/v1", "").
 				Build(),
 			validate: func(t *testing.T, child *unstructured.Unstructured) {
+				t.Helper()
 				// Owner reference should be updated with parent's UID
 				ownerRefs := child.GetOwnerReferences()
 				if len(ownerRefs) != 1 {
@@ -350,6 +352,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				WithOwnerReference("other-api-version", "OtherKind", "other-name", "").
 				Build(),
 			validate: func(t *testing.T, child *unstructured.Unstructured) {
+				t.Helper()
 				// Owner reference should have a UID, but not parent's UID
 				ownerRefs := child.GetOwnerReferences()
 				if len(ownerRefs) != 1 {
@@ -393,6 +396,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				return child
 			}(),
 			validate: func(t *testing.T, child *unstructured.Unstructured) {
+				t.Helper()
 				ownerRefs := child.GetOwnerReferences()
 				if len(ownerRefs) != 3 {
 					t.Fatalf("Expected 3 owner references, got %d", len(ownerRefs))

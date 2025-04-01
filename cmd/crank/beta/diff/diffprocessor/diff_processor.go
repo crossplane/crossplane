@@ -33,7 +33,6 @@ type DiffProcessor interface {
 type DefaultDiffProcessor struct {
 	client               cc.ClusterClient
 	config               ProcessorConfig
-	resourceManager      ResourceManager
 	schemaValidator      SchemaValidator
 	diffCalculator       DiffCalculator
 	diffRenderer         DiffRenderer
@@ -60,6 +59,7 @@ func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (Diff
 		option(&config)
 	}
 
+	//TODO:  unnown option on golangci-lint field output-format
 	// Validate required fields
 	if config.RestConfig == nil {
 		return nil, errors.New("REST config cannot be nil")
@@ -81,7 +81,6 @@ func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (Diff
 	processor := &DefaultDiffProcessor{
 		client:               client,
 		config:               config,
-		resourceManager:      resourceManager,
 		schemaValidator:      schemaValidator,
 		diffCalculator:       diffCalculator,
 		diffRenderer:         diffRenderer,
