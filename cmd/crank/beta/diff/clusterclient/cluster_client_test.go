@@ -127,7 +127,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
-				logger:        tu.TestLogger(t),
+				logger:        tu.TestLogger(t, false),
 			}
 
 			got, err := c.GetEnvironmentConfigs(tc.args.ctx)
@@ -392,7 +392,7 @@ func TestClusterClient_Initialize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
-				logger:        tu.TestLogger(t),
+				logger:        tu.TestLogger(t, false),
 			}
 
 			err := c.Initialize(tc.args.ctx)
@@ -607,7 +607,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient: tc.setup(),
-				logger:        tu.TestLogger(t),
+				logger:        tu.TestLogger(t, false),
 				// Add GVK to GVR mappings for testing
 				gvkToGVRMap: map[schema.GroupVersionKind]schema.GroupVersionResource{
 					{Group: "example.org", Version: "v1", Kind: "Resource"}:      {Group: "example.org", Version: "v1", Resource: "resources"},
@@ -1119,7 +1119,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 
 			c := &DefaultClusterClient{
 				compositions:  tc.fields.compositions,
-				logger:        tu.TestLogger(t),
+				logger:        tu.TestLogger(t, false),
 				dynamicClient: fakeDynamicClient,
 				gvkToGVRMap:   make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
@@ -1376,7 +1376,7 @@ func TestClusterClient_GetFunctionsFromPipeline(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			c := &DefaultClusterClient{
 				functions: tc.fields.functions,
-				logger:    tu.TestLogger(t),
+				logger:    tu.TestLogger(t, false),
 			}
 
 			got, err := c.GetFunctionsFromPipeline(tc.args.comp)
@@ -1582,7 +1582,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 
 			c := &DefaultClusterClient{
 				dynamicClient: dc,
-				logger:        tu.TestLogger(t),
+				logger:        tu.TestLogger(t, false),
 			}
 
 			// First call to GetXRDs
@@ -1905,7 +1905,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient:   dynamicClient,
 				discoveryClient: discoveryClient,
-				logger:          tu.TestLogger(t),
+				logger:          tu.TestLogger(t, false),
 				gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 
@@ -2326,7 +2326,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient:   dynamicClient,
 				discoveryClient: discoveryClient,
-				logger:          tu.TestLogger(t),
+				logger:          tu.TestLogger(t, false),
 				gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 
@@ -2730,7 +2730,7 @@ func TestClusterClient_IsCRDRequired(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Create a cluster client with the test discovery client
 			c := &DefaultClusterClient{
@@ -2945,7 +2945,7 @@ func TestClusterClient_GetCRD(t *testing.T) {
 			c := &DefaultClusterClient{
 				dynamicClient:   dynamicClient,
 				discoveryClient: discoveryClient,
-				logger:          tu.TestLogger(t),
+				logger:          tu.TestLogger(t, false),
 				gvkToGVRMap:     make(map[schema.GroupVersionKind]schema.GroupVersionResource),
 			}
 

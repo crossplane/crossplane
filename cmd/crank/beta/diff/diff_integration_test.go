@@ -781,7 +781,7 @@ Summary: 2 modified`,
 
 			// Apply resources with owner references
 			if len(tt.setupFilesWithOwnerRefs) > 0 {
-				if err := applyHierarchicalOwnership(ctx, k8sClient, tt.setupFilesWithOwnerRefs); err != nil {
+				if err := applyHierarchicalOwnership(ctx, tu.TestLogger(t, false), k8sClient, tt.setupFilesWithOwnerRefs); err != nil {
 					t.Fatalf("failed to setup owner references: %v", err)
 				}
 			}
@@ -840,7 +840,7 @@ Summary: 2 modified`,
 			}
 
 			// Run the diff command with the test environment's config
-			err = cmd.Run(kongCtx, tu.VerboseTestLogger(t), cfg)
+			err = cmd.Run(kongCtx, tu.TestLogger(t, true), cfg)
 
 			if tt.expectedError && err == nil {
 				t.Fatal("expected error but got none")

@@ -51,7 +51,7 @@ func testRun(ctx context.Context, t *testing.T, c *Cmd, setupConfig func() (*res
 	}
 
 	// Create a NopLogger for testing
-	log := tu.TestLogger(t)
+	log := tu.TestLogger(t, false)
 
 	client, err := ClusterClientFactory(config, cc.WithLogger(log))
 	if err != nil {
@@ -405,7 +405,7 @@ func TestDiffWithExtraResources(t *testing.T) {
 	ctx := context.Background()
 
 	// Create test resources
-	testComposition := createTestCompositionWithExtraResources()
+	testComposition, _ := createTestCompositionWithExtraResources()
 	testXRD := createTestXRD()
 	testExtraResource := createExtraResource()
 
@@ -601,7 +601,7 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	ctx := context.Background()
 
 	// Create test resources
-	testComposition := createTestCompositionWithExtraResources()
+	testComposition, _ := createTestCompositionWithExtraResources()
 	testXRD := createTestXRD()
 	testExtraResource := createExtraResource()
 

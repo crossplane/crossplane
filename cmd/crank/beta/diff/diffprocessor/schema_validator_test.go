@@ -164,7 +164,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			mockClient := tt.setupClient()
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Create the schema validator
 			validator := NewSchemaValidator(mockClient, logger)
@@ -267,7 +267,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			mockClient := tt.setupClient()
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Create the schema validator with initial CRDs
 			validator := NewSchemaValidator(mockClient, logger)
@@ -343,7 +343,7 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			mockClient := tt.setupClient()
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Create the schema validator
 			validator := NewSchemaValidator(mockClient, logger)

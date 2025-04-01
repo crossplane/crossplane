@@ -43,7 +43,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 	provider := NewRequirementsProvider(
 		mockClient,
 		nil, // renderFn not needed for this test
-		tu.VerboseTestLogger(t),
+		tu.TestLogger(t, true),
 	)
 
 	// Test cases

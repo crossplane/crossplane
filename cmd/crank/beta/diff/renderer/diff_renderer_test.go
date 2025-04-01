@@ -160,7 +160,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Create a renderer
 			renderer := NewDiffRenderer(logger, tt.options)

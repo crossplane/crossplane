@@ -223,7 +223,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 
 			// Add common options
 			options := []ProcessorOption{
-				WithLogger(tu.TestLogger(t)),
+				WithLogger(tu.TestLogger(t, false)),
 				WithRestConfig(&rest.Config{}),
 				WithSchemaValidatorFactory(
 					// Create a mock schema validator that succeeds unless we request an error
@@ -321,7 +321,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			// Create a DiffProcessor with our components
 			mockClient := tc.client()
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Build processor options
 			options := []ProcessorOption{
@@ -379,7 +379,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 	}
 
 	// Create test resources for requirements
-	configMap := tu.NewResource("v1", "ConfigMap", "config1").Build()
+	const ConfigMap = "ConfigMap"
+	const ConfigMapName = "config1"
+	configMap := tu.NewResource("v1", ConfigMap, ConfigMapName).Build()
 	secret := tu.NewResource("v1", "Secret", "secret1").Build()
 
 	tests := map[string]struct {
@@ -435,7 +437,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						if gvk.Kind == "ConfigMap" && name == "config1" {
+						if gvk.Kind == ConfigMap && name == ConfigMapName {
 							return configMap, nil
 						}
 						return nil, errors.New("resource not found")
@@ -456,9 +458,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 								ExtraResources: map[string]*v1.ResourceSelector{
 									"config": {
 										ApiVersion: "v1",
-										Kind:       "ConfigMap",
+										Kind:       ConfigMap,
 										Match: &v1.ResourceSelector_MatchName{
-											MatchName: "config1",
+											MatchName: ConfigMapName,
 										},
 									},
 								},
@@ -496,7 +498,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						if gvk.Kind == "ConfigMap" && name == "config1" {
+						if gvk.Kind == ConfigMap && name == ConfigMapName {
 							return configMap, nil
 						}
 						if gvk.Kind == "Secret" && name == "secret1" {
@@ -517,7 +519,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					hasSecret := false
 
 					for _, res := range in.ExtraResources {
-						if res.GetKind() == "ConfigMap" && res.GetName() == "config1" {
+						if res.GetKind() == ConfigMap && res.GetName() == ConfigMapName {
 							hasConfig = true
 						}
 						if res.GetKind() == "Secret" && res.GetName() == "secret1" {
@@ -533,9 +535,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 						reqs = map[string]*v1.ResourceSelector{
 							"config": {
 								ApiVersion: "v1",
-								Kind:       "ConfigMap",
+								Kind:       ConfigMap,
 								Match: &v1.ResourceSelector_MatchName{
-									MatchName: "config1",
+									MatchName: ConfigMapName,
 								},
 							},
 						}
@@ -606,7 +608,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						if gvk.Kind == "ConfigMap" && name == "config1" {
+						if gvk.Kind == ConfigMap && name == ConfigMapName {
 							return configMap, nil
 						}
 						return nil, errors.New("resource not found")
@@ -626,9 +628,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 								ExtraResources: map[string]*v1.ResourceSelector{
 									"config": {
 										ApiVersion: "v1",
-										Kind:       "ConfigMap",
+										Kind:       ConfigMap,
 										Match: &v1.ResourceSelector_MatchName{
-											MatchName: "config1",
+											MatchName: ConfigMapName,
 										},
 									},
 								},
@@ -679,7 +681,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 							ExtraResources: map[string]*v1.ResourceSelector{
 								"config": {
 									ApiVersion: "v1",
-									Kind:       "ConfigMap",
+									Kind:       ConfigMap,
 									Match: &v1.ResourceSelector_MatchName{
 										MatchName: "missing-config",
 									},
@@ -706,7 +708,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			mockClient := tt.setupClient()
 
 			// Create a logger
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 			renderFunc := tt.setupRenderFunc()
 
 			// Create a render iteration counter to verify

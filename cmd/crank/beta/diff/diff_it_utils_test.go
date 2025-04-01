@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	gyaml "gopkg.in/yaml.v3"
 	"io"
@@ -25,7 +26,7 @@ import (
 // Testing data for integration tests
 
 // createTestCompositionWithExtraResources creates a test Composition with a function-extra-resources step
-func createTestCompositionWithExtraResources() *xpextv1.Composition {
+func createTestCompositionWithExtraResources() (*xpextv1.Composition, error) {
 	pipelineMode := xpextv1.CompositionModePipeline
 
 	// Create the extra resources function input
@@ -47,7 +48,10 @@ func createTestCompositionWithExtraResources() *xpextv1.Composition {
 		},
 	}
 
-	extraResourcesRaw, _ := json.Marshal(extraResourcesInput)
+	extraResourcesRaw, err := json.Marshal(extraResourcesInput)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create template function input to create composed resources
 	templateInput := map[string]interface{}{
@@ -77,7 +81,10 @@ func createTestCompositionWithExtraResources() *xpextv1.Composition {
 		},
 	}
 
-	templateRaw, _ := json.Marshal(templateInput)
+	templateRaw, err := json.Marshal(templateInput)
+	if err != nil {
+		return nil, err
+	}
 
 	return &xpextv1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -102,7 +109,7 @@ func createTestCompositionWithExtraResources() *xpextv1.Composition {
 				},
 			},
 		},
-	}
+	}, nil
 }
 
 // createTestXRD creates a test XRD for the XR
@@ -364,7 +371,7 @@ func createResources(ctx context.Context, c client.Client, resources []*un.Unstr
 }
 
 // applyHierarchicalOwnership applies a hierarchical ownership structure
-func applyHierarchicalOwnership(ctx context.Context, c client.Client, hierarchies []HierarchicalOwnershipRelation) error {
+func applyHierarchicalOwnership(ctx context.Context, _ logging.Logger, c client.Client, hierarchies []HierarchicalOwnershipRelation) error {
 	// Map to store created resources by file path
 	createdResources := make(map[string]*un.Unstructured)
 	// Map to track parent-child relationships for establishing resourceRefs
@@ -381,9 +388,9 @@ func applyHierarchicalOwnership(ctx context.Context, c client.Client, hierarchie
 	}
 
 	// Third pass: Log the final state of all resources for debugging
-	//if err := logResourcesAsYAML(ctx, c, createdResources); err != nil {
+	//if err := logResourcesAsYAML(ctx, log, c, createdResources); err != nil {
 	//	// Just log the error but don't fail the test
-	//	fmt.Printf("Warning: Failed to log resources as YAML: %v\n", err)
+	//	log.Info(fmt.Sprintf("Warning: Failed to log resources as YAML: %v\n", err))
 	//}
 
 	return nil
@@ -391,8 +398,8 @@ func applyHierarchicalOwnership(ctx context.Context, c client.Client, hierarchie
 
 // Unused but useful for debugging; leave it here.
 // logResourcesAsYAML fetches the latest version of each resource and logs it as YAML
-func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources map[string]*un.Unstructured) error {
-	fmt.Printf("\n===== FINAL STATE OF CREATED RESOURCES =====\n\n")
+func logResourcesAsYAML(ctx context.Context, log logging.Logger, c client.Client, createdResources map[string]*un.Unstructured) error {
+	log.Info("\n===== FINAL STATE OF CREATED RESOURCES =====\n\n")
 
 	// Sort the file paths for consistent output order
 	filePaths := make([]string, 0, len(createdResources))
@@ -423,11 +430,11 @@ func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources m
 		}
 
 		// Print the resource file path and its YAML representation
-		fmt.Printf("--- Source: %s\nResourceName: %s/%s\n%s\n\n",
-			filePath, latest.GetKind(), latest.GetName(), string(yamlData))
+		log.Info(fmt.Sprintf("--- Source: %s\nResourceName: %s/%s\n%s\n\n",
+			filePath, latest.GetKind(), latest.GetName(), string(yamlData)))
 	}
 
-	fmt.Printf("===== END OF RESOURCES =====\n\n")
+	log.Info("===== END OF RESOURCES =====\n\n")
 	return nil
 }
 

@@ -140,15 +140,21 @@ func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOpti
 	return builder.String()
 }
 
+// Find change blocks (sequences of inserts/deletes)
+type changeBlock struct {
+	StartIdx int
+	EndIdx   int
+}
+
+type lineItem struct {
+	Type      diffmatchpatch.Operation
+	Content   string
+	Formatted string
+}
+
 // Format implements the DiffFormatter interface for CompactDiffFormatter
 func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
 	// Create a flat array of all formatted lines with their diff types
-	type lineItem struct {
-		Type      diffmatchpatch.Operation
-		Content   string
-		Formatted string
-	}
-
 	var allLines []lineItem
 
 	for _, diff := range diffs {
@@ -167,16 +173,6 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 				Formatted: formatted,
 			})
 		}
-	}
-
-	// Now build compact output with context
-	var builder strings.Builder
-	contextLines := options.ContextLines
-
-	// Find change blocks (sequences of inserts/deletes)
-	type changeBlock struct {
-		StartIdx int
-		EndIdx   int
 	}
 
 	var changeBlocks []changeBlock
@@ -209,24 +205,32 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 		return ""
 	}
 
+	return f.stringBlocksWithContext(changeBlocks, allLines, options)
+}
+
+func (f *CompactDiffFormatter) stringBlocksWithContext(changes []changeBlock, lines []lineItem, opts DiffOptions) string {
+	// Now build compact output with context
+	var builder strings.Builder
+	contextLines := opts.ContextLines
+
 	// Keep track of the last line we printed
 	lastPrintedIdx := -1
 
 	// Now process each block with its context
-	for blockIdx, block := range changeBlocks {
+	for blockIdx, block := range changes {
 		// Calculate visible range for context before the block
 		contextStart := max(0, block.StartIdx-contextLines)
 
 		// If this isn't the first block, check if we need a separator
 		if blockIdx > 0 {
-			prevBlock := changeBlocks[blockIdx-1]
-			prevContextEnd := min(len(allLines), prevBlock.EndIdx+contextLines+1)
+			prevBlock := changes[blockIdx-1]
+			prevContextEnd := min(len(lines), prevBlock.EndIdx+contextLines+1)
 
 			// If there's a gap between the end of the previous context and the start of this context,
 			// add a separator
 			if contextStart > prevContextEnd {
 				// Add separator
-				builder.WriteString(fmt.Sprintf("%s\n", options.ChunkSeparator))
+				builder.WriteString(fmt.Sprintf("%s\n", opts.ChunkSeparator))
 				lastPrintedIdx = -1 // Reset to force printing of context lines
 			} else {
 				// Contexts overlap or are adjacent - adjust the start to avoid duplicate lines
@@ -237,7 +241,7 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 		// Print context before the change if we haven't already printed it
 		for i := contextStart; i < block.StartIdx; i++ {
 			if i > lastPrintedIdx {
-				builder.WriteString(allLines[i].Formatted)
+				builder.WriteString(lines[i].Formatted)
 				builder.WriteString("\n")
 				lastPrintedIdx = i
 			}
@@ -245,15 +249,15 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 
 		// Print the changes
 		for i := block.StartIdx; i <= block.EndIdx; i++ {
-			builder.WriteString(allLines[i].Formatted)
+			builder.WriteString(lines[i].Formatted)
 			builder.WriteString("\n")
 			lastPrintedIdx = i
 		}
 
 		// Print context after the change
-		contextEnd := min(len(allLines), block.EndIdx+contextLines+1)
+		contextEnd := min(len(lines), block.EndIdx+contextLines+1)
 		for i := block.EndIdx + 1; i < contextEnd; i++ {
-			builder.WriteString(allLines[i].Formatted)
+			builder.WriteString(lines[i].Formatted)
 			builder.WriteString("\n")
 			lastPrintedIdx = i
 		}

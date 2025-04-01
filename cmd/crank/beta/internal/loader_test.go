@@ -17,7 +17,7 @@ limitations under the License.
 package internal
 
 import (
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,7 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var (
@@ -62,7 +62,7 @@ func TestFileLoaderLoad(t *testing.T) {
 		Path string
 	}
 	type want struct {
-		resources []*unstructured.Unstructured
+		resources []*un.Unstructured
 		err       error
 	}
 	cases := map[string]struct {
@@ -76,7 +76,7 @@ func TestFileLoaderLoad(t *testing.T) {
 				Path: "testdata/resources.yaml",
 			},
 			want: want{
-				resources: []*unstructured.Unstructured{
+				resources: []*un.Unstructured{
 					{
 						Object: coolResource,
 					},
@@ -119,7 +119,7 @@ func TestFolderLoaderLoad(t *testing.T) {
 		Path string
 	}
 	type want struct {
-		resources []*unstructured.Unstructured
+		resources []*un.Unstructured
 		err       error
 	}
 	cases := map[string]struct {
@@ -133,7 +133,7 @@ func TestFolderLoaderLoad(t *testing.T) {
 				Path: "testdata/folder",
 			},
 			want: want{
-				resources: []*unstructured.Unstructured{
+				resources: []*un.Unstructured{
 					{
 						Object: coolResource,
 					},
@@ -176,7 +176,7 @@ func TestStreamToUnstructured(t *testing.T) {
 		stream [][]byte
 	}
 	type want struct {
-		resources []*unstructured.Unstructured
+		resources []*un.Unstructured
 		err       error
 	}
 	cases := map[string]struct {
@@ -192,7 +192,7 @@ func TestStreamToUnstructured(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []*unstructured.Unstructured{
+				resources: []*un.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "v1",
@@ -247,7 +247,7 @@ spec:
 				},
 			},
 			want: want{
-				resources: []*unstructured.Unstructured{
+				resources: []*un.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "pt.fn.crossplane.io/v1beta1",
@@ -665,7 +665,7 @@ spec:
 func TestCompositeLoader_WithMocks(t *testing.T) {
 	// Create a composite loader with mock loaders to test the combining logic
 	mockLoader1 := &testutils.MockLoader{
-		Resources: []*unstructured.Unstructured{
+		Resources: []*un.Unstructured{
 			{
 				Object: map[string]interface{}{
 					"apiVersion": "test/v1",
@@ -679,7 +679,7 @@ func TestCompositeLoader_WithMocks(t *testing.T) {
 	}
 
 	mockLoader2 := &testutils.MockLoader{
-		Resources: []*unstructured.Unstructured{
+		Resources: []*un.Unstructured{
 			{
 				Object: map[string]interface{}{
 					"apiVersion": "test/v1",

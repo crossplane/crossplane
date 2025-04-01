@@ -577,6 +577,7 @@ func (b *ResourceBuilder) BuildUComposite() *cmp.Unstructured {
 	return built
 }
 
+// BuildUComposed returns the built unstructured resource as a *cpd.Unstructured.
 func (b *ResourceBuilder) BuildUComposed() *cpd.Unstructured {
 	built := &cpd.Unstructured{}
 	built.SetUnstructuredContent(b.Build().UnstructuredContent())

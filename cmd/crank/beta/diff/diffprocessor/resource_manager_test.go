@@ -258,7 +258,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Create the resource manager
-			rm := NewResourceManager(tt.setupClient(), tu.VerboseTestLogger(t))
+			rm := NewResourceManager(tt.setupClient(), tu.TestLogger(t, true))
 
 			// Call the method under test
 			current, isNew, err := rm.FetchCurrentObject(ctx, tt.composite, tt.desired)
@@ -301,7 +301,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 	// Create test resources
 	parentXR := tu.NewResource("example.org/v1", "XR", "parent-xr").Build()
-	parentXR.SetUID("parent-uid")
+	const ParentUID = "parent-uid"
+	parentXR.SetUID(ParentUID)
 
 	tests := map[string]struct {
 		parent   *un.Unstructured
@@ -321,7 +322,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 					t.Fatalf("Expected 1 owner reference, got %d", len(ownerRefs))
 				}
 				// UID should be generated but not parent's UID
-				if ownerRefs[0].UID == "parent-uid" {
+				if ownerRefs[0].UID == ParentUID {
 					t.Errorf("UID should not be parent's UID when parent is nil")
 				}
 				if ownerRefs[0].UID == "" {
@@ -341,8 +342,8 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				if len(ownerRefs) != 1 {
 					t.Fatalf("Expected 1 owner reference, got %d", len(ownerRefs))
 				}
-				if ownerRefs[0].UID != "parent-uid" {
-					t.Errorf("UID = %s, want %s", ownerRefs[0].UID, "parent-uid")
+				if ownerRefs[0].UID != ParentUID {
+					t.Errorf("UID = %s, want %s", ownerRefs[0].UID, ParentUID)
 				}
 			},
 		},
@@ -358,7 +359,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 				if len(ownerRefs) != 1 {
 					t.Fatalf("Expected 1 owner reference, got %d", len(ownerRefs))
 				}
-				if ownerRefs[0].UID == "parent-uid" {
+				if ownerRefs[0].UID == ParentUID {
 					t.Errorf("UID should not be parent's UID for non-matching owner ref")
 				}
 				if ownerRefs[0].UID == "" {
@@ -411,11 +412,11 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 
 					// Only the matching reference should have parent's UID
 					if ref.APIVersion == "example.org/v1" && ref.Kind == "XR" && ref.Name == "parent-xr" {
-						if ref.UID != "parent-uid" {
-							t.Errorf("Matching owner ref has UID = %s, want %s", ref.UID, "parent-uid")
+						if ref.UID != ParentUID {
+							t.Errorf("Matching owner ref has UID = %s, want %s", ref.UID, ParentUID)
 						}
 					} else {
-						if ref.UID == "parent-uid" {
+						if ref.UID == ParentUID {
 							t.Errorf("Non-matching owner ref should not have parent's UID")
 						}
 					}
@@ -427,7 +428,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Create the resource manager
-			rm := NewResourceManager(tu.NewMockClusterClient().Build(), tu.TestLogger(t))
+			rm := NewResourceManager(tu.NewMockClusterClient().Build(), tu.TestLogger(t, false))
 
 			// Need to create a copy of the child to avoid modifying test data
 			child := tt.child.DeepCopy()

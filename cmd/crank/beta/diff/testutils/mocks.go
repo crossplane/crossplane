@@ -370,15 +370,6 @@ func (m *MockDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer, r
 	return nil
 }
 
-//type MockLoader struct {
-//	Resources []*un.Unstructured
-//	Err       error
-//}
-//
-//func (m *MockLoader) Load() ([]*un.Unstructured, error) {
-//	return m.Resources, m.Err
-//}
-
 // MockSchemaValidator Mock schema validator
 type MockSchemaValidator struct {
 	ValidateResourcesFn func(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error

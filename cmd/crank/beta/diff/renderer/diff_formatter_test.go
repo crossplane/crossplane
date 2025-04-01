@@ -105,7 +105,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			diff, err := GenerateDiffWithOptions(tt.current, tt.desired, tu.TestLogger(t), tt.options)
+			diff, err := GenerateDiffWithOptions(tt.current, tt.desired, tu.TestLogger(t, false), tt.options)
 
 			if tt.wantErr {
 				if err == nil {

@@ -218,7 +218,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Setup a resource manager
 			resourceManager := NewResourceManager(tt.setupClient(), logger)
@@ -461,7 +461,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Setup the mock client
 			mockClient := tt.setupClient()
@@ -605,7 +605,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			logger := tu.TestLogger(t)
+			logger := tu.TestLogger(t, false)
 
 			// Setup mock client
 			mockClient := tt.setupClient()

@@ -23,7 +23,7 @@ const (
 // It returns a single string with all lines joined back together.
 func Green(input string) string {
 	lines := strings.Split(input, "\n")
-	var coloredLines []string
+	coloredLines := make([]string, 0, len(lines))
 
 	for _, line := range lines {
 		// Handle the case of the last empty line after a newline
@@ -41,7 +41,7 @@ func Green(input string) string {
 // It returns a single string with all lines joined back together.
 func Red(input string) string {
 	lines := strings.Split(input, "\n")
-	var coloredLines []string
+	coloredLines := make([]string, 0, len(lines))
 
 	for _, line := range lines {
 		// Handle the case of the last empty line after a newline
@@ -55,6 +55,7 @@ func Red(input string) string {
 	return strings.Join(coloredLines, "\n")
 }
 
+// CompareIgnoringAnsi compares two strings after stripping ANSI special characters
 func CompareIgnoringAnsi(expected, actual string) bool {
 	// Strip ANSI codes from both strings
 	ansiPattern := regexp.MustCompile("\x1b\\[[0-9;]*m")
@@ -65,7 +66,10 @@ func CompareIgnoringAnsi(expected, actual string) bool {
 	return expectedStripped == actualStripped
 }
 
+// SetupKubeTestLogger sets the global logger for use of the Kube environment to the T.Log of this test
 func SetupKubeTestLogger(t *testing.T) {
+	t.Helper()
+	
 	// Create a logr.Logger that writes to testing.T.Log
 	testLogger := stdr.NewWithOptions(stdlog.New(testWriter{t}, "", 0), stdr.Options{LogCaller: stdr.All})
 
@@ -78,15 +82,17 @@ type testWriter struct {
 	t *testing.T
 }
 
+// Write logs the provided argument as a string to the T.Log
 func (tw testWriter) Write(p []byte) (int, error) {
 	tw.t.Log(string(p))
 	return len(p), nil
 }
 
-func TestLogger(t *testing.T) logging.Logger {
-	return logging.NewLogrLogger(testr.New(t))
-}
-
-func VerboseTestLogger(t *testing.T) logging.Logger {
-	return logging.NewLogrLogger(testr.NewWithOptions(t, testr.Options{Verbosity: 1}))
+// TestLogger coerces the T.Log into the shape of a Logr logger.
+func TestLogger(t *testing.T, verbose bool) logging.Logger {
+	verbosity := 0
+	if verbose {
+		verbosity = 1
+	}
+	return logging.NewLogrLogger(testr.NewWithOptions(t, testr.Options{Verbosity: verbosity}))
 }

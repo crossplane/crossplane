@@ -52,10 +52,6 @@ type Manager struct {
 	confs map[string]*metav1.Configuration // Configuration images
 }
 
-func (m *Manager) GetCRDs() []*extv1.CustomResourceDefinition {
-	return m.crds
-}
-
 // Option defines an option for the Manager.
 type Option func(*Manager)
 

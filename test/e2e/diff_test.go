@@ -86,6 +86,7 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			Assess("DiffNewResource", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
 
 				// Run the diff command on a new resource that doesn't exist yet
 				output, log, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "new-xr.yaml"))
@@ -117,6 +118,7 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "existing-xr.yaml", xpv1.Available()),
 			)).
 			Assess("DiffModifiedResource", func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+				t.Helper()
 
 				// Run the diff command on a modified existing resource
 				output, log, err := RunDiff(t, c, crankPath, filepath.Join(manifests, "modified-xr.yaml"))
@@ -200,7 +202,7 @@ func assertDiffMatchesFile(t *testing.T, actual, expectedSource, log string) {
 	}
 
 	failed := false
-	for i := 0; i < maxLines; i++ {
+	for i := range maxLines {
 		if i >= len(expectedNormalized) {
 			t.Errorf("Line %d: Extra line in output: %s",
 				i+1, makeStringReadable(actualRaw[i]))
@@ -253,19 +255,20 @@ func assertDiffMatchesFile(t *testing.T, actual, expectedSource, log string) {
 func makeStringReadable(s string) string {
 	var result strings.Builder
 	for _, r := range s {
-		if r == '\x1b' {
+		switch {
+		case r == '\x1b':
 			result.WriteString("\\x1b")
-		} else if r == '\n' {
+		case r == '\n':
 			result.WriteString("\\n")
-		} else if r == '\r' {
+		case r == '\r':
 			result.WriteString("\\r")
-		} else if r == '\t' {
+		case r == '\t':
 			result.WriteString("\\t")
-		} else if r == ' ' {
+		case r == ' ':
 			result.WriteString("\\space")
-		} else if !unicode.IsPrint(r) {
+		case !unicode.IsPrint(r):
 			result.WriteString(fmt.Sprintf("\\x%02x", r))
-		} else {
+		default:
 			result.WriteRune(r)
 		}
 	}
