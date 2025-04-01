@@ -842,6 +842,9 @@ Summary: 2 modified`,
 			}
 
 			load, err := getDefaultLoader(cmd)
+			if err != nil {
+				t.Fatalf("failed to create loader: %v", err)
+			}
 
 			// Run the diff command with the test environment's config
 			err = cmd.Run(kongCtx, logger, cclient, proc, load)
