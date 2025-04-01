@@ -11,7 +11,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -22,7 +22,7 @@ type RequirementsProvider struct {
 	logger   logging.Logger
 
 	// Resource cache by resource key (apiVersion+kind+name)
-	resourceCache map[string]*unstructured.Unstructured
+	resourceCache map[string]*un.Unstructured
 	cacheMutex    sync.RWMutex
 }
 
@@ -36,7 +36,7 @@ func NewRequirementsProvider(
 		client:        client,
 		renderFn:      renderFn,
 		logger:        logger,
-		resourceCache: make(map[string]*unstructured.Unstructured),
+		resourceCache: make(map[string]*un.Unstructured),
 	}
 }
 
@@ -61,7 +61,7 @@ func (p *RequirementsProvider) Initialize(ctx context.Context) error {
 }
 
 // cacheResources adds resources to the cache
-func (p *RequirementsProvider) cacheResources(resources []*unstructured.Unstructured) {
+func (p *RequirementsProvider) cacheResources(resources []*un.Unstructured) {
 	p.cacheMutex.Lock()
 	defer p.cacheMutex.Unlock()
 
@@ -72,7 +72,7 @@ func (p *RequirementsProvider) cacheResources(resources []*unstructured.Unstruct
 }
 
 // getCachedResource retrieves a resource from cache if available
-func (p *RequirementsProvider) getCachedResource(apiVersion, kind, name string) *unstructured.Unstructured {
+func (p *RequirementsProvider) getCachedResource(apiVersion, kind, name string) *un.Unstructured {
 	p.cacheMutex.RLock()
 	defer p.cacheMutex.RUnlock()
 
@@ -81,16 +81,13 @@ func (p *RequirementsProvider) getCachedResource(apiVersion, kind, name string) 
 }
 
 // ProvideRequirements provides requirements, checking cache first
-func (p *RequirementsProvider) ProvideRequirements(
-	ctx context.Context,
-	requirements map[string]v1.Requirements,
-) ([]*unstructured.Unstructured, error) {
+func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirements map[string]v1.Requirements) ([]*un.Unstructured, error) {
 	if len(requirements) == 0 {
 		return nil, nil
 	}
 
-	var allResources []*unstructured.Unstructured
-	var newlyFetchedResources []*unstructured.Unstructured
+	var allResources []*un.Unstructured
+	var newlyFetchedResources []*un.Unstructured
 
 	// Process each step's requirements
 	for stepName := range requirements {
@@ -190,7 +187,7 @@ func (p *RequirementsProvider) ClearCache() {
 	p.cacheMutex.Lock()
 	defer p.cacheMutex.Unlock()
 
-	p.resourceCache = make(map[string]*unstructured.Unstructured)
+	p.resourceCache = make(map[string]*un.Unstructured)
 	p.logger.Debug("Resource cache cleared")
 }
 

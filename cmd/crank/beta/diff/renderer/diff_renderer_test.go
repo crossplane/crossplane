@@ -1,4 +1,4 @@
-package diffprocessor
+package renderer
 
 import (
 	"bytes"

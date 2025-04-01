@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	"strings"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		setupClient func() *tu.MockClusterClient
 		composite   *unstructured.Unstructured
 		desired     *unstructured.Unstructured
-		wantDiff    *ResourceDiff
+		wantDiff    *renderer.ResourceDiff
 		wantNil     bool
 		wantErr     bool
 	}{
@@ -59,10 +60,10 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			},
 			composite: nil,
 			desired:   modifiedResource,
-			wantDiff: &ResourceDiff{
+			wantDiff: &renderer.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "existing-resource",
-				DiffType:     DiffTypeModified,
+				DiffType:     renderer.DiffTypeModified,
 			},
 		},
 		"NewResource": {
@@ -74,10 +75,10 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			},
 			composite: nil,
 			desired:   newResource,
-			wantDiff: &ResourceDiff{
+			wantDiff: &renderer.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "new-resource",
-				DiffType:     DiffTypeAdded,
+				DiffType:     renderer.DiffTypeAdded,
 			},
 		},
 		"ComposedResource": {
@@ -99,10 +100,10 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 					"crossplane.io/composition-resource-name": "resource-a",
 				}).
 				Build(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &renderer.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
 				ResourceName: "composed-resource",
-				DiffType:     DiffTypeModified,
+				DiffType:     renderer.DiffTypeModified,
 			},
 		},
 		"NoChanges": {
@@ -114,10 +115,10 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			},
 			composite: nil,
 			desired:   existingResource.DeepCopy(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &renderer.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "existing-resource",
-				DiffType:     DiffTypeEqual,
+				DiffType:     renderer.DiffTypeEqual,
 			},
 		},
 		"ErrorGettingCurrentObject": {
@@ -207,10 +208,10 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				WithSpecField("field", "new-value").
 				WithGenerateName("test-resource-").
 				Build(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &renderer.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
-				ResourceName: "test-resource-abc123", // Should have found the existing resource name
-				DiffType:     DiffTypeModified,       // Should be modified, not added
+				ResourceName: "test-resource-abc123",    // Should have found the existing resource name
+				DiffType:     renderer.DiffTypeModified, // Should be modified, not added
 			},
 		},
 	}
@@ -227,7 +228,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				tt.setupClient(),
 				resourceManager,
 				logger,
-				DefaultDiffOptions(),
+				renderer.DefaultDiffOptions(),
 			)
 
 			// Call the function under test
@@ -271,7 +272,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			}
 
 			// For modified resources, check that LineDiffs is populated
-			if diff.DiffType == DiffTypeModified && len(diff.LineDiffs) == 0 {
+			if diff.DiffType == renderer.DiffTypeModified && len(diff.LineDiffs) == 0 {
 				t.Errorf("LineDiffs is empty for %s", name)
 			}
 		})
@@ -313,7 +314,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 		setupClient   func() *tu.MockClusterClient
 		inputXR       *ucomposite.Unstructured
 		renderedOut   render.Outputs
-		expectedDiffs map[string]DiffType // Map of expected keys and their diff types
+		expectedDiffs map[string]renderer.DiffType // Map of expected keys and their diff types
 		wantErr       bool
 	}{
 		"XR and composed resource modifications": {
@@ -330,9 +331,9 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 				CompositeResource: renderedXR,
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]DiffType{
-				"example.org/v1/XR/test-xr":          DiffTypeModified,
-				"example.org/v1/Composed/composed-1": DiffTypeModified,
+			expectedDiffs: map[string]renderer.DiffType{
+				"example.org/v1/XR/test-xr":          renderer.DiffTypeModified,
+				"example.org/v1/Composed/composed-1": renderer.DiffTypeModified,
 			},
 			wantErr: false,
 		},
@@ -355,8 +356,8 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 				}(),
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]DiffType{
-				"example.org/v1/Composed/composed-1": DiffTypeModified,
+			expectedDiffs: map[string]renderer.DiffType{
+				"example.org/v1/Composed/composed-1": renderer.DiffTypeModified,
 			},
 			wantErr: false,
 		},
@@ -373,7 +374,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 				CompositeResource: renderedXR,
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]DiffType{},
+			expectedDiffs: map[string]renderer.DiffType{},
 			wantErr:       true,
 		},
 		"Resource tree with potential resources to remove": {
@@ -401,10 +402,10 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 				CompositeResource: renderedXR,
 				ComposedResources: []composed.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]DiffType{
-				"example.org/v1/XR/test-xr":          DiffTypeModified,
-				"example.org/v1/Composed/composed-1": DiffTypeModified,
-				"example.org/v1/Composed/composed-2": DiffTypeRemoved,
+			expectedDiffs: map[string]renderer.DiffType{
+				"example.org/v1/XR/test-xr":          renderer.DiffTypeModified,
+				"example.org/v1/Composed/composed-1": renderer.DiffTypeModified,
+				"example.org/v1/Composed/composed-2": renderer.DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
@@ -449,10 +450,10 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 					WithSpecField("field", "new-value"). // Different value than existing
 					BuildUComposed()},
 			},
-			expectedDiffs: map[string]DiffType{
-				"example.org/v1/XR/test-xr":                  DiffTypeModified,
-				"example.org/v1/Composed/composed-1":         DiffTypeModified,
-				"example.org/v1/Composed/resource-to-remove": DiffTypeRemoved,
+			expectedDiffs: map[string]renderer.DiffType{
+				"example.org/v1/XR/test-xr":                  renderer.DiffTypeModified,
+				"example.org/v1/Composed/composed-1":         renderer.DiffTypeModified,
+				"example.org/v1/Composed/resource-to-remove": renderer.DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
@@ -473,7 +474,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 				mockClient,
 				resourceManager,
 				logger,
-				DefaultDiffOptions(),
+				renderer.DefaultDiffOptions(),
 			)
 
 			// Call the function under test
@@ -617,7 +618,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 				mockClient,
 				resourceManager,
 				logger,
-				DefaultDiffOptions(),
+				renderer.DefaultDiffOptions(),
 			)
 
 			// Call the method under test
@@ -652,7 +653,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			for _, name := range tt.expectedRemoved {
 				found := false
 				for key, diff := range diffs {
-					if strings.Contains(key, name) && diff.DiffType == DiffTypeRemoved {
+					if strings.Contains(key, name) && diff.DiffType == renderer.DiffTypeRemoved {
 						found = true
 						break
 					}

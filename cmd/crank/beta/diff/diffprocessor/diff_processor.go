@@ -1,3 +1,4 @@
+// Package diffprocessor contains the logic to calculate and render diffs.
 package diffprocessor
 
 import (
@@ -10,6 +11,7 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,7 +37,7 @@ type DefaultDiffProcessor struct {
 	config               ProcessorConfig
 	schemaValidator      SchemaValidator
 	diffCalculator       DiffCalculator
-	diffRenderer         DiffRenderer
+	diffRenderer         renderer.DiffRenderer
 	requirementsProvider *RequirementsProvider
 }
 
@@ -59,7 +61,6 @@ func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (Diff
 		option(&config)
 	}
 
-	//TODO:  unnown option on golangci-lint field output-format
 	// Validate required fields
 	if config.RestConfig == nil {
 		return nil, errors.New("REST config cannot be nil")
@@ -131,7 +132,7 @@ func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context
 	}
 
 	// Collect all diffs across all resources
-	allDiffs := make(map[string]*ResourceDiff)
+	allDiffs := make(map[string]*renderer.ResourceDiff)
 	var errs []error
 
 	for _, res := range resources {
@@ -171,7 +172,7 @@ func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context
 }
 
 // DiffSingleResource handles one resource at a time and returns its diffs
-func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *unstructured.Unstructured) (map[string]*ResourceDiff, error) {
+func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *unstructured.Unstructured) (map[string]*renderer.ResourceDiff, error) {
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
 

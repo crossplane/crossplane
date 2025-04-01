@@ -1,4 +1,4 @@
-package diffprocessor
+package renderer
 
 import (
 	"cmp"
@@ -141,7 +141,7 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 	return nil
 }
 
-// makeDiffKey creates a unique key for a resource diff
-func makeDiffKey(apiVersion, kind, name string) string {
+// MakeDiffKey creates a unique key for a resource diff
+func MakeDiffKey(apiVersion, kind, name string) string {
 	return fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
 }

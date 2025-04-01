@@ -1,6 +1,7 @@
 package diffprocessor
 
 import (
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"k8s.io/client-go/rest"
 	"testing"
@@ -64,7 +65,7 @@ func TestDiffOptions(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   ProcessorConfig
-		expected DiffOptions
+		expected renderer.DiffOptions
 	}{
 		{
 			name: "DefaultOptions",
@@ -72,8 +73,8 @@ func TestDiffOptions(t *testing.T) {
 				Colorize: true,
 				Compact:  false,
 			},
-			expected: func() DiffOptions {
-				opts := DefaultDiffOptions()
+			expected: func() renderer.DiffOptions {
+				opts := renderer.DefaultDiffOptions()
 				opts.UseColors = true
 				opts.Compact = false
 				return opts
@@ -85,8 +86,8 @@ func TestDiffOptions(t *testing.T) {
 				Colorize: false,
 				Compact:  false,
 			},
-			expected: func() DiffOptions {
-				opts := DefaultDiffOptions()
+			expected: func() renderer.DiffOptions {
+				opts := renderer.DefaultDiffOptions()
 				opts.UseColors = false
 				opts.Compact = false
 				return opts
@@ -98,8 +99,8 @@ func TestDiffOptions(t *testing.T) {
 				Colorize: true,
 				Compact:  true,
 			},
-			expected: func() DiffOptions {
-				opts := DefaultDiffOptions()
+			expected: func() renderer.DiffOptions {
+				opts := renderer.DefaultDiffOptions()
 				opts.UseColors = true
 				opts.Compact = true
 				return opts

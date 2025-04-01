@@ -1,4 +1,4 @@
-package diffprocessor
+package renderer
 
 import (
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"

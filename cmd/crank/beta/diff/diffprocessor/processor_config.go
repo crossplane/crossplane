@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	"k8s.io/client-go/rest"
 )
 
@@ -39,10 +40,10 @@ type ComponentFactories struct {
 	SchemaValidatorFactory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator
 
 	// DiffCalculatorFactory creates a DiffCalculator
-	DiffCalculatorFactory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator
+	DiffCalculatorFactory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator
 
 	// DiffRendererFactory creates a DiffRenderer
-	DiffRendererFactory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer
+	DiffRendererFactory func(logger logging.Logger, diffOptions renderer.DiffOptions) renderer.DiffRenderer
 
 	// RequirementsProviderFactory creates an ExtraResourceProvider
 	RequirementsProviderFactory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider
@@ -108,14 +109,14 @@ func WithSchemaValidatorFactory(factory func(client cc.ClusterClient, logger log
 }
 
 // WithDiffCalculatorFactory sets the DiffCalculator factory function
-func WithDiffCalculatorFactory(factory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator) ProcessorOption {
+func WithDiffCalculatorFactory(factory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.DiffCalculatorFactory = factory
 	}
 }
 
 // WithDiffRendererFactory sets the DiffRenderer factory function
-func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions DiffOptions) DiffRenderer) ProcessorOption {
+func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions renderer.DiffOptions) renderer.DiffRenderer) ProcessorOption {
 	return func(config *ProcessorConfig) {
 		config.ComponentFactories.DiffRendererFactory = factory
 	}
@@ -129,8 +130,8 @@ func WithRequirementsProviderFactory(factory func(client cc.ClusterClient, rende
 }
 
 // GetDiffOptions returns DiffOptions based on the ProcessorConfig
-func (c *ProcessorConfig) GetDiffOptions() DiffOptions {
-	opts := DefaultDiffOptions()
+func (c *ProcessorConfig) GetDiffOptions() renderer.DiffOptions {
+	opts := renderer.DefaultDiffOptions()
 	opts.UseColors = c.Colorize
 	opts.Compact = c.Compact
 
@@ -152,7 +153,7 @@ func (c *ProcessorConfig) SetDefaultFactories() {
 	}
 
 	if c.ComponentFactories.DiffRendererFactory == nil {
-		c.ComponentFactories.DiffRendererFactory = NewDiffRenderer
+		c.ComponentFactories.DiffRendererFactory = renderer.NewDiffRenderer
 	}
 
 	if c.ComponentFactories.RequirementsProviderFactory == nil {

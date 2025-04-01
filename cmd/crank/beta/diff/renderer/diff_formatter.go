@@ -1,4 +1,5 @@
-package diffprocessor
+// Package renderer contains the logic for formatting and displaying diffs.
+package renderer
 
 import (
 	"fmt"
@@ -74,7 +75,7 @@ func (d *ResourceDiff) getKindName() string {
 }
 
 func (d *ResourceDiff) GetDiffKey() string {
-	return makeDiffKey(d.Gvk.Group+"/"+d.Gvk.Version, d.Gvk.Kind, d.ResourceName)
+	return MakeDiffKey(d.Gvk.Group+"/"+d.Gvk.Version, d.Gvk.Kind, d.ResourceName)
 }
 
 // DefaultDiffOptions returns the default options with colors enabled

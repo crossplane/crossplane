@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -16,13 +17,13 @@ import (
 // DiffCalculator calculates differences between resources
 type DiffCalculator interface {
 	// CalculateDiff computes the diff for a single resource
-	CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*ResourceDiff, error)
+	CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*renderer.ResourceDiff, error)
 
 	// CalculateDiffs computes all diffs for the rendered resources and identifies resources to be removed
-	CalculateDiffs(ctx context.Context, xr *ucomposite.Unstructured, desired render.Outputs) (map[string]*ResourceDiff, error)
+	CalculateDiffs(ctx context.Context, xr *ucomposite.Unstructured, desired render.Outputs) (map[string]*renderer.ResourceDiff, error)
 
 	// CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs
-	CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*ResourceDiff, error)
+	CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*renderer.ResourceDiff, error)
 }
 
 // DefaultDiffCalculator implements the DiffCalculator interface
@@ -30,16 +31,16 @@ type DefaultDiffCalculator struct {
 	client          cc.ClusterClient
 	resourceManager ResourceManager
 	logger          logging.Logger
-	diffOptions     DiffOptions
+	diffOptions     renderer.DiffOptions
 }
 
 // SetDiffOptions updates the diff options used by the calculator
-func (c *DefaultDiffCalculator) SetDiffOptions(options DiffOptions) {
+func (c *DefaultDiffCalculator) SetDiffOptions(options renderer.DiffOptions) {
 	c.diffOptions = options
 }
 
 // NewDiffCalculator creates a new DefaultDiffCalculator
-func NewDiffCalculator(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions DiffOptions) DiffCalculator {
+func NewDiffCalculator(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator {
 	return &DefaultDiffCalculator{
 		client:          client,
 		resourceManager: resourceManager,
@@ -49,7 +50,7 @@ func NewDiffCalculator(client cc.ClusterClient, resourceManager ResourceManager,
 }
 
 // CalculateDiff calculates the diff for a single resource
-func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*ResourceDiff, error) {
+func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*renderer.ResourceDiff, error) {
 	// Get resource identification information
 	name := desired.GetName()
 	generateName := desired.GetGenerateName()
@@ -117,7 +118,7 @@ func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un
 	}
 
 	// Generate diff with the configured options
-	diff, err := GenerateDiffWithOptions(current, wouldBeResult, c.logger, c.diffOptions)
+	diff, err := renderer.GenerateDiffWithOptions(current, wouldBeResult, c.logger, c.diffOptions)
 	if err != nil {
 		c.logger.Debug("Failed to generate diff", "resource", resourceID, "error", err)
 		return nil, err
@@ -128,20 +129,20 @@ func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un
 		c.logger.Debug("Diff generated",
 			"resource", resourceID,
 			"diffType", diff.DiffType,
-			"hasChanges", diff.DiffType != DiffTypeEqual)
+			"hasChanges", diff.DiffType != renderer.DiffTypeEqual)
 	}
 
 	return diff, nil
 }
 
 // CalculateDiffs collects all diffs for the desired resources and identifies resources to be removed
-func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposite.Unstructured, desired render.Outputs) (map[string]*ResourceDiff, error) {
+func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposite.Unstructured, desired render.Outputs) (map[string]*renderer.ResourceDiff, error) {
 	xrName := xr.GetName()
 	c.logger.Debug("Calculating diffs",
 		"xr", xrName,
 		"composedCount", len(desired.ComposedResources))
 
-	diffs := make(map[string]*ResourceDiff)
+	diffs := make(map[string]*renderer.ResourceDiff)
 	var errs []error
 
 	// Create a map to track resources that were rendered
@@ -151,7 +152,7 @@ func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposi
 	xrDiff, err := c.CalculateDiff(ctx, nil, xr.GetUnstructured())
 	if err != nil || xrDiff == nil {
 		return nil, errors.Wrap(err, "cannot calculate diff for XR")
-	} else if xrDiff.DiffType != DiffTypeEqual {
+	} else if xrDiff.DiffType != renderer.DiffTypeEqual {
 		key := xrDiff.GetDiffKey()
 		diffs[key] = xrDiff
 	}
@@ -189,7 +190,7 @@ func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposi
 		}
 
 		diffKey := diff.GetDiffKey()
-		if diff.DiffType != DiffTypeEqual {
+		if diff.DiffType != renderer.DiffTypeEqual {
 			diffs[diffKey] = diff
 		}
 
@@ -224,13 +225,13 @@ func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposi
 }
 
 // CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs
-func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*ResourceDiff, error) {
+func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*renderer.ResourceDiff, error) {
 	xrName := xr.GetName()
 	c.logger.Debug("Checking for resources to be removed",
 		"xr", xrName,
 		"renderedResourceCount", len(renderedResources))
 
-	removedDiffs := make(map[string]*ResourceDiff)
+	removedDiffs := make(map[string]*renderer.ResourceDiff)
 
 	// Try to get the resource tree
 	resourceTree, err := c.client.GetResourceTree(ctx, xr)
@@ -251,13 +252,13 @@ func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Contex
 			resourceID := fmt.Sprintf("%s/%s", kind, name)
 
 			// Use the same key format as in CalculateDiffs to check if this resource was rendered
-			key := makeDiffKey(apiVersion, kind, name)
+			key := renderer.MakeDiffKey(apiVersion, kind, name)
 
 			if !renderedResources[key] {
 				// This resource exists but wasn't rendered - it will be removed
 				c.logger.Debug("Resource will be removed", "resource", resourceID)
 
-				diff, err := GenerateDiffWithOptions(&node.Unstructured, nil, c.logger, c.diffOptions)
+				diff, err := renderer.GenerateDiffWithOptions(&node.Unstructured, nil, c.logger, c.diffOptions)
 				if err != nil {
 					c.logger.Debug("Cannot calculate removal diff (continuing)",
 						"resource", resourceID,
