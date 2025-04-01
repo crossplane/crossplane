@@ -2,18 +2,18 @@ package diffprocessor
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	"strings"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -33,7 +33,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		WithSpecField("field", "value").
 		Build()
 
-	composedResource := tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
+	composedResource := tu.NewResource("example.org/v1", "ComposedResource", "cpd-resource").
 		WithSpecField("field", "old-value").
 		WithLabels(map[string]string{
 			"crossplane.io/composite": "parent-xr",
@@ -45,8 +45,8 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 
 	tests := map[string]struct {
 		setupClient func() *tu.MockClusterClient
-		composite   *unstructured.Unstructured
-		desired     *unstructured.Unstructured
+		composite   *un.Unstructured
+		desired     *un.Unstructured
 		wantDiff    *renderer.ResourceDiff
 		wantNil     bool
 		wantErr     bool
@@ -84,14 +84,14 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		"ComposedResource": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithResourcesFoundByLabel([]*unstructured.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
+					WithResourcesFoundByLabel([]*un.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
 					// Add this line to mock the GetResource function:
 					WithResourcesExist(composedResource).
 					WithSuccessfulDryRun().
 					Build()
 			},
 			composite: tu.NewResource("foo", "bar", "parent-xr").Build(),
-			desired: tu.NewResource("example.org/v1", "ComposedResource", "composed-resource").
+			desired: tu.NewResource("example.org/v1", "ComposedResource", "cpd-resource").
 				WithSpecField("field", "new-value").
 				WithLabels(map[string]string{
 					"crossplane.io/composite": "parent-xr",
@@ -102,7 +102,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				Build(),
 			wantDiff: &renderer.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
-				ResourceName: "composed-resource",
+				ResourceName: "cpd-resource",
 				DiffType:     renderer.DiffTypeModified,
 			},
 		},
@@ -124,7 +124,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		"ErrorGettingCurrentObject": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						return nil, errors.New("resource not found")
 					}).
 					Build()
@@ -146,7 +146,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		},
 		"Successfully find and diff resource with generateName": {
 			setupClient: func() *tu.MockClusterClient {
-				// The composed resource with generateName
+				// The cpd resource with generateName
 				composedWithGenName := tu.NewResource("example.org/v1", "ComposedResource", "").
 					WithLabels(map[string]string{
 						"crossplane.io/composite": "parent-xr",
@@ -173,7 +173,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				// Create a mock client that will return resources by label
 				return tu.NewMockClusterClient().
 					// Return "not found" for direct name lookup
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						// This should fail as the resource has generateName, not name
 						if name == "test-resource-abc123" {
 							return existingComposed, nil
@@ -187,12 +187,12 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 						)
 					}).
 					// Return our existing resource when looking up by label
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 						// Verify we're looking up with the right composite owner label
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
-							return []*unstructured.Unstructured{existingComposed}, nil
+							return []*un.Unstructured{existingComposed}, nil
 						}
-						return []*unstructured.Unstructured{}, nil
+						return []*un.Unstructured{}, nil
 					}).
 					WithSuccessfulDryRun().
 					Build()
@@ -291,8 +291,8 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 	renderedXR := tu.NewResource("example.org/v1", "XR", "test-xr").
 		BuildUComposite()
 
-	// Create rendered composed resources
-	composedResource1 := tu.NewResource("example.org/v1", "Composed", "composed-1").
+	// Create rendered cpd resources
+	composedResource1 := tu.NewResource("example.org/v1", "Composed", "cpd-1").
 		WithCompositeOwner("test-xr").
 		WithCompositionResourceName("resource-1").
 		WithSpecField("field", "new-value").
@@ -304,7 +304,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 	existingXR := existingXRBuilder.Build()
 	existingXrUComp := existingXRBuilder.BuildUComposite()
 
-	existingComposed := tu.NewResource("example.org/v1", "Composed", "composed-1").
+	existingComposed := tu.NewResource("example.org/v1", "Composed", "cpd-1").
 		WithCompositeOwner("test-xr").
 		WithCompositionResourceName("resource-1").
 		WithSpecField("field", "old-value").
@@ -312,16 +312,16 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 
 	tests := map[string]struct {
 		setupClient   func() *tu.MockClusterClient
-		inputXR       *ucomposite.Unstructured
+		inputXR       *cmp.Unstructured
 		renderedOut   render.Outputs
 		expectedDiffs map[string]renderer.DiffType // Map of expected keys and their diff types
 		wantErr       bool
 	}{
-		"XR and composed resource modifications": {
+		"XR and cpd resource modifications": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingXR, existingComposed).
-					WithResourcesFoundByLabel([]*unstructured.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
 					WithSuccessfulDryRun().
 					WithEmptyResourceTree().
 					Build()
@@ -329,35 +329,35 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			inputXR: modifiedXr,
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
-				ComposedResources: []composed.Unstructured{*composedResource1},
+				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/XR/test-xr":          renderer.DiffTypeModified,
-				"example.org/v1/Composed/composed-1": renderer.DiffTypeModified,
+				"example.org/v1/XR/test-xr":     renderer.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1": renderer.DiffTypeModified,
 			},
 			wantErr: false,
 		},
-		"XR not modified, composed resource modified": {
+		"XR not modified, cpd resource modified": {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingXR, existingComposed).
-					WithResourcesFoundByLabel([]*unstructured.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
 					WithSuccessfulDryRun().
 					WithEmptyResourceTree().
 					Build()
 			},
 			inputXR: existingXrUComp,
 			renderedOut: render.Outputs{
-				CompositeResource: func() *ucomposite.Unstructured {
+				CompositeResource: func() *cmp.Unstructured {
 					// Create XR with same values (no changes)
-					sameXR := &ucomposite.Unstructured{}
+					sameXR := &cmp.Unstructured{}
 					sameXR.SetUnstructuredContent(existingXR.UnstructuredContent())
 					return sameXR
 				}(),
-				ComposedResources: []composed.Unstructured{*composedResource1},
+				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/Composed/composed-1": renderer.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1": renderer.DiffTypeModified,
 			},
 			wantErr: false,
 		},
@@ -372,7 +372,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			inputXR: existingXrUComp,
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
-				ComposedResources: []composed.Unstructured{*composedResource1},
+				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]renderer.DiffType{},
 			wantErr:       true,
@@ -380,18 +380,18 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 		"Resource tree with potential resources to remove": {
 			setupClient: func() *tu.MockClusterClient {
 				// Create a resource tree with resources that aren't in the rendered output
-				extraComposedResource := tu.NewResource("example.org/v1", "Composed", "composed-2").
+				extraComposedResource := tu.NewResource("example.org/v1", "Composed", "cpd-2").
 					WithCompositeOwner("test-xr").
 					WithCompositionResourceName("resource-to-be-removed").
 					WithSpecField("field", "value").
 					Build()
 
-				// Return a resource tree with the XR as root and some composed resources as children
+				// Return a resource tree with the XR as root and some cpd resources as children
 				return tu.NewMockClusterClient().
 					WithResourcesExist(existingXR, existingComposed, extraComposedResource).
-					WithResourcesFoundByLabel([]*unstructured.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
 					WithSuccessfulDryRun().
-					WithResourceTreeFromXRAndComposed(existingXR, []*unstructured.Unstructured{
+					WithResourceTreeFromXRAndComposed(existingXR, []*un.Unstructured{
 						existingComposed,
 						extraComposedResource,
 					}).
@@ -400,19 +400,19 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			inputXR: modifiedXr,
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
-				ComposedResources: []composed.Unstructured{*composedResource1},
+				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
 			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/XR/test-xr":          renderer.DiffTypeModified,
-				"example.org/v1/Composed/composed-1": renderer.DiffTypeModified,
-				"example.org/v1/Composed/composed-2": renderer.DiffTypeRemoved,
+				"example.org/v1/XR/test-xr":     renderer.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1": renderer.DiffTypeModified,
+				"example.org/v1/Composed/cpd-2": renderer.DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
 		"Resource removal detection": {
 			setupClient: func() *tu.MockClusterClient {
 				// Create existing version of the resource
-				existingComposedWithOldValue := tu.NewResource("example.org/v1", "Composed", "composed-1").
+				existingComposedWithOldValue := tu.NewResource("example.org/v1", "Composed", "cpd-1").
 					WithCompositeOwner("test-xr").
 					WithCompositionResourceName("resource-1").
 					WithSpecField("field", "old-value").
@@ -428,14 +428,14 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 					// Make existingComposedWithOldValue available via GetResource
 					WithResourcesExist(existingXR, existingComposedWithOldValue, extraResource).
 					WithResourcesFoundByLabel(
-						[]*unstructured.Unstructured{existingComposedWithOldValue, extraResource},
+						[]*un.Unstructured{existingComposedWithOldValue, extraResource},
 						"crossplane.io/composite",
 						"test-xr",
 					).
 					// Include both resources in the tree
 					WithResourceTreeFromXRAndComposed(
 						existingXR,
-						[]*unstructured.Unstructured{existingComposedWithOldValue, extraResource},
+						[]*un.Unstructured{existingComposedWithOldValue, extraResource},
 					).
 					WithSuccessfulDryRun().
 					Build()
@@ -444,7 +444,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
 				// Include a modified version of composedResource1 with new value
-				ComposedResources: []composed.Unstructured{*tu.NewResource("example.org/v1", "Composed", "composed-1").
+				ComposedResources: []cpd.Unstructured{*tu.NewResource("example.org/v1", "Composed", "cpd-1").
 					WithCompositeOwner("test-xr").
 					WithCompositionResourceName("resource-1").
 					WithSpecField("field", "new-value"). // Different value than existing
@@ -452,7 +452,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 			},
 			expectedDiffs: map[string]renderer.DiffType{
 				"example.org/v1/XR/test-xr":                  renderer.DiffTypeModified,
-				"example.org/v1/Composed/composed-1":         renderer.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1":              renderer.DiffTypeModified,
 				"example.org/v1/Composed/resource-to-remove": renderer.DiffTypeRemoved,
 			},
 			wantErr: false,
@@ -560,7 +560,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 					WithResourcesExist(xr).
 					WithResourceTreeFromXRAndComposed(
 						xr,
-						[]*unstructured.Unstructured{resourceToKeep, resourceToRemove},
+						[]*un.Unstructured{resourceToKeep, resourceToRemove},
 					).
 					Build()
 			},
@@ -578,7 +578,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 					WithResourcesExist(xr).
 					WithResourceTreeFromXRAndComposed(
 						xr,
-						[]*unstructured.Unstructured{resourceToKeep, resourceToRemove},
+						[]*un.Unstructured{resourceToKeep, resourceToRemove},
 					).
 					Build()
 			},

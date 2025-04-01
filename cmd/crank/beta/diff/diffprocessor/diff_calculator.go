@@ -8,22 +8,22 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // DiffCalculator calculates differences between resources
 type DiffCalculator interface {
 	// CalculateDiff computes the diff for a single resource
-	CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*renderer.ResourceDiff, error)
+	CalculateDiff(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*renderer.ResourceDiff, error)
 
 	// CalculateDiffs computes all diffs for the rendered resources and identifies resources to be removed
-	CalculateDiffs(ctx context.Context, xr *ucomposite.Unstructured, desired render.Outputs) (map[string]*renderer.ResourceDiff, error)
+	CalculateDiffs(ctx context.Context, xr *cmp.Unstructured, desired render.Outputs) (map[string]*renderer.ResourceDiff, error)
 
 	// CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs
-	CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*renderer.ResourceDiff, error)
+	CalculateRemovedResourceDiffs(ctx context.Context, xr *un.Unstructured, renderedResources map[string]bool) (map[string]*renderer.ResourceDiff, error)
 }
 
 // DefaultDiffCalculator implements the DiffCalculator interface
@@ -50,7 +50,7 @@ func NewDiffCalculator(client cc.ClusterClient, resourceManager ResourceManager,
 }
 
 // CalculateDiff calculates the diff for a single resource
-func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*renderer.ResourceDiff, error) {
+func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*renderer.ResourceDiff, error) {
 	// Get resource identification information
 	name := desired.GetName()
 	generateName := desired.GetGenerateName()
@@ -136,7 +136,7 @@ func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un
 }
 
 // CalculateDiffs collects all diffs for the desired resources and identifies resources to be removed
-func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposite.Unstructured, desired render.Outputs) (map[string]*renderer.ResourceDiff, error) {
+func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *cmp.Unstructured, desired render.Outputs) (map[string]*renderer.ResourceDiff, error) {
 	xrName := xr.GetName()
 	c.logger.Debug("Calculating diffs",
 		"xr", xrName,
@@ -159,7 +159,7 @@ func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposi
 
 	// Then calculate diffs for all composed resources
 	for _, d := range desired.ComposedResources {
-		un := &unstructured.Unstructured{Object: d.UnstructuredContent()}
+		un := &un.Unstructured{Object: d.UnstructuredContent()}
 
 		// Generate a key to identify this resource
 		apiVersion := un.GetAPIVersion()
@@ -225,7 +225,7 @@ func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *ucomposi
 }
 
 // CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs
-func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Context, xr *unstructured.Unstructured, renderedResources map[string]bool) (map[string]*renderer.ResourceDiff, error) {
+func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Context, xr *un.Unstructured, renderedResources map[string]bool) (map[string]*renderer.ResourceDiff, error) {
 	xrName := xr.GetName()
 	c.logger.Debug("Checking for resources to be removed",
 		"xr", xrName,

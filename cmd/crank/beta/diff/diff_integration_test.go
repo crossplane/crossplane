@@ -9,7 +9,7 @@ import (
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	cgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"
 	"path/filepath"
 	run "runtime"
@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"k8s.io/client-go/rest"
@@ -37,10 +37,10 @@ func TestDiffIntegration(t *testing.T) {
 	scheme := runtime.NewScheme()
 
 	// Register Kubernetes types
-	_ = clientgoscheme.AddToScheme(scheme)
+	_ = cgoscheme.AddToScheme(scheme)
 
 	// Register Crossplane types
-	_ = apiextensionsv1.AddToScheme(scheme)
+	_ = xpextv1.AddToScheme(scheme)
 	_ = pkgv1.AddToScheme(scheme)
 	_ = extv1.AddToScheme(scheme)
 

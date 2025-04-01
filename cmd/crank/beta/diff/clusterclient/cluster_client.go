@@ -11,7 +11,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xrm"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,34 +31,34 @@ type ClusterClient interface {
 	Initialize(ctx context.Context) error
 
 	// FindMatchingComposition finds a composition that matches the given XR
-	FindMatchingComposition(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
+	FindMatchingComposition(ctx context.Context, res *un.Unstructured) (*apiextensionsv1.Composition, error)
 
 	// GetEnvironmentConfigs fetches environment configs from the cluster
-	GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error)
+	GetEnvironmentConfigs(ctx context.Context) ([]*un.Unstructured, error)
 
 	// GetAllResourcesByLabels gets all resources matching the given GVK/selector pairs
-	GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error)
 
 	// GetFunctionsFromPipeline retrieves all functions used in the composition's pipeline
 	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
 
 	// GetXRDs retrieves the XRD schemas from the cluster
-	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
+	GetXRDs(ctx context.Context) ([]*un.Unstructured, error)
 
 	// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
-	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
+	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error)
 
 	// GetResourceTree retrieves the resource tree from the cluster
-	GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error)
+	GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error)
 
 	// GetResourcesByLabel looks up resources matching the given GVK and label selector
-	GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error)
 
 	// DryRunApply performs a server-side apply with dry-run flag for diffing
-	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error)
 
 	// GetCRD gets the CRD for a given GVK
-	GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error)
+	GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
 
 	// IsCRDRequired checks if a resource requires a CRD
 	IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool
@@ -83,7 +83,7 @@ type DefaultClusterClient struct {
 	gvkToGVRMutex sync.RWMutex
 
 	// XRD caching
-	xrds       []*unstructured.Unstructured
+	xrds       []*un.Unstructured
 	xrdsMutex  sync.RWMutex
 	xrdsLoaded bool
 }
@@ -209,7 +209,7 @@ func (c *DefaultClusterClient) Initialize(ctx context.Context) error {
 }
 
 // GetAllResourcesByLabels fetches all resources from the cluster based on the provided GVKs and selectors
-func (c *DefaultClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
 	if len(gvks) != len(selectors) {
 		c.logger.Debug("GVKs and selectors count mismatch",
 			"gvks_count", len(gvks),
@@ -220,7 +220,7 @@ func (c *DefaultClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks
 	c.logger.Debug("Fetching resources by labels",
 		"gvks_count", len(gvks))
 
-	var resources []*unstructured.Unstructured
+	var resources []*un.Unstructured
 
 	for i, gvk := range gvks {
 		// List resources matching the selector
@@ -249,7 +249,7 @@ func (c *DefaultClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks
 }
 
 // GetResourcesByLabel retrieves all resources from the cluster based on the provided GVK and selector
-func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 	c.logger.Debug("Getting resources by label",
 		"namespace", ns,
 		"gvk", gvk.String(),
@@ -265,7 +265,7 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 			gvk.String(), labels.Set(sel.MatchLabels).String())
 	}
 
-	var resources []*unstructured.Unstructured
+	var resources []*un.Unstructured
 
 	opts := metav1.ListOptions{}
 	if len(sel.MatchLabels) > 0 {
@@ -296,7 +296,7 @@ func (c *DefaultClusterClient) GetResourcesByLabel(ctx context.Context, ns strin
 }
 
 // GetEnvironmentConfigs fetches environment configs from the cluster.
-func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un.Unstructured, error) {
 	c.logger.Debug("Getting environment configs")
 
 	envConfigsGVR := schema.GroupVersionResource{
@@ -306,7 +306,7 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 	}
 
 	// we have the EnvironmentConfig type in the same package, so we could use it here, but
-	// that might be troublesome for adding it to the unstructured ExtraResources list
+	// that might be troublesome for adding it to the un ExtraResources list
 	envConfigsClient := c.dynamicClient.Resource(envConfigsGVR)
 
 	c.logger.Debug("Listing environment configs")
@@ -316,7 +316,7 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 		return nil, errors.Wrap(err, "cannot list environment configs")
 	}
 
-	envConfigs := make([]*unstructured.Unstructured, len(list.Items))
+	envConfigs := make([]*un.Unstructured, len(list.Items))
 	for i := range list.Items {
 		envConfigs[i] = &list.Items[i]
 	}
@@ -327,7 +327,7 @@ func (c *DefaultClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un
 
 // FindMatchingComposition finds a composition matching the given resource.
 // It handles both XRs and Claims, finding the appropriate composition in each case.
-func (c *DefaultClusterClient) FindMatchingComposition(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+func (c *DefaultClusterClient) FindMatchingComposition(ctx context.Context, res *un.Unstructured) (*apiextensionsv1.Composition, error) {
 	// Determine if we're dealing with a claim or an XR
 	gvk := res.GroupVersionKind()
 	resourceID := fmt.Sprintf("%s/%s", gvk.String(), res.GetName())
@@ -374,10 +374,10 @@ func (c *DefaultClusterClient) FindMatchingComposition(ctx context.Context, res 
 }
 
 // getXRTypeFromXRD extracts the XR GroupVersionKind from an XRD
-func (c *DefaultClusterClient) getXRTypeFromXRD(xrdForClaim *unstructured.Unstructured, resourceID string) (schema.GroupVersionKind, error) {
+func (c *DefaultClusterClient) getXRTypeFromXRD(xrdForClaim *un.Unstructured, resourceID string) (schema.GroupVersionKind, error) {
 	// Get the XR type from the XRD
-	xrGroup, found, _ := unstructured.NestedString(xrdForClaim.Object, "spec", "group")
-	xrKind, kindFound, _ := unstructured.NestedString(xrdForClaim.Object, "spec", "names", "kind")
+	xrGroup, found, _ := un.NestedString(xrdForClaim.Object, "spec", "group")
+	xrKind, kindFound, _ := un.NestedString(xrdForClaim.Object, "spec", "names", "kind")
 
 	if !found || !kindFound {
 		return schema.GroupVersionKind{}, errors.New("could not determine group or kind from XRD")
@@ -385,14 +385,14 @@ func (c *DefaultClusterClient) getXRTypeFromXRD(xrdForClaim *unstructured.Unstru
 
 	// Find the referenceable version - there should be exactly one
 	xrVersion := ""
-	versions, versionsFound, _ := unstructured.NestedSlice(xrdForClaim.Object, "spec", "versions")
+	versions, versionsFound, _ := un.NestedSlice(xrdForClaim.Object, "spec", "versions")
 	if versionsFound && len(versions) > 0 {
 		// Look for the one version that is marked referenceable
 		for _, versionObj := range versions {
 			if version, ok := versionObj.(map[string]interface{}); ok {
-				ref, refFound, _ := unstructured.NestedBool(version, "referenceable")
+				ref, refFound, _ := un.NestedBool(version, "referenceable")
 				if refFound && ref {
-					name, nameFound, _ := unstructured.NestedString(version, "name")
+					name, nameFound, _ := un.NestedString(version, "name")
 					if nameFound {
 						xrVersion = name
 						break
@@ -421,8 +421,8 @@ func (c *DefaultClusterClient) getXRTypeFromXRD(xrdForClaim *unstructured.Unstru
 }
 
 // findByDirectReference attempts to find a composition directly referenced by name
-func (c *DefaultClusterClient) findByDirectReference(res *unstructured.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
-	compositionRefName, compositionRefFound, err := unstructured.NestedString(res.Object, "spec", "compositionRef", "name")
+func (c *DefaultClusterClient) findByDirectReference(res *un.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
+	compositionRefName, compositionRefFound, err := un.NestedString(res.Object, "spec", "compositionRef", "name")
 	if err == nil && compositionRefFound && compositionRefName != "" {
 		c.logger.Debug("Found direct composition reference",
 			"resource", resourceID,
@@ -451,8 +451,8 @@ func (c *DefaultClusterClient) findByDirectReference(res *unstructured.Unstructu
 }
 
 // findByLabelSelector attempts to find compositions that match label selectors
-func (c *DefaultClusterClient) findByLabelSelector(res *unstructured.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
-	matchLabels, selectorFound, err := unstructured.NestedMap(res.Object, "spec", "compositionSelector", "matchLabels")
+func (c *DefaultClusterClient) findByLabelSelector(res *un.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
+	matchLabels, selectorFound, err := un.NestedMap(res.Object, "spec", "compositionSelector", "matchLabels")
 	if err == nil && selectorFound && len(matchLabels) > 0 {
 		c.logger.Debug("Found composition selector",
 			"resource", resourceID,
@@ -539,7 +539,7 @@ func (c *DefaultClusterClient) findByTypeReference(targetGVK schema.GroupVersion
 }
 
 // findClaimXRD checks if the given GVK is a claim type and returns the corresponding XRD if found
-func (c *DefaultClusterClient) findClaimXRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) findClaimXRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 	c.logger.Debug("Checking if resource is a claim type",
 		"gvk", gvk.String())
 
@@ -553,7 +553,7 @@ func (c *DefaultClusterClient) findClaimXRD(ctx context.Context, gvk schema.Grou
 
 	// Loop through XRDs to find one that defines this GVK as a claim
 	for _, xrd := range xrds {
-		claimGroup, found, _ := unstructured.NestedString(xrd.Object, "spec", "group")
+		claimGroup, found, _ := un.NestedString(xrd.Object, "spec", "group")
 
 		// Skip if group doesn't match
 		if !found || claimGroup != gvk.Group {
@@ -561,12 +561,12 @@ func (c *DefaultClusterClient) findClaimXRD(ctx context.Context, gvk schema.Grou
 		}
 
 		// Check claim kind
-		claimNames, found, _ := unstructured.NestedMap(xrd.Object, "spec", "claimNames")
+		claimNames, found, _ := un.NestedMap(xrd.Object, "spec", "claimNames")
 		if !found || claimNames == nil {
 			continue
 		}
 
-		claimKind, found, _ := unstructured.NestedString(claimNames, "kind")
+		claimKind, found, _ := un.NestedString(claimNames, "kind")
 		if !found || claimKind != gvk.Kind {
 			continue
 		}
@@ -659,15 +659,15 @@ func (c *DefaultClusterClient) listCompositions(ctx context.Context) ([]apiexten
 	}
 
 	compositions := make([]apiextensionsv1.Composition, 0, len(list.Items))
-	c.logger.Debug("Converting compositions from unstructured", "count", len(list.Items))
+	c.logger.Debug("Converting compositions from un", "count", len(list.Items))
 
 	for _, obj := range list.Items {
 		comp := &apiextensionsv1.Composition{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, comp); err != nil {
-			c.logger.Debug("Failed to convert composition from unstructured",
+			c.logger.Debug("Failed to convert composition from un",
 				"name", obj.GetName(),
 				"error", err)
-			return nil, errors.Wrap(err, "cannot convert unstructured to Composition")
+			return nil, errors.Wrap(err, "cannot convert un to Composition")
 		}
 		compositions = append(compositions, *comp)
 	}
@@ -694,15 +694,15 @@ func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Funct
 	}
 
 	functions := make([]pkgv1.Function, 0, len(list.Items))
-	c.logger.Debug("Converting functions from unstructured", "count", len(list.Items))
+	c.logger.Debug("Converting functions from un", "count", len(list.Items))
 
 	for _, obj := range list.Items {
 		fn := &pkgv1.Function{}
 		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, fn); err != nil {
-			c.logger.Debug("Failed to convert function from unstructured",
+			c.logger.Debug("Failed to convert function from un",
 				"name", obj.GetName(),
 				"error", err)
-			return nil, errors.Wrap(err, "cannot convert unstructured to Function")
+			return nil, errors.Wrap(err, "cannot convert un to Function")
 		}
 		functions = append(functions, *fn)
 	}
@@ -711,7 +711,7 @@ func (c *DefaultClusterClient) listFunctions(ctx context.Context) ([]pkgv1.Funct
 	return functions, nil
 }
 
-func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
 	// Check if XRDs are already loaded
 	c.xrdsMutex.RLock()
 	if c.xrdsLoaded {
@@ -751,7 +751,7 @@ func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Uns
 	}
 
 	items := list.Items
-	result := make([]*unstructured.Unstructured, len(items))
+	result := make([]*un.Unstructured, len(items))
 
 	c.logger.Debug("Processing XRDs", "count", len(items))
 	for i := range items {
@@ -768,7 +768,7 @@ func (c *DefaultClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Uns
 }
 
 // GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
-func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
 	resourceID := fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
 	c.logger.Debug("Getting resource from cluster", "resource", resourceID)
 
@@ -782,7 +782,7 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	}
 
 	// Get the resource
-	var res *unstructured.Unstructured
+	var res *un.Unstructured
 
 	// If namespace is empty string, it will be ignored
 	res, err = c.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -802,7 +802,7 @@ func (c *DefaultClusterClient) GetResource(ctx context.Context, gvk schema.Group
 	return res, nil
 }
 
-func (c *DefaultClusterClient) GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+func (c *DefaultClusterClient) GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 	c.logger.Debug("Getting resource tree",
 		"resource_kind", root.GetKind(),
 		"resource_name", root.GetName(),
@@ -833,7 +833,7 @@ func (c *DefaultClusterClient) GetResourceTree(ctx context.Context, root *unstru
 }
 
 // DryRunApply performs a server-side apply with dry-run flag for diffing
-func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 	resourceID := fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())
 	c.logger.Debug("Performing dry-run apply", "resource", resourceID)
 
@@ -916,7 +916,7 @@ func (c *DefaultClusterClient) IsCRDRequired(ctx context.Context, gvk schema.Gro
 }
 
 // GetCRD retrieves the CustomResourceDefinition for a given GVK
-func (c *DefaultClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+func (c *DefaultClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 	// Get the resource name using the central method
 	resourceName, err := c.getResourceForGVK(ctx, gvk)
 	if err != nil {

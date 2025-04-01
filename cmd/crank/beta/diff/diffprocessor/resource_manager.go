@@ -10,7 +10,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
 )
@@ -19,10 +19,10 @@ import (
 // and identifying resources to be removed.
 type ResourceManager interface {
 	// FetchCurrentObject retrieves the current state of an object from the cluster
-	FetchCurrentObject(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error)
+	FetchCurrentObject(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*un.Unstructured, bool, error)
 
 	// UpdateOwnerRefs ensures all OwnerReferences have valid UIDs
-	UpdateOwnerRefs(parent *unstructured.Unstructured, child *unstructured.Unstructured)
+	UpdateOwnerRefs(parent *un.Unstructured, child *un.Unstructured)
 }
 
 // DefaultResourceManager implements ResourceManager interface
@@ -41,7 +41,7 @@ func NewResourceManager(client cc.ClusterClient, logger logging.Logger) Resource
 
 // FetchCurrentObject retrieves the current state of the object from the cluster
 // It returns the current object, a boolean indicating if it's a new object, and any error
-func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*un.Unstructured, bool, error) {
 	// Get the GroupVersionKind and name/namespace for lookup
 	gvk := desired.GroupVersionKind()
 	name := desired.GetName()
@@ -131,7 +131,7 @@ func (m *DefaultResourceManager) createResourceID(gvk schema.GroupVersionKind, n
 }
 
 // checkCompositeOwnership logs a warning if the resource is owned by a different composite
-func (m *DefaultResourceManager) checkCompositeOwnership(current *unstructured.Unstructured, composite *unstructured.Unstructured) {
+func (m *DefaultResourceManager) checkCompositeOwnership(current *un.Unstructured, composite *un.Unstructured) {
 	if composite == nil {
 		return
 	}
@@ -151,7 +151,7 @@ func (m *DefaultResourceManager) checkCompositeOwnership(current *unstructured.U
 }
 
 // lookupByComposite attempts to find a resource by looking at composite ownership and composition resource name
-func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composite *unstructured.Unstructured, desired *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*un.Unstructured, bool, error) {
 	// Derive parameters from the provided arguments
 	gvk := desired.GroupVersionKind()
 	namespace := desired.GetNamespace()
@@ -231,10 +231,10 @@ func (m *DefaultResourceManager) getCompositionResourceName(annotations map[stri
 
 // findMatchingResource looks through resources to find one matching the composition resource name
 func (m *DefaultResourceManager) findMatchingResource(
-	resources []*unstructured.Unstructured,
+	resources []*un.Unstructured,
 	compResourceName string,
 	generateName string,
-) (*unstructured.Unstructured, bool, error) {
+) (*un.Unstructured, bool, error) {
 	for _, res := range resources {
 		resAnnotations := res.GetAnnotations()
 		if resAnnotations == nil {
@@ -287,7 +287,7 @@ func (m *DefaultResourceManager) hasMatchingResourceName(annotations map[string]
 }
 
 // UpdateOwnerRefs ensures all OwnerReferences have valid UIDs
-func (m *DefaultResourceManager) UpdateOwnerRefs(parent *unstructured.Unstructured, child *unstructured.Unstructured) {
+func (m *DefaultResourceManager) UpdateOwnerRefs(parent *un.Unstructured, child *un.Unstructured) {
 	// if there's no parent, we are the parent.
 	if parent == nil {
 		m.logger.Debug("No parent provided for owner references update")
@@ -349,7 +349,7 @@ func (m *DefaultResourceManager) UpdateOwnerRefs(parent *unstructured.Unstructur
 }
 
 // updateCompositeOwnerLabel updates the crossplane.io/composite label on the child
-func (m *DefaultResourceManager) updateCompositeOwnerLabel(parent, child *unstructured.Unstructured) {
+func (m *DefaultResourceManager) updateCompositeOwnerLabel(parent, child *un.Unstructured) {
 	if parent == nil {
 		return
 	}

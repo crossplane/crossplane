@@ -3,8 +3,8 @@ package diffprocessor
 import (
 	"bytes"
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
@@ -18,8 +18,8 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	"github.com/google/go-cmp/cmp"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	gcmp "github.com/google/go-cmp/cmp"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 )
 
@@ -46,8 +46,8 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 		WithPipelineStep("step1", "function-test", nil).
 		Build()
 
-	// Create a composed resource for testing
-	composedResource := tu.NewResource("composed.org/v1", "ComposedResource", "resource1").
+	// Create a cpd resource for testing
+	composedResource := tu.NewResource("cpd.org/v1", "ComposedResource", "resource1").
 		WithCompositeOwner("my-xr-1").
 		WithCompositionResourceName("resA").
 		WithSpecField("param", "value").
@@ -56,7 +56,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 	// Test cases
 	tests := map[string]struct {
 		client    func() *tu.MockClusterClient
-		resources []*unstructured.Unstructured
+		resources []*un.Unstructured
 		//mockRender      func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
 		processorOpts   []ProcessorOption
 		verifyOutput    func(t *testing.T, output string)
@@ -67,10 +67,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
-			resources: []*unstructured.Unstructured{},
+			resources: []*un.Unstructured{},
 			want:      nil,
 		},
 		"DiffSingleResourceError": {
@@ -78,10 +78,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 				return tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
 					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
-			resources: []*unstructured.Unstructured{resource1},
+			resources: []*un.Unstructured{resource1},
 			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
 		},
 		"MultipleResourceErrors": {
@@ -89,10 +89,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 				return tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
 					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
-			resources: []*unstructured.Unstructured{resource1, resource2},
+			resources: []*un.Unstructured{resource1, resource2},
 			want: errors.New("[unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found, " +
 				"unable to process resource XR1/my-xr-2: cannot find matching composition: composition not found]"),
 		},
@@ -101,10 +101,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 				return tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
 					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
-			resources: []*unstructured.Unstructured{resource1},
+			resources: []*un.Unstructured{resource1},
 			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
 		},
 		"GetFunctionsError": {
@@ -113,10 +113,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithSuccessfulInitialize().
 					WithSuccessfulCompositionMatch(composition).
 					WithFailedFunctionsFetch("function not found").
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
-			resources: []*unstructured.Unstructured{resource1},
+			resources: []*un.Unstructured{resource1},
 			want:      errors.New("unable to process resource XR1/my-xr-1: cannot get functions from pipeline: function not found"),
 		},
 		"SuccessfulDiff": {
@@ -134,23 +134,23 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithSuccessfulInitialize().
 					WithSuccessfulCompositionMatch(composition).
 					WithSuccessfulFunctionsFetch(functions).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					WithResourcesExist(resource1, composedResource). // Add resources to existing resources
-					WithComposedResourcesByOwner(composedResource).  // Add composed resource lookup by owner
+					WithComposedResourcesByOwner(composedResource).  // Add cpd resource lookup by owner
 					WithSuccessfulDryRun().
-					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
 					// Add this line to make test resources not require CRDs:
 					WithNoResourcesRequiringCRDs().
 					Build()
 			},
-			resources: []*unstructured.Unstructured{resource1},
+			resources: []*un.Unstructured{resource1},
 			processorOpts: []ProcessorOption{
 				WithRenderFunc(func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
+						ComposedResources: []cpd.Unstructured{
 							{
-								Unstructured: unstructured.Unstructured{
+								Unstructured: un.Unstructured{
 									Object: composedResource.Object,
 								},
 							},
@@ -189,21 +189,21 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					WithSuccessfulInitialize().
 					WithSuccessfulCompositionMatch(composition).
 					WithSuccessfulFunctionsFetch(functions).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					WithResourcesExist(resource1).
 					WithSuccessfulDryRun().
 					WithNoResourcesRequiringCRDs().
 					Build()
 			},
-			resources: []*unstructured.Unstructured{resource1},
+			resources: []*un.Unstructured{resource1},
 			processorOpts: []ProcessorOption{
 				WithRenderFunc(func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error) {
 					// Return valid render outputs
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
+						ComposedResources: []cpd.Unstructured{
 							{
-								Unstructured: unstructured.Unstructured{
+								Unstructured: un.Unstructured{
 									Object: composedResource.Object,
 								},
 							},
@@ -229,7 +229,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					// Create a mock schema validator that succeeds unless we request an error
 					func(client cc.ClusterClient, logger logging.Logger) SchemaValidator {
 						return &tu.MockSchemaValidator{
-							ValidateResourcesFn: func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+							ValidateResourcesFn: func(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error {
 								if tt.validationError {
 									return errors.New("validation error")
 								}
@@ -254,7 +254,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					return
 				}
 
-				if diff := cmp.Diff(tt.want.Error(), err.Error()); diff != "" {
+				if diff := gcmp.Diff(tt.want.Error(), err.Error()); diff != "" {
 					t.Errorf("PerformDiff(...): -want error, +got error:\n%s", diff)
 				}
 				return
@@ -290,7 +290,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithFailedXRDsFetch("XRD not found").
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			want: errors.Wrap(errors.Wrap(errors.New("XRD not found"), "cannot get XRDs"), "cannot load CRDs"),
@@ -298,8 +298,8 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 		"EnvConfigsError": {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
-					WithEnvironmentConfigs(func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
+					WithEnvironmentConfigs(func(ctx context.Context) ([]*un.Unstructured, error) {
 						return nil, errors.New("env configs not found")
 					}).
 					Build()
@@ -309,8 +309,8 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 		"Success": {
 			client: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{xrd1}).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulXRDsFetch([]*un.Unstructured{xrd1}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			want: nil,
@@ -339,7 +339,7 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 					return
 				}
 
-				if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
+				if diff := gcmp.Diff(tc.want.Error(), err.Error()); diff != "" {
 					t.Errorf("Initialize(...): -want error, +got error:\n%s", diff)
 				}
 				return
@@ -383,7 +383,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 	secret := tu.NewResource("v1", "Secret", "secret1").Build()
 
 	tests := map[string]struct {
-		xr                   *ucomposite.Unstructured
+		xr                   *cmp.Unstructured
 		composition          *apiextensionsv1.Composition
 		functions            []pkgv1.Function
 		resourceID           string
@@ -400,7 +400,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
@@ -410,8 +410,8 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					// Return a simple output with no requirements
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
-							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+						ComposedResources: []cpd.Unstructured{
+							{Unstructured: un.Unstructured{Object: map[string]interface{}{
 								"apiVersion": "example.org/v1",
 								"kind":       "ComposedResource",
 								"metadata": map[string]interface{}{
@@ -434,13 +434,13 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						if gvk.Kind == "ConfigMap" && name == "config1" {
 							return configMap, nil
 						}
 						return nil, errors.New("resource not found")
 					}).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
@@ -471,8 +471,8 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					// Return a simple output
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
-							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+						ComposedResources: []cpd.Unstructured{
+							{Unstructured: un.Unstructured{Object: map[string]interface{}{
 								"apiVersion": "example.org/v1",
 								"kind":       "ComposedResource",
 								"metadata": map[string]interface{}{
@@ -495,7 +495,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						if gvk.Kind == "ConfigMap" && name == "config1" {
 							return configMap, nil
 						}
@@ -504,7 +504,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 						}
 						return nil, errors.New("resource not found")
 					}).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
@@ -562,8 +562,8 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					// Return a simple output
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
-							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+						ComposedResources: []cpd.Unstructured{
+							{Unstructured: un.Unstructured{Object: map[string]interface{}{
 								"apiVersion": "example.org/v1",
 								"kind":       "ComposedResource",
 								"metadata": map[string]interface{}{
@@ -586,7 +586,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
@@ -605,13 +605,13 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						if gvk.Kind == "ConfigMap" && name == "config1" {
 							return configMap, nil
 						}
 						return nil, errors.New("resource not found")
 					}).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
@@ -643,8 +643,8 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					// Second render succeeds
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
-						ComposedResources: []composed.Unstructured{
-							{Unstructured: unstructured.Unstructured{Object: map[string]interface{}{
+						ComposedResources: []cpd.Unstructured{
+							{Unstructured: un.Unstructured{Object: map[string]interface{}{
 								"apiVersion": "example.org/v1",
 								"kind":       "ComposedResource",
 								"metadata": map[string]interface{}{
@@ -666,10 +666,10 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						return nil, errors.New("resource not found")
 					}).
-					WithSuccessfulEnvironmentConfigsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
 			setupRenderFunc: func() RenderFunc {
@@ -747,9 +747,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					renderCount, tt.wantRenderIterations)
 			}
 
-			// Check composed resource count
+			// Check cpd resource count
 			if len(output.ComposedResources) != tt.wantComposedCount {
-				t.Errorf("RenderWithRequirements() returned %d composed resources, want %d",
+				t.Errorf("RenderWithRequirements() returned %d cpd resources, want %d",
 					len(output.ComposedResources), tt.wantComposedCount)
 			}
 		})

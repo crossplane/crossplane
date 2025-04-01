@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -18,10 +18,10 @@ import (
 // SchemaValidator handles validation of resources against CRD schemas
 type SchemaValidator interface {
 	// ValidateResources validates resources using schema validation
-	ValidateResources(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error
+	ValidateResources(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error
 
 	// EnsureComposedResourceCRDs ensures we have all required CRDs for validation
-	EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) error
+	EnsureComposedResourceCRDs(ctx context.Context, resources []*un.Unstructured) error
 }
 
 // DefaultSchemaValidator implements SchemaValidator interface
@@ -75,20 +75,20 @@ func (v *DefaultSchemaValidator) GetCRDs() []*extv1.CustomResourceDefinition {
 }
 
 // ValidateResources validates resources using schema validation
-func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error {
 	v.logger.Debug("Validating resources",
 		"xr", fmt.Sprintf("%s/%s", xr.GetKind(), xr.GetName()),
 		"composedCount", len(composed))
 
 	// Collect all resources that need to be validated
-	resources := make([]*unstructured.Unstructured, 0, len(composed)+1)
+	resources := make([]*un.Unstructured, 0, len(composed)+1)
 
 	// Add the XR to the validation list
 	resources = append(resources, xr)
 
-	// Add composed resources to validation list
+	// Add cpd resources to validation list
 	for i := range composed {
-		resources = append(resources, &unstructured.Unstructured{Object: composed[i].UnstructuredContent()})
+		resources = append(resources, &un.Unstructured{Object: composed[i].UnstructuredContent()})
 	}
 
 	// Ensure we have all the required CRDs
@@ -114,9 +114,9 @@ func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *unst
 	return nil
 }
 
-// EnsureComposedResourceCRDs checks if we have all the CRDs needed for the composed resources
+// EnsureComposedResourceCRDs checks if we have all the CRDs needed for the cpd resources
 // and fetches any missing ones from the cluster
-func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*unstructured.Unstructured) error {
+func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*un.Unstructured) error {
 	// Create a map of existing CRDs by GVK for quick lookup
 	existingCRDs := make(map[schema.GroupVersionKind]bool)
 	for _, crd := range v.crds {

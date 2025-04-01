@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
 )
@@ -25,7 +25,7 @@ type RenderFunc func(ctx context.Context, log logging.Logger, in render.Inputs) 
 // DiffProcessor interface for processing resources
 type DiffProcessor interface {
 	// PerformDiff processes all resources and produces a diff output
-	PerformDiff(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
+	PerformDiff(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error
 
 	// Initialize loads required resources like CRDs and environment configs
 	Initialize(ctx context.Context) error
@@ -123,7 +123,7 @@ func (p *DefaultDiffProcessor) initializeSchemaValidator(ctx context.Context) er
 }
 
 // PerformDiff processes all resources and produces a diff output
-func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
+func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
 	p.config.Logger.Debug("Processing resources", "count", len(resources))
 
 	if len(resources) == 0 {
@@ -142,7 +142,7 @@ func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context
 		if err != nil {
 			p.config.Logger.Debug("Failed to process resource", "resource", resourceID, "error", err)
 			errs = append(errs, errors.Wrapf(err, "unable to process resource %s", resourceID))
-		} else if diffs != nil {
+		} else {
 			// Merge the diffs into our combined map
 			for k, v := range diffs {
 				allDiffs[k] = v
@@ -172,7 +172,7 @@ func (p *DefaultDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context
 }
 
 // DiffSingleResource handles one resource at a time and returns its diffs
-func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *unstructured.Unstructured) (map[string]*renderer.ResourceDiff, error) {
+func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.Unstructured) (map[string]*renderer.ResourceDiff, error) {
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
 
@@ -243,12 +243,12 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *unst
 	return diffs, err
 }
 
-func (p *DefaultDiffProcessor) SanitizeXR(res *unstructured.Unstructured, resourceID string) (*ucomposite.Unstructured, error, bool) {
-	// Convert the unstructured resource to a composite unstructured for rendering
-	xr := ucomposite.New()
+func (p *DefaultDiffProcessor) SanitizeXR(res *un.Unstructured, resourceID string) (*cmp.Unstructured, error, bool) {
+	// Convert the un resource to a composite un for rendering
+	xr := cmp.New()
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(res.UnstructuredContent(), xr); err != nil {
 		p.config.Logger.Debug("Failed to convert resource", "resource", resourceID, "error", err)
-		return nil, errors.Wrap(err, "cannot convert XR to composite unstructured"), true
+		return nil, errors.Wrap(err, "cannot convert XR to composite un"), true
 	}
 
 	// Handle XRs with generateName but no name
@@ -267,12 +267,12 @@ func (p *DefaultDiffProcessor) SanitizeXR(res *unstructured.Unstructured, resour
 	return xr, nil, false
 }
 
-// mergeUnstructured merges two unstructured objects
-func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+// mergeUnstructured merges two un objects
+func mergeUnstructured(dest *un.Unstructured, src *un.Unstructured) (*un.Unstructured, error) {
 	// Start with a deep copy of the rendered resource
 	result := dest.DeepCopy()
 	if err := mergo.Merge(&result.Object, src.Object, mergo.WithOverride); err != nil {
-		return nil, errors.Wrap(err, "cannot merge unstructured objects")
+		return nil, errors.Wrap(err, "cannot merge un objects")
 	}
 	return result, nil
 }
@@ -280,16 +280,16 @@ func mergeUnstructured(dest *unstructured.Unstructured, src *unstructured.Unstru
 // RenderWithRequirements performs an iterative rendering process that discovers and fulfills requirements
 func (p *DefaultDiffProcessor) RenderWithRequirements(
 	ctx context.Context,
-	xr *ucomposite.Unstructured,
+	xr *cmp.Unstructured,
 	comp *apiextensionsv1.Composition,
 	fns []pkgv1.Function,
 	resourceID string,
 ) (render.Outputs, error) {
 	// Start with environment configs as baseline extra resources
-	var renderResources []unstructured.Unstructured
+	var renderResources []un.Unstructured
 
 	// Track all discovered extra resources to return at the end
-	var discoveredResources []*unstructured.Unstructured
+	var discoveredResources []*un.Unstructured
 
 	// Track resources we've already discovered to detect when we're done
 	discoveredResourcesMap := make(map[string]bool)

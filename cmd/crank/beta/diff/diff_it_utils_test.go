@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	gyaml "gopkg.in/yaml.v3"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -25,8 +25,8 @@ import (
 // Testing data for integration tests
 
 // createTestCompositionWithExtraResources creates a test Composition with a function-extra-resources step
-func createTestCompositionWithExtraResources() *apiextensionsv1.Composition {
-	pipelineMode := apiextensionsv1.CompositionModePipeline
+func createTestCompositionWithExtraResources() *xpextv1.Composition {
+	pipelineMode := xpextv1.CompositionModePipeline
 
 	// Create the extra resources function input
 	extraResourcesInput := map[string]interface{}{
@@ -79,25 +79,25 @@ func createTestCompositionWithExtraResources() *apiextensionsv1.Composition {
 
 	templateRaw, _ := json.Marshal(templateInput)
 
-	return &apiextensionsv1.Composition{
+	return &xpextv1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-composition",
 		},
-		Spec: apiextensionsv1.CompositionSpec{
-			CompositeTypeRef: apiextensionsv1.TypeReference{
+		Spec: xpextv1.CompositionSpec{
+			CompositeTypeRef: xpextv1.TypeReference{
 				APIVersion: "example.org/v1",
 				Kind:       "XExampleResource",
 			},
 			Mode: &pipelineMode,
-			Pipeline: []apiextensionsv1.PipelineStep{
+			Pipeline: []xpextv1.PipelineStep{
 				{
 					Step:        "extra-resources",
-					FunctionRef: apiextensionsv1.FunctionReference{Name: "function-extra-resources"},
+					FunctionRef: xpextv1.FunctionReference{Name: "function-extra-resources"},
 					Input:       &runtime.RawExtension{Raw: extraResourcesRaw},
 				},
 				{
 					Step:        "templating",
-					FunctionRef: apiextensionsv1.FunctionReference{Name: "function-patch-and-transform"},
+					FunctionRef: xpextv1.FunctionReference{Name: "function-patch-and-transform"},
 					Input:       &runtime.RawExtension{Raw: templateRaw},
 				},
 			},
@@ -106,24 +106,24 @@ func createTestCompositionWithExtraResources() *apiextensionsv1.Composition {
 }
 
 // createTestXRD creates a test XRD for the XR
-func createTestXRD() *apiextensionsv1.CompositeResourceDefinition {
-	return &apiextensionsv1.CompositeResourceDefinition{
+func createTestXRD() *xpextv1.CompositeResourceDefinition {
+	return &xpextv1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "xexampleresources.example.org",
 		},
-		Spec: apiextensionsv1.CompositeResourceDefinitionSpec{
+		Spec: xpextv1.CompositeResourceDefinitionSpec{
 			Group: "example.org",
 			Names: extv1.CustomResourceDefinitionNames{
 				Kind:     "XExampleResource",
 				Plural:   "xexampleresources",
 				Singular: "xexampleresource",
 			},
-			Versions: []apiextensionsv1.CompositeResourceDefinitionVersion{
+			Versions: []xpextv1.CompositeResourceDefinitionVersion{
 				{
 					Name:          "v1",
 					Served:        true,
 					Referenceable: true,
-					Schema: &apiextensionsv1.CompositeResourceValidation{
+					Schema: &xpextv1.CompositeResourceValidation{
 						OpenAPIV3Schema: runtime.RawExtension{
 							Raw: []byte(`{
 								"type": "object",
@@ -158,8 +158,8 @@ func createTestXRD() *apiextensionsv1.CompositeResourceDefinition {
 }
 
 // createExtraResource creates a test extra resource
-func createExtraResource() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
+func createExtraResource() *un.Unstructured {
+	return &un.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "example.org/v1",
 			"kind":       "ExtraResource",
@@ -177,8 +177,8 @@ func createExtraResource() *unstructured.Unstructured {
 }
 
 // createExistingComposedResource creates an existing composed resource with different values
-func createExistingComposedResource() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
+func createExistingComposedResource() *un.Unstructured {
+	return &un.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "example.org/v1",
 			"kind":       "ComposedResource",
@@ -211,8 +211,8 @@ func createExistingComposedResource() *unstructured.Unstructured {
 }
 
 // createMatchingComposedResource creates a composed resource that matches what would be rendered
-func createMatchingComposedResource() *unstructured.Unstructured {
-	return &unstructured.Unstructured{
+func createMatchingComposedResource() *un.Unstructured {
+	return &un.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "example.org/v1",
 			"kind":       "ComposedResource",
@@ -254,7 +254,7 @@ type HierarchicalOwnershipRelation struct {
 }
 
 // setOwnerReference adds an owner reference to the resource
-func setOwnerReference(resource, owner *unstructured.Unstructured) {
+func setOwnerReference(resource, owner *un.Unstructured) {
 	// Create owner reference
 	ownerRef := metav1.OwnerReference{
 		APIVersion:         owner.GetAPIVersion(),
@@ -270,7 +270,7 @@ func setOwnerReference(resource, owner *unstructured.Unstructured) {
 }
 
 // addResourceRef adds a reference to the child resource in the parent's resourceRefs array
-func addResourceRef(parent, child *unstructured.Unstructured) error {
+func addResourceRef(parent, child *un.Unstructured) error {
 	// Create the resource reference
 	ref := map[string]interface{}{
 		"apiVersion": child.GetAPIVersion(),
@@ -284,7 +284,7 @@ func addResourceRef(parent, child *unstructured.Unstructured) error {
 	}
 
 	// Get current resourceRefs or initialize if not present
-	resourceRefs, found, err := unstructured.NestedSlice(parent.Object, "spec", "resourceRefs")
+	resourceRefs, found, err := un.NestedSlice(parent.Object, "spec", "resourceRefs")
 	if err != nil {
 		return errors.Wrap(err, "cannot get resourceRefs from parent")
 	}
@@ -295,14 +295,14 @@ func addResourceRef(parent, child *unstructured.Unstructured) error {
 
 	// Add the new reference and update the parent
 	resourceRefs = append(resourceRefs, ref)
-	return unstructured.SetNestedSlice(parent.Object, resourceRefs, "spec", "resourceRefs")
+	return un.SetNestedSlice(parent.Object, resourceRefs, "spec", "resourceRefs")
 }
 
 // applyResourcesFromFiles loads and applies resources from YAML files
 // Under the assumption that no resource should already exist
 func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []string) error {
 	// Collect all resources from all files first
-	var allResources []*unstructured.Unstructured
+	var allResources []*un.Unstructured
 	for _, path := range paths {
 		resources, err := readResourcesFromFile(path)
 		if err != nil {
@@ -316,7 +316,7 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 }
 
 // readResourcesFromFile reads YAML resources from a file
-func readResourcesFromFile(path string) ([]*unstructured.Unstructured, error) {
+func readResourcesFromFile(path string) ([]*un.Unstructured, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
@@ -324,10 +324,10 @@ func readResourcesFromFile(path string) ([]*unstructured.Unstructured, error) {
 
 	// Use a YAML decoder to handle multiple documents
 	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
-	var resources []*unstructured.Unstructured
+	var resources []*un.Unstructured
 
 	for {
-		resource := &unstructured.Unstructured{}
+		resource := &un.Unstructured{}
 		err := decoder.Decode(resource)
 		if err != nil {
 			if err == io.EOF {
@@ -349,7 +349,7 @@ func readResourcesFromFile(path string) ([]*unstructured.Unstructured, error) {
 
 // createResources creates all resources in the cluster
 // Assumes resources don't already exist - fails if they do
-func createResources(ctx context.Context, c client.Client, resources []*unstructured.Unstructured) error {
+func createResources(ctx context.Context, c client.Client, resources []*un.Unstructured) error {
 	for _, resource := range resources {
 		if err := c.Create(ctx, resource.DeepCopy()); err != nil {
 			if apierrors.IsAlreadyExists(err) {
@@ -366,7 +366,7 @@ func createResources(ctx context.Context, c client.Client, resources []*unstruct
 // applyHierarchicalOwnership applies a hierarchical ownership structure
 func applyHierarchicalOwnership(ctx context.Context, c client.Client, hierarchies []HierarchicalOwnershipRelation) error {
 	// Map to store created resources by file path
-	createdResources := make(map[string]*unstructured.Unstructured)
+	createdResources := make(map[string]*un.Unstructured)
 	// Map to track parent-child relationships for establishing resourceRefs
 	parentChildRelationships := make(map[string]string) // child file -> parent file
 
@@ -391,7 +391,7 @@ func applyHierarchicalOwnership(ctx context.Context, c client.Client, hierarchie
 
 // Unused but useful for debugging; leave it here.
 // logResourcesAsYAML fetches the latest version of each resource and logs it as YAML
-func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources map[string]*unstructured.Unstructured) error {
+func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources map[string]*un.Unstructured) error {
 	fmt.Printf("\n===== FINAL STATE OF CREATED RESOURCES =====\n\n")
 
 	// Sort the file paths for consistent output order
@@ -405,7 +405,7 @@ func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources m
 		resource := createdResources[filePath]
 
 		// Fetch the latest version of the resource
-		latest := &unstructured.Unstructured{}
+		latest := &un.Unstructured{}
 		latest.SetGroupVersionKind(resource.GroupVersionKind())
 
 		if err := c.Get(ctx, client.ObjectKey{
@@ -434,7 +434,7 @@ func logResourcesAsYAML(ctx context.Context, c client.Client, createdResources m
 // createAllResourcesInHierarchy creates all resources in a hierarchy and tracks relationships
 func createAllResourcesInHierarchy(ctx context.Context, c client.Client,
 	hierarchies []HierarchicalOwnershipRelation,
-	createdResources map[string]*unstructured.Unstructured,
+	createdResources map[string]*un.Unstructured,
 	parentChildRelationships map[string]string) error {
 
 	for _, hierarchy := range hierarchies {
@@ -477,7 +477,7 @@ func createAllResourcesInHierarchy(ctx context.Context, c client.Client,
 
 // createResourceFromFile creates a resource from a file without setting ownership
 func createResourceFromFile(ctx context.Context, c client.Client, path string,
-	createdResources map[string]*unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	createdResources map[string]*un.Unstructured) (*un.Unstructured, error) {
 
 	// Check if we've already processed this resource
 	if resource, exists := createdResources[path]; exists {
@@ -500,7 +500,7 @@ func createResourceFromFile(ctx context.Context, c client.Client, path string,
 	if err := c.Create(ctx, resource.DeepCopy()); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			// If it already exists, fetch the current version
-			existing := &unstructured.Unstructured{}
+			existing := &un.Unstructured{}
 			existing.SetGroupVersionKind(resource.GroupVersionKind())
 
 			if err := c.Get(ctx, client.ObjectKey{
@@ -518,7 +518,7 @@ func createResourceFromFile(ctx context.Context, c client.Client, path string,
 	}
 
 	// Get the resource back from the server
-	serverResource := &unstructured.Unstructured{}
+	serverResource := &un.Unstructured{}
 	serverResource.SetGroupVersionKind(resource.GroupVersionKind())
 
 	if err := c.Get(ctx, client.ObjectKey{
@@ -535,7 +535,7 @@ func createResourceFromFile(ctx context.Context, c client.Client, path string,
 
 // applyAllRelationships applies all owner references and resource refs
 func applyAllRelationships(ctx context.Context, c client.Client,
-	createdResources map[string]*unstructured.Unstructured,
+	createdResources map[string]*un.Unstructured,
 	parentChildRelationships map[string]string) error {
 
 	// Process all parent-child relationships
@@ -564,10 +564,10 @@ func applyAllRelationships(ctx context.Context, c client.Client,
 
 // setOwnerReferenceAndUpdate sets the owner reference in the child and updates it
 func setOwnerReferenceAndUpdate(ctx context.Context, c client.Client,
-	owner *unstructured.Unstructured, child *unstructured.Unstructured) error {
+	owner *un.Unstructured, child *un.Unstructured) error {
 
 	// Get the latest version of the child
-	latestChild := &unstructured.Unstructured{}
+	latestChild := &un.Unstructured{}
 	latestChild.SetGroupVersionKind(child.GroupVersionKind())
 
 	if err := c.Get(ctx, client.ObjectKey{
@@ -590,10 +590,10 @@ func setOwnerReferenceAndUpdate(ctx context.Context, c client.Client,
 
 // addResourceRefAndUpdate adds a resource reference to the owner and updates it
 func addResourceRefAndUpdate(ctx context.Context, c client.Client,
-	owner *unstructured.Unstructured, owned *unstructured.Unstructured) error {
+	owner *un.Unstructured, owned *un.Unstructured) error {
 
 	// Get the latest version of the owner
-	latestOwner := &unstructured.Unstructured{}
+	latestOwner := &un.Unstructured{}
 	latestOwner.SetGroupVersionKind(owner.GroupVersionKind())
 
 	if err := c.Get(ctx, client.ObjectKey{

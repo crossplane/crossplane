@@ -4,13 +4,13 @@ import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -22,23 +22,23 @@ import (
 // DiffProcessor defines the interface for processing resources for diffing
 type DiffProcessor interface {
 	Initialize(ctx context.Context) error
-	ProcessAll(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
-	ProcessResource(stdout io.Writer, ctx context.Context, res *unstructured.Unstructured) error
+	ProcessAll(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error
+	ProcessResource(stdout io.Writer, ctx context.Context, res *un.Unstructured) error
 }
 
 // ClusterClient defines the interface for interacting with a Kubernetes cluster
 type ClusterClient interface {
 	Initialize(ctx context.Context) error
-	FindMatchingComposition(res *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error)
-	GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
-	GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error)
-	GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error)
-	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error)
-	GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error)
-	GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error)
-	DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error)
+	FindMatchingComposition(res *un.Unstructured) (*xpextv1.Composition, error)
+	GetEnvironmentConfigs(ctx context.Context) ([]*un.Unstructured, error)
+	GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error)
+	GetFunctionsFromPipeline(comp *xpextv1.Composition) ([]pkgv1.Function, error)
+	GetXRDs(ctx context.Context) ([]*un.Unstructured, error)
+	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error)
+	GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error)
+	GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error)
+	DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error)
+	GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
 	IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool
 }
 
@@ -55,12 +55,12 @@ func (m *MockDynamicClient) Resource(gvr schema.GroupVersionResource) dynamic.Na
 // MockNamespaceableResourceInterface implements dynamic.NamespaceableResourceInterface
 type MockNamespaceableResourceInterface struct {
 	NamespaceFn func(namespace string) dynamic.ResourceInterface
-	GetFn       func(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error)
-	ListFn      func(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error)
-	CreateFn    func(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error)
-	UpdateFn    func(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error)
+	GetFn       func(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*un.Unstructured, error)
+	ListFn      func(ctx context.Context, opts metav1.ListOptions) (*un.UnstructuredList, error)
+	CreateFn    func(ctx context.Context, obj *un.Unstructured, options metav1.CreateOptions, subresources ...string) (*un.Unstructured, error)
+	UpdateFn    func(ctx context.Context, obj *un.Unstructured, options metav1.UpdateOptions, subresources ...string) (*un.Unstructured, error)
 	DeleteFn    func(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error
-	PatchFn     func(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error)
+	PatchFn     func(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*un.Unstructured, error)
 }
 
 // Namespace implements dynamic.NamespaceableResourceInterface
@@ -79,7 +79,7 @@ func (m *MockNamespaceableResourceInterface) Namespace(namespace string) dynamic
 }
 
 // Create implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) Create(ctx context.Context, obj *un.Unstructured, options metav1.CreateOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, obj, options, subresources...)
 	}
@@ -87,7 +87,7 @@ func (m *MockNamespaceableResourceInterface) Create(ctx context.Context, obj *un
 }
 
 // Update implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) Update(ctx context.Context, obj *un.Unstructured, options metav1.UpdateOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, obj, options, subresources...)
 	}
@@ -95,7 +95,7 @@ func (m *MockNamespaceableResourceInterface) Update(ctx context.Context, obj *un
 }
 
 // UpdateStatus implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) UpdateStatus(_ context.Context, _ *unstructured.Unstructured, _ metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) UpdateStatus(_ context.Context, _ *un.Unstructured, _ metav1.UpdateOptions) (*un.Unstructured, error) {
 	return nil, nil
 }
 
@@ -113,7 +113,7 @@ func (m *MockNamespaceableResourceInterface) DeleteCollection(_ context.Context,
 }
 
 // Get implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, name, options, subresources...)
 	}
@@ -121,7 +121,7 @@ func (m *MockNamespaceableResourceInterface) Get(ctx context.Context, name strin
 }
 
 // List implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+func (m *MockNamespaceableResourceInterface) List(ctx context.Context, opts metav1.ListOptions) (*un.UnstructuredList, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, opts)
 	}
@@ -134,7 +134,7 @@ func (m *MockNamespaceableResourceInterface) Watch(_ context.Context, _ metav1.L
 }
 
 // Patch implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.PatchFn != nil {
 		return m.PatchFn(ctx, name, pt, data, options, subresources...)
 	}
@@ -142,27 +142,27 @@ func (m *MockNamespaceableResourceInterface) Patch(ctx context.Context, name str
 }
 
 // Apply implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) Apply(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions, _ ...string) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) Apply(_ context.Context, _ string, _ *un.Unstructured, _ metav1.ApplyOptions, _ ...string) (*un.Unstructured, error) {
 	return nil, nil
 }
 
 // ApplyStatus implements dynamic.ResourceInterface
-func (m *MockNamespaceableResourceInterface) ApplyStatus(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+func (m *MockNamespaceableResourceInterface) ApplyStatus(_ context.Context, _ string, _ *un.Unstructured, _ metav1.ApplyOptions) (*un.Unstructured, error) {
 	return nil, nil
 }
 
 // MockResourceInterface mocks dynamic.ResourceInterface for namespaced resources
 type MockResourceInterface struct {
-	GetFn    func(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error)
-	ListFn   func(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error)
-	CreateFn func(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error)
-	UpdateFn func(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error)
+	GetFn    func(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*un.Unstructured, error)
+	ListFn   func(ctx context.Context, opts metav1.ListOptions) (*un.UnstructuredList, error)
+	CreateFn func(ctx context.Context, obj *un.Unstructured, options metav1.CreateOptions, subresources ...string) (*un.Unstructured, error)
+	UpdateFn func(ctx context.Context, obj *un.Unstructured, options metav1.UpdateOptions, subresources ...string) (*un.Unstructured, error)
 	DeleteFn func(ctx context.Context, name string, options metav1.DeleteOptions, subresources ...string) error
-	PatchFn  func(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error)
+	PatchFn  func(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*un.Unstructured, error)
 }
 
 // Create implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Create(ctx context.Context, obj *unstructured.Unstructured, options metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) Create(ctx context.Context, obj *un.Unstructured, options metav1.CreateOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.CreateFn != nil {
 		return m.CreateFn(ctx, obj, options, subresources...)
 	}
@@ -170,7 +170,7 @@ func (m *MockResourceInterface) Create(ctx context.Context, obj *unstructured.Un
 }
 
 // Update implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Update(ctx context.Context, obj *unstructured.Unstructured, options metav1.UpdateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) Update(ctx context.Context, obj *un.Unstructured, options metav1.UpdateOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.UpdateFn != nil {
 		return m.UpdateFn(ctx, obj, options, subresources...)
 	}
@@ -178,7 +178,7 @@ func (m *MockResourceInterface) Update(ctx context.Context, obj *unstructured.Un
 }
 
 // UpdateStatus implements dynamic.ResourceInterface
-func (m *MockResourceInterface) UpdateStatus(_ context.Context, _ *unstructured.Unstructured, _ metav1.UpdateOptions) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) UpdateStatus(_ context.Context, _ *un.Unstructured, _ metav1.UpdateOptions) (*un.Unstructured, error) {
 	return nil, nil
 }
 
@@ -196,7 +196,7 @@ func (m *MockResourceInterface) DeleteCollection(_ context.Context, _ metav1.Del
 }
 
 // Get implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) Get(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.GetFn != nil {
 		return m.GetFn(ctx, name, options, subresources...)
 	}
@@ -204,7 +204,7 @@ func (m *MockResourceInterface) Get(ctx context.Context, name string, options me
 }
 
 // List implements dynamic.ResourceInterface
-func (m *MockResourceInterface) List(ctx context.Context, opts metav1.ListOptions) (*unstructured.UnstructuredList, error) {
+func (m *MockResourceInterface) List(ctx context.Context, opts metav1.ListOptions) (*un.UnstructuredList, error) {
 	if m.ListFn != nil {
 		return m.ListFn(ctx, opts)
 	}
@@ -217,7 +217,7 @@ func (m *MockResourceInterface) Watch(_ context.Context, _ metav1.ListOptions) (
 }
 
 // Patch implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, options metav1.PatchOptions, subresources ...string) (*un.Unstructured, error) {
 	if m.PatchFn != nil {
 		return m.PatchFn(ctx, name, pt, data, options, subresources...)
 	}
@@ -225,29 +225,29 @@ func (m *MockResourceInterface) Patch(ctx context.Context, name string, pt types
 }
 
 // Apply implements dynamic.ResourceInterface
-func (m *MockResourceInterface) Apply(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions, _ ...string) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) Apply(_ context.Context, _ string, _ *un.Unstructured, _ metav1.ApplyOptions, _ ...string) (*un.Unstructured, error) {
 	return nil, nil
 }
 
 // ApplyStatus implements dynamic.ResourceInterface
-func (m *MockResourceInterface) ApplyStatus(_ context.Context, _ string, _ *unstructured.Unstructured, _ metav1.ApplyOptions) (*unstructured.Unstructured, error) {
+func (m *MockResourceInterface) ApplyStatus(_ context.Context, _ string, _ *un.Unstructured, _ metav1.ApplyOptions) (*un.Unstructured, error) {
 	return nil, nil
 }
 
 // MockClusterClient implements the ClusterClient interface for testing
 type MockClusterClient struct {
 	InitializeFn               func(context.Context) error
-	FindMatchingCompositionFn  func(context.Context, *unstructured.Unstructured) (*apiextensionsv1.Composition, error)
-	GetFunctionsFromPipelineFn func(*apiextensionsv1.Composition) ([]pkgv1.Function, error)
-	GetXRDsFn                  func(context.Context) ([]*unstructured.Unstructured, error)
-	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)
-	GetResourceTreeFn          func(context.Context, *unstructured.Unstructured) (*resource.Resource, error)
-	DryRunApplyFn              func(context.Context, *unstructured.Unstructured) (*unstructured.Unstructured, error)
-	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*unstructured.Unstructured, error)
-	GetEnvironmentConfigsFn    func(context.Context) ([]*unstructured.Unstructured, error)
-	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*unstructured.Unstructured, error)
+	FindMatchingCompositionFn  func(context.Context, *un.Unstructured) (*xpextv1.Composition, error)
+	GetFunctionsFromPipelineFn func(*xpextv1.Composition) ([]pkgv1.Function, error)
+	GetXRDsFn                  func(context.Context) ([]*un.Unstructured, error)
+	GetResourceFn              func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error)
+	GetResourceTreeFn          func(context.Context, *un.Unstructured) (*resource.Resource, error)
+	DryRunApplyFn              func(context.Context, *un.Unstructured) (*un.Unstructured, error)
+	GetResourcesByLabelFn      func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*un.Unstructured, error)
+	GetEnvironmentConfigsFn    func(context.Context) ([]*un.Unstructured, error)
+	GetAllResourcesByLabelsFn  func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error)
 	IsCRDRequiredFn            func(ctx context.Context, gvk schema.GroupVersionKind) bool
-	GetCRDFn                   func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error)
+	GetCRDFn                   func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
 	logger                     logging.Logger
 }
 
@@ -260,7 +260,7 @@ func (m *MockClusterClient) Initialize(ctx context.Context) error {
 }
 
 // FindMatchingComposition implements the ClusterClient interface
-func (m *MockClusterClient) FindMatchingComposition(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+func (m *MockClusterClient) FindMatchingComposition(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
 	if m.FindMatchingCompositionFn != nil {
 		return m.FindMatchingCompositionFn(ctx, res)
 	}
@@ -268,7 +268,7 @@ func (m *MockClusterClient) FindMatchingComposition(ctx context.Context, res *un
 }
 
 // GetAllResourcesByLabels implements the ClusterClient interface
-func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
 	if m.GetAllResourcesByLabelsFn != nil {
 		return m.GetAllResourcesByLabelsFn(ctx, gvks, selectors)
 	}
@@ -276,7 +276,7 @@ func (m *MockClusterClient) GetAllResourcesByLabels(ctx context.Context, gvks []
 }
 
 // GetFunctionsFromPipeline implements the ClusterClient interface
-func (m *MockClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+func (m *MockClusterClient) GetFunctionsFromPipeline(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
 	if m.GetFunctionsFromPipelineFn != nil {
 		return m.GetFunctionsFromPipelineFn(comp)
 	}
@@ -284,7 +284,7 @@ func (m *MockClusterClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Compo
 }
 
 // GetXRDs implements the ClusterClient interface
-func (m *MockClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
 	if m.GetXRDsFn != nil {
 		return m.GetXRDsFn(ctx)
 	}
@@ -292,7 +292,7 @@ func (m *MockClusterClient) GetXRDs(ctx context.Context) ([]*unstructured.Unstru
 }
 
 // GetResource implements the ClusterClient interface
-func (m *MockClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
 	if m.GetResourceFn != nil {
 		return m.GetResourceFn(ctx, gvk, namespace, name)
 	}
@@ -300,7 +300,7 @@ func (m *MockClusterClient) GetResource(ctx context.Context, gvk schema.GroupVer
 }
 
 // GetResourceTree implements the ClusterClient interface
-func (m *MockClusterClient) GetResourceTree(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+func (m *MockClusterClient) GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 	if m.GetResourceTreeFn != nil {
 		return m.GetResourceTreeFn(ctx, root)
 	}
@@ -309,7 +309,7 @@ func (m *MockClusterClient) GetResourceTree(ctx context.Context, root *unstructu
 
 // GetResourcesByLabel implements the ClusterClient interface
 // Updated to accept GVK instead of GVR
-func (m *MockClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetResourcesByLabel(ctx context.Context, ns string, gvk schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
 	if m.GetResourcesByLabelFn != nil {
 		return m.GetResourcesByLabelFn(ctx, ns, gvk, selector)
 	}
@@ -317,7 +317,7 @@ func (m *MockClusterClient) GetResourcesByLabel(ctx context.Context, ns string, 
 }
 
 // DryRunApply implements the ClusterClient interface
-func (m *MockClusterClient) DryRunApply(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (m *MockClusterClient) DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 	if m.DryRunApplyFn != nil {
 		return m.DryRunApplyFn(ctx, obj)
 	}
@@ -325,7 +325,7 @@ func (m *MockClusterClient) DryRunApply(ctx context.Context, obj *unstructured.U
 }
 
 // GetEnvironmentConfigs implements the ClusterClient interface
-func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetEnvironmentConfigs(ctx context.Context) ([]*un.Unstructured, error) {
 	if m.GetEnvironmentConfigsFn != nil {
 		return m.GetEnvironmentConfigsFn(ctx)
 	}
@@ -342,7 +342,7 @@ func (m *MockClusterClient) IsCRDRequired(ctx context.Context, gvk schema.GroupV
 }
 
 // GetCRD implements the ClusterClient interface
-func (m *MockClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+func (m *MockClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 	if m.GetCRDFn != nil {
 		return m.GetCRDFn(ctx, gvk)
 	}
@@ -353,7 +353,7 @@ func (m *MockClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionK
 type MockDiffProcessor struct {
 	// Function fields for mocking behavior
 	InitializeFn  func(ctx context.Context) error
-	PerformDiffFn func(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error
+	PerformDiffFn func(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error
 }
 
 // Initialize implements the DiffProcessor interface
@@ -365,7 +365,7 @@ func (m *MockDiffProcessor) Initialize(ctx context.Context) error {
 }
 
 // PerformDiff implements the DiffProcessor.PerformDiff method
-func (m *MockDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*unstructured.Unstructured) error {
+func (m *MockDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, resources []*un.Unstructured) error {
 	if m.PerformDiffFn != nil {
 		return m.PerformDiffFn(stdout, ctx, resources)
 	}
@@ -373,29 +373,29 @@ func (m *MockDiffProcessor) PerformDiff(stdout io.Writer, ctx context.Context, r
 }
 
 type MockLoader struct {
-	Resources []*unstructured.Unstructured
+	Resources []*un.Unstructured
 	Err       error
 }
 
-func (m *MockLoader) Load() ([]*unstructured.Unstructured, error) {
+func (m *MockLoader) Load() ([]*un.Unstructured, error) {
 	return m.Resources, m.Err
 }
 
 // MockExtraResourceProvider Helper type for mocking providers
 type MockExtraResourceProvider struct {
-	GetExtraResourcesFn func(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error)
+	GetExtraResourcesFn func(ctx context.Context, comp *xpextv1.Composition, xr *un.Unstructured, resources []*un.Unstructured) ([]*un.Unstructured, error)
 }
 
-func (m *MockExtraResourceProvider) GetExtraResources(ctx context.Context, comp *apiextensionsv1.Composition, xr *unstructured.Unstructured, resources []*unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+func (m *MockExtraResourceProvider) GetExtraResources(ctx context.Context, comp *xpextv1.Composition, xr *un.Unstructured, resources []*un.Unstructured) ([]*un.Unstructured, error) {
 	return m.GetExtraResourcesFn(ctx, comp, xr, resources)
 }
 
 // MockSchemaValidator Mock schema validator
 type MockSchemaValidator struct {
-	ValidateResourcesFn func(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error
+	ValidateResourcesFn func(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error
 }
 
-func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *unstructured.Unstructured, composed []composed.Unstructured) error {
+func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error {
 	if m.ValidateResourcesFn != nil {
 		return m.ValidateResourcesFn(ctx, xr, composed)
 	}
@@ -403,6 +403,6 @@ func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *unstruc
 }
 
 // EnsureComposedResourceCRDs Implement other required methods of the SchemaValidator interface
-func (m *MockSchemaValidator) EnsureComposedResourceCRDs(_ context.Context, _ []*unstructured.Unstructured) error {
+func (m *MockSchemaValidator) EnsureComposedResourceCRDs(_ context.Context, _ []*un.Unstructured) error {
 	return nil
 }

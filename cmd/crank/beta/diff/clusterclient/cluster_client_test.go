@@ -15,7 +15,7 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/google/go-cmp/cmp"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
@@ -37,7 +37,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 	}
 
 	type want struct {
-		envConfigs []*unstructured.Unstructured
+		envConfigs []*un.Unstructured
 		err        error
 	}
 
@@ -60,7 +60,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				envConfigs: []*unstructured.Unstructured{},
+				envConfigs: []*un.Unstructured{},
 			},
 		},
 		"AllConfigs": {
@@ -85,7 +85,7 @@ func TestClusterClient_GetEnvironmentConfigs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				envConfigs: []*unstructured.Unstructured{
+				envConfigs: []*un.Unstructured{
 					tu.NewResource("apiextensions.crossplane.io/v1alpha1", "EnvironmentConfig", "config1").
 						WithSpecField("data", map[string]interface{}{
 							"key": "value1",
@@ -471,7 +471,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 	}
 
 	type want struct {
-		resources []*unstructured.Unstructured
+		resources []*un.Unstructured
 		err       error
 	}
 
@@ -518,7 +518,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []*unstructured.Unstructured{},
+				resources: []*un.Unstructured{},
 			},
 		},
 		"MatchingResources": {
@@ -561,7 +561,7 @@ func TestClusterClient_GetAllResourcesByLabels(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []*unstructured.Unstructured{
+				resources: []*un.Unstructured{
 					tu.NewResource("example.org/v1", "Resource", "res1").
 						WithLabels(map[string]string{
 							"app": "test",
@@ -668,11 +668,11 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 
 	type fields struct {
 		compositions map[string]*apiextensionsv1.Composition
-		xrds         []*unstructured.Unstructured
+		xrds         []*un.Unstructured
 	}
 
 	type args struct {
-		res *unstructured.Unstructured
+		res *un.Unstructured
 	}
 
 	type want struct {
@@ -776,9 +776,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedField(xr.Object, "referenced-comp", "spec", "compositionRef", "name")
+					_ = un.SetNestedField(xr.Object, "referenced-comp", "spec", "compositionRef", "name")
 					return xr
 				}(),
 			},
@@ -795,9 +795,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedField(xr.Object, "incompatible-comp", "spec", "compositionRef", "name")
+					_ = un.SetNestedField(xr.Object, "incompatible-comp", "spec", "compositionRef", "name")
 					return xr
 				}(),
 			},
@@ -813,9 +813,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedField(xr.Object, "non-existent-comp", "spec", "compositionRef", "name")
+					_ = un.SetNestedField(xr.Object, "non-existent-comp", "spec", "compositionRef", "name")
 					return xr
 				}(),
 			},
@@ -832,9 +832,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+					_ = un.SetNestedStringMap(xr.Object, map[string]string{
 						"environment": "production",
 					}, "spec", "compositionSelector", "matchLabels")
 					return xr
@@ -860,9 +860,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+					_ = un.SetNestedStringMap(xr.Object, map[string]string{
 						"environment": "production",
 					}, "spec", "compositionSelector", "matchLabels")
 					return xr
@@ -881,9 +881,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+					_ = un.SetNestedStringMap(xr.Object, map[string]string{
 						"environment": "production",
 					}, "spec", "compositionSelector", "matchLabels")
 					return xr
@@ -911,9 +911,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				compositions: map[string]*apiextensionsv1.Composition{},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedField(xr.Object, "referenced-comp", "spec", "compositionRef", "name")
+					_ = un.SetNestedField(xr.Object, "referenced-comp", "spec", "compositionRef", "name")
 					return xr
 				}(),
 			},
@@ -927,9 +927,9 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 				compositions: map[string]*apiextensionsv1.Composition{},
 			},
 			args: args{
-				res: func() *unstructured.Unstructured {
+				res: func() *un.Unstructured {
 					xr := tu.NewResource("example.org/v1", "XR1", "my-xr").Build()
-					_ = unstructured.SetNestedStringMap(xr.Object, map[string]string{
+					_ = un.SetNestedStringMap(xr.Object, map[string]string{
 						"environment": "production",
 					}, "spec", "compositionSelector", "matchLabels")
 					return xr
@@ -984,7 +984,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 						},
 					},
 				},
-				xrds: []*unstructured.Unstructured{
+				xrds: []*un.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "apiextensions.crossplane.io/v1",
@@ -1060,7 +1060,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 						},
 					},
 				},
-				xrds: []*unstructured.Unstructured{
+				xrds: []*un.Unstructured{
 					{
 						Object: map[string]interface{}{
 							"apiVersion": "apiextensions.crossplane.io/v1",
@@ -1113,7 +1113,7 @@ func TestClusterClient_FindMatchingComposition(t *testing.T) {
 			// Set up fake dynamic client with XRDs
 			fakeDynamicClient := fake.NewSimpleDynamicClient(scheme)
 			fakeDynamicClient.PrependReactor("list", "compositeresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
-				unstructuredList := &unstructured.UnstructuredList{}
+				unstructuredList := &un.UnstructuredList{}
 				if tc.fields.xrds != nil {
 					for _, xrd := range tc.fields.xrds {
 						unstructuredList.Items = append(unstructuredList.Items, *xrd)
@@ -1438,7 +1438,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 	}
 
 	type want struct {
-		xrds []*unstructured.Unstructured
+		xrds []*un.Unstructured
 		err  error
 	}
 
@@ -1483,7 +1483,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				xrds: []*unstructured.Unstructured{},
+				xrds: []*un.Unstructured{},
 			},
 		},
 		"XRDsExist": {
@@ -1499,7 +1499,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				xrds: []*unstructured.Unstructured{
+				xrds: []*un.Unstructured{
 					xrd1, xrd2,
 				},
 			},
@@ -1548,7 +1548,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				xrds: []*unstructured.Unstructured{xrd1, xrd2},
+				xrds: []*un.Unstructured{xrd1, xrd2},
 				err:  nil,
 			},
 			secondCall:   true, // Make a second call to test caching
@@ -1572,7 +1572,7 @@ func TestClusterClient_GetXRDs(t *testing.T) {
 				ctx: context.Background(),
 			},
 			want: want{
-				xrds: []*unstructured.Unstructured{},
+				xrds: []*un.Unstructured{},
 				err:  nil,
 			},
 			secondCall:   true, // Make a second call to test caching
@@ -1690,7 +1690,7 @@ func TestClusterClient_GetResource(t *testing.T) {
 	}
 
 	type want struct {
-		resource *unstructured.Unstructured
+		resource *un.Unstructured
 		err      error
 	}
 
@@ -1937,10 +1937,10 @@ func TestClusterClient_GetResource(t *testing.T) {
 			// Remove resourceVersion from comparison since it's added by the fake client
 			gotCopy := got.DeepCopy()
 			if gotCopy != nil && gotCopy.Object != nil {
-				meta, found, _ := unstructured.NestedMap(gotCopy.Object, "metadata")
+				meta, found, _ := un.NestedMap(gotCopy.Object, "metadata")
 				if found && meta != nil {
 					delete(meta, "resourceVersion")
-					_ = unstructured.SetNestedMap(gotCopy.Object, meta, "metadata")
+					_ = un.SetNestedMap(gotCopy.Object, meta, "metadata")
 				}
 			}
 
@@ -1958,11 +1958,11 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		obj *unstructured.Unstructured
+		obj *un.Unstructured
 	}
 
 	type want struct {
-		result *unstructured.Unstructured
+		result *un.Unstructured
 		err    error
 	}
 
@@ -1976,7 +1976,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			reason: "Should successfully apply a namespaced resource",
 			setup: func() *tu.MockClusterClient {
 				return &tu.MockClusterClient{
-					DryRunApplyFn: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					DryRunApplyFn: func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 						// Create a modified copy of the input object
 						result := obj.DeepCopy()
 						result.SetResourceVersion("1000")
@@ -2002,7 +2002,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			reason: "Should successfully apply a cluster-scoped resource",
 			setup: func() *tu.MockClusterClient {
 				return &tu.MockClusterClient{
-					DryRunApplyFn: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					DryRunApplyFn: func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 						// Create a modified copy of the input object
 						result := obj.DeepCopy()
 						result.SetResourceVersion("1000")
@@ -2026,7 +2026,7 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			reason: "Should return error when apply fails",
 			setup: func() *tu.MockClusterClient {
 				return &tu.MockClusterClient{
-					DryRunApplyFn: func(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+					DryRunApplyFn: func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 						return nil, errors.New("apply failed")
 					},
 				}
@@ -2071,13 +2071,13 @@ func TestClusterClient_DryRunApply(t *testing.T) {
 			// For successful cases, compare the original parts of results
 			// We remove the resourceVersion before comparing since we set it in our test
 			gotCopy := got.DeepCopy()
-			if _, exists, _ := unstructured.NestedString(gotCopy.Object, "metadata", "resourceVersion"); exists {
-				unstructured.RemoveNestedField(gotCopy.Object, "metadata", "resourceVersion")
+			if _, exists, _ := un.NestedString(gotCopy.Object, "metadata", "resourceVersion"); exists {
+				un.RemoveNestedField(gotCopy.Object, "metadata", "resourceVersion")
 			}
 
 			wantCopy := tc.want.result.DeepCopy()
-			if _, exists, _ := unstructured.NestedString(wantCopy.Object, "metadata", "resourceVersion"); exists {
-				unstructured.RemoveNestedField(wantCopy.Object, "metadata", "resourceVersion")
+			if _, exists, _ := un.NestedString(wantCopy.Object, "metadata", "resourceVersion"); exists {
+				un.RemoveNestedField(wantCopy.Object, "metadata", "resourceVersion")
 			}
 
 			if diff := cmp.Diff(wantCopy, gotCopy); diff != "" {
@@ -2102,7 +2102,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 			selector  metav1.LabelSelector
 		}
 		want struct {
-			resources []*unstructured.Unstructured
+			resources []*un.Unstructured
 			err       error
 		}
 	}{
@@ -2143,10 +2143,10 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				},
 			},
 			want: struct {
-				resources []*unstructured.Unstructured
+				resources []*un.Unstructured
 				err       error
 			}{
-				resources: []*unstructured.Unstructured{},
+				resources: []*un.Unstructured{},
 			},
 		},
 		"MatchingResources": {
@@ -2212,10 +2212,10 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				},
 			},
 			want: struct {
-				resources []*unstructured.Unstructured
+				resources []*un.Unstructured
 				err       error
 			}{
-				resources: []*unstructured.Unstructured{
+				resources: []*un.Unstructured{
 					// Expected matching resources using builders
 					tu.NewResource("example.org/v1", "Resource", "matched-resource-1").
 						InNamespace("test-namespace").
@@ -2275,7 +2275,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				},
 			},
 			want: struct {
-				resources []*unstructured.Unstructured
+				resources []*un.Unstructured
 				err       error
 			}{
 				err: errors.New("cannot list resources for 'example.org/v1, Kind=Resource' matching 'app=test': list error"),
@@ -2316,7 +2316,7 @@ func TestClusterClient_GetResourcesByLabel(t *testing.T) {
 				},
 			},
 			want: struct {
-				resources []*unstructured.Unstructured
+				resources []*un.Unstructured
 				err       error
 			}{
 				err: errors.New("failed to discover resources for example.org/v1"),
@@ -2426,7 +2426,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 
 	tests := map[string]struct {
 		clientSetup  func() *tu.MockClusterClient
-		input        *unstructured.Unstructured
+		input        *un.Unstructured
 		expectOutput *resource.Resource
 		expectError  bool
 		errorPattern string
@@ -2434,7 +2434,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"SuccessfulResourceTreeFetch": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						// Verify the input is our XR
 						if root.GetName() != "test-xr" || root.GetKind() != "XExampleResource" {
 							return nil, errors.New("unexpected input resource")
@@ -2450,7 +2450,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"ResourceTreeNotFound": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						return nil, errors.New("resource tree not found")
 					}).
 					Build()
@@ -2463,7 +2463,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"EmptyResourceTree": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						// Return an empty resource tree (just the root, no children)
 						return &resource.Resource{
 							Unstructured: *root.DeepCopy(),
@@ -2482,7 +2482,7 @@ func TestClusterClient_GetResourceTree(t *testing.T) {
 		"NilInputResource": {
 			clientSetup: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
-					WithGetResourceTree(func(ctx context.Context, root *unstructured.Unstructured) (*resource.Resource, error) {
+					WithGetResourceTree(func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 						if root == nil {
 							return nil, errors.New("nil resource provided")
 						}
@@ -2766,12 +2766,12 @@ func TestClusterClient_GetCRD(t *testing.T) {
 	}
 
 	type want struct {
-		crd *unstructured.Unstructured
+		crd *un.Unstructured
 		err error
 	}
 
-	// Create a test CRD as unstructured
-	testCRD := &unstructured.Unstructured{
+	// Create a test CRD as un
+	testCRD := &un.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "apiextensions.k8s.io/v1",
 			"kind":       "CustomResourceDefinition",

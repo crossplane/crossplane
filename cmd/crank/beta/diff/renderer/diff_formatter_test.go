@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 func TestGenerateDiffWithOptions(t *testing.T) {
@@ -27,8 +27,8 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 	noChanges := current.DeepCopy()
 
 	tests := map[string]struct {
-		current  *unstructured.Unstructured
-		desired  *unstructured.Unstructured
+		current  *un.Unstructured
+		desired  *un.Unstructured
 		kind     string
 		resName  string
 		options  DiffOptions

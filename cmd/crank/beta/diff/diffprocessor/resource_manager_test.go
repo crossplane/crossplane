@@ -9,7 +9,7 @@ import (
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -67,8 +67,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 
 	tests := map[string]struct {
 		setupClient    func() *tu.MockClusterClient
-		composite      *unstructured.Unstructured
-		desired        *unstructured.Unstructured
+		composite      *un.Unstructured
+		desired        *un.Unstructured
 		wantIsNew      bool
 		wantResourceID string
 		wantErr        bool
@@ -125,7 +125,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					// Return "not found" for direct name lookup
-					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+					WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 						return nil, apierrors.NewNotFound(
 							schema.GroupResource{
 								Group:    gvk.Group,
@@ -135,11 +135,11 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 						)
 					}).
 					// Return existing resource when looking up by label AND check the composition-resource-name annotation
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
-							return []*unstructured.Unstructured{existingGeneratedResource, existingGeneratedResourceWithDifferentResName}, nil
+							return []*un.Unstructured{existingGeneratedResource, existingGeneratedResourceWithDifferentResName}, nil
 						}
-						return []*unstructured.Unstructured{}, nil
+						return []*un.Unstructured{}, nil
 					}).
 					Build()
 			},
@@ -163,11 +163,11 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 					// Return "not found" for direct name lookup to force label lookup
 					WithResourceNotFound().
 					// Return our existing resource when looking up by label AND check the composition-resource-name annotation
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
-							return []*unstructured.Unstructured{composedResource}, nil
+							return []*un.Unstructured{composedResource}, nil
 						}
-						return []*unstructured.Unstructured{}, nil
+						return []*un.Unstructured{}, nil
 					}).
 					Build()
 			},
@@ -214,7 +214,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
-					WithResourcesFoundByLabel([]*unstructured.Unstructured{mismatchedResource}, "crossplane.io/composite", "parent-xr").
+					WithResourcesFoundByLabel([]*un.Unstructured{mismatchedResource}, "crossplane.io/composite", "parent-xr").
 					Build()
 			},
 			composite: parentXR,
@@ -235,7 +235,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			setupClient: func() *tu.MockClusterClient {
 				return tu.NewMockClusterClient().
 					WithResourceNotFound().
-					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+					WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 						return nil, errors.New("error looking up resources")
 					}).
 					Build()
@@ -304,16 +304,16 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 	parentXR.SetUID("parent-uid")
 
 	tests := map[string]struct {
-		parent   *unstructured.Unstructured
-		child    *unstructured.Unstructured
-		validate func(t *testing.T, child *unstructured.Unstructured)
+		parent   *un.Unstructured
+		child    *un.Unstructured
+		validate func(t *testing.T, child *un.Unstructured)
 	}{
 		"NilParent_NoChange": {
 			parent: nil,
 			child: tu.NewResource("example.org/v1", "Child", "child-resource").
 				WithOwnerReference("some-api-version", "SomeKind", "some-name", "foobar").
 				Build(),
-			validate: func(t *testing.T, child *unstructured.Unstructured) {
+			validate: func(t *testing.T, child *un.Unstructured) {
 				t.Helper()
 				// Owner refs should be unchanged
 				ownerRefs := child.GetOwnerReferences()
@@ -334,7 +334,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 			child: tu.NewResource("example.org/v1", "Child", "child-resource").
 				WithOwnerReference("XR", "parent-xr", "example.org/v1", "").
 				Build(),
-			validate: func(t *testing.T, child *unstructured.Unstructured) {
+			validate: func(t *testing.T, child *un.Unstructured) {
 				t.Helper()
 				// Owner reference should be updated with parent's UID
 				ownerRefs := child.GetOwnerReferences()
@@ -351,7 +351,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 			child: tu.NewResource("example.org/v1", "Child", "child-resource").
 				WithOwnerReference("other-api-version", "OtherKind", "other-name", "").
 				Build(),
-			validate: func(t *testing.T, child *unstructured.Unstructured) {
+			validate: func(t *testing.T, child *un.Unstructured) {
 				t.Helper()
 				// Owner reference should have a UID, but not parent's UID
 				ownerRefs := child.GetOwnerReferences()
@@ -368,7 +368,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 		},
 		"MultipleOwnerRefs_OnlyUpdateMatching": {
 			parent: parentXR,
-			child: func() *unstructured.Unstructured {
+			child: func() *un.Unstructured {
 				child := tu.NewResource("example.org/v1", "Child", "child-resource").Build()
 
 				// Add multiple owner references
@@ -395,7 +395,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 
 				return child
 			}(),
-			validate: func(t *testing.T, child *unstructured.Unstructured) {
+			validate: func(t *testing.T, child *un.Unstructured) {
 				t.Helper()
 				ownerRefs := child.GetOwnerReferences()
 				if len(ownerRefs) != 3 {

@@ -85,6 +85,9 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 			header = fmt.Sprintf("--- %s", resourceID)
 		case DiffTypeModified:
 			header = fmt.Sprintf("~~~ %s", resourceID)
+		case DiffTypeEqual:
+			// should never get here
+			header = ""
 		}
 
 		// Format the diff content
@@ -125,10 +128,7 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 		}
 
 		// Remove trailing comma and space
-		summaryStr := summary.String()
-		if strings.HasSuffix(summaryStr, ", ") {
-			summaryStr = summaryStr[:len(summaryStr)-2]
-		}
+		summaryStr := strings.TrimSuffix(summary.String(), ", ")
 
 		if summaryStr != "\nSummary: " {
 			_, err := fmt.Fprintln(stdout, summaryStr)

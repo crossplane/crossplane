@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 )
 
@@ -181,7 +181,7 @@ func TestCmd_Run(t *testing.T) {
 				// Set up mock client using the builder pattern
 				mockClient := tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
-					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
 					Build()
 
 				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
@@ -257,7 +257,7 @@ metadata:
 				// Set up mock client
 				mockClient := tu.NewMockClusterClient().
 					WithSuccessfulInitialize().
-					WithSuccessfulXRDsFetch([]*unstructured.Unstructured{}).
+					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
 					Build()
 
 				ClusterClientFactory = func(config *rest.Config, _ ...cc.Option) (cc.ClusterClient, error) {
@@ -413,23 +413,23 @@ func TestDiffWithExtraResources(t *testing.T) {
 	// Create test existing resource with different values
 	existingResource := createExistingComposedResource()
 
-	// Convert the test XRD to unstructured for GetXRDs to return
+	// Convert the test XRD to un for GetXRDs to return
 	xrdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(testXRD)
 	if err != nil {
-		t.Fatalf("Failed to convert XRD to unstructured: %v", err)
+		t.Fatalf("Failed to convert XRD to un: %v", err)
 	}
 
 	// Set up the mock client using the builder pattern
 	mockClient := tu.NewMockClusterClient().
 		WithSuccessfulInitialize().
-		WithFindMatchingComposition(func(ctx context.Context, res *unstructured.Unstructured) (*apiextensionsv1.Composition, error) {
+		WithFindMatchingComposition(func(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
 			// Validate the input XR
 			if res.GetAPIVersion() != "example.org/v1" || res.GetKind() != "XExampleResource" {
 				return nil, errors.New("unexpected resource type")
 			}
 			return testComposition, nil
 		}).
-		WithGetAllResourcesByLabels(func(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+		WithGetAllResourcesByLabels(func(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
 			// Validate the GVK and selector match what we expect
 			if len(gvks) != 1 || len(selectors) != 1 {
 				return nil, errors.New("unexpected number of GVKs or selectors")
@@ -455,9 +455,9 @@ func TestDiffWithExtraResources(t *testing.T) {
 				return nil, errors.New("unexpected selector")
 			}
 
-			return []*unstructured.Unstructured{testExtraResource}, nil
+			return []*un.Unstructured{testExtraResource}, nil
 		}).
-		WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+		WithGetFunctionsFromPipeline(func(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
 			// Return functions for the composition pipeline
 			return []pkgv1.Function{
 				{
@@ -472,19 +472,19 @@ func TestDiffWithExtraResources(t *testing.T) {
 				},
 			}, nil
 		}).
-		WithGetXRDs(func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{
+		WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+			return []*un.Unstructured{
 				{Object: xrdUnstructured},
 			}, nil
 		}).
-		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
 			if name == "test-xr-composed-resource" {
 				return existingResource, nil
 			}
 			return nil, errors.Errorf("resource %q not found", name)
 		}).
 		// Add GetCRD implementation for our test
-		WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*unstructured.Unstructured, error) {
+		WithGetCRD(func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 			// For this test, we can return nil as it doesn't focus on validation
 			return nil, errors.New("CRD not found")
 		}).
@@ -549,7 +549,7 @@ spec:
 	// Set up mock diff processor
 	mockProcessor := tu.NewMockDiffProcessor().
 		WithSuccessfulInitialize().
-		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*unstructured.Unstructured) error {
+		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*un.Unstructured) error {
 			// Generate a mock diff for our test
 			_, _ = fmt.Fprintf(&buf, `~ ComposedResource/test-xr-composed-resource
 {
@@ -608,20 +608,20 @@ func TestDiffWithMatchingResources(t *testing.T) {
 	// Create test existing resource with matching values
 	matchingResource := createMatchingComposedResource()
 
-	// Convert the test XRD to unstructured for GetXRDs to return
+	// Convert the test XRD to un for GetXRDs to return
 	xrdUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(testXRD)
 	if err != nil {
-		t.Fatalf("Failed to convert XRD to unstructured: %v", err)
+		t.Fatalf("Failed to convert XRD to un: %v", err)
 	}
 
 	// Set up the mock client using the builder pattern
 	mockClient := tu.NewMockClusterClient().
 		WithSuccessfulInitialize().
 		WithSuccessfulCompositionMatch(testComposition).
-		WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{testExtraResource}, nil
+		WithGetAllResourcesByLabels(func(ctx context.Context, gvrs []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
+			return []*un.Unstructured{testExtraResource}, nil
 		}).
-		WithGetFunctionsFromPipeline(func(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
+		WithGetFunctionsFromPipeline(func(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
 			return []pkgv1.Function{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -635,12 +635,12 @@ func TestDiffWithMatchingResources(t *testing.T) {
 				},
 			}, nil
 		}).
-		WithGetXRDs(func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-			return []*unstructured.Unstructured{
+		WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+			return []*un.Unstructured{
 				{Object: xrdUnstructured},
 			}, nil
 		}).
-		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*unstructured.Unstructured, error) {
+		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
 			if name == "test-xr-composed-resource" {
 				return matchingResource, nil
 			}
@@ -705,7 +705,7 @@ spec:
 	// Set up mock diff processor
 	mockProcessor := tu.NewMockDiffProcessor().
 		WithSuccessfulInitialize().
-		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*unstructured.Unstructured) error {
+		WithPerformDiff(func(stdout io.Writer, ctx context.Context, res []*un.Unstructured) error {
 			// For matching resources, we don't produce any output
 			return nil
 		}).

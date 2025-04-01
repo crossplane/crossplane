@@ -8,7 +8,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -21,7 +21,7 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 
 	// Mock client that returns appropriate resources
 	mockClient := tu.NewMockClusterClient().
-		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*unstructured.Unstructured, error) {
+		WithGetResource(func(ctx context.Context, gvk schema.GroupVersionKind, ns, name string) (*un.Unstructured, error) {
 			if gvk.Kind == "ConfigMap" && name == "config1" {
 				return configMap, nil
 			}
@@ -30,12 +30,12 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 			}
 			return nil, errors.New("resource not found")
 		}).
-		WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*unstructured.Unstructured, error) {
+		WithGetResourcesByLabel(func(ctx context.Context, ns string, gvr schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 			// Return resources for label-based selectors
 			if sel.MatchLabels["app"] == "test-app" {
-				return []*unstructured.Unstructured{configMap}, nil
+				return []*un.Unstructured{configMap}, nil
 			}
-			return []*unstructured.Unstructured{}, nil
+			return []*un.Unstructured{}, nil
 		}).
 		Build()
 

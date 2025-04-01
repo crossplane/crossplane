@@ -7,7 +7,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
@@ -60,8 +60,8 @@ type ResourceDiff struct {
 	ResourceName string
 	DiffType     DiffType
 	LineDiffs    []diffmatchpatch.Diff
-	Current      *unstructured.Unstructured // Optional, for reference
-	Desired      *unstructured.Unstructured // Optional, for reference
+	Current      *un.Unstructured // Optional, for reference
+	Desired      *un.Unstructured // Optional, for reference
 }
 
 func (d *ResourceDiff) getKindName() string {
@@ -175,7 +175,7 @@ func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffO
 	var currentBlock *changeBlock
 
 	// Identify all the change blocks
-	for i := 0; i < len(allLines); i++ {
+	for i := range len(allLines) {
 		if allLines[i].Type != diffmatchpatch.DiffEqual {
 			// Start a new block if we don't have one
 			if currentBlock == nil {
@@ -267,8 +267,8 @@ func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 	return patch.DiffCharsToLines(diff, lines)
 }
 
-// GenerateDiffWithOptions produces a structured diff between two unstructured objects
-func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger logging.Logger, _ DiffOptions) (*ResourceDiff, error) {
+// GenerateDiffWithOptions produces a structured diff between two un objects
+func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.Logger, _ DiffOptions) (*ResourceDiff, error) {
 	var diffType DiffType
 
 	// Determine resource identifiers upfront
@@ -319,7 +319,7 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 	}
 
 	// Convert to YAML for text diff
-	asString := func(obj *unstructured.Unstructured) (string, error) {
+	asString := func(obj *un.Unstructured) (string, error) {
 		if obj == nil {
 			return "", nil
 		}
@@ -396,7 +396,7 @@ func GenerateDiffWithOptions(current, desired *unstructured.Unstructured, logger
 	}, nil
 }
 
-func equalDiff(current *unstructured.Unstructured, desired *unstructured.Unstructured) *ResourceDiff {
+func equalDiff(current *un.Unstructured, desired *un.Unstructured) *ResourceDiff {
 	return &ResourceDiff{
 		Gvk:          current.GroupVersionKind(),
 		ResourceName: current.GetName(),
@@ -462,7 +462,7 @@ func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOpti
 }
 
 // cleanupForDiff removes fields that shouldn't be included in the diff
-func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unstructured.Unstructured {
+func cleanupForDiff(obj *un.Unstructured, logger logging.Logger) *un.Unstructured {
 	resKind := obj.GetKind()
 	resName := obj.GetName()
 	resKey := fmt.Sprintf("%s/%s", resKind, resName)
@@ -471,13 +471,13 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 	var modifications []string
 
 	// Remove server-side fields and metadata that we don't want to diff
-	metadata, found, _ := unstructured.NestedMap(obj.Object, "metadata")
+	metadata, found, _ := un.NestedMap(obj.Object, "metadata")
 	if found {
 		// Special handling for objects with both name and generateName
 		// If the name looks like a generated display name (ends with "(generated)")
 		// and generateName is also present, remove the name to avoid confusion
-		name, nameFound, _ := unstructured.NestedString(metadata, "name")
-		generateName, genNameFound, _ := unstructured.NestedString(metadata, "generateName")
+		name, nameFound, _ := un.NestedString(metadata, "name")
+		generateName, genNameFound, _ := un.NestedString(metadata, "generateName")
 
 		if nameFound && genNameFound && strings.HasSuffix(name, "(generated)") {
 			// This is a display name we added for diffing purposes - remove it
@@ -524,18 +524,18 @@ func cleanupForDiff(obj *unstructured.Unstructured, logger logging.Logger) *unst
 			modifications = append(modifications, fmt.Sprintf("metadata fields: %s", strings.Join(removedFields, ", ")))
 		}
 
-		_ = unstructured.SetNestedMap(obj.Object, metadata, "metadata")
+		_ = un.SetNestedMap(obj.Object, metadata, "metadata")
 	}
 
 	// Remove resourceRefs field from spec if it exists
-	spec, found, _ := unstructured.NestedMap(obj.Object, "spec")
+	spec, found, _ := un.NestedMap(obj.Object, "spec")
 	if found && spec != nil {
 		if _, exists := spec["resourceRefs"]; exists {
 			delete(spec, "resourceRefs")
 			modifications = append(modifications, "resourceRefs from spec")
 		}
 
-		_ = unstructured.SetNestedMap(obj.Object, spec, "spec")
+		_ = un.SetNestedMap(obj.Object, spec, "spec")
 	}
 
 	// Remove status field as we're focused on spec changes
