@@ -178,8 +178,13 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		return Outputs{}, errors.Wrap(err, "cannot start function runtimes")
 	}
 
-	defer func() {
-		if err := runtimes.Stop(ctx); err != nil {
+	defer func() { //nolint:contextcheck // See comment on next line.
+		// Don't use the main context, since it may be cancelled by the time we
+		// get to cleanup (e.g., if render times out).
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := runtimes.Stop(stopCtx); err != nil {
 			log.Info("Error stopping function runtimes", "error", err)
 		}
 	}()
