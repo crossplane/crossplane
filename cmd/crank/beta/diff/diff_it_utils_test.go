@@ -16,11 +16,11 @@ import (
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"sort"
 
 	"k8s.io/utils/ptr"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sort"
 )
 
 // Testing data for integration tests
@@ -388,7 +388,7 @@ func applyHierarchicalOwnership(ctx context.Context, _ logging.Logger, c client.
 	}
 
 	// Third pass: Log the final state of all resources for debugging
-	//if err := logResourcesAsYAML(ctx, log, c, createdResources); err != nil {
+	//if err := LogResourcesAsYAML(ctx, log, c, createdResources); err != nil {
 	//	// Just log the error but don't fail the test
 	//	log.Info(fmt.Sprintf("Warning: Failed to log resources as YAML: %v\n", err))
 	//}
@@ -397,8 +397,8 @@ func applyHierarchicalOwnership(ctx context.Context, _ logging.Logger, c client.
 }
 
 // Unused but useful for debugging; leave it here.
-// logResourcesAsYAML fetches the latest version of each resource and logs it as YAML
-func logResourcesAsYAML(ctx context.Context, log logging.Logger, c client.Client, createdResources map[string]*un.Unstructured) error {
+// LogResourcesAsYAML fetches the latest version of each resource and logs it as YAML
+func LogResourcesAsYAML(ctx context.Context, log logging.Logger, c client.Client, createdResources map[string]*un.Unstructured) error {
 	log.Info("\n===== FINAL STATE OF CREATED RESOURCES =====\n\n")
 
 	// Sort the file paths for consistent output order
