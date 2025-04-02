@@ -24,16 +24,18 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/top"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
+	"github.com/crossplane/crossplane/cmd/crank/beta/xpkgappend"
 )
 
 // Cmd contains beta commands.
 type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
-	Convert  convert.Cmd  `cmd:"" help:"Convert a Crossplane resource to a newer version or kind."`
-	Top      top.Cmd      `cmd:"" help:"Display resource (CPU/memory) usage by Crossplane related pods."`
-	Trace    trace.Cmd    `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
-	Validate validate.Cmd `cmd:"" help:"Validate Crossplane resources."`
+	Convert    convert.Cmd    `cmd:"" help:"Convert a Crossplane resource to a newer version or kind."`
+	Top        top.Cmd        `cmd:"" help:"Display resource (CPU/memory) usage by Crossplane related pods."`
+	Trace      trace.Cmd      `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
+	Validate   validate.Cmd   `cmd:"" help:"Validate Crossplane resources."`
+	XpkgAppend xpkgappend.Cmd `cmd:"" help:"Append package extensions to a remote package."`
 }
 
 // Help output for crossplane beta.
