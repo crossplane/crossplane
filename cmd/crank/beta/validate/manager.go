@@ -88,7 +88,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer, opts ...Option) *Mana
 }
 
 // PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
-func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { 
+func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error {
 	convertedCRDs, err := internal.ConvertToCRDs(extensions)
 	if err != nil {
 		return err

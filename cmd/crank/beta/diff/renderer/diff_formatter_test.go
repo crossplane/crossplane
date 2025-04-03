@@ -1,11 +1,11 @@
 package renderer
 
 import (
-	"strings"
-	"testing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"strings"
+	"testing"
 
 	types "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
