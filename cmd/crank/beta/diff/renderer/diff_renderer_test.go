@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"bytes"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -11,19 +12,19 @@ import (
 
 func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 	// Create test diffs
-	addedDiff := &ResourceDiff{
+	addedDiff := &dt.ResourceDiff{
 		Gvk:          schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "TestResource"},
 		ResourceName: "added-resource",
-		DiffType:     DiffTypeAdded,
+		DiffType:     dt.DiffTypeAdded,
 		LineDiffs: []diffmatchpatch.Diff{
 			{Type: diffmatchpatch.DiffInsert, Text: "apiVersion: example.org/v1\nkind: TestResource\nmetadata:\n  name: added-resource\nspec:\n  field: value"},
 		},
 	}
 
-	modifiedDiff := &ResourceDiff{
+	modifiedDiff := &dt.ResourceDiff{
 		Gvk:          schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "TestResource"},
 		ResourceName: "modified-resource",
-		DiffType:     DiffTypeModified,
+		DiffType:     dt.DiffTypeModified,
 		LineDiffs: []diffmatchpatch.Diff{
 			{Type: diffmatchpatch.DiffEqual, Text: "apiVersion: example.org/v1\nkind: TestResource\nmetadata:\n  name: modified-resource\n"},
 			{Type: diffmatchpatch.DiffDelete, Text: "spec:\n  field: old-value"},
@@ -31,30 +32,30 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 		},
 	}
 
-	removedDiff := &ResourceDiff{
+	removedDiff := &dt.ResourceDiff{
 		Gvk:          schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "TestResource"},
 		ResourceName: "removed-resource",
-		DiffType:     DiffTypeRemoved,
+		DiffType:     dt.DiffTypeRemoved,
 		LineDiffs: []diffmatchpatch.Diff{
 			{Type: diffmatchpatch.DiffDelete, Text: "apiVersion: example.org/v1\nkind: TestResource\nmetadata:\n  name: removed-resource\nspec:\n  field: value"},
 		},
 	}
 
-	equalDiff := &ResourceDiff{
+	equalDiff := &dt.ResourceDiff{
 		Gvk:          schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "TestResource"},
 		ResourceName: "equal-resource",
-		DiffType:     DiffTypeEqual,
+		DiffType:     dt.DiffTypeEqual,
 		LineDiffs:    []diffmatchpatch.Diff{},
 	}
 
 	tests := map[string]struct {
-		diffs           map[string]*ResourceDiff
+		diffs           map[string]*dt.ResourceDiff
 		options         DiffOptions
 		expectedOutputs []string
 		notExpected     []string
 	}{
 		"RenderAllDiffTypes": {
-			diffs: map[string]*ResourceDiff{
+			diffs: map[string]*dt.ResourceDiff{
 				addedDiff.GetDiffKey():    addedDiff,
 				modifiedDiff.GetDiffKey(): modifiedDiff,
 				removedDiff.GetDiffKey():  removedDiff,
@@ -84,7 +85,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 			},
 		},
 		"CompactMode": {
-			diffs: map[string]*ResourceDiff{
+			diffs: map[string]*dt.ResourceDiff{
 				modifiedDiff.GetDiffKey(): modifiedDiff,
 			},
 			options: DiffOptions{
@@ -109,7 +110,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 			},
 		},
 		"EmptyDiffs": {
-			diffs: map[string]*ResourceDiff{},
+			diffs: map[string]*dt.ResourceDiff{},
 			options: DiffOptions{
 				UseColors:      false,
 				AddPrefix:      "+ ",
@@ -122,7 +123,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 			expectedOutputs: []string{},
 		},
 		"OnlyEqualDiffs": {
-			diffs: map[string]*ResourceDiff{
+			diffs: map[string]*dt.ResourceDiff{
 				equalDiff.GetDiffKey(): equalDiff,
 			},
 			options: DiffOptions{
@@ -138,7 +139,7 @@ func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {
 			notExpected:     []string{"TestResource/equal-resource"},
 		},
 		"SummaryOutput": {
-			diffs: map[string]*ResourceDiff{
+			diffs: map[string]*dt.ResourceDiff{
 				addedDiff.GetDiffKey():    addedDiff,
 				modifiedDiff.GetDiffKey(): modifiedDiff,
 				removedDiff.GetDiffKey():  removedDiff,

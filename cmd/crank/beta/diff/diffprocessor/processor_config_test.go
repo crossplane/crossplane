@@ -1,58 +1,36 @@
 package diffprocessor
 
 import (
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"k8s.io/client-go/rest"
 	"testing"
 )
 
 func TestNewDiffProcessor(t *testing.T) {
 	mockClient := &tu.MockClusterClient{}
-	testConfig := &rest.Config{}
 
 	tests := map[string]struct {
 		client      *tu.MockClusterClient
 		options     []ProcessorOption
 		expectError bool
 	}{
-		"MissingRestConfig": {
-			client:      mockClient,
-			options:     []ProcessorOption{},
-			expectError: true,
-		},
-		//"NilClient": {  // TODO in this test, it's a pointer to nil, which is not nil
-		//	client:      nil,
-		//	options:     []ProcessorOption{WithRestConfig(testConfig)},
-		//	expectError: true,
-		//},
 		"WithOptions": {
 			client:      mockClient,
-			options:     []ProcessorOption{WithRestConfig(testConfig), WithNamespace("test"), WithColorize(false), WithCompact(true)},
+			options:     []ProcessorOption{WithNamespace("test"), WithColorize(false), WithCompact(true)},
 			expectError: false,
 		},
 		"BasicOptions": {
 			client:      mockClient,
-			options:     []ProcessorOption{WithRestConfig(testConfig)},
+			options:     []ProcessorOption{},
 			expectError: false,
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			processor, err := NewDiffProcessor(tt.client, tt.options...)
-
-			if tt.expectError {
-				if err == nil {
-					t.Errorf("NewDiffProcessor() expected error but got none")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Errorf("NewDiffProcessor() unexpected error: %v", err)
-				return
-			}
+			processor := NewDiffProcessor(k8.Clients{}, xp.Clients{}, tt.options...)
 
 			if processor == nil {
 				t.Errorf("NewDiffProcessor() returned nil processor")

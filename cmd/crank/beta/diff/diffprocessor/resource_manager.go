@@ -3,12 +3,12 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,12 +27,12 @@ type ResourceManager interface {
 
 // DefaultResourceManager implements ResourceManager interface
 type DefaultResourceManager struct {
-	client cc.ClusterClient
+	client k8.ResourceClient
 	logger logging.Logger
 }
 
 // NewResourceManager creates a new DefaultResourceManager
-func NewResourceManager(client cc.ClusterClient, logger logging.Logger) ResourceManager {
+func NewResourceManager(client k8.ResourceClient, logger logging.Logger) ResourceManager {
 	return &DefaultResourceManager{
 		client: client,
 		logger: logger,

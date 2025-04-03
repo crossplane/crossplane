@@ -23,6 +23,8 @@ import (
 	"github.com/alecthomas/kong"
 	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	itu "github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
@@ -39,7 +41,6 @@ import (
 	"time"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -67,9 +68,29 @@ func TestCmd_Run(t *testing.T) {
 	}
 
 	type args struct {
-		client    cc.ClusterClient
-		processor dp.DiffProcessor
-		loader    internal.Loader
+		appContext AppContext
+		processor  dp.DiffProcessor
+		loader     internal.Loader
+	}
+
+	k8cs := k8.Clients{
+		Apply:    tu.NewMockApplyClient().Build(),
+		Resource: tu.NewMockResourceClient().Build(),
+		Schema:   tu.NewMockSchemaClient().Build(),
+		Type:     tu.NewMockTypeConverter().Build(),
+	}
+
+	xpcs := xp.Clients{
+		Composition:  tu.NewMockCompositionClient().WithSuccessfulInitialize().Build(),
+		Definition:   tu.NewMockDefinitionClient().WithSuccessfulInitialize().Build(),
+		Environment:  tu.NewMockEnvironmentClient().WithSuccessfulInitialize().Build(),
+		Function:     tu.NewMockFunctionClient().WithSuccessfulInitialize().Build(),
+		ResourceTree: tu.NewMockResourceTreeClient().WithSuccessfulInitialize().Build(),
+	}
+
+	appCtx := AppContext{
+		K8sClients: k8cs,
+		XpClients:  xpcs,
 	}
 
 	tests := map[string]struct {
@@ -87,9 +108,7 @@ func TestCmd_Run(t *testing.T) {
 				Compact:   false,
 			},
 			args: args{
-				client: tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					Build(),
+				appContext: appCtx,
 				processor: tu.NewMockDiffProcessor().
 					WithSuccessfulInitialize().
 					WithSuccessfulPerformDiff().
@@ -127,9 +146,16 @@ metadata:
 				Files:     []string{},
 			},
 			args: args{
-				client: tu.NewMockClusterClient().
-					WithFailedInitialize("failed to initialize cluster client").
-					Build(),
+				appContext: AppContext{
+					K8sClients: k8cs,
+					XpClients: xp.Clients{
+						Composition:  tu.NewMockCompositionClient().WithFailedInitialize("failed to initialize cluster client").Build(),
+						Definition:   tu.NewMockDefinitionClient().WithFailedInitialize("failed to initialize cluster client").Build(),
+						Environment:  tu.NewMockEnvironmentClient().WithFailedInitialize("failed to initialize cluster client").Build(),
+						Function:     tu.NewMockFunctionClient().WithFailedInitialize("failed to initialize cluster client").Build(),
+						ResourceTree: tu.NewMockResourceTreeClient().WithFailedInitialize("failed to initialize cluster client").Build(),
+					},
+				},
 				processor: tu.NewMockDiffProcessor().
 					WithSuccessfulInitialize().
 					Build(),
@@ -149,9 +175,7 @@ metadata:
 				Files:     []string{},
 			},
 			args: args{
-				client: tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					Build(),
+				appContext: appCtx,
 				processor: tu.NewMockDiffProcessor().
 					WithFailedInitialize("failed to initialize processor").
 					Build(),
@@ -171,9 +195,7 @@ metadata:
 				Files:     []string{},
 			},
 			args: args{
-				client: tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					Build(),
+				appContext: appCtx,
 				processor: tu.NewMockDiffProcessor().
 					WithSuccessfulInitialize().
 					Build(),
@@ -193,9 +215,7 @@ metadata:
 				Files:     []string{},
 			},
 			args: args{
-				client: tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					Build(),
+				appContext: appCtx,
 				processor: tu.NewMockDiffProcessor().
 					WithSuccessfulInitialize().
 					WithFailedPerformDiff("processing error").
@@ -247,7 +267,7 @@ metadata:
 			err := c.Run(
 				kongCtx,
 				tu.TestLogger(t, false),
-				tc.args.client,
+				&tc.args.appContext,
 				tc.args.processor,
 				tc.args.loader,
 			)
@@ -280,21 +300,33 @@ func TestDiffCommand(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		setupClient    func() cc.ClusterClient
-		setupProcessor func() dp.DiffProcessor
-		setupLoader    func() *itu.MockLoader
-		expectedOutput string   // Text that should be present in output
-		notExpected    []string // Text that should NOT be present in output
-		expectError    bool
-		errorContains  string
+		setupKubeClients       func() k8.Clients
+		setupCrossplaneClients func() xp.Clients
+		setupProcessor         func() dp.DiffProcessor
+		setupLoader            func() *itu.MockLoader
+		expectedOutput         string   // Text that should be present in output
+		notExpected            []string // Text that should NOT be present in output
+		expectError            bool
+		errorContains          string
 	}{
 		// ====== Tests for resources with extra resources ======
 
 		"ExtraResources_ResourceWithDifferentValues": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(testComposition).
+			setupKubeClients: func() k8.Clients {
+				resourceClient := tu.NewMockResourceClient().
+					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
+						if name == "test-xr-composed-resource" {
+							return existingResource, nil
+						}
+						return nil, errors.Errorf("resource %q not found", name)
+					}).
+					WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
+						// Return resources based on label selector
+						if sel.MatchLabels["app"] == "test-app" {
+							return []*un.Unstructured{testExtraResource}, nil
+						}
+						return []*un.Unstructured{}, nil
+					}).
 					WithGetAllResourcesByLabels(func(_ context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
 						// Validate the GVK and selector match what we expect
 						if len(gvks) != 1 || len(selectors) != 1 {
@@ -323,6 +355,43 @@ func TestDiffCommand(t *testing.T) {
 
 						return []*un.Unstructured{testExtraResource}, nil
 					}).
+					Build()
+
+				schemaClient := tu.NewMockSchemaClient().
+					WithNoResourcesRequiringCRDs().
+					WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
+						// For this test, we can return nil as it doesn't focus on validation
+						return nil, errors.New("CRD not found")
+					}).
+					Build()
+
+				applyClient := tu.NewMockApplyClient().
+					WithSuccessfulDryRun().
+					Build()
+
+				typeConverter := tu.NewMockTypeConverter().Build()
+
+				return k8.Clients{
+					Resource: resourceClient,
+					Schema:   schemaClient,
+					Apply:    applyClient,
+					Type:     typeConverter,
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				compositionClient := tu.NewMockCompositionClient().
+					WithSuccessfulCompositionMatch(testComposition).
+					Build()
+
+				definitionClient := tu.NewMockDefinitionClient().
+					WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
+						return []*un.Unstructured{
+							{Object: xrdUnstructured},
+						}, nil
+					}).
+					Build()
+
+				functionClient := tu.NewMockFunctionClient().
 					WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 						// Return functions for the composition pipeline
 						return []pkgv1.Function{
@@ -338,24 +407,23 @@ func TestDiffCommand(t *testing.T) {
 							},
 						}, nil
 					}).
-					WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
-						return []*un.Unstructured{
-							{Object: xrdUnstructured},
-						}, nil
-					}).
-					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						if name == "test-xr-composed-resource" {
-							return existingResource, nil
-						}
-						return nil, errors.Errorf("resource %q not found", name)
-					}).
-					WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
-						// For this test, we can return nil as it doesn't focus on validation
-						return nil, errors.New("CRD not found")
-					}).
-					WithNoResourcesRequiringCRDs().
-					WithSuccessfulDryRun().
 					Build()
+
+				environmentClient := tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+					Build()
+
+				resourceTreeClient := tu.NewMockResourceTreeClient().
+					WithEmptyResourceTree().
+					Build()
+
+				return xp.Clients{
+					Composition:  compositionClient,
+					Definition:   definitionClient,
+					Function:     functionClient,
+					Environment:  environmentClient,
+					ResourceTree: resourceTreeClient,
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -404,13 +472,26 @@ spec:
 		},
 
 		"ExtraResources_GetAllResourcesError": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(testComposition).
+			setupKubeClients: func() k8.Clients {
+				resourceClient := tu.NewMockResourceClient().
 					WithGetAllResourcesByLabels(func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error) {
 						return nil, errors.New("error getting resources")
 					}).
+					Build()
+
+				return k8.Clients{
+					Resource: resourceClient,
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Apply:    tu.NewMockApplyClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				compositionClient := tu.NewMockCompositionClient().
+					WithSuccessfulCompositionMatch(testComposition).
+					Build()
+
+				functionClient := tu.NewMockFunctionClient().
 					WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 						return []pkgv1.Function{
 							{
@@ -421,6 +502,14 @@ spec:
 						}, nil
 					}).
 					Build()
+
+				return xp.Clients{
+					Composition:  compositionClient,
+					Definition:   tu.NewMockDefinitionClient().Build(),
+					Function:     functionClient,
+					Environment:  tu.NewMockEnvironmentClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -462,13 +551,36 @@ spec:
 		// ====== Tests for matching resources ======
 
 		"MatchingResources_NoChanges": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(testComposition).
+			setupKubeClients: func() k8.Clients {
+				resourceClient := tu.NewMockResourceClient().
 					WithGetAllResourcesByLabels(func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error) {
 						return []*un.Unstructured{testExtraResource}, nil
 					}).
+					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
+						if name == "test-xr-composed-resource" {
+							return matchingResource, nil
+						}
+						return nil, errors.Errorf("resource %q not found", name)
+					}).
+					Build()
+
+				applyClient := tu.NewMockApplyClient().
+					WithSuccessfulDryRun().
+					Build()
+
+				return k8.Clients{
+					Resource: resourceClient,
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Apply:    applyClient,
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				compositionClient := tu.NewMockCompositionClient().
+					WithSuccessfulCompositionMatch(testComposition).
+					Build()
+
+				functionClient := tu.NewMockFunctionClient().
 					WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 						return []pkgv1.Function{
 							{
@@ -483,19 +595,23 @@ spec:
 							},
 						}, nil
 					}).
+					Build()
+
+				definitionClient := tu.NewMockDefinitionClient().
 					WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 						return []*un.Unstructured{
 							{Object: xrdUnstructured},
 						}, nil
 					}).
-					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						if name == "test-xr-composed-resource" {
-							return matchingResource, nil
-						}
-						return nil, errors.Errorf("resource %q not found", name)
-					}).
-					WithSuccessfulDryRun().
 					Build()
+
+				return xp.Clients{
+					Composition:  compositionClient,
+					Definition:   definitionClient,
+					Function:     functionClient,
+					Environment:  tu.NewMockEnvironmentClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -536,13 +652,34 @@ spec:
 		},
 
 		"ResourceNotFound_ShownAsNew": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(testComposition).
+			setupKubeClients: func() k8.Clients {
+				resourceClient := tu.NewMockResourceClient().
 					WithGetAllResourcesByLabels(func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error) {
 						return []*un.Unstructured{testExtraResource}, nil
 					}).
+					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
+						// Simulate resource not found
+						return nil, errors.New("resource not found")
+					}).
+					Build()
+
+				applyClient := tu.NewMockApplyClient().
+					WithSuccessfulDryRun().
+					Build()
+
+				return k8.Clients{
+					Resource: resourceClient,
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Apply:    applyClient,
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				compositionClient := tu.NewMockCompositionClient().
+					WithSuccessfulCompositionMatch(testComposition).
+					Build()
+
+				functionClient := tu.NewMockFunctionClient().
 					WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 						return []pkgv1.Function{
 							{
@@ -557,17 +694,23 @@ spec:
 							},
 						}, nil
 					}).
+					Build()
+
+				definitionClient := tu.NewMockDefinitionClient().
 					WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 						return []*un.Unstructured{
 							{Object: xrdUnstructured},
 						}, nil
 					}).
-					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
-						// Simulate resource not found
-						return nil, errors.New("resource not found")
-					}).
-					WithSuccessfulDryRun().
 					Build()
+
+				return xp.Clients{
+					Composition:  compositionClient,
+					Definition:   definitionClient,
+					Function:     functionClient,
+					Environment:  tu.NewMockEnvironmentClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -616,10 +759,29 @@ spec:
 		// ====== General error conditions ======
 
 		"ClientInitializationError": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithFailedInitialize("client initialization error").
+			setupKubeClients: func() k8.Clients {
+				return k8.Clients{
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Apply:    tu.NewMockApplyClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				// Mock composition client that fails during initialization
+				compositionClient := tu.NewMockCompositionClient().
+					WithInitialize(func(context.Context) error {
+						return errors.New("client initialization error")
+					}).
 					Build()
+
+				return xp.Clients{
+					Composition:  compositionClient,
+					Definition:   tu.NewMockDefinitionClient().Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					Environment:  tu.NewMockEnvironmentClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -638,10 +800,22 @@ spec:
 		},
 
 		"ProcessorInitializationError": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					Build()
+			setupKubeClients: func() k8.Clients {
+				return k8.Clients{
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Apply:    tu.NewMockApplyClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				return xp.Clients{
+					Composition:  tu.NewMockCompositionClient().Build(),
+					Definition:   tu.NewMockDefinitionClient().Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					Environment:  tu.NewMockEnvironmentClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -660,10 +834,22 @@ spec:
 		},
 
 		"LoaderError": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					Build()
+			setupKubeClients: func() k8.Clients {
+				return k8.Clients{
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Apply:    tu.NewMockApplyClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+			},
+			setupCrossplaneClients: func() xp.Clients {
+				return xp.Clients{
+					Composition:  tu.NewMockCompositionClient().Build(),
+					Definition:   tu.NewMockDefinitionClient().Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					Environment:  tu.NewMockEnvironmentClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
 			},
 			setupProcessor: func() dp.DiffProcessor {
 				return tu.NewMockDiffProcessor().
@@ -684,7 +870,8 @@ spec:
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Set up the mocks based on the test case
-			mockClient := tt.setupClient()
+			kubeClients := tt.setupKubeClients()
+			crossplaneClients := tt.setupCrossplaneClients()
 			mockProcessor := tt.setupProcessor()
 			mockLoader := tt.setupLoader()
 
@@ -711,8 +898,25 @@ spec:
 			// Create a logger
 			logger := tu.TestLogger(t, false)
 
+			// Create options for the DiffProcessor
+			options := []dp.ProcessorOption{
+				dp.WithLogger(logger),
+				dp.WithNamespace(cmd.Namespace),
+				// Add other options as needed
+			}
+
+			// Create a new diff processor if none was provided
+			if mockProcessor == nil {
+				mockProcessor = dp.NewDiffProcessor(kubeClients, crossplaneClients, options...)
+			}
+
+			appCtx := &AppContext{
+				K8sClients: kubeClients,
+				XpClients:  crossplaneClients,
+			}
+
 			// Execute the test
-			err = cmd.Run(kongCtx, logger, mockClient, mockProcessor, mockLoader)
+			err = cmd.Run(kongCtx, logger, appCtx, mockProcessor, mockLoader)
 
 			// Check for expected errors
 			if tt.expectError {

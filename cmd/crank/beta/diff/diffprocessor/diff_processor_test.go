@@ -3,11 +3,17 @@ package diffprocessor
 import (
 	"bytes"
 	"context"
+	"fmt"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+	"github.com/sergi/go-diff/diffmatchpatch"
+	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
@@ -20,7 +26,6 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	gcmp "github.com/google/go-cmp/cmp"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/rest"
 )
 
 // Ensure MockDiffProcessor implements the DiffProcessor interface
@@ -46,7 +51,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 		WithPipelineStep("step1", "function-test", nil).
 		Build()
 
-	// Create a cpd resource for testing
+	// Create a composed resource for testing
 	composedResource := tu.NewResource("cpd.org/v1", "ComposedResource", "resource1").
 		WithCompositeOwner("my-xr-1").
 		WithCompositionResourceName("resA").
@@ -55,72 +60,171 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 
 	// Test cases
 	tests := map[string]struct {
-		client    func() *tu.MockClusterClient
-		resources []*un.Unstructured
-		//mockRender      func(context.Context, logging.Logger, render.Inputs) (render.Outputs, error)
+		setupMocks      func() (k8.Clients, xp.Clients)
+		resources       []*un.Unstructured
 		processorOpts   []ProcessorOption
 		verifyOutput    func(t *testing.T, output string)
 		want            error
 		validationError bool
 	}{
 		"NoResources": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().Build(),
+					Definition:  tu.NewMockDefinitionClient().Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{},
-			want:      nil,
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
+			},
+			want: nil,
 		},
 		"DiffSingleResourceError": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().
+						WithNoMatchingComposition().
+						Build(),
+					Definition: tu.NewMockDefinitionClient().Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{resource1},
-			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
+			},
+			want: errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
 		},
 		"MultipleResourceErrors": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().
+						WithNoMatchingComposition().
+						Build(),
+					Definition: tu.NewMockDefinitionClient().Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{resource1, resource2},
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
+			},
 			want: errors.New("[unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found, " +
 				"unable to process resource XR1/my-xr-2: cannot find matching composition: composition not found]"),
 		},
 		"CompositionNotFound": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithNoMatchingComposition().
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().
+						WithNoMatchingComposition().
+						Build(),
+					Definition: tu.NewMockDefinitionClient().Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{resource1},
-			want:      errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
+			},
+			want: errors.New("unable to process resource XR1/my-xr-1: cannot find matching composition: composition not found"),
 		},
 		"GetFunctionsError": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(composition).
-					WithFailedFunctionsFetch("function not found").
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().
+						WithSuccessfulCompositionMatch(composition).
+						Build(),
+					Definition: tu.NewMockDefinitionClient().Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function: tu.NewMockFunctionClient().
+						WithFailedFunctionsFetch("function not found").
+						Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{resource1},
-			want:      errors.New("unable to process resource XR1/my-xr-1: cannot get functions from pipeline: function not found"),
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
+			},
+			want: errors.New("unable to process resource XR1/my-xr-1: cannot get functions from pipeline: function not found"),
 		},
 		"SuccessfulDiff": {
-			client: func() *tu.MockClusterClient {
+			setupMocks: func() (k8.Clients, xp.Clients) {
 				// Create mock functions that render will call successfully
 				functions := []pkgv1.Function{
 					{
@@ -130,21 +234,45 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					},
 				}
 
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(composition).
-					WithSuccessfulFunctionsFetch(functions).
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					WithResourcesExist(resource1, composedResource). // Add resources to existing resources
-					WithComposedResourcesByOwner(composedResource).  // Add cpd resource lookup by owner
-					WithSuccessfulDryRun().
-					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
-					// Add this line to make test resources not require CRDs:
-					WithNoResourcesRequiringCRDs().
-					Build()
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply: tu.NewMockApplyClient().
+						WithSuccessfulDryRun().
+						Build(),
+					Resource: tu.NewMockResourceClient().
+						WithResourcesExist(resource1, composedResource). // Add resources to existing resources
+						WithResourcesFoundByLabel([]*un.Unstructured{composedResource}, "crossplane.io/composite", "test-xr").
+						Build(),
+					Schema: tu.NewMockSchemaClient().
+						WithNoResourcesRequiringCRDs().
+						Build(),
+					Type: tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().
+						WithSuccessfulCompositionMatch(composition).
+						Build(),
+					Definition: tu.NewMockDefinitionClient().
+						WithSuccessfulXRDsFetch([]*un.Unstructured{}).
+						Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function: tu.NewMockFunctionClient().
+						WithSuccessfulFunctionsFetch(functions).
+						Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().
+						WithEmptyResourceTree().
+						Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{resource1},
 			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
 				WithRenderFunc(func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					return render.Outputs{
 						CompositeResource: in.CompositeResource,
@@ -156,6 +284,72 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 							},
 						},
 					}, nil
+				}),
+				// Override the schema validator factory to use a simple validator
+				WithSchemaValidatorFactory(func(schemaClient k8.SchemaClient, _ xp.DefinitionClient, logger logging.Logger) SchemaValidator {
+					return &tu.MockSchemaValidator{
+						ValidateResourcesFn: func(context.Context, *un.Unstructured, []cpd.Unstructured) error {
+							return nil
+						},
+					}
+				}),
+				// Override the diff calculator factory to return actual diffs
+				WithDiffCalculatorFactory(func(_ k8.ApplyClient, _ xp.ResourceTreeClient, _ ResourceManager, _ logging.Logger, _ renderer.DiffOptions) DiffCalculator {
+					return &tu.MockDiffCalculator{
+						CalculateDiffsFn: func(context.Context, *cmp.Unstructured, render.Outputs) (map[string]*dt.ResourceDiff, error) {
+							diffs := make(map[string]*dt.ResourceDiff)
+
+							// Add a modified diff (not just equal)
+							lineDiffs := []diffmatchpatch.Diff{
+								{Type: diffmatchpatch.DiffDelete, Text: "  field: old-value"},
+								{Type: diffmatchpatch.DiffInsert, Text: "  field: new-value"},
+							}
+
+							diffs["example.org/v1/XR1/test-xr"] = &dt.ResourceDiff{
+								Gvk:          schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "XR1"},
+								ResourceName: "test-xr",
+								DiffType:     dt.DiffTypeModified,
+								LineDiffs:    lineDiffs, // Add line diffs
+								Current:      resource1, // Set current for completeness
+								Desired:      resource1, // Set desired for completeness
+							}
+
+							// Add a composed resource diff that's also modified
+							diffs["example.org/v1/ComposedResource/resource-a"] = &dt.ResourceDiff{
+								Gvk:          schema.GroupVersionKind{Group: "example.org", Version: "v1", Kind: "ComposedResource"},
+								ResourceName: "resource-a",
+								DiffType:     dt.DiffTypeModified,
+								LineDiffs:    lineDiffs,
+								Current:      composedResource,
+								Desired:      composedResource,
+							}
+
+							return diffs, nil
+						},
+					}
+				}),
+				// Override the diff renderer factory to produce actual output
+				WithDiffRendererFactory(func(_ logging.Logger, _ renderer.DiffOptions) renderer.DiffRenderer {
+					return &tu.MockDiffRenderer{
+						RenderDiffsFn: func(w io.Writer, diffs map[string]*dt.ResourceDiff) error {
+							// Write a simple summary to the output
+							_, err := fmt.Fprintln(w, "Changes will be applied to 2 resources:")
+							if err != nil {
+								return err
+							}
+							_, err = fmt.Fprintln(w, "- example.org/v1/XR1/test-xr will be modified")
+							if err != nil {
+								return err
+							}
+							_, err = fmt.Fprintln(w, "- example.org/v1/ComposedResource/resource-a will be modified")
+							if err != nil {
+								return err
+							}
+							_, err = fmt.Fprintln(w, "\nSummary: 0 to create, 2 to modify, 0 to delete")
+
+							return err
+						},
+					}
 				}),
 			},
 			verifyOutput: func(t *testing.T, output string) {
@@ -173,7 +367,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			want: nil,
 		},
 		"ValidationError": {
-			client: func() *tu.MockClusterClient {
+			setupMocks: func() (k8.Clients, xp.Clients) {
 				// Create mock functions that render will call successfully
 				functions := []pkgv1.Function{
 					{
@@ -183,20 +377,40 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					},
 				}
 
-				// Setup a client that provides all the necessary data for rendering
-				// but validation will fail in a separate mock
-				return tu.NewMockClusterClient().
-					WithSuccessfulInitialize().
-					WithSuccessfulCompositionMatch(composition).
-					WithSuccessfulFunctionsFetch(functions).
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					WithResourcesExist(resource1).
-					WithSuccessfulDryRun().
-					WithNoResourcesRequiringCRDs().
-					Build()
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply: tu.NewMockApplyClient().
+						WithSuccessfulDryRun().
+						Build(),
+					Resource: tu.NewMockResourceClient().
+						WithResourcesExist(resource1).
+						Build(),
+					Schema: tu.NewMockSchemaClient().
+						WithNoResourcesRequiringCRDs().
+						Build(),
+					Type: tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().
+						WithSuccessfulCompositionMatch(composition).
+						Build(),
+					Definition: tu.NewMockDefinitionClient().Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function: tu.NewMockFunctionClient().
+						WithSuccessfulFunctionsFetch(functions).
+						Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
 			},
 			resources: []*un.Unstructured{resource1},
 			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
 				WithRenderFunc(func(_ context.Context, _ logging.Logger, in render.Inputs) (render.Outputs, error) {
 					// Return valid render outputs
 					return render.Outputs{
@@ -210,6 +424,14 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 						},
 					}, nil
 				}),
+				// Override with a validator that fails
+				WithSchemaValidatorFactory(func(_ k8.SchemaClient, _ xp.DefinitionClient, _ logging.Logger) SchemaValidator {
+					return &tu.MockSchemaValidator{
+						ValidateResourcesFn: func(context.Context, *un.Unstructured, []cpd.Unstructured) error {
+							return errors.New("validation error")
+						},
+					}
+				}),
 			},
 			want:            errors.New("unable to process resource XR1/my-xr-1: cannot validate resources: validation error"),
 			validationError: true,
@@ -219,29 +441,10 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Create components for testing
-			mockClient := tt.client()
+			k8sClients, xpClients := tt.setupMocks()
 
-			// Add common options
-			options := []ProcessorOption{
-				WithLogger(tu.TestLogger(t, false)),
-				WithRestConfig(&rest.Config{}),
-				WithSchemaValidatorFactory(
-					// Create a mock schema validator that succeeds unless we request an error
-					func(_ cc.ClusterClient, _ logging.Logger) SchemaValidator {
-						return &tu.MockSchemaValidator{
-							ValidateResourcesFn: func(_ context.Context, _ *un.Unstructured, _ []cpd.Unstructured) error {
-								if tt.validationError {
-									return errors.New("validation error")
-								}
-								return nil // succeed
-							},
-						}
-					},
-				),
-			}
-			options = append(options, tt.processorOpts...)
-
-			processor, _ := NewDiffProcessor(mockClient, options...)
+			// Create the diff processor
+			processor := NewDiffProcessor(k8sClients, xpClients, tt.processorOpts...)
 
 			// Create a dummy writer for stdout
 			var stdout bytes.Buffer
@@ -263,6 +466,11 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 			if err != nil {
 				t.Errorf("PerformDiff(...): unexpected error: %v", err)
 			}
+
+			// Check output if verification function is provided
+			if tt.verifyOutput != nil {
+				tt.verifyOutput(t, stdout.String())
+			}
 		})
 	}
 }
@@ -283,35 +491,101 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 
 	// Test cases
 	tests := map[string]struct {
-		client func() *tu.MockClusterClient
-		want   error
+		setupMocks    func() (k8.Clients, xp.Clients)
+		processorOpts []ProcessorOption
+		want          error
 	}{
 		"XRDsError": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithFailedXRDsFetch("XRD not found").
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks with a failing Definition client
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().Build(),
+					Definition: tu.NewMockDefinitionClient().
+						WithFailedXRDsFetch("XRD not found").
+						Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
+			},
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
 			},
 			want: errors.Wrap(errors.Wrap(errors.New("XRD not found"), "cannot get XRDs"), "cannot load CRDs"),
 		},
 		"EnvConfigsError": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
-					WithEnvironmentConfigs(func(_ context.Context) ([]*un.Unstructured, error) {
-						return nil, errors.New("env configs not found")
-					}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type:     tu.NewMockTypeConverter().Build(),
+				}
+
+				// Create Crossplane client mocks with a failing Environment client
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().Build(),
+					Definition: tu.NewMockDefinitionClient().
+						WithSuccessfulXRDsFetch([]*un.Unstructured{}).
+						Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithGetEnvironmentConfigs(func(_ context.Context) ([]*un.Unstructured, error) {
+							return nil, errors.New("env configs not found")
+						}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
+			},
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
 			},
 			want: errors.Wrap(errors.New("env configs not found"), "cannot get environment configs"),
 		},
 		"Success": {
-			client: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithSuccessfulXRDsFetch([]*un.Unstructured{xrd1}).
-					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
-					Build()
+			setupMocks: func() (k8.Clients, xp.Clients) {
+				// Create Kubernetes client mocks
+				k8sClients := k8.Clients{
+					Apply:    tu.NewMockApplyClient().Build(),
+					Resource: tu.NewMockResourceClient().Build(),
+					Schema:   tu.NewMockSchemaClient().Build(),
+					Type: tu.NewMockTypeConverter().
+						WithDefaultGVKToGVR().
+						Build(),
+				}
+
+				// Create Crossplane client mocks with successful initialization
+				xpClients := xp.Clients{
+					Composition: tu.NewMockCompositionClient().Build(),
+					Definition: tu.NewMockDefinitionClient().
+						WithSuccessfulXRDsFetch([]*un.Unstructured{xrd1}).
+						Build(),
+					Environment: tu.NewMockEnvironmentClient().
+						WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+						Build(),
+					Function:     tu.NewMockFunctionClient().Build(),
+					ResourceTree: tu.NewMockResourceTreeClient().Build(),
+				}
+
+				return k8sClients, xpClients
+			},
+			processorOpts: []ProcessorOption{
+				WithLogger(tu.TestLogger(t, false)),
 			},
 			want: nil,
 		},
@@ -319,20 +593,19 @@ func TestDefaultDiffProcessor_Initialize(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Create a DiffProcessor with our components
-			mockClient := tc.client()
-			logger := tu.TestLogger(t, false)
+			// Get the clients for this test
+			k8sClients, xpClients := tc.setupMocks()
 
 			// Build processor options
-			options := []ProcessorOption{
-				WithLogger(logger),
-				WithRestConfig(&rest.Config{}),
-			}
+			options := tc.processorOpts
 
-			processor, _ := NewDiffProcessor(mockClient, options...)
+			// Create the processor
+			processor := NewDiffProcessor(k8sClients, xpClients, options...)
 
+			// Call the Initialize method
 			err := processor.Initialize(ctx)
 
+			// Verify error expectations
 			if tc.want != nil {
 				if err == nil {
 					t.Errorf("Initialize(...): expected error but got none")
@@ -385,23 +658,28 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 	secret := tu.NewResource("v1", "Secret", "secret1").Build()
 
 	tests := map[string]struct {
-		xr                   *cmp.Unstructured
-		composition          *apiextensionsv1.Composition
-		functions            []pkgv1.Function
-		resourceID           string
-		setupClient          func() *tu.MockClusterClient
-		setupRenderFunc      func() RenderFunc
-		wantComposedCount    int
-		wantRenderIterations int
-		wantErr              bool
+		xr                     *cmp.Unstructured
+		composition            *apiextensionsv1.Composition
+		functions              []pkgv1.Function
+		resourceID             string
+		setupResourceClient    func() *tu.MockResourceClient
+		setupEnvironmentClient func() *tu.MockEnvironmentClient
+		setupRenderFunc        func() RenderFunc
+		wantComposedCount      int
+		wantRenderIterations   int
+		wantErr                bool
 	}{
 		"NoRequirements": {
 			xr:          xr,
 			composition: composition,
 			functions:   functions,
 			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
@@ -434,14 +712,18 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			composition: composition,
 			functions:   functions,
 			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if gvk.Kind == ConfigMap && name == ConfigMapName {
 							return configMap, nil
 						}
 						return nil, errors.New("resource not found")
 					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
@@ -495,8 +777,8 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			composition: composition,
 			functions:   functions,
 			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if gvk.Kind == ConfigMap && name == ConfigMapName {
 							return configMap, nil
@@ -506,6 +788,10 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 						}
 						return nil, errors.New("resource not found")
 					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
@@ -586,8 +872,11 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			composition: composition,
 			functions:   functions,
 			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
@@ -605,14 +894,18 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			composition: composition,
 			functions:   functions,
 			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						if gvk.Kind == ConfigMap && name == ConfigMapName {
 							return configMap, nil
 						}
 						return nil, errors.New("resource not found")
 					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
@@ -666,11 +959,15 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			composition: composition,
 			functions:   functions,
 			resourceID:  "XR/test-xr",
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
 						return nil, errors.New("resource not found")
 					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
 					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
 					Build()
 			},
@@ -704,8 +1001,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Set up mock client and renderFunc
-			mockClient := tt.setupClient()
+			// Set up mock clients
+			resourceClient := tt.setupResourceClient()
+			environmentClient := tt.setupEnvironmentClient()
 
 			// Create a logger
 			logger := tu.TestLogger(t, false)
@@ -718,14 +1016,22 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 				return renderFunc(ctx, log, in)
 			}
 
-			// Build processor options
-			options := []ProcessorOption{
-				WithLogger(logger),
-				WithRestConfig(&rest.Config{}),
-				WithRenderFunc(countingRenderFunc),
-			}
+			// Create the requirements provider
+			requirementsProvider := NewRequirementsProvider(
+				resourceClient,
+				environmentClient,
+				countingRenderFunc,
+				logger,
+			)
 
-			processor, _ := NewDiffProcessor(mockClient, options...)
+			// Build processor options
+			processor := NewDiffProcessor(k8.Clients{}, xp.Clients{},
+				WithLogger(logger),
+				WithRenderFunc(countingRenderFunc),
+				WithRequirementsProviderFactory(func(k8.ResourceClient, xp.EnvironmentClient, RenderFunc, logging.Logger) *RequirementsProvider {
+					return requirementsProvider
+				}),
+			)
 
 			// Call the method under test
 			output, err := processor.(*DefaultDiffProcessor).RenderWithRequirements(ctx, tt.xr, tt.composition, tt.functions, tt.resourceID)
@@ -749,9 +1055,9 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 					renderCount, tt.wantRenderIterations)
 			}
 
-			// Check cpd resource count
+			// Check composed resource count
 			if len(output.ComposedResources) != tt.wantComposedCount {
-				t.Errorf("RenderWithRequirements() returned %d cpd resources, want %d",
+				t.Errorf("RenderWithRequirements() returned %d composed resources, want %d",
 					len(output.ComposedResources), tt.wantComposedCount)
 			}
 		})

@@ -1,6 +1,7 @@
 package renderer
 
 import (
+	types "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/google/go-cmp/cmp"
 	"github.com/sergi/go-diff/diffmatchpatch"
@@ -32,7 +33,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 		kind     string
 		resName  string
 		options  DiffOptions
-		wantDiff *ResourceDiff
+		wantDiff *types.ResourceDiff
 		wantErr  bool
 	}{
 		"ModifiedResource": {
@@ -41,10 +42,10 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			kind:    "TestResource",
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &types.ResourceDiff{
 				Gvk:          current.GroupVersionKind(),
 				ResourceName: "test-resource",
-				DiffType:     DiffTypeModified,
+				DiffType:     types.DiffTypeModified,
 				Current:      current,
 				Desired:      desired,
 				// LineDiffs will be checked separately
@@ -56,10 +57,10 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			kind:    "TestResource",
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &types.ResourceDiff{
 				Gvk:          current.GroupVersionKind(),
 				ResourceName: "test-resource",
-				DiffType:     DiffTypeEqual,
+				DiffType:     types.DiffTypeEqual,
 				Current:      current,
 				Desired:      noChanges,
 			},
@@ -70,10 +71,10 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			kind:    "TestResource",
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &types.ResourceDiff{
 				Gvk:          desired.GroupVersionKind(),
 				ResourceName: "test-resource",
-				DiffType:     DiffTypeAdded,
+				DiffType:     types.DiffTypeAdded,
 				Current:      nil,
 				Desired:      desired,
 				// LineDiffs will be checked separately
@@ -85,10 +86,10 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			kind:    "TestResource",
 			resName: "test-resource",
 			options: DefaultDiffOptions(),
-			wantDiff: &ResourceDiff{
+			wantDiff: &types.ResourceDiff{
 				Gvk:          current.GroupVersionKind(),
 				ResourceName: "test-resource",
-				DiffType:     DiffTypeRemoved,
+				DiffType:     types.DiffTypeRemoved,
 				Current:      current,
 				Desired:      nil,
 				// LineDiffs will be checked separately
@@ -136,7 +137,7 @@ func TestGenerateDiffWithOptions(t *testing.T) {
 			}
 
 			// Check for line diffs - should be non-empty for changed resources
-			if diff.DiffType != DiffTypeEqual && len(diff.LineDiffs) == 0 {
+			if diff.DiffType != types.DiffTypeEqual && len(diff.LineDiffs) == 0 {
 				t.Errorf("LineDiffs is empty for %s", name)
 			}
 

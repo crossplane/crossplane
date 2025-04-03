@@ -3,6 +3,7 @@ package diffprocessor
 import (
 	"context"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
 	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"strings"
 	"testing"
@@ -44,7 +45,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 	composedCRD := makeCRD("composedresources.cpd.org", "ComposedResource", "cpd.org", "v1")
 
 	tests := map[string]struct {
-		setupClient    func() *tu.MockClusterClient
+		setupClients   func() (*tu.MockSchemaClient, *tu.MockDefinitionClient)
 		xr             *un.Unstructured
 		composed       []cpd.Unstructured
 		preloadedCRDs  []*extv1.CustomResourceDefinition
@@ -52,8 +53,8 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 		expectedErrMsg string
 	}{
 		"SuccessfulValidationWithPreloadedCRDs": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().Build()
+			setupClients: func() (*tu.MockSchemaClient, *tu.MockDefinitionClient) {
+				return tu.NewMockSchemaClient().Build(), tu.NewMockDefinitionClient().Build()
 			},
 			xr:            xr,
 			composed:      []cpd.Unstructured{*composedResource1, *composedResource2},
@@ -61,7 +62,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			expectedErr:   false,
 		},
 		"SuccessfulValidationWithFetchedCRDs": {
-			setupClient: func() *tu.MockClusterClient {
+			setupClients: func() (*tu.MockSchemaClient, *tu.MockDefinitionClient) {
 				// Convert CRDs to unstructured for the mock client
 				xrCRDUn := &un.Unstructured{}
 				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
@@ -75,8 +76,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 					composedCRDUn,
 				)
 
-				return tu.NewMockClusterClient().
-					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
+				sch := tu.NewMockSchemaClient().
 					// Add GetCRD implementation
 					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						if gvk.Group == "example.org" && gvk.Kind == "XR" {
@@ -90,6 +90,10 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 					// Implement IsCRDRequired to return true for our test resources
 					WithAllResourcesRequiringCRDs().
 					Build()
+				def := tu.NewMockDefinitionClient().
+					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
+					Build()
+				return sch, def
 			},
 			xr:            xr,
 			composed:      []cpd.Unstructured{*composedResource1, *composedResource2},
@@ -97,7 +101,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			expectedErr:   false,
 		},
 		"MissingCRD": {
-			setupClient: func() *tu.MockClusterClient {
+			setupClients: func() (*tu.MockSchemaClient, *tu.MockDefinitionClient) {
 				// Only provide the XR CRD, not the cpd resource CRD
 				xrCRDUn := &un.Unstructured{}
 				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
@@ -105,10 +109,10 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 					xrCRDUn,
 				)
 
-				return tu.NewMockClusterClient().
-					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
-					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						if name == "xrs.example.org" {
+				sch := tu.NewMockSchemaClient().
+					// Add GetCRD implementation
+					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+						if gvk.Group == "example.org" && gvk.Kind == "XR" {
 							return xrCRDUn, nil
 						}
 						// Return not found for cpd resource CRD
@@ -119,6 +123,10 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 						schema.GroupVersionKind{Group: "cpd.org", Version: "v1", Kind: "ComposedResource"},
 					).
 					Build()
+				def := tu.NewMockDefinitionClient().
+					WithSuccessfulXRDsFetch([]*un.Unstructured{}).
+					Build()
+				return sch, def
 			},
 			xr:            xr,
 			composed:      []cpd.Unstructured{*composedResource1, *composedResource2},
@@ -128,7 +136,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 			expectedErrMsg: "unable to find CRD for cpd.org/v1, Kind=ComposedResource",
 		},
 		"ValidationError": {
-			setupClient: func() *tu.MockClusterClient {
+			setupClients: func() (*tu.MockSchemaClient, *tu.MockDefinitionClient) {
 				// Convert CRDs to un for the mock
 				composedCRDUn := &un.Unstructured{}
 				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
@@ -136,7 +144,7 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 					composedCRDUn,
 				)
 
-				return tu.NewMockClusterClient().
+				sch := tu.NewMockSchemaClient().
 					// Add GetCRD implementation
 					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						if gvk.Group == "example.org" && gvk.Kind == "XR" {
@@ -150,6 +158,9 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 					// Setup IsCRDRequired to return true for our test resources
 					WithAllResourcesRequiringCRDs().
 					Build()
+
+				def := tu.NewMockDefinitionClient().Build()
+				return sch, def
 			},
 			xr: tu.NewResource("example.org/v1", "XR", "test-xr").
 				WithSpecField("field", int64(123)).
@@ -163,11 +174,11 @@ func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			mockClient := tt.setupClient()
+			schemaClient, defClient := tt.setupClients()
 			logger := tu.TestLogger(t, false)
 
 			// Create the schema validator
-			validator := NewSchemaValidator(mockClient, logger)
+			validator := NewSchemaValidator(schemaClient, defClient, logger)
 
 			// Set any preloaded CRDs
 			if len(tt.preloadedCRDs) > 0 {
@@ -209,21 +220,21 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 	composedCRD := makeCRD("composedresources.cpd.org", "ComposedResource", "cpd.org", "v1")
 
 	tests := map[string]struct {
-		setupClient    func() *tu.MockClusterClient
+		setupClient    func() *tu.MockSchemaClient
 		initialCRDs    []*extv1.CustomResourceDefinition
 		resources      []*un.Unstructured
 		expectedCRDLen int
 	}{
 		"AllCRDsAlreadyCached": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().Build()
+			setupClient: func() *tu.MockSchemaClient {
+				return tu.NewMockSchemaClient().Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD, composedCRD},
 			resources:      []*un.Unstructured{xr, cmpd},
 			expectedCRDLen: 2, // No change, all CRDs already cached
 		},
 		"FetchMissingCRDs": {
-			setupClient: func() *tu.MockClusterClient {
+			setupClient: func() *tu.MockSchemaClient {
 				// Convert the cpd CRD to un for the mock
 				composedCRDUn := &un.Unstructured{}
 				_ = runtime.DefaultUnstructuredConverter.FromUnstructured(
@@ -231,7 +242,7 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 					composedCRDUn,
 				)
 
-				return tu.NewMockClusterClient().
+				return tu.NewMockSchemaClient().
 					// Use the new GetCRD method instead of GetResource
 					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						if gvk.Group == "cpd.org" && gvk.Kind == "ComposedResource" {
@@ -250,13 +261,11 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 			expectedCRDLen: 2, // Should fetch the missing cpd CRD
 		},
 		"SomeCRDsMissing": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
-						// Return not found for all CRDs
+			setupClient: func() *tu.MockSchemaClient {
+				return tu.NewMockSchemaClient().
+					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 						return nil, errors.New("CRD not found")
-					}).
-					Build()
+					}).Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD}, // Only XR CRD is cached
 			resources:      []*un.Unstructured{xr, cmpd},
@@ -266,11 +275,11 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			mockClient := tt.setupClient()
+			schemaClient := tt.setupClient()
 			logger := tu.TestLogger(t, false)
 
 			// Create the schema validator with initial CRDs
-			validator := NewSchemaValidator(mockClient, logger)
+			validator := NewSchemaValidator(schemaClient, tu.NewMockDefinitionClient().Build(), logger)
 			validator.(*DefaultSchemaValidator).SetCRDs(tt.initialCRDs)
 
 			// Call the function under test
@@ -300,7 +309,7 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 		Build()
 
 	tests := map[string]struct {
-		setupClient    func() cc.ClusterClient
+		setupClient    func() xp.DefinitionClient
 		preloadedCRDs  []*extv1.CustomResourceDefinition
 		expectedErr    bool
 		expectedErrMsg string
@@ -309,26 +318,26 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 		expectXRDCalls int  // Expected number of calls to GetXRDs
 	}{
 		"SuccessfulLoad": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
+			setupClient: func() xp.DefinitionClient {
+				return tu.NewMockDefinitionClient().
 					WithSuccessfulXRDsFetch([]*un.Unstructured{xrdUn}).
 					Build()
 			},
 			expectedErr: false,
 		},
 		"XRDFetchError": {
-			setupClient: func() cc.ClusterClient {
-				return tu.NewMockClusterClient().
+			setupClient: func() xp.DefinitionClient {
+				return tu.NewMockDefinitionClient().
 					WithFailedXRDsFetch("failed to fetch XRDs").
 					Build()
 			},
 			expectedErr: true,
 		},
 		"UsesCachedXRDs": {
-			setupClient: func() cc.ClusterClient {
+			setupClient: func() xp.DefinitionClient {
 				// Create a tracking client that counts GetXRDs calls
 				return &xrdCountingClient{
-					MockClusterClient: *tu.NewMockClusterClient().
+					MockDefinitionClient: *tu.NewMockDefinitionClient().
 						WithSuccessfulXRDsFetch([]*un.Unstructured{xrdUn}).
 						Build(),
 				}
@@ -342,11 +351,11 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			mockClient := tt.setupClient()
+			defClient := tt.setupClient()
 			logger := tu.TestLogger(t, false)
 
 			// Create the schema validator
-			validator := NewSchemaValidator(mockClient, logger)
+			validator := NewSchemaValidator(tu.NewMockSchemaClient().Build(), defClient, logger)
 
 			// Call the function under test
 			err := validator.(*DefaultSchemaValidator).LoadCRDs(ctx)
@@ -435,12 +444,12 @@ func MustToUnstructured(obj interface{}) map[string]interface{} {
 
 // Helper type to track GetXRDs calls
 type xrdCountingClient struct {
-	tu.MockClusterClient
+	tu.MockDefinitionClient
 	getXRDsCallCount int
 }
 
 // Override GetXRDs to count calls
 func (c *xrdCountingClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
 	c.getXRDsCallCount++
-	return c.MockClusterClient.GetXRDs(ctx)
+	return c.MockDefinitionClient.GetXRDs(ctx)
 }

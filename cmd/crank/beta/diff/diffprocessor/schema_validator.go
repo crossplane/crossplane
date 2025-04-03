@@ -6,7 +6,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -26,17 +27,19 @@ type SchemaValidator interface {
 
 // DefaultSchemaValidator implements SchemaValidator interface
 type DefaultSchemaValidator struct {
-	client cc.ClusterClient
-	logger logging.Logger
-	crds   []*extv1.CustomResourceDefinition
+	defClient    xp.DefinitionClient
+	schemaClient k8.SchemaClient
+	logger       logging.Logger
+	crds         []*extv1.CustomResourceDefinition
 }
 
 // NewSchemaValidator creates a new DefaultSchemaValidator
-func NewSchemaValidator(client cc.ClusterClient, logger logging.Logger) SchemaValidator {
+func NewSchemaValidator(sClient k8.SchemaClient, dClient xp.DefinitionClient, logger logging.Logger) SchemaValidator {
 	return &DefaultSchemaValidator{
-		client: client,
-		logger: logger,
-		crds:   []*extv1.CustomResourceDefinition{},
+		defClient:    dClient,
+		schemaClient: sClient,
+		logger:       logger,
+		crds:         []*extv1.CustomResourceDefinition{},
 	}
 }
 
@@ -45,7 +48,7 @@ func (v *DefaultSchemaValidator) LoadCRDs(ctx context.Context) error {
 	v.logger.Debug("Loading CRDs from cluster")
 
 	// Get XRDs from the client (which will use its cache when available)
-	xrds, err := v.client.GetXRDs(ctx)
+	xrds, err := v.defClient.GetXRDs(ctx)
 	if err != nil {
 		v.logger.Debug("Failed to get XRDs", "error", err)
 		return errors.Wrap(err, "cannot get XRDs")
@@ -150,14 +153,14 @@ func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context,
 	// Fetch missing CRDs
 	for gvk := range missingGVKs {
 		// Skip resources that don't require CRDs
-		if !v.client.IsCRDRequired(ctx, gvk) {
+		if !v.schemaClient.IsCRDRequired(ctx, gvk) {
 			v.logger.Debug("Skipping built-in resource type, no CRD required",
 				"gvk", gvk.String())
 			continue
 		}
 
 		// Try to get the CRD using the client's GetCRD method
-		crdObj, err := v.client.GetCRD(ctx, gvk)
+		crdObj, err := v.schemaClient.GetCRD(ctx, gvk)
 		if err != nil {
 			v.logger.Debug("CRD not found (continuing)",
 				"gvk", gvk.String(),

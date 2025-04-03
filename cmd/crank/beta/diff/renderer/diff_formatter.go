@@ -5,36 +5,13 @@ import (
 	"fmt"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	t "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	sigsyaml "sigs.k8s.io/yaml"
 	"strings"
-)
-
-// DiffType represents the type of diff (added, removed, modified)
-type DiffType string
-
-const (
-	// DiffTypeAdded an added section
-	DiffTypeAdded DiffType = "+"
-	// DiffTypeRemoved a removed section
-	DiffTypeRemoved DiffType = "-"
-	// DiffTypeModified a modified section
-	DiffTypeModified DiffType = "~"
-	// DiffTypeEqual an unchanged section
-	DiffTypeEqual DiffType = "="
-)
-
-// Colors for terminal output
-const (
-	// ColorRed an ANSI "begin red" character
-	ColorRed = "\x1b[31m"
-	// ColorGreen an ANSI "begin green" character
-	ColorGreen = "\x1b[32m"
-	// ColorReset an ANSI "reset color" character
-	ColorReset = "\x1b[0m"
 )
 
 // DiffOptions holds configuration options for the diff output
@@ -59,31 +36,6 @@ type DiffOptions struct {
 
 	// Compact determines whether to show a compact diff
 	Compact bool
-}
-
-// ResourceDiff represents the diff for a specific resource
-type ResourceDiff struct {
-	Gvk          schema.GroupVersionKind
-	ResourceName string
-	DiffType     DiffType
-	LineDiffs    []diffmatchpatch.Diff
-	Current      *un.Unstructured // Optional, for reference
-	Desired      *un.Unstructured // Optional, for reference
-}
-
-func (d *ResourceDiff) getKindName() string {
-	// Check if the name indicates a generated name (ends with "(generated)")
-	if strings.HasSuffix(d.ResourceName, "(generated)") {
-		return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
-	}
-
-	// Regular case with a specific name
-	return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
-}
-
-// GetDiffKey returns a key that can be used to identify this object for use in a map.
-func (d *ResourceDiff) GetDiffKey() string {
-	return MakeDiffKey(d.Gvk.Group+"/"+d.Gvk.Version, d.Gvk.Kind, d.ResourceName)
 }
 
 // DefaultDiffOptions returns the default options with colors enabled
@@ -280,8 +232,8 @@ func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 }
 
 // GenerateDiffWithOptions produces a structured diff between two unstructured objects
-func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.Logger, _ DiffOptions) (*ResourceDiff, error) {
-	var diffType DiffType
+func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.Logger, _ DiffOptions) (*t.ResourceDiff, error) {
+	var diffType t.DiffType
 
 	// Determine resource identifiers upfront
 	resourceKey := "unknown/unknown"
@@ -296,13 +248,13 @@ func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.L
 	// Determine diff type
 	switch {
 	case current == nil && desired != nil:
-		diffType = DiffTypeAdded
+		diffType = t.DiffTypeAdded
 		logger.Debug("Diff type: Resource is being added", "resource", resourceKey)
 	case current != nil && desired == nil:
-		diffType = DiffTypeRemoved
+		diffType = t.DiffTypeRemoved
 		logger.Debug("Diff type: Resource is being removed", "resource", resourceKey)
 	case current != nil: // && desired != nil:
-		diffType = DiffTypeModified
+		diffType = t.DiffTypeModified
 		logger.Debug("Diff type: Resource is being modified", "resource", resourceKey)
 	default:
 		logger.Debug("Error: both current and desired are nil")
@@ -310,7 +262,7 @@ func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.L
 	}
 
 	// For modifications, check if objects are semantically equal
-	if diffType == DiffTypeModified {
+	if diffType == t.DiffTypeModified {
 		// Check for deep equality first
 		if equality.Semantic.DeepEqual(current, desired) {
 			logger.Debug("Resources are semantically equal", "resource", resourceKey)
@@ -376,7 +328,7 @@ func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.L
 	var name string
 	var gvk schema.GroupVersionKind
 	// For removed resources, use current's kind and name
-	if diffType == DiffTypeRemoved { // current != nil
+	if diffType == t.DiffTypeRemoved { // current != nil
 		name = current.GetName()
 		gvk = current.GroupVersionKind()
 	} else { // desired != nil
@@ -398,7 +350,7 @@ func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.L
 		}
 	}
 
-	return &ResourceDiff{
+	return &t.ResourceDiff{
 		Gvk:          gvk,
 		ResourceName: name,
 		DiffType:     diffType,
@@ -408,11 +360,11 @@ func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.L
 	}, nil
 }
 
-func equalDiff(current *un.Unstructured, desired *un.Unstructured) *ResourceDiff {
-	return &ResourceDiff{
+func equalDiff(current *un.Unstructured, desired *un.Unstructured) *t.ResourceDiff {
+	return &t.ResourceDiff{
 		Gvk:          current.GroupVersionKind(),
 		ResourceName: current.GetName(),
-		DiffType:     DiffTypeEqual,
+		DiffType:     t.DiffTypeEqual,
 		LineDiffs:    []diffmatchpatch.Diff{},
 		Current:      current,
 		Desired:      desired,
@@ -454,14 +406,14 @@ func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOpti
 	case diffmatchpatch.DiffInsert:
 		prefix = options.AddPrefix
 		if options.UseColors {
-			colorStart = ColorGreen
-			colorEnd = ColorReset
+			colorStart = t.ColorGreen
+			colorEnd = t.ColorReset
 		}
 	case diffmatchpatch.DiffDelete:
 		prefix = options.DeletePrefix
 		if options.UseColors {
-			colorStart = ColorRed
-			colorEnd = ColorReset
+			colorStart = t.ColorRed
+			colorEnd = t.ColorReset
 		}
 	case diffmatchpatch.DiffEqual:
 		prefix = options.ContextPrefix

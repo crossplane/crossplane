@@ -12,51 +12,33 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
+func TestRequirementsProvider_ProvideRequirements(t *testing.T) {
 	ctx := context.Background()
 
 	// Create resources for testing
 	configMap := tu.NewResource("v1", "ConfigMap", "config1").Build()
 	secret := tu.NewResource("v1", "Secret", "secret1").Build()
 
-	// Mock client that returns appropriate resources
-	mockClient := tu.NewMockClusterClient().
-		WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-			if gvk.Kind == "ConfigMap" && name == "config1" {
-				return configMap, nil
-			}
-			if gvk.Kind == "Secret" && name == "secret1" {
-				return secret, nil
-			}
-			return nil, errors.New("resource not found")
-		}).
-		WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
-			// Return resources for label-based selectors
-			if sel.MatchLabels["app"] == "test-app" {
-				return []*un.Unstructured{configMap}, nil
-			}
-			return []*un.Unstructured{}, nil
-		}).
-		Build()
-
-	// Create the provider
-	provider := NewRequirementsProvider(
-		mockClient,
-		nil, // renderFn not needed for this test
-		tu.TestLogger(t, true),
-	)
-
-	// Test cases
 	tests := map[string]struct {
-		requirements map[string]v1.Requirements
-		wantCount    int
-		wantNames    []string
-		wantErr      bool
+		requirements           map[string]v1.Requirements
+		setupResourceClient    func() *tu.MockResourceClient
+		setupEnvironmentClient func() *tu.MockEnvironmentClient
+		wantCount              int
+		wantNames              []string
+		wantErr                bool
 	}{
 		"EmptyRequirements": {
 			requirements: map[string]v1.Requirements{},
-			wantCount:    0,
-			wantErr:      false,
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+					Build()
+			},
+			wantCount: 0,
+			wantErr:   false,
 		},
 		"NameSelector": {
 			requirements: map[string]v1.Requirements{
@@ -71,6 +53,21 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 						},
 					},
 				},
+			},
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
+						if gvk.Kind == "ConfigMap" && name == "config1" {
+							return configMap, nil
+						}
+						return nil, errors.New("resource not found")
+					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+					Build()
 			},
 			wantCount: 1,
 			wantNames: []string{"config1"},
@@ -93,6 +90,22 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 						},
 					},
 				},
+			},
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
+					WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
+						// Return resources for label-based selectors
+						if sel.MatchLabels["app"] == "test-app" {
+							return []*un.Unstructured{configMap}, nil
+						}
+						return []*un.Unstructured{}, nil
+					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+					Build()
 			},
 			wantCount: 1,
 			wantNames: []string{"config1"},
@@ -119,6 +132,24 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 					},
 				},
 			},
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
+						if gvk.Kind == "ConfigMap" && name == "config1" {
+							return configMap, nil
+						}
+						if gvk.Kind == "Secret" && name == "secret1" {
+							return secret, nil
+						}
+						return nil, errors.New("resource not found")
+					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+					Build()
+			},
 			wantCount: 2,
 			wantNames: []string{"config1", "secret1"},
 			wantErr:   false,
@@ -137,12 +168,73 @@ func TestUnifiedExtraResourceProvider_ProcessRequirements(t *testing.T) {
 					},
 				},
 			},
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
+					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
+						return nil, errors.New("resource not found")
+					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{}).
+					Build()
+			},
 			wantErr: true,
+		},
+		"EnvironmentConfigsAvailable": {
+			requirements: map[string]v1.Requirements{
+				"step1": {
+					ExtraResources: map[string]*v1.ResourceSelector{
+						"config": {
+							ApiVersion: "v1",
+							Kind:       "ConfigMap",
+							Match: &v1.ResourceSelector_MatchName{
+								MatchName: "config1",
+							},
+						},
+					},
+				},
+			},
+			setupResourceClient: func() *tu.MockResourceClient {
+				// This resource client should not be called because the resource is in the env configs
+				return tu.NewMockResourceClient().
+					WithGetResource(func(_ context.Context, _ schema.GroupVersionKind, _, _ string) (*un.Unstructured, error) {
+						return nil, errors.New("should not be called")
+					}).
+					Build()
+			},
+			setupEnvironmentClient: func() *tu.MockEnvironmentClient {
+				return tu.NewMockEnvironmentClient().
+					WithSuccessfulEnvironmentConfigsFetch([]*un.Unstructured{configMap}).
+					Build()
+			},
+			wantCount: 1,
+			wantNames: []string{"config1"},
+			wantErr:   false,
 		},
 	}
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
+			// Set up clients
+			resourceClient := tt.setupResourceClient()
+			environmentClient := tt.setupEnvironmentClient()
+
+			// Create the requirements provider
+			provider := NewRequirementsProvider(
+				resourceClient,
+				environmentClient,
+				nil, // renderFn not needed for this test
+				tu.TestLogger(t, false),
+			)
+
+			// Initialize the provider to cache any environment configs
+			if err := provider.Initialize(ctx); err != nil {
+				t.Fatalf("Failed to initialize provider: %v", err)
+			}
+
+			// Call the method being tested
 			resources, err := provider.ProvideRequirements(ctx, tt.requirements)
 
 			// Check error cases

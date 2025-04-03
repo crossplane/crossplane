@@ -2,16 +2,13 @@ package diffprocessor
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
-	"k8s.io/client-go/rest"
 )
 
 // ProcessorConfig contains configuration for the DiffProcessor
 type ProcessorConfig struct {
-	// RestConfig is the Kubernetes REST configuration
-	RestConfig *rest.Config
-
 	// Namespace is the namespace to use for resources
 	Namespace string
 
@@ -27,26 +24,26 @@ type ProcessorConfig struct {
 	// RenderFunc is the function to use for rendering resources
 	RenderFunc RenderFunc
 
-	// ComponentFactories provide factory functions for creating components
-	ComponentFactories ComponentFactories
+	// Factories provide factory functions for creating components
+	Factories ComponentFactories
 }
 
 // ComponentFactories contains factory functions for creating processor components
 type ComponentFactories struct {
-	// ResourceManagerFactory creates a ResourceManager
-	ResourceManagerFactory func(client cc.ClusterClient, logger logging.Logger) ResourceManager
+	// ResourceManager creates a ResourceManager
+	ResourceManager func(client k8.ResourceClient, logger logging.Logger) ResourceManager
 
-	// SchemaValidatorFactory creates a SchemaValidator
-	SchemaValidatorFactory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator
+	// SchemaValidator creates a SchemaValidator
+	SchemaValidator func(schema k8.SchemaClient, def xp.DefinitionClient, logger logging.Logger) SchemaValidator
 
-	// DiffCalculatorFactory creates a DiffCalculator
-	DiffCalculatorFactory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator
+	// DiffCalculator creates a DiffCalculator
+	DiffCalculator func(apply k8.ApplyClient, tree xp.ResourceTreeClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator
 
-	// DiffRendererFactory creates a DiffRenderer
-	DiffRendererFactory func(logger logging.Logger, diffOptions renderer.DiffOptions) renderer.DiffRenderer
+	// DiffRenderer creates a DiffRenderer
+	DiffRenderer func(logger logging.Logger, diffOptions renderer.DiffOptions) renderer.DiffRenderer
 
-	// RequirementsProviderFactory creates an ExtraResourceProvider
-	RequirementsProviderFactory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider
+	// RequirementsProvider creates an ExtraResourceProvider
+	RequirementsProvider func(res k8.ResourceClient, def xp.EnvironmentClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider
 }
 
 // ProcessorOption defines a function that can modify a ProcessorConfig
@@ -87,45 +84,38 @@ func WithRenderFunc(renderFn RenderFunc) ProcessorOption {
 	}
 }
 
-// WithRestConfig sets the REST config for the processor
-func WithRestConfig(restConfig *rest.Config) ProcessorOption {
-	return func(config *ProcessorConfig) {
-		config.RestConfig = restConfig
-	}
-}
-
 // WithResourceManagerFactory sets the ResourceManager factory function
-func WithResourceManagerFactory(factory func(client cc.ClusterClient, logger logging.Logger) ResourceManager) ProcessorOption {
+func WithResourceManagerFactory(factory func(k8.ResourceClient, logging.Logger) ResourceManager) ProcessorOption {
 	return func(config *ProcessorConfig) {
-		config.ComponentFactories.ResourceManagerFactory = factory
+		config.Factories.ResourceManager = factory
 	}
 }
 
 // WithSchemaValidatorFactory sets the SchemaValidator factory function
-func WithSchemaValidatorFactory(factory func(client cc.ClusterClient, logger logging.Logger) SchemaValidator) ProcessorOption {
+func WithSchemaValidatorFactory(factory func(k8.SchemaClient, xp.DefinitionClient, logging.Logger) SchemaValidator) ProcessorOption {
 	return func(config *ProcessorConfig) {
-		config.ComponentFactories.SchemaValidatorFactory = factory
+		config.Factories.SchemaValidator = factory
 	}
 }
 
 // WithDiffCalculatorFactory sets the DiffCalculator factory function
-func WithDiffCalculatorFactory(factory func(client cc.ClusterClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator) ProcessorOption {
+func WithDiffCalculatorFactory(factory func(k8.ApplyClient, xp.ResourceTreeClient, ResourceManager, logging.Logger, renderer.DiffOptions) DiffCalculator) ProcessorOption {
 	return func(config *ProcessorConfig) {
-		config.ComponentFactories.DiffCalculatorFactory = factory
+		config.Factories.DiffCalculator = factory
 	}
 }
 
 // WithDiffRendererFactory sets the DiffRenderer factory function
-func WithDiffRendererFactory(factory func(logger logging.Logger, diffOptions renderer.DiffOptions) renderer.DiffRenderer) ProcessorOption {
+func WithDiffRendererFactory(factory func(logging.Logger, renderer.DiffOptions) renderer.DiffRenderer) ProcessorOption {
 	return func(config *ProcessorConfig) {
-		config.ComponentFactories.DiffRendererFactory = factory
+		config.Factories.DiffRenderer = factory
 	}
 }
 
 // WithRequirementsProviderFactory sets the RequirementsProvider factory function
-func WithRequirementsProviderFactory(factory func(client cc.ClusterClient, renderFunc RenderFunc, logger logging.Logger) *RequirementsProvider) ProcessorOption {
+func WithRequirementsProviderFactory(factory func(k8.ResourceClient, xp.EnvironmentClient, RenderFunc, logging.Logger) *RequirementsProvider) ProcessorOption {
 	return func(config *ProcessorConfig) {
-		config.ComponentFactories.RequirementsProviderFactory = factory
+		config.Factories.RequirementsProvider = factory
 	}
 }
 
@@ -140,23 +130,23 @@ func (c *ProcessorConfig) GetDiffOptions() renderer.DiffOptions {
 
 // SetDefaultFactories sets default component factory functions if not already set
 func (c *ProcessorConfig) SetDefaultFactories() {
-	if c.ComponentFactories.ResourceManagerFactory == nil {
-		c.ComponentFactories.ResourceManagerFactory = NewResourceManager
+	if c.Factories.ResourceManager == nil {
+		c.Factories.ResourceManager = NewResourceManager
 	}
 
-	if c.ComponentFactories.SchemaValidatorFactory == nil {
-		c.ComponentFactories.SchemaValidatorFactory = NewSchemaValidator
+	if c.Factories.SchemaValidator == nil {
+		c.Factories.SchemaValidator = NewSchemaValidator
 	}
 
-	if c.ComponentFactories.DiffCalculatorFactory == nil {
-		c.ComponentFactories.DiffCalculatorFactory = NewDiffCalculator
+	if c.Factories.DiffCalculator == nil {
+		c.Factories.DiffCalculator = NewDiffCalculator
 	}
 
-	if c.ComponentFactories.DiffRendererFactory == nil {
-		c.ComponentFactories.DiffRendererFactory = renderer.NewDiffRenderer
+	if c.Factories.DiffRenderer == nil {
+		c.Factories.DiffRenderer = renderer.NewDiffRenderer
 	}
 
-	if c.ComponentFactories.RequirementsProviderFactory == nil {
-		c.ComponentFactories.RequirementsProviderFactory = NewRequirementsProvider
+	if c.Factories.RequirementsProvider == nil {
+		c.Factories.RequirementsProvider = NewRequirementsProvider
 	}
 }

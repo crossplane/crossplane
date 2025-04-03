@@ -3,6 +3,7 @@ package renderer
 import (
 	"cmp"
 	"fmt"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"io"
 	"strings"
 
@@ -15,7 +16,7 @@ import (
 // DiffRenderer handles rendering diffs to output
 type DiffRenderer interface {
 	// RenderDiffs formats and outputs diffs to the provided writer
-	RenderDiffs(stdout io.Writer, diffs map[string]*ResourceDiff) error
+	RenderDiffs(stdout io.Writer, diffs map[string]*dt.ResourceDiff) error
 }
 
 // DefaultDiffRenderer implements the DiffRenderer interface
@@ -37,8 +38,18 @@ func (r *DefaultDiffRenderer) SetDiffOptions(options DiffOptions) {
 	r.diffOpts = options
 }
 
+func getKindName(d *dt.ResourceDiff) string {
+	// Check if the name indicates a generated name (ends with "(generated)")
+	if strings.HasSuffix(d.ResourceName, "(generated)") {
+		return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
+	}
+
+	// Regular case with a specific name
+	return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
+}
+
 // RenderDiffs formats and prints the diffs to the provided writer
-func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*ResourceDiff) error {
+func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*dt.ResourceDiff) error {
 	r.logger.Debug("Rendering diffs to output",
 		"diffCount", len(diffs),
 		"useColors", r.diffOpts.UseColors,
@@ -48,8 +59,8 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 	d := maps.Values(diffs)
 
 	// Sort by GetKindName which is how it's displayed to the user
-	slices.SortFunc(d, func(a, b *ResourceDiff) int {
-		return cmp.Compare(a.getKindName(), b.getKindName())
+	slices.SortFunc(d, func(a, b *dt.ResourceDiff) int {
+		return cmp.Compare(getKindName(a), getKindName(b))
 	})
 
 	// Track stats for summary logging
@@ -60,17 +71,17 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 	outputCount := 0
 
 	for _, diff := range d {
-		resourceID := diff.getKindName()
+		resourceID := getKindName(diff)
 
 		// Count by diff type for summary
 		switch diff.DiffType {
-		case DiffTypeAdded:
+		case dt.DiffTypeAdded:
 			addedCount++
-		case DiffTypeRemoved:
+		case dt.DiffTypeRemoved:
 			removedCount++
-		case DiffTypeModified:
+		case dt.DiffTypeModified:
 			modifiedCount++
-		case DiffTypeEqual:
+		case dt.DiffTypeEqual:
 			equalCount++
 			// Skip rendering equal resources
 			continue
@@ -79,13 +90,13 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 		// Format the diff header based on the diff type
 		var header string
 		switch diff.DiffType {
-		case DiffTypeAdded:
+		case dt.DiffTypeAdded:
 			header = fmt.Sprintf("+++ %s", resourceID)
-		case DiffTypeRemoved:
+		case dt.DiffTypeRemoved:
 			header = fmt.Sprintf("--- %s", resourceID)
-		case DiffTypeModified:
+		case dt.DiffTypeModified:
 			header = fmt.Sprintf("~~~ %s", resourceID)
-		case DiffTypeEqual:
+		case dt.DiffTypeEqual:
 			// should never get here
 			header = ""
 		}
@@ -139,9 +150,4 @@ func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*Re
 	}
 
 	return nil
-}
-
-// MakeDiffKey creates a unique key for a resource diff
-func MakeDiffKey(apiVersion, kind, name string) string {
-	return fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
 }

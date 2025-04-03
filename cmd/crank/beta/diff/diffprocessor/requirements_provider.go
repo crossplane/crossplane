@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"strings"
 	"sync"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -17,9 +18,10 @@ import (
 
 // RequirementsProvider consolidates requirement processing with caching
 type RequirementsProvider struct {
-	client   cc.ClusterClient
-	renderFn RenderFunc
-	logger   logging.Logger
+	client    k8.ResourceClient
+	envClient xp.EnvironmentClient
+	renderFn  RenderFunc
+	logger    logging.Logger
 
 	// Resource cache by resource key (apiVersion+kind+name)
 	resourceCache map[string]*un.Unstructured
@@ -27,13 +29,10 @@ type RequirementsProvider struct {
 }
 
 // NewRequirementsProvider creates a new provider with caching
-func NewRequirementsProvider(
-	client cc.ClusterClient,
-	renderFn RenderFunc,
-	logger logging.Logger,
-) *RequirementsProvider {
+func NewRequirementsProvider(res k8.ResourceClient, env xp.EnvironmentClient, renderFn RenderFunc, logger logging.Logger) *RequirementsProvider {
 	return &RequirementsProvider{
-		client:        client,
+		client:        res,
+		envClient:     env,
 		renderFn:      renderFn,
 		logger:        logger,
 		resourceCache: make(map[string]*un.Unstructured),
@@ -45,7 +44,7 @@ func (p *RequirementsProvider) Initialize(ctx context.Context) error {
 	p.logger.Debug("Initializing extra resource provider")
 
 	// Pre-fetch environment configs
-	envConfigs, err := p.client.GetEnvironmentConfigs(ctx)
+	envConfigs, err := p.envClient.GetEnvironmentConfigs(ctx)
 	if err != nil {
 		return errors.Wrap(err, "cannot get environment configs")
 	}

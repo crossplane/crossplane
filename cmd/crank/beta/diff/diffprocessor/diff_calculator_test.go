@@ -3,7 +3,10 @@ package diffprocessor
 import (
 	"context"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"strings"
 	"testing"
 
@@ -16,6 +19,9 @@ import (
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
+
+// Ensure MockDiffCalculator implements the DiffCalculator interface
+var _ DiffCalculator = &tu.MockDiffCalculator{}
 
 func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 	ctx := context.Background()
@@ -43,54 +49,97 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		}).
 		Build()
 
+	// Parent XR
+	parentXR := tu.NewResource("example.org/v1", "XR", "parent-xr").
+		WithSpecField("field", "value").
+		Build()
+
 	tests := map[string]struct {
-		setupClient func() *tu.MockClusterClient
-		composite   *un.Unstructured
-		desired     *un.Unstructured
-		wantDiff    *renderer.ResourceDiff
-		wantNil     bool
-		wantErr     bool
+		setupMocks func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager)
+		composite  *un.Unstructured
+		desired    *un.Unstructured
+		wantDiff   *dt.ResourceDiff
+		wantNil    bool
+		wantErr    bool
 	}{
 		"ExistingResourceModified": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingResource).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
 					Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingResource).
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			composite: nil,
 			desired:   modifiedResource,
-			wantDiff: &renderer.ResourceDiff{
+			wantDiff: &dt.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "existing-resource",
-				DiffType:     renderer.DiffTypeModified,
+				DiffType:     dt.DiffTypeModified,
 			},
 		},
 		"NewResource": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourceNotFound().
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
 					Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourceNotFound().
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			composite: nil,
 			desired:   newResource,
-			wantDiff: &renderer.ResourceDiff{
+			wantDiff: &dt.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "new-resource",
-				DiffType:     renderer.DiffTypeAdded,
+				DiffType:     dt.DiffTypeAdded,
 			},
 		},
 		"ComposedResource": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesFoundByLabel([]*un.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
-					// Add this line to mock the GetResource function:
-					WithResourcesExist(composedResource).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
 					Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(composedResource).
+					WithResourcesFoundByLabel([]*un.Unstructured{composedResource}, "crossplane.io/composite", "parent-xr").
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
-			composite: tu.NewResource("foo", "bar", "parent-xr").Build(),
+			composite: parentXR,
 			desired: tu.NewResource("example.org/v1", "ComposedResource", "cpd-resource").
 				WithSpecField("field", "new-value").
 				WithLabels(map[string]string{
@@ -100,53 +149,91 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 					"crossplane.io/composition-resource-name": "resource-a",
 				}).
 				Build(),
-			wantDiff: &renderer.ResourceDiff{
+			wantDiff: &dt.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
 				ResourceName: "cpd-resource",
-				DiffType:     renderer.DiffTypeModified,
+				DiffType:     dt.DiffTypeModified,
 			},
 		},
 		"NoChanges": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingResource).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
 					Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingResource).
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			composite: nil,
 			desired:   existingResource.DeepCopy(),
-			wantDiff: &renderer.ResourceDiff{
+			wantDiff: &dt.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "TestResource", Group: "example.org", Version: "v1"},
 				ResourceName: "existing-resource",
-				DiffType:     renderer.DiffTypeEqual,
+				DiffType:     dt.DiffTypeEqual,
 			},
 		},
 		"ErrorGettingCurrentObject": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client (not used because test fails earlier)
+				applyClient := tu.NewMockApplyClient().Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager that returns an error
+				resourceClient := tu.NewMockResourceClient().
 					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
 						return nil, errors.New("resource not found")
 					}).
 					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			composite: nil,
 			desired:   existingResource,
 			wantErr:   true,
 		},
 		"DryRunError": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingResource).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client that returns an error
+				applyClient := tu.NewMockApplyClient().
 					WithFailedDryRun("apply error").
 					Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingResource).
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			composite: nil,
 			desired:   modifiedResource,
 			wantErr:   true,
 		},
 		"Successfully find and diff resource with generateName": {
-			setupClient: func() *tu.MockClusterClient {
-				// The cpd resource with generateName
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// The composed resource with generateName
 				composedWithGenName := tu.NewResource("example.org/v1", "ComposedResource", "").
 					WithLabels(map[string]string{
 						"crossplane.io/composite": "parent-xr",
@@ -170,8 +257,16 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 					WithSpecField("field", "old-value").
 					Build()
 
-				// Create a mock client that will return resources by label
-				return tu.NewMockClusterClient().
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
+					WithSuccessfulDryRun().
+					Build()
+
+				// Create mock resource tree client (not used in this test)
+				resourceTreeClient := tu.NewMockResourceTreeClient().Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
 					// Return "not found" for direct name lookup
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						// This should fail as the resource has generateName, not name
@@ -194,10 +289,14 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 						}
 						return []*un.Unstructured{}, nil
 					}).
-					WithSuccessfulDryRun().
 					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
-			composite: tu.NewResource("example.org/v1", "XR", "parent-xr").Build(),
+			composite: parentXR,
 			desired: tu.NewResource("example.org/v1", "ComposedResource", "").
 				WithLabels(map[string]string{
 					"crossplane.io/composite": "parent-xr",
@@ -208,10 +307,10 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 				WithSpecField("field", "new-value").
 				WithGenerateName("test-resource-").
 				Build(),
-			wantDiff: &renderer.ResourceDiff{
+			wantDiff: &dt.ResourceDiff{
 				Gvk:          schema.GroupVersionKind{Kind: "ComposedResource", Group: "example.org", Version: "v1"},
-				ResourceName: "test-resource-abc123",    // Should have found the existing resource name
-				DiffType:     renderer.DiffTypeModified, // Should be modified, not added
+				ResourceName: "test-resource-abc123", // Should have found the existing resource name
+				DiffType:     dt.DiffTypeModified,    // Should be modified, not added
 			},
 		},
 	}
@@ -220,12 +319,13 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t, false)
 
-			// Setup a resource manager
-			resourceManager := NewResourceManager(tt.setupClient(), logger)
+			// Setup mocks
+			applyClient, resourceTreeClient, resourceManager := tt.setupMocks(t)
 
-			// Setup the diff calculator with the resource manager
+			// Setup the diff calculator with the mocks
 			calculator := NewDiffCalculator(
-				tt.setupClient(),
+				applyClient,
+				resourceTreeClient,
 				resourceManager,
 				logger,
 				renderer.DefaultDiffOptions(),
@@ -272,7 +372,7 @@ func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {
 			}
 
 			// For modified resources, check that LineDiffs is populated
-			if diff.DiffType == renderer.DiffTypeModified && len(diff.LineDiffs) == 0 {
+			if diff.DiffType == dt.DiffTypeModified && len(diff.LineDiffs) == 0 {
 				t.Errorf("LineDiffs is empty for %s", name)
 			}
 		})
@@ -291,7 +391,7 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 	renderedXR := tu.NewResource("example.org/v1", "XR", "test-xr").
 		BuildUComposite()
 
-	// Create rendered cpd resources
+	// Create rendered composed resources
 	composedResource1 := tu.NewResource("example.org/v1", "Composed", "cpd-1").
 		WithCompositeOwner("test-xr").
 		WithCompositionResourceName("resource-1").
@@ -311,40 +411,68 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 		Build()
 
 	tests := map[string]struct {
-		setupClient   func() *tu.MockClusterClient
+		setupMocks    func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager)
 		inputXR       *cmp.Unstructured
 		renderedOut   render.Outputs
-		expectedDiffs map[string]renderer.DiffType // Map of expected keys and their diff types
+		expectedDiffs map[string]dt.DiffType // Map of expected keys and their diff types
 		wantErr       bool
 	}{
-		"XR and cpd resource modifications": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingXR, existingComposed).
-					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+		"XR and composed resource modifications": {
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
+					Build()
+
+				// Create mock resource tree client
+				resourceTreeClient := tu.NewMockResourceTreeClient().
 					WithEmptyResourceTree().
 					Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingXR, existingComposed).
+					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			inputXR: modifiedXr,
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
 				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/XR/test-xr":     renderer.DiffTypeModified,
-				"example.org/v1/Composed/cpd-1": renderer.DiffTypeModified,
+			expectedDiffs: map[string]dt.DiffType{
+				"example.org/v1/XR/test-xr":     dt.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1": dt.DiffTypeModified,
 			},
 			wantErr: false,
 		},
-		"XR not modified, cpd resource modified": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingXR, existingComposed).
-					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+		"XR not modified, composed resource modified": {
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
+					Build()
+
+				// Create mock resource tree client
+				resourceTreeClient := tu.NewMockResourceTreeClient().
 					WithEmptyResourceTree().
 					Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingXR, existingComposed).
+					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			inputXR: existingXrUComp,
 			renderedOut: render.Outputs{
@@ -356,61 +484,87 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 				}(),
 				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/Composed/cpd-1": renderer.DiffTypeModified,
+			expectedDiffs: map[string]dt.DiffType{
+				"example.org/v1/Composed/cpd-1": dt.DiffTypeModified,
 			},
 			wantErr: false,
 		},
 		"Error calculating diff": {
-			setupClient: func() *tu.MockClusterClient {
-				// Return error from dry run
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingXR, existingComposed).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create mock apply client that returns an error
+				applyClient := tu.NewMockApplyClient().
 					WithFailedDryRun("dry run error").
 					Build()
+
+				// Create mock resource tree client
+				resourceTreeClient := tu.NewMockResourceTreeClient().
+					Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingXR, existingComposed).
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			inputXR: existingXrUComp,
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
 				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]renderer.DiffType{},
+			expectedDiffs: map[string]dt.DiffType{},
 			wantErr:       true,
 		},
 		"Resource tree with potential resources to remove": {
-			setupClient: func() *tu.MockClusterClient {
-				// Create a resource tree with resources that aren't in the rendered output
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create a resource that isn't in the rendered output
 				extraComposedResource := tu.NewResource("example.org/v1", "Composed", "cpd-2").
 					WithCompositeOwner("test-xr").
 					WithCompositionResourceName("resource-to-be-removed").
 					WithSpecField("field", "value").
 					Build()
 
-				// Return a resource tree with the XR as root and some cpd resources as children
-				return tu.NewMockClusterClient().
-					WithResourcesExist(existingXR, existingComposed, extraComposedResource).
-					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
 					WithSuccessfulDryRun().
+					Build()
+
+				// Create mock resource tree client with the XR as root and some composed resources as children
+				resourceTreeClient := tu.NewMockResourceTreeClient().
 					WithResourceTreeFromXRAndComposed(existingXR, []*un.Unstructured{
 						existingComposed,
 						extraComposedResource,
 					}).
 					Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
+					WithResourcesExist(existingXR, existingComposed, extraComposedResource).
+					WithResourcesFoundByLabel([]*un.Unstructured{existingComposed}, "crossplane.io/composite", "test-xr").
+					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			inputXR: modifiedXr,
 			renderedOut: render.Outputs{
 				CompositeResource: renderedXR,
 				ComposedResources: []cpd.Unstructured{*composedResource1},
 			},
-			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/XR/test-xr":     renderer.DiffTypeModified,
-				"example.org/v1/Composed/cpd-1": renderer.DiffTypeModified,
-				"example.org/v1/Composed/cpd-2": renderer.DiffTypeRemoved,
+			expectedDiffs: map[string]dt.DiffType{
+				"example.org/v1/XR/test-xr":     dt.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1": dt.DiffTypeModified,
+				"example.org/v1/Composed/cpd-2": dt.DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
 		"Resource removal detection": {
-			setupClient: func() *tu.MockClusterClient {
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
 				// Create existing version of the resource
 				existingComposedWithOldValue := tu.NewResource("example.org/v1", "Composed", "cpd-1").
 					WithCompositeOwner("test-xr").
@@ -424,21 +578,33 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 					WithCompositionResourceName("resource-to-remove").
 					Build()
 
-				return tu.NewMockClusterClient().
-					// Make existingComposedWithOldValue available via GetResource
+				// Create mock apply client
+				applyClient := tu.NewMockApplyClient().
+					WithSuccessfulDryRun().
+					Build()
+
+				// Create mock resource tree client
+				resourceTreeClient := tu.NewMockResourceTreeClient().
+					WithResourceTreeFromXRAndComposed(
+						existingXR,
+						[]*un.Unstructured{existingComposedWithOldValue, extraResource},
+					).
+					Build()
+
+				// Create mock resource client for resource manager
+				resourceClient := tu.NewMockResourceClient().
 					WithResourcesExist(existingXR, existingComposedWithOldValue, extraResource).
 					WithResourcesFoundByLabel(
 						[]*un.Unstructured{existingComposedWithOldValue, extraResource},
 						"crossplane.io/composite",
 						"test-xr",
 					).
-					// Include both resources in the tree
-					WithResourceTreeFromXRAndComposed(
-						existingXR,
-						[]*un.Unstructured{existingComposedWithOldValue, extraResource},
-					).
-					WithSuccessfulDryRun().
 					Build()
+
+				// Create resource manager
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			inputXR: modifiedXr,
 			renderedOut: render.Outputs{
@@ -450,10 +616,10 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 					WithSpecField("field", "new-value"). // Different value than existing
 					BuildUComposed()},
 			},
-			expectedDiffs: map[string]renderer.DiffType{
-				"example.org/v1/XR/test-xr":                  renderer.DiffTypeModified,
-				"example.org/v1/Composed/cpd-1":              renderer.DiffTypeModified,
-				"example.org/v1/Composed/resource-to-remove": renderer.DiffTypeRemoved,
+			expectedDiffs: map[string]dt.DiffType{
+				"example.org/v1/XR/test-xr":                  dt.DiffTypeModified,
+				"example.org/v1/Composed/cpd-1":              dt.DiffTypeModified,
+				"example.org/v1/Composed/resource-to-remove": dt.DiffTypeRemoved,
 			},
 			wantErr: false,
 		},
@@ -463,15 +629,13 @@ func TestDefaultDiffCalculator_CalculateDiffs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t, false)
 
-			// Setup the mock client
-			mockClient := tt.setupClient()
-
-			// Create resource manager
-			resourceManager := NewResourceManager(mockClient, logger)
+			// Setup mocks
+			applyClient, resourceTreeClient, resourceManager := tt.setupMocks(t)
 
 			// Create a diff calculator with default options
 			calculator := NewDiffCalculator(
-				mockClient,
+				applyClient,
+				resourceTreeClient,
 				resourceManager,
 				logger,
 				renderer.DefaultDiffOptions(),
@@ -549,20 +713,29 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 		Build()
 
 	tests := map[string]struct {
-		setupClient       func() *tu.MockClusterClient
+		setupMocks        func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager)
 		renderedResources map[string]bool
 		expectedRemoved   []string
 		wantErr           bool
 	}{
 		"IdentifiesRemovedResources": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(xr).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create a mock apply client (not used in this test)
+				applyClient := tu.NewMockApplyClient().Build()
+
+				// Create a resource tree client that returns a tree with both resources
+				resourceTreeClient := tu.NewMockResourceTreeClient().
 					WithResourceTreeFromXRAndComposed(
 						xr,
 						[]*un.Unstructured{resourceToKeep, resourceToRemove},
 					).
 					Build()
+
+				// Create a resource manager (not directly used in this test)
+				resourceClient := tu.NewMockResourceClient().Build()
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			// Only include the "resource-to-keep" in rendered resources
 			renderedResources: map[string]bool{
@@ -573,14 +746,23 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			wantErr:         false,
 		},
 		"NoRemovedResources": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(xr).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create a mock apply client (not used in this test)
+				applyClient := tu.NewMockApplyClient().Build()
+
+				// Create a resource tree client that returns a tree with both resources
+				resourceTreeClient := tu.NewMockResourceTreeClient().
 					WithResourceTreeFromXRAndComposed(
 						xr,
 						[]*un.Unstructured{resourceToKeep, resourceToRemove},
 					).
 					Build()
+
+				// Create a resource manager (not directly used in this test)
+				resourceClient := tu.NewMockResourceClient().Build()
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			// Include all resources in rendered resources (nothing to remove)
 			renderedResources: map[string]bool{
@@ -591,11 +773,20 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			wantErr:         false,
 		},
 		"ErrorGettingResourceTree": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
-					WithResourcesExist(xr).
+			setupMocks: func(t *testing.T) (k8.ApplyClient, xp.ResourceTreeClient, ResourceManager) {
+				// Create a mock apply client (not used in this test)
+				applyClient := tu.NewMockApplyClient().Build()
+
+				// Create a resource tree client that returns an error
+				resourceTreeClient := tu.NewMockResourceTreeClient().
 					WithFailedResourceTreeFetch("failed to get resource tree").
 					Build()
+
+				// Create a resource manager (not directly used in this test)
+				resourceClient := tu.NewMockResourceClient().Build()
+				resourceManager := NewResourceManager(resourceClient, tu.TestLogger(t, false))
+
+				return applyClient, resourceTreeClient, resourceManager
 			},
 			renderedResources: map[string]bool{},
 			expectedRemoved:   []string{},
@@ -607,15 +798,13 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			logger := tu.TestLogger(t, false)
 
-			// Setup mock client
-			mockClient := tt.setupClient()
+			// Setup mocks
+			applyClient, resourceTreeClient, resourceManager := tt.setupMocks(t)
 
-			// Create a resource manager (not directly used in this test but required for constructor)
-			resourceManager := NewResourceManager(mockClient, logger)
-
-			// Create a diff calculator with default options
+			// Create a diff calculator with the mocks
 			calculator := NewDiffCalculator(
-				mockClient,
+				applyClient,
+				resourceTreeClient,
 				resourceManager,
 				logger,
 				renderer.DefaultDiffOptions(),
@@ -653,7 +842,7 @@ func TestDefaultDiffCalculator_CalculateRemovedResourceDiffs(t *testing.T) {
 			for _, name := range tt.expectedRemoved {
 				found := false
 				for key, diff := range diffs {
-					if strings.Contains(key, name) && diff.DiffType == renderer.DiffTypeRemoved {
+					if strings.Contains(key, name) && diff.DiffType == dt.DiffTypeRemoved {
 						found = true
 						break
 					}

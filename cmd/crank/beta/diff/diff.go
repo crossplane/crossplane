@@ -27,7 +27,6 @@ import (
 
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
 )
 
@@ -72,54 +71,72 @@ Examples:
 
 // AfterApply implements kong's AfterApply method to bind our dependencies
 func (c *Cmd) AfterApply(ctx *kong.Context, log logging.Logger, config *rest.Config) error {
+	return c.initializeDependencies(ctx, log, config)
+}
 
-	client, err := getDefaultClusterClient(c, config, log)
-	if err != nil {
-		return errors.Wrap(err, "unable to create cluster client for binding")
-	}
+func (c *Cmd) initializeDependencies(ctx *kong.Context, log logging.Logger, config *rest.Config) error {
+	config = c.initRestConfig(config, log)
+	appCtx, err := NewAppContext(config, log)
+	proc := makeDefaultProc(c, appCtx, log)
 
-	proc, err := getDefaultProc(c, config, log, client)
-	if err != nil {
-		return errors.Wrap(err, "unable to create diff processor for binding")
-	}
-
-	loader, err := getDefaultLoader(c)
+	loader, err := makeDefaultLoader(c)
 	if err != nil {
 		return errors.Wrap(err, "cannot create resource loader")
 	}
 
-	ctx.BindTo(client, (*cc.ClusterClient)(nil))
+	ctx.Bind(appCtx)
 	ctx.BindTo(proc, (*dp.DiffProcessor)(nil))
 	ctx.BindTo(loader, (*internal.Loader)(nil))
 	return nil
 }
 
-func getDefaultProc(c *Cmd, config *rest.Config, log logging.Logger, client cc.ClusterClient) (dp.DiffProcessor, error) {
+func (c *Cmd) initRestConfig(config *rest.Config, logger logging.Logger) *rest.Config {
+	// Set default QPS and Burst if they are not set in the config
+	// or override with values from options if provided
+	originalQPS := config.QPS
+	originalBurst := config.Burst
+
+	if c.QPS > 0 {
+		config.QPS = c.QPS
+	} else if config.QPS == 0 {
+		config.QPS = 20
+	}
+
+	if c.Burst > 0 {
+		config.Burst = c.Burst
+	} else if config.Burst == 0 {
+		config.Burst = 30
+	}
+
+	logger.Debug("Configured REST client rate limits",
+		"original_qps", originalQPS,
+		"original_burst", originalBurst,
+		"options_qps", c.QPS,
+		"options_burst", c.Burst,
+		"final_qps", config.QPS,
+		"final_burst", config.Burst)
+
+	return config
+}
+
+func makeDefaultProc(c *Cmd, ctx *AppContext, log logging.Logger) dp.DiffProcessor {
 	// Create the options for the processor
 	options := []dp.ProcessorOption{
-		dp.WithRestConfig(config),
 		dp.WithNamespace(c.Namespace),
 		dp.WithLogger(log),
 		dp.WithRenderFunc(render.Render),
 		dp.WithColorize(!c.NoColor),
 		dp.WithCompact(c.Compact),
 	}
-	return dp.NewDiffProcessor(client, options...)
+	return dp.NewDiffProcessor(ctx.K8sClients, ctx.XpClients, options...)
 }
 
-func getDefaultClusterClient(c *Cmd, config *rest.Config, log logging.Logger) (cc.ClusterClient, error) {
-	return cc.NewClusterClient(config,
-		cc.WithLogger(log),
-		cc.WithQPS(c.QPS),
-		cc.WithBurst(c.Burst))
-}
-
-func getDefaultLoader(c *Cmd) (internal.Loader, error) {
+func makeDefaultLoader(c *Cmd) (internal.Loader, error) {
 	return internal.NewCompositeLoader(c.Files)
 }
 
 // Run executes the diff command.
-func (c *Cmd) Run(k *kong.Context, _ logging.Logger, client cc.ClusterClient, proc dp.DiffProcessor, loader internal.Loader) error {
+func (c *Cmd) Run(k *kong.Context, log logging.Logger, appCtx *AppContext, proc dp.DiffProcessor, loader internal.Loader) error {
 	// the rest config here is provided by a function in main.go that's only invoked for commands that request it
 	// in their arguments.  that means we won't get "can't find kubeconfig" errors for cases where the config isn't asked for.
 
@@ -134,7 +151,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger, client cc.ClusterClient, pr
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
 	defer cancel()
 
-	if err := client.Initialize(ctx); err != nil {
+	if err := appCtx.Initialize(ctx, log); err != nil {
 		return errors.Wrap(err, "cannot initialize client")
 	}
 

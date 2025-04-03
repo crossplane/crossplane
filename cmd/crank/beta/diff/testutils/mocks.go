@@ -4,14 +4,19 @@ import (
 	"context"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
+
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 )
@@ -41,6 +46,8 @@ type ClusterClient interface {
 	IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool
 }
 
+//region MockDynamicClient
+
 // MockDynamicClient mocks the dynamic.Interface
 type MockDynamicClient struct {
 	ResourceFn func(gvr schema.GroupVersionResource) dynamic.NamespaceableResourceInterface
@@ -50,6 +57,10 @@ type MockDynamicClient struct {
 func (m *MockDynamicClient) Resource(gvr schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
 	return m.ResourceFn(gvr)
 }
+
+//endregion
+
+//region MockNamespaceableResourceInterface
 
 // MockNamespaceableResourceInterface implements dynamic.NamespaceableResourceInterface
 type MockNamespaceableResourceInterface struct {
@@ -150,6 +161,10 @@ func (m *MockNamespaceableResourceInterface) ApplyStatus(_ context.Context, _ st
 	return nil, nil
 }
 
+//endregion
+
+//region MockResourceInterface
+
 // MockResourceInterface mocks dynamic.ResourceInterface for namespaced resources
 type MockResourceInterface struct {
 	GetFn    func(ctx context.Context, name string, options metav1.GetOptions, subresources ...string) (*un.Unstructured, error)
@@ -232,6 +247,10 @@ func (m *MockResourceInterface) Apply(_ context.Context, _ string, _ *un.Unstruc
 func (m *MockResourceInterface) ApplyStatus(_ context.Context, _ string, _ *un.Unstructured, _ metav1.ApplyOptions) (*un.Unstructured, error) {
 	return nil, nil
 }
+
+//endregion
+
+//region MockClusterClient
 
 // MockClusterClient implements the ClusterClient interface for testing
 type MockClusterClient struct {
@@ -347,6 +366,10 @@ func (m *MockClusterClient) GetCRD(ctx context.Context, gvk schema.GroupVersionK
 	return nil, errors.New("GetCRD not implemented")
 }
 
+//endregion
+
+//region MockDiffProcessor
+
 // MockDiffProcessor implements the DiffProcessor interface for testing
 type MockDiffProcessor struct {
 	// Function fields for mocking behavior
@@ -370,6 +393,10 @@ func (m *MockDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer, r
 	return nil
 }
 
+//endregion
+
+//region MockSchemaValidator
+
 // MockSchemaValidator Mock schema validator
 type MockSchemaValidator struct {
 	ValidateResourcesFn func(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error
@@ -385,5 +412,373 @@ func (m *MockSchemaValidator) ValidateResources(ctx context.Context, xr *un.Unst
 
 // EnsureComposedResourceCRDs Implement other required methods of the SchemaValidator interface
 func (m *MockSchemaValidator) EnsureComposedResourceCRDs(_ context.Context, _ []*un.Unstructured) error {
+	return nil
+}
+
+//endregion
+
+//region Kubernetes client mocks
+
+// ==============================================================================
+// Kubernetes API Layer Mocks
+// ==============================================================================
+
+// MockResourceClient implements the kubernetes.ResourceClient interface
+type MockResourceClient struct {
+	InitializeFn              func(ctx context.Context) error
+	GetResourceFn             func(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error)
+	ListResourcesFn           func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error)
+	GetResourcesByLabelFn     func(ctx context.Context, namespace string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error)
+	GetAllResourcesByLabelsFn func(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error)
+}
+
+// Initialize implements kubernetes.ResourceClient
+func (m *MockResourceClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// GetResource implements kubernetes.ResourceClient
+func (m *MockResourceClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
+	if m.GetResourceFn != nil {
+		return m.GetResourceFn(ctx, gvk, namespace, name)
+	}
+	return nil, errors.New("GetResource not implemented")
+}
+
+// ListResources implements kubernetes.ResourceClient
+func (m *MockResourceClient) ListResources(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
+	if m.ListResourcesFn != nil {
+		return m.ListResourcesFn(ctx, gvk, namespace)
+	}
+	return nil, errors.New("ListResources not implemented")
+}
+
+// GetResourcesByLabel implements kubernetes.ResourceClient
+func (m *MockResourceClient) GetResourcesByLabel(ctx context.Context, namespace string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
+	if m.GetResourcesByLabelFn != nil {
+		return m.GetResourcesByLabelFn(ctx, namespace, gvk, sel)
+	}
+	return nil, errors.New("GetResourcesByLabel not implemented")
+}
+
+// GetAllResourcesByLabels implements kubernetes.ResourceClient
+func (m *MockResourceClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
+	if m.GetAllResourcesByLabelsFn != nil {
+		return m.GetAllResourcesByLabelsFn(ctx, gvks, selectors)
+	}
+	return nil, errors.New("GetAllResourcesByLabels not implemented")
+}
+
+// MockSchemaClient implements the kubernetes.SchemaClient interface
+type MockSchemaClient struct {
+	InitializeFn       func(ctx context.Context) error
+	GetCRDFn           func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
+	IsCRDRequiredFn    func(ctx context.Context, gvk schema.GroupVersionKind) bool
+	ValidateResourceFn func(ctx context.Context, resource *un.Unstructured) error
+}
+
+// Initialize implements kubernetes.SchemaClient
+func (m *MockSchemaClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// GetCRD implements kubernetes.SchemaClient
+func (m *MockSchemaClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+	if m.GetCRDFn != nil {
+		return m.GetCRDFn(ctx, gvk)
+	}
+	return nil, errors.New("GetCRD not implemented")
+}
+
+// IsCRDRequired implements kubernetes.SchemaClient
+func (m *MockSchemaClient) IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool {
+	if m.IsCRDRequiredFn != nil {
+		return m.IsCRDRequiredFn(ctx, gvk)
+	}
+	return true // Default to true
+}
+
+// ValidateResource implements kubernetes.SchemaClient
+func (m *MockSchemaClient) ValidateResource(ctx context.Context, resource *un.Unstructured) error {
+	if m.ValidateResourceFn != nil {
+		return m.ValidateResourceFn(ctx, resource)
+	}
+	return nil
+}
+
+// MockApplyClient implements the kubernetes.ApplyClient interface
+type MockApplyClient struct {
+	InitializeFn  func(ctx context.Context) error
+	ApplyFn       func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error)
+	DryRunApplyFn func(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error)
+}
+
+// Initialize implements kubernetes.ApplyClient
+func (m *MockApplyClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// Apply implements kubernetes.ApplyClient
+func (m *MockApplyClient) Apply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+	if m.ApplyFn != nil {
+		return m.ApplyFn(ctx, obj)
+	}
+	return nil, errors.New("Apply not implemented")
+}
+
+// DryRunApply implements kubernetes.ApplyClient
+func (m *MockApplyClient) DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
+	if m.DryRunApplyFn != nil {
+		return m.DryRunApplyFn(ctx, obj)
+	}
+	return nil, errors.New("DryRunApply not implemented")
+}
+
+// MockTypeConverter implements the kubernetes.TypeConverter interface
+type MockTypeConverter struct {
+	GVKToGVRFn              func(ctx context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error)
+	GetResourceNameForGVKFn func(ctx context.Context, gvk schema.GroupVersionKind) (string, error)
+}
+
+// GVKToGVR implements kubernetes.TypeConverter
+func (m *MockTypeConverter) GVKToGVR(ctx context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
+	if m.GVKToGVRFn != nil {
+		return m.GVKToGVRFn(ctx, gvk)
+	}
+	return schema.GroupVersionResource{}, errors.New("GVKToGVR not implemented")
+}
+
+// GetResourceNameForGVK implements kubernetes.TypeConverter
+func (m *MockTypeConverter) GetResourceNameForGVK(ctx context.Context, gvk schema.GroupVersionKind) (string, error) {
+	if m.GetResourceNameForGVKFn != nil {
+		return m.GetResourceNameForGVKFn(ctx, gvk)
+	}
+	return "", errors.New("GetResourceNameForGVK not implemented")
+}
+
+//endregion
+
+//region Crossplane client mocks
+
+// ==============================================================================
+// Crossplane API Layer Mocks
+// ==============================================================================
+
+// MockCompositionClient implements the crossplane.CompositionClient interface
+type MockCompositionClient struct {
+	InitializeFn              func(ctx context.Context) error
+	FindMatchingCompositionFn func(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error)
+	ListCompositionsFn        func(ctx context.Context) ([]*xpextv1.Composition, error)
+	GetCompositionFn          func(ctx context.Context, name string) (*xpextv1.Composition, error)
+}
+
+// Initialize implements crossplane.CompositionClient
+func (m *MockCompositionClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// FindMatchingComposition implements crossplane.CompositionClient
+func (m *MockCompositionClient) FindMatchingComposition(ctx context.Context, res *un.Unstructured) (*xpextv1.Composition, error) {
+	if m.FindMatchingCompositionFn != nil {
+		return m.FindMatchingCompositionFn(ctx, res)
+	}
+	return nil, errors.New("FindMatchingComposition not implemented")
+}
+
+// ListCompositions implements crossplane.CompositionClient
+func (m *MockCompositionClient) ListCompositions(ctx context.Context) ([]*xpextv1.Composition, error) {
+	if m.ListCompositionsFn != nil {
+		return m.ListCompositionsFn(ctx)
+	}
+	return nil, errors.New("ListCompositions not implemented")
+}
+
+// GetComposition implements crossplane.CompositionClient
+func (m *MockCompositionClient) GetComposition(ctx context.Context, name string) (*xpextv1.Composition, error) {
+	if m.GetCompositionFn != nil {
+		return m.GetCompositionFn(ctx, name)
+	}
+	return nil, errors.New("GetComposition not implemented")
+}
+
+// MockFunctionClient implements the crossplane.FunctionClient interface
+type MockFunctionClient struct {
+	InitializeFn               func(ctx context.Context) error
+	GetFunctionsFromPipelineFn func(comp *xpextv1.Composition) ([]pkgv1.Function, error)
+	ListFunctionsFn            func(ctx context.Context) ([]pkgv1.Function, error)
+}
+
+// Initialize implements crossplane.FunctionClient
+func (m *MockFunctionClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// GetFunctionsFromPipeline implements crossplane.FunctionClient
+func (m *MockFunctionClient) GetFunctionsFromPipeline(comp *xpextv1.Composition) ([]pkgv1.Function, error) {
+	if m.GetFunctionsFromPipelineFn != nil {
+		return m.GetFunctionsFromPipelineFn(comp)
+	}
+	return nil, errors.New("GetFunctionsFromPipeline not implemented")
+}
+
+// ListFunctions implements crossplane.FunctionClient
+func (m *MockFunctionClient) ListFunctions(ctx context.Context) ([]pkgv1.Function, error) {
+	if m.ListFunctionsFn != nil {
+		return m.ListFunctionsFn(ctx)
+	}
+	return nil, errors.New("ListFunctions not implemented")
+}
+
+// MockEnvironmentClient implements the crossplane.EnvironmentClient interface
+type MockEnvironmentClient struct {
+	InitializeFn            func(ctx context.Context) error
+	GetEnvironmentConfigsFn func(ctx context.Context) ([]*un.Unstructured, error)
+	GetEnvironmentConfigFn  func(ctx context.Context, name string) (*un.Unstructured, error)
+}
+
+// Initialize implements crossplane.EnvironmentClient
+func (m *MockEnvironmentClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// GetEnvironmentConfigs implements crossplane.EnvironmentClient
+func (m *MockEnvironmentClient) GetEnvironmentConfigs(ctx context.Context) ([]*un.Unstructured, error) {
+	if m.GetEnvironmentConfigsFn != nil {
+		return m.GetEnvironmentConfigsFn(ctx)
+	}
+	return nil, errors.New("GetEnvironmentConfigs not implemented")
+}
+
+// GetEnvironmentConfig implements crossplane.EnvironmentClient
+func (m *MockEnvironmentClient) GetEnvironmentConfig(ctx context.Context, name string) (*un.Unstructured, error) {
+	if m.GetEnvironmentConfigFn != nil {
+		return m.GetEnvironmentConfigFn(ctx, name)
+	}
+	return nil, errors.New("GetEnvironmentConfig not implemented")
+}
+
+// MockDefinitionClient implements the crossplane.DefinitionClient interface
+type MockDefinitionClient struct {
+	InitializeFn     func(ctx context.Context) error
+	GetXRDsFn        func(ctx context.Context) ([]*un.Unstructured, error)
+	GetXRDForClaimFn func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
+	GetXRDForXRFn    func(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
+}
+
+// Initialize implements crossplane.DefinitionClient
+func (m *MockDefinitionClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// GetXRDs implements crossplane.DefinitionClient
+func (m *MockDefinitionClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
+	if m.GetXRDsFn != nil {
+		return m.GetXRDsFn(ctx)
+	}
+	return nil, errors.New("GetXRDs not implemented")
+}
+
+// GetXRDForClaim implements crossplane.DefinitionClient
+func (m *MockDefinitionClient) GetXRDForClaim(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+	if m.GetXRDForClaimFn != nil {
+		return m.GetXRDForClaimFn(ctx, gvk)
+	}
+	return nil, errors.New("GetXRDForClaim not implemented")
+}
+
+// GetXRDForXR implements crossplane.DefinitionClient
+func (m *MockDefinitionClient) GetXRDForXR(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+	if m.GetXRDForXRFn != nil {
+		return m.GetXRDForXRFn(ctx, gvk)
+	}
+	return nil, errors.New("GetXRDForXR not implemented")
+}
+
+// MockResourceTreeClient implements the crossplane.ResourceTreeClient interface
+type MockResourceTreeClient struct {
+	InitializeFn      func(ctx context.Context) error
+	GetResourceTreeFn func(ctx context.Context, root *un.Unstructured) (*resource.Resource, error)
+}
+
+// Initialize implements crossplane.ResourceTreeClient
+func (m *MockResourceTreeClient) Initialize(ctx context.Context) error {
+	if m.InitializeFn != nil {
+		return m.InitializeFn(ctx)
+	}
+	return nil
+}
+
+// GetResourceTree implements crossplane.ResourceTreeClient
+func (m *MockResourceTreeClient) GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
+	if m.GetResourceTreeFn != nil {
+		return m.GetResourceTreeFn(ctx, root)
+	}
+	return nil, errors.New("GetResourceTree not implemented")
+}
+
+//endregion
+
+// MockDiffCalculator is a mock implementation of DiffCalculator for testing
+type MockDiffCalculator struct {
+	CalculateDiffFn                 func(context.Context, *un.Unstructured, *un.Unstructured) (*dt.ResourceDiff, error)
+	CalculateDiffsFn                func(context.Context, *cmp.Unstructured, render.Outputs) (map[string]*dt.ResourceDiff, error)
+	CalculateRemovedResourceDiffsFn func(context.Context, *un.Unstructured, map[string]bool) (map[string]*dt.ResourceDiff, error)
+}
+
+// CalculateDiff implements DiffCalculator
+func (m *MockDiffCalculator) CalculateDiff(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*dt.ResourceDiff, error) {
+	if m.CalculateDiffFn != nil {
+		return m.CalculateDiffFn(ctx, composite, desired)
+	}
+	return nil, nil
+}
+
+// CalculateDiffs implements DiffCalculator
+func (m *MockDiffCalculator) CalculateDiffs(ctx context.Context, xr *cmp.Unstructured, desired render.Outputs) (map[string]*dt.ResourceDiff, error) {
+	if m.CalculateDiffsFn != nil {
+		return m.CalculateDiffsFn(ctx, xr, desired)
+	}
+	return nil, nil
+}
+
+// CalculateRemovedResourceDiffs implements DiffCalculator
+func (m *MockDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Context, xr *un.Unstructured, renderedResources map[string]bool) (map[string]*dt.ResourceDiff, error) {
+	if m.CalculateRemovedResourceDiffsFn != nil {
+		return m.CalculateRemovedResourceDiffsFn(ctx, xr, renderedResources)
+	}
+	return nil, nil
+}
+
+// MockDiffRenderer provides a mock implementation for DiffRenderer
+type MockDiffRenderer struct {
+	RenderDiffsFn func(io.Writer, map[string]*dt.ResourceDiff) error
+}
+
+// RenderDiffs implements RenderDiffs from the DiffRenderer interface
+func (m *MockDiffRenderer) RenderDiffs(w io.Writer, diffs map[string]*dt.ResourceDiff) error {
+	if m.RenderDiffsFn != nil {
+		return m.RenderDiffsFn(w, diffs)
+	}
 	return nil
 }

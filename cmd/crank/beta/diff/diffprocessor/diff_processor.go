@@ -10,8 +10,10 @@ import (
 	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"github.com/crossplane/crossplane/cmd/crank/render"
 	"io"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -33,7 +35,8 @@ type DiffProcessor interface {
 
 // DefaultDiffProcessor implements DiffProcessor with modular components
 type DefaultDiffProcessor struct {
-	client               cc.ClusterClient
+	fnClient             xp.FunctionClient
+	compClient           xp.CompositionClient
 	config               ProcessorConfig
 	schemaValidator      SchemaValidator
 	diffCalculator       DiffCalculator
@@ -42,11 +45,7 @@ type DefaultDiffProcessor struct {
 }
 
 // NewDiffProcessor creates a new DefaultDiffProcessor with the provided options
-func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (DiffProcessor, error) {
-	if client == nil {
-		return nil, errors.New("client cannot be nil")
-	}
-
+func NewDiffProcessor(k8cs k8.Clients, xpcs xp.Clients, opts ...ProcessorOption) DiffProcessor {
 	// Create default configuration
 	config := ProcessorConfig{
 		Namespace:  "default",
@@ -57,13 +56,8 @@ func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (Diff
 	}
 
 	// Apply all provided options
-	for _, option := range options {
+	for _, option := range opts {
 		option(&config)
-	}
-
-	// Validate required fields
-	if config.RestConfig == nil {
-		return nil, errors.New("REST config cannot be nil")
 	}
 
 	// Set default factory functions if not provided
@@ -73,14 +67,15 @@ func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (Diff
 	diffOpts := config.GetDiffOptions()
 
 	// Create components using factories
-	resourceManager := config.ComponentFactories.ResourceManagerFactory(client, config.Logger)
-	schemaValidator := config.ComponentFactories.SchemaValidatorFactory(client, config.Logger)
-	requirementsProvider := config.ComponentFactories.RequirementsProviderFactory(client, config.RenderFunc, config.Logger)
-	diffCalculator := config.ComponentFactories.DiffCalculatorFactory(client, resourceManager, config.Logger, diffOpts)
-	diffRenderer := config.ComponentFactories.DiffRendererFactory(config.Logger, diffOpts)
+	resourceManager := config.Factories.ResourceManager(k8cs.Resource, config.Logger)
+	schemaValidator := config.Factories.SchemaValidator(k8cs.Schema, xpcs.Definition, config.Logger)
+	requirementsProvider := config.Factories.RequirementsProvider(k8cs.Resource, xpcs.Environment, config.RenderFunc, config.Logger)
+	diffCalculator := config.Factories.DiffCalculator(k8cs.Apply, xpcs.ResourceTree, resourceManager, config.Logger, diffOpts)
+	diffRenderer := config.Factories.DiffRenderer(config.Logger, diffOpts)
 
 	processor := &DefaultDiffProcessor{
-		client:               client,
+		fnClient:             xpcs.Function,
+		compClient:           xpcs.Composition,
 		config:               config,
 		schemaValidator:      schemaValidator,
 		diffCalculator:       diffCalculator,
@@ -88,7 +83,7 @@ func NewDiffProcessor(client cc.ClusterClient, options ...ProcessorOption) (Diff
 		requirementsProvider: requirementsProvider,
 	}
 
-	return processor, nil
+	return processor
 }
 
 // Initialize loads required resources like CRDs and environment configs
@@ -132,7 +127,7 @@ func (p *DefaultDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer
 	}
 
 	// Collect all diffs across all resources
-	allDiffs := make(map[string]*renderer.ResourceDiff)
+	allDiffs := make(map[string]*dt.ResourceDiff)
 	var errs []error
 
 	for _, res := range resources {
@@ -172,7 +167,7 @@ func (p *DefaultDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer
 }
 
 // DiffSingleResource handles one resource at a time and returns its diffs
-func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.Unstructured) (map[string]*renderer.ResourceDiff, error) {
+func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.Unstructured) (map[string]*dt.ResourceDiff, error) {
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
 
@@ -182,7 +177,7 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.U
 	}
 
 	// Find the matching composition
-	comp, err := p.client.FindMatchingComposition(ctx, res)
+	comp, err := p.compClient.FindMatchingComposition(ctx, res)
 	if err != nil {
 		p.config.Logger.Debug("No matching composition found", "resource", resourceID, "error", err)
 		return nil, errors.Wrap(err, "cannot find matching composition")
@@ -193,7 +188,7 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.U
 		"composition", comp.GetName())
 
 	// Get functions for rendering
-	fns, err := p.client.GetFunctionsFromPipeline(comp)
+	fns, err := p.fnClient.GetFunctionsFromPipeline(comp)
 	if err != nil {
 		p.config.Logger.Debug("Failed to get functions", "resource", resourceID, "error", err)
 		return nil, errors.Wrap(err, "cannot get functions from pipeline")

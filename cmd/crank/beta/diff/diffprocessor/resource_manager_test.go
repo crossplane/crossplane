@@ -66,16 +66,16 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 		Build()
 
 	tests := map[string]struct {
-		setupClient    func() *tu.MockClusterClient
-		composite      *un.Unstructured
-		desired        *un.Unstructured
-		wantIsNew      bool
-		wantResourceID string
-		wantErr        bool
+		setupResourceClient func() *tu.MockResourceClient
+		composite           *un.Unstructured
+		desired             *un.Unstructured
+		wantIsNew           bool
+		wantResourceID      string
+		wantErr             bool
 	}{
 		"ExistingResourceFoundDirectly": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithResourcesExist(existingResource).
 					Build()
 			},
@@ -86,8 +86,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"ResourceNotFound": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithResourceNotFound().
 					Build()
 			},
@@ -98,8 +98,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"CompositeIsNil_NewXR": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithResourceNotFound().
 					Build()
 			},
@@ -110,8 +110,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"ResourceWithGenerateName_NotFound": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithResourceNotFound().
 					Build()
 			},
@@ -122,8 +122,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"ResourceWithGenerateName_FoundByLabelAndAnnotation": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					// Return "not found" for direct name lookup
 					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 						return nil, apierrors.NewNotFound(
@@ -158,8 +158,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"ComposedResource_FoundByLabelAndAnnotation": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					// Return "not found" for direct name lookup to force label lookup
 					WithResourceNotFound().
 					// Return our existing resource when looking up by label AND check the composition-resource-name annotation
@@ -185,8 +185,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"NoAnnotations_NewResource": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithResourceNotFound().
 					Build()
 			},
@@ -202,7 +202,7 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"GenerateNameMismatch": {
-			setupClient: func() *tu.MockClusterClient {
+			setupResourceClient: func() *tu.MockResourceClient {
 				mismatchedResource := tu.NewResource("example.org/v1", "TestResource", "different-prefix-abc123").
 					WithLabels(map[string]string{
 						"crossplane.io/composite": "parent-xr",
@@ -212,9 +212,14 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 					}).
 					Build()
 
-				return tu.NewMockClusterClient().
+				return tu.NewMockResourceClient().
 					WithResourceNotFound().
-					WithResourcesFoundByLabel([]*un.Unstructured{mismatchedResource}, "crossplane.io/composite", "parent-xr").
+					WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
+						if owner, exists := sel.MatchLabels["crossplane.io/composite"]; exists && owner == "parent-xr" {
+							return []*un.Unstructured{mismatchedResource}, nil
+						}
+						return []*un.Unstructured{}, nil
+					}).
 					Build()
 			},
 			composite: parentXR,
@@ -232,8 +237,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 			wantErr:        false,
 		},
 		"ErrorLookingUpResources": {
-			setupClient: func() *tu.MockClusterClient {
-				return tu.NewMockClusterClient().
+			setupResourceClient: func() *tu.MockResourceClient {
+				return tu.NewMockResourceClient().
 					WithResourceNotFound().
 					WithGetResourcesByLabel(func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*un.Unstructured, error) {
 						return nil, errors.New("error looking up resources")
@@ -258,7 +263,8 @@ func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Create the resource manager
-			rm := NewResourceManager(tt.setupClient(), tu.TestLogger(t, true))
+			resourceClient := tt.setupResourceClient()
+			rm := NewResourceManager(resourceClient, tu.TestLogger(t, false))
 
 			// Call the method under test
 			current, isNew, err := rm.FetchCurrentObject(ctx, tt.composite, tt.desired)
@@ -428,7 +434,7 @@ func TestDefaultResourceManager_UpdateOwnerRefs(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			// Create the resource manager
-			rm := NewResourceManager(tu.NewMockClusterClient().Build(), tu.TestLogger(t, false))
+			rm := NewResourceManager(tu.NewMockResourceClient().Build(), tu.TestLogger(t, false))
 
 			// Need to create a copy of the child to avoid modifying test data
 			child := tt.child.DeepCopy()

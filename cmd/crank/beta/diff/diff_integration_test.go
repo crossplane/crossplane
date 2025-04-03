@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/alecthomas/kong"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"io"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -812,42 +813,40 @@ Summary: 2 modified`,
 				return fmt.Fprintf(&stdout, format, a...)
 			}
 
-			// Set up the diff command
-			cmd := &Cmd{
-				Namespace: "default",
-				Files:     testFiles,
-				Timeout:   timeout,
-				NoColor:   tt.noColor,
+			// Create command line args that match your pre-populated struct
+			args := []string{
+				"--namespace=default",
+				fmt.Sprintf("--timeout=%s", timeout.String()),
 			}
 
+			// Add no-color flag if true
+			if tt.noColor {
+				args = append(args, "--no-color")
+			}
+
+			// Add files as positional arguments
+			args = append(args, testFiles...)
+
+			// Set up the diff command
+			cmd := &Cmd{}
+
+			logger := tu.TestLogger(t, true)
 			// Create a Kong context with stdout
-			parser, err := kong.New(&struct{}{}, kong.Writers(&stdout, &stdout))
+			parser, err := kong.New(cmd,
+				kong.Writers(&stdout, &stdout),
+				kong.Bind(cfg),
+				kong.BindTo(logger, (*logging.Logger)(nil)),
+			)
 			if err != nil {
 				t.Fatalf("failed to create kong parser: %v", err)
 			}
-			kongCtx, err := parser.Parse([]string{})
+
+			kongCtx, err := parser.Parse(args)
 			if err != nil {
 				t.Fatalf("failed to parse kong context: %v", err)
 			}
 
-			logger := tu.TestLogger(t, true)
-			cclient, err := getDefaultClusterClient(cmd, cfg, logger)
-			if err != nil {
-				t.Fatalf("failed to create cluster client: %v", err)
-			}
-
-			proc, err := getDefaultProc(cmd, cfg, logger, cclient)
-			if err != nil {
-				t.Fatalf("failed to create diff processor: %v", err)
-			}
-
-			load, err := getDefaultLoader(cmd)
-			if err != nil {
-				t.Fatalf("failed to create loader: %v", err)
-			}
-
-			// Run the diff command with the test environment's config
-			err = cmd.Run(kongCtx, logger, cclient, proc, load)
+			err = kongCtx.Run(cfg)
 
 			if tt.expectedError && err == nil {
 				t.Fatal("expected error but got none")
