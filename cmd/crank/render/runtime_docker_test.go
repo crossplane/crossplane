@@ -61,9 +61,10 @@ func TestGetRuntimeDocker(t *testing.T) {
 				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							AnnotationKeyRuntimeDockerCleanup:    string(AnnotationValueRuntimeDockerCleanupOrphan),
-							AnnotationKeyRuntimeDockerPullPolicy: string(AnnotationValueRuntimeDockerPullPolicyAlways),
-							AnnotationKeyRuntimeDockerImage:      "test-image-from-annotation",
+							AnnotationKeyRuntimeDockerCleanup:        string(AnnotationValueRuntimeDockerCleanupOrphan),
+							AnnotationKeyRuntimeDockerPullPolicy:     string(AnnotationValueRuntimeDockerPullPolicyAlways),
+							AnnotationKeyRuntimeDockerImage:          "test-image-from-annotation",
+							AnnotationKeyRuntimeEnvironmentVariables: "KCL_DEFAULT_REGISTRY=registry.example.com,ANOTHER_ENV_VAR=another-value",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -78,6 +79,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 					Image:      "test-image-from-annotation",
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyAlways,
+					Env:        []string{"KCL_DEFAULT_REGISTRY=registry.example.com", "ANOTHER_ENV_VAR=another-value"},
 				},
 			},
 		},
@@ -87,9 +89,10 @@ func TestGetRuntimeDocker(t *testing.T) {
 				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							AnnotationKeyRuntimeDockerCleanup:  string(AnnotationValueRuntimeDockerCleanupOrphan),
-							AnnotationKeyRuntimeNamedContainer: "test-container-name-function",
-							AnnotationKeyRuntimeDockerImage:    "test-image-from-annotation",
+							AnnotationKeyRuntimeDockerCleanup:        string(AnnotationValueRuntimeDockerCleanupOrphan),
+							AnnotationKeyRuntimeNamedContainer:       "test-container-name-function",
+							AnnotationKeyRuntimeDockerImage:          "test-image-from-annotation",
+							AnnotationKeyRuntimeEnvironmentVariables: "SKIPPED_KEYvalue,KCL_DEFAULT_REGISTRY=registry.example.com",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -105,6 +108,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 					Cleanup:    AnnotationValueRuntimeDockerCleanupOrphan,
 					Name:       "test-container-name-function",
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Env:        []string{"KCL_DEFAULT_REGISTRY=registry.example.com"},
 				},
 			},
 		},
@@ -176,7 +180,8 @@ func TestGetRuntimeDocker(t *testing.T) {
 				fn: pkgv1.Function{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{
-							AnnotationKeyRuntimeDockerCleanup: string(AnnotationValueRuntimeDockerCleanupStop),
+							AnnotationKeyRuntimeDockerCleanup:        string(AnnotationValueRuntimeDockerCleanupStop),
+							AnnotationKeyRuntimeEnvironmentVariables: "SKIPPED_KEYvalue",
 						},
 					},
 					Spec: pkgv1.FunctionSpec{
@@ -191,6 +196,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 					Image:      "test-package",
 					Cleanup:    AnnotationValueRuntimeDockerCleanupStop,
 					PullPolicy: AnnotationValueRuntimeDockerPullPolicyIfNotPresent,
+					Env:        nil,
 				},
 			},
 		},
