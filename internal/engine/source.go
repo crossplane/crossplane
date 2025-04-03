@@ -32,27 +32,39 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-var _ source.Source = &StoppableSource{}
+var (
+	_ source.Source = &stoppableSource{}
+	_ source.Source = &stoppableRawSource{}
+)
 
-// NewStoppableSource returns a new watch source that can be stopped.
-func NewStoppableSource(infs cache.Informers, t client.Object, h handler.EventHandler, ps ...predicate.Predicate) *StoppableSource {
-	return &StoppableSource{infs: infs, Type: t, handler: h, predicates: ps}
+// StoppableSource is a source that can be stopped.
+type StoppableSource interface {
+	source.Source
+	Stop(ctx context.Context) error
 }
 
-// A StoppableSource is a controller-runtime watch source that can be stopped.
-type StoppableSource struct {
-	infs cache.Informers
+// NewStoppableSource returns a new watch source that can be stopped.
+func NewStoppableSource(infs cache.Informers, t client.Object, h handler.EventHandler, ps ...predicate.Predicate) StoppableSource {
+	return &stoppableSource{infs: infs, Type: t, handler: h, predicates: ps}
+}
 
+// NewStoppableRawSource returns a new raw watch source that can be stopped.
+func NewStoppableRawSource(s source.Source) StoppableSource {
+	return &stoppableRawSource{rawSource: s}
+}
+
+// A stoppableSource is a controller-runtime watch source that can be stopped.
+type stoppableSource struct {
 	Type       client.Object
+	infs       cache.Informers
 	handler    handler.EventHandler
 	predicates []predicate.Predicate
-
-	reg kcache.ResourceEventHandlerRegistration
+	reg        kcache.ResourceEventHandlerRegistration
 }
 
 // Start is internal and should be called only by the Controller to register
 // an EventHandler with the Informer to enqueue reconcile.Requests.
-func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
+func (s *stoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
 	i, err := s.infs.GetInformer(ctx, s.Type, cache.BlockUntilSynced(true))
 	if err != nil {
 		return errors.Wrapf(err, "cannot get informer for %T", s.Type)
@@ -69,7 +81,7 @@ func (s *StoppableSource) Start(ctx context.Context, q workqueue.TypedRateLimiti
 
 // Stop removes the EventHandler from the source's Informer. The Informer will
 // stop sending events to the source.
-func (s *StoppableSource) Stop(ctx context.Context) error {
+func (s *stoppableSource) Stop(ctx context.Context) error {
 	if s.reg == nil {
 		return nil
 	}
@@ -84,6 +96,28 @@ func (s *StoppableSource) Stop(ctx context.Context) error {
 	}
 
 	s.reg = nil
+	return nil
+}
+
+type stoppableRawSource struct {
+	rawSource source.Source
+	cancel    context.CancelFunc
+}
+
+// Start is internal and should be called only by the Controller to register
+// an EventHandler with the Informer to enqueue reconcile.Requests.
+func (s *stoppableRawSource) Start(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
+	ctx, cancel := context.WithCancel(ctx)
+	s.cancel = cancel
+	return s.rawSource.Start(ctx, q)
+}
+
+// Stop removes the EventHandler from the source's Informer. The Informer will
+// stop sending events to the source.
+func (s *stoppableRawSource) Stop(_ context.Context) error {
+	if s.cancel != nil {
+		s.cancel()
+	}
 	return nil
 }
 
