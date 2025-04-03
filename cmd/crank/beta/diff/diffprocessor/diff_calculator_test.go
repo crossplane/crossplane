@@ -2,12 +2,13 @@ package diffprocessor
 
 import (
 	"context"
+	"strings"
+	"testing"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strings"
-	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"

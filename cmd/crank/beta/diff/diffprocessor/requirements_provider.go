@@ -93,7 +93,7 @@ func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirem
 	// Process each step's requirements
 	for stepName := range requirements {
 		// Process resource selectors directly using the map key
-		for resourceKey, selector := range requirements[stepName].ExtraResources { //nolint if we switch to calling the method, we copy the internal mutex
+		for resourceKey, selector := range requirements[stepName].ExtraResources { //nolint:protogetter // if we switch to calling the method, we copy the internal mutex
 			if selector == nil {
 				p.logger.Debug("Nil selector in requirements",
 					"step", stepName,

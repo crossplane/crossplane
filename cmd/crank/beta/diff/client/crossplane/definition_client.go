@@ -4,10 +4,11 @@ import (
 	"context"
 	"sync"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
