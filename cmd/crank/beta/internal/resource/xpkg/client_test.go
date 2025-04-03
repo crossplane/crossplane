@@ -2,9 +2,12 @@ package xpkg
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"strings"
 	"testing"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -21,6 +24,7 @@ import (
 
 	xpkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 // TODO add more cases, fake client

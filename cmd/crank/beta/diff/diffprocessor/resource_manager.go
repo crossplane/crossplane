@@ -3,16 +3,19 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
-	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/uuid"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 )
 
 // ResourceManager handles resource-related operations like fetching, updating owner refs,
@@ -25,13 +28,13 @@ type ResourceManager interface {
 	UpdateOwnerRefs(parent *un.Unstructured, child *un.Unstructured)
 }
 
-// DefaultResourceManager implements ResourceManager interface
+// DefaultResourceManager implements ResourceManager interface.
 type DefaultResourceManager struct {
 	client k8.ResourceClient
 	logger logging.Logger
 }
 
-// NewResourceManager creates a new DefaultResourceManager
+// NewResourceManager creates a new DefaultResourceManager.
 func NewResourceManager(client k8.ResourceClient, logger logging.Logger) ResourceManager {
 	return &DefaultResourceManager{
 		client: client,
@@ -40,7 +43,7 @@ func NewResourceManager(client k8.ResourceClient, logger logging.Logger) Resourc
 }
 
 // FetchCurrentObject retrieves the current state of the object from the cluster
-// It returns the current object, a boolean indicating if it's a new object, and any error
+// It returns the current object, a boolean indicating if it's a new object, and any error.
 func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*un.Unstructured, bool, error) {
 	// Get the GroupVersionKind and name/namespace for lookup
 	gvk := desired.GroupVersionKind()
@@ -108,7 +111,7 @@ func (m *DefaultResourceManager) FetchCurrentObject(ctx context.Context, composi
 	return nil, true, nil
 }
 
-// createResourceID generates a resource ID string for logging purposes
+// createResourceID generates a resource ID string for logging purposes.
 func (m *DefaultResourceManager) createResourceID(gvk schema.GroupVersionKind, namespace, name, generateName string) string {
 	// Handle case with a proper name
 	if name != "" {
@@ -130,7 +133,7 @@ func (m *DefaultResourceManager) createResourceID(gvk schema.GroupVersionKind, n
 	return fmt.Sprintf("%s/<no-name>", gvk.String())
 }
 
-// checkCompositeOwnership logs a warning if the resource is owned by a different composite
+// checkCompositeOwnership logs a warning if the resource is owned by a different composite.
 func (m *DefaultResourceManager) checkCompositeOwnership(current *un.Unstructured, composite *un.Unstructured) {
 	if composite == nil {
 		return
@@ -150,7 +153,7 @@ func (m *DefaultResourceManager) checkCompositeOwnership(current *un.Unstructure
 	}
 }
 
-// lookupByComposite attempts to find a resource by looking at composite ownership and composition resource name
+// lookupByComposite attempts to find a resource by looking at composite ownership and composition resource name.
 func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*un.Unstructured, bool, error) {
 	// Derive parameters from the provided arguments
 	gvk := desired.GroupVersionKind()
@@ -212,7 +215,7 @@ func (m *DefaultResourceManager) lookupByComposite(ctx context.Context, composit
 	return m.findMatchingResource(resources, compResourceName, generateName)
 }
 
-// getCompositionResourceName extracts the composition resource name from annotations
+// getCompositionResourceName extracts the composition resource name from annotations.
 func (m *DefaultResourceManager) getCompositionResourceName(annotations map[string]string) string {
 	// First check standard annotation
 	if value, exists := annotations["crossplane.io/composition-resource-name"]; exists {
@@ -229,7 +232,7 @@ func (m *DefaultResourceManager) getCompositionResourceName(annotations map[stri
 	return ""
 }
 
-// findMatchingResource looks through resources to find one matching the composition resource name
+// findMatchingResource looks through resources to find one matching the composition resource name.
 func (m *DefaultResourceManager) findMatchingResource(
 	resources []*un.Unstructured,
 	compResourceName string,
@@ -269,7 +272,7 @@ func (m *DefaultResourceManager) findMatchingResource(
 	return nil, false, nil
 }
 
-// hasMatchingResourceName checks if annotations have a matching composition-resource-name
+// hasMatchingResourceName checks if annotations have a matching composition-resource-name.
 func (m *DefaultResourceManager) hasMatchingResourceName(annotations map[string]string, compResourceName string) bool {
 	// Check standard annotation
 	if value, exists := annotations["crossplane.io/composition-resource-name"]; exists && value == compResourceName {
@@ -286,7 +289,7 @@ func (m *DefaultResourceManager) hasMatchingResourceName(annotations map[string]
 	return false
 }
 
-// UpdateOwnerRefs ensures all OwnerReferences have valid UIDs
+// UpdateOwnerRefs ensures all OwnerReferences have valid UIDs.
 func (m *DefaultResourceManager) UpdateOwnerRefs(parent *un.Unstructured, child *un.Unstructured) {
 	// if there's no parent, we are the parent.
 	if parent == nil {
@@ -348,7 +351,7 @@ func (m *DefaultResourceManager) UpdateOwnerRefs(parent *un.Unstructured, child 
 		"newCount", len(updatedRefs))
 }
 
-// updateCompositeOwnerLabel updates the crossplane.io/composite label on the child
+// updateCompositeOwnerLabel updates the crossplane.io/composite label on the child.
 func (m *DefaultResourceManager) updateCompositeOwnerLabel(parent, child *un.Unstructured) {
 	if parent == nil {
 		return

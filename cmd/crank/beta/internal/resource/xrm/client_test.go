@@ -17,9 +17,12 @@ limitations under the License.
 package xrm
 
 import (
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"strings"
 	"testing"
+
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -30,6 +33,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
+
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 type xrcOpt func(c *claim.Unstructured)

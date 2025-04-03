@@ -17,15 +17,20 @@ limitations under the License.
 package validate
 
 import (
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 )
 
 // Cache defines an interface for caching schemas.

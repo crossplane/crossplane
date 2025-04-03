@@ -1,21 +1,22 @@
-// package crossplane/composition_client.go
-
 package crossplane
 
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
+
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 )
 
-// CompositionClient handles operations related to Compositions
+// CompositionClient handles operations related to Compositions.
 type CompositionClient interface {
 	core.Initializable
 
@@ -29,7 +30,7 @@ type CompositionClient interface {
 	GetComposition(ctx context.Context, name string) (*apiextensionsv1.Composition, error)
 }
 
-// DefaultCompositionClient implements CompositionClient
+// DefaultCompositionClient implements CompositionClient.
 type DefaultCompositionClient struct {
 	resourceClient kubernetes.ResourceClient
 	logger         logging.Logger
@@ -38,7 +39,7 @@ type DefaultCompositionClient struct {
 	compositions map[string]*apiextensionsv1.Composition
 }
 
-// NewCompositionClient creates a new DefaultCompositionClient
+// NewCompositionClient creates a new DefaultCompositionClient.
 func NewCompositionClient(resourceClient kubernetes.ResourceClient, logger logging.Logger) CompositionClient {
 	return &DefaultCompositionClient{
 		resourceClient: resourceClient,
@@ -47,7 +48,7 @@ func NewCompositionClient(resourceClient kubernetes.ResourceClient, logger loggi
 	}
 }
 
-// Initialize loads compositions into the cache
+// Initialize loads compositions into the cache.
 func (c *DefaultCompositionClient) Initialize(ctx context.Context) error {
 	c.logger.Debug("Initializing composition client")
 
@@ -66,7 +67,7 @@ func (c *DefaultCompositionClient) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// ListCompositions lists all compositions in the cluster
+// ListCompositions lists all compositions in the cluster.
 func (c *DefaultCompositionClient) ListCompositions(ctx context.Context) ([]*apiextensionsv1.Composition, error) {
 	c.logger.Debug("Listing compositions from cluster")
 
@@ -101,7 +102,7 @@ func (c *DefaultCompositionClient) ListCompositions(ctx context.Context) ([]*api
 	return compositions, nil
 }
 
-// GetComposition gets a composition by name
+// GetComposition gets a composition by name.
 func (c *DefaultCompositionClient) GetComposition(ctx context.Context, name string) (*apiextensionsv1.Composition, error) {
 	// Check cache first
 	if comp, ok := c.compositions[name]; ok {
@@ -132,7 +133,7 @@ func (c *DefaultCompositionClient) GetComposition(ctx context.Context, name stri
 	return comp, nil
 }
 
-// FindMatchingComposition finds a composition matching the given resource
+// FindMatchingComposition finds a composition matching the given resource.
 func (c *DefaultCompositionClient) FindMatchingComposition(ctx context.Context, res *un.Unstructured) (*apiextensionsv1.Composition, error) {
 	gvk := res.GroupVersionKind()
 	resourceID := fmt.Sprintf("%s/%s", gvk.String(), res.GetName())
@@ -162,10 +163,139 @@ func (c *DefaultCompositionClient) FindMatchingComposition(ctx context.Context, 
 		targetGVK = gvk
 	}
 
-	// Case
-	// Continuing the FindMatchingComposition method...
-
 	// Case 1: Check for direct composition reference in spec.compositionRef.name
+	comp, err := c.findByDirectReference(ctx, res, targetGVK, resourceID)
+	if err != nil || comp != nil {
+		return comp, err
+	}
+
+	// Case 2: Check for selector-based composition reference
+	comp, err = c.findByLabelSelector(ctx, res, targetGVK, resourceID)
+	if err != nil || comp != nil {
+		return comp, err
+	}
+
+	// Case 3: Look up by composite type reference (default behavior)
+	return c.findByTypeReference(ctx, targetGVK, resourceID)
+}
+
+// findClaimXRD checks if the given GVK is a claim type and returns the corresponding XRD if found.
+func (c *DefaultCompositionClient) findClaimXRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
+	c.logger.Debug("Checking if resource is a claim type",
+		"gvk", gvk.String())
+
+	// Define XRD GVK
+	xrdGVK := schema.GroupVersionKind{
+		Group:   "apiextensions.crossplane.io",
+		Version: "v1",
+		Kind:    "CompositeResourceDefinition",
+	}
+
+	// List all XRDs
+	xrds, err := c.resourceClient.ListResources(ctx, xrdGVK, "")
+	if err != nil {
+		c.logger.Debug("Error getting XRDs",
+			"error", err)
+		return nil, errors.Wrap(err, "cannot get XRDs")
+	}
+
+	// Loop through XRDs to find one that defines this GVK as a claim
+	for _, xrd := range xrds {
+		claimGroup, found, _ := un.NestedString(xrd.Object, "spec", "group")
+
+		// Skip if group doesn't match
+		if !found || claimGroup != gvk.Group {
+			continue
+		}
+
+		// Check claim kind
+		claimNames, found, _ := un.NestedMap(xrd.Object, "spec", "claimNames")
+		if !found || claimNames == nil {
+			continue
+		}
+
+		claimKind, found, _ := un.NestedString(claimNames, "kind")
+		if !found || claimKind != gvk.Kind {
+			continue
+		}
+
+		c.logger.Debug("Found matching XRD for claim type",
+			"gvk", gvk.String(),
+			"xrd", xrd.GetName())
+
+		return xrd, nil
+	}
+
+	// No matching XRD found - not a claim type
+	return nil, nil
+}
+
+// getXRTypeFromXRD extracts the XR GroupVersionKind from an XRD.
+func (c *DefaultCompositionClient) getXRTypeFromXRD(xrdForClaim *un.Unstructured, resourceID string) (schema.GroupVersionKind, error) {
+	// Get the XR type from the XRD
+	xrGroup, found, _ := un.NestedString(xrdForClaim.Object, "spec", "group")
+	xrKind, kindFound, _ := un.NestedString(xrdForClaim.Object, "spec", "names", "kind")
+
+	if !found || !kindFound {
+		return schema.GroupVersionKind{}, errors.New("could not determine group or kind from XRD")
+	}
+
+	// Find the referenceable version - there should be exactly one
+	xrVersion := ""
+	versions, versionsFound, _ := un.NestedSlice(xrdForClaim.Object, "spec", "versions")
+	if versionsFound && len(versions) > 0 {
+		// Look for the one version that is marked referenceable
+		for _, versionObj := range versions {
+			if version, ok := versionObj.(map[string]interface{}); ok {
+				ref, refFound, _ := un.NestedBool(version, "referenceable")
+				if refFound && ref {
+					name, nameFound, _ := un.NestedString(version, "name")
+					if nameFound {
+						xrVersion = name
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// If no referenceable version found, we shouldn't guess
+	if xrVersion == "" {
+		return schema.GroupVersionKind{}, errors.New("no referenceable version found in XRD")
+	}
+
+	targetGVK := schema.GroupVersionKind{
+		Group:   xrGroup,
+		Version: xrVersion,
+		Kind:    xrKind,
+	}
+
+	c.logger.Debug("Claim resource detected - targeting XR type for composition matching",
+		"claim", resourceID,
+		"targetXR", targetGVK.String())
+
+	return targetGVK, nil
+}
+
+// isCompositionCompatible checks if a composition is compatible with a GVK.
+func (c *DefaultCompositionClient) isCompositionCompatible(comp *apiextensionsv1.Composition, xrGVK schema.GroupVersionKind) bool {
+	return comp.Spec.CompositeTypeRef.APIVersion == xrGVK.GroupVersion().String() &&
+		comp.Spec.CompositeTypeRef.Kind == xrGVK.Kind
+}
+
+// labelsMatch checks if a resource's labels match a selector.
+func (c *DefaultCompositionClient) labelsMatch(labels, selector map[string]string) bool {
+	// A resource matches a selector if all the selector's labels exist in the resource's labels
+	for k, v := range selector {
+		if labels[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// findByDirectReference attempts to find a composition directly referenced by name.
+func (c *DefaultCompositionClient) findByDirectReference(ctx context.Context, res *un.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
 	compositionRefName, compositionRefFound, err := un.NestedString(res.Object, "spec", "compositionRef", "name")
 	if err == nil && compositionRefFound && compositionRefName != "" {
 		c.logger.Debug("Found direct composition reference",
@@ -191,7 +321,11 @@ func (c *DefaultCompositionClient) FindMatchingComposition(ctx context.Context, 
 		return comp, nil
 	}
 
-	// Case 2: Check for selector-based composition reference
+	return nil, nil // No direct reference found
+}
+
+// findByLabelSelector attempts to find compositions that match label selectors.
+func (c *DefaultCompositionClient) findByLabelSelector(ctx context.Context, res *un.Unstructured, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
 	matchLabels, selectorFound, err := un.NestedMap(res.Object, "spec", "compositionSelector", "matchLabels")
 	if err == nil && selectorFound && len(matchLabels) > 0 {
 		c.logger.Debug("Found composition selector",
@@ -247,15 +381,20 @@ func (c *DefaultCompositionClient) FindMatchingComposition(ctx context.Context, 
 		}
 	}
 
-	// Case 3: Look up by composite type reference (default behavior)
-	var compatibleCompositions []*apiextensionsv1.Composition
+	return nil, nil // No label selector found or no matches
+}
 
+// findByTypeReference attempts to find a composition by matching the type reference.
+func (c *DefaultCompositionClient) findByTypeReference(ctx context.Context, targetGVK schema.GroupVersionKind, resourceID string) (*apiextensionsv1.Composition, error) {
 	// Get all compositions if we haven't loaded them yet
 	if len(c.compositions) == 0 {
 		if _, err := c.ListCompositions(ctx); err != nil {
 			return nil, errors.Wrap(err, "cannot list compositions to match type")
 		}
 	}
+
+	// Find all compositions that match this target type
+	var compatibleCompositions []*apiextensionsv1.Composition
 
 	for _, comp := range c.compositions {
 		if c.isCompositionCompatible(comp, targetGVK) {
@@ -284,119 +423,4 @@ func (c *DefaultCompositionClient) FindMatchingComposition(ctx context.Context, 
 		"resource_name", resourceID,
 		"composition_name", compatibleCompositions[0].GetName())
 	return compatibleCompositions[0], nil
-}
-
-// findClaimXRD checks if the given GVK is a claim type and returns the corresponding XRD if found
-func (c *DefaultCompositionClient) findClaimXRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
-	c.logger.Debug("Checking if resource is a claim type",
-		"gvk", gvk.String())
-
-	// Define XRD GVK
-	xrdGVK := schema.GroupVersionKind{
-		Group:   "apiextensions.crossplane.io",
-		Version: "v1",
-		Kind:    "CompositeResourceDefinition",
-	}
-
-	// List all XRDs
-	xrds, err := c.resourceClient.ListResources(ctx, xrdGVK, "")
-	if err != nil {
-		c.logger.Debug("Error getting XRDs",
-			"error", err)
-		return nil, errors.Wrap(err, "cannot get XRDs")
-	}
-
-	// Loop through XRDs to find one that defines this GVK as a claim
-	for _, xrd := range xrds {
-		claimGroup, found, _ := un.NestedString(xrd.Object, "spec", "group")
-
-		// Skip if group doesn't match
-		if !found || claimGroup != gvk.Group {
-			continue
-		}
-
-		// Check claim kind
-		claimNames, found, _ := un.NestedMap(xrd.Object, "spec", "claimNames")
-		if !found || claimNames == nil {
-			continue
-		}
-
-		claimKind, found, _ := un.NestedString(claimNames, "kind")
-		if !found || claimKind != gvk.Kind {
-			continue
-		}
-
-		c.logger.Debug("Found matching XRD for claim type",
-			"gvk", gvk.String(),
-			"xrd", xrd.GetName())
-
-		return xrd, nil
-	}
-
-	// No matching XRD found - not a claim type
-	return nil, nil
-}
-
-// getXRTypeFromXRD extracts the XR GroupVersionKind from an XRD
-func (c *DefaultCompositionClient) getXRTypeFromXRD(xrdForClaim *un.Unstructured, resourceID string) (schema.GroupVersionKind, error) {
-	// Get the XR type from the XRD
-	xrGroup, found, _ := un.NestedString(xrdForClaim.Object, "spec", "group")
-	xrKind, kindFound, _ := un.NestedString(xrdForClaim.Object, "spec", "names", "kind")
-
-	if !found || !kindFound {
-		return schema.GroupVersionKind{}, errors.New("could not determine group or kind from XRD")
-	}
-
-	// Find the referenceable version - there should be exactly one
-	xrVersion := ""
-	versions, versionsFound, _ := un.NestedSlice(xrdForClaim.Object, "spec", "versions")
-	if versionsFound && len(versions) > 0 {
-		// Look for the one version that is marked referenceable
-		for _, versionObj := range versions {
-			if version, ok := versionObj.(map[string]interface{}); ok {
-				ref, refFound, _ := un.NestedBool(version, "referenceable")
-				if refFound && ref {
-					name, nameFound, _ := un.NestedString(version, "name")
-					if nameFound {
-						xrVersion = name
-						break
-					}
-				}
-			}
-		}
-	}
-
-	// If no referenceable version found, we shouldn't guess
-	if xrVersion == "" {
-		return schema.GroupVersionKind{}, errors.New("no referenceable version found in XRD")
-	}
-
-	targetGVK := schema.GroupVersionKind{
-		Group:   xrGroup,
-		Version: xrVersion,
-		Kind:    xrKind,
-	}
-
-	c.logger.Debug("Claim resource detected - targeting XR type for composition matching",
-		"claim", resourceID,
-		"targetXR", targetGVK.String())
-
-	return targetGVK, nil
-}
-
-// isCompositionCompatible checks if a composition is compatible with a GVK
-func (c *DefaultCompositionClient) isCompositionCompatible(comp *apiextensionsv1.Composition, xrGVK schema.GroupVersionKind) bool {
-	return comp.Spec.CompositeTypeRef.APIVersion == xrGVK.GroupVersion().String() &&
-		comp.Spec.CompositeTypeRef.Kind == xrGVK.Kind
-}
-
-// labelsMatch checks if a resource's labels match a selector
-func (c *DefaultCompositionClient) labelsMatch(labels, selector map[string]string) bool {
-	// A resource matches a selector if all the selector's labels exist in the resource's labels
-	for k, v := range selector {
-		if labels[k] != v {
-			return false
-		}
-	}
-	return true
 }

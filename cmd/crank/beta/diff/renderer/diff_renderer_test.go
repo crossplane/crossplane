@@ -2,12 +2,9 @@ package renderer
 
 import (
 	"bytes"
-	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/sergi/go-diff/diffmatchpatch"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"strings"
 	"testing"
+
 )
 
 func TestDefaultDiffRenderer_RenderDiffs(t *testing.T) {

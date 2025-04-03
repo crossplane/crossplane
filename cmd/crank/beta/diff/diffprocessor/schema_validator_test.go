@@ -2,23 +2,27 @@ package diffprocessor
 
 import (
 	"context"
-	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
-	cc "github.com/crossplane/crossplane/cmd/crank/beta/diff/clusterclient"
 	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
-var _ cc.ClusterClient = (*tu.MockClusterClient)(nil)
+var _ SchemaValidator = (*tu.MockSchemaValidator)(nil)
 
 func TestDefaultSchemaValidator_ValidateResources(t *testing.T) {
 	ctx := context.Background()
@@ -381,7 +385,7 @@ func TestDefaultSchemaValidator_LoadCRDs(t *testing.T) {
 	}
 }
 
-// Helper function to create a simple CRD
+// Helper function to create a simple CRD.
 func makeCRD(name string, kind string, group string, version string) *extv1.CustomResourceDefinition {
 	return &extv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -422,7 +426,7 @@ func makeCRD(name string, kind string, group string, version string) *extv1.Cust
 	}
 }
 
-// Create a CRD with a string field validation
+// Create a CRD with a string field validation.
 func createCRDWithStringField(baseCRD *extv1.CustomResourceDefinition) *extv1.CustomResourceDefinition {
 	crd := baseCRD.DeepCopy()
 	// Ensure the schema requires 'field' to be a string
@@ -432,7 +436,7 @@ func createCRDWithStringField(baseCRD *extv1.CustomResourceDefinition) *extv1.Cu
 	return crd
 }
 
-// Helper function to convert to un
+// Helper function to convert to un.
 func MustToUnstructured(obj interface{}) map[string]interface{} {
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
 	if err != nil {
@@ -441,13 +445,13 @@ func MustToUnstructured(obj interface{}) map[string]interface{} {
 	return u
 }
 
-// Helper type to track GetXRDs calls
+// Helper type to track GetXRDs calls.
 type xrdCountingClient struct {
 	tu.MockDefinitionClient
 	getXRDsCallCount int
 }
 
-// Override GetXRDs to count calls
+// Override GetXRDs to count calls.
 func (c *xrdCountingClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
 	c.getXRDsCallCount++
 	return c.MockDefinitionClient.GetXRDs(ctx)

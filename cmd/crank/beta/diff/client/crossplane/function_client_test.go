@@ -2,21 +2,27 @@ package crossplane
 
 import (
 	"context"
+	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"strings"
+
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
-// Fix for the FunctionClient tests
+var _ FunctionClient = (*tu.MockFunctionClient)(nil)
+
+// Fix for the FunctionClient tests.
 func TestDefaultFunctionClient_GetFunctionsFromPipeline(t *testing.T) {
 	pipelineMode := apiextensionsv1.CompositionModePipeline
 	nonPipelineMode := apiextensionsv1.CompositionMode("NonPipeline")

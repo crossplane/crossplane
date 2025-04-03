@@ -4,31 +4,33 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"strings"
+	"testing"
+
+	gcmp "github.com/google/go-cmp/cmp"
+	"github.com/sergi/go-diff/diffmatchpatch"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
 	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
-	"github.com/sergi/go-diff/diffmatchpatch"
-	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strings"
-	"testing"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	gcmp "github.com/google/go-cmp/cmp"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// Ensure MockDiffProcessor implements the DiffProcessor interface
+// Ensure MockDiffProcessor implements the DiffProcessor interface.
 var _ DiffProcessor = &tu.MockDiffProcessor{}
 
 func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {

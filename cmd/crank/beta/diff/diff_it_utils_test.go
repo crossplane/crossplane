@@ -5,27 +5,32 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	gyaml "gopkg.in/yaml.v3"
 	"io"
+	"os"
+	"sort"
+
+	"io"
+	"os"
+	"sort"
+
+	gyaml "gopkg.in/yaml.v3"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"sort"
-
-	"k8s.io/utils/ptr"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // Testing data for integration tests
 
-// createTestCompositionWithExtraResources creates a test Composition with a function-extra-resources step
+// createTestCompositionWithExtraResources creates a test Composition with a function-extra-resources step.
 func createTestCompositionWithExtraResources() (*xpextv1.Composition, error) {
 	pipelineMode := xpextv1.CompositionModePipeline
 
@@ -112,7 +117,7 @@ func createTestCompositionWithExtraResources() (*xpextv1.Composition, error) {
 	}, nil
 }
 
-// createTestXRD creates a test XRD for the XR
+// createTestXRD creates a test XRD for the XR.
 func createTestXRD() *xpextv1.CompositeResourceDefinition {
 	return &xpextv1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -164,7 +169,7 @@ func createTestXRD() *xpextv1.CompositeResourceDefinition {
 	}
 }
 
-// createExtraResource creates a test extra resource
+// createExtraResource creates a test extra resource.
 func createExtraResource() *un.Unstructured {
 	return &un.Unstructured{
 		Object: map[string]interface{}{
@@ -183,7 +188,7 @@ func createExtraResource() *un.Unstructured {
 	}
 }
 
-// createExistingComposedResource creates an existing composed resource with different values
+// createExistingComposedResource creates an existing composed resource with different values.
 func createExistingComposedResource() *un.Unstructured {
 	return &un.Unstructured{
 		Object: map[string]interface{}{
@@ -217,7 +222,7 @@ func createExistingComposedResource() *un.Unstructured {
 	}
 }
 
-// createMatchingComposedResource creates a composed resource that matches what would be rendered
+// createMatchingComposedResource creates a composed resource that matches what would be rendered.
 func createMatchingComposedResource() *un.Unstructured {
 	return &un.Unstructured{
 		Object: map[string]interface{}{
@@ -251,16 +256,16 @@ func createMatchingComposedResource() *un.Unstructured {
 	}
 }
 
-// Define a var for fprintf to allow test overriding
+// Define a var for fprintf to allow test overriding.
 var fprintf = fmt.Fprintf
 
-// HierarchicalOwnershipRelation represents an ownership tree structure
+// HierarchicalOwnershipRelation represents an ownership tree structure.
 type HierarchicalOwnershipRelation struct {
 	OwnerFile  string                                    // The file containing the owner resource
 	OwnedFiles map[string]*HierarchicalOwnershipRelation // Map of owned file paths to their own relationships
 }
 
-// setOwnerReference adds an owner reference to the resource
+// setOwnerReference adds an owner reference to the resource.
 func setOwnerReference(resource, owner *un.Unstructured) {
 	// Create owner reference
 	ownerRef := metav1.OwnerReference{
@@ -276,7 +281,7 @@ func setOwnerReference(resource, owner *un.Unstructured) {
 	resource.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 }
 
-// addResourceRef adds a reference to the child resource in the parent's resourceRefs array
+// addResourceRef adds a reference to the child resource in the parent's resourceRefs array.
 func addResourceRef(parent, child *un.Unstructured) error {
 	// Create the resource reference
 	ref := map[string]interface{}{
@@ -306,7 +311,7 @@ func addResourceRef(parent, child *un.Unstructured) error {
 }
 
 // applyResourcesFromFiles loads and applies resources from YAML files
-// Under the assumption that no resource should already exist
+// Under the assumption that no resource should already exist.
 func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []string) error {
 	// Collect all resources from all files first
 	var allResources []*un.Unstructured
@@ -322,7 +327,7 @@ func applyResourcesFromFiles(ctx context.Context, c client.Client, paths []strin
 	return createResources(ctx, c, allResources)
 }
 
-// readResourcesFromFile reads YAML resources from a file
+// readResourcesFromFile reads YAML resources from a file.
 func readResourcesFromFile(path string) ([]*un.Unstructured, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -355,7 +360,7 @@ func readResourcesFromFile(path string) ([]*un.Unstructured, error) {
 }
 
 // createResources creates all resources in the cluster
-// Assumes resources don't already exist - fails if they do
+// Assumes resources don't already exist - fails if they do.
 func createResources(ctx context.Context, c client.Client, resources []*un.Unstructured) error {
 	for _, resource := range resources {
 		if err := c.Create(ctx, resource.DeepCopy()); err != nil {
@@ -370,7 +375,7 @@ func createResources(ctx context.Context, c client.Client, resources []*un.Unstr
 	return nil
 }
 
-// applyHierarchicalOwnership applies a hierarchical ownership structure
+// applyHierarchicalOwnership applies a hierarchical ownership structure.
 func applyHierarchicalOwnership(ctx context.Context, _ logging.Logger, c client.Client, hierarchies []HierarchicalOwnershipRelation) error {
 	// Map to store created resources by file path
 	createdResources := make(map[string]*un.Unstructured)
@@ -388,7 +393,7 @@ func applyHierarchicalOwnership(ctx context.Context, _ logging.Logger, c client.
 	}
 
 	// Third pass: Log the final state of all resources for debugging
-	//if err := LogResourcesAsYAML(ctx, log, c, createdResources); err != nil {
+	// if err := LogResourcesAsYAML(ctx, log, c, createdResources); err != nil {
 	//	// Just log the error but don't fail the test
 	//	log.Info(fmt.Sprintf("Warning: Failed to log resources as YAML: %v\n", err))
 	//}
@@ -397,7 +402,7 @@ func applyHierarchicalOwnership(ctx context.Context, _ logging.Logger, c client.
 }
 
 // Unused but useful for debugging; leave it here.
-// LogResourcesAsYAML fetches the latest version of each resource and logs it as YAML
+// LogResourcesAsYAML fetches the latest version of each resource and logs it as YAML.
 func LogResourcesAsYAML(ctx context.Context, log logging.Logger, c client.Client, createdResources map[string]*un.Unstructured) error {
 	log.Info("\n===== FINAL STATE OF CREATED RESOURCES =====\n\n")
 
@@ -438,12 +443,12 @@ func LogResourcesAsYAML(ctx context.Context, log logging.Logger, c client.Client
 	return nil
 }
 
-// createAllResourcesInHierarchy creates all resources in a hierarchy and tracks relationships
+// createAllResourcesInHierarchy creates all resources in a hierarchy and tracks relationships.
 func createAllResourcesInHierarchy(ctx context.Context, c client.Client,
 	hierarchies []HierarchicalOwnershipRelation,
 	createdResources map[string]*un.Unstructured,
-	parentChildRelationships map[string]string) error {
-
+	parentChildRelationships map[string]string,
+) error {
 	for _, hierarchy := range hierarchies {
 		// Create the owner resource first
 		_, err := createResourceFromFile(ctx, c, hierarchy.OwnerFile, createdResources)
@@ -482,10 +487,10 @@ func createAllResourcesInHierarchy(ctx context.Context, c client.Client,
 	return nil
 }
 
-// createResourceFromFile creates a resource from a file without setting ownership
+// createResourceFromFile creates a resource from a file without setting ownership.
 func createResourceFromFile(ctx context.Context, c client.Client, path string,
-	createdResources map[string]*un.Unstructured) (*un.Unstructured, error) {
-
+	createdResources map[string]*un.Unstructured,
+) (*un.Unstructured, error) {
 	// Check if we've already processed this resource
 	if resource, exists := createdResources[path]; exists {
 		return resource, nil
@@ -540,11 +545,11 @@ func createResourceFromFile(ctx context.Context, c client.Client, path string,
 	return serverResource, nil
 }
 
-// applyAllRelationships applies all owner references and resource refs
+// applyAllRelationships applies all owner references and resource refs.
 func applyAllRelationships(ctx context.Context, c client.Client,
 	createdResources map[string]*un.Unstructured,
-	parentChildRelationships map[string]string) error {
-
+	parentChildRelationships map[string]string,
+) error {
 	// Process all parent-child relationships
 	for childFile, parentFile := range parentChildRelationships {
 		childResource := createdResources[childFile]
@@ -569,10 +574,10 @@ func applyAllRelationships(ctx context.Context, c client.Client,
 	return nil
 }
 
-// setOwnerReferenceAndUpdate sets the owner reference in the child and updates it
+// setOwnerReferenceAndUpdate sets the owner reference in the child and updates it.
 func setOwnerReferenceAndUpdate(ctx context.Context, c client.Client,
-	owner *un.Unstructured, child *un.Unstructured) error {
-
+	owner *un.Unstructured, child *un.Unstructured,
+) error {
 	// Get the latest version of the child
 	latestChild := &un.Unstructured{}
 	latestChild.SetGroupVersionKind(child.GroupVersionKind())
@@ -595,10 +600,10 @@ func setOwnerReferenceAndUpdate(ctx context.Context, c client.Client,
 	return nil
 }
 
-// addResourceRefAndUpdate adds a resource reference to the owner and updates it
+// addResourceRefAndUpdate adds a resource reference to the owner and updates it.
 func addResourceRefAndUpdate(ctx context.Context, c client.Client,
-	owner *un.Unstructured, owned *un.Unstructured) error {
-
+	owner *un.Unstructured, owned *un.Unstructured,
+) error {
 	// Get the latest version of the owner
 	latestOwner := &un.Unstructured{}
 	latestOwner.SetGroupVersionKind(owner.GroupVersionKind())

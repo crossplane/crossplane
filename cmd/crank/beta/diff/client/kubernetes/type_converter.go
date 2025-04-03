@@ -2,18 +2,22 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+	"sync"
+
+	"sync"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	"sync"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 )
 
-// TypeConverter provides conversion between Kubernetes types
+// TypeConverter provides conversion between Kubernetes types.
 type TypeConverter interface {
-
 	// GVKToGVR converts a GroupVersionKind to a GroupVersionResource
 	GVKToGVR(ctx context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error)
 
@@ -21,7 +25,7 @@ type TypeConverter interface {
 	GetResourceNameForGVK(ctx context.Context, gvk schema.GroupVersionKind) (string, error)
 }
 
-// DefaultTypeConverter implements TypeConverter
+// DefaultTypeConverter implements TypeConverter.
 type DefaultTypeConverter struct {
 	dynamicClient   dynamic.Interface
 	discoveryClient discovery.DiscoveryInterface
@@ -32,7 +36,7 @@ type DefaultTypeConverter struct {
 	gvkToGVRMutex sync.RWMutex
 }
 
-// NewTypeConverter creates a new DefaultTypeConverter
+// NewTypeConverter creates a new DefaultTypeConverter.
 func NewTypeConverter(clients *core.Clients, logger logging.Logger) TypeConverter {
 	return &DefaultTypeConverter{
 		dynamicClient:   clients.Dynamic,
@@ -42,7 +46,7 @@ func NewTypeConverter(clients *core.Clients, logger logging.Logger) TypeConverte
 	}
 }
 
-// GVKToGVR converts a GroupVersionKind to a GroupVersionResource
+// GVKToGVR converts a GroupVersionKind to a GroupVersionResource.
 func (c *DefaultTypeConverter) GVKToGVR(ctx context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 	// Use the cached mapping if we have it
 	c.gvkToGVRMutex.RLock()
@@ -74,7 +78,7 @@ func (c *DefaultTypeConverter) GVKToGVR(ctx context.Context, gvk schema.GroupVer
 	return gvr, nil
 }
 
-// GetResourceNameForGVK returns the resource name for a given GVK
+// GetResourceNameForGVK returns the resource name for a given GVK.
 func (c *DefaultTypeConverter) GetResourceNameForGVK(_ context.Context, gvk schema.GroupVersionKind) (string, error) {
 	// Get resources for the specified group version
 	resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())

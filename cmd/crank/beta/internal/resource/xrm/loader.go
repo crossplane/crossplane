@@ -18,11 +18,16 @@ package xrm
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"sort"
 	"sync"
 
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
 	v1 "k8s.io/api/core/v1"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 // defaultChannelCapacity is the buffer size of the processing channel, should be a high value

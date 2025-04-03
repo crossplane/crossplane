@@ -2,24 +2,31 @@ package crossplane
 
 import (
 	"context"
+	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"strings"
+
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
-const CrossplaneAPIExtGroup = "apiextensions.crossplane.io"
-const CrossplaneAPIExtGroupV1 = "apiextensions.crossplane.io/v1"
+var _ CompositionClient = (*tu.MockCompositionClient)(nil)
+
+const (
+	CrossplaneAPIExtGroup   = "apiextensions.crossplane.io"
+	CrossplaneAPIExtGroupV1 = "apiextensions.crossplane.io/v1"
+)
 
 func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
-
 	type fields struct {
 		compositions map[string]*apiextensionsv1.Composition
 	}
@@ -685,7 +692,6 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			// Create the CompositionClient
 			c := &DefaultCompositionClient{
 				resourceClient: &tt.mockResource,

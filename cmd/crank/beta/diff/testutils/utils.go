@@ -2,21 +2,28 @@
 package testutils
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	stdlog "log"
+	"regexp"
+	"strings"
+	"testing"
+
+	stdlog "log"
+	"regexp"
+	"strings"
+	"testing"
+
 	"github.com/go-logr/logr/testr"
 	"github.com/go-logr/stdr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	kt "k8s.io/client-go/testing"
-	stdlog "log"
-	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"strings"
-	"testing"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
-// Colors for terminal output
+// Colors for terminal output.
 const (
 	ColorRed   = "\x1b[31m"
 	ColorGreen = "\x1b[32m"
@@ -59,7 +66,7 @@ func Red(input string) string {
 	return strings.Join(coloredLines, "\n")
 }
 
-// CompareIgnoringAnsi compares two strings after stripping ANSI special characters
+// CompareIgnoringAnsi compares two strings after stripping ANSI special characters.
 func CompareIgnoringAnsi(expected, actual string) bool {
 	// Strip ANSI codes from both strings
 	ansiPattern := regexp.MustCompile("\x1b\\[[0-9;]*m")
@@ -70,7 +77,7 @@ func CompareIgnoringAnsi(expected, actual string) bool {
 	return expectedStripped == actualStripped
 }
 
-// SetupKubeTestLogger sets the global logger for use of the Kube environment to the T.Log of this test
+// SetupKubeTestLogger sets the global logger for use of the Kube environment to the T.Log of this test.
 func SetupKubeTestLogger(t *testing.T) {
 	t.Helper()
 
@@ -81,12 +88,12 @@ func SetupKubeTestLogger(t *testing.T) {
 	log.SetLogger(testLogger)
 }
 
-// testWriter adapts testing.T.Log to io.Writer
+// testWriter adapts testing.T.Log to io.Writer.
 type testWriter struct {
 	t *testing.T
 }
 
-// Write logs the provided argument as a string to the T.Log
+// Write logs the provided argument as a string to the T.Log.
 func (tw testWriter) Write(p []byte) (int, error) {
 	tw.t.Log(string(p))
 	return len(p), nil
@@ -101,7 +108,7 @@ func TestLogger(t *testing.T, verbose bool) logging.Logger {
 	return logging.NewLogrLogger(testr.NewWithOptions(t, testr.Options{Verbosity: verbosity}))
 }
 
-// CreateFakeDiscoveryClient is a helper function to create a fake discovery client for testing
+// CreateFakeDiscoveryClient is a helper function to create a fake discovery client for testing.
 func CreateFakeDiscoveryClient(resources map[string][]metav1.APIResource) discovery.DiscoveryInterface {
 	fakeDiscovery := &fakediscovery.FakeDiscovery{
 		Fake: &kt.Fake{},

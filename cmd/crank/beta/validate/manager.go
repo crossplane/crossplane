@@ -18,8 +18,10 @@ package validate
 
 import (
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"io"
+
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -31,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 )
 
 const (
@@ -89,7 +92,6 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer, opts ...Option) *Mana
 
 // PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
 func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocognit // the function itself is not that complex, it just has different cases
-
 	convertedCRDs, err := internal.ConvertToCRDs(extensions)
 	if err != nil {
 		return err
@@ -99,7 +101,6 @@ func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error 
 
 	for _, e := range extensions {
 		switch e.GroupVersionKind().GroupKind() {
-
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Provider"}:
 			paved := fieldpath.Pave(e.Object)
 			image, err := paved.GetString("spec.package")

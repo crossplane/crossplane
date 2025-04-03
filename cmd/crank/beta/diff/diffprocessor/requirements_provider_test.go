@@ -2,14 +2,17 @@ package diffprocessor
 
 import (
 	"context"
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
 func TestRequirementsProvider_ProvideRequirements(t *testing.T) {

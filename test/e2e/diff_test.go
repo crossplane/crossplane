@@ -30,9 +30,10 @@ import (
 	"time"
 	"unicode"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -139,14 +140,14 @@ func TestCrossplaneDiffCommand(t *testing.T) {
 	)
 }
 
-// Regular expressions to match the dynamic parts
+// Regular expressions to match the dynamic parts.
 var (
 	resourceNameRegex        = regexp.MustCompile(`(existing-resource)-[a-z0-9]{5,}`)
 	compositionRevisionRegex = regexp.MustCompile(`(xnopresources\.diff\.example\.org)-[a-z0-9]{7,}`)
 	ansiEscapeRegex          = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 )
 
-// NormalizeLine replaces dynamic parts with fixed placeholders
+// NormalizeLine replaces dynamic parts with fixed placeholders.
 func normalizeLine(line string) string {
 	// Remove ANSI escape sequences
 	line = ansiEscapeRegex.ReplaceAllString(line, "")
@@ -163,7 +164,7 @@ func normalizeLine(line string) string {
 	return line
 }
 
-// parseStringContent converts a string to raw and normalized lines
+// parseStringContent converts a string to raw and normalized lines.
 func parseStringContent(content string) ([]string, []string) {
 	var rawLines []string
 	var normalizedLines []string
@@ -178,7 +179,7 @@ func parseStringContent(content string) ([]string, []string) {
 	return rawLines, normalizedLines
 }
 
-// AssertDiffMatchesFile compares a diff output with an expected file, ignoring dynamic parts
+// AssertDiffMatchesFile compares a diff output with an expected file, ignoring dynamic parts.
 func assertDiffMatchesFile(t *testing.T, actual, expectedSource, log string) {
 	t.Helper()
 
@@ -216,9 +217,8 @@ func assertDiffMatchesFile(t *testing.T, actual, expectedSource, log string) {
 			continue
 		}
 		if expectedNormalized[i] != actualNormalized[i] {
-
 			// ignore white space at end of lines
-			//if strings.TrimRight(expectedNormalized[i], " ") == strings.TrimRight(actualNormalized[i], " ") {
+			// if strings.TrimRight(expectedNormalized[i], " ") == strings.TrimRight(actualNormalized[i], " ") {
 			//	continue
 			//}
 
@@ -251,7 +251,7 @@ func assertDiffMatchesFile(t *testing.T, actual, expectedSource, log string) {
 }
 
 // makeStringReadable converts a string to a form where all non-printable characters
-// (including ANSI escape codes) are converted to visible escape sequences
+// (including ANSI escape codes) are converted to visible escape sequences.
 func makeStringReadable(s string) string {
 	var result strings.Builder
 	for _, r := range s {

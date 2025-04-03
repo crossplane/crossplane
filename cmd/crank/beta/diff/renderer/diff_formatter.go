@@ -3,18 +3,23 @@ package renderer
 
 import (
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	t "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+	"strings"
+
+	"strings"
+
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	sigsyaml "sigs.k8s.io/yaml"
-	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	t "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 )
 
-// DiffOptions holds configuration options for the diff output
+// DiffOptions holds configuration options for the diff output.
 type DiffOptions struct {
 	// UseColors determines whether to colorize the output
 	UseColors bool
@@ -38,7 +43,7 @@ type DiffOptions struct {
 	Compact bool
 }
 
-// DefaultDiffOptions returns the default options with colors enabled
+// DefaultDiffOptions returns the default options with colors enabled.
 func DefaultDiffOptions() DiffOptions {
 	return DiffOptions{
 		UseColors:      true,
@@ -51,18 +56,18 @@ func DefaultDiffOptions() DiffOptions {
 	}
 }
 
-// DiffFormatter is the interface that defines the contract for diff formatters
+// DiffFormatter is the interface that defines the contract for diff formatters.
 type DiffFormatter interface {
 	Format(diffs []diffmatchpatch.Diff, options DiffOptions) string
 }
 
-// FullDiffFormatter formats diffs with all context lines
+// FullDiffFormatter formats diffs with all context lines.
 type FullDiffFormatter struct{}
 
-// CompactDiffFormatter formats diffs with limited context lines
+// CompactDiffFormatter formats diffs with limited context lines.
 type CompactDiffFormatter struct{}
 
-// NewFormatter returns a DiffFormatter based on whether compact mode is desired
+// NewFormatter returns a DiffFormatter based on whether compact mode is desired.
 func NewFormatter(compact bool) DiffFormatter {
 	if compact {
 		return &CompactDiffFormatter{}
@@ -70,14 +75,14 @@ func NewFormatter(compact bool) DiffFormatter {
 	return &FullDiffFormatter{}
 }
 
-// FormatDiff formats a slice of diffs according to the provided options
+// FormatDiff formats a slice of diffs according to the provided options.
 func FormatDiff(diffs []diffmatchpatch.Diff, options DiffOptions) string {
 	// Use the appropriate formatter
 	formatter := NewFormatter(options.Compact)
 	return formatter.Format(diffs, options)
 }
 
-// Format implements the DiffFormatter interface for FullDiffFormatter
+// Format implements the DiffFormatter interface for FullDiffFormatter.
 func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
 	var builder strings.Builder
 
@@ -92,7 +97,7 @@ func (f *FullDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOpti
 	return builder.String()
 }
 
-// Find change blocks (sequences of inserts/deletes)
+// Find change blocks (sequences of inserts/deletes).
 type changeBlock struct {
 	StartIdx int
 	EndIdx   int
@@ -104,7 +109,7 @@ type lineItem struct {
 	Formatted string
 }
 
-// Format implements the DiffFormatter interface for CompactDiffFormatter
+// Format implements the DiffFormatter interface for CompactDiffFormatter.
 func (f *CompactDiffFormatter) Format(diffs []diffmatchpatch.Diff, options DiffOptions) string {
 	// Create a flat array of all formatted lines with their diff types
 	var allLines []lineItem
@@ -218,7 +223,7 @@ func (f *CompactDiffFormatter) stringBlocksWithContext(changes []changeBlock, li
 	return builder.String()
 }
 
-// GetLineDiff performs a proper line-by-line diff and returns the raw diffs
+// GetLineDiff performs a proper line-by-line diff and returns the raw diffs.
 func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 	patch := diffmatchpatch.New()
 
@@ -231,7 +236,7 @@ func GetLineDiff(oldText, newText string) []diffmatchpatch.Diff {
 	return patch.DiffCharsToLines(diff, lines)
 }
 
-// GenerateDiffWithOptions produces a structured diff between two unstructured objects
+// GenerateDiffWithOptions produces a structured diff between two unstructured objects.
 func GenerateDiffWithOptions(current, desired *un.Unstructured, logger logging.Logger, _ DiffOptions) (*t.ResourceDiff, error) {
 	var diffType t.DiffType
 
@@ -372,7 +377,7 @@ func equalDiff(current *un.Unstructured, desired *un.Unstructured) *t.ResourceDi
 }
 
 // processLines extracts lines from a diff and processes them into a standardized format
-// Returns the processed lines and whether there was a trailing newline
+// Returns the processed lines and whether there was a trailing newline.
 func processLines(diff diffmatchpatch.Diff, options DiffOptions) ([]string, bool) {
 	lines := strings.Split(diff.Text, "\n")
 	hasTrailingNewline := strings.HasSuffix(diff.Text, "\n")
@@ -397,7 +402,7 @@ func processLines(diff diffmatchpatch.Diff, options DiffOptions) ([]string, bool
 	return result, hasTrailingNewline
 }
 
-// formatLine applies the appropriate prefix and color to a single line
+// formatLine applies the appropriate prefix and color to a single line.
 func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOptions) string {
 	var prefix string
 	var colorStart, colorEnd string
@@ -425,7 +430,7 @@ func formatLine(line string, diffType diffmatchpatch.Operation, options DiffOpti
 	return fmt.Sprintf("%s%s", prefix, line)
 }
 
-// cleanupForDiff removes fields that shouldn't be included in the diff
+// cleanupForDiff removes fields that shouldn't be included in the diff.
 func cleanupForDiff(obj *un.Unstructured, logger logging.Logger) *un.Unstructured {
 	resKind := obj.GetKind()
 	resName := obj.GetName()

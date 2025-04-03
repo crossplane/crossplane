@@ -1,11 +1,12 @@
 package diffprocessor
 
 import (
+	"testing"
+
 	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
 	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"testing"
 )
 
 func TestNewDiffProcessor(t *testing.T) {

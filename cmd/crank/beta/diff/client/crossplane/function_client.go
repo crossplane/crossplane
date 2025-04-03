@@ -1,22 +1,23 @@
-// package crossplane/function_client.go
-
 package crossplane
 
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// FunctionClient handles operations related to Functions
+// FunctionClient handles operations related to Functions.
 type FunctionClient interface {
 	core.Initializable
 
@@ -27,7 +28,7 @@ type FunctionClient interface {
 	ListFunctions(ctx context.Context) ([]pkgv1.Function, error)
 }
 
-// DefaultFunctionClient implements FunctionClient
+// DefaultFunctionClient implements FunctionClient.
 type DefaultFunctionClient struct {
 	resourceClient kubernetes.ResourceClient
 	logger         logging.Logger
@@ -36,7 +37,7 @@ type DefaultFunctionClient struct {
 	functions map[string]pkgv1.Function
 }
 
-// NewFunctionClient creates a new DefaultFunctionClient
+// NewFunctionClient creates a new DefaultFunctionClient.
 func NewFunctionClient(resourceClient kubernetes.ResourceClient, logger logging.Logger) FunctionClient {
 	return &DefaultFunctionClient{
 		resourceClient: resourceClient,
@@ -45,7 +46,7 @@ func NewFunctionClient(resourceClient kubernetes.ResourceClient, logger logging.
 	}
 }
 
-// Initialize loads functions into the cache
+// Initialize loads functions into the cache.
 func (c *DefaultFunctionClient) Initialize(ctx context.Context) error {
 	c.logger.Debug("Initializing function client")
 
@@ -64,7 +65,7 @@ func (c *DefaultFunctionClient) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// ListFunctions lists all functions in the cluster
+// ListFunctions lists all functions in the cluster.
 func (c *DefaultFunctionClient) ListFunctions(ctx context.Context) ([]pkgv1.Function, error) {
 	c.logger.Debug("Listing functions from cluster")
 
@@ -99,7 +100,7 @@ func (c *DefaultFunctionClient) ListFunctions(ctx context.Context) ([]pkgv1.Func
 	return functions, nil
 }
 
-// GetFunctionsFromPipeline gets functions used in a composition pipeline
+// GetFunctionsFromPipeline gets functions used in a composition pipeline.
 func (c *DefaultFunctionClient) GetFunctionsFromPipeline(comp *apiextensionsv1.Composition) ([]pkgv1.Function, error) {
 	c.logger.Debug("Getting functions from pipeline", "composition_name", comp.GetName())
 

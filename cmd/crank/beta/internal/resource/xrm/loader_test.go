@@ -3,13 +3,18 @@ package xrm
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"math/rand"
 	"sync"
 	"testing"
 
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 // simpleGenerator generates a tree of resources for a specific depth and the number of children to

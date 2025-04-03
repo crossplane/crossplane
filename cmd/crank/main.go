@@ -18,10 +18,11 @@ limitations under the License.
 package main
 
 import (
+	"os"
+
 	"github.com/alecthomas/kong"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"

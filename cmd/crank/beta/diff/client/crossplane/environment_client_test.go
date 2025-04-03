@@ -2,15 +2,21 @@ package crossplane
 
 import (
 	"context"
+	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"strings"
+
 	"github.com/google/go-cmp/cmp"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
+
+var _ EnvironmentClient = (*tu.MockEnvironmentClient)(nil)
 
 func TestDefaultEnvironmentClient_GetEnvironmentConfigs(t *testing.T) {
 	ctx := context.Background()

@@ -2,8 +2,12 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"strings"
+	"testing"
+
+	"strings"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -11,9 +15,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 	kt "k8s.io/client-go/testing"
-	"strings"
-	"testing"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
+
+var _ ApplyClient = (*tu.MockApplyClient)(nil)
 
 func TestApplyClient_DryRunApply(t *testing.T) {
 	scheme := runtime.NewScheme()

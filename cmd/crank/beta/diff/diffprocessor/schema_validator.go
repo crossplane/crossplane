@@ -3,20 +3,23 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
-	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
+
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 )
 
-// SchemaValidator handles validation of resources against CRD schemas
+// SchemaValidator handles validation of resources against CRD schemas.
 type SchemaValidator interface {
 	// ValidateResources validates resources using schema validation
 	ValidateResources(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error
@@ -25,7 +28,7 @@ type SchemaValidator interface {
 	EnsureComposedResourceCRDs(ctx context.Context, resources []*un.Unstructured) error
 }
 
-// DefaultSchemaValidator implements SchemaValidator interface
+// DefaultSchemaValidator implements SchemaValidator interface.
 type DefaultSchemaValidator struct {
 	defClient    xp.DefinitionClient
 	schemaClient k8.SchemaClient
@@ -33,7 +36,7 @@ type DefaultSchemaValidator struct {
 	crds         []*extv1.CustomResourceDefinition
 }
 
-// NewSchemaValidator creates a new DefaultSchemaValidator
+// NewSchemaValidator creates a new DefaultSchemaValidator.
 func NewSchemaValidator(sClient k8.SchemaClient, dClient xp.DefinitionClient, logger logging.Logger) SchemaValidator {
 	return &DefaultSchemaValidator{
 		defClient:    dClient,
@@ -43,7 +46,7 @@ func NewSchemaValidator(sClient k8.SchemaClient, dClient xp.DefinitionClient, lo
 	}
 }
 
-// LoadCRDs loads CRDs from the cluster
+// LoadCRDs loads CRDs from the cluster.
 func (v *DefaultSchemaValidator) LoadCRDs(ctx context.Context) error {
 	v.logger.Debug("Loading CRDs from cluster")
 
@@ -66,18 +69,18 @@ func (v *DefaultSchemaValidator) LoadCRDs(ctx context.Context) error {
 	return nil
 }
 
-// SetCRDs sets the CRDs directly, useful for testing or when CRDs are pre-loaded
+// SetCRDs sets the CRDs directly, useful for testing or when CRDs are pre-loaded.
 func (v *DefaultSchemaValidator) SetCRDs(crds []*extv1.CustomResourceDefinition) {
 	v.crds = crds
 	v.logger.Debug("Set CRDs directly", "count", len(crds))
 }
 
-// GetCRDs returns the current CRDs
+// GetCRDs returns the current CRDs.
 func (v *DefaultSchemaValidator) GetCRDs() []*extv1.CustomResourceDefinition {
 	return v.crds
 }
 
-// ValidateResources validates resources using schema validation
+// ValidateResources validates resources using schema validation.
 func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *un.Unstructured, composed []cpd.Unstructured) error {
 	v.logger.Debug("Validating resources",
 		"xr", fmt.Sprintf("%s/%s", xr.GetKind(), xr.GetName()),
@@ -118,7 +121,7 @@ func (v *DefaultSchemaValidator) ValidateResources(ctx context.Context, xr *un.U
 }
 
 // EnsureComposedResourceCRDs checks if we have all the CRDs needed for the cpd resources
-// and fetches any missing ones from the cluster
+// and fetches any missing ones from the cluster.
 func (v *DefaultSchemaValidator) EnsureComposedResourceCRDs(ctx context.Context, resources []*un.Unstructured) error {
 	// Create a map of existing CRDs by GVK for quick lookup
 	existingCRDs := make(map[schema.GroupVersionKind]bool)

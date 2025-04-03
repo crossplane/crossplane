@@ -19,12 +19,16 @@ package printer
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"testing"
+
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 func TestJSONPrinter(t *testing.T) {

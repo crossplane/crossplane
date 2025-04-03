@@ -3,30 +3,32 @@ package kubernetes
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 )
 
-// ApplyClient handles server-side apply operations
+// ApplyClient handles server-side apply operations.
 type ApplyClient interface {
-
 	// DryRunApply performs a dry-run server-side apply
 	DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error)
 }
 
-// DefaultApplyClient implements ApplyClient
+// DefaultApplyClient implements ApplyClient.
 type DefaultApplyClient struct {
 	dynamicClient dynamic.Interface
 	typeConverter TypeConverter
 	logger        logging.Logger
 }
 
-// NewApplyClient creates a new DefaultApplyClient
+// NewApplyClient creates a new DefaultApplyClient.
 func NewApplyClient(clients *core.Clients, converter TypeConverter, logger logging.Logger) ApplyClient {
 	return &DefaultApplyClient{
 		dynamicClient: clients.Dynamic,
@@ -35,7 +37,7 @@ func NewApplyClient(clients *core.Clients, converter TypeConverter, logger loggi
 	}
 }
 
-// DryRunApply performs a dry-run server-side apply
+// DryRunApply performs a dry-run server-side apply.
 func (c *DefaultApplyClient) DryRunApply(ctx context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 	resourceID := fmt.Sprintf("%s/%s", obj.GetKind(), obj.GetName())
 	c.logger.Debug("Performing dry-run apply", "resource", resourceID)

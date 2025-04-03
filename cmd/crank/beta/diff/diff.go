@@ -18,30 +18,32 @@ limitations under the License.
 package diff
 
 import (
-	"github.com/alecthomas/kong"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-	"github.com/crossplane/crossplane/cmd/crank/render"
-	"k8s.io/client-go/rest"
+	"context"
 	"time"
 
-	"context"
+	"github.com/alecthomas/kong"
+	"k8s.io/client-go/rest"
+
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+	"github.com/crossplane/crossplane/cmd/crank/render"
 )
 
 // Cmd represents the diff command.
 // Cmd represents the diff command.
 type Cmd struct {
-	Namespace string   `default:"crossplane-system" help:"Namespace to compare resources against." name:"namespace" short:"n"`
-	Files     []string `arg:"" optional:"" help:"YAML files containing Crossplane resources to diff."`
+	Namespace string   `default:"crossplane-system" help:"Namespace to compare resources against."             name:"namespace" short:"n"`
+	Files     []string `arg:""                      help:"YAML files containing Crossplane resources to diff." optional:""`
 
 	// Configuration options
-	NoColor bool          `help:"Disable colorized output." name:"no-color"`
+	NoColor bool          `help:"Disable colorized output."                name:"no-color"`
 	Compact bool          `help:"Show compact diffs with minimal context." name:"compact"`
-	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
-	QPS     float32       `help:"Maximum QPS to the API server." default:"0"`
-	Burst   int           `help:"Maximum burst for throttle." default:"0"`
+	Timeout time.Duration `default:"1m"                                    help:"How long to run before timing out."`
+	QPS     float32       `default:"0"                                     help:"Maximum QPS to the API server."`
+	Burst   int           `default:"0"                                     help:"Maximum burst for throttle."`
 }
 
 // Help returns help instructions for the diff command.
@@ -69,7 +71,7 @@ Examples:
 `
 }
 
-// AfterApply implements kong's AfterApply method to bind our dependencies
+// AfterApply implements kong's AfterApply method to bind our dependencies.
 func (c *Cmd) AfterApply(ctx *kong.Context, log logging.Logger, config *rest.Config) error {
 	return c.initializeDependencies(ctx, log, config)
 }

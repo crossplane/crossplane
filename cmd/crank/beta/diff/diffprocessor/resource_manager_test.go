@@ -5,12 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
 func TestDefaultResourceManager_FetchCurrentObject(t *testing.T) {

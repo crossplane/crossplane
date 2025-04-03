@@ -1,17 +1,20 @@
 package internal
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"strings"
+
+	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
-// LoggerWriter is an io.Writer implementation that writes to a logger
+// LoggerWriter is an io.Writer implementation that writes to a logger.
 type LoggerWriter struct {
 	logger logging.Logger
 	level  int
 }
 
-// NewLoggerWriter creates a new LoggerWriter that sends output to the given logger
+// NewLoggerWriter creates a new LoggerWriter that sends output to the given logger.
 func NewLoggerWriter(logger logging.Logger) *LoggerWriter {
 	return &LoggerWriter{
 		logger: logger,
@@ -19,7 +22,7 @@ func NewLoggerWriter(logger logging.Logger) *LoggerWriter {
 	}
 }
 
-// Write implements io.Writer.Write by sending the data to the logger
+// Write implements io.Writer.Write by sending the data to the logger.
 func (w *LoggerWriter) Write(p []byte) (n int, err error) {
 	// Convert to string and trim trailing newlines
 	message := strings.TrimSuffix(string(p), "\n")
@@ -29,7 +32,7 @@ func (w *LoggerWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// WithLevel allows setting a specific logging level
+// WithLevel allows setting a specific logging level.
 func (w *LoggerWriter) WithLevel(level int) *LoggerWriter {
 	w.level = level
 	return w

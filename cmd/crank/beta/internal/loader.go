@@ -126,7 +126,7 @@ func readFile(path string) ([][]byte, error) {
 	return LoadYamlStream(f)
 }
 
-// LoadYamlStream loads a yaml stream from a reader into an
+// LoadYamlStream loads a yaml stream from a reader into an.
 func LoadYamlStream(r io.Reader) ([][]byte, error) {
 	stream := make([][]byte, 0)
 

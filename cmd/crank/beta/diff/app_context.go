@@ -2,24 +2,26 @@ package diff
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+
+
+	"k8s.io/client-go/rest"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
 	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
-// AppContext holds application-wide dependencies and clients
+// AppContext holds application-wide dependencies and clients.
 type AppContext struct {
 	K8sClients k8.Clients
 	XpClients  xp.Clients
 }
 
-// NewAppContext creates a new AppContext with initialized clients
+// NewAppContext creates a new AppContext with initialized clients.
 func NewAppContext(config *rest.Config, logger logging.Logger) (*AppContext, error) {
-
 	coreClients, err := core.NewClients(config)
 	if err != nil {
 		// error is already well-decorated
@@ -29,10 +31,10 @@ func NewAppContext(config *rest.Config, logger logging.Logger) (*AppContext, err
 	tc := k8.NewTypeConverter(coreClients, logger)
 
 	k8c := k8.Clients{
-		Apply:    k8.NewApplyClient(coreClients, tc, logger),
-		Schema:   k8.NewSchemaClient(coreClients, logger),
 		Type:     tc,
+		Apply:    k8.NewApplyClient(coreClients, tc, logger),
 		Resource: k8.NewResourceClient(coreClients, tc, logger),
+		Schema:   k8.NewSchemaClient(coreClients, tc, logger),
 	}
 
 	xpc := xp.Clients{
@@ -49,9 +51,8 @@ func NewAppContext(config *rest.Config, logger logging.Logger) (*AppContext, err
 	}, nil
 }
 
-// Initialize initializes all clients
+// Initialize initializes all clients.
 func (a *AppContext) Initialize(ctx context.Context, logger logging.Logger) error {
-
 	// Initialize Crossplane client
 	if err := a.XpClients.Initialize(ctx, logger); err != nil {
 		return errors.Wrap(err, "cannot initialize Crossplane client")

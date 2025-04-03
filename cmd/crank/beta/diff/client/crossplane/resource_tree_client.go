@@ -1,19 +1,20 @@
-// package crossplane/resourcetree_client.go
-
 package crossplane
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+
+
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xrm"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// ResourceTreeClient handles resource tree operations
+// ResourceTreeClient handles resource tree operations.
 type ResourceTreeClient interface {
 	core.Initializable
 
@@ -21,13 +22,13 @@ type ResourceTreeClient interface {
 	GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error)
 }
 
-// DefaultResourceTreeClient implements ResourceTreeClient
+// DefaultResourceTreeClient implements ResourceTreeClient.
 type DefaultResourceTreeClient struct {
 	treeClient *xrm.Client
 	logger     logging.Logger
 }
 
-// NewResourceTreeClient creates a new DefaultResourceTreeClient
+// NewResourceTreeClient creates a new DefaultResourceTreeClient.
 func NewResourceTreeClient(treeClient *xrm.Client, logger logging.Logger) ResourceTreeClient {
 	return &DefaultResourceTreeClient{
 		treeClient: treeClient,
@@ -35,14 +36,14 @@ func NewResourceTreeClient(treeClient *xrm.Client, logger logging.Logger) Resour
 	}
 }
 
-// Initialize initializes the resource tree client
+// Initialize initializes the resource tree client.
 func (c *DefaultResourceTreeClient) Initialize(_ context.Context) error {
 	c.logger.Debug("Initializing resource tree client")
 	// No initialization needed currently
 	return nil
 }
 
-// GetResourceTree gets the resource tree for a root resource
+// GetResourceTree gets the resource tree for a root resource.
 func (c *DefaultResourceTreeClient) GetResourceTree(ctx context.Context, root *un.Unstructured) (*resource.Resource, error) {
 	c.logger.Debug("Getting resource tree",
 		"resource_kind", root.GetKind(),

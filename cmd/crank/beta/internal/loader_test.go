@@ -17,15 +17,20 @@ limitations under the License.
 package internal
 
 import (
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
 )
 
 var (
@@ -339,7 +344,7 @@ metadata:
 spec:
   field: value1
 `)
-	if err := os.WriteFile(file1, content1, 0600); err != nil {
+	if err := os.WriteFile(file1, content1, 0o600); err != nil {
 		t.Fatalf("Failed to write temp file: %v", err)
 	}
 
@@ -360,13 +365,13 @@ metadata:
 spec:
   field: value3
 `)
-	if err := os.WriteFile(file2, content2, 0600); err != nil {
+	if err := os.WriteFile(file2, content2, 0o600); err != nil {
 		t.Fatalf("Failed to write temp file: %v", err)
 	}
 
 	// Create a folder with a file
 	folderPath := filepath.Join(tempDir, "subfolder")
-	if err := os.Mkdir(folderPath, 0700); err != nil {
+	if err := os.Mkdir(folderPath, 0o700); err != nil {
 		t.Fatalf("Failed to create subfolder: %v", err)
 	}
 
@@ -379,7 +384,7 @@ metadata:
 spec:
   field: folder-value
 `)
-	if err := os.WriteFile(folderFile, folderContent, 0600); err != nil {
+	if err := os.WriteFile(folderFile, folderContent, 0o600); err != nil {
 		t.Fatalf("Failed to write folder file: %v", err)
 	}
 
@@ -488,7 +493,7 @@ spec:
 					// Write content to the pipe (simulating stdin input)
 					go func() {
 						defer w.Close()
-						_, err := io.WriteString(w, stdinContent)
+						_, err := w.WriteString(stdinContent)
 						if err != nil {
 							t.Errorf("Failed to write to stdin pipe: %v", err)
 						}
@@ -523,7 +528,7 @@ spec:
 					// Write content to the pipe (simulating stdin input)
 					go func() {
 						defer w.Close()
-						_, err := io.WriteString(w, stdinContent)
+						_, err := w.WriteString(stdinContent)
 						if err != nil {
 							t.Errorf("Failed to write to stdin pipe: %v", err)
 						}
@@ -558,7 +563,7 @@ spec:
 					// Write content to the pipe (simulating stdin input)
 					go func() {
 						defer w.Close()
-						_, err := io.WriteString(w, stdinContent)
+						_, err := w.WriteString(stdinContent)
 						if err != nil {
 							t.Errorf("Failed to write to stdin pipe: %v", err)
 						}
@@ -593,7 +598,7 @@ spec:
 					// Write content to the pipe (simulating stdin input)
 					go func() {
 						defer w.Close()
-						_, err := io.WriteString(w, stdinContent)
+						_, err := w.WriteString(stdinContent)
 						if err != nil {
 							t.Errorf("Failed to write to stdin pipe: %v", err)
 						}

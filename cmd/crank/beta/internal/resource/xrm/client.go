@@ -20,7 +20,7 @@ package xrm
 
 import (
 	"context"
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,6 +32,7 @@ import (
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 // defaultConcurrency is the concurrency using which the resource tree if loaded when not explicitly specified.

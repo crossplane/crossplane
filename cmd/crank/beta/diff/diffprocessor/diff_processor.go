@@ -3,11 +3,22 @@ package diffprocessor
 
 import (
 	"context"
-	"dario.cat/mergo"
 	"fmt"
+	"io"
+	"reflect"
+
+	"fmt"
+	"io"
+	"reflect"
+
+	"dario.cat/mergo"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
@@ -15,16 +26,12 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	"io"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
 )
 
-// RenderFunc defines the signature of a function that can render resources
+// RenderFunc defines the signature of a function that can render resources.
 type RenderFunc func(ctx context.Context, log logging.Logger, in render.Inputs) (render.Outputs, error)
 
-// DiffProcessor interface for processing resources
+// DiffProcessor interface for processing resources.
 type DiffProcessor interface {
 	// PerformDiff processes all resources and produces a diff output
 	PerformDiff(ctx context.Context, stdout io.Writer, resources []*un.Unstructured) error
@@ -33,7 +40,7 @@ type DiffProcessor interface {
 	Initialize(ctx context.Context) error
 }
 
-// DefaultDiffProcessor implements DiffProcessor with modular components
+// DefaultDiffProcessor implements DiffProcessor with modular components.
 type DefaultDiffProcessor struct {
 	fnClient             xp.FunctionClient
 	compClient           xp.CompositionClient
@@ -44,7 +51,7 @@ type DefaultDiffProcessor struct {
 	requirementsProvider *RequirementsProvider
 }
 
-// NewDiffProcessor creates a new DefaultDiffProcessor with the provided options
+// NewDiffProcessor creates a new DefaultDiffProcessor with the provided options.
 func NewDiffProcessor(k8cs k8.Clients, xpcs xp.Clients, opts ...ProcessorOption) DiffProcessor {
 	// Create default configuration
 	config := ProcessorConfig{
@@ -86,7 +93,7 @@ func NewDiffProcessor(k8cs k8.Clients, xpcs xp.Clients, opts ...ProcessorOption)
 	return processor
 }
 
-// Initialize loads required resources like CRDs and environment configs
+// Initialize loads required resources like CRDs and environment configs.
 func (p *DefaultDiffProcessor) Initialize(ctx context.Context) error {
 	p.config.Logger.Debug("Initializing diff processor")
 
@@ -104,7 +111,7 @@ func (p *DefaultDiffProcessor) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// initializeSchemaValidator initializes the schema validator with CRDs
+// initializeSchemaValidator initializes the schema validator with CRDs.
 func (p *DefaultDiffProcessor) initializeSchemaValidator(ctx context.Context) error {
 	// If the schema validator implements our interface with LoadCRDs, use it
 	if validator, ok := p.schemaValidator.(*DefaultSchemaValidator); ok {
@@ -117,7 +124,7 @@ func (p *DefaultDiffProcessor) initializeSchemaValidator(ctx context.Context) er
 	return nil
 }
 
-// PerformDiff processes all resources and produces a diff output
+// PerformDiff processes all resources and produces a diff output.
 func (p *DefaultDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer, resources []*un.Unstructured) error {
 	p.config.Logger.Debug("Processing resources", "count", len(resources))
 
@@ -166,7 +173,7 @@ func (p *DefaultDiffProcessor) PerformDiff(ctx context.Context, stdout io.Writer
 	return nil
 }
 
-// DiffSingleResource handles one resource at a time and returns its diffs
+// DiffSingleResource handles one resource at a time and returns its diffs.
 func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.Unstructured) (map[string]*dt.ResourceDiff, error) {
 	resourceID := fmt.Sprintf("%s/%s", res.GetKind(), res.GetName())
 	p.config.Logger.Debug("Processing resource", "resource", resourceID)
@@ -210,7 +217,6 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.U
 		desired.CompositeResource.GetUnstructured(),
 		xr.GetUnstructured(),
 	)
-
 	if err != nil {
 		p.config.Logger.Debug("Failed to merge XR", "resource", resourceID, "error", err)
 		return nil, errors.Wrap(err, "cannot merge input XR with result of rendered XR")
@@ -238,7 +244,7 @@ func (p *DefaultDiffProcessor) DiffSingleResource(ctx context.Context, res *un.U
 	return diffs, err
 }
 
-// SanitizeXR makes an XR into a valid unstructured object that we can use in a dry-run apply
+// SanitizeXR makes an XR into a valid unstructured object that we can use in a dry-run apply.
 func (p *DefaultDiffProcessor) SanitizeXR(res *un.Unstructured, resourceID string) (*cmp.Unstructured, bool, error) {
 	// Convert the unstructured resource to a composite unstructured for rendering
 	xr := cmp.New()
@@ -263,7 +269,7 @@ func (p *DefaultDiffProcessor) SanitizeXR(res *un.Unstructured, resourceID strin
 	return xr, false, nil
 }
 
-// mergeUnstructured merges two unstructured objects
+// mergeUnstructured merges two unstructured objects.
 func mergeUnstructured(dest *un.Unstructured, src *un.Unstructured) (*un.Unstructured, error) {
 	// Start with a deep copy of the rendered resource
 	result := dest.DeepCopy()
@@ -273,7 +279,7 @@ func mergeUnstructured(dest *un.Unstructured, src *un.Unstructured) (*un.Unstruc
 	return result, nil
 }
 
-// RenderWithRequirements performs an iterative rendering process that discovers and fulfills requirements
+// RenderWithRequirements performs an iterative rendering process that discovers and fulfills requirements.
 func (p *DefaultDiffProcessor) RenderWithRequirements(
 	ctx context.Context,
 	xr *cmp.Unstructured,

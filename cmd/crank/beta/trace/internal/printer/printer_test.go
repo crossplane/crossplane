@@ -17,7 +17,6 @@ limitations under the License.
 package printer
 
 import (
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 

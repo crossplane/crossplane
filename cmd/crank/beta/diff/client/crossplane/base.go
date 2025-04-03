@@ -4,11 +4,13 @@ package crossplane
 
 import (
 	"context"
+
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 )
 
-// Initialize initializes all the clients in this bundle
+// Initialize initializes all the clients in this bundle.
 func (c *Clients) Initialize(ctx context.Context, logger logging.Logger) error {
 	return core.InitializeClients(ctx, logger,
 		c.Composition,

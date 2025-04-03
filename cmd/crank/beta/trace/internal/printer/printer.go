@@ -19,10 +19,14 @@ limitations under the License.
 package printer
 
 import (
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"io"
 
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+
 	"github.com/pkg/errors"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 const (

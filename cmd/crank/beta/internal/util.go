@@ -8,11 +8,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-// ConvertToCRDs Helper function to convert XRDs/CRDs to CRDs
+// ConvertToCRDs Helper function to convert XRDs/CRDs to CRDs.
 func ConvertToCRDs(extensions []*un.Unstructured) ([]*extv1.CustomResourceDefinition, error) {
 	crds := make([]*extv1.CustomResourceDefinition, 0)
 

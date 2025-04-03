@@ -20,10 +20,13 @@ package validate
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
@@ -31,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )

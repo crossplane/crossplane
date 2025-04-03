@@ -20,29 +20,34 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/alecthomas/kong"
-	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
-	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-	itu "github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
-	"github.com/google/go-cmp/cmp"
 	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"os"
 	"path/filepath"
-	"sigs.k8s.io/yaml"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
+
+
+
+	"github.com/alecthomas/kong"
+	"github.com/google/go-cmp/cmp"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
+	dp "github.com/crossplane/crossplane/cmd/crank/beta/diff/diffprocessor"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
+	itu "github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
 )
 
 func TestCmd_Run(t *testing.T) {
@@ -132,7 +137,7 @@ kind: TestResource
 metadata:
   name: test-resource
 `
-				if err := os.WriteFile(tempFile, []byte(content), 0600); err != nil {
+				if err := os.WriteFile(tempFile, []byte(content), 0o600); err != nil {
 					t.Fatalf("Failed to write temp file: %v", err)
 				}
 
@@ -241,7 +246,7 @@ kind: TestResource
 metadata:
   name: test-resource
 `
-				if err := os.WriteFile(tempFile, []byte(content), 0600); err != nil {
+				if err := os.WriteFile(tempFile, []byte(content), 0o600); err != nil {
 					t.Fatalf("Failed to write temp file: %v", err)
 				}
 

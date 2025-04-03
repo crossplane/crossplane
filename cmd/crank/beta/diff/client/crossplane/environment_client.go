@@ -1,19 +1,20 @@
-// package crossplane/environment_client.go
-
 package crossplane
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+
+
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// EnvironmentClient handles environment configurations
+// EnvironmentClient handles environment configurations.
 type EnvironmentClient interface {
 	core.Initializable
 
@@ -24,7 +25,7 @@ type EnvironmentClient interface {
 	GetEnvironmentConfig(ctx context.Context, name string) (*un.Unstructured, error)
 }
 
-// DefaultEnvironmentClient implements EnvironmentClient
+// DefaultEnvironmentClient implements EnvironmentClient.
 type DefaultEnvironmentClient struct {
 	resourceClient kubernetes.ResourceClient
 	logger         logging.Logger
@@ -33,7 +34,7 @@ type DefaultEnvironmentClient struct {
 	envConfigs map[string]*un.Unstructured
 }
 
-// NewEnvironmentClient creates a new DefaultEnvironmentClient
+// NewEnvironmentClient creates a new DefaultEnvironmentClient.
 func NewEnvironmentClient(resourceClient kubernetes.ResourceClient, logger logging.Logger) EnvironmentClient {
 	return &DefaultEnvironmentClient{
 		resourceClient: resourceClient,
@@ -42,7 +43,7 @@ func NewEnvironmentClient(resourceClient kubernetes.ResourceClient, logger loggi
 	}
 }
 
-// Initialize loads environment configs into the cache
+// Initialize loads environment configs into the cache.
 func (c *DefaultEnvironmentClient) Initialize(ctx context.Context) error {
 	c.logger.Debug("Initializing environment client")
 
@@ -61,7 +62,7 @@ func (c *DefaultEnvironmentClient) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// GetEnvironmentConfigs gets all environment configurations
+// GetEnvironmentConfigs gets all environment configurations.
 func (c *DefaultEnvironmentClient) GetEnvironmentConfigs(ctx context.Context) ([]*un.Unstructured, error) {
 	c.logger.Debug("Getting environment configs")
 
@@ -83,7 +84,7 @@ func (c *DefaultEnvironmentClient) GetEnvironmentConfigs(ctx context.Context) ([
 	return envConfigs, nil
 }
 
-// GetEnvironmentConfig gets a specific environment config by name
+// GetEnvironmentConfig gets a specific environment config by name.
 func (c *DefaultEnvironmentClient) GetEnvironmentConfig(ctx context.Context, name string) (*un.Unstructured, error) {
 	// Check cache first
 	if config, ok := c.envConfigs[name]; ok {

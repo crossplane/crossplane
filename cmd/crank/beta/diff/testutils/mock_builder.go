@@ -3,398 +3,69 @@ package testutils
 import (
 	"context"
 	"encoding/json"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"io"
+	"strings"
+
+	"io"
+	"strings"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"strings"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 // MockBuilder provides a fluent API for building mock objects used in testing.
 // This helps reduce duplication in test setup code while making the intent clearer.
 
-//region ClusterClient builder
-
-// ======================================================================================
-// ClusterClient Mock Builder
-// ======================================================================================
-
-// ClusterClientBuilder helps build mock ClusterClient instances.
-type ClusterClientBuilder struct {
-	mock *MockClusterClient
-}
-
-// NewMockClusterClient creates a new ClusterClientBuilder.
-func NewMockClusterClient() *ClusterClientBuilder {
-	return &ClusterClientBuilder{
-		mock: &MockClusterClient{},
-	}
-}
-
-// WithInitialize adds an implementation for the Initialize method.
-func (b *ClusterClientBuilder) WithInitialize(fn func(context.Context) error) *ClusterClientBuilder {
-	b.mock.InitializeFn = fn
-	return b
-}
-
-// WithSuccessfulInitialize sets a successful Initialize implementation.
-func (b *ClusterClientBuilder) WithSuccessfulInitialize() *ClusterClientBuilder {
-	return b.WithInitialize(func(context.Context) error {
-		return nil
-	})
-}
-
-// WithFailedInitialize sets a failing Initialize implementation.
-func (b *ClusterClientBuilder) WithFailedInitialize(errMsg string) *ClusterClientBuilder {
-	return b.WithInitialize(func(context.Context) error {
-		return errors.New(errMsg)
-	})
-}
-
-// WithFindMatchingComposition adds an implementation for the FindMatchingComposition method.
-func (b *ClusterClientBuilder) WithFindMatchingComposition(fn func(context.Context, *un.Unstructured) (*xpextv1.Composition, error)) *ClusterClientBuilder {
-	b.mock.FindMatchingCompositionFn = fn
-	return b
-}
-
-// WithSuccessfulCompositionMatch sets a successful FindMatchingComposition implementation.
-func (b *ClusterClientBuilder) WithSuccessfulCompositionMatch(comp *xpextv1.Composition) *ClusterClientBuilder {
-	return b.WithFindMatchingComposition(func(context.Context, *un.Unstructured) (*xpextv1.Composition, error) {
-		return comp, nil
-	})
-}
-
-// WithNoMatchingComposition sets a FindMatchingComposition implementation that returns "not found".
-func (b *ClusterClientBuilder) WithNoMatchingComposition() *ClusterClientBuilder {
-	return b.WithFindMatchingComposition(func(context.Context, *un.Unstructured) (*xpextv1.Composition, error) {
-		return nil, errors.New("composition not found")
-	})
-}
-
-// WithGetFunctionsFromPipeline adds an implementation for the GetFunctionsFromPipeline method.
-func (b *ClusterClientBuilder) WithGetFunctionsFromPipeline(fn func(*xpextv1.Composition) ([]pkgv1.Function, error)) *ClusterClientBuilder {
-	b.mock.GetFunctionsFromPipelineFn = fn
-	return b
-}
-
-// WithSuccessfulFunctionsFetch sets a successful GetFunctionsFromPipeline implementation.
-func (b *ClusterClientBuilder) WithSuccessfulFunctionsFetch(functions []pkgv1.Function) *ClusterClientBuilder {
-	return b.WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
-		return functions, nil
-	})
-}
-
-// WithFailedFunctionsFetch sets a failing GetFunctionsFromPipeline implementation.
-func (b *ClusterClientBuilder) WithFailedFunctionsFetch(errMsg string) *ClusterClientBuilder {
-	return b.WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
-		return nil, errors.New(errMsg)
-	})
-}
-
-// WithGetXRDs adds an implementation for the GetXRDs method.
-func (b *ClusterClientBuilder) WithGetXRDs(fn func(context.Context) ([]*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetXRDsFn = fn
-	return b
-}
-
-// WithSuccessfulXRDsFetch sets a successful GetXRDs implementation.
-func (b *ClusterClientBuilder) WithSuccessfulXRDsFetch(xrds []*un.Unstructured) *ClusterClientBuilder {
-	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
-		return xrds, nil
-	})
-}
-
-// WithFailedXRDsFetch sets a failing GetXRDs implementation.
-func (b *ClusterClientBuilder) WithFailedXRDsFetch(errMsg string) *ClusterClientBuilder {
-	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
-		return nil, errors.New(errMsg)
-	})
-}
-
-// WithGetResource adds an implementation for the GetResource method.
-func (b *ClusterClientBuilder) WithGetResource(fn func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetResourceFn = fn
-	return b
-}
-
-// WithResourcesExist sets a GetResource implementation that returns resources from a map.
-func (b *ClusterClientBuilder) WithResourcesExist(resources ...*un.Unstructured) *ClusterClientBuilder {
-	resourceMap := make(map[string]*un.Unstructured)
-
-	// Build a map for fast lookup
-	for _, res := range resources {
-		// Use name + kind as a unique key
-		key := res.GetName() + "|" + res.GetKind()
-		resourceMap[key] = res
-	}
-
-	return b.WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-		// Try to find the resource by name and kind
-		key := name + "|" + gvk.Kind
-		if res, found := resourceMap[key]; found {
-			return res, nil
-		}
-		return nil, errors.Errorf("resource %q not found", name)
-	})
-}
-
-// WithResourceNotFound sets a GetResource implementation that always returns "not found".
-func (b *ClusterClientBuilder) WithResourceNotFound() *ClusterClientBuilder {
-	return b.WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-		// Create a proper Kubernetes "not found" error
-		return nil, apierrors.NewNotFound(
-			schema.GroupResource{
-				Group:    gvk.Group,
-				Resource: strings.ToLower(gvk.Kind) + "s", // Naive pluralization similar to the real code
-			},
-			name,
-		)
-	})
-}
-
-// WithDryRunApply adds an implementation for the DryRunApply method.
-func (b *ClusterClientBuilder) WithDryRunApply(fn func(context.Context, *un.Unstructured) (*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.DryRunApplyFn = fn
-	return b
-}
-
-// WithSuccessfulDryRun sets a DryRunApply implementation that returns the input resource.
-func (b *ClusterClientBuilder) WithSuccessfulDryRun() *ClusterClientBuilder {
-	return b.WithDryRunApply(func(_ context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
-		return obj, nil
-	})
-}
-
-// WithFailedDryRun sets a DryRunApply implementation that returns an error.
-func (b *ClusterClientBuilder) WithFailedDryRun(errMsg string) *ClusterClientBuilder {
-	return b.WithDryRunApply(func(context.Context, *un.Unstructured) (*un.Unstructured, error) {
-		return nil, errors.New(errMsg)
-	})
-}
-
-// WithGetResourcesByLabel adds an implementation for the GetResourcesByLabel method.
-func (b *ClusterClientBuilder) WithGetResourcesByLabel(fn func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetResourcesByLabelFn = fn
-	return b
-}
-
-// WithResourcesFoundByLabel sets a GetResourcesByLabel implementation that returns resources for a specific label.
-func (b *ClusterClientBuilder) WithResourcesFoundByLabel(resources []*un.Unstructured, label string, value string) *ClusterClientBuilder {
-	return b.WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
-		// Check if the selector matches our expected label
-		if labelValue, exists := selector.MatchLabels[label]; exists && labelValue == value {
-			return resources, nil
-		}
-		return []*un.Unstructured{}, nil
-	})
-}
-
-// WithGetAllResourcesByLabels adds an implementation for the GetAllResourcesByLabels method.
-func (b *ClusterClientBuilder) WithGetAllResourcesByLabels(fn func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetAllResourcesByLabelsFn = fn
-	return b
-}
-
-// WithEnvironmentConfigs adds an implementation for the GetEnvironmentConfigs method.
-func (b *ClusterClientBuilder) WithEnvironmentConfigs(fn func(context.Context) ([]*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetEnvironmentConfigsFn = fn
-	return b
-}
-
-// WithSuccessfulEnvironmentConfigsFetch sets a successful GetEnvironmentConfigs implementation.
-func (b *ClusterClientBuilder) WithSuccessfulEnvironmentConfigsFetch(configs []*un.Unstructured) *ClusterClientBuilder {
-	return b.WithEnvironmentConfigs(func(context.Context) ([]*un.Unstructured, error) {
-		return configs, nil
-	})
-}
-
-// WithGetResourceTree adds an implementation for the GetResourceTree method
-func (b *ClusterClientBuilder) WithGetResourceTree(fn func(context.Context, *un.Unstructured) (*resource.Resource, error)) *ClusterClientBuilder {
-	b.mock.GetResourceTreeFn = fn
-	return b
-}
-
-// WithSuccessfulResourceTreeFetch sets a successful GetResourceTree implementation
-func (b *ClusterClientBuilder) WithSuccessfulResourceTreeFetch(resourceTree *resource.Resource) *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
-		return resourceTree, nil
-	})
-}
-
-// WithEmptyResourceTree sets a GetResourceTree implementation that returns just the root with no children
-func (b *ClusterClientBuilder) WithEmptyResourceTree() *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
-		return &resource.Resource{
-			Unstructured: *root.DeepCopy(),
-			Children:     []*resource.Resource{},
-		}, nil
-	})
-}
-
-// WithFailedResourceTreeFetch sets a failing GetResourceTree implementation
-func (b *ClusterClientBuilder) WithFailedResourceTreeFetch(errMsg string) *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
-		return nil, errors.New(errMsg)
-	})
-}
-
-// WithResourceTreeFromXRAndComposed creates a basic resource tree from an XR and cpd resources
-func (b *ClusterClientBuilder) WithResourceTreeFromXRAndComposed(xr *un.Unstructured, composed []*un.Unstructured) *ClusterClientBuilder {
-	return b.WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
-		// Make sure we're looking for the right XR
-		if root.GetName() != xr.GetName() || root.GetKind() != xr.GetKind() {
-			return nil, errors.Errorf("unexpected resource %s/%s", root.GetKind(), root.GetName())
-		}
-
-		// Create the resource tree with the XR as root
-		resourceTree := &resource.Resource{
-			Unstructured: *xr.DeepCopy(),
-			Children:     make([]*resource.Resource, 0, len(composed)),
-		}
-
-		// Add cpd resources as children
-		for _, comp := range composed {
-			resourceTree.Children = append(resourceTree.Children, &resource.Resource{
-				Unstructured: *comp.DeepCopy(),
-				Children:     []*resource.Resource{},
-			})
-		}
-
-		return resourceTree, nil
-	})
-}
-
-// WithResourcesByLabel adds an implementation for the GetResourcesByLabel method.
-func (b *ClusterClientBuilder) WithResourcesByLabel(fn func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetResourcesByLabelFn = fn
-	return b
-}
-
-// WithComposedResourcesByOwner sets up a GetResourcesByLabel implementation that returns resources by owner
-func (b *ClusterClientBuilder) WithComposedResourcesByOwner(resources ...*un.Unstructured) *ClusterClientBuilder {
-	return b.WithResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
-		// Check if this is looking for cpd resources with crossplane.io/composite label
-		if val, exists := selector.MatchLabels["crossplane.io/composite"]; exists {
-			// Filter resources with this composite owner
-			var owned []*un.Unstructured
-			for _, res := range resources {
-				// Check if this resource has the composite owner we're looking for
-				if labels := res.GetLabels(); labels != nil {
-					if owner, ok := labels["crossplane.io/composite"]; ok && owner == val {
-						owned = append(owned, res)
-					}
-				}
-			}
-			return owned, nil
-		}
-		return []*un.Unstructured{}, nil
-	})
-}
-
-// WithIsCRDRequired adds an implementation for the IsCRDRequired method.
-func (b *ClusterClientBuilder) WithIsCRDRequired(fn func(context.Context, schema.GroupVersionKind) bool) *ClusterClientBuilder {
-	b.mock.IsCRDRequiredFn = fn
-	return b
-}
-
-// WithResourcesRequiringCRDs sets only the specified GVKs to require CRDs.
-// All other resources will be considered as not requiring CRDs.
-func (b *ClusterClientBuilder) WithResourcesRequiringCRDs(crdsRequiredGVKs ...schema.GroupVersionKind) *ClusterClientBuilder {
-	requiresCRD := make(map[schema.GroupVersionKind]bool)
-	for _, gvk := range crdsRequiredGVKs {
-		requiresCRD[gvk] = true
-	}
-
-	return b.WithIsCRDRequired(func(_ context.Context, gvk schema.GroupVersionKind) bool {
-		// Only require CRDs for specified GVKs
-		return requiresCRD[gvk]
-	})
-}
-
-// WithAllResourcesRequiringCRDs sets all resources to require CRDs.
-func (b *ClusterClientBuilder) WithAllResourcesRequiringCRDs() *ClusterClientBuilder {
-	return b.WithIsCRDRequired(func(context.Context, schema.GroupVersionKind) bool {
-		return true
-	})
-}
-
-// WithNoResourcesRequiringCRDs sets all resources to not require CRDs.
-func (b *ClusterClientBuilder) WithNoResourcesRequiringCRDs() *ClusterClientBuilder {
-	return b.WithIsCRDRequired(func(context.Context, schema.GroupVersionKind) bool {
-		return false
-	})
-}
-
-// WithGetCRD adds an implementation for the GetCRD method.
-func (b *ClusterClientBuilder) WithGetCRD(fn func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error)) *ClusterClientBuilder {
-	b.mock.GetCRDFn = fn
-	return b
-}
-
-// WithSuccessfulCRDFetch sets a GetCRD implementation that returns a specific CRD.
-func (b *ClusterClientBuilder) WithSuccessfulCRDFetch(crd *un.Unstructured) *ClusterClientBuilder {
-	return b.WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
-		if crd.GetKind() != "CustomResourceDefinition" {
-			return nil, errors.Errorf("setup error:  desired return from GetCRD isn't a CRD but a %s", crd.GetKind())
-		}
-		return crd, nil
-	})
-}
-
-// Build creates and returns the configured mock ClusterClient.
-func (b *ClusterClientBuilder) Build() *MockClusterClient {
-	return b.mock
-}
-
-//endregion
-
-//region Kubernetes API layer mock builders
+// region Kubernetes API layer mock builders
 
 // ======================================================================================
 // Kubernetes API Layer Mock Builders
 // ======================================================================================
 
-// MockResourceClientBuilder helps build kubernetes.ResourceClient mocks
+// MockResourceClientBuilder helps build kubernetes.ResourceClient mocks.
 type MockResourceClientBuilder struct {
 	mock *MockResourceClient
 }
 
-// NewMockResourceClient creates a new MockResourceClientBuilder
+// NewMockResourceClient creates a new MockResourceClientBuilder.
 func NewMockResourceClient() *MockResourceClientBuilder {
 	return &MockResourceClientBuilder{
 		mock: &MockResourceClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockResourceClientBuilder) WithInitialize(fn func(context.Context) error) *MockResourceClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithSuccessfulInitialize sets a successful Initialize implementation
+// WithSuccessfulInitialize sets a successful Initialize implementation.
 func (b *MockResourceClientBuilder) WithSuccessfulInitialize() *MockResourceClientBuilder {
 	return b.WithInitialize(func(context.Context) error {
 		return nil
 	})
 }
 
-// WithGetResource sets the GetResource behavior
+// WithGetResource sets the GetResource behavior.
 func (b *MockResourceClientBuilder) WithGetResource(fn func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error)) *MockResourceClientBuilder {
 	b.mock.GetResourceFn = fn
 	return b
 }
 
-// WithResourcesExist sets up GetResource to return resources from a map
+// WithResourcesExist sets up GetResource to return resources from a map.
 func (b *MockResourceClientBuilder) WithResourcesExist(resources ...*un.Unstructured) *MockResourceClientBuilder {
 	resourceMap := make(map[string]*un.Unstructured)
 
@@ -415,7 +86,7 @@ func (b *MockResourceClientBuilder) WithResourcesExist(resources ...*un.Unstruct
 	})
 }
 
-// WithResourceNotFound sets GetResource to always return "not found"
+// WithResourceNotFound sets GetResource to always return "not found".
 func (b *MockResourceClientBuilder) WithResourceNotFound() *MockResourceClientBuilder {
 	return b.WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
 		// Create a proper Kubernetes "not found" error
@@ -429,33 +100,33 @@ func (b *MockResourceClientBuilder) WithResourceNotFound() *MockResourceClientBu
 	})
 }
 
-// WithListResources sets the ListResources behavior
+// WithListResources sets the ListResources behavior.
 func (b *MockResourceClientBuilder) WithListResources(fn func(context.Context, schema.GroupVersionKind, string) ([]*un.Unstructured, error)) *MockResourceClientBuilder {
 	b.mock.ListResourcesFn = fn
 	return b
 }
 
-// WithEmptyListResources mimics an empty but successful response
+// WithEmptyListResources mimics an empty but successful response.
 func (b *MockResourceClientBuilder) WithEmptyListResources() *MockResourceClientBuilder {
 	return b.WithListResources(func(context.Context, schema.GroupVersionKind, string) ([]*un.Unstructured, error) {
 		return []*un.Unstructured{}, nil
 	})
 }
 
-// WithListResourcesFailure mimics a failed response
+// WithListResourcesFailure mimics a failed response.
 func (b *MockResourceClientBuilder) WithListResourcesFailure(errorStr string) *MockResourceClientBuilder {
 	return b.WithListResources(func(context.Context, schema.GroupVersionKind, string) ([]*un.Unstructured, error) {
 		return nil, errors.New(errorStr)
 	})
 }
 
-// WithGetResourcesByLabel sets the GetResourcesByLabel behavior
+// WithGetResourcesByLabel sets the GetResourcesByLabel behavior.
 func (b *MockResourceClientBuilder) WithGetResourcesByLabel(fn func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*un.Unstructured, error)) *MockResourceClientBuilder {
 	b.mock.GetResourcesByLabelFn = fn
 	return b
 }
 
-// WithResourcesFoundByLabel sets GetResourcesByLabel to return resources for a specific label
+// WithResourcesFoundByLabel sets GetResourcesByLabel to return resources for a specific label.
 func (b *MockResourceClientBuilder) WithResourcesFoundByLabel(resources []*un.Unstructured, label, value string) *MockResourceClientBuilder {
 	return b.WithGetResourcesByLabel(func(_ context.Context, _ string, _ schema.GroupVersionKind, selector metav1.LabelSelector) ([]*un.Unstructured, error) {
 		// Check if the selector matches our expected label
@@ -466,49 +137,49 @@ func (b *MockResourceClientBuilder) WithResourcesFoundByLabel(resources []*un.Un
 	})
 }
 
-// WithGetAllResourcesByLabels sets the GetAllResourcesByLabels behavior
+// WithGetAllResourcesByLabels sets the GetAllResourcesByLabels behavior.
 func (b *MockResourceClientBuilder) WithGetAllResourcesByLabels(fn func(context.Context, []schema.GroupVersionKind, []metav1.LabelSelector) ([]*un.Unstructured, error)) *MockResourceClientBuilder {
 	b.mock.GetAllResourcesByLabelsFn = fn
 	return b
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockResourceClientBuilder) Build() *MockResourceClient {
 	return b.mock
 }
 
-// MockSchemaClientBuilder helps build kubernetes.SchemaClient mocks
+// MockSchemaClientBuilder helps build kubernetes.SchemaClient mocks.
 type MockSchemaClientBuilder struct {
 	mock *MockSchemaClient
 }
 
-// NewMockSchemaClient creates a new MockSchemaClientBuilder
+// NewMockSchemaClient creates a new MockSchemaClientBuilder.
 func NewMockSchemaClient() *MockSchemaClientBuilder {
 	return &MockSchemaClientBuilder{
 		mock: &MockSchemaClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockSchemaClientBuilder) WithInitialize(fn func(context.Context) error) *MockSchemaClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithGetCRD sets the GetCRD behavior
+// WithGetCRD sets the GetCRD behavior.
 func (b *MockSchemaClientBuilder) WithGetCRD(fn func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error)) *MockSchemaClientBuilder {
 	b.mock.GetCRDFn = fn
 	return b
 }
 
-// WithCRDNotFound sets GetCRD to return a not found error
+// WithCRDNotFound sets GetCRD to return a not found error.
 func (b *MockSchemaClientBuilder) WithCRDNotFound() *MockSchemaClientBuilder {
 	return b.WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
 		return nil, errors.New("CRD not found")
 	})
 }
 
-// WithSuccessfulCRDFetch sets GetCRD to return a specific CRD
+// WithSuccessfulCRDFetch sets GetCRD to return a specific CRD.
 func (b *MockSchemaClientBuilder) WithSuccessfulCRDFetch(crd *un.Unstructured) *MockSchemaClientBuilder {
 	return b.WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
 		if crd.GetKind() != "CustomResourceDefinition" {
@@ -518,13 +189,13 @@ func (b *MockSchemaClientBuilder) WithSuccessfulCRDFetch(crd *un.Unstructured) *
 	})
 }
 
-// WithIsCRDRequired sets the IsCRDRequired behavior
+// WithIsCRDRequired sets the IsCRDRequired behavior.
 func (b *MockSchemaClientBuilder) WithIsCRDRequired(fn func(context.Context, schema.GroupVersionKind) bool) *MockSchemaClientBuilder {
 	b.mock.IsCRDRequiredFn = fn
 	return b
 }
 
-// WithResourcesRequiringCRDs sets only the specified GVKs to require CRDs
+// WithResourcesRequiringCRDs sets only the specified GVKs to require CRDs.
 func (b *MockSchemaClientBuilder) WithResourcesRequiringCRDs(crdsRequiredGVKs ...schema.GroupVersionKind) *MockSchemaClientBuilder {
 	requiresCRD := make(map[schema.GroupVersionKind]bool)
 	for _, gvk := range crdsRequiredGVKs {
@@ -537,99 +208,99 @@ func (b *MockSchemaClientBuilder) WithResourcesRequiringCRDs(crdsRequiredGVKs ..
 	})
 }
 
-// WithAllResourcesRequiringCRDs sets all resources to require CRDs
+// WithAllResourcesRequiringCRDs sets all resources to require CRDs.
 func (b *MockSchemaClientBuilder) WithAllResourcesRequiringCRDs() *MockSchemaClientBuilder {
 	return b.WithIsCRDRequired(func(context.Context, schema.GroupVersionKind) bool {
 		return true
 	})
 }
 
-// WithNoResourcesRequiringCRDs sets all resources to not require CRDs
+// WithNoResourcesRequiringCRDs sets all resources to not require CRDs.
 func (b *MockSchemaClientBuilder) WithNoResourcesRequiringCRDs() *MockSchemaClientBuilder {
 	return b.WithIsCRDRequired(func(context.Context, schema.GroupVersionKind) bool {
 		return false
 	})
 }
 
-// WithValidateResource sets the ValidateResource behavior
+// WithValidateResource sets the ValidateResource behavior.
 func (b *MockSchemaClientBuilder) WithValidateResource(fn func(context.Context, *un.Unstructured) error) *MockSchemaClientBuilder {
 	b.mock.ValidateResourceFn = fn
 	return b
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockSchemaClientBuilder) Build() *MockSchemaClient {
 	return b.mock
 }
 
-// MockApplyClientBuilder helps build kubernetes.ApplyClient mocks
+// MockApplyClientBuilder helps build kubernetes.ApplyClient mocks.
 type MockApplyClientBuilder struct {
 	mock *MockApplyClient
 }
 
-// NewMockApplyClient creates a new MockApplyClientBuilder
+// NewMockApplyClient creates a new MockApplyClientBuilder.
 func NewMockApplyClient() *MockApplyClientBuilder {
 	return &MockApplyClientBuilder{
 		mock: &MockApplyClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockApplyClientBuilder) WithInitialize(fn func(context.Context) error) *MockApplyClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithApply sets the Apply behavior
+// WithApply sets the Apply behavior.
 func (b *MockApplyClientBuilder) WithApply(fn func(context.Context, *un.Unstructured) (*un.Unstructured, error)) *MockApplyClientBuilder {
 	b.mock.ApplyFn = fn
 	return b
 }
 
-// WithDryRunApply sets the DryRunApply behavior
+// WithDryRunApply sets the DryRunApply behavior.
 func (b *MockApplyClientBuilder) WithDryRunApply(fn func(context.Context, *un.Unstructured) (*un.Unstructured, error)) *MockApplyClientBuilder {
 	b.mock.DryRunApplyFn = fn
 	return b
 }
 
-// WithSuccessfulDryRun sets DryRunApply to return the input resource
+// WithSuccessfulDryRun sets DryRunApply to return the input resource.
 func (b *MockApplyClientBuilder) WithSuccessfulDryRun() *MockApplyClientBuilder {
 	return b.WithDryRunApply(func(_ context.Context, obj *un.Unstructured) (*un.Unstructured, error) {
 		return obj, nil
 	})
 }
 
-// WithFailedDryRun sets DryRunApply to return an error
+// WithFailedDryRun sets DryRunApply to return an error.
 func (b *MockApplyClientBuilder) WithFailedDryRun(errMsg string) *MockApplyClientBuilder {
 	return b.WithDryRunApply(func(context.Context, *un.Unstructured) (*un.Unstructured, error) {
 		return nil, errors.New(errMsg)
 	})
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockApplyClientBuilder) Build() *MockApplyClient {
 	return b.mock
 }
 
-// MockTypeConverterBuilder helps build kubernetes.TypeConverter mocks
+// MockTypeConverterBuilder helps build kubernetes.TypeConverter mocks.
 type MockTypeConverterBuilder struct {
 	mock *MockTypeConverter
 }
 
-// NewMockTypeConverter creates a new MockTypeConverterBuilder
+// NewMockTypeConverter creates a new MockTypeConverterBuilder.
 func NewMockTypeConverter() *MockTypeConverterBuilder {
 	return &MockTypeConverterBuilder{
 		mock: &MockTypeConverter{},
 	}
 }
 
-// WithGVKToGVR sets the GVKToGVR behavior
+// WithGVKToGVR sets the GVKToGVR behavior.
 func (b *MockTypeConverterBuilder) WithGVKToGVR(fn func(context.Context, schema.GroupVersionKind) (schema.GroupVersionResource, error)) *MockTypeConverterBuilder {
 	b.mock.GVKToGVRFn = fn
 	return b
 }
 
-// WithDefaultGVKToGVR sets a default implementation for GVKToGVR
+// WithDefaultGVKToGVR sets a default implementation for GVKToGVR.
 func (b *MockTypeConverterBuilder) WithDefaultGVKToGVR() *MockTypeConverterBuilder {
 	return b.WithGVKToGVR(func(_ context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 		// Simple default implementation that converts Kind to lowercase and adds 's'
@@ -641,13 +312,13 @@ func (b *MockTypeConverterBuilder) WithDefaultGVKToGVR() *MockTypeConverterBuild
 	})
 }
 
-// WithGetResourceNameForGVK sets the GetResourceNameForGVK behavior
+// WithGetResourceNameForGVK sets the GetResourceNameForGVK behavior.
 func (b *MockTypeConverterBuilder) WithGetResourceNameForGVK(fn func(context.Context, schema.GroupVersionKind) (string, error)) *MockTypeConverterBuilder {
 	b.mock.GetResourceNameForGVKFn = fn
 	return b
 }
 
-// WithDefaultGetResourceNameForGVK sets a default implementation for GetResourceNameForGVK
+// WithDefaultGetResourceNameForGVK sets a default implementation for GetResourceNameForGVK.
 func (b *MockTypeConverterBuilder) WithDefaultGetResourceNameForGVK() *MockTypeConverterBuilder {
 	return b.WithGetResourceNameForGVK(func(_ context.Context, gvk schema.GroupVersionKind) (string, error) {
 		// Simple default implementation that converts Kind to lowercase and adds 's'
@@ -655,38 +326,38 @@ func (b *MockTypeConverterBuilder) WithDefaultGetResourceNameForGVK() *MockTypeC
 	})
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockTypeConverterBuilder) Build() *MockTypeConverter {
 	return b.mock
 }
 
-//endregion
+// endregion
 
-//region Crossplane API layer mock builders
+// region Crossplane API layer mock builders
 
 // ======================================================================================
 // Crossplane API Layer Mock Builders
 // ======================================================================================
 
-// MockCompositionClientBuilder helps build crossplane.CompositionClient mocks
+// MockCompositionClientBuilder helps build crossplane.CompositionClient mocks.
 type MockCompositionClientBuilder struct {
 	mock *MockCompositionClient
 }
 
-// NewMockCompositionClient creates a new MockCompositionClientBuilder
+// NewMockCompositionClient creates a new MockCompositionClientBuilder.
 func NewMockCompositionClient() *MockCompositionClientBuilder {
 	return &MockCompositionClientBuilder{
 		mock: &MockCompositionClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockCompositionClientBuilder) WithInitialize(fn func(context.Context) error) *MockCompositionClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithSuccessfulInitialize mocks a successful call to Initialize
+// WithSuccessfulInitialize mocks a successful call to Initialize.
 func (b *MockCompositionClientBuilder) WithSuccessfulInitialize() *MockCompositionClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return nil
@@ -694,7 +365,7 @@ func (b *MockCompositionClientBuilder) WithSuccessfulInitialize() *MockCompositi
 	return b
 }
 
-// WithFailedInitialize mocks a failed call to Initialize
+// WithFailedInitialize mocks a failed call to Initialize.
 func (b *MockCompositionClientBuilder) WithFailedInitialize(errMsg string) *MockCompositionClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return errors.New(errMsg)
@@ -702,62 +373,62 @@ func (b *MockCompositionClientBuilder) WithFailedInitialize(errMsg string) *Mock
 	return b
 }
 
-// WithFindMatchingComposition sets the FindMatchingComposition behavior
+// WithFindMatchingComposition sets the FindMatchingComposition behavior.
 func (b *MockCompositionClientBuilder) WithFindMatchingComposition(fn func(context.Context, *un.Unstructured) (*xpextv1.Composition, error)) *MockCompositionClientBuilder {
 	b.mock.FindMatchingCompositionFn = fn
 	return b
 }
 
-// WithSuccessfulCompositionMatch sets FindMatchingComposition to return a specific composition
+// WithSuccessfulCompositionMatch sets FindMatchingComposition to return a specific composition.
 func (b *MockCompositionClientBuilder) WithSuccessfulCompositionMatch(comp *xpextv1.Composition) *MockCompositionClientBuilder {
 	return b.WithFindMatchingComposition(func(context.Context, *un.Unstructured) (*xpextv1.Composition, error) {
 		return comp, nil
 	})
 }
 
-// WithNoMatchingComposition sets FindMatchingComposition to return "not found"
+// WithNoMatchingComposition sets FindMatchingComposition to return "not found".
 func (b *MockCompositionClientBuilder) WithNoMatchingComposition() *MockCompositionClientBuilder {
 	return b.WithFindMatchingComposition(func(context.Context, *un.Unstructured) (*xpextv1.Composition, error) {
 		return nil, errors.New("composition not found")
 	})
 }
 
-// WithListCompositions sets the ListCompositions behavior
+// WithListCompositions sets the ListCompositions behavior.
 func (b *MockCompositionClientBuilder) WithListCompositions(fn func(context.Context) ([]*xpextv1.Composition, error)) *MockCompositionClientBuilder {
 	b.mock.ListCompositionsFn = fn
 	return b
 }
 
-// WithGetComposition sets the GetComposition behavior
+// WithGetComposition sets the GetComposition behavior.
 func (b *MockCompositionClientBuilder) WithGetComposition(fn func(context.Context, string) (*xpextv1.Composition, error)) *MockCompositionClientBuilder {
 	b.mock.GetCompositionFn = fn
 	return b
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockCompositionClientBuilder) Build() *MockCompositionClient {
 	return b.mock
 }
 
-// MockFunctionClientBuilder helps build crossplane.FunctionClient mocks
+// MockFunctionClientBuilder helps build crossplane.FunctionClient mocks.
 type MockFunctionClientBuilder struct {
 	mock *MockFunctionClient
 }
 
-// NewMockFunctionClient creates a new MockFunctionClientBuilder
+// NewMockFunctionClient creates a new MockFunctionClientBuilder.
 func NewMockFunctionClient() *MockFunctionClientBuilder {
 	return &MockFunctionClientBuilder{
 		mock: &MockFunctionClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockFunctionClientBuilder) WithInitialize(fn func(context.Context) error) *MockFunctionClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithSuccessfulInitialize mocks a successful call to Initialize
+// WithSuccessfulInitialize mocks a successful call to Initialize.
 func (b *MockFunctionClientBuilder) WithSuccessfulInitialize() *MockFunctionClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return nil
@@ -765,7 +436,7 @@ func (b *MockFunctionClientBuilder) WithSuccessfulInitialize() *MockFunctionClie
 	return b
 }
 
-// WithFailedInitialize mocks a failed call to Initialize
+// WithFailedInitialize mocks a failed call to Initialize.
 func (b *MockFunctionClientBuilder) WithFailedInitialize(errMsg string) *MockFunctionClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return errors.New(errMsg)
@@ -773,56 +444,56 @@ func (b *MockFunctionClientBuilder) WithFailedInitialize(errMsg string) *MockFun
 	return b
 }
 
-// WithGetFunctionsFromPipeline sets the GetFunctionsFromPipeline behavior
+// WithGetFunctionsFromPipeline sets the GetFunctionsFromPipeline behavior.
 func (b *MockFunctionClientBuilder) WithGetFunctionsFromPipeline(fn func(*xpextv1.Composition) ([]pkgv1.Function, error)) *MockFunctionClientBuilder {
 	b.mock.GetFunctionsFromPipelineFn = fn
 	return b
 }
 
-// WithSuccessfulFunctionsFetch sets GetFunctionsFromPipeline to return specific functions
+// WithSuccessfulFunctionsFetch sets GetFunctionsFromPipeline to return specific functions.
 func (b *MockFunctionClientBuilder) WithSuccessfulFunctionsFetch(functions []pkgv1.Function) *MockFunctionClientBuilder {
 	return b.WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 		return functions, nil
 	})
 }
 
-// WithFailedFunctionsFetch sets GetFunctionsFromPipeline to return an error
+// WithFailedFunctionsFetch sets GetFunctionsFromPipeline to return an error.
 func (b *MockFunctionClientBuilder) WithFailedFunctionsFetch(errMsg string) *MockFunctionClientBuilder {
 	return b.WithGetFunctionsFromPipeline(func(*xpextv1.Composition) ([]pkgv1.Function, error) {
 		return nil, errors.New(errMsg)
 	})
 }
 
-// WithListFunctions sets the ListFunctions behavior
+// WithListFunctions sets the ListFunctions behavior.
 func (b *MockFunctionClientBuilder) WithListFunctions(fn func(context.Context) ([]pkgv1.Function, error)) *MockFunctionClientBuilder {
 	b.mock.ListFunctionsFn = fn
 	return b
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockFunctionClientBuilder) Build() *MockFunctionClient {
 	return b.mock
 }
 
-// MockEnvironmentClientBuilder helps build crossplane.EnvironmentClient mocks
+// MockEnvironmentClientBuilder helps build crossplane.EnvironmentClient mocks.
 type MockEnvironmentClientBuilder struct {
 	mock *MockEnvironmentClient
 }
 
-// NewMockEnvironmentClient creates a new MockEnvironmentClientBuilder
+// NewMockEnvironmentClient creates a new MockEnvironmentClientBuilder.
 func NewMockEnvironmentClient() *MockEnvironmentClientBuilder {
 	return &MockEnvironmentClientBuilder{
 		mock: &MockEnvironmentClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockEnvironmentClientBuilder) WithInitialize(fn func(context.Context) error) *MockEnvironmentClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithSuccessfulInitialize mocks a successful call to Initialize
+// WithSuccessfulInitialize mocks a successful call to Initialize.
 func (b *MockEnvironmentClientBuilder) WithSuccessfulInitialize() *MockEnvironmentClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return nil
@@ -830,7 +501,7 @@ func (b *MockEnvironmentClientBuilder) WithSuccessfulInitialize() *MockEnvironme
 	return b
 }
 
-// WithFailedInitialize mocks a failed call to Initialize
+// WithFailedInitialize mocks a failed call to Initialize.
 func (b *MockEnvironmentClientBuilder) WithFailedInitialize(errMsg string) *MockEnvironmentClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return errors.New(errMsg)
@@ -838,49 +509,49 @@ func (b *MockEnvironmentClientBuilder) WithFailedInitialize(errMsg string) *Mock
 	return b
 }
 
-// WithGetEnvironmentConfigs sets the GetEnvironmentConfigs behavior
+// WithGetEnvironmentConfigs sets the GetEnvironmentConfigs behavior.
 func (b *MockEnvironmentClientBuilder) WithGetEnvironmentConfigs(fn func(context.Context) ([]*un.Unstructured, error)) *MockEnvironmentClientBuilder {
 	b.mock.GetEnvironmentConfigsFn = fn
 	return b
 }
 
-// WithSuccessfulEnvironmentConfigsFetch sets GetEnvironmentConfigs to return specific configs
+// WithSuccessfulEnvironmentConfigsFetch sets GetEnvironmentConfigs to return specific configs.
 func (b *MockEnvironmentClientBuilder) WithSuccessfulEnvironmentConfigsFetch(configs []*un.Unstructured) *MockEnvironmentClientBuilder {
 	return b.WithGetEnvironmentConfigs(func(context.Context) ([]*un.Unstructured, error) {
 		return configs, nil
 	})
 }
 
-// WithGetEnvironmentConfig sets the GetEnvironmentConfig behavior
+// WithGetEnvironmentConfig sets the GetEnvironmentConfig behavior.
 func (b *MockEnvironmentClientBuilder) WithGetEnvironmentConfig(fn func(context.Context, string) (*un.Unstructured, error)) *MockEnvironmentClientBuilder {
 	b.mock.GetEnvironmentConfigFn = fn
 	return b
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockEnvironmentClientBuilder) Build() *MockEnvironmentClient {
 	return b.mock
 }
 
-// MockDefinitionClientBuilder helps build crossplane.DefinitionClient mocks
+// MockDefinitionClientBuilder helps build crossplane.DefinitionClient mocks.
 type MockDefinitionClientBuilder struct {
 	mock *MockDefinitionClient
 }
 
-// NewMockDefinitionClient creates a new MockDefinitionClientBuilder
+// NewMockDefinitionClient creates a new MockDefinitionClientBuilder.
 func NewMockDefinitionClient() *MockDefinitionClientBuilder {
 	return &MockDefinitionClientBuilder{
 		mock: &MockDefinitionClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockDefinitionClientBuilder) WithInitialize(fn func(context.Context) error) *MockDefinitionClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithSuccessfulInitialize mocks a successful call to Initialize
+// WithSuccessfulInitialize mocks a successful call to Initialize.
 func (b *MockDefinitionClientBuilder) WithSuccessfulInitialize() *MockDefinitionClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return nil
@@ -888,7 +559,7 @@ func (b *MockDefinitionClientBuilder) WithSuccessfulInitialize() *MockDefinition
 	return b
 }
 
-// WithFailedInitialize mocks a failed call to Initialize
+// WithFailedInitialize mocks a failed call to Initialize.
 func (b *MockDefinitionClientBuilder) WithFailedInitialize(errMsg string) *MockDefinitionClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return errors.New(errMsg)
@@ -896,69 +567,69 @@ func (b *MockDefinitionClientBuilder) WithFailedInitialize(errMsg string) *MockD
 	return b
 }
 
-// WithGetXRDs sets the GetXRDs behavior
+// WithGetXRDs sets the GetXRDs behavior.
 func (b *MockDefinitionClientBuilder) WithGetXRDs(fn func(context.Context) ([]*un.Unstructured, error)) *MockDefinitionClientBuilder {
 	b.mock.GetXRDsFn = fn
 	return b
 }
 
-// WithSuccessfulXRDsFetch sets GetXRDs to return specific XRDs
+// WithSuccessfulXRDsFetch sets GetXRDs to return specific XRDs.
 func (b *MockDefinitionClientBuilder) WithSuccessfulXRDsFetch(xrds []*un.Unstructured) *MockDefinitionClientBuilder {
 	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 		return xrds, nil
 	})
 }
 
-// WithEmptyXRDsFetch sets GetXRDs to return an empty set of XRDs
+// WithEmptyXRDsFetch sets GetXRDs to return an empty set of XRDs.
 func (b *MockDefinitionClientBuilder) WithEmptyXRDsFetch() *MockDefinitionClientBuilder {
 	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 		return []*un.Unstructured{}, nil
 	})
 }
 
-// WithFailedXRDsFetch sets GetXRDs to return an error
+// WithFailedXRDsFetch sets GetXRDs to return an error.
 func (b *MockDefinitionClientBuilder) WithFailedXRDsFetch(errMsg string) *MockDefinitionClientBuilder {
 	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 		return nil, errors.New(errMsg)
 	})
 }
 
-// WithGetXRDForClaim sets the GetXRDForClaim behavior
+// WithGetXRDForClaim sets the GetXRDForClaim behavior.
 func (b *MockDefinitionClientBuilder) WithGetXRDForClaim(fn func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error)) *MockDefinitionClientBuilder {
 	b.mock.GetXRDForClaimFn = fn
 	return b
 }
 
-// WithGetXRDForXR sets the GetXRDForXR behavior
+// WithGetXRDForXR sets the GetXRDForXR behavior.
 func (b *MockDefinitionClientBuilder) WithGetXRDForXR(fn func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error)) *MockDefinitionClientBuilder {
 	b.mock.GetXRDForXRFn = fn
 	return b
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockDefinitionClientBuilder) Build() *MockDefinitionClient {
 	return b.mock
 }
 
-// MockResourceTreeClientBuilder helps build crossplane.ResourceTreeClient mocks
+// MockResourceTreeClientBuilder helps build crossplane.ResourceTreeClient mocks.
 type MockResourceTreeClientBuilder struct {
 	mock *MockResourceTreeClient
 }
 
-// NewMockResourceTreeClient creates a new MockResourceTreeClientBuilder
+// NewMockResourceTreeClient creates a new MockResourceTreeClientBuilder.
 func NewMockResourceTreeClient() *MockResourceTreeClientBuilder {
 	return &MockResourceTreeClientBuilder{
 		mock: &MockResourceTreeClient{},
 	}
 }
 
-// WithInitialize sets the Initialize behavior
+// WithInitialize sets the Initialize behavior.
 func (b *MockResourceTreeClientBuilder) WithInitialize(fn func(context.Context) error) *MockResourceTreeClientBuilder {
 	b.mock.InitializeFn = fn
 	return b
 }
 
-// WithSuccessfulInitialize mocks a successful call to Initialize
+// WithSuccessfulInitialize mocks a successful call to Initialize.
 func (b *MockResourceTreeClientBuilder) WithSuccessfulInitialize() *MockResourceTreeClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return nil
@@ -966,7 +637,7 @@ func (b *MockResourceTreeClientBuilder) WithSuccessfulInitialize() *MockResource
 	return b
 }
 
-// WithFailedInitialize mocks a failed call to Initialize
+// WithFailedInitialize mocks a failed call to Initialize.
 func (b *MockResourceTreeClientBuilder) WithFailedInitialize(errMsg string) *MockResourceTreeClientBuilder {
 	b.mock.InitializeFn = func(context.Context) error {
 		return errors.New(errMsg)
@@ -974,20 +645,20 @@ func (b *MockResourceTreeClientBuilder) WithFailedInitialize(errMsg string) *Moc
 	return b
 }
 
-// WithGetResourceTree sets the GetResourceTree behavior
+// WithGetResourceTree sets the GetResourceTree behavior.
 func (b *MockResourceTreeClientBuilder) WithGetResourceTree(fn func(context.Context, *un.Unstructured) (*resource.Resource, error)) *MockResourceTreeClientBuilder {
 	b.mock.GetResourceTreeFn = fn
 	return b
 }
 
-// WithSuccessfulResourceTreeFetch sets GetResourceTree to return a specific tree
+// WithSuccessfulResourceTreeFetch sets GetResourceTree to return a specific tree.
 func (b *MockResourceTreeClientBuilder) WithSuccessfulResourceTreeFetch(resourceTree *resource.Resource) *MockResourceTreeClientBuilder {
 	return b.WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
 		return resourceTree, nil
 	})
 }
 
-// WithEmptyResourceTree sets GetResourceTree to return just the root with no children
+// WithEmptyResourceTree sets GetResourceTree to return just the root with no children.
 func (b *MockResourceTreeClientBuilder) WithEmptyResourceTree() *MockResourceTreeClientBuilder {
 	return b.WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 		return &resource.Resource{
@@ -997,14 +668,14 @@ func (b *MockResourceTreeClientBuilder) WithEmptyResourceTree() *MockResourceTre
 	})
 }
 
-// WithFailedResourceTreeFetch sets GetResourceTree to return an error
+// WithFailedResourceTreeFetch sets GetResourceTree to return an error.
 func (b *MockResourceTreeClientBuilder) WithFailedResourceTreeFetch(errMsg string) *MockResourceTreeClientBuilder {
 	return b.WithGetResourceTree(func(context.Context, *un.Unstructured) (*resource.Resource, error) {
 		return nil, errors.New(errMsg)
 	})
 }
 
-// WithResourceTreeFromXRAndComposed creates a basic resource tree from an XR and composed resources
+// WithResourceTreeFromXRAndComposed creates a basic resource tree from an XR and composed resources.
 func (b *MockResourceTreeClientBuilder) WithResourceTreeFromXRAndComposed(xr *un.Unstructured, composed []*un.Unstructured) *MockResourceTreeClientBuilder {
 	return b.WithGetResourceTree(func(_ context.Context, root *un.Unstructured) (*resource.Resource, error) {
 		// Make sure we're looking for the right XR
@@ -1030,14 +701,14 @@ func (b *MockResourceTreeClientBuilder) WithResourceTreeFromXRAndComposed(xr *un
 	})
 }
 
-// Build returns the built mock
+// Build returns the built mock.
 func (b *MockResourceTreeClientBuilder) Build() *MockResourceTreeClient {
 	return b.mock
 }
 
-//endregion
+// endregion
 
-//region DiffProcessor mock builder
+// region DiffProcessor mock builder
 
 // ======================================================================================
 // DiffProcessor Mock Builder
@@ -1110,9 +781,9 @@ func (b *DiffProcessorBuilder) Build() *MockDiffProcessor {
 	return b.mock
 }
 
-//endregion
+// endregion
 
-//region Resource builders
+// region Resource builders
 
 // ======================================================================================
 // Resource Building Helpers
@@ -1274,9 +945,9 @@ func (b *ResourceBuilder) BuildUComposed() *cpd.Unstructured {
 	return built
 }
 
-//endregion
+// endregion
 
-//region Composition builders
+// region Composition builders
 
 // ======================================================================================
 // Composition Building Helpers
@@ -1345,4 +1016,4 @@ func (b *CompositionBuilder) Build() *xpextv1.Composition {
 	return b.composition.DeepCopy()
 }
 
-//endregion
+// endregion

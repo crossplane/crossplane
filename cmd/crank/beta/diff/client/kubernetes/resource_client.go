@@ -1,24 +1,24 @@
-// package kubernetes/resource_client.go
-
 package kubernetes
 
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
+
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 )
 
-// ResourceClient handles basic CRUD operations for Kubernetes resources
+// ResourceClient handles basic CRUD operations for Kubernetes resources.
 type ResourceClient interface {
-
 	// GetResource retrieves a resource by its GVK, namespace, and name
 	GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error)
 
@@ -32,7 +32,7 @@ type ResourceClient interface {
 	GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error)
 }
 
-// DefaultResourceClient implements the ResourceClient interface
+// DefaultResourceClient implements the ResourceClient interface.
 type DefaultResourceClient struct {
 	dynamicClient   dynamic.Interface
 	discoveryClient discovery.DiscoveryInterface
@@ -40,7 +40,7 @@ type DefaultResourceClient struct {
 	logger          logging.Logger
 }
 
-// NewResourceClient creates a new DefaultResourceClient instance
+// NewResourceClient creates a new DefaultResourceClient instance.
 func NewResourceClient(clients *core.Clients, converter TypeConverter, logger logging.Logger) ResourceClient {
 	return &DefaultResourceClient{
 		dynamicClient:   clients.Dynamic,
@@ -50,7 +50,7 @@ func NewResourceClient(clients *core.Clients, converter TypeConverter, logger lo
 	}
 }
 
-// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name
+// GetResource retrieves a resource from the cluster based on its GVK, namespace, and name.
 func (c *DefaultResourceClient) GetResource(ctx context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
 	resourceID := fmt.Sprintf("%s/%s/%s", gvk.String(), namespace, name)
 	c.logger.Debug("Getting resource from cluster", "resource", resourceID)
@@ -76,7 +76,7 @@ func (c *DefaultResourceClient) GetResource(ctx context.Context, gvk schema.Grou
 	return res, nil
 }
 
-// GetResourcesByLabel returns resources matching labels in the given namespace
+// GetResourcesByLabel returns resources matching labels in the given namespace.
 func (c *DefaultResourceClient) GetResourcesByLabel(ctx context.Context, namespace string, gvk schema.GroupVersionKind, sel metav1.LabelSelector) ([]*un.Unstructured, error) {
 	c.logger.Debug("Getting resources by label",
 		"namespace", namespace,
@@ -113,7 +113,7 @@ func (c *DefaultResourceClient) GetResourcesByLabel(ctx context.Context, namespa
 	return resources, nil
 }
 
-// ListResources lists resources matching the given GVK and namespace
+// ListResources lists resources matching the given GVK and namespace.
 func (c *DefaultResourceClient) ListResources(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
 	c.logger.Debug("Listing resources", "gvk", gvk.String(), "namespace", namespace)
 
@@ -141,7 +141,7 @@ func (c *DefaultResourceClient) ListResources(ctx context.Context, gvk schema.Gr
 	return resources, nil
 }
 
-// GetAllResourcesByLabels gets resources by labels across multiple GVKs
+// GetAllResourcesByLabels gets resources by labels across multiple GVKs.
 func (c *DefaultResourceClient) GetAllResourcesByLabels(ctx context.Context, gvks []schema.GroupVersionKind, selectors []metav1.LabelSelector) ([]*un.Unstructured, error) {
 	if len(gvks) != len(selectors) {
 		c.logger.Debug("GVKs and selectors count mismatch", "gvks_count", len(gvks), "selectors_count", len(selectors))

@@ -2,15 +2,23 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"strings"
+	"testing"
+
+	"strings"
+	"testing"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	testdiscovery "k8s.io/client-go/discovery/fake"
 	kt "k8s.io/client-go/testing"
-	"strings"
-	"testing"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
+
+var _ TypeConverter = (*tu.MockTypeConverter)(nil)
 
 func TestTypeConverter_GVKToGVR(t *testing.T) {
 	type args struct {

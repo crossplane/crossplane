@@ -1,14 +1,16 @@
 package renderer
 
 import (
-	types "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/google/go-cmp/cmp"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"strings"
 	"testing"
 
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	types "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
 func TestGenerateDiffWithOptions(t *testing.T) {

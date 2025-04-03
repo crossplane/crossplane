@@ -1,20 +1,21 @@
-// package crossplane/definition_client.go
-
 package crossplane
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	"sync"
+
+
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/core"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// DefinitionClient handles Crossplane definitions (XRDs)
+// DefinitionClient handles Crossplane definitions (XRDs).
 type DefinitionClient interface {
 	core.Initializable
 
@@ -28,7 +29,7 @@ type DefinitionClient interface {
 	GetXRDForXR(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error)
 }
 
-// DefaultDefinitionClient implements DefinitionClient
+// DefaultDefinitionClient implements DefinitionClient.
 type DefaultDefinitionClient struct {
 	resourceClient kubernetes.ResourceClient
 	logger         logging.Logger
@@ -39,7 +40,7 @@ type DefaultDefinitionClient struct {
 	xrdsLoaded bool
 }
 
-// NewDefinitionClient creates a new DefaultDefinitionClient
+// NewDefinitionClient creates a new DefaultDefinitionClient.
 func NewDefinitionClient(resourceClient kubernetes.ResourceClient, logger logging.Logger) DefinitionClient {
 	return &DefaultDefinitionClient{
 		resourceClient: resourceClient,
@@ -48,7 +49,7 @@ func NewDefinitionClient(resourceClient kubernetes.ResourceClient, logger loggin
 	}
 }
 
-// Initialize loads XRDs into the cache
+// Initialize loads XRDs into the cache.
 func (c *DefaultDefinitionClient) Initialize(ctx context.Context) error {
 	c.logger.Debug("Initializing definition client")
 
@@ -62,7 +63,7 @@ func (c *DefaultDefinitionClient) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// GetXRDs gets all XRDs in the cluster
+// GetXRDs gets all XRDs in the cluster.
 func (c *DefaultDefinitionClient) GetXRDs(ctx context.Context) ([]*un.Unstructured, error) {
 	// Check if XRDs are already loaded
 	c.xrdsMutex.RLock()
@@ -108,7 +109,7 @@ func (c *DefaultDefinitionClient) GetXRDs(ctx context.Context) ([]*un.Unstructur
 	return xrds, nil
 }
 
-// GetXRDForClaim finds the XRD that defines the given claim type
+// GetXRDForClaim finds the XRD that defines the given claim type.
 func (c *DefaultDefinitionClient) GetXRDForClaim(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 	c.logger.Debug("Looking for XRD that defines claim",
 		"gvk", gvk.String())
@@ -149,7 +150,7 @@ func (c *DefaultDefinitionClient) GetXRDForClaim(ctx context.Context, gvk schema
 	return nil, errors.Errorf("no XRD found that defines claim type %s", gvk.String())
 }
 
-// GetXRDForXR finds the XRD that defines the given XR type
+// GetXRDForXR finds the XRD that defines the given XR type.
 func (c *DefaultDefinitionClient) GetXRDForXR(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 	c.logger.Debug("Looking for XRD that defines XR",
 		"gvk", gvk.String())

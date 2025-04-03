@@ -3,29 +3,35 @@ package renderer
 import (
 	"cmp"
 	"fmt"
-	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"io"
 	"strings"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 )
 
-// DiffRenderer handles rendering diffs to output
+// DiffRenderer handles rendering diffs to output.
 type DiffRenderer interface {
 	// RenderDiffs formats and outputs diffs to the provided writer
 	RenderDiffs(stdout io.Writer, diffs map[string]*dt.ResourceDiff) error
 }
 
-// DefaultDiffRenderer implements the DiffRenderer interface
+// DefaultDiffRenderer implements the DiffRenderer interface.
 type DefaultDiffRenderer struct {
 	logger   logging.Logger
 	diffOpts DiffOptions
 }
 
-// NewDiffRenderer creates a new DefaultDiffRenderer with the given options
+// NewDiffRenderer creates a new DefaultDiffRenderer with the given options.
 func NewDiffRenderer(logger logging.Logger, diffOpts DiffOptions) DiffRenderer {
 	return &DefaultDiffRenderer{
 		logger:   logger,
@@ -33,7 +39,7 @@ func NewDiffRenderer(logger logging.Logger, diffOpts DiffOptions) DiffRenderer {
 	}
 }
 
-// SetDiffOptions updates the diff options used by the renderer
+// SetDiffOptions updates the diff options used by the renderer.
 func (r *DefaultDiffRenderer) SetDiffOptions(options DiffOptions) {
 	r.diffOpts = options
 }
@@ -48,7 +54,7 @@ func getKindName(d *dt.ResourceDiff) string {
 	return fmt.Sprintf("%s/%s", d.Gvk.Kind, d.ResourceName)
 }
 
-// RenderDiffs formats and prints the diffs to the provided writer
+// RenderDiffs formats and prints the diffs to the provided writer.
 func (r *DefaultDiffRenderer) RenderDiffs(stdout io.Writer, diffs map[string]*dt.ResourceDiff) error {
 	r.logger.Debug("Rendering diffs to output",
 		"diffCount", len(diffs),

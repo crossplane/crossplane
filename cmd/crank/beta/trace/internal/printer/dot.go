@@ -2,10 +2,12 @@ package printer
 
 import (
 	"fmt"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
 	"io"
 	"strings"
+
+
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
 
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
@@ -14,6 +16,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
 )
 
 // DotPrinter defines the DotPrinter configuration.

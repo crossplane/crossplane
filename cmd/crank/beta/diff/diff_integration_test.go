@@ -4,32 +4,44 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/alecthomas/kong"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 	"io"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	cgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"os"
 	"path/filepath"
 	run "runtime"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/alecthomas/kong"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	cgoscheme "k8s.io/client-go/kubernetes/scheme"
+
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/alecthomas/kong"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	cgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	xpextv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
 
 const (
 	timeout = 60 * time.Second
 )
 
-// TestDiffIntegration runs an integration test for the diff command
+// TestDiffIntegration runs an integration test for the diff command.
 func TestDiffIntegration(t *testing.T) {
 	// Create a scheme with both Kubernetes and Crossplane types
 	scheme := runtime.NewScheme()
@@ -795,7 +807,7 @@ Summary: 2 modified`,
 				if err != nil {
 					t.Fatalf("failed to read input file: %v", err)
 				}
-				err = os.WriteFile(testFile, content, 0644)
+				err = os.WriteFile(testFile, content, 0o644)
 				if err != nil {
 					t.Fatalf("failed to write test file: %v", err)
 				}

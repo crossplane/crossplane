@@ -18,8 +18,10 @@ package xpkg
 
 import (
 	"context"
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"slices"
+
+
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 
 	pkgname "github.com/google/go-containerregistry/pkg/name"
 	v1 "k8s.io/api/core/v1"
@@ -36,6 +38,7 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 

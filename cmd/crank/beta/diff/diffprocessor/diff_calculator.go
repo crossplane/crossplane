@@ -3,20 +3,22 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
+
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
 	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
 	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
 	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane/cmd/crank/render"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// DiffCalculator calculates differences between resources
+// DiffCalculator calculates differences between resources.
 type DiffCalculator interface {
 	// CalculateDiff computes the diff for a single resource
 	CalculateDiff(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*dt.ResourceDiff, error)
@@ -28,7 +30,7 @@ type DiffCalculator interface {
 	CalculateRemovedResourceDiffs(ctx context.Context, xr *un.Unstructured, renderedResources map[string]bool) (map[string]*dt.ResourceDiff, error)
 }
 
-// DefaultDiffCalculator implements the DiffCalculator interface
+// DefaultDiffCalculator implements the DiffCalculator interface.
 type DefaultDiffCalculator struct {
 	treeClient      xp.ResourceTreeClient
 	applyClient     k8.ApplyClient
@@ -37,12 +39,12 @@ type DefaultDiffCalculator struct {
 	diffOptions     renderer.DiffOptions
 }
 
-// SetDiffOptions updates the diff options used by the calculator
+// SetDiffOptions updates the diff options used by the calculator.
 func (c *DefaultDiffCalculator) SetDiffOptions(options renderer.DiffOptions) {
 	c.diffOptions = options
 }
 
-// NewDiffCalculator creates a new DefaultDiffCalculator
+// NewDiffCalculator creates a new DefaultDiffCalculator.
 func NewDiffCalculator(apply k8.ApplyClient, tree xp.ResourceTreeClient, resourceManager ResourceManager, logger logging.Logger, diffOptions renderer.DiffOptions) DiffCalculator {
 	return &DefaultDiffCalculator{
 		treeClient:      tree,
@@ -53,7 +55,7 @@ func NewDiffCalculator(apply k8.ApplyClient, tree xp.ResourceTreeClient, resourc
 	}
 }
 
-// CalculateDiff calculates the diff for a single resource
+// CalculateDiff calculates the diff for a single resource.
 func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un.Unstructured, desired *un.Unstructured) (*dt.ResourceDiff, error) {
 	// Get resource identification information
 	name := desired.GetName()
@@ -139,7 +141,7 @@ func (c *DefaultDiffCalculator) CalculateDiff(ctx context.Context, composite *un
 	return diff, nil
 }
 
-// CalculateDiffs collects all diffs for the desired resources and identifies resources to be removed
+// CalculateDiffs collects all diffs for the desired resources and identifies resources to be removed.
 func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *cmp.Unstructured, desired render.Outputs) (map[string]*dt.ResourceDiff, error) {
 	xrName := xr.GetName()
 	c.logger.Debug("Calculating diffs",
@@ -228,7 +230,7 @@ func (c *DefaultDiffCalculator) CalculateDiffs(ctx context.Context, xr *cmp.Unst
 	return diffs, nil
 }
 
-// CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs
+// CalculateRemovedResourceDiffs identifies resources that would be removed and calculates their diffs.
 func (c *DefaultDiffCalculator) CalculateRemovedResourceDiffs(ctx context.Context, xr *un.Unstructured, renderedResources map[string]bool) (map[string]*dt.ResourceDiff, error) {
 	xrName := xr.GetName()
 	c.logger.Debug("Checking for resources to be removed",

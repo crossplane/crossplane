@@ -2,25 +2,28 @@ package diffprocessor
 
 import (
 	"context"
-	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
-	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
-	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
-	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
 	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-	"github.com/crossplane/crossplane/cmd/crank/render"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	cmp "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
+	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
+	"github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer"
+	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"github.com/crossplane/crossplane/cmd/crank/render"
 )
 
-// Ensure MockDiffCalculator implements the DiffCalculator interface
+// Ensure MockDiffCalculator implements the DiffCalculator interface.
 var _ DiffCalculator = &tu.MockDiffCalculator{}
 
 func TestDefaultDiffCalculator_CalculateDiff(t *testing.T) {

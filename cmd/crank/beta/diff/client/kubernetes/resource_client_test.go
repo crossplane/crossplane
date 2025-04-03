@@ -2,8 +2,12 @@ package kubernetes
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
+	"strings"
+	"testing"
+
+	"strings"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -12,9 +16,13 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
 	kt "k8s.io/client-go/testing"
-	"strings"
-	"testing"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
 )
+
+var _ ResourceClient = (*tu.MockResourceClient)(nil)
 
 func TestResourceClient_GetResource(t *testing.T) {
 	scheme := runtime.NewScheme()
