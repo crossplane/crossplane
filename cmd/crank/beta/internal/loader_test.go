@@ -17,14 +17,9 @@ limitations under the License.
 package internal
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/testutils"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"

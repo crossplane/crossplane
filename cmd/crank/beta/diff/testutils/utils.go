@@ -7,11 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	stdlog "log"
-	"regexp"
-	"strings"
-	"testing"
-
 	"github.com/go-logr/logr/testr"
 	"github.com/go-logr/stdr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

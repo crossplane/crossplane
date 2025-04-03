@@ -5,10 +5,6 @@ import (
 	"io"
 	"strings"
 
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
-
 	"github.com/emicklei/dot"
 	"github.com/pkg/errors"
 

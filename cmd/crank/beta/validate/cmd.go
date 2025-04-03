@@ -24,10 +24,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 

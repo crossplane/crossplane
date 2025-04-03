@@ -5,10 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "k8s.io/api/core/v1"

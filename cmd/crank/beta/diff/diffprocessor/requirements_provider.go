@@ -3,23 +3,20 @@ package diffprocessor
 import (
 	"context"
 	"fmt"
-	"strings"
-	"sync"
-
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
 	k8 "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/kubernetes"
+	"strings"
+	"sync"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// RequirementsProvider consolidates requirement processing with caching.
+// RequirementsProvider consolidates requirement processing with caching
 type RequirementsProvider struct {
 	client    k8.ResourceClient
 	envClient xp.EnvironmentClient
@@ -31,7 +28,7 @@ type RequirementsProvider struct {
 	cacheMutex    sync.RWMutex
 }
 
-// NewRequirementsProvider creates a new provider with caching.
+// NewRequirementsProvider creates a new provider with caching
 func NewRequirementsProvider(res k8.ResourceClient, env xp.EnvironmentClient, renderFn RenderFunc, logger logging.Logger) *RequirementsProvider {
 	return &RequirementsProvider{
 		client:        res,
@@ -42,7 +39,7 @@ func NewRequirementsProvider(res k8.ResourceClient, env xp.EnvironmentClient, re
 	}
 }
 
-// Initialize pre-fetches resources like environment configs.
+// Initialize pre-fetches resources like environment configs
 func (p *RequirementsProvider) Initialize(ctx context.Context) error {
 	p.logger.Debug("Initializing extra resource provider")
 
@@ -62,7 +59,7 @@ func (p *RequirementsProvider) Initialize(ctx context.Context) error {
 	return nil
 }
 
-// cacheResources adds resources to the cache.
+// cacheResources adds resources to the cache
 func (p *RequirementsProvider) cacheResources(resources []*un.Unstructured) {
 	p.cacheMutex.Lock()
 	defer p.cacheMutex.Unlock()
@@ -73,7 +70,7 @@ func (p *RequirementsProvider) cacheResources(resources []*un.Unstructured) {
 	}
 }
 
-// getCachedResource retrieves a resource from cache if available.
+// getCachedResource retrieves a resource from cache if available
 func (p *RequirementsProvider) getCachedResource(apiVersion, kind, name string) *un.Unstructured {
 	p.cacheMutex.RLock()
 	defer p.cacheMutex.RUnlock()
@@ -82,7 +79,7 @@ func (p *RequirementsProvider) getCachedResource(apiVersion, kind, name string) 
 	return p.resourceCache[key]
 }
 
-// ProvideRequirements provides requirements, checking cache first.
+// ProvideRequirements provides requirements, checking cache first
 func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirements map[string]v1.Requirements) ([]*un.Unstructured, error) {
 	if len(requirements) == 0 {
 		return nil, nil
@@ -94,7 +91,7 @@ func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirem
 	// Process each step's requirements
 	for stepName := range requirements {
 		// Process resource selectors directly using the map key
-		for resourceKey, selector := range requirements[stepName].GetExtraResources() {
+		for resourceKey, selector := range requirements[stepName].ExtraResources {
 			if selector == nil {
 				p.logger.Debug("Nil selector in requirements",
 					"step", stepName,
@@ -103,12 +100,12 @@ func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirem
 			}
 
 			// Parse apiVersion into group/version
-			group, version := parseAPIVersion(selector.GetApiVersion())
+			group, version := parseAPIVersion(selector.ApiVersion)
 
 			gvk := schema.GroupVersionKind{
 				Group:   group,
 				Version: version,
-				Kind:    selector.GetKind(),
+				Kind:    selector.Kind,
 			}
 
 			// Process by selector type
@@ -116,12 +113,12 @@ func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirem
 			case selector.GetMatchName() != "":
 				// Try to get from cache first
 				name := selector.GetMatchName()
-				cached := p.getCachedResource(selector.GetApiVersion(), selector.GetKind(), name)
+				cached := p.getCachedResource(selector.ApiVersion, selector.Kind, name)
 
 				if cached != nil {
 					p.logger.Debug("Found resource in cache",
-						"apiVersion", selector.GetApiVersion(),
-						"kind", selector.GetKind(),
+						"apiVersion", selector.ApiVersion,
+						"kind", selector.Kind,
 						"name", name)
 					allResources = append(allResources, cached)
 					continue
@@ -184,7 +181,7 @@ func (p *RequirementsProvider) ProvideRequirements(ctx context.Context, requirem
 	return allResources, nil
 }
 
-// ClearCache clears all cached resources.
+// ClearCache clears all cached resources
 func (p *RequirementsProvider) ClearCache() {
 	p.cacheMutex.Lock()
 	defer p.cacheMutex.Unlock()
@@ -193,7 +190,7 @@ func (p *RequirementsProvider) ClearCache() {
 	p.logger.Debug("Resource cache cleared")
 }
 
-// Helper to parse apiVersion into group and version.
+// Helper to parse apiVersion into group and version
 func parseAPIVersion(apiVersion string) (string, string) {
 	var group, version string
 	if parts := strings.SplitN(apiVersion, "/", 2); len(parts) == 2 {

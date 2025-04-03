@@ -20,9 +20,6 @@ import (
 	"context"
 	"slices"
 
-
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
 	pkgname "github.com/google/go-containerregistry/pkg/name"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

@@ -2,8 +2,6 @@ package crossplane
 
 import (
 	"context"
-
-
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"

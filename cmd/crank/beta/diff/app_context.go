@@ -2,8 +2,6 @@ package diff
 
 import (
 	"context"
-
-
 	"k8s.io/client-go/rest"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"

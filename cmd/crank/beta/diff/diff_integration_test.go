@@ -14,16 +14,6 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	tu "github.com/crossplane/crossplane/cmd/crank/beta/diff/testutils"
-
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	cgoscheme "k8s.io/client-go/kubernetes/scheme"
-
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-
-	"github.com/alecthomas/kong"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	cgoscheme "k8s.io/client-go/kubernetes/scheme"

@@ -7,10 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 

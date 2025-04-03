@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"

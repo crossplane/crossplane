@@ -21,10 +21,6 @@ import (
 	"io"
 	"strings"
 
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
-
 	gcrname "github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"

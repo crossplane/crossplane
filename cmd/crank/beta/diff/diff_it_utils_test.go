@@ -9,9 +9,7 @@ import (
 	"os"
 	"sort"
 
-	"io"
-	"os"
-	"sort"
+	"k8s.io/utils/ptr"
 
 	gyaml "gopkg.in/yaml.v3"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

@@ -27,9 +27,6 @@ import (
 	"testing"
 	"time"
 
-
-
-
 	"github.com/alecthomas/kong"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

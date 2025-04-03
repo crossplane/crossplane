@@ -20,10 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "k8s.io/api/core/v1"

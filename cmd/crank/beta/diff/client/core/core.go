@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"reflect"
-
 	"golang.org/x/net/context"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"

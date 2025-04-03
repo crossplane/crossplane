@@ -6,10 +6,6 @@ import (
 	"io"
 	"strings"
 
-	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
-
-	dt "github.com/crossplane/crossplane/cmd/crank/beta/diff/renderer/types"
-
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 

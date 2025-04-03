@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"strings"
-
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"k8s.io/apimachinery/pkg/api/equality"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

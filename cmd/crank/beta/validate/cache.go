@@ -21,10 +21,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 

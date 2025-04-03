@@ -5,9 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"strings"
-	"testing"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	testdiscovery "k8s.io/client-go/discovery/fake"

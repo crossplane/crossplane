@@ -5,10 +5,6 @@ import (
 	"strings"
 	"testing"
 
-
-	cpd "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	xp "github.com/crossplane/crossplane/cmd/crank/beta/diff/client/crossplane"
-
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

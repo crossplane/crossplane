@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"strings"
-
 	"github.com/google/go-cmp/cmp"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"

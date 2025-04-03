@@ -3,8 +3,6 @@ package renderer
 import (
 	"strings"
 	"testing"
-
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	un "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

@@ -26,10 +26,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/crane"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"

@@ -20,9 +20,6 @@ import (
 	"fmt"
 	"io"
 
-
-	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
-
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -91,7 +88,7 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer, opts ...Option) *Mana
 }
 
 // PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
-func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocognit // the function itself is not that complex, it just has different cases
+func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { 
 	convertedCRDs, err := internal.ConvertToCRDs(extensions)
 	if err != nil {
 		return err

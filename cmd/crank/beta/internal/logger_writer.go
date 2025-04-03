@@ -3,8 +3,6 @@ package internal
 import (
 	"strings"
 
-	"strings"
-
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
