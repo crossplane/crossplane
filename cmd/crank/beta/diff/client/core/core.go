@@ -1,3 +1,4 @@
+// Package core contains structs and functions to aggregate built-in kube clients for use elsewhere
 package core
 
 import (
@@ -20,12 +21,14 @@ type Initializable interface {
 	Initialize(ctx context.Context) error
 }
 
+// Clients aggregates the root level of built-in kube clients that we use to initialize our wrapper interfaces
 type Clients struct {
 	Dynamic   dynamic.Interface
 	Discovery discovery.DiscoveryInterface
 	Tree      *xrm.Client
 }
 
+// NewClients initializes a bundle of built-in kube clients using the given rest config
 func NewClients(config *rest.Config) (*Clients, error) {
 	// These three clients underlie all of our client wrapper interfaces.
 	dynClient, err := makeDynamicClient(config)

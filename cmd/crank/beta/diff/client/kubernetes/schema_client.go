@@ -84,7 +84,7 @@ func (c *DefaultSchemaClient) GetCRD(ctx context.Context, gvk schema.GroupVersio
 }
 
 // IsCRDRequired checks if a GVK requires a CRD
-func (c *DefaultSchemaClient) IsCRDRequired(ctx context.Context, gvk schema.GroupVersionKind) bool {
+func (c *DefaultSchemaClient) IsCRDRequired(_ context.Context, gvk schema.GroupVersionKind) bool {
 	// Check cache first
 	c.resourceMapMu.RLock()
 	if val, ok := c.resourceTypeMap[gvk]; ok {
@@ -135,7 +135,7 @@ func (c *DefaultSchemaClient) IsCRDRequired(ctx context.Context, gvk schema.Grou
 }
 
 // ValidateResource validates a resource against its schema
-func (c *DefaultSchemaClient) ValidateResource(ctx context.Context, resource *un.Unstructured) error {
+func (c *DefaultSchemaClient) ValidateResource(_ context.Context, resource *un.Unstructured) error {
 	// This would use OpenAPI validation - simplified for now
 	c.logger.Debug("Validating resource", "kind", resource.GetKind(), "name", resource.GetName())
 	return nil

@@ -52,7 +52,7 @@ func TestDefaultDefinitionClient_GetXRDs(t *testing.T) {
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
 				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					if gvk.Group == "apiextensions.crossplane.io" && gvk.Kind == "CompositeResourceDefinition" {
+					if gvk.Group == CrossplaneAPIExtGroup && gvk.Kind == "CompositeResourceDefinition" {
 						return []*un.Unstructured{}, nil
 					}
 					return nil, errors.New("unexpected GVK")
@@ -70,7 +70,7 @@ func TestDefaultDefinitionClient_GetXRDs(t *testing.T) {
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
 				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					if gvk.Group == "apiextensions.crossplane.io" && gvk.Kind == "CompositeResourceDefinition" {
+					if gvk.Group == CrossplaneAPIExtGroup && gvk.Kind == "CompositeResourceDefinition" {
 						return []*un.Unstructured{xrd1, xrd2}, nil
 					}
 					return nil, errors.New("unexpected GVK")
@@ -87,9 +87,7 @@ func TestDefaultDefinitionClient_GetXRDs(t *testing.T) {
 			reason: "Should propagate errors from the Kubernetes API",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			fields: fields{
 				xrds:       nil,
@@ -104,7 +102,7 @@ func TestDefaultDefinitionClient_GetXRDs(t *testing.T) {
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
 				// This should never be called since cache is used
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
+				WithListResources(func(context.Context, schema.GroupVersionKind, string) ([]*un.Unstructured, error) {
 					t.Errorf("ListResources should not be called when cache is available")
 					return nil, errors.New("should not be called")
 				}).
@@ -262,9 +260,7 @@ func TestDefaultDefinitionClient_GetXRDForClaim(t *testing.T) {
 			reason: "Should propagate error from GetXRDs",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, _ schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			cachedXRDs: nil, // Force GetXRDs to be called
 			args: args{
@@ -468,9 +464,7 @@ func TestDefaultDefinitionClient_GetXRDForXR(t *testing.T) {
 			reason: "Should propagate error from GetXRDs",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, _ schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			cachedXRDs: nil, // Force GetXRDs to be called
 			args: args{
@@ -573,10 +567,7 @@ func TestDefaultDefinitionClient_Initialize(t *testing.T) {
 			reason: "Should successfully initialize the client",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					// Return empty list to simulate no XRDs
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			wantErr: false,
 		},
@@ -584,9 +575,7 @@ func TestDefaultDefinitionClient_Initialize(t *testing.T) {
 			reason: "Should return error when getting XRDs fails",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			wantErr: true,
 		},

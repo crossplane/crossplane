@@ -160,7 +160,7 @@ func TestResourceClient_GetResource(t *testing.T) {
 
 				// Create mock type converter that returns an error
 				mockConverter := tu.NewMockTypeConverter().
-					WithGVKToGVR(func(_ context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
+					WithGVKToGVR(func(context.Context, schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 						return schema.GroupVersionResource{}, errors.New("conversion error")
 					}).Build()
 
@@ -432,7 +432,7 @@ func TestResourceClient_GetResourcesByLabel(t *testing.T) {
 
 				// Create mock type converter that returns an error
 				mockConverter := tu.NewMockTypeConverter().
-					WithGVKToGVR(func(_ context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
+					WithGVKToGVR(func(context.Context, schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 						return schema.GroupVersionResource{}, errors.New("conversion error")
 					}).Build()
 
@@ -923,7 +923,7 @@ func TestResourceClient_ListResources(t *testing.T) {
 
 				// Create mock type converter that returns an error
 				mockConverter := tu.NewMockTypeConverter().
-					WithGVKToGVR(func(_ context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
+					WithGVKToGVR(func(context.Context, schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 						return schema.GroupVersionResource{}, errors.New("conversion error")
 					}).Build()
 

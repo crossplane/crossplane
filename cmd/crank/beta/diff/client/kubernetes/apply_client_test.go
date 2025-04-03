@@ -45,7 +45,7 @@ func TestApplyClient_DryRunApply(t *testing.T) {
 				// Create dynamic client that returns the object with a resource version
 				dynamicClient := fake.NewSimpleDynamicClient(scheme)
 				// Add reactor to handle apply operation
-				dynamicClient.Fake.PrependReactor("patch", "exampleresources", func(action kt.Action) (bool, runtime.Object, error) {
+				dynamicClient.Fake.PrependReactor("patch", "exampleresources", func(kt.Action) (bool, runtime.Object, error) {
 					// For apply, we'd return the "server-modified" version
 					result := obj.DeepCopy()
 					result.SetResourceVersion("1000") // Server would set this
@@ -88,7 +88,7 @@ func TestApplyClient_DryRunApply(t *testing.T) {
 				// Create dynamic client that returns the object with a resource version
 				dynamicClient := fake.NewSimpleDynamicClient(scheme)
 				// Add reactor to handle apply operation
-				dynamicClient.Fake.PrependReactor("patch", "clusterresources", func(action kt.Action) (bool, runtime.Object, error) {
+				dynamicClient.Fake.PrependReactor("patch", "clusterresources", func(kt.Action) (bool, runtime.Object, error) {
 					// For apply, we'd return the "server-modified" version
 					result := obj.DeepCopy()
 					result.SetResourceVersion("1000") // Server would set this
@@ -126,7 +126,7 @@ func TestApplyClient_DryRunApply(t *testing.T) {
 
 				// Create type converter that returns an error
 				mockConverter := tu.NewMockTypeConverter().
-					WithGVKToGVR(func(_ context.Context, gvk schema.GroupVersionKind) (schema.GroupVersionResource, error) {
+					WithGVKToGVR(func(context.Context, schema.GroupVersionKind) (schema.GroupVersionResource, error) {
 						return schema.GroupVersionResource{}, errors.New("conversion error")
 					}).Build()
 
@@ -148,7 +148,7 @@ func TestApplyClient_DryRunApply(t *testing.T) {
 			setup: func() (dynamic.Interface, TypeConverter) {
 				dynamicClient := fake.NewSimpleDynamicClient(scheme)
 				// Add reactor to make apply fail
-				dynamicClient.Fake.PrependReactor("patch", "exampleresources", func(action kt.Action) (bool, runtime.Object, error) {
+				dynamicClient.Fake.PrependReactor("patch", "exampleresources", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("apply failed")
 				})
 

@@ -71,9 +71,7 @@ func TestDefaultEnvironmentClient_GetEnvironmentConfigs(t *testing.T) {
 			reason: "Should propagate errors from the Kubernetes API",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			want:         nil,
 			wantErr:      true,
@@ -215,9 +213,7 @@ func TestDefaultEnvironmentClient_GetEnvironmentConfig(t *testing.T) {
 			reason: "Should return error when environment config doesn't exist",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-					return nil, errors.New("config not found")
-				}).
+				WithResourceNotFound().
 				Build(),
 			cachedConfig: map[string]*un.Unstructured{},
 			args: args{
@@ -311,9 +307,7 @@ func TestDefaultEnvironmentClient_Initialize(t *testing.T) {
 			reason: "Should successfully initialize with empty cache when no configs exist",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			wantErr:    false,
 			wantCached: map[string]bool{},
@@ -322,9 +316,7 @@ func TestDefaultEnvironmentClient_Initialize(t *testing.T) {
 			reason: "Should return error when listing environment configs fails",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			wantErr: true,
 		},

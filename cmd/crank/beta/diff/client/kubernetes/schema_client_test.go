@@ -297,7 +297,7 @@ func TestSchemaClient_GetCRD(t *testing.T) {
 			reason: "Should return error when CRD doesn't exist",
 			setup: func() (dynamic.Interface, discovery.DiscoveryInterface) {
 				dynamicClient := fake.NewSimpleDynamicClient(scheme)
-				dynamicClient.Fake.PrependReactor("get", "customresourcedefinitions", func(action kt.Action) (bool, runtime.Object, error) {
+				dynamicClient.Fake.PrependReactor("get", "customresourcedefinitions", func(kt.Action) (bool, runtime.Object, error) {
 					return true, nil, errors.New("CRD not found")
 				})
 

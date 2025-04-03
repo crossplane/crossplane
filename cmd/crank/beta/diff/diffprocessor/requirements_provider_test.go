@@ -170,9 +170,7 @@ func TestRequirementsProvider_ProvideRequirements(t *testing.T) {
 			},
 			setupResourceClient: func() *tu.MockResourceClient {
 				return tu.NewMockResourceClient().
-					WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
-						return nil, errors.New("resource not found")
-					}).
+					WithResourceNotFound().
 					Build()
 			},
 			setupEnvironmentClient: func() *tu.MockEnvironmentClient {

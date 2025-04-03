@@ -1,5 +1,3 @@
-// package kubernetes/apply_client.go
-
 package kubernetes
 
 import (

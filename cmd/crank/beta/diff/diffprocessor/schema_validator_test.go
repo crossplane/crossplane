@@ -263,9 +263,8 @@ func TestDefaultSchemaValidator_EnsureComposedResourceCRDs(t *testing.T) {
 		"SomeCRDsMissing": {
 			setupClient: func() *tu.MockSchemaClient {
 				return tu.NewMockSchemaClient().
-					WithGetCRD(func(_ context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
-						return nil, errors.New("CRD not found")
-					}).Build()
+					WithCRDNotFound().
+					Build()
 			},
 			initialCRDs:    []*extv1.CustomResourceDefinition{xrCRD}, // Only XR CRD is cached
 			resources:      []*un.Unstructured{xr, cmpd},

@@ -286,7 +286,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					}, nil
 				}),
 				// Override the schema validator factory to use a simple validator
-				WithSchemaValidatorFactory(func(schemaClient k8.SchemaClient, _ xp.DefinitionClient, logger logging.Logger) SchemaValidator {
+				WithSchemaValidatorFactory(func(k8.SchemaClient, xp.DefinitionClient, logging.Logger) SchemaValidator {
 					return &tu.MockSchemaValidator{
 						ValidateResourcesFn: func(context.Context, *un.Unstructured, []cpd.Unstructured) error {
 							return nil
@@ -294,7 +294,7 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					}
 				}),
 				// Override the diff calculator factory to return actual diffs
-				WithDiffCalculatorFactory(func(_ k8.ApplyClient, _ xp.ResourceTreeClient, _ ResourceManager, _ logging.Logger, _ renderer.DiffOptions) DiffCalculator {
+				WithDiffCalculatorFactory(func(k8.ApplyClient, xp.ResourceTreeClient, ResourceManager, logging.Logger, renderer.DiffOptions) DiffCalculator {
 					return &tu.MockDiffCalculator{
 						CalculateDiffsFn: func(context.Context, *cmp.Unstructured, render.Outputs) (map[string]*dt.ResourceDiff, error) {
 							diffs := make(map[string]*dt.ResourceDiff)
@@ -329,9 +329,9 @@ func TestDefaultDiffProcessor_PerformDiff(t *testing.T) {
 					}
 				}),
 				// Override the diff renderer factory to produce actual output
-				WithDiffRendererFactory(func(_ logging.Logger, _ renderer.DiffOptions) renderer.DiffRenderer {
+				WithDiffRendererFactory(func(logging.Logger, renderer.DiffOptions) renderer.DiffRenderer {
 					return &tu.MockDiffRenderer{
-						RenderDiffsFn: func(w io.Writer, diffs map[string]*dt.ResourceDiff) error {
+						RenderDiffsFn: func(w io.Writer, _ map[string]*dt.ResourceDiff) error {
 							// Write a simple summary to the output
 							_, err := fmt.Fprintln(w, "Changes will be applied to 2 resources:")
 							if err != nil {
@@ -961,9 +961,7 @@ func TestDefaultDiffProcessor_RenderWithRequirements(t *testing.T) {
 			resourceID:  "XR/test-xr",
 			setupResourceClient: func() *tu.MockResourceClient {
 				return tu.NewMockResourceClient().
-					WithGetResource(func(context.Context, schema.GroupVersionKind, string, string) (*un.Unstructured, error) {
-						return nil, errors.New("resource not found")
-					}).
+					WithResourceNotFound().
 					Build()
 			},
 			setupEnvironmentClient: func() *tu.MockEnvironmentClient {

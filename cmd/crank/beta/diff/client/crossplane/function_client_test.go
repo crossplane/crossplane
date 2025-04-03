@@ -376,9 +376,7 @@ func TestDefaultFunctionClient_ListFunctions(t *testing.T) {
 			reason: "Should return empty list when no functions exist",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			want:    []pkgv1.Function{},
 			wantErr: false,
@@ -387,9 +385,7 @@ func TestDefaultFunctionClient_ListFunctions(t *testing.T) {
 			reason: "Should return error when list fails",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			want:         nil,
 			wantErr:      true,
@@ -547,9 +543,7 @@ func TestDefaultFunctionClient_Initialize(t *testing.T) {
 			reason: "Should successfully initialize with empty cache when no functions exist",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			wantErr:    false,
 			wantCached: map[string]bool{},
@@ -567,9 +561,7 @@ func TestDefaultFunctionClient_Initialize(t *testing.T) {
 			reason: "Should return error when listing functions fails",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			wantErr: true,
 		},

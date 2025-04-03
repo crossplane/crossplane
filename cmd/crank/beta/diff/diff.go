@@ -77,6 +77,9 @@ func (c *Cmd) AfterApply(ctx *kong.Context, log logging.Logger, config *rest.Con
 func (c *Cmd) initializeDependencies(ctx *kong.Context, log logging.Logger, config *rest.Config) error {
 	config = c.initRestConfig(config, log)
 	appCtx, err := NewAppContext(config, log)
+	if err != nil {
+		return errors.Wrap(err, "cannot create app context")
+	}
 	proc := makeDefaultProc(c, appCtx, log)
 
 	loader, err := makeDefaultLoader(c)

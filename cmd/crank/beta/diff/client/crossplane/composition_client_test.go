@@ -15,11 +15,13 @@ import (
 	"strings"
 )
 
+const CrossplaneAPIExtGroup = "apiextensions.crossplane.io"
+const CrossplaneAPIExtGroupV1 = "apiextensions.crossplane.io/v1"
+
 func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 
 	type fields struct {
 		compositions map[string]*apiextensionsv1.Composition
-		xrds         []*un.Unstructured
 	}
 
 	type args struct {
@@ -96,15 +98,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when no matching composition exists",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -123,15 +121,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return the matching composition",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -151,15 +145,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return the composition referenced by spec.compositionRef.name",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -183,15 +173,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when directly referenced composition is incompatible",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -215,15 +201,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when referenced composition doesn't exist",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -246,15 +228,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return composition matching the selector labels",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -280,15 +258,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when no composition matches the selector",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -321,15 +295,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return an error when multiple compositions match the selector",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{
@@ -355,15 +325,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when composition cache is empty (default lookup)",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{},
@@ -380,15 +346,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when composition cache is empty (direct reference)",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{},
@@ -409,15 +371,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when composition cache is empty (selector)",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyXRDsFetch().
 				Build(),
 			fields: fields{
 				compositions: map[string]*apiextensionsv1.Composition{},
@@ -440,13 +398,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when multiple compositions match by type but no selection criteria provided",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+				WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 					return []*un.Unstructured{}, nil
 				}).
 				Build(),
@@ -468,13 +424,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should not match compositions with different versions",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+				WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 					return []*un.Unstructured{}, nil
 				}).
 				Build(),
@@ -495,13 +449,13 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should find composition for a claim type by determining XR type from XRD",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
+				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
 					// Set up to return XRDs when requested
-					if gvk.Group == "apiextensions.crossplane.io" && gvk.Kind == "CompositeResourceDefinition" {
+					if gvk.Group == CrossplaneAPIExtGroup && gvk.Kind == "CompositeResourceDefinition" {
 						return []*un.Unstructured{
 							{
 								Object: map[string]interface{}{
-									"apiVersion": "apiextensions.crossplane.io/v1",
+									"apiVersion": CrossplaneAPIExtGroupV1,
 									"kind":       "CompositeResourceDefinition",
 									"metadata": map[string]interface{}{
 										"name": "xexampleresources.example.org",
@@ -541,11 +495,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+				WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 					return []*un.Unstructured{
 						{
 							Object: map[string]interface{}{
-								"apiVersion": "apiextensions.crossplane.io/v1",
+								"apiVersion": CrossplaneAPIExtGroupV1,
 								"kind":       "CompositeResourceDefinition",
 								"metadata": map[string]interface{}{
 									"name": "xexampleresources.example.org",
@@ -623,13 +577,13 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 			reason: "Should return error when XRD has no referenceable version",
 			mockResource: *tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(ctx context.Context, gvk schema.GroupVersionKind, namespace string) ([]*un.Unstructured, error) {
+				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
 					// Return XRDs when requested - but this one has NO referenceable version
-					if gvk.Group == "apiextensions.crossplane.io" && gvk.Kind == "CompositeResourceDefinition" {
+					if gvk.Group == CrossplaneAPIExtGroup && gvk.Kind == "CompositeResourceDefinition" {
 						return []*un.Unstructured{
 							{
 								Object: map[string]interface{}{
-									"apiVersion": "apiextensions.crossplane.io/v1",
+									"apiVersion": CrossplaneAPIExtGroupV1,
 									"kind":       "CompositeResourceDefinition",
 									"metadata": map[string]interface{}{
 										"name": "xexampleresources.example.org",
@@ -664,11 +618,11 @@ func TestDefaultCompositionClient_FindMatchingComposition(t *testing.T) {
 				Build(),
 			mockDef: *tu.NewMockDefinitionClient().
 				WithSuccessfulInitialize().
-				WithGetXRDs(func(ctx context.Context) ([]*un.Unstructured, error) {
+				WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 					return []*un.Unstructured{
 						{
 							Object: map[string]interface{}{
-								"apiVersion": "apiextensions.crossplane.io/v1",
+								"apiVersion": CrossplaneAPIExtGroupV1,
 								"kind":       "CompositeResourceDefinition",
 								"metadata": map[string]interface{}{
 									"name": "xexampleresources.example.org",
@@ -784,8 +738,8 @@ func TestDefaultCompositionClient_GetComposition(t *testing.T) {
 	// Mock resource client
 	mockResource := tu.NewMockResourceClient().
 		WithSuccessfulInitialize().
-		WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, namespace, name string) (*un.Unstructured, error) {
-			if gvk.Group == "apiextensions.crossplane.io" && gvk.Kind == "Composition" && name == "test-comp" {
+		WithGetResource(func(_ context.Context, gvk schema.GroupVersionKind, _, name string) (*un.Unstructured, error) {
+			if gvk.Group == CrossplaneAPIExtGroup && gvk.Kind == "Composition" && name == "test-comp" {
 				u := &un.Unstructured{}
 				u.SetGroupVersionKind(gvk)
 				u.SetName(name)
@@ -881,7 +835,7 @@ func TestDefaultCompositionClient_ListCompositions(t *testing.T) {
 	obj1, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(comp1)
 	u1.SetUnstructuredContent(obj1)
 	u1.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "apiextensions.crossplane.io",
+		Group:   CrossplaneAPIExtGroup,
 		Version: "v1",
 		Kind:    "Composition",
 	})
@@ -890,7 +844,7 @@ func TestDefaultCompositionClient_ListCompositions(t *testing.T) {
 	obj2, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(comp2)
 	u2.SetUnstructuredContent(obj2)
 	u2.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "apiextensions.crossplane.io",
+		Group:   CrossplaneAPIExtGroup,
 		Version: "v1",
 		Kind:    "Composition",
 	})
@@ -907,7 +861,7 @@ func TestDefaultCompositionClient_ListCompositions(t *testing.T) {
 			mockResource: tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
 				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					if gvk.Group == "apiextensions.crossplane.io" && gvk.Kind == "Composition" {
+					if gvk.Group == CrossplaneAPIExtGroup && gvk.Kind == "Composition" {
 						return []*un.Unstructured{u1, u2}, nil
 					}
 					return nil, errors.New("unexpected GVK")
@@ -920,9 +874,7 @@ func TestDefaultCompositionClient_ListCompositions(t *testing.T) {
 			reason: "Should return error when list fails",
 			mockResource: tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			expectComps:   nil,
 			expectError:   true,
@@ -1012,10 +964,7 @@ func TestDefaultCompositionClient_Initialize(t *testing.T) {
 			reason: "Should successfully initialize the client",
 			mockResource: tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					// Return empty list to simulate no compositions
-					return []*un.Unstructured{}, nil
-				}).
+				WithEmptyListResources().
 				Build(),
 			expectError: false,
 		},
@@ -1032,9 +981,7 @@ func TestDefaultCompositionClient_Initialize(t *testing.T) {
 			reason: "Should return error when listing compositions fails",
 			mockResource: tu.NewMockResourceClient().
 				WithSuccessfulInitialize().
-				WithListResources(func(_ context.Context, gvk schema.GroupVersionKind, _ string) ([]*un.Unstructured, error) {
-					return nil, errors.New("list error")
-				}).
+				WithListResourcesFailure("list error").
 				Build(),
 			expectError: true,
 		},

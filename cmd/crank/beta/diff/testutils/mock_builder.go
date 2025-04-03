@@ -435,6 +435,20 @@ func (b *MockResourceClientBuilder) WithListResources(fn func(context.Context, s
 	return b
 }
 
+// WithEmptyListResources mimics an empty but successful response
+func (b *MockResourceClientBuilder) WithEmptyListResources() *MockResourceClientBuilder {
+	return b.WithListResources(func(context.Context, schema.GroupVersionKind, string) ([]*un.Unstructured, error) {
+		return []*un.Unstructured{}, nil
+	})
+}
+
+// WithListResourcesFailure mimics a failed response
+func (b *MockResourceClientBuilder) WithListResourcesFailure(errorStr string) *MockResourceClientBuilder {
+	return b.WithListResources(func(context.Context, schema.GroupVersionKind, string) ([]*un.Unstructured, error) {
+		return nil, errors.New(errorStr)
+	})
+}
+
 // WithGetResourcesByLabel sets the GetResourcesByLabel behavior
 func (b *MockResourceClientBuilder) WithGetResourcesByLabel(fn func(context.Context, string, schema.GroupVersionKind, metav1.LabelSelector) ([]*un.Unstructured, error)) *MockResourceClientBuilder {
 	b.mock.GetResourcesByLabelFn = fn
@@ -485,6 +499,13 @@ func (b *MockSchemaClientBuilder) WithInitialize(fn func(context.Context) error)
 func (b *MockSchemaClientBuilder) WithGetCRD(fn func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error)) *MockSchemaClientBuilder {
 	b.mock.GetCRDFn = fn
 	return b
+}
+
+// WithCRDNotFound sets GetCRD to return a not found error
+func (b *MockSchemaClientBuilder) WithCRDNotFound() *MockSchemaClientBuilder {
+	return b.WithGetCRD(func(context.Context, schema.GroupVersionKind) (*un.Unstructured, error) {
+		return nil, errors.New("CRD not found")
+	})
 }
 
 // WithSuccessfulCRDFetch sets GetCRD to return a specific CRD
@@ -885,6 +906,13 @@ func (b *MockDefinitionClientBuilder) WithGetXRDs(fn func(context.Context) ([]*u
 func (b *MockDefinitionClientBuilder) WithSuccessfulXRDsFetch(xrds []*un.Unstructured) *MockDefinitionClientBuilder {
 	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
 		return xrds, nil
+	})
+}
+
+// WithEmptyXRDsFetch sets GetXRDs to return an empty set of XRDs
+func (b *MockDefinitionClientBuilder) WithEmptyXRDsFetch() *MockDefinitionClientBuilder {
+	return b.WithGetXRDs(func(context.Context) ([]*un.Unstructured, error) {
+		return []*un.Unstructured{}, nil
 	})
 }
 
