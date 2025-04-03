@@ -5,6 +5,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/go-logr/logr/testr"
 	"github.com/go-logr/stdr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	fakediscovery "k8s.io/client-go/discovery/fake"
+	kt "k8s.io/client-go/testing"
 	stdlog "log"
 	"regexp"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -69,7 +73,7 @@ func CompareIgnoringAnsi(expected, actual string) bool {
 // SetupKubeTestLogger sets the global logger for use of the Kube environment to the T.Log of this test
 func SetupKubeTestLogger(t *testing.T) {
 	t.Helper()
-	
+
 	// Create a logr.Logger that writes to testing.T.Log
 	testLogger := stdr.NewWithOptions(stdlog.New(testWriter{t}, "", 0), stdr.Options{LogCaller: stdr.All})
 
@@ -95,4 +99,23 @@ func TestLogger(t *testing.T, verbose bool) logging.Logger {
 		verbosity = 1
 	}
 	return logging.NewLogrLogger(testr.NewWithOptions(t, testr.Options{Verbosity: verbosity}))
+}
+
+// CreateFakeDiscoveryClient is a helper function to create a fake discovery client for testing
+func CreateFakeDiscoveryClient(resources map[string][]metav1.APIResource) discovery.DiscoveryInterface {
+	fakeDiscovery := &fakediscovery.FakeDiscovery{
+		Fake: &kt.Fake{},
+	}
+
+	apiResourceLists := make([]*metav1.APIResourceList, 0, len(resources))
+
+	for gv, apiResources := range resources {
+		apiResourceLists = append(apiResourceLists, &metav1.APIResourceList{
+			GroupVersion: gv,
+			APIResources: apiResources,
+		})
+	}
+
+	fakeDiscovery.Resources = apiResourceLists
+	return fakeDiscovery
 }

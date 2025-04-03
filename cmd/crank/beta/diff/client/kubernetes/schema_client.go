@@ -55,12 +55,15 @@ func NewSchemaClient(clients *core.Clients, logger logging.Logger) SchemaClient 
 // GetCRD gets the CustomResourceDefinition for a given GVK
 func (c *DefaultSchemaClient) GetCRD(ctx context.Context, gvk schema.GroupVersionKind) (*un.Unstructured, error) {
 	// Get the pluralized resource name
-	resourceName, err := convertGVKToCRDName(gvk)
+	resourceName, err := c.convertGVKToCRDName(gvk)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot determine CRD name for %s", gvk.String())
 	}
 
 	c.logger.Debug("Looking up CRD", "gvk", gvk.String(), "crdName", resourceName)
+
+	// Construct the CRD name using the resource name and group
+	crdName := fmt.Sprintf("%s.%s", resourceName, gvk.Group)
 
 	// Define the CRD GVR directly to avoid recursion
 	crdGVR := schema.GroupVersionResource{
@@ -70,10 +73,10 @@ func (c *DefaultSchemaClient) GetCRD(ctx context.Context, gvk schema.GroupVersio
 	}
 
 	// Fetch the CRD
-	crd, err := c.dynamicClient.Resource(crdGVR).Get(ctx, resourceName, metav1.GetOptions{})
+	crd, err := c.dynamicClient.Resource(crdGVR).Get(ctx, crdName, metav1.GetOptions{})
 	if err != nil {
-		c.logger.Debug("Failed to get CRD", "gvk", gvk.String(), "crdName", resourceName, "error", err)
-		return nil, errors.Wrapf(err, "cannot get CRD %s for %s", resourceName, gvk.String())
+		c.logger.Debug("Failed to get CRD", "gvk", gvk.String(), "crdName", crdName, "error", err)
+		return nil, errors.Wrapf(err, "cannot get CRD %s for %s", crdName, gvk.String())
 	}
 
 	c.logger.Debug("Successfully retrieved CRD", "gvk", gvk.String(), "crdName", resourceName)
@@ -115,7 +118,8 @@ func (c *DefaultSchemaClient) IsCRDRequired(ctx context.Context, gvk schema.Grou
 	}
 
 	// Try to query the discovery API to see if this resource exists
-	resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	// TODO:  should this use the TypeConverter?
+	_, err := c.convertGVKToCRDName(gvk)
 	if err != nil {
 		// If we can't find it through discovery, assume it requires a CRD
 		c.logger.Debug("Resource not found in discovery, assuming CRD is required",
@@ -123,15 +127,6 @@ func (c *DefaultSchemaClient) IsCRDRequired(ctx context.Context, gvk schema.Grou
 			"error", err)
 		c.cacheResourceType(gvk, true)
 		return true
-	}
-
-	// Check if this kind exists in the discovered resources
-	for _, r := range resources.APIResources {
-		if r.Kind == gvk.Kind {
-			// It's discoverable, so it's a CRD
-			c.cacheResourceType(gvk, true)
-			return true
-		}
 	}
 
 	// Default to requiring a CRD
@@ -153,10 +148,26 @@ func (c *DefaultSchemaClient) cacheResourceType(gvk schema.GroupVersionKind, req
 	c.resourceTypeMap[gvk] = requiresCRD
 }
 
-// Helper to convert GVK to CRD name
-func convertGVKToCRDName(gvk schema.GroupVersionKind) (string, error) {
-	// Format is: plural.group
-	// We'll make a simple pluralization for now
-	plural := strings.ToLower(gvk.Kind) + "s"
-	return fmt.Sprintf("%s.%s", plural, gvk.Group), nil
+// TODO this is just type converter GVKToGVR?
+func (c *DefaultSchemaClient) convertGVKToCRDName(gvk schema.GroupVersionKind) (string, error) {
+	// Get resources for the specified group version
+	resources, err := c.discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to discover resources for %s", gvk.GroupVersion().String())
+	}
+
+	if resources == nil || len(resources.APIResources) == 0 {
+		return "", errors.Errorf("no resources found for group version %s", gvk.GroupVersion().String())
+	}
+
+	// Find the API resource that matches our kind
+	for _, r := range resources.APIResources {
+		if r.Kind == gvk.Kind {
+			return r.Name, nil
+		}
+	}
+
+	// If we get here, we couldn't find a matching resource kind
+	return "", errors.Errorf("no resource found for kind %s in group version %s",
+		gvk.Kind, gvk.GroupVersion().String())
 }

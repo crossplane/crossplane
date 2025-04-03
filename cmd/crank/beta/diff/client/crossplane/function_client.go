@@ -121,13 +121,6 @@ func (c *DefaultFunctionClient) GetFunctionsFromPipeline(comp *apiextensionsv1.C
 	functions := make([]pkgv1.Function, 0, len(comp.Spec.Pipeline))
 	c.logger.Debug("Processing pipeline steps", "steps_count", len(comp.Spec.Pipeline))
 
-	// Check if functions cache is empty - if so, initialize it
-	if len(c.functions) == 0 {
-		if _, err := c.ListFunctions(context.Background()); err != nil {
-			return nil, errors.Wrap(err, "cannot list functions")
-		}
-	}
-
 	for _, step := range comp.Spec.Pipeline {
 		fn, ok := c.functions[step.FunctionRef.Name]
 		if !ok {
