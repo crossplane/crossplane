@@ -1,4 +1,4 @@
-+++ NopResource/
++++ NopResource/new-resource-(generated)
 [32m+ apiVersion: nop.crossplane.io/v1alpha1[0m
 [32m+ kind: NopResource[0m
 [32m+ metadata:[0m
