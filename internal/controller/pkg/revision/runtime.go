@@ -20,8 +20,10 @@ import (
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
@@ -67,18 +69,40 @@ var (
 	runAsNonRoot             = true
 )
 
-// ManifestBuilder builds the runtime manifests for a package revision.
-type ManifestBuilder interface {
-	// ServiceAccount builds and returns the service account manifest.
+// serviceAccount builds and returns the service account manifest.
+type serviceAccountBuilder interface {
 	ServiceAccount(overrides ...ServiceAccountOverride) *corev1.ServiceAccount
-	// Deployment builds and returns the deployment manifest.
+}
+
+// Deployment builds and returns the deployment manifest.
+type deploymentBuilder interface {
 	Deployment(serviceAccount string, overrides ...DeploymentOverride) *appsv1.Deployment
-	// Service builds and returns the service manifest.
+}
+
+// podDisruptionBudget builds and optionally returns the PodDisruptionBudget manifest.
+type podDisruptionBudgetBuilder interface {
+	PodDisruptionBudget(overrides ...PodDisruptionBudgetOverride) *policyv1.PodDisruptionBudget
+}
+
+// service builds and returns the service manifest.
+type serviceBuilder interface {
 	Service(overrides ...ServiceOverride) *corev1.Service
+}
+
+type tlsSecretBuilder interface {
 	// TLSClientSecret builds and returns the TLS client secret manifest.
 	TLSClientSecret() *corev1.Secret
 	// TLSServerSecret builds and returns the TLS server secret manifest.
 	TLSServerSecret() *corev1.Secret
+}
+
+// ManifestBuilder builds the runtime manifests for a package revision.
+type ManifestBuilder interface {
+	serviceAccountBuilder
+	deploymentBuilder
+	podDisruptionBudgetBuilder
+	serviceBuilder
+	tlsSecretBuilder
 }
 
 // A RuntimeHooks performs runtime operations before and after a revision
@@ -342,4 +366,48 @@ func (b *RuntimeManifestBuilder) packageType() string {
 		return "function"
 	}
 	return "provider"
+}
+
+// PodDisruptionBudget builds and optionally returns the PodDisruptionBudget manifest.
+func (b *RuntimeManifestBuilder) PodDisruptionBudget(overrides ...PodDisruptionBudgetOverride) *policyv1.PodDisruptionBudget {
+	p := &policyv1.PodDisruptionBudget{}
+	if b.runtimeConfig != nil {
+		p = pdbFromRuntimeConfig(b.runtimeConfig.Spec.PodDisruptionBudgetTemplate)
+	}
+	// if we don't set p.Spec.MaxUnavailable or p.Spec.MinAvailable, we will return nil
+	// so that the PDB will not be created.
+	if p.Spec.MaxUnavailable == nil && p.Spec.MinAvailable == nil {
+		return nil
+	}
+	// if we set both MaxUnavailable and MinAvailable, we will return nil
+	// so that the PDB will not be created.
+	if p.Spec.MaxUnavailable != nil && p.Spec.MinAvailable != nil {
+		return nil
+	}
+
+	var allOverrides []PodDisruptionBudgetOverride
+	allOverrides = append(allOverrides,
+		// Optional defaults, will be used only if the runtime config does not
+		// specify them.
+		PodDisruptionBudgetWithOptionalName(b.packageName()),
+
+		// Overrides that we are opinionated about.
+		PodDisruptionBudgetWithNamespace(b.namespace),
+		PodDisruptionBudgetWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
+		PodDisruptionBudgetWithSelectors(b.podSelectors()),
+	)
+	// If overrides doesn't override maxUnavailable or minAvailable, add to allOverrides with maxUnavailable set to 50%
+	if p.Spec.MaxUnavailable == nil && p.Spec.MinAvailable == nil {
+		allOverrides = append(allOverrides, PodDisruptionBudgetWithMaxUnavailable(intstr.FromString("50%")))
+	}
+
+	// We append the overrides passed to the function last so that they can
+	// override the above ones.
+	allOverrides = append(allOverrides, overrides...)
+
+	for _, o := range allOverrides {
+		o(p)
+	}
+
+	return p
 }

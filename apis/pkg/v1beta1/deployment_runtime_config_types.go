@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -75,6 +76,9 @@ type DeploymentRuntimeConfigSpec struct {
 	// DeploymentTemplate is the template for the Deployment object.
 	// +optional
 	DeploymentTemplate *DeploymentTemplate `json:"deploymentTemplate,omitempty"`
+	// PodDisruptionBudgetTemplate is the template for the PDB object.
+	// +optional
+	PodDisruptionBudgetTemplate *PodDisruptionBudgetTemplate `json:"podDisruptionBudgetTemplate,omitempty"`
 	// ServiceTemplate is the template for the Service object.
 	// +optional
 	ServiceTemplate *ServiceTemplate `json:"serviceTemplate,omitempty"`
@@ -108,4 +112,15 @@ type DeploymentRuntimeConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []DeploymentRuntimeConfig `json:"items"`
+}
+
+// PodDisruptionBudgetTemplate is the template for the PDB object.
+type PodDisruptionBudgetTemplate struct {
+	// Metadata contains the configurable metadata fields for the PodDisruptionBudget.
+	// +optional
+	Metadata *ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec contains the configurable spec fields for the Deployment object.
+	// +optional
+	Spec *policyv1.PodDisruptionBudgetSpec `json:"spec,omitempty"`
 }

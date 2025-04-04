@@ -45,3 +45,8 @@ spec:
           volumes:
             - name: shared-volume
               emptyDir: {}
+  podDisruptionBudgetTemplate:
+    metadata:
+      name: idontwanttobreakit
+    spec:
+      minAvailable: 1
