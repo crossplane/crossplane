@@ -1,0 +1,138 @@
+classDiagram
+    %% Kubernetes Clients
+    class K8sClients {
+        +Apply ApplyClient
+        +Resource ResourceClient
+        +Schema SchemaClient
+        +Type TypeConverter
+    }
+    
+    class ApplyClient {
+        <<interface>>
+        +DryRunApply(ctx, obj) (*Unstructured, error)
+    }
+    
+    class DefaultApplyClient {
+        -dynamicClient dynamic.Interface
+        -typeConverter TypeConverter
+        -logger logging.Logger
+    }
+    
+    class ResourceClient {
+        <<interface>>
+        +GetResource(ctx, gvk, namespace, name) (*Unstructured, error)
+        +ListResources(ctx, gvk, namespace) ([]*Unstructured, error)
+        +GetResourcesByLabel(ctx, namespace, gvk, sel) ([]*Unstructured, error)
+        +GetAllResourcesByLabels(ctx, gvks, selectors) ([]*Unstructured, error)
+    }
+    
+    class DefaultResourceClient {
+        -dynamicClient dynamic.Interface
+        -discoveryClient discovery.DiscoveryInterface
+        -converter TypeConverter
+        -logger logging.Logger
+    }
+    
+    class SchemaClient {
+        <<interface>>
+        +GetCRD(ctx, gvk) (*Unstructured, error)
+        +IsCRDRequired(ctx, gvk) bool
+        +ValidateResource(ctx, resource) error
+    }
+    
+    class DefaultSchemaClient {
+        -dynamicClient dynamic.Interface
+        -typeConverter TypeConverter
+        -logger logging.Logger
+        -resourceTypeMap map[GVK]bool
+        -resourceMapMu sync.RWMutex
+    }
+    
+    class TypeConverter {
+        <<interface>>
+        +GVKToGVR(ctx, gvk) (GVR, error)
+        +GetResourceNameForGVK(ctx, gvk) (string, error)
+    }
+    
+    class DefaultTypeConverter {
+        -dynamicClient dynamic.Interface
+        -discoveryClient discovery.DiscoveryInterface
+        -logger logging.Logger
+        -gvkToGVRMap map[GVK]GVR
+        -gvkToGVRMutex sync.RWMutex
+    }
+    
+    %% Crossplane Clients
+    class XpClients {
+        +Composition CompositionClient
+        +Definition DefinitionClient
+        +Environment EnvironmentClient
+        +Function FunctionClient
+        +ResourceTree ResourceTreeClient
+        +Initialize(ctx, logger) error
+    }
+    
+    class CompositionClient {
+        <<interface>>
+        +Initialize(ctx) error
+        +FindMatchingComposition(ctx, res) (*Composition, error)
+        +ListCompositions(ctx) ([]*Composition, error)
+        +GetComposition(ctx, name) (*Composition, error)
+    }
+    
+    class DefaultCompositionClient {
+        -resourceClient ResourceClient
+        -logger logging.Logger
+        -compositions map[string]*Composition
+    }
+    
+    class DefinitionClient {
+        <<interface>>
+        +Initialize(ctx) error
+        +GetXRDs(ctx) ([]*Unstructured, error)
+        +GetXRDForClaim(ctx, gvk) (*Unstructured, error)
+        +GetXRDForXR(ctx, gvk) (*Unstructured, error)
+    }
+    
+    class FunctionClient {
+        <<interface>>
+        +Initialize(ctx) error
+        +GetFunctionsFromPipeline(comp) ([]Function, error)
+        +ListFunctions(ctx) ([]Function, error)
+    }
+    
+    class ResourceTreeClient {
+        <<interface>>
+        +Initialize(ctx) error
+        +GetResourceTree(ctx, root) (*Resource, error)
+    }
+    
+    class EnvironmentClient {
+        <<interface>>
+        +Initialize(ctx) error
+        +GetEnvironmentConfigs(ctx) ([]*Unstructured, error)
+        +GetEnvironmentConfig(ctx, name) (*Unstructured, error)
+    }
+    
+    DefaultApplyClient ..|> ApplyClient
+    DefaultResourceClient ..|> ResourceClient
+    DefaultSchemaClient ..|> SchemaClient
+    DefaultTypeConverter ..|> TypeConverter
+    
+    DefaultApplyClient --> TypeConverter
+    DefaultResourceClient --> TypeConverter
+    DefaultSchemaClient --> TypeConverter
+    
+    K8sClients --> ApplyClient
+    K8sClients --> ResourceClient
+    K8sClients --> SchemaClient
+    K8sClients --> TypeConverter
+    
+    DefaultCompositionClient ..|> CompositionClient
+    DefaultCompositionClient --> ResourceClient
+    
+    XpClients --> CompositionClient
+    XpClients --> DefinitionClient
+    XpClients --> EnvironmentClient
+    XpClients --> FunctionClient
+    XpClients --> ResourceTreeClient

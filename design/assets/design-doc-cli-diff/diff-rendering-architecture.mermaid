@@ -1,0 +1,98 @@
+classDiagram
+    class DiffRenderer {
+        <<interface>>
+        +RenderDiffs(stdout, diffs) error
+    }
+    
+    class DefaultDiffRenderer {
+        -logger logging.Logger
+        -diffOpts DiffOptions
+        +SetDiffOptions(options)
+        +RenderDiffs(stdout, diffs) error
+    }
+    
+    class DiffOptions {
+        +UseColors bool
+        +AddPrefix string
+        +DeletePrefix string
+        +ContextPrefix string
+        +ContextLines int
+        +ChunkSeparator string
+        +Compact bool
+    }
+    
+    class DiffFormatter {
+        <<interface>>
+        +Format(diffs, options) string
+    }
+    
+    class FullDiffFormatter {
+        +Format(diffs, options) string
+    }
+    
+    class CompactDiffFormatter {
+        +Format(diffs, options) string
+        -stringBlocksWithContext(changes, lines, opts) string
+    }
+    
+    class ResourceDiff {
+        +Gvk GroupVersionKind
+        +ResourceName string
+        +DiffType DiffType
+        +LineDiffs []diffmatchpatch.Diff
+        +Current *Unstructured
+        +Desired *Unstructured
+        +GetDiffKey() string
+    }
+    
+    class DiffType {
+        <<enumeration>>
+        DiffTypeAdded
+        DiffTypeRemoved
+        DiffTypeModified
+        DiffTypeEqual
+    }
+    
+    DefaultDiffRenderer ..|> DiffRenderer
+    DefaultDiffRenderer --> DiffOptions
+    DefaultDiffRenderer ..> ResourceDiff
+    
+    FullDiffFormatter ..|> DiffFormatter
+    CompactDiffFormatter ..|> DiffFormatter
+    
+    ResourceDiff --> DiffType
+    
+    %% Functions
+    class GenerateDiffWithOptions {
+        <<function>>
+        +GenerateDiffWithOptions(current, desired, logger, options) (*ResourceDiff, error)
+    }
+    
+    class FormatDiff {
+        <<function>>
+        +FormatDiff(diffs, options) string
+    }
+    
+    class GetLineDiff {
+        <<function>>
+        +GetLineDiff(oldText, newText) []diffmatchpatch.Diff
+    }
+    
+    class NewFormatter {
+        <<function>>
+        +NewFormatter(compact) DiffFormatter
+    }
+    
+    class MakeDiffKey {
+        <<function>>
+        +MakeDiffKey(apiVersion, kind, name) string
+    }
+    
+    FormatDiff --> NewFormatter
+    NewFormatter --> FullDiffFormatter
+    NewFormatter --> CompactDiffFormatter
+    
+    GenerateDiffWithOptions --> GetLineDiff
+    GenerateDiffWithOptions --> ResourceDiff
+    
+    DefaultDiffRenderer --> FormatDiff

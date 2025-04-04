@@ -1,0 +1,28 @@
+flowchart TD
+    subgraph "Input"
+        A[YAML Files/StdIn] --> B[Loader]
+        B --> C[Unstructured Resources]
+    end
+    
+    subgraph "Processing"
+        C --> D[DiffProcessor]
+        D -->|"For each XR"| E[Find Matching Composition]
+        E --> F[Render Resources\nwith Functions]
+        F -->|"Discover Requirements"| M[RequirementsProvider]
+        M -->|"Additional Resources"| F
+        F --> G[Validate Resources]
+        G --> H[Calculate Diffs]
+    end
+    
+    subgraph "External Systems"
+        I[Kubernetes API]
+    end
+    
+    I <-->|"Get Current State"| H
+    I <-->|"DryRun Apply"| H
+    I <-->|"Fetch Resources"| M
+    
+    subgraph "Output"
+        H --> K[Format Diffs]
+        K --> L[Render to Console]
+    end

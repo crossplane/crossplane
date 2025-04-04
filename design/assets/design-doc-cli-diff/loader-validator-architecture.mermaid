@@ -1,0 +1,79 @@
+classDiagram
+    class Loader {
+        <<interface>>
+        +Load() ([]*Unstructured, error)
+    }
+    
+    class CompositeLoader {
+        -loaders []Loader
+        +Load() ([]*Unstructured, error)
+    }
+    
+    class FileLoader {
+        -path string
+        +Load() ([]*Unstructured, error)
+    }
+    
+    class StdinLoader {
+        +Load() ([]*Unstructured, error)
+    }
+    
+    class FolderLoader {
+        -path string
+        +Load() ([]*Unstructured, error)
+    }
+    
+    class LoadYamlStream {
+        <<function>>
+        +LoadYamlStream(reader) ([][]byte, error)
+    }
+    
+    class streamToUnstructured {
+        <<function>>
+        +streamToUnstructured(stream) ([]*Unstructured, error)
+    }
+    
+    class SchemaValidator {
+        <<interface>>
+        +ValidateResources(ctx, xr, composed) error
+        +EnsureComposedResourceCRDs(ctx, resources) error
+    }
+    
+    class DefaultSchemaValidator {
+        -defClient DefinitionClient
+        -schemaClient SchemaClient
+        -logger logging.Logger
+        -crds []*CustomResourceDefinition
+        +LoadCRDs(ctx) error
+        +SetCRDs(crds)
+        +GetCRDs() []*CustomResourceDefinition
+        +ValidateResources(ctx, xr, composed) error
+        +EnsureComposedResourceCRDs(ctx, resources) error
+    }
+    
+    class ConvertToCRDs {
+        <<function>>
+        +ConvertToCRDs(xrds) ([]*CustomResourceDefinition, error)
+    }
+    
+    class SchemaValidation {
+        <<function>>
+        +SchemaValidation(ctx, resources, crds, skipWarn, skipSuccess, writer) error
+    }
+    
+    CompositeLoader ..|> Loader
+    FileLoader ..|> Loader
+    StdinLoader ..|> Loader
+    FolderLoader ..|> Loader
+    
+    CompositeLoader --> Loader
+    
+    FileLoader --> LoadYamlStream
+    StdinLoader --> LoadYamlStream
+    FolderLoader --> LoadYamlStream
+    
+    LoadYamlStream --> streamToUnstructured
+    
+    DefaultSchemaValidator ..|> SchemaValidator
+    DefaultSchemaValidator --> ConvertToCRDs
+    DefaultSchemaValidator --> SchemaValidation

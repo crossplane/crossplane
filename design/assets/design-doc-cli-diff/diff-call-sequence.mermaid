@@ -1,0 +1,61 @@
+sequenceDiagram
+    participant CLI as CLI Entry Point
+    participant Cmd as diff.Cmd
+    participant Loader as CompositeLoader
+    participant DP as DefaultDiffProcessor
+    participant CompClient as CompositionClient
+    participant Render as Render Function
+    participant ReqProv as RequirementsProvider
+    participant DiffCalc as DiffCalculator
+    participant K8sAPI as Kubernetes API
+    participant DiffRend as DiffRenderer
+    
+    CLI->>Cmd: Run()
+    Cmd->>Loader: Load()
+    Loader-->>Cmd: []*unstructured.Unstructured
+    
+    Cmd->>DP: Initialize(ctx)
+    DP->>DP: Load CRDs and Resources
+    
+    Cmd->>DP: PerformDiff(ctx, stdout, resources)
+    
+    loop For each resource
+        DP->>DP: SanitizeXR(res)
+        DP->>CompClient: FindMatchingComposition(ctx, res)
+        CompClient-->>DP: *apiextensionsv1.Composition
+        
+        DP->>DP: RenderWithRequirements(ctx, xr, comp, fns)
+        
+        loop Until no new requirements
+            DP->>Render: Render(ctx, inputs)
+            Render-->>DP: outputs with requirements
+            
+            alt Has Requirements
+                DP->>ReqProv: ProvideRequirements(ctx, requirements)
+                ReqProv->>K8sAPI: GetResource/GetResourcesByLabel
+                K8sAPI-->>ReqProv: Resources
+                ReqProv-->>DP: Additional Resources
+            end
+        end
+        
+        DP->>DP: ValidateResources(ctx, xr, composed)
+        
+        DP->>DiffCalc: CalculateDiffs(ctx, xr, desired)
+        
+        loop For each rendered resource
+            DiffCalc->>K8sAPI: FetchCurrentObject
+            K8sAPI-->>DiffCalc: Current Object
+            DiffCalc->>K8sAPI: DryRunApply(desired)
+            K8sAPI-->>DiffCalc: Result
+            DiffCalc->>DiffCalc: GenerateDiffWithOptions()
+        end
+        
+        DiffCalc-->>DP: map[string]*ResourceDiff
+    end
+    
+    DP->>DiffRend: RenderDiffs(stdout, allDiffs)
+    DiffRend->>DiffRend: FormatDiff(diffs, options)
+    DiffRend-->>DP: Formatted Output
+    
+    DP-->>Cmd: Success/Error
+    Cmd-->>CLI: Return Code

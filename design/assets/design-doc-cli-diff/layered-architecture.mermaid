@@ -1,0 +1,116 @@
+flowchart TD
+    subgraph "Command Layer"
+        CMD[Cmd]
+        HELP[Help Function]
+    end
+    
+    subgraph "Application Layer"
+        APP[AppContext]
+        DPR[DiffProcessor]
+        LOAD[Loader]
+    end
+    
+    subgraph "Domain Layer"
+        subgraph "Processing Components"
+            DIFFCALC[DiffCalculator]
+            SCHMVLD[SchemaValidator]
+            RESMGR[ResourceManager]
+            REQPRV[RequirementsProvider]
+        end
+        
+        subgraph "Rendering Components"
+            DIFFRND[DiffRenderer]
+            DIFFFRM[DiffFormatter]
+        end
+        
+        subgraph "Resource Components"
+            RENDER[Render Function]
+        end
+    end
+    
+    subgraph "Client Layer"
+        subgraph "Kubernetes Clients"
+            APPLY[ApplyClient]
+            RESRC[ResourceClient]
+            SCHMA[SchemaClient]
+            TCONV[TypeConverter]
+        end
+        
+        subgraph "Crossplane Clients"
+            COMP[CompositionClient]
+            DEFN[DefinitionClient]
+            ENVT[EnvironmentClient]
+            FUNC[FunctionClient]
+            TREE[ResourceTreeClient]
+        end
+    end
+    
+    subgraph "External Systems"
+        K8S[Kubernetes API]
+    end
+    
+    %% Command Layer connections
+    CMD --> APP
+    CMD --> DPR
+    CMD --> LOAD
+    CMD <--> HELP
+    
+    %% Application Layer connections
+    APP --> APPLY
+    APP --> RESRC
+    APP --> SCHMA
+    APP --> TCONV
+    APP --> COMP
+    APP --> DEFN
+    APP --> ENVT
+    APP --> FUNC
+    APP --> TREE
+    
+    DPR --> DIFFCALC
+    DPR --> SCHMVLD
+    DPR --> RESMGR
+    DPR --> REQPRV
+    DPR --> DIFFRND
+    DPR --> RENDER
+    DPR --> COMP
+    DPR --> FUNC
+    
+    %% Domain Layer connections
+    DIFFCALC --> RESMGR
+    DIFFCALC --> TREE
+    DIFFCALC --> APPLY
+    
+    SCHMVLD --> SCHMA
+    SCHMVLD --> DEFN
+    
+    RESMGR --> RESRC
+    
+    REQPRV --> RESRC
+    REQPRV --> ENVT
+    
+    DIFFRND --> DIFFFRM
+    
+    %% Client Layer connections
+    APPLY --> K8S
+    RESRC --> K8S
+    SCHMA --> K8S
+    TCONV --> K8S
+    
+    COMP --> RESRC
+    DEFN --> RESRC
+    ENVT --> RESRC
+    FUNC --> RESRC
+    TREE --> K8S
+    
+    %% Styling
+    classDef commandLayer fill:#f9d5e5,stroke:#333,stroke-width:1px
+    classDef applicationLayer fill:#eeeeee,stroke:#333,stroke-width:1px
+    classDef domainLayer fill:#d0f0c0,stroke:#333,stroke-width:1px
+    classDef clientLayer fill:#a8e6cf,stroke:#333,stroke-width:1px
+    classDef externalSystems fill:#ffd3b6,stroke:#333,stroke-width:1px
+    
+    class CMD,HELP commandLayer
+    class APP,DPR,LOAD applicationLayer
+    class DIFFCALC,SCHMVLD,RESMGR,REQPRV,DIFFRND,DIFFFRM,RENDER domainLayer
+    class APPLY,RESRC,SCHMA,TCONV,COMP,DEFN,ENVT,FUNC,TREE clientLayer
+    class K8S externalSystems
