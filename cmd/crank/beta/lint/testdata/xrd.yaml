@@ -1,0 +1,20 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xdatabases.custom-api.example.org
+spec:
+  group: custom-api.example.org
+  names:
+    kind: xDatabase
+    plural: xdatabases
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              enabled:
+                type: boolean

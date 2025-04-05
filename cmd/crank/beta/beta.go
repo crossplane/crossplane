@@ -23,6 +23,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/convert"
 	"github.com/crossplane/crossplane/cmd/crank/beta/top"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace"
+	"github.com/crossplane/crossplane/cmd/crank/beta/lint"
 	"github.com/crossplane/crossplane/cmd/crank/beta/validate"
 )
 
@@ -31,6 +32,7 @@ type Cmd struct {
 	// Subcommands and flags will appear in the CLI help output in the same
 	// order they're specified here. Keep them in alphabetical order.
 	Convert  convert.Cmd  `cmd:"" help:"Convert a Crossplane resource to a newer version or kind."`
+	Lint 	 lint.Cmd     `cmd: "" help:"TODO"`
 	Top      top.Cmd      `cmd:"" help:"Display resource (CPU/memory) usage by Crossplane related pods."`
 	Trace    trace.Cmd    `cmd:"" help:"Trace a Crossplane resource to get a detailed output of its relationships, helpful for troubleshooting."`
 	Validate validate.Cmd `cmd:"" help:"Validate Crossplane resources."`
