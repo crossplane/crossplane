@@ -1433,7 +1433,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 				client: &test.MockClient{
 					MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 						l := obj.GetLabels()
-						if l[xcrd.CategoryComposite] != "" || l[xcrd.LabelKeyClaimName] != "" || l[xcrd.LabelKeyClaimNamespace] != "" {
+						if l[xcrd.CategoryComposite] != "" {
 							return errors.New("resource still has composed resource labels")
 						}
 						return nil
@@ -1459,8 +1459,6 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 								// With composed resource labels.
 								Labels: map[string]string{
 									xcrd.LabelKeyNamePrefixForComposed: "cool-xr",
-									xcrd.LabelKeyClaimName:             "cool-claim",
-									xcrd.LabelKeyClaimNamespace:        "cool-namespace",
 								},
 							},
 						},

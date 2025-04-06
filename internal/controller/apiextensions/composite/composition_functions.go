@@ -782,7 +782,7 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 		// Remove the labels that indicate this resource was owned by a
 		// Composition. This helps differentiate whether a resource was deleted
 		// due to garbage collection or because its owning composite was deleted.
-		meta.RemoveLabels(cd.Resource, xcrd.LabelKeyNamePrefixForComposed, xcrd.LabelKeyClaimName, xcrd.LabelKeyClaimNamespace)
+		meta.RemoveLabels(cd.Resource, xcrd.LabelKeyNamePrefixForComposed)
 		if err := d.client.Update(ctx, cd.Resource); resource.IgnoreNotFound(err) != nil {
 			return errors.Wrapf(err, errFmtCleanupLabelsCD, name, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())
 		}

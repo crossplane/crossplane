@@ -62,8 +62,6 @@ const waitForReady = `{
 const (
 	AnnotationKeyCompositionResourceName = "crossplane.io/composition-resource-name"
 	AnnotationKeyCompositeName           = "crossplane.io/composite"
-	AnnotationKeyClaimNamespace          = "crossplane.io/claim-namespace"
-	AnnotationKeyClaimName               = "crossplane.io/claim-name"
 )
 
 // Inputs contains all inputs to the render process.
@@ -385,20 +383,13 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 // SetComposedResourceMetadata sets standard, required composed resource
 // metadata. It's a simplified version of the same function used by Crossplane.
 // Notably it doesn't handle 'nested' XRs - it assumes the supplied XR should be
-// treated as the top-level XR for setting the crossplane.io/composite,
-// crossplane.io/claim-namespace, and crossplane.io/claim-name annotations.
+// treated as the top-level XR for setting the crossplane.io/composite annotations.
 //
 // https://github.com/crossplane/crossplane/blob/0965f0/internal/controller/apiextensions/composite/composition_render.go#L117
 func SetComposedResourceMetadata(cd resource.Object, xr xresource.LegacyComposite, name string) error {
 	cd.SetGenerateName(xr.GetName() + "-")
 	meta.AddAnnotations(cd, map[string]string{AnnotationKeyCompositionResourceName: name})
 	meta.AddLabels(cd, map[string]string{AnnotationKeyCompositeName: xr.GetName()})
-	if ref := xr.GetClaimReference(); ref != nil {
-		meta.AddLabels(cd, map[string]string{
-			AnnotationKeyClaimNamespace: ref.Namespace,
-			AnnotationKeyClaimName:      ref.Name,
-		})
-	}
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
 	return errors.Wrapf(meta.AddControllerReference(cd, or), "cannot set composite resource %q as controller ref of composed resource", xr.GetName())

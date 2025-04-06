@@ -104,8 +104,6 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 	// claim name/namespace labels?
 	meta.AddLabels(cd, map[string]string{
 		xcrd.LabelKeyNamePrefixForComposed: xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
-		xcrd.LabelKeyClaimName:             xr.GetLabels()[xcrd.LabelKeyClaimName],
-		xcrd.LabelKeyClaimNamespace:        xr.GetLabels()[xcrd.LabelKeyClaimNamespace],
 	})
 
 	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
