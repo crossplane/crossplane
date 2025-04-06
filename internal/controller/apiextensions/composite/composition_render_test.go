@@ -203,8 +203,6 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						UID: "somewhat-random",
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
-							xcrd.LabelKeyClaimName:             "name",
-							xcrd.LabelKeyClaimNamespace:        "namespace",
 						},
 					},
 				},
@@ -227,8 +225,6 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						}},
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
-							xcrd.LabelKeyClaimName:             "name",
-							xcrd.LabelKeyClaimNamespace:        "namespace",
 						},
 					},
 				},
@@ -243,8 +239,6 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						UID: "somewhat-random",
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
-							xcrd.LabelKeyClaimName:             "name",
-							xcrd.LabelKeyClaimNamespace:        "namespace",
 						},
 					},
 				},
@@ -268,8 +262,6 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						}},
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
-							xcrd.LabelKeyClaimName:             "name",
-							xcrd.LabelKeyClaimNamespace:        "namespace",
 						},
 					},
 				},
@@ -285,8 +277,6 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						UID:       "somewhat-random",
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
-							xcrd.LabelKeyClaimName:             "name",
-							xcrd.LabelKeyClaimNamespace:        "namespace",
 						},
 					},
 				},
@@ -305,8 +295,6 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 						}},
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
-							xcrd.LabelKeyClaimName:             "name",
-							xcrd.LabelKeyClaimNamespace:        "namespace",
 						},
 					},
 				},
