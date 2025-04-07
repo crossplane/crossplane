@@ -1184,6 +1184,7 @@ func TestConvertToCRDs(t *testing.T) {
 func TestValidateResources(t *testing.T) {
 	type args struct {
 		resources             []*unstructured.Unstructured
+		oldResources          []*unstructured.Unstructured
 		crds                  []*extv1.CustomResourceDefinition
 		errorOnMissingSchemas bool
 	}
@@ -1360,11 +1361,56 @@ func TestValidateResources(t *testing.T) {
 				crds: []*extv1.CustomResourceDefinition{},
 			},
 		},
+		"ResourceWithOldResource": {
+			reason: "Field is immutable and should return an error",
+			args: args{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas":    5,
+								"minReplicas": 3,
+								"maxReplicas": 10,
+								"param":       "changed-value",
+							},
+						},
+					},
+				},
+				oldResources: []*unstructured.Unstructured{
+					{
+						Object: map[string]interface{}{
+							"apiVersion": "test.org/v1alpha1",
+							"kind":       "Test",
+							"metadata": map[string]interface{}{
+								"name": "test",
+							},
+							"spec": map[string]interface{}{
+								"replicas":    5,
+								"minReplicas": 3,
+								"maxReplicas": 10,
+								"param":       "immutable-value",
+							},
+						},
+					},
+				},
+				crds: []*extv1.CustomResourceDefinition{
+					testCRDWithCEL,
+				},
+			},
+			want: want{
+				err: errors.New("could not validate all resources"),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			got := SchemaValidation(tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
+			got := SchemaValidation(tc.args.resources, tc.args.oldResources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)

@@ -25,6 +25,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -42,10 +43,12 @@ type Cmd struct {
 	// Flags. Keep them in alphabetical order.
 	CacheDir              string `default:"~/.crossplane/cache"                                                       help:"Absolute path to the cache directory where downloaded schemas are stored."`
 	CleanCache            bool   `help:"Clean the cache directory before downloading package schemas."`
-	SkipSuccessResults    bool   `help:"Skip printing success results."`
 	CrossplaneImage       string `help:"Specify the Crossplane image to be used for validating the built-in schemas."`
 	ErrorOnMissingSchemas bool   `default:"false"                                                                     help:"Return non zero exit code if not all schemas are provided."`
-	fs                    afero.Fs
+	OldResources          string `help:"Old Resources source which can be a file, directory."`
+	SkipSuccessResults    bool   `help:"Skip printing success results."`
+
+	fs afero.Fs
 }
 
 // Help prints out the help for the validate command.
@@ -80,6 +83,10 @@ Examples:
   # Validate all resources in the resourceDir folder against the extensions in the extensionsDir folder using provided
   # cache directory and clean the cache directory before downloading schemas
   crossplane beta validate extensionsDir/ resourceDir/ --cache-dir .cache --clean-cache
+  
+  # Validate all resources in the resourceDir folder against the extensions in the extensionDir folder, and use resources
+  # in the oldResourceDir folder for CEL validation that require previous state.
+  crossplane beta validate extensionsDir/ resourceDir/ --old-resources oldResourceDir/
 `
 }
 
@@ -126,6 +133,20 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CacheDir = filepath.Join(homeDir, c.CacheDir[2:])
 	}
 
+	// Load old resources if they exist
+	oldResources := make([]*unstructured.Unstructured, 0)
+	if len(c.OldResources) > 0 {
+		oldResourceLoader, err := NewLoader(c.OldResources)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load old resources from %q", c.OldResources)
+		}
+
+		oldResources, err = oldResourceLoader.Load()
+		if err != nil {
+			return errors.Wrapf(err, "cannot load old resources from %q", c.OldResources)
+		}
+	}
+
 	m := NewManager(c.CacheDir, c.fs, k.Stdout, WithCrossplaneImage(c.CrossplaneImage))
 
 	// Convert XRDs/CRDs to CRDs and add package dependencies
@@ -139,7 +160,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
+	if err := SchemaValidation(resources, oldResources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 
