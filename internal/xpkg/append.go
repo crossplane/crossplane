@@ -91,7 +91,7 @@ func (a *Appender) Append(index v1.ImageIndex, extImg v1.Image, opts ...AppendOp
 	newIndex := mutate.AppendManifests(index, mutate.IndexAddendum{
 		Add: extImg,
 		Descriptor: v1.Descriptor{
-			MediaType: types.OCIManifestSchema1,
+			MediaType: types.DockerManifestSchema2,
 			Digest:    extManifestDigest,
 			Size:      0,
 			Annotations: map[string]string{
