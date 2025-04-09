@@ -25,12 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
 )
 
 // defaultConcurrency is the concurrency using which the resource tree if loaded when not explicitly specified.
@@ -113,31 +115,44 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 	if xrcNamespace := obj.GetNamespace(); xrcNamespace != "" {
 		// This is an XRC, get the XR ref, we leave the connection secret
 		// handling to the XR
-		xrc := claim.Unstructured{Unstructured: obj}
-		if ref := xrc.GetResourceReference(); ref != nil {
-			refs = append(refs, v1.ObjectReference{
-				APIVersion: ref.APIVersion,
-				Kind:       ref.Kind,
-				Name:       ref.Name,
-			})
-		}
-		if getConnectionSecrets {
-			xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
-			if xrcSecretRef != nil {
-				ref := v1.ObjectReference{
-					APIVersion: "v1",
-					Kind:       "Secret",
-					Name:       xrcSecretRef.Name,
-					Namespace:  xrcNamespace,
-				}
-				refs = append(refs, ref)
+		out := &[]v1.ObjectReference{}
+		if err := fieldpath.Pave(obj.Object).GetValueInto("spec.crossplane.resourceRefs", out); err != nil {
+			xrc := claim.Unstructured{Unstructured: obj}
+			if ref := xrc.GetResourceReference(); ref != nil {
+				refs = append(refs, v1.ObjectReference{
+					APIVersion: ref.APIVersion,
+					Kind:       ref.Kind,
+					Name:       ref.Name,
+				})
 			}
+			if getConnectionSecrets {
+				xrcSecretRef := xrc.GetWriteConnectionSecretToReference()
+				if xrcSecretRef != nil {
+					ref := v1.ObjectReference{
+						APIVersion: "v1",
+						Kind:       "Secret",
+						Name:       xrcSecretRef.Name,
+						Namespace:  xrcNamespace,
+					}
+					refs = append(refs, ref)
+				}
+			}
+			return refs
 		}
-		return refs
 	}
 	// This could be an XR or an MR
 	xr := composite.Unstructured{Unstructured: obj}
+	out := &reference.Claim{}
+	if err := fieldpath.Pave(obj.Object).GetValueInto("spec.claimRef", out); err == nil {
+		xr.Schema = composite.SchemaLegacy
+	}
 	xrRefs := xr.GetResourceReferences()
+
+	if xr.Schema != composite.SchemaLegacy {
+		for i := range xrRefs {
+			xrRefs[i].Namespace = obj.GetNamespace()
+		}
+	}
 	if len(xrRefs) == 0 {
 		// This is an MR
 		return refs
