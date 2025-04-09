@@ -117,6 +117,9 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 		// This is an XRC, get the XR ref, we leave the connection secret
 		// handling to the XR
 		out := &[]v1.ObjectReference{}
+		// Determine if this is a namespaced XR or an XRC
+		// Namespaced XRs have the spec.crossplane.resourceRefs field
+		// If this field is not found, we treat it as an XRC
 		if err := fieldpath.Pave(obj.Object).GetValueInto("spec.crossplane.resourceRefs", out); err != nil {
 			xrc := claim.Unstructured{Unstructured: obj}
 			if ref := xrc.GetResourceReference(); ref != nil {
@@ -143,6 +146,9 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 	}
 	// This could be an XR or an MR
 	xr := composite.Unstructured{Unstructured: obj}
+	// The xr.GetResourceReferences() function checks for resourceRefs at spec.crossplane.resourceRefs
+	// For legacy XRs, we need to check at spec.resourceRefs path
+	// We can determine if it's a legacy XR by checking for the presence of the claimRef field
 	out := &reference.Claim{}
 	if err := fieldpath.Pave(obj.Object).GetValueInto("spec.claimRef", out); err == nil {
 		xr.Schema = composite.SchemaLegacy
@@ -150,11 +156,12 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 	xrRefs := xr.GetResourceReferences()
 
 	if xr.Schema != composite.SchemaLegacy {
+		// Set namespace for references that don't have one
+		namespace := obj.GetNamespace()
 		for i := range xrRefs {
-			if xrRefs[i].Namespace != "" {
-				continue
+			if xrRefs[i].Namespace == "" {
+				xrRefs[i].Namespace = namespace
 			}
-			xrRefs[i].Namespace = obj.GetNamespace()
 		}
 	}
 	if len(xrRefs) == 0 {
