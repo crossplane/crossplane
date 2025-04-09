@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
@@ -150,6 +151,9 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 
 	if xr.Schema != composite.SchemaLegacy {
 		for i := range xrRefs {
+			if xrRefs[i].Namespace != "" {
+				continue
+			}
 			xrRefs[i].Namespace = obj.GetNamespace()
 		}
 	}
