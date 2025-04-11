@@ -317,7 +317,7 @@ func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
 	}
 
 	return typesimage.PullOptions{
-		RegistryAuth: base64.URLEncoding.EncodeToString(token),
+		RegistryAuth: base64.StdEncoding.EncodeToString(token),
 	}, nil
 }
 
