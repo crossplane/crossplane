@@ -95,3 +95,4 @@ This list is sorted in the order that organizations were added to it.
 | [Jove](https://www.jove.com/) | [@arturkasperek](https://github.com/arturkasperek) | We use Crossplane in production environments to build a Heroku like Internal Developer Platform on top of AWS and AWS EKS. |
 | [Alauda](https://www.alauda.io/) | [@tossmilestone](https://github.com/tossmilestone) | Our container platform product (ACP) uses Crossplane to simplify application deployment and infrastructure provisioning for our clients in production environments. |
 | [Neteera](https://www.neteera.com/) | [@heinanca](https://github.com/heinanca) | We utilize Crossplane to build our EU operations using official and in-house providers. |
+| [Nebinfra](https://www.nebinfra.com) | [@satishweb](https://github.com/satishweb) | Manage multi-cloud digital infrastructure and deliver a self-service framework that empowers engineers to provision application resources for our customers. |
