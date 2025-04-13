@@ -40,7 +40,7 @@ type Cmd struct {
 	Resources string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags.
-	Output             string `short:"o" help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'." default:"stdout"`
+	Output             string `default:"stdout"                      help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'." short:"o"`
 	SkipSuccessResults bool   `help:"Skip printing success results."`
 }
 
@@ -71,6 +71,7 @@ Examples:
 `
 }
 
+// Issue represents a linting issue found in a resource.
 type Issue struct {
 	RuleID  string `json:"id"`
 	Name    string `json:"name"`
@@ -79,7 +80,7 @@ type Issue struct {
 	Message string `json:"message"`
 }
 
-type Output struct {
+type output struct {
 	Summary struct {
 		Valid    bool `json:"valid"`
 		Total    int  `json:"total"`
@@ -91,7 +92,6 @@ type Output struct {
 
 // Run lint.
 func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
-
 	// Load all resources
 	resourceLoader, err := NewLoader(c.Resources)
 	if err != nil {
@@ -106,20 +106,17 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	var allIssues []Issue
 
 	for _, resource := range resources {
-
-		var name string
 		resourceAsBytes, err := yaml.Marshal(resource)
 		if err != nil {
-			fmt.Printf("Failed to convert resource to bytes: %v\n", err)
+			return errors.Wrapf(err, "cannot convert to yaml %q", resource.Value)
 		}
 
 		var k8s unstructured.Unstructured
 		if err := sigyaml.Unmarshal(resourceAsBytes, &k8s); err != nil {
-			fmt.Printf("Failed to decode object into XRD: %v\n", err)
-			continue
+			return errors.Wrapf(err, "cannot unmarshal into Unstructured %q", resource.Value)
 		}
 
-		name = k8s.GetName()
+		name := k8s.GetName()
 
 		if k8s.GetKind() != v1.CompositeResourceDefinitionKind || !strings.HasPrefix(k8s.GetAPIVersion(), v1.Group) {
 			issue := Issue{
@@ -130,6 +127,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 				Message: fmt.Sprintf("Resource %s is not a CompositeResourceDefinition", k8s.GetName()),
 			}
 			allIssues = append(allIssues, issue)
+			continue
 		}
 
 		allIssues = append(allIssues, checkBooleanFields(name, resource)...)
@@ -137,7 +135,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		allIssues = append(allIssues, checkMissingDescriptions(name, resource)...)
 	}
 
-	output := Output{}
+	output := output{}
 	output.Summary.Valid = len(allIssues) == 0
 	output.Summary.Total = len(allIssues)
 	output.Issues = &allIssues
@@ -153,9 +151,15 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	if !c.SkipSuccessResults || !output.Summary.Valid {
 		switch c.Output {
 		case "json":
-			printJson(&output)
+			err = printJSON(&output, k)
+			if err != nil {
+				return errors.Wrap(err, "cannot print summary")
+			}
 		case "stdout":
-			printStdout(&output)
+			err = printStdout(&output, k)
+			if err != nil {
+				return errors.Wrap(err, "cannot print summary")
+			}
 		default:
 			return errors.New("invalid output format specified")
 		}
@@ -165,26 +169,35 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		os.Exit(1)
 	} else if output.Summary.Warnings > 0 {
 		os.Exit(2)
-	} else {
-		os.Exit(0)
 	}
+
+	os.Exit(0)
 
 	return nil
 }
 
-func printStdout(o *Output) {
-	for _, issue := range *o.Issues {
-		fmt.Printf("%s:%d [%s] %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message)
-	}
-
-	fmt.Printf("Found %d issues: %d errors, %d warnings\n", o.Summary.Total, o.Summary.Errors, o.Summary.Warnings)
-}
-
-func printJson(o *Output) {
+func printJSON(o *output, k *kong.Context) error {
 	data, err := json.Marshal(o)
 	if err != nil {
-		fmt.Printf("Failed to convert output to JSON: %v\n", err)
-		return
+		return errors.Wrap(err, "cannot marshal output to JSON")
 	}
-	fmt.Println(string(data))
+	_, err = fmt.Fprintln(k.Stdout, string(data))
+	if err != nil {
+		return errors.Wrap(err, "cannot print summary")
+	}
+	return nil
+}
+
+func printStdout(o *output, k *kong.Context) error {
+	for _, issue := range *o.Issues {
+		_, err := fmt.Fprintf(k.Stdout, "%s:%d [%s] %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message)
+		if err != nil {
+			return errors.Wrap(err, "cannot print summary")
+		}
+	}
+	_, err := fmt.Fprintf(k.Stdout, "Found %d issues: %d errors, %d warnings\n", o.Summary.Total, o.Summary.Errors, o.Summary.Warnings)
+	if err != nil {
+		return errors.Wrap(err, "cannot print summary")
+	}
+	return nil
 }

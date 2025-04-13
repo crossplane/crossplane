@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // Loader interface defines the contract for different input sources.
@@ -102,9 +103,17 @@ func readFile(path string) ([][]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open file")
 	}
-	defer f.Close()
+	data, err := loadYAMLDocuments(f)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot load YAML documents")
+	}
 
-	return loadYAMLDocuments(f)
+	err = f.Close()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot close file")
+	}
+
+	return data, nil
 }
 
 // loadYAMLDocuments splits multi-doc YAML input into individual byte slices.
@@ -116,7 +125,7 @@ func loadYAMLDocuments(r io.Reader) ([][]byte, error) {
 	for {
 		var rawNode yaml.Node
 		err := decoder.Decode(&rawNode)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -135,7 +144,7 @@ func loadYAMLDocuments(r io.Reader) ([][]byte, error) {
 
 // streamToNodes parses []byte YAML docs into *yaml.Node trees.
 func streamToNodes(stream [][]byte) ([]*yaml.Node, error) {
-	var nodes []*yaml.Node
+	nodes := make([]*yaml.Node, 0, len(stream))
 
 	for _, doc := range stream {
 		var root yaml.Node

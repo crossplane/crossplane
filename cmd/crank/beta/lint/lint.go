@@ -37,10 +37,14 @@ func walkYAML(path string, node *yaml.Node, fn func(path string, key *yaml.Node,
 			newPath := fmt.Sprintf("%s[%d]", path, idx)
 			walkYAML(newPath, item, fn)
 		}
+	case yaml.ScalarNode:
+		return // No action needed for scalar nodes
+	case yaml.AliasNode:
+		return // No action needed for alias nodes
 	}
 }
 
-// Rule XRD001: Warn if any field has type boolean
+// Rule XRD001: Warn if any field has type boolean.
 func checkBooleanFields(name string, obj *yaml.Node) []Issue {
 	var issues []Issue
 
@@ -61,7 +65,7 @@ func checkBooleanFields(name string, obj *yaml.Node) []Issue {
 	return issues
 }
 
-// Rule XRD002: Check for required fields
+// Rule XRD002: Check for required fields.
 func checkRequiredFields(name string, obj *yaml.Node) []Issue {
 	var issues []Issue
 
@@ -83,7 +87,7 @@ func checkRequiredFields(name string, obj *yaml.Node) []Issue {
 	return issues
 }
 
-// Rule XRD003: Check fields for description
+// Rule XRD003: Check fields for description.
 func checkMissingDescriptions(name string, obj *yaml.Node) []Issue {
 	var issues []Issue
 
