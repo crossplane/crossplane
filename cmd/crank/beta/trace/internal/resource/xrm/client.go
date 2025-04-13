@@ -116,11 +116,13 @@ func getResourceChildrenRefs(r *resource.Resource, getConnectionSecrets bool) []
 	if xrcNamespace := obj.GetNamespace(); xrcNamespace != "" {
 		// This is an XRC, get the XR ref, we leave the connection secret
 		// handling to the XR
-		out := &[]v1.ObjectReference{}
+		out := &v1.ObjectReference{}
 		// Determine if this is a namespaced XR or an XRC
-		// Namespaced XRs have the spec.crossplane.resourceRefs field
-		// If this field is not found, we treat it as an XRC
-		if err := fieldpath.Pave(obj.Object).GetValueInto("spec.crossplane.resourceRefs", out); err != nil {
+		// XRCs will have the spec.crossplane.resourceRef or spec.resourceRef field
+		// If either field is found, we treat it as an XRC
+		checkNewField := fieldpath.Pave(obj.Object).GetValueInto("spec.crossplane.resourceRef", out)
+		checkLegacyField := fieldpath.Pave(obj.Object).GetValueInto("spec.resourceRef", out)
+		if checkNewField == nil || checkLegacyField == nil {
 			xrc := claim.Unstructured{Unstructured: obj}
 			if ref := xrc.GetResourceReference(); ref != nil {
 				refs = append(refs, v1.ObjectReference{
