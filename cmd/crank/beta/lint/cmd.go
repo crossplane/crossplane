@@ -40,22 +40,43 @@ type Cmd struct {
 	Resources string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
 
 	// Flags.
-	Output string `short:"o" help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'."`
+	Output             string `short:"o" help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'." default:"stdout"`
+	SkipSuccessResults bool   `help:"Skip printing success results."`
 }
 
 // Help prints out the help for the validate command.
 func (c *Cmd) Help() string {
 	return `
-	TODO: Add help text for the lint command.
+This command checks the provided Crossplane CompositeResourceDefinition (XRD) via stdin, files or directories of such files for 
+API Design Best Practices. It scans each resource and identifies issues such as missing descriptions, required fields and more.
+
+The command will return a non-zero exit code if any errors are found. The exit codes are as follows:
+  - 0: No issues found
+  - 1: Errors found
+  - 2: Warnings found
+
+Examples:
+
+  # Lint a single XRD file 
+  crossplane beta lint xrd.yaml
+
+  # Lint all XRD files in the directory "xrds"
+  crossplane beta lint ./xrds/
+
+  # Lint all XRD files in the directory "xrds" and skip success logs
+  crossplane beta validate ./xrds/ --skip-success-results
+
+  # Lint all XRD files in the directory "xrds" and output results in JSON format
+  crossplane beta lint ./xrds/ --output json
 `
 }
 
 type Issue struct {
-	Name    string
-	Line    int
-	Error   bool
-	RuleID  string
-	Message string
+	RuleID  string `json:"id"`
+	Name    string `json:"name"`
+	Line    int    `json:"line"`
+	Error   bool   `json:"error"`
+	Message string `json:"message"`
 }
 
 type Output struct {
@@ -129,13 +150,15 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		}
 	}
 
-	switch c.Output {
-	case "json":
-		printJson(&output)
-	case "stdout":
-		printStdout(&output)
-	default:
-		return errors.New("invalid output format specified")
+	if !c.SkipSuccessResults || !output.Summary.Valid {
+		switch c.Output {
+		case "json":
+			printJson(&output)
+		case "stdout":
+			printStdout(&output)
+		default:
+			return errors.New("invalid output format specified")
+		}
 	}
 
 	if output.Summary.Errors > 0 {
