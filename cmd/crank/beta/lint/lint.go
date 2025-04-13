@@ -40,7 +40,7 @@ func walkYAML(path string, node *yaml.Node, fn func(path string, key *yaml.Node,
 	}
 }
 
-// Rule XRD002: Warn if any field has type boolean
+// Rule XRD001: Warn if any field has type boolean
 func checkBooleanFields(name string, obj *yaml.Node) []Issue {
 	var issues []Issue
 
@@ -50,7 +50,7 @@ func checkBooleanFields(name string, obj *yaml.Node) []Issue {
 				Name:    name,
 				Line:    key.Line,
 				Error:   false,
-				RuleID:  "XRD002",
+				RuleID:  "XRD001",
 				Message: fmt.Sprintf("Boolean field detected at path %s — consider using an enum instead for extensibility.", path),
 			}
 			issues = append(issues, issue)
