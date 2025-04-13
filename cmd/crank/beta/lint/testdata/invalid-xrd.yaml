@@ -1,5 +1,5 @@
 apiVersion: apiextensions.crossplane.io/v1
-kind: CompositeResourceDefinition
+kind: CompositeResource
 metadata: 
   name: xmydatabases.example.org
 spec:

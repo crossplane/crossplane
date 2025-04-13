@@ -14,15 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package lint implements offline checks of Composite Resource Definitions (XRDs).
+// Package lint implements lint command for Composite Resource Definitions (XRDs).
 package lint
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/alecthomas/kong"
 	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	sigyaml "sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -30,6 +33,22 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
+
+// Cmd arguments and flags for render subcommand.
+type Cmd struct {
+	// Arguments.
+	Resources string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
+
+	// Flags.
+	Output string `short:"o" help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'."`
+}
+
+// Help prints out the help for the validate command.
+func (c *Cmd) Help() string {
+	return `
+	TODO: Add help text for the lint command.
+`
+}
 
 type Issue struct {
 	Name    string
@@ -39,29 +58,14 @@ type Issue struct {
 	Message string
 }
 
-type Rule interface {
-	Check(name string, xrd *v1.CompositeResourceDefinition) []Issue
-}
-
-// Cmd arguments and flags for render subcommand.
-type Cmd struct {
-	// Arguments.
-	Resources string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
-}
-
-// Help prints out the help for the validate command.
-func (c *Cmd) Help() string {
-	return `
-TODO
-`
-}
-
-func DecodeNodeTo(obj *yaml.Node, out interface{}) error {
-	b, err := yaml.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	return yaml.Unmarshal(b, out)
+type Output struct {
+	Summary struct {
+		Valid    bool `json:"valid"`
+		Total    int  `json:"total"`
+		Errors   int  `json:"errors"`
+		Warnings int  `json:"warnings"`
+	} `json:"summary"`
+	Issues *[]Issue `json:"issues"`
 }
 
 // Run lint.
@@ -88,113 +92,76 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 			fmt.Printf("Failed to convert resource to bytes: %v\n", err)
 		}
 
-		var xrd v1.CompositeResourceDefinition
-		if err := sigyaml.Unmarshal(resourceAsBytes, &xrd); err != nil {
+		var k8s unstructured.Unstructured
+		if err := sigyaml.Unmarshal(resourceAsBytes, &k8s); err != nil {
 			fmt.Printf("Failed to decode object into XRD: %v\n", err)
 			continue
 		}
 
-		name = xrd.GetName()
+		name = k8s.GetName()
 
-		allIssues = append(allIssues, checkBooleanFieldsYaml(name, resource)...)
+		if k8s.GetKind() != v1.CompositeResourceDefinitionKind || !strings.HasPrefix(k8s.GetAPIVersion(), v1.Group) {
+			issue := Issue{
+				Name:    name,
+				Line:    0,
+				Error:   true,
+				RuleID:  "XRD000",
+				Message: fmt.Sprintf("Resource %s is not a CompositeResourceDefinition", k8s.GetName()),
+			}
+			allIssues = append(allIssues, issue)
+		}
+
+		allIssues = append(allIssues, checkBooleanFields(name, resource)...)
+		allIssues = append(allIssues, checkRequiredFields(name, resource)...)
+		allIssues = append(allIssues, checkMissingDescriptions(name, resource)...)
 	}
 
-	for _, issue := range allIssues {
-		fmt.Printf("%s:%d [%s] %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message)
-	}
-
-	fmt.Printf("Linting complete!\n")
+	output := Output{}
+	output.Summary.Valid = len(allIssues) == 0
+	output.Summary.Total = len(allIssues)
+	output.Issues = &allIssues
 
 	for _, issue := range allIssues {
 		if issue.Error {
-			os.Exit(1)
+			output.Summary.Errors++
+		} else {
+			output.Summary.Warnings++
 		}
 	}
 
-	if len(allIssues) > 0 {
+	switch c.Output {
+	case "json":
+		printJson(&output)
+	case "stdout":
+		printStdout(&output)
+	default:
+		return errors.New("invalid output format specified")
+	}
+
+	if output.Summary.Errors > 0 {
+		os.Exit(1)
+	} else if output.Summary.Warnings > 0 {
 		os.Exit(2)
+	} else {
+		os.Exit(0)
 	}
 
 	return nil
 }
 
-// func lintXRD(xrd *v1.CompositeResourceDefinition) {
-// 	fmt.Printf("Linting XRD: %s\n", xrd.Name)
-
-// 	if xrd.Spec.Group == "" {
-// 		fmt.Println("spec.group is missing")
-// 	}
-
-// 	if xrd.Spec.Names.Kind == "" {
-// 		fmt.Println("spec.names.kind is missing")
-// 	}
-
-// 	if len(xrd.Spec.Versions) == 0 {
-// 		fmt.Println("spec.versions is missing or empty")
-// 	}
-
-// 	if xrd.Spec.ClaimNames == nil {
-// 		fmt.Println("spec.claimNames is not defined – consider adding it for portability")
-// 	}
-
-// 	for _, v := range xrd.Spec.Versions {
-// 		if !v.Served {
-// 			fmt.Printf("version %q is not served\n", v.Name)
-// 		}
-// 		if !v.Referenceable {
-// 			fmt.Printf("version %q is not referenceable\n", v.Name)
-// 		}
-// 	}
-
-// 	if len(xrd.Spec.ConnectionSecretKeys) == 0 {
-// 		fmt.Println("connectionSecretKeys is missing or empty – consumers may expect connection details")
-// 	}
-
-// 	fmt.Println("Linting complete")
-// }
-
-// Rule XRD001: Warn if any field has type boolean
-func checkBooleanFieldsYaml(name string, xrd *yaml.Node) []Issue {
-	var issues []Issue
-	var walk func(path string, node *yaml.Node)
-
-	walk = func(path string, node *yaml.Node) {
-		switch node.Kind {
-		case yaml.DocumentNode:
-			for _, content := range node.Content {
-				walk(path, content)
-			}
-
-		case yaml.MappingNode:
-			for i := 0; i < len(node.Content); i += 2 {
-				keyNode := node.Content[i]
-				valueNode := node.Content[i+1]
-
-				if keyNode.Value == "type" && valueNode.Value == "boolean" {
-					issue := Issue{
-						Name:    name,
-						Line:    keyNode.Line,
-						Error:   false,
-						RuleID:  "XRD0001",
-						Message: fmt.Sprintf("Boolean field detected at path %s — consider using an enum instead for extensibility.", path),
-					}
-					issues = append(issues, issue)
-				}
-
-				newPath := fmt.Sprintf("%s.%s", path, keyNode.Value)
-
-				walk(newPath, valueNode)
-			}
-
-		case yaml.SequenceNode:
-			for idx, item := range node.Content {
-				newPath := fmt.Sprintf("%s[%d]", path, idx)
-				walk(newPath, item)
-			}
-		}
+func printStdout(output *Output) {
+	for _, issue := range *output.Issues {
+		fmt.Printf("%s:%d [%s] %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message)
 	}
 
-	walk("", xrd)
+	fmt.Printf("Found %d issues: %d errors, %d warnings\n", output.Summary.Total, output.Summary.Errors, output.Summary.Warnings)
+}
 
-	return issues
+func printJson(output *Output) {
+	data, err := json.Marshal(output)
+	if err != nil {
+		fmt.Printf("Failed to convert output to JSON: %v\n", err)
+		return
+	}
+	fmt.Println(string(data))
 }
