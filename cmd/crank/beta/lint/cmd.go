@@ -172,16 +172,16 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	return nil
 }
 
-func printStdout(output *Output) {
-	for _, issue := range *output.Issues {
+func printStdout(o *Output) {
+	for _, issue := range *o.Issues {
 		fmt.Printf("%s:%d [%s] %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message)
 	}
 
-	fmt.Printf("Found %d issues: %d errors, %d warnings\n", output.Summary.Total, output.Summary.Errors, output.Summary.Warnings)
+	fmt.Printf("Found %d issues: %d errors, %d warnings\n", o.Summary.Total, o.Summary.Errors, o.Summary.Warnings)
 }
 
-func printJson(output *Output) {
-	data, err := json.Marshal(output)
+func printJson(o *Output) {
+	data, err := json.Marshal(o)
 	if err != nil {
 		fmt.Printf("Failed to convert output to JSON: %v\n", err)
 		return
