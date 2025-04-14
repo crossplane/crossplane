@@ -47,6 +47,9 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
+      {{- if .Values.runtimeClassName }}
+      runtimeClassName: {{ .Values.runtimeClassName | quote }}
+      {{- end }}
       {{- if not .Values.serviceAccount.create }}
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- else }}
