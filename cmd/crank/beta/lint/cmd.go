@@ -152,10 +152,10 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	if !output.Summary.Valid {
 		switch c.Output {
 		case "json":
-			err = printJSON(&output, k)
-			if err != nil {
-				return errors.Wrap(err, "cannot print summary")
-			}
+			printJSON(&output, k)
+			// if err != nil {
+			// 	return errors.Wrap(err, "cannot print summary")
+			// }
 		case "stdout":
 			err = printStdout(&output, k, c.SkipReference)
 			if err != nil {
@@ -177,16 +177,9 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	return nil
 }
 
-func printJSON(o *output, k *kong.Context) error {
-	data, err := json.Marshal(o)
-	if err != nil {
-		return errors.Wrap(err, "cannot marshal output to JSON")
-	}
-	_, err = fmt.Fprintln(k.Stdout, string(data))
-	if err != nil {
-		return errors.Wrap(err, "cannot print summary")
-	}
-	return nil
+func printJSON(o *output, k *kong.Context) {
+	e := json.NewEncoder(k.Stdout)
+	e.Encode(o)
 }
 
 func printStdout(o *output, k *kong.Context, skipReference bool) error {
