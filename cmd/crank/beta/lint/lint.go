@@ -111,7 +111,7 @@ func checkMissingDescriptions(name string, obj *yaml.Node) []Issue {
 				fieldKey := val.Content[i]
 				fieldVal := val.Content[i+1]
 				found := false
-				if checkRuleExclusion(fieldKey, "XRD0003") {
+				if checkRuleExclusion(fieldKey, "XRD003") {
 					continue
 				}
 				for j := 0; j < len(fieldVal.Content)-1; j += 2 {
