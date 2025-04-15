@@ -41,7 +41,7 @@ type Cmd struct {
 
 	// Flags.
 	Output        string `default:"stdout" help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'." short:"o"`
-	SkipReference bool   `help:"Skip printing the reference to the rule that was violated." default:"false"`
+	SkipReference bool   `default:"false"  help:"Skip printing the reference to the rule that was violated."`
 }
 
 // Help prints out the help for the validate command.
@@ -152,10 +152,10 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	if !output.Summary.Valid {
 		switch c.Output {
 		case "json":
-			printJSON(&output, k)
-			// if err != nil {
-			// 	return errors.Wrap(err, "cannot print summary")
-			// }
+			err := printJSON(&output, k)
+			if err != nil {
+				return errors.Wrap(err, "cannot print summary")
+			}
 		case "stdout":
 			err = printStdout(&output, k, c.SkipReference)
 			if err != nil {
@@ -177,9 +177,10 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	return nil
 }
 
-func printJSON(o *output, k *kong.Context) {
+func printJSON(o *output, k *kong.Context) error {
 	e := json.NewEncoder(k.Stdout)
-	e.Encode(o)
+	err := e.Encode(o)
+	return err
 }
 
 func printStdout(o *output, k *kong.Context, skipReference bool) error {
