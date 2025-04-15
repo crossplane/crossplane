@@ -44,18 +44,29 @@ func walkYAML(path string, node *yaml.Node, fn func(path string, key *yaml.Node,
 	}
 }
 
+func checkRuleExclusion(n *yaml.Node, id string) bool {
+	if n.HeadComment == "# nolint "+id || n.HeadComment == "# nolint" {
+		return true
+	}
+	return false
+}
+
 // Rule XRD001: Warn if any field has type boolean.
 func checkBooleanFields(name string, obj *yaml.Node) []Issue {
 	var issues []Issue
 
 	checkBoolean := func(path string, key *yaml.Node, val *yaml.Node) {
+		if checkRuleExclusion(key, "XRD001") {
+			return
+		}
 		if key.Value == "type" && val.Value == "boolean" {
 			issue := Issue{
-				Name:    name,
-				Line:    key.Line,
-				Error:   false,
-				RuleID:  "XRD001",
-				Message: fmt.Sprintf("Boolean field detected at path %s — consider using an enum instead for extensibility.", path),
+				Name:      name,
+				Line:      key.Line,
+				Error:     false,
+				RuleID:    "XRD001",
+				Reference: "https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#primitive-types",
+				Message:   fmt.Sprintf("Boolean field detected at path %s — consider using an enum instead for extensibility.", path),
 			}
 			issues = append(issues, issue)
 		}
@@ -70,6 +81,9 @@ func checkRequiredFields(name string, obj *yaml.Node) []Issue {
 	var issues []Issue
 
 	checkRequired := func(path string, key *yaml.Node, val *yaml.Node) {
+		if checkRuleExclusion(key, "XRD002") {
+			return
+		}
 		if key.Value == "required" && val.Kind == yaml.SequenceNode {
 			for _, item := range val.Content {
 				issue := Issue{
@@ -97,6 +111,9 @@ func checkMissingDescriptions(name string, obj *yaml.Node) []Issue {
 				fieldKey := val.Content[i]
 				fieldVal := val.Content[i+1]
 				found := false
+				if checkRuleExclusion(fieldKey, "XRD0003") {
+					continue
+				}
 				for j := 0; j < len(fieldVal.Content)-1; j += 2 {
 					if fieldVal.Content[j].Value == "description" {
 						found = true

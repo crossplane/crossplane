@@ -37,11 +37,11 @@ import (
 // Cmd arguments and flags for render subcommand.
 type Cmd struct {
 	// Arguments.
-	Resources string `arg:"" help:"Resources source which can be a file, directory, or '-' for standard input."`
+	Resources string `arg:"" help:"Resources - currently limited to XRDs - can be provided as a file, a directory, or indicated by '-' for standard input."`
 
 	// Flags.
-	Output             string `default:"stdout"                      help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'." short:"o"`
-	SkipSuccessResults bool   `help:"Skip printing success results."`
+	Output        string `default:"stdout" help:"Output format. Valid values are 'stdout' or 'json'. Default is 'stdout'." short:"o"`
+	SkipReference bool   `help:"Skip printing the reference to the rule that was violated." default:"false"`
 }
 
 // Help prints out the help for the validate command.
@@ -73,11 +73,12 @@ Examples:
 
 // Issue represents a linting issue found in a resource.
 type Issue struct {
-	RuleID  string `json:"id"`
-	Name    string `json:"name"`
-	Line    int    `json:"line"`
-	Error   bool   `json:"error"`
-	Message string `json:"message"`
+	RuleID    string `json:"id"`
+	Name      string `json:"name"`
+	Line      int    `json:"line"`
+	Error     bool   `json:"error"`
+	Reference string `json:"reference"`
+	Message   string `json:"message"`
 }
 
 type output struct {
@@ -111,20 +112,20 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 			return errors.Wrapf(err, "cannot convert to yaml %q", resource.Value)
 		}
 
-		var k8s unstructured.Unstructured
-		if err := sigyaml.Unmarshal(resourceAsBytes, &k8s); err != nil {
+		var xrd unstructured.Unstructured
+		if err := sigyaml.Unmarshal(resourceAsBytes, &xrd); err != nil {
 			return errors.Wrapf(err, "cannot unmarshal into Unstructured %q", resource.Value)
 		}
 
-		name := k8s.GetName()
+		name := xrd.GetName()
 
-		if k8s.GetKind() != v1.CompositeResourceDefinitionKind || !strings.HasPrefix(k8s.GetAPIVersion(), v1.Group) {
+		if xrd.GetKind() != v1.CompositeResourceDefinitionKind || !strings.HasPrefix(xrd.GetAPIVersion(), v1.Group) {
 			issue := Issue{
 				Name:    name,
 				Line:    0,
 				Error:   true,
 				RuleID:  "XRD000",
-				Message: fmt.Sprintf("Resource %s is not a CompositeResourceDefinition", k8s.GetName()),
+				Message: fmt.Sprintf("Resource %s is not a CompositeResourceDefinition", xrd.GetName()),
 			}
 			allIssues = append(allIssues, issue)
 			continue
@@ -148,7 +149,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		}
 	}
 
-	if !c.SkipSuccessResults || !output.Summary.Valid {
+	if !output.Summary.Valid {
 		switch c.Output {
 		case "json":
 			err = printJSON(&output, k)
@@ -156,7 +157,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 				return errors.Wrap(err, "cannot print summary")
 			}
 		case "stdout":
-			err = printStdout(&output, k)
+			err = printStdout(&output, k, c.SkipReference)
 			if err != nil {
 				return errors.Wrap(err, "cannot print summary")
 			}
@@ -188,9 +189,13 @@ func printJSON(o *output, k *kong.Context) error {
 	return nil
 }
 
-func printStdout(o *output, k *kong.Context) error {
+func printStdout(o *output, k *kong.Context, skipReference bool) error {
 	for _, issue := range *o.Issues {
-		_, err := fmt.Fprintf(k.Stdout, "%s:%d [%s] %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message)
+		reference := ""
+		if issue.Reference != "" && !skipReference {
+			reference = fmt.Sprintf("More information: (%s)", issue.Reference)
+		}
+		_, err := fmt.Fprintf(k.Stdout, "%s:%d [%s] %s %s\n", issue.Name, issue.Line, issue.RuleID, issue.Message, reference)
 		if err != nil {
 			return errors.Wrap(err, "cannot print summary")
 		}
