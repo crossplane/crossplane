@@ -22,6 +22,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	k8sapiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -198,6 +199,13 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 						Namespace: namespace,
 					},
 				})).
+			Assess("PodDisruptionBudgetNamedProperly",
+				funcs.ResourceCreatedWithin(10*time.Second, &policyv1.PodDisruptionBudget{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "idontwanttobreakit",
+						Namespace: namespace,
+					},
+				})).
 			Assess("DeploymentNamedProperly",
 				funcs.ResourceCreatedWithin(10*time.Second, &appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
@@ -215,6 +223,9 @@ func TestDeploymentRuntimeConfig(t *testing.T) {
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.containers[0].volumeMounts[0].name", "shared-volume"),
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.containers[1].name", "sidecar"),
 				funcs.ResourceHasFieldValueWithin(10*time.Second, &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "iamfreetochoose", Namespace: namespace}}, "spec.template.spec.volumes[0].name", "shared-volume"),
+			)).
+			Assess("PodDisruptionBudgetHasSpecFromDeploymentRuntimeConfig", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(10*time.Second, &policyv1.PodDisruptionBudget{ObjectMeta: metav1.ObjectMeta{Name: "idontwanttobreakit", Namespace: namespace}}, "spec.minAvailable", int64(1)),
 			)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
