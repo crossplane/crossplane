@@ -63,9 +63,6 @@ Examples:
   # Lint all XRD files in the directory "xrds"
   crossplane beta lint ./xrds/
 
-  # Lint all XRD files in the directory "xrds" and skip success logs
-  crossplane beta validate ./xrds/ --skip-success-results
-
   # Lint all XRD files in the directory "xrds" and output results in JSON format
   crossplane beta lint ./xrds/ --output json
 `
