@@ -128,9 +128,16 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 
 	stop := make([]engine.WatchID, 0)
 	for _, wid := range running {
-		if !used[wid] {
-			stop = append(stop, wid)
+		// Only stop watches for types no XR composes.
+		if used[wid] {
+			continue
 		}
+		// Only stop watches for composed resources. The other watch
+		// types should only be stopped when the XR controller stops.
+		if wid.Type != engine.WatchTypeComposedResource {
+			continue
+		}
+		stop = append(stop, wid)
 	}
 
 	// No need to call StopWatches if there's nothing to stop.
@@ -149,6 +156,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	// started composing its GVK between when we built the map of used watches
 	// and here where we call StopWatches. It'll restart next time the XR
 	// controller calls StartWatches.
+	gc.log.Debug("Garbage collecting watches", "count", len(stop))
 	_, err = gc.engine.StopWatches(ctx, gc.controllerName, stop...)
 	return errors.Wrap(err, "cannot stop watches for composed resource types that are no longer referenced by any composite resource")
 }
