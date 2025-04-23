@@ -99,7 +99,7 @@ type ControllerEngine interface {
 	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
 	GetWatches(name string) ([]engine.WatchID, error)
-	StartWatches(name string, ws ...engine.Watch) error
+	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
 	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
 	GetCached() client.Client
 	GetUncached() client.Client
@@ -110,7 +110,9 @@ type ControllerEngine interface {
 type NopEngine struct{}
 
 // Start does nothing.
-func (e *NopEngine) Start(_ string, _ ...engine.ControllerOption) error { return nil }
+func (e *NopEngine) Start(_ string, _ ...engine.ControllerOption) error {
+	return nil
+}
 
 // Stop does nothing.
 func (e *NopEngine) Stop(_ context.Context, _ string) error { return nil }
@@ -122,7 +124,7 @@ func (e *NopEngine) IsRunning(_ string) bool { return true }
 func (e *NopEngine) GetWatches(_ string) ([]engine.WatchID, error) { return nil, nil }
 
 // StartWatches does nothing.
-func (e *NopEngine) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+func (e *NopEngine) StartWatches(_ context.Context, _ string, _ ...engine.Watch) error { return nil }
 
 // StopWatches does nothing.
 func (e *NopEngine) StopWatches(_ context.Context, _ string, _ ...engine.WatchID) (int, error) {
@@ -220,7 +222,7 @@ func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	}
 }
 
-// WithCRDRenderer specifies how the Reconciler should render an
+// WithCRDRenderer specifies how the Reconciler should render a
 // CompositeResourceDefinition's corresponding CustomResourceDefinition.
 func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -516,7 +518,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr.SetGroupVersionKind(xrGVK)
 
 	crh := EnqueueForCompositionRevision(resource.CompositeKind(xrGVK), r.engine.GetCached(), log)
-	if err := r.engine.StartWatches(name,
+	if err := r.engine.StartWatches(ctx, name,
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(&v1.CompositionRevision{}, engine.WatchTypeCompositionRevision, crh),
 	); err != nil {
