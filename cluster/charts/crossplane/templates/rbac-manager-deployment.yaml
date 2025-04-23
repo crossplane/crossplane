@@ -1,4 +1,4 @@
-{{- if .Values.rbacManager.deploy }}
+{{- if and (.Values.rbacManager.deploy) (not .Values.namespaceRestricted) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

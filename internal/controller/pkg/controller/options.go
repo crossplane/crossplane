@@ -33,6 +33,10 @@ type Options struct {
 	// Namespace used to unpack and run packages.
 	Namespace string
 
+	// Whether the controller should watch resources only in its own namespace or
+	// across all namespaces
+	NamespaceRestricted bool
+
 	// ServiceAccount is the core Crossplane ServiceAccount name.
 	ServiceAccount string
 
