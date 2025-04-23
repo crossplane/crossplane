@@ -105,6 +105,7 @@ type startCommand struct {
 
 	WebhookEnabled                      bool `default:"true"  env:"WEBHOOK_ENABLED"                        help:"Enable webhook configuration."`
 	AutomaticDependencyDowngradeEnabled bool `default:"false" env:"AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED" help:"Enable automatic dependency version downgrades. This configuration requires the 'EnableDependencyVersionUpgrades' feature flag to be enabled."`
+	NamespaceRestricted                 bool `default:"false" env:"NAMESPACE_RESTRICTED"                   help:"Restrict resources watched by the controller to its own namespace."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
 	MetricsPort     int `default:"8080" env:"METRICS_PORT"      help:"The port the metrics server listens on."`
@@ -158,11 +159,20 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// The claim and XR controllers don't use the manager's cache or client.
 	// They use their own. They're setup later in this method.
 	eb := record.NewBroadcaster()
+	cacheOptions := cache.Options{
+		SyncPeriod: &c.SyncInterval,
+	}
+	if c.NamespaceRestricted {
+		// This makes the cache controller watch resources only in crossplane's namespace.
+		// Otherwise, it tries to watch resources in all namespaces, and crashes if the
+		// crossplane ServiceAccount doesn't have enough permissions.
+		cacheOptions.DefaultNamespaces = map[string]cache.Config{
+			c.Namespace: {},
+		}
+	}
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme: s,
-		Cache: cache.Options{
-			SyncPeriod: &c.SyncInterval,
-		},
+		Cache:  cacheOptions,
 		WebhookServer: webhook.NewServer(webhook.Options{
 			CertDir: c.TLSServerCertsDir,
 			TLSOpts: []func(*tls.Config){
@@ -429,6 +439,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		PackageRuntime:                      pr,
 		MaxConcurrentPackageEstablishers:    c.MaxConcurrentPackageEstablishers,
 		AutomaticDependencyDowngradeEnabled: c.AutomaticDependencyDowngradeEnabled,
+		NamespaceRestricted:                 c.NamespaceRestricted,
 	}
 
 	// We need to set the TUF_ROOT environment variable so that the TUF client
