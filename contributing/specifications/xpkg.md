@@ -97,27 +97,30 @@ minimal. However, larger images with many layers, whether they contain
 third-party `xpkg` content or unrelated data, will result in multiple network
 calls and more data to process.
 
-Crossplane also prefers the usage of annotated layer descriptors to define
-additive package content (i.e. third-party `xpkg` content) as it provides a
-clean mechanism to build an `xpkg` through a series of stages. A valid `xpkg`
-can be produced and later modified while verifying that the integrity of the
-existing content is not violated, which ensures that Crossplane's package
-manager will process the resulting `xpkg` in the same manner as the it would
-prior to modification.
-
 While not explicitly forbidden, modifying content from a preceding layer with
 the `io.crossplane.xpkg` annotation in any subsequent layers is discouraged, as
 it may lead to confusion if a third-party is consuming content from the
 flattened filesystem.
 
-Alternatively, third-party `xpkg` content for downstream consumers may also be
-referenced by a separate manifest in the image index. This manifest would not
+Crossplane also prefers the usage of a separate index manifest to define
+additive package content (i.e. third-party `xpkg` content) that does not need
+to be pulled or installed by Crossplane. This manifest would not
 have any platform annotations, so container runtimes and OCI clients will
 ignore it by default. This would be a suitable option for consumers that are
 more sensitive to unrelated data being pulled onto their nodes or iterating
-over the layers in a manifest to selectively download blobs.
+over the layers in a manifest to selectively download blobs. Clients can
+download platform-specific content (e.g. provider binaries) automatically
+while third-party content referenced by this manifest can be fetched separately
+without duplicating it in the layers for each platform, logically partitioning
+the image index for content that should always be pulled from content
+that should not.
+
 The inclusion of this manifest in the image index is optional, and Crossplane
-will neither download nor interpret its contents.
+will neither download nor interpret its contents. The identification of this
+manifest in the index is the responsibility of the client. Formally:
+
+- The image index may contain zero (0) or one (1) manifest without a
+`platform` specified and the annotation `io.crossplane.xpkg: xpkg-extensions`.
 
 ### Configuration
 
