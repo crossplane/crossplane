@@ -123,8 +123,8 @@ new optional fields to composition pipeline steps: `functionRevisionRef` and
 compositions to select a specific function revision by name or by label.
 
 For example, a user wishing to roll out a new version of
-`function-patch-and-transform` to only certain XRs may install the function
-using the following manifest:
+`function-patch-and-transform` to only certain XRs may update their existing
+installation of the function by applying the following manifest:
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1
