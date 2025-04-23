@@ -599,7 +599,7 @@ func TestReconcile(t *testing.T) {
 							return true, nil
 						},
 					}),
-					WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ string, ws ...engine.Watch) error {
+					WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ context.Context, _ string, ws ...engine.Watch) error {
 						cd := composed.New(composed.FromReference(corev1.ObjectReference{
 							APIVersion: "example.org/v1",
 							Kind:       "ComposedResource",
@@ -650,7 +650,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ReconciliationResumes": {
-			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeuing.`,
 			args: args{
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
@@ -701,7 +701,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ReconciliationResumesAfterAnnotationRemoval": {
-			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeuing.`,
 			args: args{
 				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
