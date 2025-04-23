@@ -77,14 +77,14 @@ func TestAppend(t *testing.T) {
 
 			manifestList, _ := index.IndexManifest()
 			extManifest := manifestList.Manifests[0]
-			if !cmp.Equal(extManifest.Annotations, expectedAnnotations) {
-				t.Errorf("Unexpected or missing manifest annotations: %s", cmp.Diff(extManifest.Annotations, expectedAnnotations))
+			if diff := cmp.Diff(extManifest.Annotations, expectedAnnotations); diff != "" {
+				t.Errorf("\n%s\nUnexpected or missing manifest annotations: -want annotations, +got annotations:\n%s", tc.reason, diff)
 			}
-			if !cmp.Equal(extManifest.Platform, noPlatform) {
-				t.Errorf("Unexpected platform information on manifest: %s/%s", extManifest.Platform.OS, extManifest.Platform.Architecture)
+			if diff := cmp.Diff(extManifest.Platform, noPlatform); diff != "" {
+				t.Errorf("\n%s\nUnexpected platform information on manifest: -want platform, +got platform:\n%s", tc.reason, diff)
 			}
-			if !cmp.Equal(extManifest.MediaType, types.DockerManifestSchema2) {
-				t.Errorf("Unexpected manifest media type for index: %s", extManifest.MediaType)
+			if diff := cmp.Diff(extManifest.MediaType, types.DockerManifestSchema2); diff != "" {
+				t.Errorf("\n%s\nUnexpected manifest media type for index: -want mediatype, +got mediatype:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -123,8 +123,8 @@ func TestExtensionsImage(t *testing.T) {
 
 			manifest, _ := extManifest.Manifest()
 			layer := manifest.Layers[0]
-			if !cmp.Equal(layer.Annotations, tc.want.annotations) {
-				t.Errorf("Unexpected or missing manifest annotations: %s", cmp.Diff(layer.Annotations, expectedAnnotations))
+			if diff := cmp.Diff(layer.Annotations, tc.want.annotations); diff != "" {
+				t.Errorf("\n%s\nUnexpected or missing manifest annotations: -want annotations, +got annotations\n%s", tc.reason, diff)
 			}
 		})
 	}

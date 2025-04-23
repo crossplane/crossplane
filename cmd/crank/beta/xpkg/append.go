@@ -14,8 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package xpkgappend contains the xpkg-append command.
-package xpkgappend
+package xpkg
 
 import (
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -41,7 +40,7 @@ const (
 
 // AfterApply constructs and binds context to any subcommands
 // that have Run() methods that receive it.
-func (c *Cmd) AfterApply() error {
+func (c *appendCmd) AfterApply() error {
 	// TODO(jastang): consider prompting about re-signing if already signed
 	// Get default docker auth.
 	c.keychain = remote.WithAuthFromKeychain(authn.NewMultiKeychain(authn.DefaultKeychain))
@@ -71,8 +70,8 @@ func (c *Cmd) AfterApply() error {
 	return nil
 }
 
-// Cmd appends an additional manifest of package extensions to a crossplane package.
-type Cmd struct {
+// appendCmd appends an additional manifest of package extensions to a crossplane package.
+type appendCmd struct {
 	// Arguments
 	RemoteRef string `arg:"" help:"The fully qualified remote image reference" required:""`
 
@@ -88,23 +87,24 @@ type Cmd struct {
 }
 
 // Help returns the help message for the xpkg-append command.
-func (c *Cmd) Help() string {
+func (c *appendCmd) Help() string {
 	return `
 This command creates a tarball from a local directory of additional package
 assets, such as images or documentation, and appends them to a remote image.
 
 If your remote image is already signed, this command will invalidate current signatures and the updated image will need to be re-signed.
 
+The --extensions-root directory must only contain other directories, each of which becomes a layer. Files in the top level directory are ignored.
+
 Examples:
 
   # Add all files under an "/extensions" folder to a remote image.
   crossplane beta xpkg-append --extensions-root=./extensions my-registry/my-organization/my-repo@sha256:<digest>
-
 `
 }
 
 // Run executes the append command.
-func (c *Cmd) Run(logger logging.Logger) error {
+func (c *appendCmd) Run(logger logging.Logger) error {
 	logger = logger.WithValues("cmd", "xpkg-append")
 
 	// Create a layered v1.Image from the extensions root dir.
