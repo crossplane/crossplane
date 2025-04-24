@@ -222,7 +222,7 @@ jobs:
 
   e2e-tests:
     # Use the CNCF's larger runners for E2Es, which otherwise take 20+ minutes
-    runs-on: ubuntu-latest-16-cores
+    runs-on: oracle-16cpu-64gb-x86-64
     strategy:
       fail-fast: false
       matrix:
