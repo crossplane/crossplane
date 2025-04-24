@@ -221,7 +221,8 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   e2e-tests:
-    runs-on: ubuntu-22.04
+    # Use the CNCF's larger runners for E2Es, which otherwise take 20+ minutes
+    runs-on: ubuntu-latest-16-cores
     strategy:
       fail-fast: false
       matrix:
