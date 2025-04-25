@@ -26,11 +26,6 @@ const (
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
 	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
 
-	// EnableAlphaRealtimeCompositions enables alpha support for realtime
-	// compositions, i.e. watching MRs and reconciling compositions immediately
-	// when any MR is updated.
-	EnableAlphaRealtimeCompositions feature.Flag = "EnableAlphaRealtimeCompositions"
-
 	// EnableAlphaDependencyVersionUpgrades enables alpha support for upgrading the version of a package's dependencies
 	// when needed.
 	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
@@ -61,4 +56,9 @@ const (
 	// the claim controller. See the below issue for more details:
 	// https://github.com/crossplane/crossplane/issues/4581
 	EnableBetaClaimSSA feature.Flag = "EnableBetaClaimSSA"
+
+	// EnableBetaRealtimeCompositions enables alpha support for realtime
+	// compositions, i.e. watching MRs and reconciling compositions immediately
+	// when any MR is updated.
+	EnableBetaRealtimeCompositions feature.Flag = "EnableAlphaRealtimeCompositions"
 )

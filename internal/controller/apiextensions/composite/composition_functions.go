@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -269,6 +270,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
 	}
 
+	// Time-to-live for this composition pipeline run. Each function returns
+	// a TTL. The pipeline's TTL will be the shortest non-zero TTL returned
+	// by any function. A TTL of zero means unlimited TTL.
+	var ttl time.Duration
+
 	// The Function pipeline starts with empty desired state.
 	d := &fnv1.State{}
 
@@ -317,6 +323,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+		}
+
+		// If this Function specified a non-zero TTL that's less than
+		// the current recorded TTL for the pipeline, it's the new TTL
+		// for the pipeline.
+		if d := rsp.GetMeta().GetTtl().AsDuration(); d > 0 && (ttl == 0 || d < ttl) {
+			ttl = d
 		}
 
 		// Pass the desired state returned by this Function to the next one.
@@ -550,7 +563,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composite: compositeRes, Composed: resources, Events: events, Conditions: conditions}, nil
+	result := CompositionResult{
+		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
+		Composite:         compositeRes,
+		Composed:          resources,
+		Events:            events,
+		Conditions:        conditions,
+		TTL:               ttl,
+	}
+	return result, nil
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
