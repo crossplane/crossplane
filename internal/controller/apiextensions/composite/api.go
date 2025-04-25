@@ -292,11 +292,16 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
 		return errors.Wrap(err, errGetXRD)
 	}
-	if def.Spec.DefaultCompositionRef == nil {
-		return nil
+
+	if def.Spec.DefaultCompositionRef != nil {
+		cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.DefaultCompositionRef.Name})
+		s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
 	}
-	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.DefaultCompositionRef.Name})
-	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
+
+	if def.Spec.DefaultCompositionRevisionSelector != nil {
+		cp.SetCompositionRevisionSelector(def.Spec.DefaultCompositionRevisionSelector)
+	}
+
 	return nil
 }
 
