@@ -51,12 +51,14 @@ type ControllerEngine struct {
 	// managed by the engine should use these informers.
 	infs TrackingInformers
 
-	// The client used by the engine's controllers. The client must be backed by
-	// the above TrackingInformers.
+	// The cached client used by the engine's controllers. The client must
+	// be backed by the above TrackingInformers.
 	cached client.Client
 
-	// uncached is a non-cached client used when Unstructured resources
-	// are not found in the cache.
+	// The uncached client used by the engine's controllers. This client
+	// mustn't be cache backed. It's used to double-check operations that
+	// can't tolerate a stale cache, like checking whether a resource
+	// exists.
 	uncached client.Client
 
 	log logging.Logger
