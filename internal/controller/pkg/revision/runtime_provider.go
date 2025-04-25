@@ -114,7 +114,12 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
-
+	p := build.PodDisruptionBudget(
+		PodDisruptionBudgetWithSelectors(providerSelectors(providerMeta, pr)),
+	)
+	if err := h.client.Apply(ctx, p); err != nil {
+		return errors.Wrap(err, errApplyProviderService)
+	}
 	secClient := build.TLSClientSecret()
 	secServer := build.TLSServerSecret()
 

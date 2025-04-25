@@ -89,7 +89,10 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
-
+	p := build.PodDisruptionBudget()
+	if err := h.client.Apply(ctx, p); err != nil {
+		return errors.Wrap(err, errApplyProviderService)
+	}
 	// N.B.: We expect the revision to be applied by the caller
 	fRev, ok := pr.(*v1.FunctionRevision)
 	if !ok {

@@ -105,3 +105,9 @@ rules:
   - patch
   - watch
   - delete
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - "*"
