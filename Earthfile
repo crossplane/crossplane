@@ -72,7 +72,7 @@ e2e:
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
       RUN gotestsum \
-        --rerun-fails=3 \
+        --rerun-fails \
       	--no-color=false \
 	--format standard-verbose \
 	--jsonfile e2e-tests.json \
