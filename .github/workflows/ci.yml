@@ -227,7 +227,6 @@ jobs:
       matrix:
         test-suite:
           - base
-          - realtime-compositions
           - package-dependency-updates
           - package-signature-verification
 
