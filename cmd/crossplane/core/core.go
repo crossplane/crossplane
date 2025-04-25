@@ -116,7 +116,6 @@ type startCommand struct {
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
 	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableRealtimeCompositions      bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableSignatureVerification     bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 
@@ -124,6 +123,7 @@ type startCommand struct {
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
 	EnableUsages                             bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
 	EnableSSAClaims                          bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableRealtimeCompositions               bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 
 	// These are GA features that previously had alpha or beta feature flags.
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
@@ -283,8 +283,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		}
 	}
 	if c.EnableRealtimeCompositions {
-		o.Features.Enable(features.EnableAlphaRealtimeCompositions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRealtimeCompositions)
+		o.Features.Enable(features.EnableBetaRealtimeCompositions)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaRealtimeCompositions)
 	}
 	if c.EnableDeploymentRuntimeConfigs {
 		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
