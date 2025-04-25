@@ -430,7 +430,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	o := []claim.ReconcilerOption{
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
 		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
-		claim.WithPollInterval(r.options.PollInterval),
 	}
 
 	// We only want to use the server-side XR syncer if the relevant feature
