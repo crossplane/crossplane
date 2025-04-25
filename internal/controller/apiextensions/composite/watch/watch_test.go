@@ -153,7 +153,21 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 						}
 					},
 					MockGetWatches: func(_ string) ([]engine.WatchID, error) {
-						return nil, nil
+						w := []engine.WatchID{
+							{
+								Type: engine.WatchTypeCompositeResource,
+								GVK:  schema.GroupVersionKind{},
+							},
+							{
+								Type: engine.WatchTypeClaim,
+								GVK:  schema.GroupVersionKind{},
+							},
+							{
+								Type: engine.WatchTypeCompositionRevision,
+								GVK:  schema.GroupVersionKind{},
+							},
+						}
+						return w, nil
 					},
 					// StopWatches would panic if called, since it's not mocked.
 				},
@@ -162,7 +176,7 @@ func TestGarbageCollectWatchesNow(t *testing.T) {
 				err: nil,
 			},
 		},
-		"UneededWatchesStopped": {
+		"UnneededWatchesStopped": {
 			reason: "StopWatches shouldn't be called if there's no watches to stop.",
 			params: params{
 				ce: &MockEngine{

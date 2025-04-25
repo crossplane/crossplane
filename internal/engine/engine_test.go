@@ -391,6 +391,9 @@ func TestStopController(t *testing.T) {
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
 					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
+					},
 				},
 			},
 			args: args{
@@ -428,7 +431,7 @@ func TestStopController(t *testing.T) {
 			u := &unstructured.Unstructured{}
 			u.SetAPIVersion("test.crossplane.io/v1")
 			u.SetKind("Composed")
-			err = e.StartWatches(tc.args.name, WatchFor(u, WatchTypeComposedResource, nil))
+			err = e.StartWatches(tc.args.ctx, tc.args.name, WatchFor(u, WatchTypeComposedResource, nil))
 			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -462,6 +465,7 @@ func TestStartWatches(t *testing.T) {
 		opts []ControllerOption
 	}
 	type args struct {
+		ctx  context.Context
 		name string
 		ws   []Watch
 	}
@@ -496,6 +500,9 @@ func TestStartWatches(t *testing.T) {
 								Kind:    "Composed",
 							},
 						}
+					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
 					},
 				},
 			},
@@ -550,6 +557,9 @@ func TestStartWatches(t *testing.T) {
 								Kind:    "Resource",
 							},
 						}
+					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
 					},
 				},
 			},
@@ -627,14 +637,14 @@ func TestStartWatches(t *testing.T) {
 				t.Fatalf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			err = e.StartWatches(tc.args.name, tc.args.ws...)
+			err = e.StartWatches(tc.args.ctx, tc.args.name, tc.args.ws...)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			// Start the same watches again to exercise the code that ensures we
 			// only add each watch once.
-			err = e.StartWatches(tc.args.name, tc.args.ws...)
+			err = e.StartWatches(tc.args.ctx, tc.args.name, tc.args.ws...)
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.StartWatches(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -700,6 +710,9 @@ func TestStopWatches(t *testing.T) {
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
 					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
+					},
 				},
 			},
 			args: args{
@@ -754,6 +767,9 @@ func TestStopWatches(t *testing.T) {
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
 					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
+					},
 				},
 			},
 			args: args{
@@ -799,6 +815,9 @@ func TestStopWatches(t *testing.T) {
 				infs: &MockTrackingInformers{
 					MockActiveInformers: func() []schema.GroupVersionKind {
 						return nil
+					},
+					MockGetInformer: func(_ context.Context, _ client.Object, _ ...cache.InformerGetOption) (cache.Informer, error) {
+						return nil, nil
 					},
 				},
 			},
@@ -865,7 +884,7 @@ func TestStopWatches(t *testing.T) {
 			u1 := &unstructured.Unstructured{}
 			u1.SetAPIVersion("test.crossplane.io/v1")
 			u1.SetKind("Resource")
-			err = e.StartWatches(tc.args.name,
+			err = e.StartWatches(tc.args.ctx, tc.args.name,
 				WatchFor(u1, WatchTypeComposedResource, nil),
 				WatchFor(u1, WatchTypeCompositeResource, nil),
 			)

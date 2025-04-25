@@ -112,6 +112,9 @@ packageManager:
 # -- The PriorityClass name to apply to the Crossplane and RBAC Manager pods.
 priorityClassName: ""
 
+# -- The runtimeClassName name to apply to the Crossplane and RBAC Manager pods.
+runtimeClassName: ""
+
 resourcesCrossplane:
   limits:
     # -- CPU resource limits for the Crossplane pod.
