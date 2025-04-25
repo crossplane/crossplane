@@ -23,6 +23,11 @@ nodes:
                 mountPath: "/var/log/kubernetes"
                 readOnly: false
                 pathType: DirectoryOrCreate
+        # Store etcd data in-memory
+        # See https://github.com/kubernetes-sigs/kind/issues/845
+        etcd:
+          local:
+            dataDir: /tmp/etcd
     # mount the local file on the control plane
     extraMounts:
       - hostPath: ./test/e2e/manifests/kind/audit-policy.yaml
