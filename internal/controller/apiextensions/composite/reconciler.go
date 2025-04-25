@@ -355,21 +355,23 @@ func (fn CompositionRevisionValidatorFn) Validate(c *v1.CompositionRevision) err
 // start watches when they compose new kinds of resources.
 type WatchStarter interface {
 	// StartWatches starts the supplied watches, if they're not running already.
-	StartWatches(name string, ws ...engine.Watch) error
+	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
 }
 
 // A NopWatchStarter does nothing.
 type NopWatchStarter struct{}
 
 // StartWatches does nothing.
-func (n *NopWatchStarter) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+func (n *NopWatchStarter) StartWatches(_ context.Context, _ string, _ ...engine.Watch) error {
+	return nil
+}
 
 // A WatchStarterFn is a function that can start a new watch.
-type WatchStarterFn func(name string, ws ...engine.Watch) error
+type WatchStarterFn func(ctx context.Context, name string, ws ...engine.Watch) error
 
 // StartWatches starts the supplied watches, if they're not running already.
-func (fn WatchStarterFn) StartWatches(name string, ws ...engine.Watch) error {
-	return fn(name, ws...)
+func (fn WatchStarterFn) StartWatches(ctx context.Context, name string, ws ...engine.Watch) error {
+	return fn(ctx, name, ws...)
 }
 
 type compositeResource struct {
@@ -519,6 +521,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	orig := xr.GetCompositionReference()
 	if err := r.composite.SelectComposition(ctx, xr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
@@ -532,6 +537,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	origRev := xr.GetCompositionRevisionReference()
 	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -542,8 +550,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
 	}
 
-	// TODO(negz): Update this to validate the revision? In practice that's what
-	// it's doing today when revis are enabled.
 	if err := r.revision.Validate(rev); err != nil {
 		log.Debug(errValidate, "error", err)
 		err = errors.Wrap(err, errValidate)
@@ -610,7 +616,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// StartWatches is a no-op unless the realtime compositions feature flag is
 	// enabled. When the flag is enabled, the ControllerEngine that starts this
 	// controller also starts a garbage collector for its watches.
-	if err := r.engine.StartWatches(r.controllerName, ws...); err != nil {
+	if err := r.engine.StartWatches(ctx, r.controllerName, ws...); err != nil {
 		// TODO(negz): If we stop polling this will be a more serious error.
 		log.Debug("Cannot start watches for composed resources. Relying on polling to know when they change.", "controller-name", r.controllerName, "error", err)
 	}

@@ -92,7 +92,7 @@ func New(mgr manager.Manager, infs TrackingInformers, c client.Client, nc client
 	return e
 }
 
-// An ControllerEngineOption configures a controller engine.
+// A ControllerEngineOption configures a controller engine.
 type ControllerEngineOption func(*ControllerEngine)
 
 // WithLogger configures an Engine to use a logger.
@@ -270,6 +270,7 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 		if err := w.Stop(ctx); err != nil {
 			return errors.Wrapf(err, "cannot stop %q watch for %q", wid.Type, wid.GVK)
 		}
+
 		delete(c.sources, wid)
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
 	}
@@ -330,7 +331,7 @@ func WatchFor(kind client.Object, wt WatchType, h handler.EventHandler, p ...pre
 // The controller will only start a watch if it's not already watching the type
 // of object specified by the supplied Watch. StartWatches blocks other
 // operations on the same controller if and when it starts a watch.
-func (e *ControllerEngine) StartWatches(name string, ws ...Watch) error {
+func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...Watch) error {
 	e.mx.RLock()
 	c, running := e.controllers[name]
 	e.mx.RUnlock()
@@ -397,6 +398,14 @@ func (e *ControllerEngine) StartWatches(name string, ws ...Watch) error {
 	c.mx.Lock()
 	defer c.mx.Unlock()
 
+	// Refresh active informers in case they changed between when we lost
+	// the read lock and took the write lock.
+	a = e.infs.ActiveInformers()
+	activeInformer = make(map[schema.GroupVersionKind]bool, len(a))
+	for _, gvk := range a {
+		activeInformer[gvk] = true
+	}
+
 	// Start new sources.
 	for i, w := range ws {
 		wid := WatchID{Type: w.wt, GVK: gvks[i]}
@@ -417,7 +426,11 @@ func (e *ControllerEngine) StartWatches(name string, ws ...Watch) error {
 		// The watch will stop sending events when either the source is stopped,
 		// or its backing informer is stopped. The controller's work queue will
 		// stop processing events when the controller is stopped.
-		src := NewStoppableSource(e.infs, w.kind, w.handler, w.predicates...)
+		inf, err := e.infs.GetInformer(ctx, w.kind, cache.BlockUntilSynced(true))
+		if err != nil {
+			return errors.Wrapf(err, "cannot get informer for %q", wid.GVK)
+		}
+		src := NewStoppableSource(inf, w.handler, w.predicates...)
 		if err := c.ctrl.Watch(src); err != nil {
 			return errors.Wrapf(err, "cannot start %q watch for %q", wid.Type, wid.GVK)
 		}
@@ -512,7 +525,7 @@ func (e *ControllerEngine) GarbageCollectCustomResourceInformers(ctx context.Con
 	}
 
 	h, err := i.AddEventHandler(kcache.ResourceEventHandlerFuncs{
-		DeleteFunc: func(obj interface{}) {
+		DeleteFunc: func(obj any) {
 			o := obj
 			if fsu, ok := obj.(kcache.DeletedFinalStateUnknown); ok {
 				o = fsu.Obj
@@ -533,6 +546,7 @@ func (e *ControllerEngine) GarbageCollectCustomResourceInformers(ctx context.Con
 				u := &unstructured.Unstructured{}
 				u.SetGroupVersionKind(gvk)
 
+				// This stops the informer if it was running.
 				if err := e.infs.RemoveInformer(ctx, u); err != nil {
 					e.log.Info("Cannot remove informer for type defined by deleted CustomResourceDefinition", "crd", crd.GetName(), "gvk", gvk)
 					continue
