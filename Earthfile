@@ -51,6 +51,7 @@ e2e:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   ARG FLAGS="-test-suite=base"
+  ARG GOTESTSUM_FORMAT="standard-verbose"
   # Using earthly image to allow compatibility with different development environments e.g. WSL
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   RUN wget https://dl.google.com/go/go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
@@ -74,15 +75,13 @@ e2e:
       RUN gotestsum \
         --rerun-fails \
       	--no-color=false \
-	--format standard-verbose \
-	--jsonfile e2e-tests.json \
+	--format ${GOTESTSUM_FORMAT} \
 	--junitfile e2e-tests.xml \
 	--raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
   END
-  RUN gotestsum tool slowest --jsonfile e2e-tests.json
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your
 # local environment, not a container. The kind cluster will keep running until
