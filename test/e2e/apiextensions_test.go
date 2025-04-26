@@ -211,8 +211,12 @@ func TestCompositionFunctions(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
+			// TODO(negz): This Assess consistently takes ~2 seconds
+			// on my M1 Max MacBook, but sometimes exceeds 30
+			// seconds in CI, even with larger runners. Perhaps
+			// slower I/O in CI?
 			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
 			).
