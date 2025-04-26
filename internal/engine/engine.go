@@ -61,19 +61,33 @@ type ControllerEngine struct {
 	// exists.
 	uncached client.Client
 
-	log logging.Logger
-
-	// Protects everything below.
-	mx sync.RWMutex
-
-	// Running controllers, by name.
+	// Running controllers, by name. Protected by the mutex.
 	controllers map[string]*controller
+	mx          sync.RWMutex
+
+	log     logging.Logger
+	metrics Metrics
 }
 
 // TrackingInformers is a set of Informers. It tracks which are active.
 type TrackingInformers interface {
 	cache.Informers
 	ActiveInformers() []schema.GroupVersionKind
+}
+
+// Metrics for the controller engine.
+type Metrics interface {
+	// ControllerStarted records a controller start.
+	ControllerStarted(name string)
+
+	// ControllerStopped records a controller stop.
+	ControllerStopped(name string)
+
+	// WatchStarted records a watch start for a controller.
+	WatchStarted(name string, t WatchType)
+
+	// WatchStopped records a watch stop for a controller.
+	WatchStopped(name string, t WatchType)
 }
 
 // New creates a new controller engine.
@@ -83,8 +97,9 @@ func New(mgr manager.Manager, infs TrackingInformers, c client.Client, nc client
 		infs:        infs,
 		cached:      c,
 		uncached:    nc,
-		log:         logging.NewNopLogger(),
 		controllers: make(map[string]*controller),
+		log:         logging.NewNopLogger(),
+		metrics:     &NopMetrics{},
 	}
 
 	for _, fn := range o {
@@ -101,6 +116,13 @@ type ControllerEngineOption func(*ControllerEngine)
 func WithLogger(l logging.Logger) ControllerEngineOption {
 	return func(e *ControllerEngine) {
 		e.log = l
+	}
+}
+
+// WithMetrics configures an Engine to expose metrics.
+func WithMetrics(m Metrics) ControllerEngineOption {
+	return func(e *ControllerEngine) {
+		e.metrics = m
 	}
 }
 
@@ -213,6 +235,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 		<-e.mgr.Elected()
 
 		e.log.Debug("Starting new controller", "controller", name)
+		e.metrics.ControllerStarted(name)
 
 		// Run the controller until its context is cancelled.
 		if err := c.Start(ctx); err != nil {
@@ -225,6 +248,7 @@ func (e *ControllerEngine) Start(name string, o ...ControllerOption) error {
 		}
 
 		e.log.Debug("Stopped controller", "controller", name)
+		e.metrics.ControllerStopped(name)
 	}()
 
 	if co.gc != nil {
@@ -281,7 +305,6 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 	c.cancel()
 	delete(e.controllers, name)
 
-	e.log.Debug("Stopped controller", "controller", name)
 	return nil
 }
 
@@ -441,6 +464,7 @@ func (e *ControllerEngine) StartWatches(ctx context.Context, name string, ws ...
 		c.sources[wid] = src
 
 		e.log.Debug("Started watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
+		e.metrics.WatchStarted(name, wid.Type)
 	}
 
 	return nil
@@ -510,6 +534,7 @@ func (e *ControllerEngine) StopWatches(ctx context.Context, name string, ws ...W
 		}
 		delete(c.sources, wid)
 		e.log.Debug("Stopped watching GVK", "controller", name, "watch-type", wid.Type, "watched-gvk", wid.GVK)
+		e.metrics.WatchStopped(name, wid.Type)
 		stopped++
 	}
 

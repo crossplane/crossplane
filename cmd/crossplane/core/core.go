@@ -244,14 +244,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot load client TLS certificates")
 	}
 
-	m := xfn.NewMetrics()
-	metrics.Registry.MustRegister(m)
+	xfnm := xfn.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(xfnm)
 
 	// We want all XR controllers to share the same gRPC clients.
 	functionRunner := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
 		xfn.WithLogger(log),
 		xfn.WithTLSConfig(clienttls),
-		xfn.WithInterceptorCreators(m),
+		xfn.WithInterceptorCreators(xfnm),
 	)
 
 	// Periodically remove clients for Functions that no longer exist.
@@ -375,6 +375,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot create uncached client for API extension controllers")
 	}
 
+	cem := engine.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(cem)
+
 	// It's important the engine's client is wrapped with unstructured.NewClient
 	// because controller-runtime always caches *unstructured.Unstructured, not
 	// our wrapper types like *composite.Unstructured. This client takes care of
@@ -384,6 +387,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		unstructured.NewClient(cached),
 		unstructured.NewClient(uncached),
 		engine.WithLogger(log),
+		engine.WithMetrics(cem),
 	)
 
 	// TODO(negz): Garbage collect informers for CRs that are still defined
