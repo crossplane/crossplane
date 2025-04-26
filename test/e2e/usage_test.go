@@ -83,11 +83,6 @@ func TestUsageStandalone(t *testing.T) {
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
-			// Disable our feature flag.
-			WithTeardown("DisableAlphaUsages", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
 			Feature(),
 	)
 }
@@ -174,11 +169,6 @@ func TestUsageComposition(t *testing.T) {
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
-			// Disable our feature flag.
-			WithTeardown("DisableAlphaUsages", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),
 	)
