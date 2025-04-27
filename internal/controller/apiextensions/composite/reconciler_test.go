@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -1299,11 +1300,9 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							Composite: CompositeResource{
-								Ready: &valBoolFalse,
-							},
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
+							Ready:             ptr.To(false),
 							Events:            []TargetedEvent{},
 							Conditions:        []TargetedCondition{},
 						}, nil
