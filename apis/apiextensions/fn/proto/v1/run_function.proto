@@ -55,7 +55,7 @@ message RunFunctionRequest {
   // of the 'input' block of the relevant entry in a Composition's pipeline.
   optional google.protobuf.Struct input = 4;
 
-  // Optional context. Crossplane may pass arbitary contextual information to a
+  // Optional context. Crossplane may pass arbitrary contextual information to a
   // Function. A Function may also return context in its RunFunctionResponse,
   // and that context will be passed to subsequent Functions. Crossplane
   // discards all context returned by the last Function in the pipeline.
@@ -170,9 +170,9 @@ message ResponseMeta {
   // meta.tag of the corresponding RunFunctionRequest.
   string tag = 1;
 
-  // Time-to-live of this response. Deterministic Functions with no side-effects
-  // (e.g. simple templating Functions) may specify a TTL. Crossplane may choose
-  // to cache responses until the TTL expires.
+  // Time-to-live of this response. Crossplane will call the function again when
+  // the TTL expires. Crossplane may cache the response to avoid calling the
+  // function again until the TTL expires.
   optional google.protobuf.Duration ttl = 2;
 }
 
