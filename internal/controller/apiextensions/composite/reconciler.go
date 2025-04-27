@@ -157,12 +157,23 @@ type CompositionRequest struct {
 
 // A CompositionResult is the result of the composition process.
 type CompositionResult struct {
-	Composite         CompositeResource
-	Composed          []ComposedResource
+	// Composed resource details.
+	Composed []ComposedResource
+
+	// XR connection details.
 	ConnectionDetails managed.ConnectionDetails
-	Events            []TargetedEvent
-	Conditions        []TargetedCondition
-	TTL               time.Duration
+
+	// XR readiness. When nil readiness is derived from composed resources.
+	Ready *bool
+
+	// XR and claim events.
+	Events []TargetedEvent
+
+	// XR and claim conditions.
+	Conditions []TargetedCondition
+
+	// TTL for this composition result.
+	TTL time.Duration
 }
 
 // A CompositionTarget is the target of a composition event or condition.
@@ -679,9 +690,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// If the composer explicitly specified the XR's readiness it
 	// supersedes readiness derived from composed resources.
-	if res.Composite.Ready != nil {
+	if res.Ready != nil {
 		ready = xpv1.Creating()
-		if *res.Composite.Ready {
+		if *res.Ready {
 			ready = xpv1.Available()
 		}
 	}

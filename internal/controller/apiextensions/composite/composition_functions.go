@@ -439,16 +439,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		}
 	}
 
-	compositeRes := CompositeResource{}
-
-	// Consider the explicit composite unready state in the function response:
-	switch d.GetComposite().GetReady() { //nolint:exhaustive // only check for false or true
-	case fnv1.Ready_READY_TRUE:
-		compositeRes.Ready = ptr.To(true)
-	case fnv1.Ready_READY_FALSE:
-		compositeRes.Ready = ptr.To(false)
-	}
-
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
@@ -563,14 +553,25 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
+	var ready *bool
+	switch d.GetComposite().GetReady() {
+	case fnv1.Ready_READY_TRUE:
+		ready = ptr.To(true)
+	case fnv1.Ready_READY_FALSE:
+		ready = ptr.To(false)
+	case fnv1.Ready_READY_UNSPECIFIED:
+		// Remains nil.
+	}
+
 	result := CompositionResult{
-		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
-		Composite:         compositeRes,
 		Composed:          resources,
+		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
+		Ready:             ready,
 		Events:            events,
 		Conditions:        conditions,
 		TTL:               ttl,
 	}
+
 	return result, nil
 }
 
