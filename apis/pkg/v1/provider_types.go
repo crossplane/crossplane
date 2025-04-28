@@ -49,6 +49,7 @@ type Provider struct {
 // ProviderSpec specifies details about a request to install a provider to
 // Crossplane.
 type ProviderSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self.activeRevisionLimit == 1",message="Providers can have at most one active revision"
 	PackageSpec        `json:",inline"`
 	PackageRuntimeSpec `json:",inline"`
 }

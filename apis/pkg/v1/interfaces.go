@@ -132,6 +132,9 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 	GetRevisionHistoryLimit() *int64
 	SetRevisionHistoryLimit(l *int64)
 
+	GetActiveRevisionLimit() *int64
+	SetActiveRevisionLimit(l *int64)
+
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
@@ -218,6 +221,16 @@ func (p *Provider) GetRevisionHistoryLimit() *int64 {
 // SetRevisionHistoryLimit of this Provider.
 func (p *Provider) SetRevisionHistoryLimit(l *int64) {
 	p.Spec.RevisionHistoryLimit = l
+}
+
+// GetActiveRevisionLimit of this Provider.
+func (p *Provider) GetActiveRevisionLimit() *int64 {
+	return p.Spec.ActiveRevisionLimit
+}
+
+// SetActiveRevisionLimit of this Provider.
+func (p *Provider) SetActiveRevisionLimit(l *int64) {
+	p.Spec.ActiveRevisionLimit = l
 }
 
 // GetIgnoreCrossplaneConstraints of this Provider.
@@ -388,6 +401,16 @@ func (p *Configuration) GetRevisionHistoryLimit() *int64 {
 // SetRevisionHistoryLimit of this Configuration.
 func (p *Configuration) SetRevisionHistoryLimit(l *int64) {
 	p.Spec.RevisionHistoryLimit = l
+}
+
+// GetActiveRevisionLimit of this Configuration.
+func (p *Configuration) GetActiveRevisionLimit() *int64 {
+	return p.Spec.ActiveRevisionLimit
+}
+
+// SetActiveRevisionLimit of this Configuration.
+func (p *Configuration) SetActiveRevisionLimit(l *int64) {
+	p.Spec.ActiveRevisionLimit = l
 }
 
 // GetIgnoreCrossplaneConstraints of this Configuration.
@@ -1001,6 +1024,16 @@ func (f *Function) GetRevisionHistoryLimit() *int64 {
 // SetRevisionHistoryLimit of this Function.
 func (f *Function) SetRevisionHistoryLimit(l *int64) {
 	f.Spec.RevisionHistoryLimit = l
+}
+
+// GetActiveRevisionLimit of this Function.
+func (f *Function) GetActiveRevisionLimit() *int64 {
+	return f.Spec.ActiveRevisionLimit
+}
+
+// SetActiveRevisionLimit of this Function.
+func (f *Function) SetActiveRevisionLimit(l *int64) {
+	f.Spec.ActiveRevisionLimit = l
 }
 
 // GetIgnoreCrossplaneConstraints of this Function.

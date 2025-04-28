@@ -984,6 +984,11 @@ func (in *PackageSpec) DeepCopyInto(out *PackageSpec) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.ActiveRevisionLimit != nil {
+		in, out := &in.ActiveRevisionLimit, &out.ActiveRevisionLimit
+		*out = new(int64)
+		**out = **in
+	}
 	if in.PackagePullSecrets != nil {
 		in, out := &in.PackagePullSecrets, &out.PackagePullSecrets
 		*out = make([]corev1.LocalObjectReference, len(*in))
