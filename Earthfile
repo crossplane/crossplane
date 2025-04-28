@@ -74,6 +74,7 @@ e2e:
       # https://github.com/earthly/earthly/issues/4143 is fixed.
       RUN gotestsum \
         --rerun-fails \
+	--hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
       	--no-color=false \
 	--format ${GOTESTSUM_FORMAT} \
 	--junitfile e2e-tests.xml \
