@@ -57,8 +57,8 @@ const (
 	// https://github.com/crossplane/crossplane/issues/4581
 	EnableBetaClaimSSA feature.Flag = "EnableBetaClaimSSA"
 
-	// EnableBetaRealtimeCompositions enables alpha support for realtime
-	// compositions, i.e. watching MRs and reconciling compositions immediately
-	// when any MR is updated.
-	EnableBetaRealtimeCompositions feature.Flag = "EnableAlphaRealtimeCompositions"
+	// EnableBetaRealtimeCompositions enables beta support for realtime
+	// compositions, i.e. watching composed resources and reconciling
+	// compositions immediately when any composed resource is updated.
+	EnableBetaRealtimeCompositions feature.Flag = "EnableBetaRealtimeCompositions"
 )
