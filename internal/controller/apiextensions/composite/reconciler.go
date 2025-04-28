@@ -115,11 +115,19 @@ type CompositionRevisionSelector interface {
 	SelectCompositionRevision(ctx context.Context, cr resource.Composite) error
 }
 
+// A CompositionRevisionSelectorFn selects a composition revsion by label.
+type CompositionRevisionSelectorFn func(ctx context.Context, cr resource.Composite) error
+
 // A CompositionSelectorFn selects a composition reference.
 type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) error
 
 // SelectComposition for the supplied composite resource.
 func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resource.Composite) error {
+	return fn(ctx, cr)
+}
+
+// SelectCompositionRevision for the supplied composition revision .
+func (fn CompositionRevisionSelectorFn) SelectCompositionRevision(ctx context.Context, cr resource.Composite) error {
 	return fn(ctx, cr)
 }
 
@@ -304,6 +312,8 @@ func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	}
 }
 
+// WithCompositionRevisionSelector specifies how the composition revision to be used should be
+// selected.
 func WithCompositionRevisionSelector(s CompositionRevisionSelector) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.composite.CompositionRevisionSelector = s

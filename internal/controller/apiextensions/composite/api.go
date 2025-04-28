@@ -207,7 +207,7 @@ type CompositionSelectorChain struct {
 	list []CompositionSelector
 }
 
-// NewCompositionSelectorChain returns a new CompositionSelectorChain.
+// NewCompositionRevisionSelectorChain returns a new CompositionSelectorChain.
 func NewCompositionRevisionSelectorChain(list ...CompositionRevisionSelector) *CompositionRevisionSelectorChain {
 	return &CompositionRevisionSelectorChain{list: list}
 }
@@ -217,8 +217,9 @@ type CompositionRevisionSelectorChain struct {
 	list []CompositionRevisionSelector
 }
 
+// SelectCompositionRevision calls all SelectCompositionRevision functions of CompositionRevisionSelectors
+// in the list.
 func (r *CompositionRevisionSelectorChain) SelectCompositionRevision(ctx context.Context, cp resource.Composite) error {
-
 	for _, cs := range r.list {
 		if err := cs.SelectCompositionRevision(ctx, cp); err != nil {
 			return err
@@ -230,7 +231,6 @@ func (r *CompositionRevisionSelectorChain) SelectCompositionRevision(ctx context
 // SelectComposition calls all SelectComposition functions of CompositionSelectors
 // in the list.
 func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp resource.Composite) error {
-
 	for _, cs := range r.list {
 		if err := cs.SelectComposition(ctx, cp); err != nil {
 			return err
@@ -322,6 +322,8 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	return nil
 }
 
+// SelectCompositionRevision selects the default composition revision if neither a reference nor
+// selector is given in composite resource.
 func (s *APIDefaultCompositionSelector) SelectCompositionRevision(ctx context.Context, cp resource.Composite) error {
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, fmt.Sprintf("debug: %s", cp.GetCompositionRevisionSelector())))
 	if cp.GetCompositionRevisionSelector() != nil {
