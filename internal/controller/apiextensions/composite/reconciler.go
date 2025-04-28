@@ -110,6 +110,11 @@ type CompositionSelector interface {
 	SelectComposition(ctx context.Context, cr resource.Composite) error
 }
 
+// A CompositionRevisionSelector selects a composition revision via selector.
+type CompositionRevisionSelector interface {
+	SelectCompositionRevision(ctx context.Context, cr resource.Composite) error
+}
+
 // A CompositionSelectorFn selects a composition reference.
 type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) error
 
@@ -299,6 +304,12 @@ func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	}
 }
 
+func WithCompositionRevisionSelector(s CompositionRevisionSelector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.CompositionRevisionSelector = s
+	}
+}
+
 // WithConfigurator specifies how the Reconciler should configure
 // composite resources using their composition.
 func WithConfigurator(c Configurator) ReconcilerOption {
@@ -375,6 +386,7 @@ func (fn WatchStarterFn) StartWatches(name string, ws ...engine.Watch) error {
 type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
+	CompositionRevisionSelector
 	Configurator
 	managed.ConnectionPublisher
 }
@@ -524,6 +536,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
+
+	if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
+		err = errors.Wrap(err, errSelectComp)
+		r.record.Event(xr, event.Warning(reasonResolve, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	}
+
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Successfully selected composition: %s", compRef.Name)))
 	}
