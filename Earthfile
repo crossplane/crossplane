@@ -51,6 +51,7 @@ e2e:
   ARG GOARCH=${TARGETARCH}
   ARG GOOS=${TARGETOS}
   ARG FLAGS="-test-suite=base"
+  ARG GOTESTSUM_FORMAT="standard-verbose"
   # Using earthly image to allow compatibility with different development environments e.g. WSL
   FROM earthly/dind:alpine-3.20-docker-26.1.5-r0
   RUN wget https://dl.google.com/go/go${GO_VERSION}.${GOOS}-${GOARCH}.tar.gz
@@ -71,7 +72,12 @@ e2e:
     WITH DOCKER --load crossplane-e2e/crossplane:latest=(+image --CROSSPLANE_VERSION=v0.0.0-e2e)
       # TODO(negz:) Set GITHUB_ACTIONS=true and use RUN --raw-output when
       # https://github.com/earthly/earthly/issues/4143 is fixed.
-      RUN gotestsum --no-color=false --format testname --junitfile e2e-tests.xml --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
+      RUN gotestsum \
+        --rerun-fails \
+      	--no-color=false \
+	--format ${GOTESTSUM_FORMAT} \
+	--junitfile e2e-tests.xml \
+	--raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
