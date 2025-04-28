@@ -285,7 +285,7 @@ type RunFunctionRequest struct {
 	// Optional input specific to this Function invocation. A JSON representation
 	// of the 'input' block of the relevant entry in a Composition's pipeline.
 	Input *structpb.Struct `protobuf:"bytes,4,opt,name=input,proto3,oneof" json:"input,omitempty"`
-	// Optional context. Crossplane may pass arbitary contextual information to a
+	// Optional context. Crossplane may pass arbitrary contextual information to a
 	// Function. A Function may also return context in its RunFunctionResponse,
 	// and that context will be passed to subsequent Functions. Crossplane
 	// discards all context returned by the last Function in the pipeline.
@@ -899,9 +899,9 @@ type ResponseMeta struct {
 	// An opaque string identifying the content of the request. Must match the
 	// meta.tag of the corresponding RunFunctionRequest.
 	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
-	// Time-to-live of this response. Deterministic Functions with no side-effects
-	// (e.g. simple templating Functions) may specify a TTL. Crossplane may choose
-	// to cache responses until the TTL expires.
+	// Time-to-live of this response. Crossplane will call the function again when
+	// the TTL expires. Crossplane may cache the response to avoid calling the
+	// function again until the TTL expires.
 	Ttl *durationpb.Duration `protobuf:"bytes,2,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
 }
 

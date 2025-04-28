@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -452,7 +453,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"ComposedResourcesNotReady": {
@@ -591,7 +592,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"ReconciliationPausedSuccessful": {
@@ -670,7 +671,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"ReconciliationResumesAfterAnnotationRemoval": {
@@ -718,7 +719,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"CustomEventsAndConditions": {
@@ -870,7 +871,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"CustomEventsAndConditionFatal": {
@@ -1203,7 +1204,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"SystemConditionUpdate": {
@@ -1224,10 +1225,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
-						cr.SetConditions(
-							xpv1.ReconcileSuccess(),
-							xpv1.Creating().WithMessage("Composite resource was explicitly marked as unready by the composer"),
-						)
+						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating())
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
@@ -1260,11 +1258,9 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							Composite: CompositeResource{
-								Ready: &valBoolFalse,
-							},
 							Composed:          []ComposedResource{},
 							ConnectionDetails: cd,
+							Ready:             ptr.To(false),
 							Events:            []TargetedEvent{},
 							Conditions:        []TargetedCondition{},
 						}, nil
@@ -1272,7 +1268,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 		"CustomEventsFailToGetClaim": {
@@ -1354,7 +1350,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+				r: reconcile.Result{},
 			},
 		},
 	}

@@ -31,7 +31,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 		event  kevent.CreateEvent
 	}
 	type want struct {
-		added []interface{}
+		added []any
 	}
 
 	dog := schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Dog"}
@@ -89,11 +89,14 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 								v1.LabelCompositionName: "dachshund",
 							},
 						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
+						},
 					},
 				},
 			},
 			want: want{
-				added: []interface{}{reconcile.Request{NamespacedName: types.NamespacedName{
+				added: []any{reconcile.Request{NamespacedName: types.NamespacedName{
 					Namespace: "ns",
 					Name:      "obj1",
 				}}},
@@ -125,6 +128,9 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 								v1.LabelCompositionName: "dachshund",
 							},
 						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
+						},
 					},
 				},
 			},
@@ -155,6 +161,9 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 							Labels: map[string]string{
 								v1.LabelCompositionName: "dachshund",
 							},
+						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
 						},
 					},
 				},
@@ -203,11 +212,14 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 								v1.LabelCompositionName: "dachshund",
 							},
 						},
+						Spec: v1.CompositionRevisionSpec{
+							CompositeTypeRef: v1.TypeReferenceTo(dog),
+						},
 					},
 				},
 			},
 			want: want{
-				added: []interface{}{
+				added: []any{
 					reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "ns", Name: "obj1"}},
 					reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "ns", Name: "obj2"}},
 				},
@@ -229,7 +241,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 
 type rateLimitingQueueMock struct {
 	workqueue.TypedRateLimitingInterface[reconcile.Request]
-	added []interface{}
+	added []any
 }
 
 func (f *rateLimitingQueueMock) Add(item reconcile.Request) {

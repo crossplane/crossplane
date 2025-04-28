@@ -496,7 +496,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// ControllerOptions instead? It bothers me that this is the only feature
 	// flagged block outside that method.
 	co := []engine.ControllerOption{engine.WithRuntimeOptions(ko)}
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) {
 		// If realtime composition is enabled we'll start watches dynamically,
 		// so we want to garbage collect watches for composed resource kinds
 		// that aren't used anymore.
@@ -621,7 +621,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 
 	// If realtime compositions are enabled we pass the ControllerEngine to the
 	// XR reconciler so that it can start watches for composed resources.
-	if r.options.Features.Enabled(features.EnableAlphaRealtimeCompositions) {
+	if r.options.Features.Enabled(features.EnableBetaRealtimeCompositions) {
 		gvk := d.GetCompositeGroupVersionKind()
 		u := &kunstructured.Unstructured{}
 		u.SetAPIVersion(gvk.GroupVersion().String())
@@ -633,7 +633,10 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 		}
 
 		h := EnqueueCompositeResources(resource.CompositeKind(d.GetCompositeGroupVersionKind()), r.engine.GetCached(), r.log)
-		o = append(o, composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine))
+		o = append(o,
+			composite.WithWatchStarter(composite.ControllerName(d.GetName()), h, r.engine),
+			composite.WithPollInterval(0), // Disable polling.
+		)
 	}
 
 	return o
