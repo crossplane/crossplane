@@ -52,12 +52,7 @@ const (
 	errCreateOutputFile        = "failed to create output file"
 	errCreateGzipWriter        = "failed to create gzip writer"
 	errExtractPackageContents  = "failed to extract package contents"
-)
-
-const (
-	layerAnnotation     = "io.crossplane.xpkg"
-	baseAnnotationValue = "base"
-	cacheContentExt     = ".gz"
+	cacheContentExt            = ".gz"
 )
 
 // fetchFn fetches a package from a source.
@@ -129,8 +124,8 @@ type extractCmd struct {
 	fetch fetchFn
 
 	Package    string `arg:""                                                                                                                                                     help:"Name of the package to extract. Must be a valid OCI image tag or a path if using --from-xpkg." optional:""`
-	FromDaemon bool   `help:"Indicates that the image should be fetched from the Docker daemon."                                                                                  xor:"xp-extract-from"`
-	FromXpkg   bool   `help:"Indicates that the image should be fetched from a local xpkg. If package is not specified and only one exists in current directory it will be used." xor:"xp-extract-from"`
+	FromDaemon bool   `help:"Indicates that the image should be fetched from the Docker daemon."`
+	FromXpkg   bool   `help:"Indicates that the image should be fetched from a local xpkg. If package is not specified and only one exists in current directory it will be used."`
 	Output     string `default:"out.gz"                                                                                                                                           help:"Package output file path. Extension must be .gz or will be replaced."                          short:"o"`
 
 	// Common API configuration
@@ -158,7 +153,7 @@ func (c *extractCmd) Run(logger logging.Logger) error { //nolint:gocyclo // xpkg
 	var tarc io.ReadCloser
 	foundAnnotated := false
 	for _, l := range manifest.Layers {
-		if a, ok := l.Annotations[layerAnnotation]; !ok || a != baseAnnotationValue {
+		if a, ok := l.Annotations[xpkg.AnnotationKey]; !ok || a != xpkg.PackageAnnotation {
 			continue
 		}
 		if foundAnnotated {

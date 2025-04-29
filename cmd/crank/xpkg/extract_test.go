@@ -48,14 +48,14 @@ func TestExtractRun(t *testing.T) {
 	randImg, _ := mutate.Append(empty.Image, mutate.Addendum{
 		Layer: randLayer,
 		Annotations: map[string]string{
-			layerAnnotation: baseAnnotationValue,
+			xpkg.AnnotationKey: xpkg.PackageAnnotation,
 		},
 	})
 
 	randImgDup, _ := mutate.Append(randImg, mutate.Addendum{
 		Layer: randLayer,
 		Annotations: map[string]string{
-			layerAnnotation: baseAnnotationValue,
+			xpkg.AnnotationKey: xpkg.PackageAnnotation,
 		},
 	})
 
