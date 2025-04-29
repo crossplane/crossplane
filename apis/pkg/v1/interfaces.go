@@ -77,6 +77,24 @@ type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could
 	GetTLSClientSecretName() *string
 }
 
+// SetAppliedImageConfigRefs sets applied image config refs, replacing any
+// existing refs with the same reason.
+func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	for _, ref := range refs {
+		exists := false
+		for i, existing := range s.AppliedImageConfigRefs {
+			if existing.Reason != ref.Reason {
+				continue
+			}
+			s.AppliedImageConfigRefs[i] = ref
+			exists = true
+		}
+		if !exists {
+			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
+		}
+	}
+}
+
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
 type Package interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
@@ -114,6 +132,9 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetAppliedImageConfigRefs() []ImageConfigRef
+	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
 }
 
 // GetCondition of this Provider.
@@ -261,6 +282,16 @@ func (p *Provider) GetTLSClientSecretName() *string {
 	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
 }
 
+// GetAppliedImageConfigRefs of this Provider.
+func (p *Provider) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this Provider.
+func (p *Provider) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -376,6 +407,16 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetAppliedImageConfigRefs of this Configuration.
+func (p *Configuration) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this Configuration.
+func (p *Configuration) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
@@ -393,6 +434,24 @@ type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz
 
 	GetTLSClientSecretName() *string
 	SetTLSClientSecretName(n *string)
+}
+
+// SetAppliedImageConfigRefs sets applied image config refs, replacing any
+// existing refs with the same reason.
+func (s *PackageRevisionStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	for _, ref := range refs {
+		exists := false
+		for i, existing := range s.AppliedImageConfigRefs {
+			if existing.Reason != ref.Reason {
+				continue
+			}
+			s.AppliedImageConfigRefs[i] = ref
+			exists = true
+		}
+		if !exists {
+			s.AppliedImageConfigRefs = append(s.AppliedImageConfigRefs, ref)
+		}
+	}
 }
 
 // PackageRevision is the interface satisfied by package revision types.
@@ -432,6 +491,9 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetAppliedImageConfigRefs() []ImageConfigRef
+	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
 }
 
 // GetCondition of this ProviderRevision.
@@ -591,6 +653,16 @@ func (p *ProviderRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetAppliedImageConfigRefs of this ProviderRevision.
+func (p *ProviderRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this ProviderRevision.
+func (p *ProviderRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -706,6 +778,16 @@ func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetAppliedImageConfigRefs of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return p.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
 // PackageRevisionList is the interface satisfied by package revision list
@@ -904,6 +986,16 @@ func (f *Function) GetTLSClientSecretName() *string {
 	return nil
 }
 
+// GetAppliedImageConfigRefs of this Function.
+func (f *Function) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return f.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this Function.
+func (f *Function) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	f.Status.SetAppliedImageConfigRefs(refs...)
+}
+
 // GetCondition of this FunctionRevision.
 func (r *FunctionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return r.Status.GetCondition(ct)
@@ -1059,6 +1151,16 @@ func (r *FunctionRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this FunctionRevision.
 func (r *FunctionRevision) SetCommonLabels(l map[string]string) {
 	r.Spec.CommonLabels = l
+}
+
+// GetAppliedImageConfigRefs of this FunctionRevision.
+func (r *FunctionRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
+	return r.Status.AppliedImageConfigRefs
+}
+
+// SetAppliedImageConfigRefs of this FunctionRevision.
+func (r *FunctionRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
+	r.Status.SetAppliedImageConfigRefs(refs...)
 }
 
 // GetRevisions of this ConfigurationRevisionList.

@@ -99,6 +99,10 @@ type PackageRevisionStatus struct {
 	// controller needs these permissions to run. The RBAC manager is
 	// responsible for granting them.
 	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
+
+	// AppliedImageConfigRefs records any image configs that were applied in
+	// reconciling this revision, and what they were used for.
+	AppliedImageConfigRefs []ImageConfigRef `json:"appliedImageConfigRefs,omitempty"`
 }
 
 // A ControllerReference references the controller (e.g. Deployment), if any,
