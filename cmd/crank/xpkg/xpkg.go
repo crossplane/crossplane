@@ -29,13 +29,14 @@ type Cmd struct {
 	Logout  logoutCmd  `cmd:"" help:"Logout of the default package registry."`
 	Push    pushCmd    `cmd:"" help:"Push a package to a registry."`
 	Update  updateCmd  `cmd:"" help:"Update a package in a control plane."`
+	Extract extractCmd `cmd:"" help:"Extract package contents into a Crossplane cache compatible format. Fetches from a remote registry by default."`
 }
 
 // Help prints out the help for the xpkg command.
 func (c *Cmd) Help() string {
 	return `
 Crossplane can be extended using packages. Crossplane packages are called xpkgs.
-Crossplane supports configuration, provider and function packages. 
+Crossplane supports configuration, provider and function packages.
 
 A package is an opinionated OCI image that contains everything needed to extend
 a Crossplane control plane with new functionality. For example installing a
