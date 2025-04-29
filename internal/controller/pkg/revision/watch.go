@@ -46,7 +46,7 @@ func EnqueuePackageRevisionsForRuntimeConfig(kube client.Client, l v1.PackageRev
 
 		rl := l.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Guaranteed to be PackageRevisionList.
 		if err := kube.List(ctx, rl); err != nil {
-			log.Debug("Cannot list function revisions while attempting to enqueue from runtime config", "error", err)
+			log.Debug("Cannot list package revisions while attempting to enqueue from runtime config", "error", err)
 			return nil
 		}
 
@@ -90,7 +90,7 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		rl := l.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Guaranteed to be PackageRevisionList.
 		if err := kube.List(ctx, rl); err != nil {
 			// Nothing we can do, except logging, if we can't list FunctionRevisions.
-			log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
+			log.Debug("Cannot list package revisions while attempting to enqueue from ImageConfig", "error", err)
 			return nil
 		}
 
@@ -105,6 +105,29 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
 				}
 			}
+		}
+		return matches
+	})
+}
+
+// EnqueuePackageRevisionsForLock enqueues a reconcile for all package
+// revisions when the Lock changes.
+func EnqueuePackageRevisionsForLock(kube client.Client, l v1.PackageRevisionList, log logging.Logger) handler.EventHandler {
+	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
+		if _, ok := o.(*v1beta1.Lock); !ok {
+			return nil
+		}
+
+		rl := l.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Guaranteed to be PackageRevisionList.
+		if err := kube.List(ctx, rl); err != nil {
+			// Nothing we can do, except logging, if we can't list FunctionRevisions.
+			log.Debug("Cannot list package revisions while attempting to enqueue from Lock", "error", err)
+			return nil
+		}
+
+		var matches []reconcile.Request
+		for _, rev := range rl.GetRevisions() {
+			matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
 		}
 		return matches
 	})
