@@ -113,7 +113,9 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor:              xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockImageVerificationConfigFor: xpkgfake.NewMockConfigStoreImageVerificationConfigForFn("", nil, errBoom),
+						MockRewritePath:                xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 				},
 				client: &test.MockClient{
@@ -138,7 +140,9 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor:              xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockImageVerificationConfigFor: xpkgfake.NewMockConfigStoreImageVerificationConfigForFn("", nil, nil),
+						MockRewritePath:                xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 				},
 				client: &test.MockClient{
@@ -163,10 +167,12 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
 					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockImageVerificationConfigFor: xpkgfake.NewMockConfigStoreImageVerificationConfigForFn(imageConfigName, &v1beta1.ImageVerification{
 							Provider: v1beta1.ImageVerificationProviderCosign,
 							Cosign:   &v1beta1.CosignVerificationConfig{},
 						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 				},
 				client: &test.MockClient{
@@ -189,6 +195,39 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{err: errors.Wrap(errors.New("could not parse reference: 0"), errParseReference)},
 		},
+		"ErrRewriteImage": {
+			reason: "If we fail to rewrite the image path with image config, we should return an error.",
+			args: args{
+				opts: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockImageVerificationConfigFor: xpkgfake.NewMockConfigStoreImageVerificationConfigForFn(imageConfigName, &v1beta1.ImageVerification{
+							Provider: v1beta1.ImageVerificationProviderCosign,
+							Cosign:   &v1beta1.CosignVerificationConfig{},
+						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn("", "", errBoom),
+					}),
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						*o.(*v1.ConfigurationRevision) = testRevision()
+						return nil
+					}),
+					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
+						want := testRevision(
+							withConditions(v1.VerificationIncomplete(errors.Wrap(errBoom, errRewriteImage))),
+						)
+
+						if diff := cmp.Diff(&want, o); diff != "" {
+							t.Errorf("-want, +got:\n%s", diff)
+						}
+						return nil
+					},
+				},
+			},
+			want: want{err: errors.Wrap(errBoom, errRewriteImage)},
+		},
 		"ErrGetConfigPullSecrets": {
 			reason: "If we fail to get the pull secret for the image config, we should return an error.",
 			args: args{
@@ -200,6 +239,7 @@ func TestReconcile(t *testing.T) {
 							Provider: v1beta1.ImageVerificationProviderCosign,
 							Cosign:   &v1beta1.CosignVerificationConfig{},
 						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 				},
 				client: &test.MockClient{
@@ -233,6 +273,7 @@ func TestReconcile(t *testing.T) {
 							Provider: v1beta1.ImageVerificationProviderCosign,
 							Cosign:   &v1beta1.CosignVerificationConfig{},
 						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 					WithValidator(&MockValidator{
 						ValidateFn: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, pullSecrets ...string) error {
@@ -277,6 +318,7 @@ func TestReconcile(t *testing.T) {
 							Provider: v1beta1.ImageVerificationProviderCosign,
 							Cosign:   &v1beta1.CosignVerificationConfig{},
 						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 					WithValidator(&MockValidator{
 						ValidateFn: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
@@ -315,9 +357,51 @@ func TestReconcile(t *testing.T) {
 							Provider: v1beta1.ImageVerificationProviderCosign,
 							Cosign:   &v1beta1.CosignVerificationConfig{},
 						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 					WithValidator(&MockValidator{
 						ValidateFn: func(_ context.Context, _ name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
+							return nil
+						},
+					}),
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						*o.(*v1.ConfigurationRevision) = testRevision()
+						return nil
+					}),
+					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
+						want := testRevision(
+							withConditions(v1.VerificationSucceeded(imageConfigName)),
+							withAppliedImageConfigRef(imageConfigName),
+						)
+
+						if diff := cmp.Diff(&want, o); diff != "" {
+							t.Errorf("-want, +got:\n%s", diff)
+						}
+						return nil
+					},
+				},
+			},
+		},
+		"SuccessfulVerificationImageRewrite": {
+			reason: "A successful verification should return a result with no error when the image path has been rewritten.",
+			args: args{
+				opts: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn(imageConfigName, "", nil),
+						MockImageVerificationConfigFor: xpkgfake.NewMockConfigStoreImageVerificationConfigForFn(imageConfigName, &v1beta1.ImageVerification{
+							Provider: v1beta1.ImageVerificationProviderCosign,
+							Cosign:   &v1beta1.CosignVerificationConfig{},
+						}, nil),
+						MockRewritePath: xpkgfake.NewMockRewritePathFn(imageConfigName, "registry.acme.co/my-image:v1.2.3", nil),
+					}),
+					WithValidator(&MockValidator{
+						ValidateFn: func(_ context.Context, ref name.Reference, _ *v1beta1.ImageVerification, _ ...string) error {
+							if ref.String() != "registry.acme.co/my-image:v1.2.3" {
+								return errors.Errorf("wrong image %q passed to validate", ref)
+							}
 							return nil
 						},
 					}),

@@ -186,6 +186,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
@@ -212,6 +217,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionSA),
 			},
@@ -225,6 +235,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -256,6 +271,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionDeployment),
 			},
@@ -269,6 +289,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -297,6 +322,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 				err: errors.New(errNoAvailableConditionFunctionDeployment),
 			},
@@ -310,6 +340,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -346,6 +381,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 				err: errors.Errorf(errFmtUnavailableFunctionDeployment, errBoom.Error()),
 			},
@@ -359,6 +399,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -394,6 +439,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 			},
 		},
@@ -406,6 +456,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -444,6 +499,11 @@ func TestFunctionPostHook(t *testing.T) {
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
+						},
+					},
 				},
 			},
 		},
@@ -456,6 +516,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -507,6 +572,11 @@ func TestFunctionPostHook(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package:      functionImage,
 							DesiredState: v1.PackageRevisionActive,
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: functionImage,
 						},
 					},
 				},
@@ -664,6 +734,11 @@ func TestGetFunctionImage(t *testing.T) {
 							Package: "crossplane/func-bar:v1.2.3",
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: "crossplane/func-bar:v1.2.3",
+						},
+					},
 				},
 				defaultRegistry: "registry.default.io",
 			},
@@ -686,6 +761,11 @@ func TestGetFunctionImage(t *testing.T) {
 							Package: "crossplane/func-bar:v1.2.3",
 						},
 					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							Package: "crossplane/func-bar:v1.2.3",
+						},
+					},
 				},
 				defaultRegistry: "registry.default.io",
 			},
@@ -705,6 +785,11 @@ func TestGetFunctionImage(t *testing.T) {
 				functionRevision: &v1.FunctionRevision{
 					Spec: v1.FunctionRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
+							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
 							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
 						},
 					},
