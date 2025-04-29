@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
@@ -81,6 +82,7 @@ func TestResolve(t *testing.T) {
 					client: &test.MockClient{
 						MockGet: test.NewMockGetFn(errBoom),
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -101,6 +103,7 @@ func TestResolve(t *testing.T) {
 						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 						MockCreate: test.NewMockCreateFn(errBoom),
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -128,6 +131,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -166,6 +170,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -204,6 +209,7 @@ func TestResolve(t *testing.T) {
 							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -292,6 +298,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -388,6 +395,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -502,6 +510,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -580,6 +589,7 @@ func TestResolve(t *testing.T) {
 							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{

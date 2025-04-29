@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
@@ -63,14 +64,16 @@ type PackageDependencyManager struct {
 	client      client.Client
 	newDag      dag.NewDAGFn
 	packageType schema.GroupVersionKind
+	log         logging.Logger
 }
 
 // NewPackageDependencyManager creates a new PackageDependencyManager.
-func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schema.GroupVersionKind) *PackageDependencyManager {
+func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, pkgType schema.GroupVersionKind, l logging.Logger) *PackageDependencyManager {
 	return &PackageDependencyManager{
 		client:      c,
 		newDag:      nd,
 		packageType: pkgType,
+		log:         l,
 	}
 }
 
@@ -148,6 +151,12 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	// to another registry)
 	for _, lp := range lock.Packages {
 		if self.Name == lp.Name && self.Type == lp.Type && self.Source != lp.Identifier() {
+			m.log.Debug("Package with same name and type but different source exists in lock. Removing it.",
+				"name", lp.Name,
+				"type", ptr.Deref(lp.Type, "Unknown"),
+				"old-source", lp.Identifier(),
+				"new-source", self.Source,
+			)
 			if err := m.RemoveSelf(ctx, pr); err != nil {
 				return found, installed, invalid, err
 			}
@@ -270,6 +279,7 @@ func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.Package
 	// Find self and remove. If we don't exist, its a no-op.
 	for i, lp := range lock.Packages {
 		if lp.Name == pr.GetName() {
+			m.log.Debug("Removing package revision from lock", "name", lp.Name)
 			lock.Packages = append(lock.Packages[:i], lock.Packages[i+1:]...)
 			return m.client.Update(ctx, lock)
 		}
