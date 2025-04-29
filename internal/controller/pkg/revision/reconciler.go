@@ -78,6 +78,7 @@ const (
 	errRemoveFinalizer = "cannot remove package revision finalizer"
 
 	errGetPullConfig = "cannot get image pull secret from config"
+	errRewriteImage  = "cannot rewrite image path using config"
 
 	errDeactivateRevision = "cannot deactivate package revision"
 
@@ -585,7 +586,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, pr.GetSource())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	imagePath := pr.GetSource()
+	rewriteConfig, newPath, err := r.config.RewritePath(ctx, imagePath)
+	if err != nil {
+		err = errors.Wrap(err, errRewriteImage)
+		pr.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, pr)
+
+		r.record.Event(pr, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+	if newPath != "" {
+		imagePath = newPath
+		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   rewriteConfig,
+			Reason: v1.ImageConfigReasonRewriteImage,
+		})
+	}
+	pr.SetStatusPackage(imagePath)
+
+	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, imagePath)
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
@@ -712,15 +736,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// If we didn't get a ReadCloser from cache, we need to get it from image.
 	if rc == nil {
 		bo := []parser.BackendOption{PackageRevision(pr)}
-		if imageConfig != "" {
+		if pullSecretConfig != "" {
 			bo = append(bo, PullSecretFromConfig(pullSecretFromConfig))
 			// We only record this event here, package is not in cache, and
 			// we are about to fetch the image. This way we avoid emitting
 			// excessive events in each reconcile, but once per image pull.
-			log.Debug("Selected pull secret from image config store", "image", pr.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
-			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
+			log.Debug("Selected pull secret from image config store", "image", imagePath, "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfig)
+			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 			pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-				Name:   imageConfig,
+				Name:   pullSecretConfig,
 				Reason: v1.ImageConfigReasonPullSecretReference,
 			})
 		}
@@ -807,6 +831,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// The update below is going to clobber the status. Save the status fields
+	// we care about so we can reset them afterwards.
+	appliedImageConfigs := pr.GetAppliedImageConfigRefs()
+
 	pkgMeta, _ := xpkg.TryConvertToPkg(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1.Function{})
 
 	meta.AddLabels(pr, pkgMeta.GetLabels())
@@ -824,6 +852,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		return reconcile.Result{}, err
 	}
+
+	// Reset status fields we care about that were clobbered by the Update
+	// above.
+	pr.SetStatusPackage(imagePath)
+	pr.SetAppliedImageConfigRefs(appliedImageConfigs...)
 
 	// Check Crossplane constraints if they exist.
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
@@ -1025,7 +1058,7 @@ func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logg
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
 					log.Debug("Enqueuing provider revision for image config", "providerRevision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -1056,7 +1089,7 @@ func enqueueConfigurationRevisionsForImageConfig(kube client.Client, log logging
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
 					log.Debug("Enqueuing configuration revision for image config", "configurationRevision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -1087,7 +1120,7 @@ func enqueueFunctionRevisionsForImageConfig(kube client.Client, log logging.Logg
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
 					log.Debug("Enqueuing function revision for image config", "functionRevision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
