@@ -135,6 +135,9 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
+
+	GetStatusPackage() string
+	SetStatusPackage(s string)
 }
 
 // GetCondition of this Provider.
@@ -292,6 +295,16 @@ func (p *Provider) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// GetStatusPackage of this Provider.
+func (p *Provider) GetStatusPackage() string {
+	return p.Status.Package
+}
+
+// SetStatusPackage of this Provider.
+func (p *Provider) SetStatusPackage(s string) {
+	p.Status.Package = s
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -417,6 +430,16 @@ func (p *Configuration) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// GetStatusPackage of this Configuration.
+func (p *Configuration) GetStatusPackage() string {
+	return p.Status.Package
+}
+
+// SetStatusPackage of this Configuration.
+func (p *Configuration) SetStatusPackage(s string) {
+	p.Status.Package = s
+}
+
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
 // with runtime types.
 // +k8s:deepcopy-gen=false
@@ -494,6 +517,9 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
+
+	GetStatusPackage() string
+	SetStatusPackage(s string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -663,6 +689,16 @@ func (p *ProviderRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// GetStatusPackage of this ProviderRevision.
+func (p *ProviderRevision) GetStatusPackage() string {
+	return p.Status.Package
+}
+
+// SetStatusPackage of this ProviderRevision.
+func (p *ProviderRevision) SetStatusPackage(s string) {
+	p.Status.Package = s
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -788,6 +824,16 @@ func (p *ConfigurationRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
 // SetAppliedImageConfigRefs of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// GetStatusPackage of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetStatusPackage() string {
+	return p.Status.Package
+}
+
+// SetStatusPackage of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetStatusPackage(s string) {
+	p.Status.Package = s
 }
 
 // PackageRevisionList is the interface satisfied by package revision list
@@ -996,6 +1042,16 @@ func (f *Function) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	f.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// GetStatusPackage of this Function.
+func (f *Function) GetStatusPackage() string {
+	return f.Status.Package
+}
+
+// SetStatusPackage of this Function.
+func (f *Function) SetStatusPackage(s string) {
+	f.Status.Package = s
+}
+
 // GetCondition of this FunctionRevision.
 func (r *FunctionRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return r.Status.GetCondition(ct)
@@ -1161,6 +1217,16 @@ func (r *FunctionRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
 // SetAppliedImageConfigRefs of this FunctionRevision.
 func (r *FunctionRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	r.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// GetStatusPackage of this FunctionRevision.
+func (r *FunctionRevision) GetStatusPackage() string {
+	return r.Status.Package
+}
+
+// SetStatusPackage of this FunctionRevision.
+func (r *FunctionRevision) SetStatusPackage(s string) {
+	r.Status.Package = s
 }
 
 // GetRevisions of this ConfigurationRevisionList.

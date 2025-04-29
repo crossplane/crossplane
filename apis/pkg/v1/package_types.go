@@ -93,6 +93,11 @@ type PackageStatus struct {
 	// AppliedImageConfigRefs records any image configs that were applied in
 	// reconciling this package, and what they were used for.
 	AppliedImageConfigRefs []ImageConfigRef `json:"appliedImageConfigRefs,omitempty"`
+
+	// Package is the name of the package that was used for version
+	// resolution. It may be different from spec.package if the package path was
+	// rewritten using an image config.
+	Package string `json:"package,omitempty"`
 }
 
 // ImageConfigRef is a reference to an image config that indicates how the
