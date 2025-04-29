@@ -83,7 +83,7 @@ var _ xpkg.Fetcher = &MockFetcher{}
 type MockFetcher struct {
 	MockFetch func() (v1.Image, error)
 	MockHead  func(name.Reference) (*v1.Descriptor, error)
-	MockTags  func() ([]string, error)
+	MockTags  func(name.Reference) ([]string, error)
 }
 
 // NewMockFetchFn creates a new MockFetch function for MockFetcher.
@@ -107,11 +107,11 @@ func (m *MockFetcher) Head(_ context.Context, ref name.Reference, _ ...string) (
 }
 
 // NewMockTagsFn creates a new MockTags function for MockFetcher.
-func NewMockTagsFn(tags []string, err error) func() ([]string, error) {
-	return func() ([]string, error) { return tags, err }
+func NewMockTagsFn(tags []string, err error) func(name.Reference) ([]string, error) {
+	return func(_ name.Reference) ([]string, error) { return tags, err }
 }
 
 // Tags calls the underlying MockTags.
-func (m *MockFetcher) Tags(_ context.Context, _ name.Reference, _ ...string) ([]string, error) {
-	return m.MockTags()
+func (m *MockFetcher) Tags(_ context.Context, ref name.Reference, _ ...string) ([]string, error) {
+	return m.MockTags(ref)
 }
