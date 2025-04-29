@@ -116,4 +116,7 @@ const (
 	// ImageConfigReasonVerifyImage inidcates an image config was used to
 	// configure image verification.
 	ImageConfigReasonVerifyImage ImageConfigRefReason = "VerifyImage"
+	// ImageConfigReasonRewriteImage inidcates an image config was used to
+	// rewrite the image's path.
+	ImageConfigReasonRewriteImage ImageConfigRefReason = "RewriteImage"
 )

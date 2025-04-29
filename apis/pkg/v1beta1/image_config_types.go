@@ -76,6 +76,9 @@ type ImageConfigSpec struct {
 	// Verification contains the configuration for verifying the image.
 	// +optional
 	Verification *ImageVerification `json:"verification,omitempty"`
+	// RewriteImage defines how a matched image's path should be rewritten.
+	// +optional
+	RewriteImage *ImageRewrite `json:"rewriteImage,omitempty"`
 }
 
 // ImageMatch defines a rule for matching image.
@@ -127,4 +130,11 @@ type LocalSecretKeySelector struct {
 
 	// The key to select.
 	Key string `json:"key"`
+}
+
+// ImageRewrite defines how an image's path should be rewritten.
+type ImageRewrite struct {
+	// Prefix is the prefix that will replace the matched prefix in the image's
+	// path.
+	Prefix string `json:"prefix"`
 }

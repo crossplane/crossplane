@@ -95,6 +95,18 @@ spec:
                     - pullSecretRef
                     type: object
                 type: object
+              rewriteImage:
+                description: RewriteImage defines how a matched image's path should
+                  be rewritten.
+                properties:
+                  prefix:
+                    description: |-
+                      Prefix is the prefix that will replace the matched prefix in the image's
+                      path.
+                    type: string
+                required:
+                - prefix
+                type: object
               verification:
                 description: Verification contains the configuration for verifying
                   the image.
