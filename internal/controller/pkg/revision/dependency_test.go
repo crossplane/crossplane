@@ -214,6 +214,7 @@ func TestResolve(t *testing.T) {
 								},
 								{
 									Provider: ptr.To("not-here-2"),
+									Version:  ">= v2.0.0",
 								},
 							},
 						},
@@ -231,7 +232,7 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				total: 2,
-				err:   errors.Errorf(errFmtMissingDependencies, []string{"not-here-1", "not-here-2"}),
+				err:   errors.Errorf(errFmtMissingDependencies, `"not-here-1", "not-here-2" (>= v2.0.0)`),
 			},
 		},
 		"ErrorSelfExistMissingDependencies": {
@@ -319,7 +320,7 @@ func TestResolve(t *testing.T) {
 			want: want{
 				total:     3,
 				installed: 1,
-				err:       errors.Errorf(errFmtMissingDependencies, []string{"not-here-2", "not-here-3"}),
+				err:       errors.Errorf(errFmtMissingDependencies, `"not-here-2", "not-here-3"`),
 			},
 		},
 		"ErrorSelfExistInvalidDependencies": {
