@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -178,16 +179,16 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 
 		// If any direct dependencies are missing we skip checking for
 		// transitive ones.
-		var missing []string
+		var missing []dag.Node
 		for _, dep := range self.Dependencies {
 			if d.NodeExists(dep.Identifier()) {
 				installed++
 				continue
 			}
-			missing = append(missing, dep.Identifier())
+			missing = append(missing, &dep)
 		}
 		if installed != found {
-			return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, missing)
+			return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, NDependenciesAndSomeMore(3, missing))
 		}
 	}
 
@@ -198,15 +199,15 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, meta pkgmetav1.P
 	found = len(tree)
 	installed = found
 	// Check if any dependencies or transitive dependencies are missing (implied).
-	var missing []string
+	var missing []dag.Node
 	for _, imp := range implied {
 		if _, ok := tree[imp.Identifier()]; ok {
 			installed--
-			missing = append(missing, imp.Identifier())
+			missing = append(missing, imp)
 		}
 	}
 	if len(missing) != 0 {
-		return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, missing)
+		return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, NDependenciesAndSomeMore(3, missing))
 	}
 
 	// All of our dependencies and transitive dependencies must exist. Check
@@ -274,4 +275,18 @@ func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.Package
 		}
 	}
 	return nil
+}
+
+// NDependenciesAndSomeMore returns the first n dependencies in detail, and a
+// summary of how many more exist.
+func NDependenciesAndSomeMore(n int, d []dag.Node) string {
+	out := make([]string, len(d))
+	for i := range d {
+		if d[i].GetConstraints() == "" {
+			out[i] = fmt.Sprintf("%q", d[i].Identifier())
+			continue
+		}
+		out[i] = fmt.Sprintf("%q (%s)", d[i].Identifier(), d[i].GetConstraints())
+	}
+	return resource.StableNAndSomeMore(n, out)
 }
