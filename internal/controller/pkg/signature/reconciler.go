@@ -297,6 +297,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update package status")
 	}
 
+	pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+		Name:   ic,
+		Reason: v1.ImageConfigReasonVerifyImage,
+	})
+
 	ref, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug("Cannot parse package image reference", "error", err)

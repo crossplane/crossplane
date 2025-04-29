@@ -175,7 +175,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
-						want := testRevision(withSource("0"), withConditions(v1.VerificationIncomplete(errors.Wrap(errors.New("could not parse reference: 0"), errParseReference))))
+						want := testRevision(
+							withSource("0"),
+							withConditions(v1.VerificationIncomplete(errors.Wrap(errors.New("could not parse reference: 0"), errParseReference))),
+							withAppliedImageConfigRef(imageConfigName),
+						)
 						if diff := cmp.Diff(&want, o); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
 						}
@@ -204,7 +208,10 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
-						want := testRevision(withConditions(v1.VerificationIncomplete(errors.Wrap(errBoom, errGetConfigPullSecret))))
+						want := testRevision(
+							withConditions(v1.VerificationIncomplete(errors.Wrap(errBoom, errGetConfigPullSecret))),
+							withAppliedImageConfigRef(imageConfigName),
+						)
 
 						if diff := cmp.Diff(&want, o); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -245,7 +252,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
-						want := testRevision(withPullSecrets([]corev1.LocalObjectReference{{Name: "pull-secret-from-package"}}), withConditions(v1.VerificationSucceeded(imageConfigName)))
+						want := testRevision(
+							withPullSecrets([]corev1.LocalObjectReference{{Name: "pull-secret-from-package"}}),
+							withConditions(v1.VerificationSucceeded(imageConfigName)),
+							withAppliedImageConfigRef(imageConfigName),
+						)
 
 						if diff := cmp.Diff(&want, o); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -279,7 +290,10 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
-						want := testRevision(withConditions(v1.VerificationFailed(imageConfigName, errBoom)))
+						want := testRevision(
+							withConditions(v1.VerificationFailed(imageConfigName, errBoom)),
+							withAppliedImageConfigRef(imageConfigName),
+						)
 
 						if diff := cmp.Diff(&want, o); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -314,7 +328,10 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}),
 					MockStatusUpdate: func(_ context.Context, o client.Object, _ ...client.SubResourceUpdateOption) error {
-						want := testRevision(withConditions(v1.VerificationSucceeded(imageConfigName)))
+						want := testRevision(
+							withConditions(v1.VerificationSucceeded(imageConfigName)),
+							withAppliedImageConfigRef(imageConfigName),
+						)
 
 						if diff := cmp.Diff(&want, o); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -372,6 +389,15 @@ func withConditions(c ...xpv1.Condition) revisionOption {
 func withPullSecrets(pullSecrets []corev1.LocalObjectReference) revisionOption {
 	return func(r *v1.ConfigurationRevision) {
 		r.SetPackagePullSecrets(pullSecrets)
+	}
+}
+
+func withAppliedImageConfigRef(name string) revisionOption {
+	return func(r *v1.ConfigurationRevision) {
+		r.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   name,
+			Reason: v1.ImageConfigReasonVerifyImage,
+		})
 	}
 }
 

@@ -343,6 +343,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	var secrets []string
 	if pullSecretFromConfig != "" {
 		secrets = append(secrets, pullSecretFromConfig)
+		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   imageConfig,
+			Reason: v1.ImageConfigReasonPullSecretReference,
+		})
 	}
 	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
 	if err != nil {

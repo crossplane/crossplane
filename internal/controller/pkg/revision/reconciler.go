@@ -719,6 +719,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// excessive events in each reconcile, but once per image pull.
 			log.Debug("Selected pull secret from image config store", "image", pr.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
 			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
+			pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+				Name:   imageConfig,
+				Reason: v1.ImageConfigReasonPullSecretReference,
+			})
 		}
 
 		// Initialize parser backend to obtain package contents.
