@@ -217,8 +217,10 @@ spec:
             value: "true"
         {{- end }}
         volumeMounts:
-          - mountPath: /cache
+          - mountPath: /cache/xpkg
             name: package-cache
+          - mountPath: /cache/xfn
+            name: function-cache
           {{- if .Values.registryCaBundleConfig.name }}
           - mountPath: /certs
             name: ca-certs
@@ -242,6 +244,15 @@ spec:
         emptyDir:
           medium: {{ .Values.packageCache.medium }}
           sizeLimit: {{ .Values.packageCache.sizeLimit }}
+        {{- end }}
+      - name: function-cache
+        {{- if .Values.functionCache.pvc }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.functionCache.pvc }}
+        {{- else }}
+        emptyDir:
+          medium: {{ .Values.functionCache.medium }}
+          sizeLimit: {{ .Values.functionCache.sizeLimit }}
         {{- end }}
       {{- if .Values.registryCaBundleConfig.name }}
       - name: ca-certs

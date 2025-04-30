@@ -38,6 +38,22 @@ import (
 // extensions (i.e. Composition, XRDs, etc).
 const LabelAreaAPIExtensions = "apiextensions"
 
+// Tests that should be part of the test suite for the alpha function response
+// caching feature. There's no special tests for this; we just run the regular
+// test suite with caching enabled.
+const SuiteFunctionResponseCache = "function-response-cache"
+
+func init() {
+	environment.AddTestSuite(SuiteFunctionResponseCache,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-function-response-cache}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteFunctionResponseCache, config.TestSuiteDefault},
+		}),
+	)
+}
+
 var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 	APIVersion: "nop.crossplane.io/v1alpha1",
 	Kind:       "NopResource",

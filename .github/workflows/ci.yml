@@ -229,6 +229,7 @@ jobs:
           - base
           - package-dependency-updates
           - package-signature-verification
+          - function-response-cache
 
     steps:
       - name: Checkout

@@ -652,8 +652,8 @@ type RequestMeta struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// An opaque string identifying the content of the request. Two identical
-	// requests should have the same tag.
+	// An opaque string identifying a request. Requests with identical tags will
+	// be otherwise identical.
 	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
 }
 

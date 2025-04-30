@@ -147,6 +147,14 @@ packageCache:
   # -- The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume.
   configMap: ""
 
+functionCache:
+  # -- Set to `Memory` to hold the function cache in a RAM backed file system. Useful for Crossplane development.
+  medium: ""
+  # -- The size limit for the function cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory.
+  sizeLimit: 512Mi
+  # -- The name of a PersistentVolumeClaim to use as the function cache. Disables the default function cache `emptyDir` Volume.
+  pvc: ""
+
 resourcesRBACManager:
   limits:
     # -- CPU resource limits for the RBAC Manager pod.

@@ -18,12 +18,14 @@ package composite
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -318,8 +320,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
-		// TODO(negz): Generate a content-addressable tag for this request.
-		// Perhaps using https://github.com/cerbos/protoc-gen-go-hashpb ?
+		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
+
 		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
@@ -573,6 +575,20 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 
 	return result, nil
+}
+
+// Tag uniquely identifies a request. Two identical requests created by the
+// same Crossplane binary will produce identical tags. Different builds of
+// Crossplane may produce different tags for the same inputs. See the docs for
+// the Deterministic protobuf MarshalOption for more details.
+func Tag(req *fnv1.RunFunctionRequest) string {
+	m := proto.MarshalOptions{Deterministic: true}
+	b, err := m.Marshal(req)
+	if err != nil {
+		return ""
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
 }
 
 // ComposedFieldOwnerName generates a unique field owner name
