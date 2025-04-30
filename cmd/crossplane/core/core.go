@@ -227,6 +227,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		PollInterval:            c.PollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
 		Features:                &feature.Flags{},
+		NamespacedEvents:        c.NamespaceRestricted,
 	}
 
 	if !c.EnableCompositionRevisions {
