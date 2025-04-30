@@ -78,6 +78,9 @@ and their default values.
 | `extraVolumeMountsCrossplane` | Add custom `volumeMounts` to the Crossplane pod. | `{}` |
 | `extraVolumesCrossplane` | Add custom `volumes` to the Crossplane pod. | `{}` |
 | `function.packages` | A list of Function packages to install | `[]` |
+| `functionCache.medium` | Set to `Memory` to hold the function cache in a RAM backed file system. Useful for Crossplane development. | `""` |
+| `functionCache.pvc` | The name of a PersistentVolumeClaim to use as the function cache. Disables the default function cache `emptyDir` Volume. | `""` |
+| `functionCache.sizeLimit` | The size limit for the function cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory. | `"512Mi"` |
 | `hostNetwork` | Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. Consider setting `dnsPolicy` to `ClusterFirstWithHostNet`. | `false` |
 | `image.pullPolicy` | The image pull policy used for Crossplane and RBAC Manager pods. | `"IfNotPresent"` |
 | `image.repository` | Repository for the Crossplane pod image. | `"xpkg.crossplane.io/crossplane/crossplane"` |

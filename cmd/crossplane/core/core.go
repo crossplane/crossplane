@@ -62,6 +62,7 @@ import (
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/xrd"
 	"github.com/crossplane/crossplane/internal/xfn"
+	"github.com/crossplane/crossplane/internal/xfn/cached"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -90,11 +91,16 @@ type startCommand struct {
 
 	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                         short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
-	CacheDir       string `default:"/cache"                env:"CACHE_DIR"                                                          help:"Directory used for caching package images."                         short:"c"`
 	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                    short:"l"`
 	Registry       string `default:"${default_registry}"   env:"REGISTRY"                                                           help:"Default registry used to fetch packages when not specified in tag." short:"r"`
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
+
+	XpkgCacheDir string `default:"/cache/xpkg" env:"XPKG_CACHE_DIR" help:"Directory used for caching package images."`
+	XfnCacheDir  string `default:"/cache/xfn"  env:"XFN_CACHE_DIR"  help:"Directory used for caching function responses. Only used when --enable-function-response-cache is set."`
+
+	// Deprecated: Use XpkgCacheDir. Kept for backward compatibility.
+	CacheDir string `env:"CACHE_DIR" hidden:"" short:"c"`
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
@@ -118,6 +124,7 @@ type startCommand struct {
 	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableSignatureVerification     bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
+	EnableFunctionResponseCache     bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
@@ -229,6 +236,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
 	}
 
+	if c.CacheDir != "" {
+		log.Info("The --cache-dir flag is deprecated and will be removed in a future release. Use --xpkg-cache-dir instead.")
+		c.XpkgCacheDir = c.CacheDir
+	}
+
 	// TODO(negz): Include a link to a migration guide.
 	if c.EnableEnvironmentConfigs {
 		//nolint:revive // This is long. It's easier to read with punctuation.
@@ -244,18 +256,39 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot load client TLS certificates")
 	}
 
-	xfnm := xfn.NewPrometheusMetrics()
-	metrics.Registry.MustRegister(xfnm)
+	pfrm := xfn.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(pfrm)
 
 	// We want all XR controllers to share the same gRPC clients.
-	functionRunner := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+	pfr := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
 		xfn.WithLogger(log),
 		xfn.WithTLSConfig(clienttls),
-		xfn.WithInterceptorCreators(xfnm),
+		xfn.WithInterceptorCreators(pfrm),
 	)
 
 	// Periodically remove clients for Functions that no longer exist.
-	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
+	go pfr.GarbageCollectConnections(ctx, 10*time.Minute)
+
+	var runner xfn.FunctionRunner = pfr
+
+	if c.EnableFunctionResponseCache {
+		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
+
+		cfrm := cached.NewPrometheusMetrics()
+		metrics.Registry.MustRegister(cfrm)
+
+		// Wrap the packaged function runner with a caching one.
+		cfr := cached.NewFileBackedRunner(pfr, c.XfnCacheDir,
+			cached.WithLogger(log),
+			cached.WithMetrics(cfrm),
+		)
+
+		// Periodically delete expired cache entries.
+		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
+
+		runner = cfr
+	}
 
 	if c.EnableCompositionWebhookSchemaValidation {
 		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
@@ -405,7 +438,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	ao := apiextensionscontroller.Options{
 		Options:          o,
 		ControllerEngine: ce,
-		FunctionRunner:   functionRunner,
+		FunctionRunner:   runner,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
@@ -425,7 +458,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	po := pkgcontroller.Options{
 		Options:                             o,
-		Cache:                               xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
+		Cache:                               xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
 		Namespace:                           c.Namespace,
 		ServiceAccount:                      c.ServiceAccount,
 		DefaultRegistry:                     c.Registry,
@@ -443,7 +476,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// ".sigstore/root" is coming from: https://github.com/sigstore/sigstore/blob/ecaaf75cf3a942cf224533ae15aee6eec19dc1e2/pkg/tuf/client.go#L558
 	// Check the following to read more about what TUF is and why it exists
 	// in this context: https://blog.sigstore.dev/the-update-framework-and-you-2f5cbaa964d5/
-	if err = os.Setenv("TUF_ROOT", filepath.Join(c.CacheDir, ".sigstore", "root")); err != nil {
+	if err = os.Setenv("TUF_ROOT", filepath.Join(c.XpkgCacheDir, ".sigstore", "root")); err != nil {
 		return errors.Wrap(err, "cannot set TUF_ROOT environment variable")
 	}
 
