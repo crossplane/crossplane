@@ -10,6 +10,14 @@ revisionHistoryLimit: null
 # -- The deployment strategy for the Crossplane and RBAC Manager pods.
 deploymentStrategy: RollingUpdate
 
+# -- Deploy Crossplane in namespace-restricted mode.
+# This will:
+# - disable the RBAC manager pod
+# - disable webhooks
+# - add the --namespace-restricted option to the core crossplane pod
+# - restrict cluster-wide permissions on crossplane
+namespaceRestricted: false
+
 image:
   # -- Repository for the Crossplane pod image.
   repository: xpkg.crossplane.io/crossplane/crossplane
