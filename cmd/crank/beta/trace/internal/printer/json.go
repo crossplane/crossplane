@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
 )
 
 const (

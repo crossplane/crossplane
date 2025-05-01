@@ -225,3 +225,11 @@ func findHostPort(kindCfg *v1alpha4.Cluster, containerPort int32) (int32, error)
 	}
 	return 0, errors.Errorf("No host port found in kind config for container port: %v", containerPort)
 }
+
+// FindCrankBinary locates the crank binary for the current platform.
+// It searches in _output/bin/{os}_{arch}/crank relative to the project root.
+func FindCrankBinary(t *testing.T) string {
+	t.Helper()
+
+	return "./crank"
+}

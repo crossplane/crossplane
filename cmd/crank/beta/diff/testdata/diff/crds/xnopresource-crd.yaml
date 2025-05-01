@@ -1,0 +1,81 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: xnopresources.diff.example.org
+spec:
+  group: diff.example.org
+  names:
+    kind: XNopResource
+    listKind: XNopResourceList
+    plural: xnopresources
+    singular: xnopresource
+  scope: Cluster
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                coolField:
+                  type: string
+                environment:
+                  type: string
+                compositionRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                compositionSelector:
+                  type: object
+                  properties:
+                    matchLabels:
+                      type: object
+                      additionalProperties:
+                        type: string
+                resourceRefs:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - apiVersion
+                      - kind
+                      - name
+                    properties:
+                      apiVersion:
+                        type: string
+                      kind:
+                        type: string
+                      name:
+                        type: string
+                      namespace:
+                        type: string
+                      uid:
+                        type: string
+                      resourceVersion:
+                        type: string
+                      fieldPath:
+                        type: string
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time

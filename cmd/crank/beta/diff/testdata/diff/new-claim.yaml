@@ -1,0 +1,10 @@
+apiVersion: diff.example.org/v1alpha1
+kind: NopClaim
+metadata:
+  name: test-claim
+  namespace: existing-namespace
+spec:
+  compositionRef:
+    name: claim-composition
+  coolField: new-value
+

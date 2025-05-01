@@ -1,0 +1,15 @@
+apiVersion: nop.example.org/v1alpha1
+kind: XDownstreamEnvResource
+metadata:
+  annotations:
+    crossplane.io/composition-resource-name: env-resource
+  generateName: test-env-resource-
+  labels:
+    crossplane.io/composite: test-env-resource
+  name: test-env-resource
+spec:
+  forProvider:
+    configData: existing-config-value
+    environment: staging
+    region: us-west-2
+    serviceLevel: premium

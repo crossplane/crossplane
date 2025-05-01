@@ -92,7 +92,7 @@ func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[ru
 }
 
 // SchemaValidation validates the resources against the given CRDs.
-func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, errorOnMissingSchemas bool, skipSuccessLogs bool, w io.Writer) error { //nolint:gocognit // printing the output increases the cyclomatic complexity a little bit
+func SchemaValidation(ctx context.Context, resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, errorOnMissingSchemas bool, skipSuccessLogs bool, w io.Writer) error { //nolint:gocognit // printing the output increases the cyclomatic complexity a little bit
 	schemaValidators, structurals, err := newValidatorsAndStructurals(crds)
 	if err != nil {
 		return errors.Wrap(err, "cannot create schema validators")
@@ -126,7 +126,7 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 			}
 
 			celValidator := cel.NewValidator(s, true, celconfig.PerCallLimit)
-			re, _ = celValidator.Validate(context.TODO(), nil, s, resources[i].Object, nil, celconfig.PerCallLimit)
+			re, _ = celValidator.Validate(ctx, nil, s, resources[i].Object, nil, celconfig.PerCallLimit)
 			for _, e := range re {
 				rf++
 				if _, err := fmt.Fprintf(w, "[x] CEL validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
@@ -134,9 +134,11 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 				}
 			}
 
-			if rf == 0 && !skipSuccessLogs {
-				if _, err := fmt.Fprintf(w, "[✓] %s, %s validated successfully\n", r.GroupVersionKind().String(), getResourceName(r)); err != nil {
-					return errors.Wrap(err, errWriteOutput)
+			if rf == 0 {
+				if !skipSuccessLogs {
+					if _, err := fmt.Fprintf(w, "[✓] %s, %s validated successfully\n", r.GroupVersionKind().String(), getResourceName(r)); err != nil {
+						return errors.Wrap(err, errWriteOutput)
+					}
 				}
 			} else {
 				failure++

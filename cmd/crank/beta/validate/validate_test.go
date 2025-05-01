@@ -18,6 +18,7 @@ package validate
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1364,7 +1365,7 @@ func TestValidateResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			w := &bytes.Buffer{}
-			got := SchemaValidation(tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
+			got := SchemaValidation(context.Background(), tc.args.resources, tc.args.crds, tc.args.errorOnMissingSchemas, false, w)
 
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want error, +got error:\n%s", tc.reason, diff)

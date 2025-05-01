@@ -81,10 +81,16 @@ type Inputs struct {
 
 // Outputs contains all outputs from the render process.
 type Outputs struct {
+	// the rendered xr
 	CompositeResource *ucomposite.Unstructured
+	// the rendered mrs derived from the xr
 	ComposedResources []composed.Unstructured
-	Results           []unstructured.Unstructured
-	Context           *unstructured.Unstructured
+	// the Function results (not render results)
+	Results []unstructured.Unstructured
+	// the Crossplane context object
+	Context *unstructured.Unstructured
+	// the Function requirements
+	Requirements map[string]fnv1.Requirements
 
 	// TODO(negz): Allow returning desired XR connection details. Maybe as a
 	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
@@ -213,6 +219,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 
 	results := make([]unstructured.Unstructured, 0)
 	conditions := make([]xpv1.Condition, 0)
+	requirements := make(map[string]fnv1.Requirements)
 
 	// The Function context starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -297,11 +304,16 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			})
 		}
 
+		if rsp.GetRequirements() != nil {
+			requirements[fn.Step] = *rsp.GetRequirements()
+		}
+
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
 			switch rs.GetSeverity() { //nolint:exhaustive // We intentionally have a broad default case.
 			case fnv1.Severity_SEVERITY_FATAL:
-				return Outputs{}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
+				// Even in the fatal case, return requirements if they exist, so that the caller can try to satisfy them
+				return Outputs{Requirements: requirements}, errors.Errorf("pipeline step %q returned a fatal result: %s", fn.Step, rs.GetMessage())
 			default:
 				results = append(results, unstructured.Unstructured{Object: map[string]any{
 					"apiVersion": "render.crossplane.io/v1beta1",
@@ -375,7 +387,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		xr.SetConditions(c)
 	}
 
-	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
+	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results, Requirements: requirements}
 	if fctx != nil {
 		out.Context = &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "render.crossplane.io/v1beta1",

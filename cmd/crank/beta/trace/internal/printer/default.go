@@ -31,8 +31,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal/resource/xpkg"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-resource-staging
+  namespace: default
+  labels:
+    app: test-app
+    environment: staging
+data:
+  resource-data: "staging-external-resource-data"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-resource-testing
+  namespace: default
+  labels:
+    app: test-app
+    environment: testing
+data:
+  resource-data: "testing-external-resource-data"

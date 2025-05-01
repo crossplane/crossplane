@@ -1,0 +1,63 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.diff.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: diff.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+    - step: fetch-external-resources
+      functionRef:
+        name: function-extra-resources
+      input:
+        apiVersion: extra-resources.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          extraResources:
+            - apiVersion: v1
+              kind: ConfigMap
+              into: cfgMap
+              type: Selector
+              selector:
+                matchLabels:
+                  - key: app
+                    type: Value
+                    value: test-app
+                  - key: environment
+                    type: FromCompositeFieldPath
+                    valueFromFieldPath: spec.environment
+            - apiVersion: rbac.authorization.k8s.io/v1
+              kind: ClusterRole
+              # function-extra-resources only supports Cluster-scoped resources as name refs
+              into: namedClusterRole
+              type: Reference
+              ref:
+                name: external-named-clusterrole
+    - step: generate-resources
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: template.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            {{- /* we can't use the same call to 'index' on these because it goes map -> array -> map */ -}}
+            {{- $extras := index .context "apiextensions.crossplane.io/extra-resources" -}}
+            {{- $cfgMap := index $extras "cfgMap" 0 -}}
+            {{- $clusterRole := index $extras "namedClusterRole" 0 -}}
+            apiVersion: nop.example.org/v1alpha1
+            kind: XDownstreamResource
+            metadata:
+              name: {{ .observed.composite.resource.metadata.name }}
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: nop-resource
+            spec:
+              forProvider:
+                configData: {{ index $cfgMap "data" "resource-data" }}
+                roleName: {{ $clusterRole.metadata.name }}
+    - step: automatically-detect-ready-composed-resources
+      functionRef:
+        name: function-auto-ready

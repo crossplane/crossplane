@@ -1,0 +1,37 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xnopresources.diff.example.org
+spec:
+  group: diff.example.org
+  names:
+    kind: XNopResource
+    plural: xnopresources
+  claimNames:
+    kind: NopClaim
+    plural: nopclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                coolField:
+                  type: string
+                compositionRef:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                compositionSelector:
+                  type: object
+                  properties:
+                    matchLabels:
+                      type: object
+                      additionalProperties:
+                        type: string

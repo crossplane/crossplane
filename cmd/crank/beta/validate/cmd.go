@@ -18,6 +18,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -99,8 +101,8 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		c.CrossplaneImage = fmt.Sprintf("%s/crossplane/crossplane:%s", xpkg.DefaultRegistry, version.New().GetVersionString())
 	}
 
-	// Load all extensions
-	extensionLoader, err := NewLoader(c.Extensions)
+	// load all extensions
+	extensionLoader, err := internal.NewLoader(c.Extensions)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
@@ -110,8 +112,8 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 		return errors.Wrapf(err, "cannot load extensions from %q", c.Extensions)
 	}
 
-	// Load all resources
-	resourceLoader, err := NewLoader(c.Resources)
+	// load all resources
+	resourceLoader, err := internal.NewLoader(c.Resources)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load resources from %q", c.Resources)
 	}
@@ -139,7 +141,7 @@ func (c *Cmd) Run(k *kong.Context, _ logging.Logger) error {
 	}
 
 	// Validate resources against schemas
-	if err := SchemaValidation(resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
+	if err := SchemaValidation(context.Background(), resources, m.crds, c.ErrorOnMissingSchemas, c.SkipSuccessResults, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot validate resources")
 	}
 

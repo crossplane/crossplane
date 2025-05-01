@@ -1,0 +1,49 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xnopresources.diff.example.org
+spec:
+  group: diff.example.org
+  names:
+    kind: XNopResource
+    plural: xnopresources
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                coolField:
+                  type: string
+                environment:
+                  type: string
+            status:
+              type: object
+              properties:
+                conditions:
+                  description: Conditions of the resource.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - lastTransitionTime
+                      - reason
+                      - status
+                      - type
+                    properties:
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        type: string

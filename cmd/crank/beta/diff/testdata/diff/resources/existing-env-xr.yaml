@@ -1,0 +1,6 @@
+apiVersion: diff.example.org/v1alpha1
+kind: XEnvResource
+metadata:
+  name: test-env-resource
+spec:
+  configKey: "existing-config-value"

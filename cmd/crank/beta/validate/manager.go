@@ -29,9 +29,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	metav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/cmd/crank/beta/internal"
 )
 
 const (
@@ -89,48 +88,16 @@ func NewManager(cacheDir string, fs afero.Fs, w io.Writer, opts ...Option) *Mana
 }
 
 // PrepExtensions converts the unstructured XRDs/CRDs to CRDs and extract package images to add as a dependency.
-func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error { //nolint:gocognit // the function itself is not that complex, it just has different cases
+func (m *Manager) PrepExtensions(extensions []*unstructured.Unstructured) error {
+	convertedCRDs, err := internal.ConvertToCRDs(extensions)
+	if err != nil {
+		return err
+	}
+
+	m.crds = append(m.crds, convertedCRDs...)
+
 	for _, e := range extensions {
 		switch e.GroupVersionKind().GroupKind() {
-		case schema.GroupKind{Group: "apiextensions.k8s.io", Kind: "CustomResourceDefinition"}:
-			crd := &extv1.CustomResourceDefinition{}
-			bytes, err := e.MarshalJSON()
-			if err != nil {
-				return errors.Wrap(err, "cannot marshal CRD to JSON")
-			}
-
-			if err := yaml.Unmarshal(bytes, crd); err != nil {
-				return errors.Wrap(err, "cannot unmarshal CRD YAML")
-			}
-
-			m.crds = append(m.crds, crd)
-
-		case schema.GroupKind{Group: "apiextensions.crossplane.io", Kind: "CompositeResourceDefinition"}:
-			xrd := &v1.CompositeResourceDefinition{}
-			bytes, err := e.MarshalJSON()
-			if err != nil {
-				return errors.Wrap(err, "cannot marshal XRD to JSON")
-			}
-
-			if err := yaml.Unmarshal(bytes, xrd); err != nil {
-				return errors.Wrap(err, "cannot unmarshal XRD YAML")
-			}
-
-			crd, err := xcrd.ForCompositeResource(xrd)
-			if err != nil {
-				return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
-			}
-			m.crds = append(m.crds, crd)
-
-			if xrd.Spec.ClaimNames != nil {
-				claimCrd, err := xcrd.ForCompositeResourceClaim(xrd)
-				if err != nil {
-					return errors.Wrapf(err, "cannot derive claim CRD from XRD %q", xrd.GetName())
-				}
-
-				m.crds = append(m.crds, claimCrd)
-			}
-
 		case schema.GroupKind{Group: "pkg.crossplane.io", Kind: "Provider"}:
 			paved := fieldpath.Pave(e.Object)
 			image, err := paved.GetString("spec.package")

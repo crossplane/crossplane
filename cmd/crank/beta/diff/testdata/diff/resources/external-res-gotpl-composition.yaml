@@ -1,0 +1,45 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: templated-extra-resources.diff.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: diff.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+    - step: render-templates
+      functionRef:
+        name: function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |
+            ---
+            apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+            kind: ExtraResources
+            requirements:
+              configmaps:
+                apiVersion: v1
+                kind: ConfigMap
+                matchLabels:
+                  app: test-app
+                  environment: {{ .observed.composite.resource.spec.environment }}
+            {{- with .extraResources }}
+            {{ $configMaps := index . "configmaps" }}
+            {{- range $i, $configMap := $configMaps.items }}
+            ---
+            apiVersion: nop.example.org/v1alpha1
+            kind: XDownstreamResource
+            metadata:
+              name: {{ $.observed.composite.resource.metadata.name }}
+              annotations: 
+                gotemplating.fn.crossplane.io/composition-resource-name: nop-resource
+            spec:
+              forProvider:
+                configData: {{ $.observed.composite.resource.spec.coolField }}
+                roleName: templated-{{ $configMap.resource.metadata.name }}
+            {{- end }}
+            {{- end }}

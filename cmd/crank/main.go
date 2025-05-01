@@ -18,7 +18,11 @@ limitations under the License.
 package main
 
 import (
+	"os"
+
 	"github.com/alecthomas/kong"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -67,6 +71,7 @@ func main() {
 		// Binding a variable to kong context makes it available to all commands
 		// at runtime.
 		kong.BindTo(logger, (*logging.Logger)(nil)),
+		kong.BindToProvider(getRestConfig),
 		kong.ConfigureHelp(kong.HelpOptions{
 			FlagsLast:      true,
 			Compact:        true,
@@ -75,4 +80,8 @@ func main() {
 		kong.UsageOnError())
 	err := ctx.Run()
 	ctx.FatalIfErrorf(err)
+}
+
+func getRestConfig() (*rest.Config, error) {
+	return clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 }

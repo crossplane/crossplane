@@ -1,0 +1,34 @@
++++ NopResource/new-resource-(generated)
+[32m+ apiVersion: nop.crossplane.io/v1alpha1[0m
+[32m+ kind: NopResource[0m
+[32m+ metadata:[0m
+[32m+   annotations:[0m
+[32m+     cool-field: I'm new![0m
+[32m+     crossplane.io/composition-resource-name: nop-resource[0m
+[32m+     setting: value1[0m
+[32m+   generateName: new-resource-[0m
+[32m+   labels:[0m
+[32m+     crossplane.io/composite: new-resource[0m
+[32m+ spec:[0m
+[32m+   forProvider:[0m
+[32m+     conditionAfter:[0m
+[32m+     - conditionStatus: "True"[0m
+[32m+       conditionType: Ready[0m
+[32m+       time: 0s[0m
+
+---
++++ XNopResource/new-resource
+[32m+ apiVersion: diff.example.org/v1alpha1[0m
+[32m+ kind: XNopResource[0m
+[32m+ metadata:[0m
+[32m+   name: new-resource[0m
+[32m+ spec:[0m
+[32m+   coolField: I'm new![0m
+[32m+   parameters:[0m
+[32m+     config:[0m
+[32m+       setting1: value1[0m
+[32m+       setting2: value2[0m
+
+---
+
+Summary: 2 added
