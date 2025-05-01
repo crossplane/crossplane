@@ -96,8 +96,9 @@ type startCommand struct {
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
-	XpkgCacheDir string `default:"/cache/xpkg" env:"XPKG_CACHE_DIR" help:"Directory used for caching package images."`
-	XfnCacheDir  string `default:"/cache/xfn"  env:"XFN_CACHE_DIR"  help:"Directory used for caching function responses. Only used when --enable-function-response-cache is set."`
+	XpkgCacheDir   string        `default:"/cache/xpkg" env:"XPKG_CACHE_DIR"    help:"Directory used for caching package images."`
+	XfnCacheDir    string        `default:"/cache/xfn"  env:"XFN_CACHE_DIR"     help:"Directory used for caching function responses."`
+	XfnCacheMaxTTL time.Duration `default:"24h"         env:"XFN_CACHE_MAX_TTL" help:"Maximum TTL for cached function responses. Set to 0 to disable."`
 
 	// Deprecated: Use XpkgCacheDir. Kept for backward compatibility.
 	CacheDir string `env:"CACHE_DIR" hidden:"" short:"c"`

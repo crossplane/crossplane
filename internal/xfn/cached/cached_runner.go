@@ -88,6 +88,7 @@ type FunctionRunner interface {
 type FileBackedRunner struct {
 	wrapped FunctionRunner
 	fs      afero.Afero
+	maxTTL  time.Duration
 	log     logging.Logger
 	metrics Metrics
 }
@@ -106,6 +107,15 @@ func WithLogger(l logging.Logger) FileBackedRunnerOption {
 func WithMetrics(m Metrics) FileBackedRunnerOption {
 	return func(r *FileBackedRunner) {
 		r.metrics = m
+	}
+}
+
+// WithMaxTTL clamps the maximum TTL for cached responses. The maximum TTL will
+// be used to set the cache deadline for any response with a TTL greater than
+// the max.
+func WithMaxTTL(ttl time.Duration) FileBackedRunnerOption {
+	return func(r *FileBackedRunner) {
+		r.maxTTL = ttl
 	}
 }
 
@@ -239,6 +249,12 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	ttl := rsp.GetMeta().GetTtl().AsDuration()
 	if ttl == 0 {
 		return rsp, nil
+	}
+
+	// Clamp the TTL to the allowed maximum, if set.
+	if r.maxTTL > 0 && ttl > r.maxTTL {
+		log.Debug("RunFunctionResponse cache clamped response TTL", "requested-ttl", ttl, "clamped-ttl", r.maxTTL)
+		ttl = r.maxTTL
 	}
 
 	// Not all filesystems have btime, and Go doesn't expose a simple
