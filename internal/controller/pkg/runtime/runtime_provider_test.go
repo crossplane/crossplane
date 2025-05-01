@@ -851,6 +851,92 @@ func TestProviderDeactivateHook(t *testing.T) {
 				rev: &v1.ProviderRevision{},
 			},
 		},
+		"ErrDeleteServerSecret": {
+			reason: "Should return error if we fail to delete the TLS server secret.",
+			args: args{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-name"},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "server-tls"}}
+					},
+					TLSClientSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "client-tls"}}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*corev1.Secret); ok && obj.GetName() == "server-tls" {
+							return errBoom
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderSecret),
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-name"},
+				},
+			},
+		},
+		"ErrDeleteClientSecret": {
+			reason: "Should return error if we fail to delete the TLS client secret.",
+			args: args{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-name"},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "server-tls"}}
+					},
+					TLSClientSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "client-tls"}}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.SetOwnerReferences([]metav1.OwnerReference{{Controller: new(true)}})
+						return nil
+					}),
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*corev1.Secret); ok && obj.GetName() == "client-tls" {
+							return errBoom
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteProviderSecret),
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{Name: "some-name"},
+				},
+			},
+		},
 		"Successful": {
 			reason: "Should not return error if successfully deleted service account and deployment.",
 			args: args{
@@ -919,6 +1005,8 @@ func TestProviderDeactivateHook(t *testing.T) {
 							if obj.GetName() != "some-name" {
 								return errors.New("unexpected service name")
 							}
+							return nil
+						case *corev1.Secret:
 							return nil
 						}
 						return errors.New("unexpected object type")

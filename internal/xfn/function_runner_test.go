@@ -50,9 +50,9 @@ func TestRunFunction(t *testing.T) {
 	}
 
 	type args struct {
-		ctx  context.Context
-		name string
-		req  *fnv1.RunFunctionRequest
+		ctx context.Context
+		pkg string
+		req *fnv1.RunFunctionRequest
 	}
 
 	type want struct {
@@ -74,11 +74,11 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
+				ctx: context.Background(),
+				pkg: "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errBoom, errListFunctionRevisions), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Wrap(errBoom, errListFunctionRevisions), errFmtGetClientConn, "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0"),
 			},
 		},
 		"NoActiveRevisions": {
@@ -90,6 +90,7 @@ func TestRunFunction(t *testing.T) {
 							{
 								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										Package:      "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 										DesiredState: pkgv1.PackageRevisionInactive, // This revision is not active.
 									},
 								},
@@ -100,11 +101,11 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
+				ctx: context.Background(),
+				pkg: "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 			},
 			want: want{
-				err: errors.Wrapf(errors.New(errNoActiveRevisions), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.New(errNoActiveRevisions), errFmtGetClientConn, "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0"),
 			},
 		},
 		"ActiveRevisionHasNoEndpoint": {
@@ -119,6 +120,7 @@ func TestRunFunction(t *testing.T) {
 								},
 								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										Package:      "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 										DesiredState: pkgv1.PackageRevisionActive,
 									},
 								},
@@ -132,11 +134,11 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
+				ctx: context.Background(),
+				pkg: "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtGetClientConn, "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0"),
 			},
 		},
 		"SuccessfulRequest": {
@@ -163,6 +165,7 @@ func TestRunFunction(t *testing.T) {
 								},
 								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										Package:      "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 										DesiredState: pkgv1.PackageRevisionActive,
 									},
 								},
@@ -176,9 +179,9 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
-				req:  &fnv1.RunFunctionRequest{},
+				ctx: context.Background(),
+				pkg: "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
@@ -210,6 +213,7 @@ func TestRunFunction(t *testing.T) {
 								},
 								Spec: pkgv1.FunctionRevisionSpec{
 									PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+										Package:      "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 										DesiredState: pkgv1.PackageRevisionActive,
 									},
 								},
@@ -223,9 +227,9 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 			args: args{
-				ctx:  context.Background(),
-				name: "cool-fn",
-				req:  &fnv1.RunFunctionRequest{},
+				ctx: context.Background(),
+				pkg: "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
+				req: &fnv1.RunFunctionRequest{},
 			},
 			want: want{
 				rsp: &fnv1.RunFunctionResponse{
@@ -238,7 +242,7 @@ func TestRunFunction(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewPackagedFunctionRunner(tc.params.c, tc.params.o...)
-			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
+			rsp, err := r.RunFunction(tc.args.ctx, tc.args.pkg, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)
@@ -285,7 +289,7 @@ func TestGetClientConn(t *testing.T) {
 
 	// We should be able to create a new connection.
 	t.Run("CreateNewConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(context.Background(), "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -299,7 +303,7 @@ func TestGetClientConn(t *testing.T) {
 	// If we're called again and our FunctionRevision's endpoint hasn't changed,
 	// we should return our cached connection.
 	t.Run("ReuseExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(context.Background(), "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -322,7 +326,7 @@ func TestGetClientConn(t *testing.T) {
 	// If we're called again and our FunctionRevision's endpoint _has_ changed,
 	// we should close our cached connection and create a new one.
 	t.Run("ReplaceExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(context.Background(), "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0")
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -362,17 +366,22 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 
 	// Add our connection to our pool.
 	r.connsMx.Lock()
-	r.conns["cool-fn"] = conn
+	r.conns["xpkg.crossplane.io/example/cool-function:v1.0.0"] = conn
 	r.connsMx.Unlock()
 
 	ctx := context.Background()
 
 	t.Run("FunctionStillExistsDoNotGarbageCollect", func(t *testing.T) {
 		c.MockList = test.NewMockListFn(nil, func(obj client.ObjectList) error {
-			obj.(*pkgv1.FunctionList).Items = []pkgv1.Function{
+			obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
 				{
-					// This Function exists!
-					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn"},
+					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn-abc"},
+					Spec: pkgv1.FunctionRevisionSpec{
+						PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+							Package:      "xpkg.crossplane.io/example/cool-function:v1.0.0",
+							DesiredState: pkgv1.PackageRevisionActive,
+						},
+					},
 				},
 			}
 
@@ -422,6 +431,7 @@ func NewListFn(target string) test.MockListFn {
 				},
 				Spec: pkgv1.FunctionRevisionSpec{
 					PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+						Package:      "xpkg.crossplane.io/crossplane-contrib/cool-fn:v0.1.0",
 						DesiredState: pkgv1.PackageRevisionActive,
 					},
 				},

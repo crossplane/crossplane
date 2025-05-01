@@ -149,8 +149,16 @@ func WithManagingRevisionRuntimeSpec() ReconcilerOption {
 			prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 			if pwok && prok {
 				prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-				prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
-				prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
+
+				// TLS secrets are named after the revision rather than the
+				// package, since we may run more than one revision at once
+				// (e.g. multiple function revisions with active runtimes).
+				if pwr.NeedsTLSServerSecret() {
+					prwr.SetTLSServerSecretName(v1.GetSecretNameWithSuffix(prwr.GetName(), v1.TLSServerSecretNameSuffix))
+				}
+				if pwr.NeedsTLSClientSecret() {
+					prwr.SetTLSClientSecretName(v1.GetSecretNameWithSuffix(prwr.GetName(), v1.TLSClientSecretNameSuffix))
+				}
 			}
 		}
 	}
