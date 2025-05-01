@@ -42,6 +42,8 @@ const (
 	errNotFunction                            = "not a function package"
 	errDeleteFunctionDeployment               = "cannot delete function package deployment"
 	errDeleteFunctionSA                       = "cannot delete function package service account"
+	errDeleteFunctionService                  = "cannot delete function package service"
+	errDeleteFunctionSecret                   = "cannot delete function package secret"
 	errApplyFunctionDeployment                = "cannot apply function package deployment"
 	errApplyFunctionSecret                    = "cannot apply function package secret"
 	errApplyFunctionSA                        = "cannot apply function package service account"
@@ -85,7 +87,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	// post establish.
 	// As a rule of thumb, we create objects named after the package in the
 	// pre hook and objects named after the package revision in the post hook.
-	svc := build.Service(functionServiceOverrides()...)
+	svc := build.Service(functionServiceOverrides(pr.GetName())...)
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}
@@ -158,7 +160,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 }
 
 // Deactivate performs operations meant to happen before deactivating a revision.
-func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	sa := build.ServiceAccount()
 	// Delete the deployment if it exists.
 	// Different from the Post runtimeHook, we don't need to pass the
@@ -168,6 +170,16 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 		return errors.Wrap(err, errDeleteFunctionDeployment)
 	}
 
+	// Delete the service if it exists.
+	if err := h.client.Delete(ctx, build.Service(functionServiceOverrides(pr.GetName())...)); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionService)
+	}
+
+	// Delete the TLS cert secret if it exists.
+	if err := h.client.Delete(ctx, build.TLSServerSecret()); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionSecret)
+	}
+
 	// NOTE(turkenh): We don't delete the service account here because it might
 	// be used by other package revisions, e.g. user might have specified a
 	// service account name in the runtime config. This should not be a problem
@@ -175,8 +187,6 @@ func (h *FunctionHooks) Deactivate(ctx context.Context, _ v1.PackageRevisionWith
 	// them, and they will be garbage collected when the package revision is
 	// deleted if they are not used by any other package revisions.
 
-	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
-	// we're not deleting them here.
 	return nil
 }
 
@@ -195,8 +205,14 @@ func functionDeploymentOverrides(image string) []DeploymentOverride {
 	return do
 }
 
-func functionServiceOverrides() []ServiceOverride {
+func functionServiceOverrides(svcName string) []ServiceOverride {
 	return []ServiceOverride{
+		// Function services are named after the revision rather than the
+		// package, since multiple revisions can be active at once. The
+		// deployment runtime config can override this, so use the Optional
+		// variant of the override.
+		ServiceWithOptionalName(svcName),
+
 		// We want a headless service so that our gRPC client (i.e. the Crossplane
 		// FunctionComposer) can load balance across the endpoints.
 		// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services

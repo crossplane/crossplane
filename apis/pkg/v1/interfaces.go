@@ -74,9 +74,8 @@ type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
 
-	GetTLSServerSecretName() *string
-
-	GetTLSClientSecretName() *string
+	NeedsTLSServerSecret() bool
+	NeedsTLSClientSecret() bool
 }
 
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
@@ -291,14 +290,14 @@ func (p *Provider) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
-// GetTLSServerSecretName of this Provider.
-func (p *Provider) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSServerSecretNameSuffix)
+// NeedsTLSServerSecret of this Provider.
+func (p *Provider) NeedsTLSServerSecret() bool {
+	return true
 }
 
-// GetTLSClientSecretName of this Provider.
-func (p *Provider) GetTLSClientSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
+// NeedsTLSClientSecret of this Provider.
+func (p *Provider) NeedsTLSClientSecret() bool {
+	return true
 }
 
 // GetAppliedImageConfigRefs of this Provider.
@@ -1072,14 +1071,14 @@ func (f *Function) SetCommonLabels(l map[string]string) {
 	f.Spec.CommonLabels = l
 }
 
-// GetTLSServerSecretName of this Function.
-func (f *Function) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(f.GetName(), TLSServerSecretNameSuffix)
+// NeedsTLSServerSecret of this Function.
+func (f *Function) NeedsTLSServerSecret() bool {
+	return true
 }
 
-// GetTLSClientSecretName of this Function.
-func (f *Function) GetTLSClientSecretName() *string {
-	return nil
+// NeedsTLSClientSecret of this Function.
+func (f *Function) NeedsTLSClientSecret() bool {
+	return false
 }
 
 // GetAppliedImageConfigRefs of this Function.
