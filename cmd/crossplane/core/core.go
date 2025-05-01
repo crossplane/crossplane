@@ -96,12 +96,7 @@ type startCommand struct {
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
-	XpkgCacheDir   string        `default:"/cache/xpkg" env:"XPKG_CACHE_DIR"    help:"Directory used for caching package images."`
-	XfnCacheDir    string        `default:"/cache/xfn"  env:"XFN_CACHE_DIR"     help:"Directory used for caching function responses."`
-	XfnCacheMaxTTL time.Duration `default:"24h"         env:"XFN_CACHE_MAX_TTL" help:"Maximum TTL for cached function responses. Set to 0 to disable."`
-
-	// Deprecated: Use XpkgCacheDir. Kept for backward compatibility.
-	CacheDir string `env:"CACHE_DIR" hidden:"" short:"c"`
+	XpkgCacheDir string `default:"/cache/xpkg" env:"XPKG_CACHE_DIR" help:"Directory used for caching package images."`
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
@@ -110,8 +105,7 @@ type startCommand struct {
 	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
-	WebhookEnabled                      bool `default:"true"  env:"WEBHOOK_ENABLED"                        help:"Enable webhook configuration."`
-	AutomaticDependencyDowngradeEnabled bool `default:"false" env:"AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED" help:"Enable automatic dependency version downgrades. This configuration requires the 'EnableDependencyVersionUpgrades' feature flag to be enabled."`
+	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
 	MetricsPort     int `default:"8080" env:"METRICS_PORT"      help:"The port the metrics server listens on."`
@@ -122,10 +116,14 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
-	EnableSignatureVerification     bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
-	EnableFunctionResponseCache     bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+	EnableExternalSecretStores        bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when a dependent package is updated."`
+	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
+	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
+	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+
+	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
+	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
@@ -146,6 +144,9 @@ type startCommand struct {
 	// explicit and informative error on startup, instead of a potentially
 	// surprising one later.
 	EnableEnvironmentConfigs bool `hidden:""`
+
+	// Deprecated: Use XpkgCacheDir. Kept for backward compatibility.
+	CacheDir string `env:"CACHE_DIR" hidden:"" short:"c"`
 }
 
 // Run core Crossplane controllers.
@@ -328,13 +329,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableBetaClaimSSA)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaClaimSSA)
 	}
-	if c.EnableDependencyVersionUpgrades {
+	// Enabling downgrades implicitly enables upgrades.
+	if c.EnableDependencyVersionUpgrades || c.EnableDependencyVersionDowngrades {
 		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
-
-		if c.AutomaticDependencyDowngradeEnabled {
-			log.Info("Automatic dependency downgrade is enabled.")
-		}
+	}
+	if c.EnableDependencyVersionDowngrades {
+		o.Features.Enable(features.EnableAlphaDependencyVersionDowngrades)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionDowngrades)
 	}
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
@@ -458,15 +460,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	po := pkgcontroller.Options{
-		Options:                             o,
-		Cache:                               xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
-		Namespace:                           c.Namespace,
-		ServiceAccount:                      c.ServiceAccount,
-		DefaultRegistry:                     c.Registry,
-		FetcherOptions:                      []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-		PackageRuntime:                      pr,
-		MaxConcurrentPackageEstablishers:    c.MaxConcurrentPackageEstablishers,
-		AutomaticDependencyDowngradeEnabled: c.AutomaticDependencyDowngradeEnabled,
+		Options:                          o,
+		Cache:                            xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
+		Namespace:                        c.Namespace,
+		ServiceAccount:                   c.ServiceAccount,
+		DefaultRegistry:                  c.Registry,
+		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		PackageRuntime:                   pr,
+		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
 	}
 
 	// We need to set the TUF_ROOT environment variable so that the TUF client
