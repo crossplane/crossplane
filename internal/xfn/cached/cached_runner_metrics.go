@@ -33,7 +33,7 @@ type NopMetrics struct{}
 func (m *NopMetrics) Hit(_ string) {}
 
 // Miss does nothing.
-func (m *NopMetrics) Miss(_ string, _ CacheMissReason) {}
+func (m *NopMetrics) Miss(_ string) {}
 
 // Error does nothing.
 func (m *NopMetrics) Error(_ string) {}
@@ -85,7 +85,7 @@ func NewPrometheusMetrics() *PrometheusMetrics {
 			Subsystem: "composition",
 			Name:      "run_function_response_cache_misses_total",
 			Help:      "Total number of RunFunctionResponse cache misses.",
-		}, []string{"function_name", "reason"}),
+		}, []string{"function_name"}),
 
 		errors: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Subsystem: "composition",
@@ -138,9 +138,9 @@ func (m *PrometheusMetrics) Hit(name string) {
 	m.hits.With(prometheus.Labels{"function_name": name}).Inc()
 }
 
-// Miss records a cache miss, and a reason.
-func (m *PrometheusMetrics) Miss(name string, r CacheMissReason) {
-	m.misses.With(prometheus.Labels{"function_name": name, "reason": string(r)}).Inc()
+// Miss records a cache miss.
+func (m *PrometheusMetrics) Miss(name string) {
+	m.misses.With(prometheus.Labels{"function_name": name}).Inc()
 }
 
 // Error records a cache error.

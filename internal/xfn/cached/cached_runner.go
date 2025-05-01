@@ -50,8 +50,8 @@ type Metrics interface { //nolint:interfacebloat // Only a little bit bloated. :
 	// Hit records a cache hit.
 	Hit(name string)
 
-	// Miss records a cache miss, and a reason.
-	Miss(name string, r CacheMissReason)
+	// Miss records a cache miss.
+	Miss(name string)
 
 	// Error records a cache error.
 	Error(name string)
@@ -146,7 +146,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	// cache the response. Just send it on. This should never happen.
 	if req.GetMeta().GetTag() == "" {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonEmptyRequestTag)
-		r.metrics.Miss(name, ReasonEmptyRequestTag)
+		r.metrics.Miss(name)
 		return r.wrapped.RunFunction(ctx, name, req)
 	}
 
@@ -156,12 +156,12 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	f, err := r.fs.Open(key)
 	if errors.Is(err, fs.ErrNotExist) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonNotCached)
-		r.metrics.Miss(name, ReasonNotCached)
+		r.metrics.Miss(name)
 		return r.CacheFunction(ctx, name, req)
 	}
 	if err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name, ReasonError)
+		r.metrics.Miss(name)
 		r.metrics.Error(name)
 		return r.CacheFunction(ctx, name, req)
 	}
@@ -171,7 +171,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	header := make([]byte, 8)
 	if _, err := f.Read(header); err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name, ReasonError)
+		r.metrics.Miss(name)
 		r.metrics.Error(name)
 		return r.CacheFunction(ctx, name, req)
 	}
@@ -181,7 +181,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	// Cached response has expired.
 	if time.Now().After(deadline) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonDeadlineExpired, "deadline", deadline)
-		r.metrics.Miss(name, ReasonDeadlineExpired)
+		r.metrics.Miss(name)
 		return r.CacheFunction(ctx, name, req)
 	}
 
@@ -189,7 +189,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	msg, err := io.ReadAll(f)
 	if err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name, ReasonError)
+		r.metrics.Miss(name)
 		r.metrics.Error(name)
 		return r.CacheFunction(ctx, name, req)
 	}
@@ -199,14 +199,14 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	// error and we'd return an empty response.
 	if len(msg) == 0 {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonEmptyResponse)
-		r.metrics.Miss(name, ReasonEmptyResponse)
+		r.metrics.Miss(name)
 		return r.CacheFunction(ctx, name, req)
 	}
 
 	rsp := &fnv1.RunFunctionResponse{}
 	if err := proto.Unmarshal(msg, rsp); err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name, ReasonError)
+		r.metrics.Miss(name)
 		r.metrics.Error(name)
 		return r.CacheFunction(ctx, name, req)
 	}
