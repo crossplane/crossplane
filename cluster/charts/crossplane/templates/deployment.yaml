@@ -212,10 +212,6 @@ spec:
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
         {{- end}}
-        {{- if .Values.packageManager.enableAutomaticDependencyDowngrade }}
-          - name: "AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED"
-            value: "true"
-        {{- end }}
         volumeMounts:
           - mountPath: /cache/xpkg
             name: package-cache

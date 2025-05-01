@@ -105,10 +105,6 @@ rbacManager:
   # -- Add `topologySpreadConstraints` to the RBAC Manager pod deployment.
   topologySpreadConstraints: []
 
-packageManager:
-  # -- Enable automatic dependency version downgrades. This configuration is only used when `--enable-dependency-version-upgrades` flag is passed.
-  enableAutomaticDependencyDowngrade: false
-
 # -- The PriorityClass name to apply to the Crossplane and RBAC Manager pods.
 priorityClassName: ""
 

@@ -30,6 +30,12 @@ const (
 	// upgrading the version of a package's dependencies when needed.
 	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
 
+	// EnableAlphaDependencyVersionDowngrades enables alpha support for
+	// downgrading the version of a package's dependencies when needed.
+	// It builds on EnableAlphaDependencyVersionUpgrades; both flags must
+	// be set to enable downgrades.
+	EnableAlphaDependencyVersionDowngrades feature.Flag = "EnableAlphaDependencyVersionDowngrades"
+
 	// EnableAlphaSignatureVerification enables alpha support for verifying
 	// the package signatures via ImageConfig API.
 	EnableAlphaSignatureVerification feature.Flag = "EnableAlphaSignatureVerification"
