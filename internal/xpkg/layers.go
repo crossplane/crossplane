@@ -19,17 +19,16 @@ package xpkg
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"io"
-	"io/fs"
+	"log"
 	"os"
-	"path/filepath"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/spf13/afero"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 )
@@ -168,37 +167,33 @@ func AnnotateLayers(i v1.Image) (v1.Image, error) {
 // ImageFromFiles creates a v1.Image from arbitrary files on disk.
 // Each top-level directory at `root` is a separate layer.
 // The function performs no interpretation (parsing) of the files.
-func ImageFromFiles(root string) (v1.Image, error) {
+func ImageFromFiles(baseFs afero.Fs, root string) (v1.Image, error) {
 	extManifest := empty.Image
 
-	entries, err := os.ReadDir(root)
+	entries, err := afero.ReadDir(baseFs, root)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
+			log.Printf("warning: skipping top-level file %s\n", entry.Name())
 			continue
 		}
 
-		curDir := filepath.Join(root, entry.Name())
-
-		// Since there is an arbitrary directory of mostly small files, we'll
-		// forego streaming in-memory at the expense of some disk I/O with temporary tarballs.
-		tmpFile, err := os.CreateTemp("", "extension-*.tar")
+		src, err := FSToTar(afero.NewBasePathFs(baseFs, entry.Name()), entry.Name())
 		if err != nil {
 			return nil, err
 		}
-		defer func() { _ = tmpFile.Close() }()
-		if err := createTarball(curDir, tmpFile.Name()); err != nil {
-			return nil, err
-		}
 
-		// Create layer from the tarball file
-		layer, err := tarball.LayerFromFile(tmpFile.Name())
+		// Create extension layer from the in-memory tarball
+		layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(src)), nil
+		})
 		if err != nil {
 			return nil, err
 		}
+
 		// Append layer from the dir tarball
 		extManifest, err = mutate.Append(
 			extManifest,
@@ -215,55 +210,4 @@ func ImageFromFiles(root string) (v1.Image, error) {
 	}
 
 	return extManifest, nil
-}
-
-func createTarball(in string, out string) error {
-	f, err := os.Create(filepath.Clean(out))
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	gw := gzip.NewWriter(f)
-	defer func() { _ = gw.Close() }()
-
-	tw := tar.NewWriter(gw)
-	defer func() { _ = tw.Close() }()
-
-	return filepath.Walk(in, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Get the relative path
-		relPath, err := filepath.Rel(filepath.Dir(in), path)
-		if err != nil {
-			return err
-		}
-
-		// Create tar header
-		header, err := tar.FileInfoHeader(info, info.Name())
-		if err != nil {
-			return err
-		}
-		header.Name = relPath
-
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-
-		// If not a directory, write file content
-		if !info.IsDir() {
-			f, err := os.Open(filepath.Clean(path))
-			if err != nil {
-				return err
-			}
-			defer func() { _ = f.Close() }()
-
-			if _, err := io.Copy(tw, f); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
 }
