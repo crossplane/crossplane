@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/spf13/afero"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -62,6 +63,8 @@ func (c *appendCmd) AfterApply() error {
 		c.destRef = dest
 	}
 
+	c.fs = afero.NewBasePathFs(afero.NewOsFs(), c.ExtensionsRoot)
+
 	c.appender = xpkg.NewAppender(
 		c.keychain,
 		c.indexRef,
@@ -80,6 +83,7 @@ type appendCmd struct {
 	ExtensionsRoot string `default:"./extensions"                                                                              help:"An optional directory of arbitrary files for additional consumers of the package." placeholder:"PATH" type:"path"`
 
 	// Internal state. These aren't part of the user-exposed CLI structure.
+	fs       afero.Fs
 	indexRef name.Reference
 	destRef  name.Reference
 	keychain remote.Option
@@ -105,10 +109,10 @@ Examples:
 
 // Run executes the append command.
 func (c *appendCmd) Run(logger logging.Logger) error {
-	logger = logger.WithValues("cmd", "xpkg-append")
+	logger = logger.WithValues("cmd", "xpkg append")
 
 	// Create a layered v1.Image from the extensions root dir.
-	extManifest, err := xpkg.ImageFromFiles(c.ExtensionsRoot)
+	extManifest, err := xpkg.ImageFromFiles(c.fs, "/")
 	if err != nil {
 		return errors.Wrap(err, errCreateExtensionsTarball)
 	}
