@@ -112,7 +112,7 @@ spec:
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
           {{- else }}
-          - name: "WEBHOOK_ENABLED"
+          - name: "ENABLE_WEBHOOKS"
             value: "false"
           {{- end }}
           {{- if $externalSecretStoresEnabled }}
@@ -185,7 +185,7 @@ spec:
             value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
           {{- end}}
           {{- if not .Values.webhooks.enabled }}
-          - name: "WEBHOOK_ENABLED"
+          - name: "ENABLE_WEBHOOKS"
             value: "false"
           {{- end }}
           {{- if and .Values.webhooks.enabled .Values.webhooks.port }}
