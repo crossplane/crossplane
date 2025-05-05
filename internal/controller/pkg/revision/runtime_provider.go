@@ -296,7 +296,7 @@ func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWi
 func getProviderImage(pm *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
 	// Use the image from the status rather than the spec, since it may have
 	// been rewritten by an ImageConfig.
-	image := pr.GetStatusPackage()
+	image := pr.GetResolvedSource()
 	if pm.Spec.Controller.Image != nil {
 		image = *pm.Spec.Controller.Image
 	}

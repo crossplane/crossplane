@@ -218,7 +218,7 @@ func functionServiceOverrides() []ServiceOverride {
 func getFunctionImage(fm *pkgmetav1.Function, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
 	// Use the image from the status rather than the spec, since it may have
 	// been rewritten by an ImageConfig.
-	image := pr.GetStatusPackage()
+	image := pr.GetResolvedSource()
 	if fm.Spec.Image != nil {
 		image = *fm.Spec.Image
 	}

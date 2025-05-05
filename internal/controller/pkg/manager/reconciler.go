@@ -351,7 +351,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			Reason: v1.ImageConfigReasonRewriteImage,
 		})
 	}
-	p.SetStatusPackage(imagePath)
+	p.SetResolvedSource(imagePath)
 
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, imagePath)
 	if err != nil {
@@ -573,7 +573,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing provider for image config", "provider", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -604,7 +604,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 		var matches []reconcile.Request
 		for _, c := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(c.GetSource(), m.Prefix) || strings.HasPrefix(c.GetStatusPackage(), m.Prefix) {
+				if strings.HasPrefix(c.GetSource(), m.Prefix) || strings.HasPrefix(c.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing configuration for image config", "configuration", c.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name}})
 				}
@@ -635,7 +635,7 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 		var matches []reconcile.Request
 		for _, fn := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(fn.GetSource(), m.Prefix) || strings.HasPrefix(fn.GetStatusPackage(), m.Prefix) {
+				if strings.HasPrefix(fn.GetSource(), m.Prefix) || strings.HasPrefix(fn.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing function for image config", "function", fn.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: fn.Name}})
 				}

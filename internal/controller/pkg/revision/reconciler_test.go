@@ -1283,7 +1283,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetStatusPackage("new/image/path")
+								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
 									Reason: v1.ImageConfigReasonRewriteImage,
@@ -1334,7 +1334,7 @@ func TestReconcile(t *testing.T) {
 								pr := o.(*v1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetStatusPackage("new/image/path")
+								pr.SetResolvedSource("new/image/path")
 								pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
 									Reason: v1.ImageConfigReasonRewriteImage,
@@ -1347,7 +1347,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Healthy())
-								want.SetStatusPackage("new/image/path")
+								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
 									Reason: v1.ImageConfigReasonRewriteImage,
@@ -1363,7 +1363,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetStatusPackage("new/image/path")
+								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
 									Reason: v1.ImageConfigReasonRewriteImage,
