@@ -444,7 +444,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 	// Rewrite the image path if necessary. We need to do this before looking
 	// for pull secrets, since the rewritten path may use different secrets than
 	// the original.
-	rewriteConfig, newPath, err := r.config.RewritePath(ctx, ref.String())
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot rewrite image path using config", "error", err)
 		return "", errors.Wrap(err, errRewriteImage)
@@ -465,7 +465,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 
 	var s []string
 	if ps != "" {
-		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfig)
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
 	}
 	// NOTE(hasheddan): we will be unable to fetch tags for private
@@ -514,7 +514,7 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 	// Rewrite the image path if necessary. We need to do this before looking
 	// for pull secrets, since the rewritten path may use different secrets than
 	// the original.
-	rewriteConfig, newPath, err := r.config.RewritePath(ctx, ref.String())
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot rewrite image path using config", "error", err)
 		return "", errors.Wrap(err, errRewriteImage)
@@ -535,7 +535,7 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 
 	var s []string
 	if ps != "" {
-		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfig)
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
 	}
 
