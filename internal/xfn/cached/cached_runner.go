@@ -264,7 +264,7 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	// timestamp header and the protobuf message body.
 	deadline := time.Now().Add(ttl)
 	header := make([]byte, 8)
-	binary.LittleEndian.PutUint64(header, uint64(time.Now().Add(ttl).Unix())) //nolint:gosec // False positive for G115.
+	binary.LittleEndian.PutUint64(header, uint64(deadline.Unix())) //nolint:gosec // False positive for G115.
 
 	msg, err := proto.Marshal(rsp)
 	if err != nil {
