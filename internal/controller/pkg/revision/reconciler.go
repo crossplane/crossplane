@@ -609,8 +609,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Ensure the rewritten image path is persisted before we proceed.
-	if pr.GetStatusPackage() != imagePath {
-		pr.SetStatusPackage(imagePath)
+	if pr.GetResolvedSource() != imagePath {
+		pr.SetResolvedSource(imagePath)
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -1054,7 +1054,7 @@ func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logg
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing provider revision for image config", "providerRevision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -1085,7 +1085,7 @@ func enqueueConfigurationRevisionsForImageConfig(kube client.Client, log logging
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing configuration revision for image config", "configurationRevision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -1116,7 +1116,7 @@ func enqueueFunctionRevisionsForImageConfig(kube client.Client, log logging.Logg
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetStatusPackage(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing function revision for image config", "functionRevision", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}

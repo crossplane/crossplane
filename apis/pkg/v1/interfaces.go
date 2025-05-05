@@ -136,8 +136,8 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
 
-	GetStatusPackage() string
-	SetStatusPackage(s string)
+	GetResolvedSource() string
+	SetResolvedSource(s string)
 }
 
 // GetCondition of this Provider.
@@ -295,13 +295,13 @@ func (p *Provider) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
-// GetStatusPackage of this Provider.
-func (p *Provider) GetStatusPackage() string {
+// GetResolvedSource of this Provider.
+func (p *Provider) GetResolvedSource() string {
 	return p.Status.Package
 }
 
-// SetStatusPackage of this Provider.
-func (p *Provider) SetStatusPackage(s string) {
+// SetResolvedSource of this Provider.
+func (p *Provider) SetResolvedSource(s string) {
 	p.Status.Package = s
 }
 
@@ -430,13 +430,13 @@ func (p *Configuration) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
-// GetStatusPackage of this Configuration.
-func (p *Configuration) GetStatusPackage() string {
+// GetResolvedSource of this Configuration.
+func (p *Configuration) GetResolvedSource() string {
 	return p.Status.Package
 }
 
-// SetStatusPackage of this Configuration.
-func (p *Configuration) SetStatusPackage(s string) {
+// SetResolvedSource of this Configuration.
+func (p *Configuration) SetResolvedSource(s string) {
 	p.Status.Package = s
 }
 
@@ -518,8 +518,8 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
 
-	GetStatusPackage() string
-	SetStatusPackage(s string)
+	GetResolvedSource() string
+	SetResolvedSource(s string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -689,13 +689,13 @@ func (p *ProviderRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
-// GetStatusPackage of this ProviderRevision.
-func (p *ProviderRevision) GetStatusPackage() string {
+// GetResolvedSource of this ProviderRevision.
+func (p *ProviderRevision) GetResolvedSource() string {
 	return p.Status.Package
 }
 
-// SetStatusPackage of this ProviderRevision.
-func (p *ProviderRevision) SetStatusPackage(s string) {
+// SetResolvedSource of this ProviderRevision.
+func (p *ProviderRevision) SetResolvedSource(s string) {
 	p.Status.Package = s
 }
 
@@ -826,13 +826,13 @@ func (p *ConfigurationRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
-// GetStatusPackage of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetStatusPackage() string {
+// GetResolvedSource of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetResolvedSource() string {
 	return p.Status.Package
 }
 
-// SetStatusPackage of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetStatusPackage(s string) {
+// SetResolvedSource of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetResolvedSource(s string) {
 	p.Status.Package = s
 }
 
@@ -1042,13 +1042,13 @@ func (f *Function) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	f.Status.SetAppliedImageConfigRefs(refs...)
 }
 
-// GetStatusPackage of this Function.
-func (f *Function) GetStatusPackage() string {
+// GetResolvedSource of this Function.
+func (f *Function) GetResolvedSource() string {
 	return f.Status.Package
 }
 
-// SetStatusPackage of this Function.
-func (f *Function) SetStatusPackage(s string) {
+// SetResolvedSource of this Function.
+func (f *Function) SetResolvedSource(s string) {
 	f.Status.Package = s
 }
 
@@ -1219,13 +1219,13 @@ func (r *FunctionRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	r.Status.SetAppliedImageConfigRefs(refs...)
 }
 
-// GetStatusPackage of this FunctionRevision.
-func (r *FunctionRevision) GetStatusPackage() string {
+// GetResolvedSource of this FunctionRevision.
+func (r *FunctionRevision) GetResolvedSource() string {
 	return r.Status.Package
 }
 
-// SetStatusPackage of this FunctionRevision.
-func (r *FunctionRevision) SetStatusPackage(s string) {
+// SetResolvedSource of this FunctionRevision.
+func (r *FunctionRevision) SetResolvedSource(s string) {
 	r.Status.Package = s
 }
 

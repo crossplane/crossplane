@@ -276,7 +276,7 @@ func TestReconcile(t *testing.T) {
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetConditions(v1.UnknownHealth())
 								want.SetConditions(v1.Active())
-								want.SetStatusPackage("new/image/path")
+								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
 									Reason: v1.ImageConfigReasonRewriteImage,
