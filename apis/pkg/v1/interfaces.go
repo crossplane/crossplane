@@ -297,12 +297,12 @@ func (p *Provider) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 
 // GetResolvedSource of this Provider.
 func (p *Provider) GetResolvedSource() string {
-	return p.Status.Package
+	return p.Status.ResolvedPackage
 }
 
 // SetResolvedSource of this Provider.
 func (p *Provider) SetResolvedSource(s string) {
-	p.Status.Package = s
+	p.Status.ResolvedPackage = s
 }
 
 // GetCondition of this Configuration.
@@ -432,12 +432,12 @@ func (p *Configuration) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 
 // GetResolvedSource of this Configuration.
 func (p *Configuration) GetResolvedSource() string {
-	return p.Status.Package
+	return p.Status.ResolvedPackage
 }
 
 // SetResolvedSource of this Configuration.
 func (p *Configuration) SetResolvedSource(s string) {
-	p.Status.Package = s
+	p.Status.ResolvedPackage = s
 }
 
 // PackageRevisionWithRuntime is the interface satisfied by revision of packages
@@ -691,12 +691,12 @@ func (p *ProviderRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 
 // GetResolvedSource of this ProviderRevision.
 func (p *ProviderRevision) GetResolvedSource() string {
-	return p.Status.Package
+	return p.Status.ResolvedPackage
 }
 
 // SetResolvedSource of this ProviderRevision.
 func (p *ProviderRevision) SetResolvedSource(s string) {
-	p.Status.Package = s
+	p.Status.ResolvedPackage = s
 }
 
 // GetCondition of this ConfigurationRevision.
@@ -828,12 +828,12 @@ func (p *ConfigurationRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef
 
 // GetResolvedSource of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetResolvedSource() string {
-	return p.Status.Package
+	return p.Status.ResolvedPackage
 }
 
 // SetResolvedSource of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetResolvedSource(s string) {
-	p.Status.Package = s
+	p.Status.ResolvedPackage = s
 }
 
 // PackageRevisionList is the interface satisfied by package revision list
@@ -1044,12 +1044,12 @@ func (f *Function) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 
 // GetResolvedSource of this Function.
 func (f *Function) GetResolvedSource() string {
-	return f.Status.Package
+	return f.Status.ResolvedPackage
 }
 
 // SetResolvedSource of this Function.
 func (f *Function) SetResolvedSource(s string) {
-	f.Status.Package = s
+	f.Status.ResolvedPackage = s
 }
 
 // GetCondition of this FunctionRevision.
@@ -1221,12 +1221,12 @@ func (r *FunctionRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 
 // GetResolvedSource of this FunctionRevision.
 func (r *FunctionRevision) GetResolvedSource() string {
-	return r.Status.Package
+	return r.Status.ResolvedPackage
 }
 
 // SetResolvedSource of this FunctionRevision.
 func (r *FunctionRevision) SetResolvedSource(s string) {
-	r.Status.Package = s
+	r.Status.ResolvedPackage = s
 }
 
 // GetRevisions of this ConfigurationRevisionList.
