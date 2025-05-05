@@ -480,7 +480,7 @@ func withAppliedImageConfigRef(name string) revisionOption {
 	return func(r *v1.ConfigurationRevision) {
 		r.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   name,
-			Reason: v1.ImageConfigReasonVerifyImage,
+			Reason: v1.ImageConfigReasonVerify,
 		})
 	}
 }

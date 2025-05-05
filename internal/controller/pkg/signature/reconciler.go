@@ -321,7 +321,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 		Name:   ic,
-		Reason: v1.ImageConfigReasonVerifyImage,
+		Reason: v1.ImageConfigReasonVerify,
 	})
 
 	pullSecrets := make([]string, 0, 2)

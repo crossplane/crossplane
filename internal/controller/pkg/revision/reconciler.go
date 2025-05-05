@@ -604,7 +604,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		imagePath = newPath
 		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   rewriteConfig,
-			Reason: v1.ImageConfigReasonRewriteImage,
+			Reason: v1.ImageConfigReasonRewrite,
 		})
 	}
 
@@ -750,7 +750,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 			pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 				Name:   pullSecretConfig,
-				Reason: v1.ImageConfigReasonPullSecretReference,
+				Reason: v1.ImageConfigReasonSetPullSecret,
 			})
 		}
 

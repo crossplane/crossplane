@@ -348,7 +348,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		imagePath = newPath
 		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   rewriteConfig,
-			Reason: v1.ImageConfigReasonRewriteImage,
+			Reason: v1.ImageConfigReasonRewrite,
 		})
 	}
 	p.SetResolvedSource(imagePath)
@@ -369,7 +369,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		secrets = append(secrets, pullSecretFromConfig)
 		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 			Name:   pullSecretConfig,
-			Reason: v1.ImageConfigReasonPullSecretReference,
+			Reason: v1.ImageConfigReasonSetPullSecret,
 		})
 	}
 	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
