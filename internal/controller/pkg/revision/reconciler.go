@@ -607,7 +607,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			Reason: v1.ImageConfigReasonRewriteImage,
 		})
 	}
-	pr.SetStatusPackage(imagePath)
+
+	// Ensure the rewritten image path is persisted before we proceed.
+	if pr.GetStatusPackage() != imagePath {
+		pr.SetStatusPackage(imagePath)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
 
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, imagePath)
 	if err != nil {
@@ -831,10 +836,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// The update below is going to clobber the status. Save the status fields
-	// we care about so we can reset them afterwards.
-	appliedImageConfigs := pr.GetAppliedImageConfigRefs()
-
 	pkgMeta, _ := xpkg.TryConvertToPkg(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1.Function{})
 
 	meta.AddLabels(pr, pkgMeta.GetLabels())
@@ -852,11 +853,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		return reconcile.Result{}, err
 	}
-
-	// Reset status fields we care about that were clobbered by the Update
-	// above.
-	pr.SetStatusPackage(imagePath)
-	pr.SetAppliedImageConfigRefs(appliedImageConfigs...)
 
 	// Check Crossplane constraints if they exist.
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {

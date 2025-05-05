@@ -1265,8 +1265,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"SuccessfulActiveRevisionRewriteImage": {
-			reason: "An active revision should install when its image is rewritten by an image config.",
+		"SuccessfulActiveRevisionImageConfigRewrite": {
+			reason: "An active revision should be updated when its image is rewritten by an image config.",
 			args: args{
 				mgr: &fake.Manager{},
 				rec: []ReconcilerOption{
@@ -1277,6 +1277,68 @@ func TestReconcile(t *testing.T) {
 								pr := o.(*v1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetStatusPackage("new/image/path")
+								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+									Name:   "imageConfigName",
+									Reason: v1.ImageConfigReasonRewriteImage,
+								})
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithEstablisher(NewMockEstablisher()),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(_ string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("imageConfigName", "new/image/path", nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"SuccessfulActiveRevisionImageConfigRewritten": {
+			reason: "An active revision should install when its image has been rewritten by an image config on a previous reconcile.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								pr.SetStatusPackage("new/image/path")
+								pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+									Name:   "imageConfigName",
+									Reason: v1.ImageConfigReasonRewriteImage,
+								})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
