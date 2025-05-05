@@ -70,7 +70,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							Package: "my-revision",
+							ResolvedPackage: "my-revision",
 						},
 					},
 				},
@@ -94,7 +94,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							Package:           "crossplane/provider-aws:latest",
+							ResolvedPackage:   "crossplane/provider-aws:latest",
 							CurrentRevision:   "return-me",
 							CurrentIdentifier: "crossplane/provider-aws:latest",
 						},
@@ -133,7 +133,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							Package: "registry.acme.co/crossplane/provider-aws:latest",
+							ResolvedPackage: "registry.acme.co/crossplane/provider-aws:latest",
 						},
 					},
 				},
@@ -157,7 +157,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							Package: "crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							ResolvedPackage: "crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 						},
 					},
 				},
@@ -185,7 +185,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							Package: "*THISISNOTVALID",
+							ResolvedPackage: "*THISISNOTVALID",
 						},
 					},
 				},
@@ -208,7 +208,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
-							Package: "test/test:test",
+							ResolvedPackage: "test/test:test",
 						},
 					},
 				},

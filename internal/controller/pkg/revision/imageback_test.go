@@ -92,7 +92,7 @@ func TestImageBackend(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: ":test",
+						ResolvedPackage: ":test",
 					},
 				})},
 			},
@@ -111,7 +111,7 @@ func TestImageBackend(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "test/test:latest",
+						ResolvedPackage: "test/test:latest",
 					},
 				})},
 			},
@@ -130,7 +130,7 @@ func TestImageBackend(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "test/test:latest",
+						ResolvedPackage: "test/test:latest",
 					},
 				})},
 			},
@@ -149,7 +149,7 @@ func TestImageBackend(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "test/test:latest",
+						ResolvedPackage: "test/test:latest",
 					},
 				})},
 			},
@@ -168,7 +168,7 @@ func TestImageBackend(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "test/test:latest",
+						ResolvedPackage: "test/test:latest",
 					},
 				})},
 			},

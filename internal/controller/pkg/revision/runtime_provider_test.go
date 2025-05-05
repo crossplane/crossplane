@@ -258,7 +258,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -287,7 +287,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderSA),
@@ -305,7 +305,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -337,7 +337,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderDeployment),
@@ -355,7 +355,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -384,7 +384,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				err: errors.New(errNoAvailableConditionProviderDeployment),
@@ -402,7 +402,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -439,7 +439,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				err: errors.Errorf(errFmtUnavailableProviderDeployment, errBoom.Error()),
@@ -457,7 +457,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -493,7 +493,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 			},
@@ -510,7 +510,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -549,7 +549,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 			},
@@ -566,7 +566,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -632,7 +632,7 @@ func TestProviderPostHook(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: providerImage,
+						ResolvedPackage: providerImage,
 					},
 				},
 			},
@@ -810,7 +810,7 @@ func TestGetProviderImage(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "crossplane/provider-bar:v1.2.3",
+						ResolvedPackage: "crossplane/provider-bar:v1.2.3",
 					},
 				},
 				defaultRegistry: "registry.default.io",
@@ -837,7 +837,7 @@ func TestGetProviderImage(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "crossplane/provider-bar:v1.2.3",
+						ResolvedPackage: "crossplane/provider-bar:v1.2.3",
 					},
 				},
 				defaultRegistry: "registry.default.io",
@@ -864,7 +864,7 @@ func TestGetProviderImage(t *testing.T) {
 						},
 					},
 					Status: v1.PackageRevisionStatus{
-						Package: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
+						ResolvedPackage: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
 					},
 				},
 				defaultRegistry: "registry.default.io",

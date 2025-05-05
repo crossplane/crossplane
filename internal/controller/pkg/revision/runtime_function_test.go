@@ -188,7 +188,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -219,7 +219,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -239,7 +239,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -273,7 +273,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -293,7 +293,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -324,7 +324,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -344,7 +344,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -383,7 +383,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -403,7 +403,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -441,7 +441,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -460,7 +460,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -501,7 +501,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -520,7 +520,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -576,7 +576,7 @@ func TestFunctionPostHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: functionImage,
+							ResolvedPackage: functionImage,
 						},
 					},
 				},
@@ -736,7 +736,7 @@ func TestGetFunctionImage(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: "crossplane/func-bar:v1.2.3",
+							ResolvedPackage: "crossplane/func-bar:v1.2.3",
 						},
 					},
 				},
@@ -763,7 +763,7 @@ func TestGetFunctionImage(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: "crossplane/func-bar:v1.2.3",
+							ResolvedPackage: "crossplane/func-bar:v1.2.3",
 						},
 					},
 				},
@@ -790,7 +790,7 @@ func TestGetFunctionImage(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						PackageRevisionStatus: v1.PackageRevisionStatus{
-							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
+							ResolvedPackage: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
 						},
 					},
 				},

@@ -260,12 +260,6 @@ spec:
                 description: Dependency information.
                 format: int64
                 type: integer
-              image:
-                description: |-
-                  Package is the name of the package that was installed. It may be
-                  different from spec.package if the package path was rewritten using an
-                  image config.
-                type: string
               installedDependencies:
                 format: int64
                 type: integer
@@ -351,6 +345,12 @@ spec:
                   - verbs
                   type: object
                 type: array
+              resolvedImage:
+                description: |-
+                  ResolvedPackage is the name of the package that was installed. It may be
+                  different from spec.package if the package path was rewritten using an
+                  image config.
+                type: string
             type: object
         type: object
     served: true
