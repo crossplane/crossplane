@@ -108,8 +108,8 @@ func (s *ImageConfigStore) RewritePath(ctx context.Context, image string) (image
 	}
 
 	if config == nil {
-		// No ImageConfig with a pull secret found for this image, this is not
-		// an error.
+		// No ImageConfig with a rewrite found for this image, this is not an
+		// error.
 		return "", "", nil
 	}
 
