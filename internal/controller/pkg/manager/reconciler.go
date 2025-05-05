@@ -394,7 +394,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
 	// Use the original source as the identifier, even if it was rewritten by
-	// ImageConfig.
+	// ImageConfig. The revisioning and dependency resolution logic are all
+	// based on the original package sources, so it's important that we preserve
+	// the original until it's time to actually pull an image.
 	p.SetCurrentIdentifier(p.GetSource())
 
 	pr := r.newPackageRevision()
@@ -489,7 +491,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetName(revisionName)
 	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
 	// Use the original source; the revision reconciler will rewrite it if
-	// needed.
+	// needed. The revision reconciler also inserts packages into the dependency
+	// manager's lock, which must use the original source to ensure dependency
+	// packages have the expected names even when rewritten.
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
