@@ -716,13 +716,13 @@ func TestImageConfigRewrite(t *testing.T) {
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.resolvedPackage", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.4.0"),
 				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.appliedImageConfigRefs[0].name", "e2e-rewrite"),
-				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.appliedImageConfigRefs[0].reason", string(pkgv1.ImageConfigReasonRewriteImage)),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "provider.yaml", "status.appliedImageConfigRefs[0].reason", string(pkgv1.ImageConfigReasonRewrite)),
 			)).
 			Assess("ConfigurationInstalledAndHealthy", funcs.AllOf(
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
 				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.resolvedPackage", "xpkg.upbound.io/awg-test/e2e-rewrite:v0.1.0"),
 				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.appliedImageConfigRefs[0].name", "e2e-rewrite"),
-				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.appliedImageConfigRefs[0].reason", string(pkgv1.ImageConfigReasonRewriteImage)),
+				funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "configuration.yaml", "status.appliedImageConfigRefs[0].reason", string(pkgv1.ImageConfigReasonRewrite)),
 			)).
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),

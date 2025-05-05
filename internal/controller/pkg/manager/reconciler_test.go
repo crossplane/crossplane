@@ -279,7 +279,7 @@ func TestReconcile(t *testing.T) {
 								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
-									Reason: v1.ImageConfigReasonRewriteImage,
+									Reason: v1.ImageConfigReasonRewrite,
 								})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

@@ -115,13 +115,13 @@ type ImageConfigRef struct {
 type ImageConfigRefReason string
 
 const (
-	// ImageConfigReasonPullSecretReference indicates an image config was used
-	// to configure the pull secret.
-	ImageConfigReasonPullSecretReference ImageConfigRefReason = "PullSecretReference"
-	// ImageConfigReasonVerifyImage inidcates an image config was used to
-	// configure image verification.
-	ImageConfigReasonVerifyImage ImageConfigRefReason = "VerifyImage"
-	// ImageConfigReasonRewriteImage inidcates an image config was used to
-	// rewrite the image's path.
-	ImageConfigReasonRewriteImage ImageConfigRefReason = "RewriteImage"
+	// ImageConfigReasonSetPullSecret indicates an image config was used to
+	// configure the pull secret.
+	ImageConfigReasonSetPullSecret ImageConfigRefReason = "SetImagePullSecret"
+	// ImageConfigReasonVerify inidcates an image config was used to configure
+	// image verification.
+	ImageConfigReasonVerify ImageConfigRefReason = "VerifyImage"
+	// ImageConfigReasonRewrite inidcates an image config was used to rewrite
+	// the image's path.
+	ImageConfigReasonRewrite ImageConfigRefReason = "RewriteImage"
 )
