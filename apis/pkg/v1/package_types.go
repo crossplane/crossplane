@@ -116,10 +116,10 @@ const (
 	// ImageConfigReasonSetPullSecret indicates an image config was used to
 	// configure the pull secret.
 	ImageConfigReasonSetPullSecret ImageConfigRefReason = "SetImagePullSecret"
-	// ImageConfigReasonVerify inidcates an image config was used to configure
+	// ImageConfigReasonVerify indicates an image config was used to configure
 	// image verification.
 	ImageConfigReasonVerify ImageConfigRefReason = "VerifyImage"
-	// ImageConfigReasonRewrite inidcates an image config was used to rewrite
+	// ImageConfigReasonRewrite indicates an image config was used to rewrite
 	// the image's path.
 	ImageConfigReasonRewrite ImageConfigRefReason = "RewriteImage"
 )

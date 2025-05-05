@@ -384,7 +384,7 @@ func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logge
 		var matches []reconcile.Request
 		for _, p := range l.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
-				// Validation is done base don the rewritten image path if
+				// Validation is done based on the rewritten image path if
 				// applicable, so we need to rewrite before checking whether the
 				// image config matches the package.
 				imagePath := p.GetSource()
