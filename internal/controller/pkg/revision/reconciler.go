@@ -590,7 +590,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// for pull secrets, since the rewritten path may use different secrets than
 	// the original.
 	imagePath := pr.GetSource()
-	rewriteConfig, newPath, err := r.config.RewritePath(ctx, imagePath)
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
 		pr.SetConditions(v1.Unpacking().WithMessage(err.Error()))
@@ -603,7 +603,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if newPath != "" {
 		imagePath = newPath
 		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-			Name:   rewriteConfig,
+			Name:   rewriteConfigName,
 			Reason: v1.ImageConfigReasonRewrite,
 		})
 	}
@@ -746,7 +746,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// We only record this event here, package is not in cache, and
 			// we are about to fetch the image. This way we avoid emitting
 			// excessive events in each reconcile, but once per image pull.
-			log.Debug("Selected pull secret from image config store", "image", imagePath, "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfig)
+			log.Debug("Selected pull secret from image config store", "image", imagePath, "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
 			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 			pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 				Name:   pullSecretConfig,
