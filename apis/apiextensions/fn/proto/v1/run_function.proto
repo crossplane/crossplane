@@ -16,6 +16,7 @@
 
 syntax = "proto3";
 
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
 package apiextensions.fn.proto.v1;
 
 import "google/protobuf/duration.proto";
