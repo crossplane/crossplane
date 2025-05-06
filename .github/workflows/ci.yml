@@ -428,29 +428,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Setup Buf
-        uses: bufbuild/buf-setup-action@76ddbd1bcb9da6da11cb7c41bd97e47f81c39a39 # v1.37.0
+      - name: Lint and Push Protocol Buffers
+        uses: bufbuild/buf-action@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Lint Protocol Buffers
-        uses: bufbuild/buf-lint-action@06f9dd823d873146471cfaaf108a993fe00e5325 # v1.1.1
-        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          pr_comment: false
           input: apis
 
-      # buf-breaking-action doesn't support branches
-      # https://github.com/bufbuild/buf-push-action/issues/34
-      - name: Detect Breaking Changes in Protocol Buffers
-        uses: bufbuild/buf-breaking-action@a074e988ee34efcd4927079e79c611f428354c01 # v1
-        # We want to run this for the main branch, and PRs against main.
-        if: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
-        with:
-          input: apis
-          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=main,subdir=apis"
-
-      - name: Push Protocol Buffers to Buf Schema Registry
-        if: ${{ github.repository == 'crossplane/crossplane' && github.ref == 'refs/heads/main' }}
-        uses: bufbuild/buf-push-action@a654ff18effe4641ebea4a4ce242c49800728459 # v1.2.0
-        with:
-          input: apis
-          buf_token: ${{ secrets.BUF_TOKEN }}

@@ -19,6 +19,8 @@
 // - protoc             (unknown)
 // source: apiextensions/fn/proto/v1/run_function.proto
 
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
+
 package v1
 
 import (

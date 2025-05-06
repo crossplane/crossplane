@@ -83,7 +83,7 @@ limitations under the License.
 // (or protoc) to invoke them.
 
 //go:generate go install google.golang.org/protobuf/cmd/protoc-gen-go google.golang.org/grpc/cmd/protoc-gen-go-grpc
-//go:generate go run github.com/bufbuild/buf/cmd/buf@v1.31.0 generate
+//go:generate go run github.com/bufbuild/buf/cmd/buf@v1.53.0 generate
 
 package apis
 
