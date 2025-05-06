@@ -433,4 +433,5 @@ jobs:
         with:
           token: ${{ secrets.BUF_TOKEN }}
           pr_comment: false
+          input: apis
 
