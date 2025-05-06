@@ -52,7 +52,6 @@ const (
 	errNewKubernetesClient   = "cannot create new Kubernetes clientset"
 	errGetVerificationConfig = "cannot get image verification config"
 	errGetConfigPullSecret   = "cannot get image config pull secret for image"
-	errRewriteImage          = "cannot rewrite image path using config"
 	errFailedVerification    = "signature verification failed"
 )
 
@@ -138,20 +137,18 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, "cannot create cosign validator")
 	}
 
-	configStore := xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)
-
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
 		For(&v1.ProviderRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ProviderRevisionList{}, configStore))
+		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ProviderRevisionList{}))
 
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
-		WithConfigStore(configStore),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
 	}
@@ -175,20 +172,18 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, "cannot create cosign validator")
 	}
 
-	configStore := xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)
-
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
 		For(&v1.ConfigurationRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ConfigurationRevisionList{}, configStore))
+		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.ConfigurationRevisionList{}))
 
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
-		WithConfigStore(configStore),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
 	}
@@ -212,20 +207,18 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, "cannot create cosign validator")
 	}
 
-	configStore := xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)
-
 	log := o.Logger.WithValues("controller", n)
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(n).
 		For(&v1.FunctionRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.FunctionRevisionList{}, configStore))
+		Watches(&v1beta1.ImageConfig{}, enqueuePackageRevisionsForImageConfig(mgr.GetClient(), log, &v1.FunctionRevisionList{}))
 
 	ro := []ReconcilerOption{
 		WithNewPackageRevisionFn(np),
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithDefaultRegistry(o.DefaultRegistry),
-		WithConfigStore(configStore),
+		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithValidator(cosignValidator),
 		WithLogger(log),
 	}
@@ -289,19 +282,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	// Rewrite the image path if necessary. We need to do this before looking
-	// for pull secrets or doing validation, since the rewritten path may use
-	// different secrets and validation configuration than the original.
-	imagePath := pr.GetSource()
-	_, newPath, err := r.config.RewritePath(ctx, imagePath)
-	if err != nil {
-		log.Debug("Cannot rewrite image path", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errRewriteImage)))
-		_ = r.client.Status().Update(ctx, pr)
-		return reconcile.Result{}, errors.Wrap(err, errRewriteImage)
-	}
-	if newPath != "" {
-		imagePath = newPath
+	imagePath := pr.GetResolvedSource()
+	if imagePath == "" {
+		// The revision reconciler hasn't yet resolved the image for this
+		// package; we can't verify the image until that's done.
+		log.Debug("Waiting for image resolution before verifying package revision")
+		return reconcile.Result{}, nil
 	}
 
 	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, imagePath)
@@ -324,6 +310,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		Reason: v1.ImageConfigReasonVerify,
 	})
 
+	ref, err := name.ParseReference(imagePath, name.WithDefaultRegistry(r.registry))
+	if err != nil {
+		log.Debug("Cannot parse package image reference", "error", err)
+		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
+		_ = r.client.Status().Update(ctx, pr)
+		return reconcile.Result{}, errors.Wrap(err, errParseReference)
+	}
+
 	pullSecrets := make([]string, 0, 2)
 	for _, s := range pr.GetPackagePullSecrets() {
 		pullSecrets = append(pullSecrets, s.Name)
@@ -340,14 +334,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pullSecrets = append(pullSecrets, s)
 	}
 
-	ref, err := name.ParseReference(imagePath, name.WithDefaultRegistry(r.registry))
-	if err != nil {
-		log.Debug("Cannot parse package image reference", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
-		_ = r.client.Status().Update(ctx, pr)
-		return reconcile.Result{}, errors.Wrap(err, errParseReference)
-	}
-
 	if err = r.validator.Validate(ctx, ref, vc, pullSecrets...); err != nil {
 		log.Debug("Signature verification failed", "error", err)
 		pr.SetConditions(v1.VerificationFailed(ic, err))
@@ -361,45 +347,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with successful verification")
 }
 
-func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logger, list v1.PackageRevisionList, configStore xpkg.ConfigStore) handler.EventHandler {
+func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logger, list v1.PackageRevisionList) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 		ic, ok := o.(*v1beta1.ImageConfig)
 		if !ok {
 			return nil
 		}
-		// We only care about ImageConfigs with Cosign verification
-		// configured. If path rewriting config changes we'll end up with a new
-		// revision.
+		// We only care about ImageConfigs with Cosign verification configured.
 		if ic.Spec.Verification == nil {
 			return nil
 		}
-		// Enqueue all package revisions matching the prefixes in the ImageConfig.
+		// Enqueue all ProviderRevisions matching the prefixes in the ImageConfig.
 		l := list.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Guaranteed to be this type.
 		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list package revisions.
-			log.Debug("Cannot list package revisions while attempting to enqueue from ImageConfig", "error", err)
+			// Nothing we can do, except logging, if we can't list ProviderRevisions.
+			log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
 			return nil
 		}
 
 		var matches []reconcile.Request
 		for _, p := range l.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
-				// Validation is done based on the rewritten image path if
-				// applicable, so we need to rewrite before checking whether the
-				// image config matches the package.
-				imagePath := p.GetSource()
-				_, newPath, err := configStore.RewritePath(ctx, imagePath)
-				if err != nil {
-					// Nothing we can do other than log.
-					log.Debug("Cannot rewrite image path while attempting to enqueue from ImageConfig", "error", err)
-					return nil
-				}
-				if newPath != "" {
-					imagePath = newPath
-				}
-
-				if strings.HasPrefix(imagePath, m.Prefix) {
-					log.Debug("Enqueuing package revisions for image config", "package-revision", p.GetName(), "imageConfig", ic.Name)
+				if strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
+					log.Debug("Enqueuing provider revisions for image config", "provider-revision", p.GetName(), "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.GetName()}})
 				}
 			}

@@ -353,6 +353,10 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return errBoom
 					}}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					}),
 				},
 			},
 			want: want{
@@ -1884,6 +1888,10 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					}),
 				},
 			},
 		},
@@ -1912,6 +1920,10 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					}),
 				},
 			},
 		},
@@ -1939,6 +1951,10 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
+					}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
 					}),
 				},
 			},
