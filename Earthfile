@@ -135,6 +135,7 @@ go-modules:
 go-modules-tidy:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
+  COPY generate.go .
   COPY --dir apis/ cmd/ internal/ pkg/ test/ .
   RUN go mod tidy
   RUN go mod verify
@@ -146,9 +147,10 @@ go-generate:
   FROM +go-modules
   CACHE --id go-build --sharing shared /root/.cache/go-build
   COPY +kubectl-setup/kubectl /usr/local/bin/kubectl
+  COPY generate.go buf.yaml buf.gen.yaml .
   COPY --dir cluster/crd-patches cluster/crd-patches
   COPY --dir hack/ apis/ internal/ .
-  RUN go generate -tags 'generate' ./apis/...
+  RUN go generate -tags 'generate' .
   # TODO(negz): Can this move into generate.go? Ideally it would live there with
   # the code that actually generates the CRDs, but it depends on kubectl.
   RUN kubectl patch --local --type=json \
@@ -157,6 +159,7 @@ go-generate:
     --output=yaml > /tmp/patched.yaml \
     && mv /tmp/patched.yaml cluster/crds/pkg.crossplane.io_deploymentruntimeconfigs.yaml
   SAVE ARTIFACT apis/ AS LOCAL apis
+  SAVE ARTIFACT internal/ AS LOCAL internal
   SAVE ARTIFACT cluster/crds AS LOCAL cluster/crds
   SAVE ARTIFACT cluster/meta AS LOCAL cluster/meta
 
