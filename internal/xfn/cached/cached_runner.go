@@ -18,19 +18,19 @@ package cached
 
 import (
 	"context"
-	"encoding/binary"
-	"io"
 	"io/fs"
 	"path/filepath"
 	"time"
 
 	"github.com/spf13/afero"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
 )
 
 // A CacheMissReason indicates what caused a cache miss.
@@ -41,7 +41,6 @@ const (
 	ReasonNotCached       CacheMissReason = "NotCached"
 	ReasonDeadlineExpired CacheMissReason = "DeadlineExpired"
 	ReasonEmptyRequestTag CacheMissReason = "EmptyRequestTag"
-	ReasonEmptyResponse   CacheMissReason = "EmptyResponse"
 	ReasonError           CacheMissReason = "Error"
 )
 
@@ -163,7 +162,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	key := filepath.Join(name, req.GetMeta().GetTag())
 	log = log.WithValues("cache-key", key)
 
-	f, err := r.fs.Open(key)
+	b, err := r.fs.ReadFile(key)
 	if errors.Is(err, fs.ErrNotExist) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonNotCached)
 		r.metrics.Miss(name)
@@ -175,56 +174,29 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 		r.metrics.Error(name)
 		return r.CacheFunction(ctx, name, req)
 	}
-	defer f.Close() //nolint:errcheck // Only open for reading. Nothing useful to do with the error.
 
-	// The first 8 bytes of our file is always our deadline.
-	header := make([]byte, 8)
-	if _, err := f.Read(header); err != nil {
+	crsp := &v1alpha1.CachedRunFunctionResponse{}
+	if err := proto.Unmarshal(b, crsp); err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
 		r.metrics.Miss(name)
 		r.metrics.Error(name)
 		return r.CacheFunction(ctx, name, req)
 	}
 
-	deadline := time.Unix(int64(binary.LittleEndian.Uint64(header)), 0) //nolint:gosec // False positive for G115.
+	deadline := crsp.GetDeadline().AsTime()
 
-	// Cached response has expired.
+	// Cached response has expired. This also covers the case where the
+	// deadline isn't set - e.g. because we unmarshaled an empty file.
 	if time.Now().After(deadline) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonDeadlineExpired, "deadline", deadline)
 		r.metrics.Miss(name)
 		return r.CacheFunction(ctx, name, req)
 	}
 
-	// Everything after the first 8 bytes is our cached response.
-	msg, err := io.ReadAll(f)
-	if err != nil {
-		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name)
-		r.metrics.Error(name)
-		return r.CacheFunction(ctx, name, req)
-	}
-
-	// Our cached file is just 8 bytes of deadline, with no response. This
-	// is unlikely but if it did happen proto.Unmarshal would pass without
-	// error and we'd return an empty response.
-	if len(msg) == 0 {
-		log.Debug("RunFunctionResponse cache miss", "reason", ReasonEmptyResponse)
-		r.metrics.Miss(name)
-		return r.CacheFunction(ctx, name, req)
-	}
-
-	rsp := &fnv1.RunFunctionResponse{}
-	if err := proto.Unmarshal(msg, rsp); err != nil {
-		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name)
-		r.metrics.Error(name)
-		return r.CacheFunction(ctx, name, req)
-	}
-
 	log.Debug("RunFunctionResponse cache hit")
 	r.metrics.Hit(name)
 	r.metrics.ReadDuration(name, time.Since(start))
-	return rsp, nil
+	return crsp.GetResponse(), nil
 }
 
 // CacheFunction runs a function and caches its response if the TTL is non-zero.
@@ -258,15 +230,11 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	}
 
 	// Not all filesystems have btime, and Go doesn't expose a simple
-	// interface to get it. We just write our own at the beginning of the
-	// file. We use basic binary encoding (as opposed to gob or protobuf)
-	// because the fixed length makes it easy to slice the file into the
-	// timestamp header and the protobuf message body.
+	// interface to get it. So instead of adding TTL to btime at cache read
+	// time, we instead compute a deadline at write time and wrap the cached
+	// response.
 	deadline := time.Now().Add(ttl)
-	header := make([]byte, 8)
-	binary.LittleEndian.PutUint64(header, uint64(deadline.Unix())) //nolint:gosec // False positive for G115.
-
-	msg, err := proto.Marshal(rsp)
+	msg, err := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(deadline), Response: rsp})
 	if err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
@@ -279,16 +247,16 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 		return rsp, nil
 	}
 
-	if err := r.fs.WriteFile(key, append(header, msg...), 0o600); err != nil { //nolint:makezero // We want deadline to be padded to 8 bytes.
+	if err := r.fs.WriteFile(key, msg, 0o600); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
 		return rsp, nil
 	}
 
-	log.Debug("RunFunctionResponse cache write", "deadline", deadline, "bytes", len(header)+len(msg))
+	log.Debug("RunFunctionResponse cache write", "deadline", deadline, "bytes", len(msg))
 	r.metrics.Write(name)
 	r.metrics.WriteDuration(name, time.Since(start))
-	r.metrics.WroteBytes(name, len(header)+len(msg))
+	r.metrics.WroteBytes(name, len(msg))
 	return rsp, nil
 }
 
@@ -357,23 +325,21 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 		name := filepath.Base(filepath.Dir(path))
 		log := r.log.WithValues("name", name, "cache-key", path)
 
-		f, err := r.fs.Open(path)
+		b, err := r.fs.ReadFile(path)
 		if err != nil {
 			log.Info("RunFunctionResponse cache error", "error", err)
 			r.metrics.Error(name)
 			return nil
 		}
-		defer f.Close() //nolint:errcheck // Only open for reading.
 
-		// The first 8 bytes of our file is always our deadline.
-		header := make([]byte, 8)
-		if _, err := f.Read(header); err != nil {
+		crsp := &v1alpha1.CachedRunFunctionResponse{}
+		if err := proto.Unmarshal(b, crsp); err != nil {
 			log.Info("RunFunctionResponse cache error", "error", err)
 			r.metrics.Error(name)
 			return nil
 		}
 
-		deadline := time.Unix(int64(binary.LittleEndian.Uint64(header)), 0) //nolint:gosec // False positive for G115.
+		deadline := crsp.GetDeadline().AsTime()
 
 		// Cached response is still valid.
 		if time.Now().Before(deadline) {

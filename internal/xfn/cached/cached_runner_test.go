@@ -18,7 +18,6 @@ package cached
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"testing"
 	"time"
@@ -29,10 +28,12 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
 )
 
 type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
@@ -209,44 +210,6 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 		},
-		"MissingResponse": {
-			reason: "If the cached response contains a deadline but no response we should call the wrapped runner and cache it.",
-			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-					rsp := &fnv1.RunFunctionResponse{
-						Meta: &fnv1.ResponseMeta{
-							Tag: "hello",
-							Ttl: durationpb.New(10 * time.Minute),
-						},
-					}
-					return rsp, nil
-				}),
-				o: []FileBackedRunnerOption{
-					WithLogger(&TestLogger{t: t}),
-					WithFilesystem(MockFs(map[string][]byte{
-						"coolfn/hello": func() []byte {
-							header := make([]byte, 8)
-							binary.NativeEndian.PutUint64(header, uint64(time.Now().Add(1*time.Minute).Unix()))
-							return header
-						}(),
-					})),
-				},
-			},
-			args: args{
-				name: "coolfn",
-				req: &fnv1.RunFunctionRequest{
-					Meta: &fnv1.RequestMeta{Tag: "hello"},
-				},
-			},
-			want: want{
-				rsp: &fnv1.RunFunctionResponse{
-					Meta: &fnv1.ResponseMeta{
-						Tag: "hello",
-						Ttl: durationpb.New(10 * time.Minute),
-					},
-				},
-			},
-		},
 		"UnexpectedFile": {
 			reason: "If the cached response contains unexpected data we should call the wrapped runner and cache it.",
 			params: params{
@@ -297,18 +260,18 @@ func TestRunFunction(t *testing.T) {
 					WithLogger(&TestLogger{t: t}),
 					WithFilesystem(MockFs(map[string][]byte{
 						"coolfn/hello": func() []byte {
-							header := make([]byte, 8)
-							// Deadline in the past.
-							binary.NativeEndian.PutUint64(header, uint64(time.Now().Add(-1*time.Minute).Unix()))
-
-							msg, _ := proto.Marshal(&fnv1.RunFunctionResponse{
-								Meta: &fnv1.ResponseMeta{
-									Tag: "exceeded",
-									Ttl: durationpb.New(10 * time.Minute),
+							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
+								// In the past.
+								Deadline: timestamppb.New(time.Now().Add(-1 * time.Minute)),
+								Response: &fnv1.RunFunctionResponse{
+									Meta: &fnv1.ResponseMeta{
+										Tag: "exceeded",
+										Ttl: durationpb.New(10 * time.Minute),
+									},
 								},
 							})
 
-							return append(header, msg...) //nolint:makezero // We want header padded to 8 bytes.
+							return msg
 						}(),
 					})),
 				},
@@ -336,17 +299,17 @@ func TestRunFunction(t *testing.T) {
 					WithLogger(&TestLogger{t: t}),
 					WithFilesystem(MockFs(map[string][]byte{
 						"coolfn/hello": func() []byte {
-							header := make([]byte, 8)
-							binary.NativeEndian.PutUint64(header, uint64(time.Now().Add(1*time.Minute).Unix()))
-
-							msg, _ := proto.Marshal(&fnv1.RunFunctionResponse{
-								Meta: &fnv1.ResponseMeta{
-									Tag: "hello",
-									Ttl: durationpb.New(10 * time.Minute),
+							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
+								Deadline: timestamppb.New(time.Now().Add(1 * time.Minute)),
+								Response: &fnv1.RunFunctionResponse{
+									Meta: &fnv1.ResponseMeta{
+										Tag: "hello",
+										Ttl: durationpb.New(10 * time.Minute),
+									},
 								},
 							})
 
-							return append(header, msg...) //nolint:makezero // We want header padded to 8 bytes.
+							return msg
 						}(),
 					})),
 				},
@@ -433,12 +396,10 @@ func TestCacheFunction(t *testing.T) {
 
 func TestGarbageCollectFilesNow(t *testing.T) {
 	// Deadline in the past.
-	past := make([]byte, 8)
-	binary.NativeEndian.PutUint64(past, uint64(time.Now().Add(-1*time.Minute).Unix()))
+	past, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(time.Now().Add(-1 * time.Minute))})
 
 	// Deadline in the future.
-	future := make([]byte, 8)
-	binary.NativeEndian.PutUint64(future, uint64(time.Now().Add(1*time.Minute).Unix()))
+	future, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(time.Now().Add(1 * time.Minute))})
 
 	fs := MockFs(map[string][]byte{
 		"/":                         MockDir,
