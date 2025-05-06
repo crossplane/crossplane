@@ -19,6 +19,7 @@
 // 	protoc        (unknown)
 // source: apiextensions/fn/proto/v1beta1/zz_generated_run_function.proto
 
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
 // Generated from apiextensions/fn/proto/v1/run_function.proto by ../hack/duplicate_proto_type.sh. DO NOT EDIT.
 
 package v1beta1
