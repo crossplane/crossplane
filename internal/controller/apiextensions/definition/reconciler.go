@@ -166,7 +166,6 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	var eventRecorder event.Recorder
-	o.Logger.WithValues("controller", name).Debug(fmt.Sprintf("IS NAMESPACE RESTRICTED : %v", o.Options.NamespacedEvents))
 	if o.Options.NamespacedEvents {
 		eventRecorder = event.NewNamespacedAPIRecorder(mgr.GetEventRecorderFor(name))
 	} else {

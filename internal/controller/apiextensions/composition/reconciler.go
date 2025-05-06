@@ -19,7 +19,6 @@ package composition
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -68,7 +67,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "revisions/" + strings.ToLower(v1.CompositionGroupKind)
 
 	var eventRecorder event.Recorder
-	o.Logger.WithValues("controller", name).Debug(fmt.Sprintf("IS NAMESPACE RESTRICTED : %v", o.Options.NamespacedEvents))
 	if o.Options.NamespacedEvents {
 		eventRecorder = event.NewNamespacedAPIRecorder(mgr.GetEventRecorderFor(name))
 	} else {
