@@ -247,7 +247,26 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 		return rsp, nil
 	}
 
-	if err := r.fs.WriteFile(key, msg, 0o600); err != nil {
+	// Write and rename a temp file to make our write 'atomic'. This ensure
+	// we won't overwrite a cache file that we're currently reading.
+	tmp, err := r.fs.TempFile(name, "")
+	if err != nil {
+		log.Info("RunFunctionResponse cache write error", "err", err)
+		r.metrics.Error(name)
+		return rsp, nil
+	}
+	if _, err := tmp.Write(msg); err != nil {
+		_ = tmp.Close()
+		log.Info("RunFunctionResponse cache write error", "err", err)
+		r.metrics.Error(name)
+		return rsp, nil
+	}
+	if err := tmp.Close(); err != nil {
+		log.Info("RunFunctionResponse cache write error", "err", err)
+		r.metrics.Error(name)
+		return rsp, nil
+	}
+	if err := r.fs.Rename(tmp.Name(), key); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
 		r.metrics.Error(name)
 		return rsp, nil
@@ -352,6 +371,13 @@ func (r *FileBackedRunner) GarbageCollectFilesNow(ctx context.Context) (int, err
 			r.metrics.Error(name)
 		}
 
+		// There's a race here. It's possible CacheFunction will write a
+		// new cache entry with a deadline in the future between where
+		// we read the file and here where we remove it. We're okay with
+		// this - it'll just mean we don't cache one response.
+		//
+		// There's no race with reading files. The file content won't
+		// actually be deleted until ReadFile closes the fd.
 		if err := r.fs.Remove(path); err != nil {
 			log.Info("RunFunctionResponse cache error", "error", err)
 			r.metrics.Error(name)
