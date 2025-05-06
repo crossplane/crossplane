@@ -39,6 +39,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
+	"github.com/crossplane/crossplane/cmd/crank/internal"
 )
 
 const (
@@ -165,7 +166,7 @@ func (c *Cmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(err, errInvalidResourceAndName)
 	}
 
-	mapping, err := resource.MappingFor(rmapper, res)
+	mapping, err := internal.MappingFor(rmapper, res)
 	if err != nil {
 		return errors.Wrap(err, errGetMapping)
 	}
