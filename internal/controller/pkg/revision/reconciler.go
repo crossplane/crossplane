@@ -563,29 +563,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
-		// Wait for signature verification to complete before proceeding.
-		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
-			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-			// Initialize the installed condition if they are not already set to
-			// communicate the status of the package.
-			if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
-				pr.SetConditions(v1.AwaitingVerification())
-				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
-			}
-			return reconcile.Result{}, nil
-		}
-	}
-
-	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
-		if kerrors.IsConflict(err) {
-			return reconcile.Result{Requeue: true}, nil
-		}
-		err = errors.Wrap(err, errAddFinalizer)
-		r.record.Event(pr, event.Warning(reasonSync, err))
-		return reconcile.Result{}, err
-	}
-
 	// Rewrite the image path if necessary. We need to do this before looking
 	// for pull secrets, since the rewritten path may use different secrets than
 	// the original.
@@ -612,6 +589,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetResolvedSource() != imagePath {
 		pr.SetResolvedSource(imagePath)
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
+	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
+		// Wait for signature verification to complete before proceeding.
+		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
+			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
+			// Initialize the installed condition if they are not already set to
+			// communicate the status of the package.
+			if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
+				pr.SetConditions(v1.AwaitingVerification())
+				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
+			}
+			return reconcile.Result{}, nil
+		}
+	}
+
+	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+		err = errors.Wrap(err, errAddFinalizer)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		return reconcile.Result{}, err
 	}
 
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, imagePath)
