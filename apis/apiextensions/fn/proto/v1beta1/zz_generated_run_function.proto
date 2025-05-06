@@ -14,11 +14,11 @@
    limitations under the License.
 */
 
+// Generated from apiextensions/fn/proto/v1/run_function.proto by ../hack/duplicate_proto_type.sh. DO NOT EDIT.
+
 syntax = "proto3";
 
 //buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
-// Generated from apiextensions/fn/proto/v1/run_function.proto by ../hack/duplicate_proto_type.sh. DO NOT EDIT.
-
 package apiextensions.fn.proto.v1beta1;
 
 import "google/protobuf/duration.proto";

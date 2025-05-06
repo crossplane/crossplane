@@ -23,7 +23,8 @@ TO_PACKAGE=$(basename ${TO_DIR})
 TO_PATH="${TO_DIR}/zz_generated_${FROM_FILE}"
 
 sed -r \
-  -e "s#^package (.+)\.${FROM_PACKAGE};\$#${DO_NOT_EDIT}\n\npackage \1.${TO_PACKAGE};#" \
+  -e "s#syntax (.+)#${DO_NOT_EDIT}\n\nsyntax \1#" \
+  -e "s#^package (.+)\.${FROM_PACKAGE};\$#package \1.${TO_PACKAGE};#" \
   -e "s#^option go_package = \"(.+)/${FROM_PACKAGE}\";\$#option go_package = \"\1/${TO_PACKAGE}\";#" \
   ${FROM_PATH} > ${TO_PATH}
 
