@@ -4,7 +4,7 @@ deps:
   - buf.build/protocolbuffers/wellknowntypes:v24.4
 lint:
   use:
-    - DEFAULT
+    - STANDARD
   except:
     - FIELD_NOT_REQUIRED
     - PACKAGE_NO_IMPORT_CYCLE
