@@ -294,6 +294,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
 		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonVerify)
 		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errGetVerificationConfig)
 	}

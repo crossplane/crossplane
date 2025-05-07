@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"slices"
+
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -95,6 +97,19 @@ func (s *PackageStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	}
 }
 
+// ClearAppliedImageConfigRef removes the applied image config ref with the
+// given reason.
+func (s *PackageStatus) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	for i, ref := range s.AppliedImageConfigRefs {
+		if ref.Reason == reason {
+			// There should only be one ref with the given reason; remove it and
+			// return.
+			s.AppliedImageConfigRefs = slices.Delete(s.AppliedImageConfigRefs, i, i+1)
+			break
+		}
+	}
+}
+
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
 type Package interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
@@ -135,6 +150,7 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
+	ClearAppliedImageConfigRef(reason ImageConfigRefReason)
 
 	GetResolvedSource() string
 	SetResolvedSource(s string)
@@ -295,6 +311,11 @@ func (p *Provider) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// ClearAppliedImageConfigRef of this Provider.
+func (p *Provider) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
 // GetResolvedSource of this Provider.
 func (p *Provider) GetResolvedSource() string {
 	return p.Status.ResolvedPackage
@@ -430,6 +451,11 @@ func (p *Configuration) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// ClearAppliedImageConfigRef of this Configuration.
+func (p *Configuration) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
 // GetResolvedSource of this Configuration.
 func (p *Configuration) GetResolvedSource() string {
 	return p.Status.ResolvedPackage
@@ -477,6 +503,19 @@ func (s *PackageRevisionStatus) SetAppliedImageConfigRefs(refs ...ImageConfigRef
 	}
 }
 
+// ClearAppliedImageConfigRef removes the applied image config ref with the
+// given reason.
+func (s *PackageRevisionStatus) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	for i, ref := range s.AppliedImageConfigRefs {
+		if ref.Reason == reason {
+			// There should only be one ref with the given reason; remove it and
+			// return.
+			s.AppliedImageConfigRefs = slices.Delete(s.AppliedImageConfigRefs, i, i+1)
+			break
+		}
+	}
+}
+
 // PackageRevision is the interface satisfied by package revision types.
 // +k8s:deepcopy-gen=false
 type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we break this up into smaller, composable interfaces?
@@ -517,6 +556,7 @@ type PackageRevision interface { //nolint:interfacebloat // TODO(negz): Could we
 
 	GetAppliedImageConfigRefs() []ImageConfigRef
 	SetAppliedImageConfigRefs(refs ...ImageConfigRef)
+	ClearAppliedImageConfigRef(reason ImageConfigRefReason)
 
 	GetResolvedSource() string
 	SetResolvedSource(s string)
@@ -689,6 +729,11 @@ func (p *ProviderRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// ClearAppliedImageConfigRef of this ProviderRevision.
+func (p *ProviderRevision) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
+}
+
 // GetResolvedSource of this ProviderRevision.
 func (p *ProviderRevision) GetResolvedSource() string {
 	return p.Status.ResolvedPackage
@@ -824,6 +869,11 @@ func (p *ConfigurationRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
 // SetAppliedImageConfigRefs of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	p.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this ConfigurationRevision.
+func (p *ConfigurationRevision) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	p.Status.ClearAppliedImageConfigRef(reason)
 }
 
 // GetResolvedSource of this ConfigurationRevision.
@@ -1042,6 +1092,11 @@ func (f *Function) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	f.Status.SetAppliedImageConfigRefs(refs...)
 }
 
+// ClearAppliedImageConfigRef of this Function.
+func (f *Function) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	f.Status.ClearAppliedImageConfigRef(reason)
+}
+
 // GetResolvedSource of this Function.
 func (f *Function) GetResolvedSource() string {
 	return f.Status.ResolvedPackage
@@ -1217,6 +1272,11 @@ func (r *FunctionRevision) GetAppliedImageConfigRefs() []ImageConfigRef {
 // SetAppliedImageConfigRefs of this FunctionRevision.
 func (r *FunctionRevision) SetAppliedImageConfigRefs(refs ...ImageConfigRef) {
 	r.Status.SetAppliedImageConfigRefs(refs...)
+}
+
+// ClearAppliedImageConfigRef of this FunctionRevision.
+func (r *FunctionRevision) ClearAppliedImageConfigRef(reason ImageConfigRefReason) {
+	r.Status.ClearAppliedImageConfigRef(reason)
 }
 
 // GetResolvedSource of this FunctionRevision.
