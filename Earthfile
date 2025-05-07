@@ -74,13 +74,16 @@ e2e:
       # https://github.com/earthly/earthly/issues/4143 is fixed.
       RUN gotestsum \
         --rerun-fails \
-      	--no-color=false \
-	--format ${GOTESTSUM_FORMAT} \
-	--junitfile e2e-tests.xml \
-	--raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
+        --rerun-fails-report e2e-rerun-fails.txt \
+        --hide-summary output \ # See https://github.com/gotestyourself/gotestsum/issues/423
+        --no-color=false \
+        --format ${GOTESTSUM_FORMAT} \
+        --junitfile e2e-tests.xml \
+        --raw-command go tool test2json -t -p E2E ./e2e -test.v ${FLAGS}
     END
   FINALLY
     SAVE ARTIFACT --if-exists e2e-tests.xml AS LOCAL _output/tests/e2e-tests.xml
+    SAVE ARTIFACT --if-exists e2e-rerun-fails.txt AS LOCAL _output/tests/e2e-rerun-fails.txt
   END
 
 # hack builds Crossplane, and deploys it to a kind cluster. It runs in your

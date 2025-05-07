@@ -8,7 +8,7 @@ on:
       # TODO(negz): Remove this and all references to the v2 branches below
       # if/when v2 is merged into main. It's a temporary branch for v2 preview
       # development.
-      - v2 
+      - v2
   pull_request: {}
   workflow_dispatch: {}
 
@@ -298,6 +298,13 @@ jobs:
           key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
           secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
           path: _output/tests/e2e-tests.xml
+
+      - name: Upload E2E Test Artifacts to GitHub
+        if: '!cancelled()'
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4
+        with:
+          name: e2e-tests-${{ matrix.test-suite }}
+          path: _output/tests/**
 
   publish-artifacts:
     runs-on: ubuntu-22.04
