@@ -354,7 +354,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	p.SetResolvedSource(imagePath)
 
-	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, imagePath)
+	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
@@ -485,7 +485,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetUID() == "" && pullSecretConfig != "" {
 		// We only record this event if the revision is new, as we don't want to
 		// spam the user with events if the revision already exists.
-		log.Debug("Selected pull secret from image config store", "image", imagePath, "pullSecretConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
+		log.Debug("Selected pull secret from image config store", "image", p.GetResolvedSource(), "pullSecretConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
 		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 	}
 
