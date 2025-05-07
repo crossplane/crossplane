@@ -26,12 +26,23 @@ const (
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
 	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
 
-	// EnableAlphaDependencyVersionUpgrades enables alpha support for upgrading the version of a package's dependencies
-	// when needed.
+	// EnableAlphaDependencyVersionUpgrades enables alpha support for
+	// upgrading the version of a package's dependencies when needed.
 	EnableAlphaDependencyVersionUpgrades feature.Flag = "EnableAlphaDependencyVersionUpgrades"
 
-	// EnableAlphaSignatureVerification enables alpha support for verifying the package signatures via ImageConfig API.
+	// EnableAlphaDependencyVersionDowngrades enables alpha support for
+	// downgrading the version of a package's dependencies when needed.
+	// It builds on EnableAlphaDependencyVersionUpgrades; both flags must
+	// be set to enable downgrades.
+	EnableAlphaDependencyVersionDowngrades feature.Flag = "EnableAlphaDependencyVersionDowngrades"
+
+	// EnableAlphaSignatureVerification enables alpha support for verifying
+	// the package signatures via ImageConfig API.
 	EnableAlphaSignatureVerification feature.Flag = "EnableAlphaSignatureVerification"
+
+	// EnableAlphaFunctionResponseCache enables alpha support for caching
+	// composition function responses.
+	EnableAlphaFunctionResponseCache feature.Flag = "EnableAlphaFunctionResponseCache"
 )
 
 // Beta Feature Flags.

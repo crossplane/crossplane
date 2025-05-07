@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-// Generated from apiextensions/fn/proto/v1/run_function.proto by ../hack/duplicate_proto_type.sh. DO NOT EDIT.
+// Generated from apis/apiextensions/fn/proto/v1/run_function.proto by ./hack/duplicate_proto_type.sh. DO NOT EDIT.
 
 syntax = "proto3";
 
@@ -132,8 +132,8 @@ message RunFunctionResponse {
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
 message RequestMeta {
-  // An opaque string identifying the content of the request. Two identical
-  // requests should have the same tag.
+  // An opaque string identifying a request. Requests with identical tags will
+  // be otherwise identical.
   string tag = 1;
 }
 

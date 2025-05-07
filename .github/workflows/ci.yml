@@ -229,6 +229,7 @@ jobs:
           - base
           - package-dependency-updates
           - package-signature-verification
+          - function-response-cache
 
     steps:
       - name: Checkout
@@ -440,5 +441,4 @@ jobs:
         with:
           token: ${{ secrets.BUF_TOKEN }}
           pr_comment: false
-          input: apis
 

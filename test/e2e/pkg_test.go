@@ -53,10 +53,7 @@ const (
 func init() {
 	environment.AddTestSuite(SuitePackageDependencyUpdates,
 		config.WithHelmInstallOpts(
-			helm.WithArgs("--set args={--debug,--enable-dependency-version-upgrades}"),
-		),
-		config.WithHelmInstallOpts(
-			helm.WithArgs("--set packageManager.enableAutomaticDependencyDowngrade=\"true\""),
+			helm.WithArgs("--set args={--debug,--enable-dependency-version-upgrades,--enable-dependency-version-downgrades}"),
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuitePackageDependencyUpdates, config.TestSuiteDefault},

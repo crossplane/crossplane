@@ -49,8 +49,4 @@ type Options struct {
 	// MaxConcurrentPackageEstablishers is the maximum number of goroutines to use
 	// for establishing Providers, Configurations and Functions.
 	MaxConcurrentPackageEstablishers int
-
-	// AutomaticDependencyDowngradeEnabled is a configuration option that
-	// enables automatic downgrade of dependencies to the highest valid version.
-	AutomaticDependencyDowngradeEnabled bool
 }
