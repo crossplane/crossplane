@@ -128,13 +128,13 @@ func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ re
 // for compatibility with existing Composition logic while CompositionRevisions
 // are in alpha.
 type APIRevisionFetcher struct {
-	ca resource.ClientApplicator
+	client client.Client
 }
 
 // NewAPIRevisionFetcher returns a RevisionFetcher that fetches the
 // Revision referenced by a composite resource.
-func NewAPIRevisionFetcher(ca resource.ClientApplicator) *APIRevisionFetcher {
-	return &APIRevisionFetcher{ca: ca}
+func NewAPIRevisionFetcher(c client.Client) *APIRevisionFetcher {
+	return &APIRevisionFetcher{client: c}
 }
 
 // Fetch the appropriate CompositionRevision for the supplied XR. Panics if the
@@ -148,7 +148,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	// Just fetch and return the selected revision.
 	if current != nil && pol != nil && *pol == xpv1.UpdateManual {
 		rev := &v1.CompositionRevision{}
-		err := f.ca.Get(ctx, types.NamespacedName{Name: current.Name}, rev)
+		err := f.client.Get(ctx, types.NamespacedName{Name: current.Name}, rev)
 		return rev, errors.Wrap(err, errGetCompositionRevision)
 	}
 
@@ -156,7 +156,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	// automatic. Either way we need to determine the latest revision.
 
 	comp := &v1.Composition{}
-	if err := f.ca.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
+	if err := f.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
 		return nil, errors.Wrap(err, errGetComposition)
 	}
 
@@ -172,7 +172,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 
 	if current == nil || current.Name != latest.GetName() {
 		cr.SetCompositionRevisionReference(&corev1.LocalObjectReference{Name: latest.GetName()})
-		if err := f.ca.Apply(ctx, cr); err != nil {
+		if err := f.client.Update(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}
 	}
@@ -190,7 +190,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 	}
 
 	ml[v1.LabelCompositionName] = comp.GetName()
-	if err := f.ca.List(ctx, rl, ml); err != nil {
+	if err := f.client.List(ctx, rl, ml); err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 	return rl, nil

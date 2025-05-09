@@ -36,10 +36,10 @@ import (
 // Cmd arguments and flags for converting a Composition to use function-environment-configs.
 type Cmd struct {
 	// Arguments.
-	InputFile string `arg:"" default:"-" help:"The Composition file to be converted. If not specified or '-', stdin will be used." optional:"" type:"path"`
+	InputFile string `arg:"" default:"-" help:"The Composition file to be converted. If not specified or '-', stdin will be used." optional:"" predictor:"file" type:"path"`
 
 	// Flags.
-	OutputFile string `help:"The file to write the generated Composition to. If not specified, stdout will be used." placeholder:"PATH" short:"o" type:"path"`
+	OutputFile string `help:"The file to write the generated Composition to. If not specified, stdout will be used." placeholder:"PATH" predictor:"file" short:"o" type:"path"`
 
 	FunctionEnvironmentConfigRef string `default:"function-environment-configs" help:"Name of the existing function-environment-configs Function, to be used to reference it." name:"function-environment-configs-ref"`
 

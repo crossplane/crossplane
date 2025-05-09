@@ -181,7 +181,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
 		opts = append(opts, WithNewDagFn(internaldag.NewUpgradingMapDag))
-		if o.AutomaticDependencyDowngradeEnabled {
+
+		if o.Features.Enabled(features.EnableAlphaDependencyVersionDowngrades) {
 			opts = append(opts, WithDowngradesEnabled())
 		}
 	}

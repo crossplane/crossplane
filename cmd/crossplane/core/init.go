@@ -96,7 +96,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	// are always migrating to the most current storage version
 	steps = append(steps,
 		initializer.NewCoreCRDsMigrator("compositionrevisions.apiextensions.crossplane.io", "v1alpha1"),
-		initializer.NewCoreCRDsMigrator("environmentconfigs.apiextensions.crossplane.io", "v1beta1"),
+		initializer.NewCoreCRDsMigrator("environmentconfigs.apiextensions.crossplane.io", "v1alpha1"),
 		initializer.NewCoreCRDsMigrator("usages.apiextensions.crossplane.io", "v1beta1"),
 		initializer.NewCoreCRDsMigrator("functions.pkg.crossplane.io", "v1beta1"),
 		initializer.NewCoreCRDsMigrator("functionrevisions.pkg.crossplane.io", "v1beta1"),

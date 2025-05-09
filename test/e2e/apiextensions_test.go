@@ -38,6 +38,22 @@ import (
 // extensions (i.e. Composition, XRDs, etc).
 const LabelAreaAPIExtensions = "apiextensions"
 
+// Tests that should be part of the test suite for the alpha function response
+// caching feature. There's no special tests for this; we just run the regular
+// test suite with caching enabled.
+const SuiteFunctionResponseCache = "function-response-cache"
+
+func init() {
+	environment.AddTestSuite(SuiteFunctionResponseCache,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-function-response-cache}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteFunctionResponseCache, config.TestSuiteDefault},
+		}),
+	)
+}
+
 var nopList = composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 	APIVersion: "nop.crossplane.io/v1alpha1",
 	Kind:       "NopResource",
@@ -142,9 +158,13 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim.yaml", xpv1.Available())).
+			// This is testing realtime composition. The composition
+			// patches this value from the XR to a composed resource
+			// and back to the XR. We rely on a watch of the
+			// composed resource to notice this within 30 seconds.
 			Assess("ClaimHasPatchedField",
-				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 			).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
@@ -155,7 +175,7 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 	)
 }
 
-func TestCompositionRealtimeRevisionSelection(t *testing.T) {
+func TestCompositionRevisionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/realtime-revision-selection"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests Crossplane's Composition functionality to react in realtime to changes in a Composition by selecting the new CompositionRevision and reconcile the XRs.").
@@ -173,13 +193,13 @@ func TestCompositionRealtimeRevisionSelection(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim.yaml", xpv1.Available()),
 			).
 			Assess("UpdateComposition", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "composition-update.yaml"),
 			)).
 			Assess("ClaimHasPatchedField",
-				funcs.ResourcesHaveFieldValueWithin(10*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 			).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
@@ -207,10 +227,14 @@ func TestCompositionFunctions(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
+			// TODO(negz): This Assess consistently takes ~2 seconds
+			// on my M1 Max MacBook, but sometimes exceeds 30
+			// seconds in CI, even with larger runners. Perhaps
+			// slower I/O in CI?
 			Assess("ClaimIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimHasPatchedField",
-				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
+				funcs.ResourcesHaveFieldValueWithin(30*time.Second, manifests, "claim.yaml", "status.coolerField", "I'M COOLER!"),
 			).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),

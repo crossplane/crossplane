@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generated from pkg/meta/v1/provider_types.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+// Generated from apis/pkg/meta/v1/provider_types.go by ./hack/duplicate_api_type.sh. DO NOT EDIT.
 
 package v1alpha1
 

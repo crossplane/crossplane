@@ -213,15 +213,15 @@ func TestFetchRevision(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		client resource.ClientApplicator
+		client client.Client
 		args   args
 		want   want
 	}{
 		"GetCompositionRevisionError": {
 			reason: "We should wrap and return errors encountered getting the CompositionRevision.",
-			client: resource.ClientApplicator{Client: &test.MockClient{
+			client: &test.MockClient{
 				MockGet: test.NewMockGetFn(errBoom),
-			}},
+			},
 			args: args{
 				cr: &fake.Composite{
 					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{Ref: &corev1.LocalObjectReference{}},
@@ -235,12 +235,12 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"UpdateManual": {
 			reason: "When we're using the manual update policy and a revision reference is set we should return that revision as a composition.",
-			client: resource.ClientApplicator{Client: &test.MockClient{
+			client: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					*obj.(*v1.CompositionRevision) = *rev3
 					return nil
 				}),
-			}},
+			},
 			args: args{
 				cr: &fake.Composite{
 					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{Ref: &corev1.LocalObjectReference{}},
@@ -253,9 +253,9 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"GetCompositionError": {
 			reason: "We should wrap and return errors encountered getting the Composition.",
-			client: resource.ClientApplicator{Client: &test.MockClient{
+			client: &test.MockClient{
 				MockGet: test.NewMockGetFn(errBoom),
-			}},
+			},
 			args: args{
 				cr: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{}},
@@ -267,10 +267,10 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"ListCompositionRevisionsError": {
 			reason: "We should wrap and return errors encountered listing CompositionRevisions.",
-			client: resource.ClientApplicator{Client: &test.MockClient{
+			client: &test.MockClient{
 				MockGet:  test.NewMockGetFn(nil),
 				MockList: test.NewMockListFn(errBoom),
-			}},
+			},
 			args: args{
 				cr: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{}},
@@ -282,10 +282,10 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"NoCompositionRevisionsError": {
 			reason: "We should return an error if we don't find any suitable CompositionRevisions.",
-			client: resource.ClientApplicator{Client: &test.MockClient{
+			client: &test.MockClient{
 				MockGet:  test.NewMockGetFn(nil),
 				MockList: test.NewMockListFn(nil),
-			}},
+			},
 			args: args{
 				cr: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{}},
@@ -297,33 +297,31 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"AlreadyAtLatestRevision": {
 			reason: "We should return the latest revision without updating our reference if we already reference it.",
-			client: resource.ClientApplicator{
-				Client: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						*obj.(*v1.Composition) = *comp
-						return nil
-					}),
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
-							Items: []v1.CompositionRevision{
-								// We should ignore this revision because it does not have
-								// our composition above as its controller reference.
-								*rev3,
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					*obj.(*v1.Composition) = *comp
+					return nil
+				}),
+				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+						Items: []v1.CompositionRevision{
+							// We should ignore this revision because it does not have
+							// our composition above as its controller reference.
+							*rev3,
 
-								// This revision is owned by our composition, and is the
-								// latest revision.
-								*rev2,
+							// This revision is owned by our composition, and is the
+							// latest revision.
+							*rev2,
 
-								// This revision is owned by our composition, but is not the
-								// latest revision.
-								*rev1,
-							},
-						}
-						return nil
-					}),
-				},
+							// This revision is owned by our composition, but is not the
+							// latest revision.
+							*rev1,
+						},
+					}
+					return nil
+				}),
 				// This should not be called.
-				Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
+				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			args: args{
 				cr: &fake.Composite{
@@ -342,25 +340,22 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"NoRevisionSet": {
 			reason: "We should return the latest revision and update our reference if none is set.",
-			client: resource.ClientApplicator{
-				Client: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						*obj.(*v1.Composition) = *comp
-						return nil
-					}),
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
-							Items: []v1.CompositionRevision{
-								// This revision is owned by our composition, and is the
-								// latest revision.
-								*rev2,
-							},
-						}
-						return nil
-					}),
-				},
-				Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
-					// Ensure we were updated to reference the latest CompositionRevision.
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					*obj.(*v1.Composition) = *comp
+					return nil
+				}),
+				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+						Items: []v1.CompositionRevision{
+							// This revision is owned by our composition, and is the
+							// latest revision.
+							*rev2,
+						},
+					}
+					return nil
+				}),
+				MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 					want := &fake.Composite{
 						CompositionReferencer: fake.CompositionReferencer{
 							Ref: &corev1.ObjectReference{Name: comp.GetName()},
@@ -372,7 +367,7 @@ func TestFetchRevision(t *testing.T) {
 						},
 						CompositionUpdater: fake.CompositionUpdater{Policy: &manual},
 					}
-					if diff := cmp.Diff(want, o); diff != "" {
+					if diff := cmp.Diff(want, obj); diff != "" {
 						t.Errorf("Apply(): -want, +got: %s", diff)
 					}
 					return nil
@@ -394,27 +389,25 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"OutdatedRevisionSet": {
 			reason: "We should return the latest revision and update our reference if an outdated revision is referenced.",
-			client: resource.ClientApplicator{
-				Client: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						*obj.(*v1.Composition) = *comp
-						return nil
-					}),
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
-							Items: []v1.CompositionRevision{
-								// This revision is owned by our composition, and is the
-								// latest revision.
-								*rev2,
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					*obj.(*v1.Composition) = *comp
+					return nil
+				}),
+				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+						Items: []v1.CompositionRevision{
+							// This revision is owned by our composition, and is the
+							// latest revision.
+							*rev2,
 
-								// This is an outdated revision.
-								*rev1,
-							},
-						}
-						return nil
-					}),
-				},
-				Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+							// This is an outdated revision.
+							*rev1,
+						},
+					}
+					return nil
+				}),
+				MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 					// Ensure we were updated to reference the latest CompositionRevision.
 					want := &fake.Composite{
 						CompositionReferencer: fake.CompositionReferencer{
@@ -426,7 +419,7 @@ func TestFetchRevision(t *testing.T) {
 							},
 						},
 					}
-					if diff := cmp.Diff(want, o); diff != "" {
+					if diff := cmp.Diff(want, obj); diff != "" {
 						t.Errorf("Apply(): -want, +got: %s", diff)
 					}
 					return nil
@@ -451,26 +444,22 @@ func TestFetchRevision(t *testing.T) {
 		},
 		"SetRevisionError": {
 			reason: "We should return the latest revision and update our reference if none is set.",
-			client: resource.ClientApplicator{
-				Client: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						*obj.(*v1.Composition) = *comp
-						return nil
-					}),
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
-							Items: []v1.CompositionRevision{
-								// This revision is owned by our composition, and is the
-								// latest revision.
-								*rev2,
-							},
-						}
-						return nil
-					}),
-				},
-				Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
-					return errBoom
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					*obj.(*v1.Composition) = *comp
+					return nil
 				}),
+				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+					*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+						Items: []v1.CompositionRevision{
+							// This revision is owned by our composition, and is the
+							// latest revision.
+							*rev2,
+						},
+					}
+					return nil
+				}),
+				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			args: args{
 				cr: &fake.Composite{

@@ -48,6 +48,9 @@ spec:
       priorityClassName: {{ .Values.priorityClassName | quote }}
       {{- end }}
       serviceAccountName: rbac-manager
+      {{- if .Values.runtimeClassName }}
+      runtimeClassName: {{ .Values.runtimeClassName | quote }}
+      {{- end }}
       initContainers:
       - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:

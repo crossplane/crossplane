@@ -94,7 +94,7 @@ type ControllerEngine interface {
 	Start(name string, o ...engine.ControllerOption) error
 	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
-	StartWatches(name string, ws ...engine.Watch) error
+	StartWatches(ctx context.Context, name string, ws ...engine.Watch) error
 	GetCached() client.Client
 }
 
@@ -111,7 +111,7 @@ func (e *NopEngine) Stop(_ context.Context, _ string) error { return nil }
 func (e *NopEngine) IsRunning(_ string) bool { return true }
 
 // StartWatches does nothing.
-func (e *NopEngine) StartWatches(_ string, _ ...engine.Watch) error { return nil }
+func (e *NopEngine) StartWatches(_ context.Context, _ string, _ ...engine.Watch) error { return nil }
 
 // GetCached returns a nil client.
 func (e *NopEngine) GetCached() client.Client {
@@ -430,7 +430,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	o := []claim.ReconcilerOption{
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
 		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
-		claim.WithPollInterval(r.options.PollInterval),
 	}
 
 	// We only want to use the server-side XR syncer if the relevant feature
@@ -499,7 +498,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	xr := &kunstructured.Unstructured{}
 	xr.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
-	if err := r.engine.StartWatches(claim.ControllerName(d.GetName()),
+	if err := r.engine.StartWatches(ctx, claim.ControllerName(d.GetName()),
 		engine.WatchFor(cm, engine.WatchTypeClaim, &handler.EnqueueRequestForObject{}),
 		engine.WatchFor(xr, engine.WatchTypeCompositeResource, &EnqueueRequestForClaim{}),
 	); err != nil {

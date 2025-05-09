@@ -43,39 +43,51 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 		CreateFunc: func(ctx context.Context, e kevent.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 			rev, ok := e.Object.(*v1.CompositionRevision)
 			if !ok {
-				// should not happen
 				return
 			}
 
-			// TODO(negz): Check whether the revision's compositeTypeRef matches
-			// the supplied CompositeKind. If it doesn't, we can return early.
+			// We don't know what composition this revision is for,
+			// so we can't determine whether an XR might use it.
+			// This should never happen in practice - the
+			// composition controller sets this label when it
+			// creates a revision.
+			compName := rev.Labels[v1.LabelCompositionName]
+			if compName == "" {
+				return
+			}
 
-			// get all XRs
+			// This handler is for a specific type of XR. This
+			// revisionisn't compatible with that type.
+			if rev.Spec.CompositeTypeRef.APIVersion != schema.GroupVersionKind(of).GroupVersion().String() {
+				return
+			}
+			if rev.Spec.CompositeTypeRef.Kind != of.Kind {
+				return
+			}
+
 			xrs := kunstructured.UnstructuredList{}
 			xrs.SetGroupVersionKind(schema.GroupVersionKind(of))
 			xrs.SetKind(schema.GroupVersionKind(of).Kind + "List")
 			// TODO(negz): Index XRs by composition revision name?
 			if err := c.List(ctx, &xrs); err != nil {
-				// logging is most we can do here. This is a programming error if it happens.
+				// Logging is most we can do here. This is a programming error if it happens.
 				log.Info("cannot list in CompositionRevision handler", "type", schema.GroupVersionKind(of).String(), "error", err)
 				return
 			}
 
-			// enqueue all those that reference the Composition of this revision
-			compName := rev.Labels[v1.LabelCompositionName]
-			// TODO(negz): Check this before we get all XRs.
-			if compName == "" {
-				return
-			}
+			// Enqueue all those that reference the composition of
+			// this revision.
 			for _, u := range xrs.Items {
 				xr := composite.Unstructured{Unstructured: u}
 
-				// only automatic
+				// We only care about XRs that would
+				// automatically update to this new revision.
 				if pol := xr.GetCompositionUpdatePolicy(); pol != nil && *pol == xpv1.UpdateManual {
 					continue
 				}
 
-				// only those that reference the right Composition
+				// We only care about XRs that reference the
+				// composition this revision derives from.
 				if ref := xr.GetCompositionReference(); ref == nil || ref.Name != compName {
 					continue
 				}

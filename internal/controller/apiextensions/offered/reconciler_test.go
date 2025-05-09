@@ -45,7 +45,7 @@ type MockEngine struct {
 	MockStart        func(name string, o ...engine.ControllerOption) error
 	MockStop         func(ctx context.Context, name string) error
 	MockIsRunning    func(name string) bool
-	MockStartWatches func(name string, ws ...engine.Watch) error
+	MockStartWatches func(ctx context.Context, name string, ws ...engine.Watch) error
 	MockGetClient    func() client.Client
 }
 
@@ -66,8 +66,8 @@ func (m *MockEngine) IsRunning(name string) bool {
 	return m.MockIsRunning(name)
 }
 
-func (m *MockEngine) StartWatches(name string, ws ...engine.Watch) error {
-	return m.MockStartWatches(name, ws...)
+func (m *MockEngine) StartWatches(ctx context.Context, name string, ws ...engine.Watch) error {
+	return m.MockStartWatches(ctx, name, ws...)
 }
 
 func (m *MockEngine) GetCached() client.Client {
@@ -601,7 +601,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"VersionChangedStopControllerError": {
-			reason: "We should return any error we encounter while stopping our controller because the XRD's referencable version changed.",
+			reason: "We should return any error we encounter while stopping our controller because the XRD's referenceable version changed.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{
@@ -730,7 +730,7 @@ func TestReconcile(t *testing.T) {
 						MockStart: func(_ string, _ ...engine.ControllerOption) error {
 							return nil
 						},
-						MockStartWatches: func(_ string, _ ...engine.Watch) error {
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error {
 							return errBoom
 						},
 						MockGetClient: func() client.Client { return test.NewMockClient() },
@@ -778,7 +778,7 @@ func TestReconcile(t *testing.T) {
 					WithControllerEngine(&MockEngine{
 						MockIsRunning:    func(_ string) bool { return false },
 						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
-						MockStartWatches: func(_ string, _ ...engine.Watch) error { return nil },
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
 						MockGetClient:    func() client.Client { return test.NewMockClient() },
 					},
 					),
@@ -840,7 +840,7 @@ func TestReconcile(t *testing.T) {
 						MockStart:        func(_ string, _ ...engine.ControllerOption) error { return nil },
 						MockStop:         func(_ context.Context, _ string) error { return nil },
 						MockIsRunning:    func(_ string) bool { return false },
-						MockStartWatches: func(_ string, _ ...engine.Watch) error { return nil },
+						MockStartWatches: func(_ context.Context, _ string, _ ...engine.Watch) error { return nil },
 						MockGetClient:    func() client.Client { return test.NewMockClient() },
 					}),
 				},
@@ -850,7 +850,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"NotRestartingWithoutVersionChange": {
-			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
+			reason: "We should return without requeuing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
 				ca: resource.ClientApplicator{
 					Client: &test.MockClient{

@@ -19,11 +19,13 @@ package composite
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -698,6 +700,9 @@ func TestFunctionCompose(t *testing.T) {
 				},
 				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
+						Meta: &fnv1.ResponseMeta{
+							Ttl: durationpb.New(5 * time.Minute),
+						},
 						Desired: &fnv1.State{
 							Composite: &fnv1.Resource{
 								Resource: MustStruct(map[string]any{
@@ -890,6 +895,7 @@ func TestFunctionCompose(t *testing.T) {
 							Target: CompositionTargetCompositeAndClaim,
 						},
 					},
+					TTL: 5 * time.Minute,
 				},
 				err: nil,
 			},
