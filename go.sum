@@ -209,8 +209,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.1/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/crossplane/crossplane-runtime v1.20.0-rc.0.0.20250505224137-47f1c0a3c32d h1:tyfiZZR1OGsnQ1wYq+ysG4jKniji2n2xzLWOK3WW6d8=
-github.com/crossplane/crossplane-runtime v1.20.0-rc.0.0.20250505224137-47f1c0a3c32d/go.mod h1:FV2OSyPkmGJgRPUPAWkaAmJaG/Si8oOKHzLwl/ozIF0=
+github.com/crossplane/crossplane-runtime v1.20.0-rc.0.0.20250509182016-1a8b6a8ea258 h1:sOZrgIYD38+zWnmWmqhcGV5vS6PEFMCBzGNR7r566fU=
+github.com/crossplane/crossplane-runtime v1.20.0-rc.0.0.20250509182016-1a8b6a8ea258/go.mod h1:FV2OSyPkmGJgRPUPAWkaAmJaG/Si8oOKHzLwl/ozIF0=
 github.com/cyberphone/json-canonicalization v0.0.0-20231011164504-785e29786b46 h1:2Dx4IHfC1yHWI12AxQDJM1QbRCDfk6M+blLzlZCXdrc=
 github.com/cyberphone/json-canonicalization v0.0.0-20231011164504-785e29786b46/go.mod h1:uzvlm1mxhHkdfqitSA92i7Se+S9ksOn3a3qmv/kyOCw=
 github.com/cyphar/filepath-securejoin v0.2.5 h1:6iR5tXJ/e6tJZzzdMc1km3Sa7RRIVBKAK32O2s7AYfo=

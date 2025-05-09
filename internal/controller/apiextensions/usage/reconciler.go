@@ -172,7 +172,7 @@ type usageResource struct {
 }
 
 // NewReconciler returns a Reconciler of Usages.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reconciler {
+func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	// TODO(negz): Stop using this wrapper? It's only necessary if the client is
 	// backed by a cache, and at the time of writing the manager's client isn't.
 	// It's configured not to automatically cache unstructured objects. The
@@ -200,7 +200,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) reconcile.Reco
 	for _, f := range opts {
 		f(r)
 	}
-	return reconcile.AsReconciler[*v1beta1.Usage](r.client, r)
+	return r
 }
 
 // A Reconciler reconciles Usages.
@@ -218,10 +218,17 @@ type Reconciler struct {
 
 // Reconcile a Usage resource by resolving its selectors, defining ownership
 // relationship, adding a finalizer and handling proper deletion.
-func (r *Reconciler) Reconcile(ctx context.Context, u *v1beta1.Usage) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex.
-	log := r.log.WithValues("request", u.Name)
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Reconcilers are typically complex.
+	log := r.log.WithValues("request", req)
 	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
+
+	// Get the usageResource resource for this request.
+	u := &v1beta1.Usage{}
+	if err := r.client.Get(ctx, req.NamespacedName, u); err != nil {
+		log.Debug(errGetUsage, "error", err)
+		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
+	}
 
 	// Validate APIVersion of used object provided as input.
 	// We parse this value while indexing the objects, and we need to make sure it is valid.
