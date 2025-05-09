@@ -105,7 +105,7 @@ type PackageRevisionStatus struct {
 	AppliedImageConfigRefs []ImageConfigRef `json:"appliedImageConfigRefs,omitempty"`
 
 	// ResolvedPackage is the name of the package that was installed. It may be
-	// different from spec.package if the package path was rewritten using an
+	// different from spec.image if the package path was rewritten using an
 	// image config.
 	ResolvedPackage string `json:"resolvedImage,omitempty"`
 }
