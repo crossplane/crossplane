@@ -102,7 +102,7 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.serviceAccountName
-          {{- if .Values.webhooks.enabled }}
+          {{- if and (.Values.webhooks.enabled) (not .Values.namespaceRestricted) }}
           - name: "WEBHOOK_SERVICE_NAME"
             value: {{ template "crossplane.name" . }}-webhooks
           - name: "WEBHOOK_SERVICE_NAMESPACE"
@@ -149,7 +149,7 @@ spec:
         - name: metrics
           containerPort: {{ .Values.metrics.port | default 8080 }}
         {{- end }}
-        {{- if .Values.webhooks.enabled }}
+        {{- if and (.Values.webhooks.enabled) (not .Values.namespaceRestricted) }}
         - name: webhooks
           containerPort: {{ .Values.webhooks.port | default 9443 }}
         {{- end }}
@@ -184,13 +184,17 @@ spec:
           - name: CA_BUNDLE_PATH
             value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
           {{- end}}
-          {{- if not .Values.webhooks.enabled }}
+          {{- if or (not .Values.webhooks.enabled) (.Values.namespaceRestricted) }}
           - name: "ENABLE_WEBHOOKS"
             value: "false"
-          {{- end }}
-          {{- if and .Values.webhooks.enabled .Values.webhooks.port }}
+          {{- end}}
+          {{- if and (.Values.webhooks.enabled) (.Values.webhooks.port) (not .Values.namespaceRestricted) }}
           - name: "WEBHOOK_PORT"
             value: "{{ .Values.webhooks.port }}"
+          {{- end}}
+          {{- if .Values.namespaceRestricted }}
+          - name: "NAMESPACE_RESTRICTED"
+            value: "true"
           {{- end}}
           {{- if and .Values.metrics.enabled .Values.metrics.port }}
           - name: "METRICS_PORT"
