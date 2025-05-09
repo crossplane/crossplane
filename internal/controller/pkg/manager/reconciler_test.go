@@ -59,6 +59,22 @@ func (m *MockRevisioner) Revision(context.Context, v1.Package, ...string) (strin
 	return m.MockRevision()
 }
 
+var _ RevisionActivator = &MockRevisionActivator{}
+
+type MockRevisionActivator struct {
+	MockActivateRevisions func(context.Context, v1.Package, []v1.PackageRevision) ([]v1.PackageRevision, error)
+}
+
+func NewMockActivateRevisionsFn(err error) func(context.Context, v1.Package, []v1.PackageRevision) ([]v1.PackageRevision, error) {
+	return func(_ context.Context, _ v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
+		return revs, err
+	}
+}
+
+func (m *MockRevisionActivator) ActivateRevisions(ctx context.Context, p v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
+	return m.MockActivateRevisions(ctx, p, revs)
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
@@ -250,7 +266,7 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errUnpack),
 			},
 		},
-		"SuccessfulRerwiteImage": {
+		"SuccessfulRewriteImage": {
 			reason: "We should record the rewritten image path if an image config is used.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -293,6 +309,12 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: func(_ context.Context, _ v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
+							revs[0].SetDesiredState(v1.PackageRevisionActive)
+							return revs, nil
+						},
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -345,6 +367,12 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: func(_ context.Context, _ v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
+							revs[0].SetDesiredState(v1.PackageRevisionActive)
+							return revs, nil
+						},
+					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
@@ -357,8 +385,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"SuccessfulNoExistingRevisionsAutoActivatePullAlways": {
-			reason: "We should be active and requeue after wait on successful creation of the first revision with auto activation and package pull policy Always.",
+		"SuccessfulNoExistingRevisionsActivePullAlways": {
+			reason: "We should be active and requeue after wait on successful creation of the first revision with an active revision and package pull policy Always.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -398,6 +426,12 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: func(_ context.Context, _ v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
+							revs[0].SetDesiredState(v1.PackageRevisionActive)
+							return revs, nil
+						},
+					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
@@ -410,8 +444,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: pullWait},
 			},
 		},
-		"SuccessfulNoExistingRevisionsManualActivate": {
-			reason: "We should be inactive and not requeue on successful creation of the first revision with manual activation policy.",
+		"SuccessfulNoExistingRevisionsNotActive": {
+			reason: "We should be inactive and not requeue on successful creation of the first revision if the revision is not activated.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -435,7 +469,7 @@ func TestReconcile(t *testing.T) {
 								want.SetActivationPolicy(&v1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
 								want.SetConditions(v1.UnknownHealth())
-								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
+								want.SetConditions(v1.Inactive().WithMessage("Package has no active revision"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -448,6 +482,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -462,7 +499,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulActiveRevisionExists": {
-			reason: "We should match revision health and not requeue when active revision already exists.",
+			reason: "We should match revision health and not requeue when current revision already exists and is active.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -482,6 +519,9 @@ func TestReconcile(t *testing.T) {
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
+									},
+									Spec: v1.PackageRevisionSpec{
+										DesiredState: v1.PackageRevisionActive,
 									},
 								}
 								cr.SetConditions(v1.Healthy())
@@ -511,6 +551,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
+					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
@@ -523,8 +566,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"SuccessfulRevisionExistsNeedsActive": {
-			reason: "We should match revision health, set to active, and not requeue when inactive revision already exists and activation policy is automatic.",
+		"ErrActivateRevisions": {
+			reason: "We should return an error if the revision activator fails.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -545,53 +588,27 @@ func TestReconcile(t *testing.T) {
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
 									},
+									Spec: v1.PackageRevisionSpec{
+										DesiredState: v1.PackageRevisionActive,
+									},
 								}
-								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								cr.SetConditions(v1.Healthy())
-								cr.SetDesiredState(v1.PackageRevisionInactive)
-								cr.SetRevision(1)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
 								}
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.Configuration{}
-								want.SetName("test")
-								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
-								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.Healthy())
-								want.SetConditions(v1.Active())
-								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
-							want := &v1.ConfigurationRevision{}
-							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
-							want.SetName("test-1234567")
-							want.SetOwnerReferences([]metav1.OwnerReference{{
-								APIVersion:         v1.SchemeGroupVersion.String(),
-								Kind:               v1.ConfigurationKind,
-								Name:               "test",
-								Controller:         &trueVal,
-								BlockOwnerDeletion: &trueVal,
-							}})
-							want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.Healthy())
-							want.SetRevision(1)
-							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(errBoom),
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -602,7 +619,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: false},
+				err: errBoom,
 			},
 		},
 		"ErrUpdatePackageRevision": {
@@ -655,6 +672,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -719,6 +739,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -789,7 +812,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetConditions(v1.Healthy())
-								want.SetConditions(v1.Active())
+								want.SetConditions(v1.Inactive().WithMessage("Package has no active revision"))
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -809,7 +832,7 @@ func TestReconcile(t *testing.T) {
 								BlockOwnerDeletion: &trueVal,
 							}})
 							want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetDesiredState(v1.PackageRevisionInactive)
 							want.SetConditions(v1.Healthy())
 							want.SetRevision(3)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
@@ -820,6 +843,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
@@ -904,6 +930,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
+					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
@@ -955,6 +984,9 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
+					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
@@ -1004,6 +1036,9 @@ func TestReconcile(t *testing.T) {
 					},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					activator: &MockRevisionActivator{
+						MockActivateRevisions: NewMockActivateRevisionsFn(nil),
 					},
 					config: &fake.MockConfigStore{
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
