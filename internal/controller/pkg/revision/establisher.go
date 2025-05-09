@@ -106,7 +106,11 @@ type currentDesired struct {
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
 func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
-	err := e.addLabels(objs, parent)
+	err := e.addAnnotations(objs, parent)
+	if err != nil {
+		return nil, err
+	}
+	err = e.addLabels(objs, parent)
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +199,26 @@ func (e *APIEstablisher) ReleaseObjects(ctx context.Context, parent v1.PackageRe
 	}
 
 	return g.Wait()
+}
+
+func (e *APIEstablisher) addAnnotations(objs []runtime.Object, parent v1.PackageRevision) error {
+	commonAnnotations := parent.GetCommonAnnotations()
+	for _, obj := range objs {
+		// convert to resource.Object to be able to access metadata
+		d, ok := obj.(resource.Object)
+		if !ok {
+			return errors.New(errConfResourceObject)
+		}
+		annotations := d.GetAnnotations()
+		if annotations != nil {
+			for key, value := range commonAnnotations {
+				annotations[key] = value
+			}
+		} else {
+			d.SetAnnotations(commonAnnotations)
+		}
+	}
+	return nil
 }
 
 func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevision) error {
