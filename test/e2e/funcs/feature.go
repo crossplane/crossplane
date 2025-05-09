@@ -370,12 +370,11 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 					key := fmt.Sprintf("%s[%s]", u.GetKind(), got.Type)
 					if !ogReport[key] {
 						ogReport[key] = true
-						t.Logf("crossplane#6420: Warning, an unset observedGeneration was atrifically updated for %s.status.conditions[%s]", u.GetKind(), got.Type)
+						t.Logf("https://github.com/crossplane/crossplane/issues/6420: Warning, an unset observedGeneration was artificially updated for %s.status.conditions[%s]", u.GetKind(), got.Type)
 					}
 				}
 
-				// TODO: until https://github.com/crossplane/crossplane-runtime/pull/828 is merged, Equal still ignores observedGeneration.
-				if !got.Equal(old[i]) && got.ObservedGeneration == old[i].ObservedGeneration {
+				if !got.Equal(old[i]) {
 					old[i] = got
 					t.Logf("- CONDITION: %s[@%d]: %s=%s[@%d] Reason=%s: %s (%s)",
 						identifier(u), u.GetGeneration(), got.Type, got.Status, got.ObservedGeneration, got.Reason, or(got.Message, `""`), got.LastTransitionTime)
@@ -384,8 +383,7 @@ func ResourceHasConditionWithin(d time.Duration, o k8s.Object, cds ...xpv1.Condi
 				// do compare modulo message as the message in e2e tests
 				// might differ between runs and is not meant for machines.
 				got.Message = ""
-				// TODO: until https://github.com/crossplane/crossplane-runtime/pull/828 is merged, Equal still ignores observedGeneration.
-				if !got.Equal(want) && got.ObservedGeneration == want.ObservedGeneration {
+				if !got.Equal(want) {
 					return false
 				}
 			}
