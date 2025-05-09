@@ -1,0 +1,10 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: e2e-rewrite
+spec:
+  dependsOn:
+    # This provider doesn't exist. It will be rewritten by the ImageConfig in
+    # the test.
+    - provider: registry.example.com/crossplane-contrib/provider-nop
+      version: "v0.4.0"

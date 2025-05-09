@@ -1,0 +1,8 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-rewrite
+spec:
+  # This provider doesn't exist. It will be rewritten by the ImageConfig in the
+  # test.
+  package: registry.example.com/crossplane/e2e-rewrite:v0.1.0

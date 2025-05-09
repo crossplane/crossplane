@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,6 +68,11 @@ func TestPackageRevisioner(t *testing.T) {
 							PackagePullPolicy: &pullNever,
 						},
 					},
+					Status: v1.ProviderStatus{
+						PackageStatus: v1.PackageStatus{
+							ResolvedPackage: "my-revision",
+						},
+					},
 				},
 			},
 			want: want{
@@ -88,6 +94,7 @@ func TestPackageRevisioner(t *testing.T) {
 					},
 					Status: v1.ProviderStatus{
 						PackageStatus: v1.PackageStatus{
+							ResolvedPackage:   "crossplane/provider-aws:latest",
 							CurrentRevision:   "return-me",
 							CurrentIdentifier: "crossplane/provider-aws:latest",
 						},
@@ -96,6 +103,43 @@ func TestPackageRevisioner(t *testing.T) {
 			},
 			want: want{
 				digest: "return-me",
+			},
+		},
+		"SuccessfulPullRewrittenImage": {
+			reason: "Should resolve the image correctly when it has been rewritten by an image config.",
+			args: args{
+				f: &fake.MockFetcher{
+					MockHead: func(ref name.Reference) (*conregv1.Descriptor, error) {
+						if ref.String() != "registry.acme.co/crossplane/provider-aws:latest" {
+							return nil, errors.Errorf("incorrect ref %q", ref)
+						}
+						return &conregv1.Descriptor{
+							Digest: conregv1.Hash{
+								Algorithm: "sha256",
+								Hex:       "ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
+							},
+						}, nil
+					},
+				},
+				pkg: &v1.Provider{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "provider-aws",
+					},
+					Spec: v1.ProviderSpec{
+						PackageSpec: v1.PackageSpec{
+							Package:           "xpkg.upbound.io/crossplane/provider-aws:latest",
+							PackagePullPolicy: &pullIfNotPresent,
+						},
+					},
+					Status: v1.ProviderStatus{
+						PackageStatus: v1.PackageStatus{
+							ResolvedPackage: "registry.acme.co/crossplane/provider-aws:latest",
+						},
+					},
+				},
+			},
+			want: want{
+				digest: "provider-aws-ecc25c121431",
 			},
 		},
 		"SuccessfulDigest": {
@@ -109,6 +153,11 @@ func TestPackageRevisioner(t *testing.T) {
 						PackageSpec: v1.PackageSpec{
 							Package:           "crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 							PackagePullPolicy: &pullIfNotPresent,
+						},
+					},
+					Status: v1.ProviderStatus{
+						PackageStatus: v1.PackageStatus{
+							ResolvedPackage: "crossplane-contrib/provider-nop@sha256:ecc25c121431dfc7058754427f97c034ecde26d4aafa0da16d258090e0443904",
 						},
 					},
 				},
@@ -134,6 +183,11 @@ func TestPackageRevisioner(t *testing.T) {
 							Package: "*THISISNOTVALID",
 						},
 					},
+					Status: v1.ProviderStatus{
+						PackageStatus: v1.PackageStatus{
+							ResolvedPackage: "*THISISNOTVALID",
+						},
+					},
 				},
 			},
 			want: want{
@@ -150,6 +204,11 @@ func TestPackageRevisioner(t *testing.T) {
 					Spec: v1.ProviderSpec{
 						PackageSpec: v1.PackageSpec{
 							Package: "test/test:test",
+						},
+					},
+					Status: v1.ProviderStatus{
+						PackageStatus: v1.PackageStatus{
+							ResolvedPackage: "test/test:test",
 						},
 					},
 				},

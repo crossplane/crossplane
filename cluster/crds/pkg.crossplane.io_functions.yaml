@@ -168,6 +168,27 @@ spec:
           status:
             description: FunctionStatus represents the observed state of a Function.
             properties:
+              appliedImageConfigRefs:
+                description: |-
+                  AppliedImageConfigRefs records any image configs that were applied in
+                  reconciling this package, and what they were used for.
+                items:
+                  description: |-
+                    ImageConfigRef is a reference to an image config that indicates how the
+                    referenced image config was used by the package manager.
+                  properties:
+                    name:
+                      description: Name is the name of the image config.
+                      type: string
+                    reason:
+                      description: Reason indicates what the image config was used
+                        for.
+                      type: string
+                  required:
+                  - name
+                  - reason
+                  type: object
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -228,6 +249,12 @@ spec:
                   CurrentRevision is the name of the current package revision. It will
                   reflect the most up to date revision, whether it has been activated or
                   not.
+                type: string
+              resolvedPackage:
+                description: |-
+                  ResolvedPackage is the name of the package that was used for version
+                  resolution. It may be different from spec.package if the package path was
+                  rewritten using an image config.
                 type: string
             type: object
         type: object
@@ -386,6 +413,27 @@ spec:
           status:
             description: FunctionStatus represents the observed state of a Function.
             properties:
+              appliedImageConfigRefs:
+                description: |-
+                  AppliedImageConfigRefs records any image configs that were applied in
+                  reconciling this package, and what they were used for.
+                items:
+                  description: |-
+                    ImageConfigRef is a reference to an image config that indicates how the
+                    referenced image config was used by the package manager.
+                  properties:
+                    name:
+                      description: Name is the name of the image config.
+                      type: string
+                    reason:
+                      description: Reason indicates what the image config was used
+                        for.
+                      type: string
+                  required:
+                  - name
+                  - reason
+                  type: object
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -446,6 +494,12 @@ spec:
                   CurrentRevision is the name of the current package revision. It will
                   reflect the most up to date revision, whether it has been activated or
                   not.
+                type: string
+              resolvedPackage:
+                description: |-
+                  ResolvedPackage is the name of the package that was used for version
+                  resolution. It may be different from spec.package if the package path was
+                  rewritten using an image config.
                 type: string
             type: object
         type: object

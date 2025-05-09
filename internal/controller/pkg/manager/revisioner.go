@@ -76,7 +76,9 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package, extraPul
 			return p.GetCurrentRevision(), nil
 		}
 	}
-	ref, err := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
+	// Use the package recorded in the status rather than the one in the spec,
+	// since it may have been rewritten by image config.
+	ref, err := name.ParseReference(p.GetResolvedSource(), name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		return "", errors.Wrap(err, errBadReference)
 	}

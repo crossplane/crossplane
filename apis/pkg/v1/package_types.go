@@ -89,4 +89,37 @@ type PackageStatus struct {
 	// will cause the package manager to check that the current revision is
 	// correct for the given package source.
 	CurrentIdentifier string `json:"currentIdentifier,omitempty"`
+
+	// AppliedImageConfigRefs records any image configs that were applied in
+	// reconciling this package, and what they were used for.
+	AppliedImageConfigRefs []ImageConfigRef `json:"appliedImageConfigRefs,omitempty"`
+
+	// ResolvedPackage is the name of the package that was used for version
+	// resolution. It may be different from spec.package if the package path was
+	// rewritten using an image config.
+	ResolvedPackage string `json:"resolvedPackage,omitempty"`
 }
+
+// ImageConfigRef is a reference to an image config that indicates how the
+// referenced image config was used by the package manager.
+type ImageConfigRef struct {
+	// Name is the name of the image config.
+	Name string `json:"name"`
+	// Reason indicates what the image config was used for.
+	Reason ImageConfigRefReason `json:"reason"`
+}
+
+// ImageConfigRefReason is a reason an image config was used.
+type ImageConfigRefReason string
+
+const (
+	// ImageConfigReasonSetPullSecret indicates an image config was used to
+	// configure the pull secret.
+	ImageConfigReasonSetPullSecret ImageConfigRefReason = "SetImagePullSecret"
+	// ImageConfigReasonVerify indicates an image config was used to configure
+	// image verification.
+	ImageConfigReasonVerify ImageConfigRefReason = "VerifyImage"
+	// ImageConfigReasonRewrite indicates an image config was used to rewrite
+	// the image's path.
+	ImageConfigReasonRewrite ImageConfigRefReason = "RewriteImage"
+)

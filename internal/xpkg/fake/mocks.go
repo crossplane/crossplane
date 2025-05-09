@@ -82,8 +82,8 @@ var _ xpkg.Fetcher = &MockFetcher{}
 // MockFetcher is a mock fetcher.
 type MockFetcher struct {
 	MockFetch func() (v1.Image, error)
-	MockHead  func() (*v1.Descriptor, error)
-	MockTags  func() ([]string, error)
+	MockHead  func(name.Reference) (*v1.Descriptor, error)
+	MockTags  func(name.Reference) ([]string, error)
 }
 
 // NewMockFetchFn creates a new MockFetch function for MockFetcher.
@@ -97,21 +97,21 @@ func (m *MockFetcher) Fetch(_ context.Context, _ name.Reference, _ ...string) (v
 }
 
 // NewMockHeadFn creates a new MockHead function for MockFetcher.
-func NewMockHeadFn(d *v1.Descriptor, err error) func() (*v1.Descriptor, error) {
-	return func() (*v1.Descriptor, error) { return d, err }
+func NewMockHeadFn(d *v1.Descriptor, err error) func(name.Reference) (*v1.Descriptor, error) {
+	return func(_ name.Reference) (*v1.Descriptor, error) { return d, err }
 }
 
 // Head calls the underlying MockHead.
-func (m *MockFetcher) Head(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
-	return m.MockHead()
+func (m *MockFetcher) Head(_ context.Context, ref name.Reference, _ ...string) (*v1.Descriptor, error) {
+	return m.MockHead(ref)
 }
 
 // NewMockTagsFn creates a new MockTags function for MockFetcher.
-func NewMockTagsFn(tags []string, err error) func() ([]string, error) {
-	return func() ([]string, error) { return tags, err }
+func NewMockTagsFn(tags []string, err error) func(name.Reference) ([]string, error) {
+	return func(_ name.Reference) ([]string, error) { return tags, err }
 }
 
 // Tags calls the underlying MockTags.
-func (m *MockFetcher) Tags(_ context.Context, _ name.Reference, _ ...string) ([]string, error) {
-	return m.MockTags()
+func (m *MockFetcher) Tags(_ context.Context, ref name.Reference, _ ...string) ([]string, error) {
+	return m.MockTags(ref)
 }
