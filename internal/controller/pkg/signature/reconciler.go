@@ -294,7 +294,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
 		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
-		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonVerify)
 		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errGetVerificationConfig)
 	}
@@ -303,6 +302,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// verification.
 		log.Debug("No signature verification config found for image, skipping verification")
 		pr.SetConditions(v1.VerificationSkipped())
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonVerify)
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update package status")
 	}
 

@@ -338,7 +338,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
-		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 		_ = r.client.Status().Update(ctx, p)
 
 		r.record.Event(p, event.Warning(reasonImageConfig, err))
@@ -351,6 +350,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			Name:   rewriteConfigName,
 			Reason: v1.ImageConfigReasonRewrite,
 		})
+	} else {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 	}
 	p.SetResolvedSource(imagePath)
 
@@ -358,7 +359,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
-		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 		_ = r.client.Status().Update(ctx, p)
 
 		r.record.Event(p, event.Warning(reasonImageConfig, err))
@@ -373,7 +373,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			Name:   pullSecretConfig,
 			Reason: v1.ImageConfigReasonSetPullSecret,
 		})
+	} else {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 	}
+
 	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)

@@ -571,7 +571,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
 		pr.SetConditions(v1.Unpacking().WithMessage(err.Error()))
-		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -584,6 +583,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			Name:   rewriteConfigName,
 			Reason: v1.ImageConfigReasonRewrite,
 		})
+	} else {
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
 	}
 
 	// Ensure the rewritten image path is persisted before we proceed.
@@ -619,7 +620,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
-		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -754,6 +754,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				Name:   pullSecretConfig,
 				Reason: v1.ImageConfigReasonSetPullSecret,
 			})
+		} else {
+			pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 		}
 
 		// Initialize parser backend to obtain package contents.
