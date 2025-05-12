@@ -181,7 +181,7 @@ func (kc *Client) setChildrenRevisions(ctx context.Context, res *resource.Resour
 	for _, r := range revisions {
 		state, _ := fieldpath.Pave(r.Unstructured.Object).GetString("spec.desiredState")
 		switch pkgv1.PackageRevisionDesiredState(state) {
-		case pkgv1.PackageRevisionActive:
+		case pkgv1.PackageRevisionActive, pkgv1.PackageRevisionRuntimeOnly:
 			res.Children = append(res.Children, r)
 		case pkgv1.PackageRevisionInactive:
 			if kc.revisionOutput == RevisionOutputAll {

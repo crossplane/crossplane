@@ -74,7 +74,7 @@ func NewFunctionHooks(client client.Client, defaultRegistry string) *FunctionHoo
 func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return nil
 	}
 
@@ -121,7 +121,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if !ok {
 		return errors.New(errNotFunction)
 	}
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return nil
 	}
 

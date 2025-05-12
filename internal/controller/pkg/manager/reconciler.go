@@ -45,6 +45,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -262,13 +263,18 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errBuildFetcher)
 	}
 
+	var activator RevisionActivator = NewSingleRevisionActivator(mgr.GetClient())
+	if o.Features.Enabled(features.EnableAlphaFunctionRevisionSelectors) {
+		activator = NewMultiRevisionActivator(mgr.GetClient())
+	}
+
 	log := o.Logger.WithValues("controller", name)
 	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
-		WithRevisionActivator(NewSingleRevisionActivator(mgr.GetClient())),
+		WithRevisionActivator(activator),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),

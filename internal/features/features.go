@@ -43,6 +43,12 @@ const (
 	// EnableAlphaFunctionResponseCache enables alpha support for caching
 	// composition function responses.
 	EnableAlphaFunctionResponseCache feature.Flag = "EnableAlphaFunctionResponseCache"
+
+	// EnableAlphaFunctionRevisionSelectors enables alpha support for selecting
+	// specific function revisions in function pipeline steps. This also enables
+	// package manager support for keeping multiple revisions of a function
+	// active at once.
+	EnableAlphaFunctionRevisionSelectors feature.Flag = "EnableAlphaFunctionRevisionSelectors"
 )
 
 // Beta Feature Flags.

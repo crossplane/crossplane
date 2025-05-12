@@ -108,14 +108,18 @@ func TestProviderPreHook(t *testing.T) {
 				},
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{},
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionInactive,
+						},
 					},
 				},
 			},
 			want: want{
 				rev: &v1.ProviderRevision{
 					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{},
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionInactive,
+						},
 					},
 					Status: v1.PackageRevisionStatus{
 						PermissionRequests: []rbacv1.PolicyRule{

@@ -30,6 +30,10 @@ const (
 	// PackageRevisionActive is an active package revision.
 	PackageRevisionActive PackageRevisionDesiredState = "Active"
 
+	// PackageRevisionRuntimeOnly is a package revision with an active runtime
+	// but objects controlled by a different revision.
+	PackageRevisionRuntimeOnly PackageRevisionDesiredState = "RuntimeOnly"
+
 	// PackageRevisionInactive is an inactive package revision.
 	PackageRevisionInactive PackageRevisionDesiredState = "Inactive"
 )

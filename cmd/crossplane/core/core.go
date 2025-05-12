@@ -122,6 +122,7 @@ type startCommand struct {
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+	EnableFunctionRevisionSelectors   bool `group:"Alpha Features:" help:"Enable support for selecting specific function revisions in composition pipelines."`
 
 	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -345,6 +346,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaSignatureVerification)
+	}
+	if c.EnableFunctionRevisionSelectors {
+		o.Features.Enable(features.EnableAlphaFunctionRevisionSelectors)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionRevisionSelectors)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the

@@ -87,7 +87,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return nil
 	}
 
@@ -149,7 +149,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if !ok {
 		return errors.New("not a provider package")
 	}
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		return nil
 	}
 
