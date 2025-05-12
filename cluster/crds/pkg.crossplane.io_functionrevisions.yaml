@@ -353,7 +353,7 @@ spec:
               resolvedImage:
                 description: |-
                   ResolvedPackage is the name of the package that was installed. It may be
-                  different from spec.package if the package path was rewritten using an
+                  different from spec.image if the package path was rewritten using an
                   image config.
                 type: string
             type: object
@@ -698,7 +698,7 @@ spec:
               resolvedImage:
                 description: |-
                   ResolvedPackage is the name of the package that was installed. It may be
-                  different from spec.package if the package path was rewritten using an
+                  different from spec.image if the package path was rewritten using an
                   image config.
                 type: string
             type: object
