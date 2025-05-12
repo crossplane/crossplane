@@ -33,21 +33,22 @@ type RevisionActivator interface {
 	ActivateRevisions(ctx context.Context, p v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error)
 }
 
-// PackageRevisionActivator sets the desired activation state of package
-// revisions based on the package's configuration.
-type PackageRevisionActivator struct {
+// SingleRevisionActivator sets the desired activation state of package
+// revisions based on the package's configuration, making only one revision
+// active at any given time (i.e., ignoring activeRevisionLimit).
+type SingleRevisionActivator struct {
 	client resource.ClientApplicator
 }
 
-// NewPackageRevisionActivator returns a new PackageRevisionActivator.
-func NewPackageRevisionActivator(c client.Client) *PackageRevisionActivator {
-	return &PackageRevisionActivator{
+// NewSingleRevisionActivator returns a new PackageRevisionActivator.
+func NewSingleRevisionActivator(c client.Client) *SingleRevisionActivator {
+	return &SingleRevisionActivator{
 		client: resource.ClientApplicator{Client: c, Applicator: resource.NewAPIUpdatingApplicator(c)},
 	}
 }
 
 // ActivateRevisions activates revisions based on the package's configuration.
-func (a *PackageRevisionActivator) ActivateRevisions(ctx context.Context, p v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
+func (a *SingleRevisionActivator) ActivateRevisions(ctx context.Context, p v1.Package, revs []v1.PackageRevision) ([]v1.PackageRevision, error) {
 	if p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1.ManualActivation {
 		// Activation policy is manual - it's up to the user to
 		// activate/deactivate revisions.

@@ -31,11 +31,11 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
-func TestRevisionActivator(t *testing.T) {
+func TestSingleRevisionActivator(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
-		act  *PackageRevisionActivator
+		act  *SingleRevisionActivator
 		pkg  v1.Package
 		revs []v1.PackageRevision
 	}
@@ -53,7 +53,7 @@ func TestRevisionActivator(t *testing.T) {
 		"ManualActivation": {
 			reason: "The activator should do nothing for packages using the manual activation policy.",
 			args: args{
-				act: &PackageRevisionActivator{},
+				act: &SingleRevisionActivator{},
 				pkg: &v1.Configuration{
 					Spec: v1.ConfigurationSpec{
 						PackageSpec: v1.PackageSpec{
@@ -114,7 +114,7 @@ func TestRevisionActivator(t *testing.T) {
 		"ErrApplyInactiveRevision": {
 			reason: "The activator should return an error if it fails to inactivate a revision.",
 			args: args{
-				act: &PackageRevisionActivator{
+				act: &SingleRevisionActivator{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							if o.(v1.PackageRevision).GetDesiredState() == v1.PackageRevisionInactive {
@@ -164,7 +164,7 @@ func TestRevisionActivator(t *testing.T) {
 		"ErrApplyActiveRevision": {
 			reason: "The activator should return an error if it fails to activate a revision.",
 			args: args{
-				act: &PackageRevisionActivator{
+				act: &SingleRevisionActivator{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							if o.(v1.PackageRevision).GetDesiredState() == v1.PackageRevisionActive {
@@ -214,7 +214,7 @@ func TestRevisionActivator(t *testing.T) {
 		"AutomaticActivationNoChange": {
 			reason: "The activator should not make changes if the current revision is already active.",
 			args: args{
-				act: &PackageRevisionActivator{
+				act: &SingleRevisionActivator{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							wantState := v1.PackageRevisionInactive
@@ -298,7 +298,7 @@ func TestRevisionActivator(t *testing.T) {
 		"AutomaticActivationActivateCurrent": {
 			reason: "The activator should activate the current revision when it's not already active.",
 			args: args{
-				act: &PackageRevisionActivator{
+				act: &SingleRevisionActivator{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							wantState := v1.PackageRevisionInactive
