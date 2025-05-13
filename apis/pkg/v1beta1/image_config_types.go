@@ -67,7 +67,11 @@ type ImageConfigList struct {
 
 // ImageConfigSpec contains the configuration for matching images.
 type ImageConfigSpec struct {
-	// MatchImages is a list of image matching rules that should be satisfied.
+	// MatchImages is a list of image matching rules. This ImageConfig will
+	// match an image if any one of these rules is satisfied. In the case where
+	// multiple ImageConfigs match an image for a given purpose the one with the
+	// most specific match will be used. If multiple rules of equal specificity
+	// match an arbitrary one will be selected.
 	// +kubebuilder:validation:XValidation:rule="size(self) > 0",message="matchImages should have at least one element."
 	MatchImages []ImageMatch `json:"matchImages"`
 	// Registry is the configuration for the registry.
@@ -76,6 +80,9 @@ type ImageConfigSpec struct {
 	// Verification contains the configuration for verifying the image.
 	// +optional
 	Verification *ImageVerification `json:"verification,omitempty"`
+	// RewriteImage defines how a matched image's path should be rewritten.
+	// +optional
+	RewriteImage *ImageRewrite `json:"rewriteImage,omitempty"`
 }
 
 // ImageMatch defines a rule for matching image.
@@ -85,7 +92,8 @@ type ImageMatch struct {
 	// +kubebuilder:validation:Enum=Prefix
 	// +kubebuilder:default=Prefix
 	Type MatchType `json:"type,omitempty"`
-	// Prefix is the prefix that should be matched.
+	// Prefix is the prefix that should be matched. When multiple prefix rules
+	// match an image path, the longest one takes precedence.
 	Prefix string `json:"prefix"`
 }
 
@@ -127,4 +135,12 @@ type LocalSecretKeySelector struct {
 
 	// The key to select.
 	Key string `json:"key"`
+}
+
+// ImageRewrite defines how an image's path should be rewritten.
+type ImageRewrite struct {
+	// Prefix is the prefix that will replace the portion of the image's path
+	// matched by the prefix in the ImageMatch. If multiple prefixes matched,
+	// the longest one will be replaced.
+	Prefix string `json:"prefix"`
 }
