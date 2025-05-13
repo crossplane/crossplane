@@ -762,7 +762,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 			continue
 		}
 		conditionTypesSeen[c.Condition.Type] = true
-		status.MarkConditions(c.Condition)
+		xr.SetConditions(c.Condition)
 		if c.Target == CompositionTargetCompositeAndClaim {
 			// We can ignore the error as it only occurs if given a system condition.
 			_ = xr.SetClaimConditionTypes(c.Condition.Type)
