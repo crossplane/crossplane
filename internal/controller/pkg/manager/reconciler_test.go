@@ -161,8 +161,9 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("", errBoom),
 					},
@@ -304,8 +305,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("imageConfigName", "new/image/path", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
