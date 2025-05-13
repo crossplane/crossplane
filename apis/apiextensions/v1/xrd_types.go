@@ -235,6 +235,18 @@ type CompositeResourceDefinition struct {
 	Status CompositeResourceDefinitionStatus `json:"status,omitempty"`
 }
 
+// SetConditions delegates to Status.SetConditions.
+// Implements Conditioned.SetConditions.
+func (c *CompositeResourceDefinition) SetConditions(cs ...xpv1.Condition) {
+	c.Status.SetConditions(cs...)
+}
+
+// GetCondition delegates to Status.GetCondition.
+// Implements Conditioned.GetCondition.
+func (c *CompositeResourceDefinition) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return c.Status.GetCondition(ct)
+}
+
 // +kubebuilder:object:root=true
 
 // CompositeResourceDefinitionList contains a list of CompositeResourceDefinitions.
