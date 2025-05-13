@@ -167,9 +167,16 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
+	var eventRecorder event.Recorder
+	if o.Options.NamespacedEvents {
+		eventRecorder = event.NewNamespacedAPIRecorder(mgr.GetEventRecorderFor(name))
+	} else {
+		eventRecorder = event.NewAPIRecorder(mgr.GetEventRecorderFor(name))
+	}
+
 	r := NewReconciler(NewClientApplicator(mgr.GetClient()),
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithRecorder(eventRecorder),
 		WithControllerEngine(o.ControllerEngine),
 		WithOptions(o))
 
