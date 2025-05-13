@@ -53,6 +53,80 @@ var (
 	}
 )
 
+func TestMultiLoaderLoad(t *testing.T) {
+	type args struct {
+		loaders []Loader
+	}
+	type want struct {
+		resources []*unstructured.Unstructured
+		err       error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Success": {
+			reason: "Successfully load resources from file and folder loaders",
+			args: args{
+				loaders: []Loader{
+					&FileLoader{
+						path: "testdata/resources.yaml",
+					},
+					&FolderLoader{
+						path: "testdata/folder",
+					},
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: coolResource,
+					},
+					{
+						Object: coolerResource,
+					},
+					{
+						Object: coolResource,
+					},
+					{
+						Object: coolerResource,
+					},
+				},
+			},
+		},
+		"Error": {
+			reason: "Error loading resources from invalid loader",
+			args: args{
+				[]Loader{
+					&FileLoader{
+						path: "testdata/does-not-exist.yaml",
+					},
+				},
+			},
+			want: want{
+				resources: nil,
+				err:       cmpopts.AnyError,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &MultiLoader{
+				loaders: tc.args.loaders,
+			}
+			got, err := f.Load()
+			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
+				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestFileLoaderLoad(t *testing.T) {
 	type args struct {
 		Path string
