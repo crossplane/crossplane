@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -89,7 +90,8 @@ func TestReconcile(t *testing.T) {
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 					},
-					log: testLog,
+					log:        testLog,
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -105,7 +107,8 @@ func TestReconcile(t *testing.T) {
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 					},
-					log: testLog,
+					log:        testLog,
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -125,8 +128,9 @@ func TestReconcile(t *testing.T) {
 							MockList: test.NewMockListFn(errBoom),
 						},
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -205,6 +209,7 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", errBoom),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -244,6 +249,7 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -349,8 +355,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -402,8 +409,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -453,8 +461,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -515,8 +524,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -597,8 +607,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -660,8 +671,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -724,8 +736,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -825,8 +838,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -908,8 +922,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -959,8 +974,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
@@ -1009,8 +1025,9 @@ func TestReconcile(t *testing.T) {
 						MockPullSecretFor: fake.NewMockConfigStorePullSecretForFn("", "", nil),
 						MockRewritePath:   fake.NewMockRewritePathFn("", "", nil),
 					},
-					log:    testLog,
-					record: event.NewNopRecorder(),
+					log:        testLog,
+					record:     event.NewNopRecorder(),
+					conditions: conditions.ObservedGenerationPropagationManager{},
 				},
 			},
 			want: want{
