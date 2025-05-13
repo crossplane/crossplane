@@ -20,7 +20,6 @@ package resolver
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"sort"
 	"strings"
 	"time"
@@ -38,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
