@@ -19,7 +19,6 @@ package claim
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"

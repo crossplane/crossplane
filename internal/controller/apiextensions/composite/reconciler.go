@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
@@ -425,8 +426,9 @@ func NewReconciler(c, uc client.Client, of resource.CompositeKind, opts ...Recon
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},
 
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -453,8 +455,9 @@ type Reconciler struct {
 	engine         WatchStarter
 	watchHandler   handler.EventHandler
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	pollInterval time.Duration
 }
@@ -472,6 +475,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
+	status := r.conditions.For(xr)
 
 	log = log.WithValues(
 		"uid", xr.GetUID(),
@@ -483,7 +487,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(xr) {
 		r.record.Event(xr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
-		xr.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
@@ -492,11 +496,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(xr) {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
-		xr.SetConditions(xpv1.Deleting())
+		status.MarkConditions(xpv1.Deleting())
 		if err := r.composite.UnpublishConnection(ctx, xr, nil); err != nil {
 			err = errors.Wrap(err, errUnpublish)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
-			xr.SetConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 		}
 
@@ -506,12 +510,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
-			xr.SetConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
-		xr.SetConditions(xpv1.ReconcileSuccess())
+		status.MarkConditions(xpv1.ReconcileSuccess())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -521,7 +525,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -532,7 +536,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
@@ -549,7 +553,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
@@ -560,7 +564,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errValidate, "error", err)
 		err = errors.Wrap(err, errValidate)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -571,7 +575,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -594,7 +598,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// point to the event.
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 
 		meta := r.handleCommonCompositionResult(ctx, res, xr)
 		// We encountered a fatal error. For any custom status conditions that were
@@ -607,7 +611,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				c.Status = corev1.ConditionUnknown
 				c.Reason = reasonFatalError
 				c.Message = "A fatal error occurred before the status of this condition could be determined."
-				xr.SetConditions(c)
+				status.MarkConditions(c)
 			}
 		}
 
@@ -624,7 +628,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.engine.StartWatches(ctx, r.controllerName, ws...); err != nil {
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -636,7 +640,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if published {
@@ -697,7 +701,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	xr.SetConditions(synced, ready)
+	status.MarkConditions(synced, ready)
 
 	// Requeue after the configured poll interval by default. If realtime
 	// compositions is enabled this'll be RequeueAfter: 0, i.e. no requeue.
@@ -758,7 +762,7 @@ func (r *Reconciler) handleCommonCompositionResult(ctx context.Context, res Comp
 			continue
 		}
 		conditionTypesSeen[c.Condition.Type] = true
-		xr.SetConditions(c.Condition)
+		status.MarkConditions(c.Condition)
 		if c.Target == CompositionTargetCompositeAndClaim {
 			// We can ignore the error as it only occurs if given a system condition.
 			_ = xr.SetClaimConditionTypes(c.Condition.Type)
