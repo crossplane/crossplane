@@ -105,8 +105,8 @@ type startCommand struct {
 	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
-	WebhookEnabled bool `default:"true"  env:"WEBHOOK_ENABLED"                        hidden:""`
-	EnableWebhooks bool `default:"true"  env:"ENABLE_WEBHOOKS"                        help:"Enable webhook configuration."`
+	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" hidden:""`
+	EnableWebhooks bool `default:"true" env:"ENABLE_WEBHOOKS" help:"Enable webhook configuration."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
 	MetricsPort     int `default:"8080" env:"METRICS_PORT"      help:"The port the metrics server listens on."`
