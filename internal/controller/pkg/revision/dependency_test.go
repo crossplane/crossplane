@@ -132,7 +132,8 @@ func TestResolve(t *testing.T) {
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
-						Package: "hasheddan/config-nop-a:v0.0.1",
+						DesiredState: v1.PackageRevisionActive,
+						Package:      "hasheddan/config-nop-a:v0.0.1",
 					},
 				},
 			},

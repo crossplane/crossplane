@@ -650,6 +650,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		runtimeManifestBuilder = NewRuntimeManifestBuilder(pwr, r.namespace, opts...)
 	}
 
+	// Remove revision from dependency resolution if it's not active. This is
+	// separate from the deactivation logic below since it applies to
+	// RuntimeOnly revisions.
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
+			return reconcile.Result{}, errors.Wrap(err, errRemoveLock)
+		}
+	}
+
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.deactivateRevision(ctx, pr, runtimeManifestBuilder); err != nil {
@@ -969,11 +978,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision, runtimeManifestBuilder ManifestBuilder) error {
-	// Remove self from the lock if we are present.
-	if err := r.lock.RemoveSelf(ctx, pr); err != nil {
-		return errors.Wrap(err, errRemoveLock)
-	}
-
 	// ReleaseObjects control of objects.
 	if err := r.objects.ReleaseObjects(ctx, pr); err != nil {
 		return errors.Wrap(err, errReleaseObjects)
