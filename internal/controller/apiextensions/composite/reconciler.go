@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,7 +43,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -646,7 +646,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	ws := make([]engine.Watch, len(xr.GetResourceReferences()))
 	for i, ref := range xr.GetResourceReferences() {
-		ws[i] = engine.WatchFor(composed.New(composed.FromReference(ref)), engine.WatchTypeComposedResource, r.watchHandler)
+		cr := &kunstructured.Unstructured{}
+		cr.SetGroupVersionKind(ref.GroupVersionKind())
+		ws[i] = engine.WatchFor(cr, engine.WatchTypeComposedResource, r.watchHandler)
 	}
 
 	// The ControllerEngine that starts this controller also starts a
