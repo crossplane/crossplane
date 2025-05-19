@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
@@ -40,7 +41,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -577,10 +577,9 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithWatchStarter("cool-controller", nil, WatchStarterFn(func(_ context.Context, _ string, ws ...engine.Watch) error {
-						cd := composed.New(composed.FromReference(corev1.ObjectReference{
-							APIVersion: "example.org/v1",
-							Kind:       "ComposedResource",
-						}))
+						cd := &kunstructured.Unstructured{}
+						cd.SetAPIVersion("example.org/v1")
+						cd.SetKind("ComposedResource")
 						want := []engine.Watch{engine.WatchFor(cd, engine.WatchTypeComposedResource, nil)}
 
 						if diff := cmp.Diff(want, ws, cmp.AllowUnexported(engine.Watch{})); diff != "" {
