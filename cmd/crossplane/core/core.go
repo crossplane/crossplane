@@ -96,7 +96,7 @@ type startCommand struct {
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
 
-	XpkgCacheDir string `default:"/cache/xpkg" env:"XPKG_CACHE_DIR" help:"Directory used for caching package images."`
+	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
@@ -105,8 +105,7 @@ type startCommand struct {
 	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
-	WebhookEnabled bool `default:"true" env:"WEBHOOK_ENABLED" hidden:""`
-	EnableWebhooks bool `default:"true" env:"ENABLE_WEBHOOKS" help:"Enable webhook configuration."`
+	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
 	MetricsPort     int `default:"8080" env:"METRICS_PORT"      help:"The port the metrics server listens on."`
@@ -145,9 +144,6 @@ type startCommand struct {
 	// explicit and informative error on startup, instead of a potentially
 	// surprising one later.
 	EnableEnvironmentConfigs bool `hidden:""`
-
-	// Deprecated: Use XpkgCacheDir. Kept for backward compatibility.
-	CacheDir string `env:"CACHE_DIR" hidden:"" short:"c"`
 }
 
 // Run core Crossplane controllers.
@@ -237,14 +233,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 	if !c.EnableCompositionFunctionsExtraResources {
 		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
-	}
-	if !c.WebhookEnabled {
-		log.Info("The --webhook-enabled flag is deprecated, it is replaced with --enable-webhooks and will be removed in a future release.")
-	}
-
-	if c.CacheDir != "" {
-		log.Info("The --cache-dir flag is deprecated and will be removed in a future release. Use --xpkg-cache-dir instead.")
-		c.XpkgCacheDir = c.CacheDir
 	}
 
 	// TODO(negz): Include a link to a migration guide.
@@ -500,7 +488,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.WebhookEnabled || c.EnableWebhooks {
+	if c.EnableWebhooks {
 		// TODO(muvaf): Once the implementation of other webhook handlers are
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.
@@ -537,7 +525,7 @@ func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
 	}
 
 	// Add probes waiting for the webhook server if webhooks are enabled
-	if c.WebhookEnabled || c.EnableWebhooks {
+	if c.EnableWebhooks {
 		hookServer := mgr.GetWebhookServer()
 		if err := mgr.AddReadyzCheck("webhook", hookServer.StartedChecker()); err != nil {
 			return errors.Wrap(err, "cannot create webhook ready check")
