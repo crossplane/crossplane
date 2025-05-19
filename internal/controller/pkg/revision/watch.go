@@ -89,7 +89,8 @@ func EnqueuePackageRevisionsForImageConfig(kube client.Client, l v1.PackageRevis
 		// Enqueue all package revisions matching the prefixes in the ImageConfig.
 		rl := l.DeepCopyObject().(v1.PackageRevisionList) //nolint:forcetypeassert // Guaranteed to be PackageRevisionList.
 		if err := kube.List(ctx, rl); err != nil {
-			// Nothing we can do, except logging, if we can't list FunctionRevisions.
+			// Nothing we can do, except logging, if we can't list
+			// package revisions.
 			log.Debug("Cannot list package revisions while attempting to enqueue from ImageConfig", "error", err)
 			return nil
 		}
