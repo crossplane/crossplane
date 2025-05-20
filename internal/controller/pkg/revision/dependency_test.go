@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
@@ -81,6 +82,7 @@ func TestResolve(t *testing.T) {
 					client: &test.MockClient{
 						MockGet: test.NewMockGetFn(errBoom),
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -101,6 +103,7 @@ func TestResolve(t *testing.T) {
 						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 						MockCreate: test.NewMockCreateFn(errBoom),
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -128,6 +131,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -166,6 +170,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
@@ -204,6 +209,7 @@ func TestResolve(t *testing.T) {
 							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -214,6 +220,7 @@ func TestResolve(t *testing.T) {
 								},
 								{
 									Provider: ptr.To("not-here-2"),
+									Version:  ">= v2.0.0",
 								},
 							},
 						},
@@ -231,7 +238,7 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				total: 2,
-				err:   errors.Errorf(errFmtMissingDependencies, []string{"not-here-1", "not-here-2"}),
+				err:   errors.Errorf(errFmtMissingDependencies, `"not-here-1", "not-here-2" (>= v2.0.0)`),
 			},
 		},
 		"ErrorSelfExistMissingDependencies": {
@@ -291,6 +298,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -319,7 +327,7 @@ func TestResolve(t *testing.T) {
 			want: want{
 				total:     3,
 				installed: 1,
-				err:       errors.Errorf(errFmtMissingDependencies, []string{"not-here-2", "not-here-3"}),
+				err:       errors.Errorf(errFmtMissingDependencies, `"not-here-2", "not-here-3"`),
 			},
 		},
 		"ErrorSelfExistInvalidDependencies": {
@@ -387,6 +395,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -501,6 +510,7 @@ func TestResolve(t *testing.T) {
 							},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{
 					Spec: pkgmetav1.ConfigurationSpec{
@@ -579,6 +589,7 @@ func TestResolve(t *testing.T) {
 							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
 						}
 					},
+					log: logging.NewNopLogger(),
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
