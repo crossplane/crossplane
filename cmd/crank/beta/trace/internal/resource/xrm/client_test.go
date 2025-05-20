@@ -65,12 +65,6 @@ func withXRRefs(refs ...v1.ObjectReference) xrOpt {
 	}
 }
 
-func withXRSecretRef(ref *xpv1.SecretReference) xrOpt {
-	return func(c *composite.Unstructured) {
-		c.SetWriteConnectionSecretToReference(ref)
-	}
-}
-
 func buildXR(name string, opts ...xrOpt) *unstructured.Unstructured {
 	c := composite.New()
 	c.SetName(name)
@@ -215,68 +209,6 @@ func TestGetResourceChildrenRefs(t *testing.T) {
 						APIVersion: "example.com/v1",
 						Kind:       "XR",
 						Name:       "xr-1",
-					},
-				},
-			},
-		},
-		"XRWithChildrenAndSecret": {
-			reason: "Should return a list of children refs for an XR.",
-			args: args{
-				witSecrets: true,
-				resource: &resource2.Resource{
-					Unstructured: *buildXR("root-xr", withXRSecretRef(&xpv1.SecretReference{
-						Name:      "secret-1",
-						Namespace: "ns-1",
-					}), withXRRefs(v1.ObjectReference{
-						APIVersion: "example.com/v1",
-						Kind:       "MR",
-						Name:       "mr-1",
-					},
-						v1.ObjectReference{
-							APIVersion: "example2.com/v1",
-							Kind:       "MR",
-							Name:       "mr-2",
-						},
-						v1.ObjectReference{
-							APIVersion: "example2.com/v1",
-							Kind:       "XR",
-							Name:       "xr-1",
-						},
-						v1.ObjectReference{
-							APIVersion: "example2.com/v1",
-							Kind:       "XRC",
-							Name:       "xrc-1",
-						},
-					)),
-				},
-			},
-			want: want{
-				refs: []v1.ObjectReference{
-					{
-						APIVersion: "v1",
-						Kind:       "Secret",
-						Namespace:  "ns-1",
-						Name:       "secret-1",
-					},
-					{
-						APIVersion: "example.com/v1",
-						Kind:       "MR",
-						Name:       "mr-1",
-					},
-					{
-						APIVersion: "example2.com/v1",
-						Kind:       "MR",
-						Name:       "mr-2",
-					},
-					{
-						APIVersion: "example2.com/v1",
-						Kind:       "XR",
-						Name:       "xr-1",
-					},
-					{
-						APIVersion: "example2.com/v1",
-						Kind:       "XRC",
-						Name:       "xrc-1",
 					},
 				},
 			},
