@@ -528,6 +528,34 @@ spec:
                       required:
                       - name
                       type: object
+                    functionRevisionRef:
+                      description: |-
+                        FunctionRevisionRef is an optional reference to the function revision
+                        that should be used for this step. It must be a revision of the function
+                        referred to by FunctionRef. If neither FunctionRevisionRef nor
+                        FunctionRevisionSelector is specified, the active revision will be used.
+                        Takes precedence over FunctionRevisionSelector if both are specified.
+                      properties:
+                        name:
+                          description: Name of the referenced function revision.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    functionRevisionSelector:
+                      description: |-
+                        FunctionRevisionSelector optionally selects a function revision to use
+                        for this step. FunctionRevisionRef takes precedence if both are
+                        specified. If neither FunctionRevisionRef nor FunctionRevisionSelector is
+                        specified, the active revision will be used.
+                      properties:
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: MatchLabels selects a function revision with
+                            matching labels.
+                          type: object
+                      type: object
                     input:
                       description: |-
                         Input is an optional, arbitrary Kubernetes resource (i.e. a resource

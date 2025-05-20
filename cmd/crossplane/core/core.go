@@ -266,12 +266,21 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	pfrm := xfn.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(pfrm)
 
-	// We want all XR controllers to share the same gRPC clients.
-	pfr := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+	pfropts := []xfn.PackagedFunctionRunnerOption{
 		xfn.WithLogger(log),
 		xfn.WithTLSConfig(clienttls),
 		xfn.WithInterceptorCreators(pfrm),
-	)
+	}
+
+	if c.EnableFunctionRevisionSelectors {
+		o.Features.Enable(features.EnableAlphaFunctionRevisionSelectors)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionRevisionSelectors)
+
+		pfropts = append(pfropts, xfn.WithFunctionRevisionResolver(xfn.NewSelectorFunctionRevisionResolver(mgr.GetClient())))
+	}
+
+	// We want all XR controllers to share the same gRPC clients.
+	pfr := xfn.NewPackagedFunctionRunner(mgr.GetClient(), pfropts...)
 
 	// Periodically remove clients for Functions that no longer exist.
 	go pfr.GarbageCollectConnections(ctx, 10*time.Minute)
@@ -346,10 +355,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaSignatureVerification)
-	}
-	if c.EnableFunctionRevisionSelectors {
-		o.Features.Enable(features.EnableAlphaFunctionRevisionSelectors)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionRevisionSelectors)
 	}
 
 	// Claim and XR controllers are started and stopped dynamically by the

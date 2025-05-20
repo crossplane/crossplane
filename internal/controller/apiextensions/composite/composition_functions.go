@@ -323,7 +323,16 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 
 		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
 
-		rsp, err := c.pipeline.RunFunction(ctx, xfn.FunctionRevisionSelector{FunctionName: fn.FunctionRef.Name}, req)
+		sel := xfn.FunctionRevisionSelector{
+			FunctionName: fn.FunctionRef.Name,
+		}
+		if fn.FunctionRevisionRef != nil {
+			sel.RevisionName = fn.FunctionRevisionRef.Name
+		}
+		if fn.FunctionRevisionSelector != nil {
+			sel.RevisionMatchLabels = fn.FunctionRevisionSelector.MatchLabels
+		}
+		rsp, err := c.pipeline.RunFunction(ctx, sel, req)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
 		}

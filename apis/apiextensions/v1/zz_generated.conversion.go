@@ -137,6 +137,31 @@ func (c *GeneratedRevisionSpecConverter) pV1ConvertTransformToPV1ConvertTransfor
 	}
 	return pV1ConvertTransform
 }
+func (c *GeneratedRevisionSpecConverter) pV1FunctionRevisionReferenceToPV1FunctionRevisionReference(source *FunctionRevisionReference) *FunctionRevisionReference {
+	var pV1FunctionRevisionReference *FunctionRevisionReference
+	if source != nil {
+		var v1FunctionRevisionReference FunctionRevisionReference
+		v1FunctionRevisionReference.Name = (*source).Name
+		pV1FunctionRevisionReference = &v1FunctionRevisionReference
+	}
+	return pV1FunctionRevisionReference
+}
+func (c *GeneratedRevisionSpecConverter) pV1FunctionRevisionSelectorToPV1FunctionRevisionSelector(source *FunctionRevisionSelector) *FunctionRevisionSelector {
+	var pV1FunctionRevisionSelector *FunctionRevisionSelector
+	if source != nil {
+		var v1FunctionRevisionSelector FunctionRevisionSelector
+		var mapStringString map[string]string
+		if (*source).MatchLabels != nil {
+			mapStringString = make(map[string]string, len((*source).MatchLabels))
+			for key, value := range (*source).MatchLabels {
+				mapStringString[key] = value
+			}
+		}
+		v1FunctionRevisionSelector.MatchLabels = mapStringString
+		pV1FunctionRevisionSelector = &v1FunctionRevisionSelector
+	}
+	return pV1FunctionRevisionSelector
+}
 func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source *MapTransform) *MapTransform {
 	var pV1MapTransform *MapTransform
 	if source != nil {
@@ -490,6 +515,8 @@ func (c *GeneratedRevisionSpecConverter) v1PipelineStepToV1PipelineStep(source P
 	var v1PipelineStep PipelineStep
 	v1PipelineStep.Step = source.Step
 	v1PipelineStep.FunctionRef = c.v1FunctionReferenceToV1FunctionReference(source.FunctionRef)
+	v1PipelineStep.FunctionRevisionRef = c.pV1FunctionRevisionReferenceToPV1FunctionRevisionReference(source.FunctionRevisionRef)
+	v1PipelineStep.FunctionRevisionSelector = c.pV1FunctionRevisionSelectorToPV1FunctionRevisionSelector(source.FunctionRevisionSelector)
 	v1PipelineStep.Input = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Input)
 	var v1FunctionCredentialsList []FunctionCredentials
 	if source.Credentials != nil {
