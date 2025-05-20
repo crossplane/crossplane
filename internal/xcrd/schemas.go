@@ -147,18 +147,10 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 			// Controllers should replace the entire resourceRefs array.
 			XListType: ptr.To("atomic"),
 		},
-		"writeConnectionSecretToRef": {
-			Type:     "object",
-			Required: []string{"name", "namespace"},
-			Properties: map[string]extv1.JSONSchemaProps{
-				"name":      {Type: "string"},
-				"namespace": {Type: "string"},
-			},
-		},
 	}
 
-	// Namespaced XRs don't get to reference secrets or composed resources in
-	// other namespaces.
+	// Namespaced XRs don't get to reference composed resources in other
+	// namespaces.
 	if s == v1.CompositeResourceScopeNamespaced {
 		props["resourceRefs"] = extv1.JSONSchemaProps{
 			Type: "array",
@@ -176,18 +168,10 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 			// Controllers should replace the entire resourceRefs array.
 			XListType: ptr.To("atomic"),
 		}
-
-		props["writeConnectionSecretToRef"] = extv1.JSONSchemaProps{
-			Type:     "object",
-			Required: []string{"name"},
-			Properties: map[string]extv1.JSONSchemaProps{
-				"name": {Type: "string"},
-			},
-		}
 	}
 
 	// Legacy XRs have their Crossplane machinery fields directly under spec.
-	// They also support referencing a claim.
+	// They also support referencing a claim, and writing a secret.
 	if s == v1.CompositeResourceScopeLegacyCluster {
 		props["claimRef"] = extv1.JSONSchemaProps{
 			Type:     "object",
@@ -197,6 +181,15 @@ func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.Up
 				"kind":       {Type: "string"},
 				"namespace":  {Type: "string"},
 				"name":       {Type: "string"},
+			},
+		}
+
+		props["writeConnectionSecretToRef"] = extv1.JSONSchemaProps{
+			Type:     "object",
+			Required: []string{"name", "namespace"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name":      {Type: "string"},
+				"namespace": {Type: "string"},
 			},
 		}
 

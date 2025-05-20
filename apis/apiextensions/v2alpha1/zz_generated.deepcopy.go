@@ -106,11 +106,6 @@ func (in *CompositeResourceDefinitionList) DeepCopyObject() runtime.Object {
 func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDefinitionSpec) {
 	*out = *in
 	in.Names.DeepCopyInto(&out.Names)
-	if in.ConnectionSecretKeys != nil {
-		in, out := &in.ConnectionSecretKeys, &out.ConnectionSecretKeys
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.DefaultCompositionRef != nil {
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
 		*out = new(CompositionReference)
@@ -152,6 +147,11 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 		in, out := &in.DefaultCompositeDeletePolicy, &out.DefaultCompositeDeletePolicy
 		*out = new(v1.CompositeDeletePolicy)
 		**out = **in
+	}
+	if in.ConnectionSecretKeys != nil {
+		in, out := &in.ConnectionSecretKeys, &out.ConnectionSecretKeys
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 }
 

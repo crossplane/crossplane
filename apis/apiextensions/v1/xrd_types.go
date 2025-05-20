@@ -37,6 +37,7 @@ const (
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
 // +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.claimNames)",message="Only LegacyCluster composite resources can offer claims"
+// +kubebuilder:validation:XValidation:rule="self.scope == 'LegacyCluster' || !has(self.connectionSecretKeys)",message="Only LegacyCluster composite resources support connection secrets"
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.
 	// Composite resources are served under `/apis/<group>/...`. Must match the
@@ -76,9 +77,11 @@ type CompositeResourceDefinitionSpec struct {
 	// +kubebuilder:validation:XValidation:rule="!has(self.singular) || self.singular == self.singular.lowerAscii()",message="Singular name must be lowercase"
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
-	// ConnectionSecretKeys is the list of keys that will be exposed to the end
-	// user of the defined kind.
-	// If the list is empty, all keys will be published.
+	// ConnectionSecretKeys is the list of connection secret keys the
+	// defined XR can publish. If the list is empty, all keys will be
+	// published. If the list isn't empty, any connection secret keys that
+	// don't appear in the list will be filtered out. Only LegacyCluster XRs
+	// support connection secrets.
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 

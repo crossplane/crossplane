@@ -293,13 +293,13 @@ func (c *Unstructured) GetReference() *reference.Composite {
 
 // GetWriteConnectionSecretToReference of this composite resource.
 func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
-	path := "spec.crossplane.writeConnectionSecretToRef"
-	if c.Schema == SchemaLegacy {
-		path = "spec.writeConnectionSecretToRef"
+	// Only legacy XRs support connection secrets.
+	if c.Schema != SchemaLegacy {
+		return nil
 	}
 
 	out := &xpv1.SecretReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
 	return out
@@ -307,12 +307,12 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReferen
 
 // SetWriteConnectionSecretToReference of this composite resource.
 func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretReference) {
-	path := "spec.crossplane.writeConnectionSecretToRef"
-	if c.Schema == SchemaLegacy {
-		path = "spec.writeConnectionSecretToRef"
+	// Only legacy XRs support connection secrets.
+	if c.Schema != SchemaLegacy {
+		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, ref)
+	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
 // GetCondition of this composite resource.

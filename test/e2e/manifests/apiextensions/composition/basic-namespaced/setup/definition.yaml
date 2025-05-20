@@ -8,8 +8,6 @@ spec:
   names:
     kind: Test
     plural: tests
-  connectionSecretKeys:
-  - super
   versions:
   - name: v1alpha1
     served: true
