@@ -187,6 +187,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
+		// FIXME: use namespaced event recorder instead ?
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	}
 

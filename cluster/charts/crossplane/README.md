@@ -89,6 +89,7 @@ and their default values.
 | `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
 | `metrics.port` | The port the metrics server listens on. | `""` |
+| `namespaceRestricted` | Deploy Crossplane in namespace-restricted mode. This will: - disable the RBAC manager pod - disable webhooks - add the --namespace-restricted option to the core crossplane pod - restrict cluster-wide permissions on crossplane | `false` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
 | `packageCache.configMap` | The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.medium` | Set to `Memory` to hold the package cache in a RAM backed file system. Useful for Crossplane development. | `""` |

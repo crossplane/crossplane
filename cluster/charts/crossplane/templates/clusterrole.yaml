@@ -5,7 +5,7 @@ metadata:
   labels:
     app: {{ template "crossplane.name" . }}
     {{- include "crossplane.labels" . | indent 4 }}
-{{- if .Values.rbacManager.deploy }}
+{{- if and (.Values.rbacManager.deploy) (not .Values.namespaceRestricted) }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -22,6 +22,7 @@ metadata:
     rbac.crossplane.io/aggregate-to-crossplane: "true"
 {{- end }}
 rules:
+{{- if not .Values.namespaceRestricted }}
 - apiGroups:
   - ""
   resources:
@@ -31,13 +32,6 @@ rules:
   - update
   - patch
   - delete
-- apiGroups:
-  - apiextensions.k8s.io
-  resources:
-  - customresourcedefinitions
-  - customresourcedefinitions/status
-  verbs:
-  - "*"
 - apiGroups:
   - ""
   resources:
@@ -55,14 +49,6 @@ rules:
   resources:
   - serviceaccounts
   - services
-  verbs:
-  - "*"
-- apiGroups:
-  - apiextensions.crossplane.io
-  - pkg.crossplane.io
-  - secrets.crossplane.io
-  resources:
-  - "*"
   verbs:
   - "*"
 - apiGroups:
@@ -105,3 +91,19 @@ rules:
   - patch
   - watch
   - delete
+{{- end }}
+- apiGroups:
+  - apiextensions.crossplane.io
+  - pkg.crossplane.io
+  - secrets.crossplane.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  - customresourcedefinitions/status
+  verbs:
+  - "*"
