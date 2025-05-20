@@ -398,7 +398,7 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 		want *xpv1.SecretReference
 	}{
 		"NewRef": {
-			u:    New(),
+			u:    New(WithSchema(SchemaLegacy)),
 			set:  ref,
 			want: ref,
 		},
