@@ -75,7 +75,7 @@ func TestRunFunction(t *testing.T) {
 				name: "cool-fn",
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errBoom, errListFunctionRevisions), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Wrap(errBoom, errListFunctionRevisions), errFmtResolveFunction, "cool-fn"),
 			},
 		},
 		"NoActiveRevisions": {
@@ -101,7 +101,7 @@ func TestRunFunction(t *testing.T) {
 				name: "cool-fn",
 			},
 			want: want{
-				err: errors.Wrapf(errors.New(errNoActiveRevisions), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.New(errNoActiveRevisions), errFmtResolveFunction, "cool-fn"),
 			},
 		},
 		"ActiveRevisionHasNoEndpoint": {
@@ -133,7 +133,7 @@ func TestRunFunction(t *testing.T) {
 				name: "cool-fn",
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtGetClientConn, "cool-fn"),
+				err: errors.Wrapf(errors.Errorf(errFmtEmptyEndpoint, "cool-fn-revision-a"), errFmtResolveFunction, "cool-fn"),
 			},
 		},
 		"SuccessfulRequest": {
@@ -273,15 +273,22 @@ func TestGetClientConn(t *testing.T) {
 
 	target := strings.Replace(lis.Addr().String(), "127.0.0.1", "dns:///localhost", 1)
 
-	c := &test.MockClient{
-		MockList: NewListFn(target),
+	rev := &pkgv1.FunctionRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cool-fn-revision-a",
+		},
+		Status: pkgv1.FunctionRevisionStatus{
+			Endpoint: target,
+		},
 	}
 
-	r := NewPackagedFunctionRunner(c)
+	r := NewPackagedFunctionRunner(&test.MockClient{
+		MockList: NewListFn(""),
+	})
 
 	// We should be able to create a new connection.
 	t.Run("CreateNewConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(rev)
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -294,7 +301,7 @@ func TestGetClientConn(t *testing.T) {
 	// If we're called again and our FunctionRevision's endpoint hasn't changed,
 	// we should return our cached connection.
 	t.Run("ReuseExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(rev)
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -311,12 +318,12 @@ func TestGetClientConn(t *testing.T) {
 	defer lis2.Close()
 
 	target = strings.Replace(lis2.Addr().String(), "127.0.0.1", "dns:///localhost", 1)
-	c.MockList = NewListFn(target)
+	rev.Status.Endpoint = target
 
 	// If we're called again and our FunctionRevision's endpoint _has_ changed,
 	// we should close our cached connection and create a new one.
 	t.Run("ReplaceExistingConnection", func(t *testing.T) {
-		conn, err := r.getClientConn(context.Background(), "cool-fn")
+		conn, err := r.getClientConn(rev)
 
 		if diff := cmp.Diff(target, conn.Target()); diff != "" {
 			t.Errorf("\nr.getClientConn(...): -want, +got:\n%s", diff)
@@ -360,12 +367,17 @@ func TestGarbageCollectConnectionsNow(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("FunctionStillExistsDoNotGarbageCollect", func(t *testing.T) {
+	t.Run("FunctionRevisionStillExistsDoNotGarbageCollect", func(t *testing.T) {
 		c.MockList = test.NewMockListFn(nil, func(obj client.ObjectList) error {
-			obj.(*pkgv1.FunctionList).Items = []pkgv1.Function{
+			obj.(*pkgv1.FunctionRevisionList).Items = []pkgv1.FunctionRevision{
 				{
 					// This Function exists!
 					ObjectMeta: metav1.ObjectMeta{Name: "cool-fn"},
+					Spec: pkgv1.FunctionRevisionSpec{
+						PackageRevisionSpec: pkgv1.PackageRevisionSpec{
+							DesiredState: pkgv1.PackageRevisionActive,
+						},
+					},
 				},
 			}
 			return nil

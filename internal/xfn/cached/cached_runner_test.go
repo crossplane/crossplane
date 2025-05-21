@@ -29,17 +29,26 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
 )
 
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+type FunctionRevisionResolverFn func(ctx context.Context, name string) (*pkgv1.FunctionRevision, error)
 
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
+func (fn FunctionRevisionResolverFn) ResolveFunctionRevision(ctx context.Context, name string) (*pkgv1.FunctionRevision, error) {
+	return fn(ctx, name)
+}
+
+type FunctionRevisionCallerFn func(ctx context.Context, rev *pkgv1.FunctionRevision, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+
+func (fn FunctionRevisionCallerFn) CallFunctionRevision(ctx context.Context, rev *pkgv1.FunctionRevision, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, rev, req)
 }
 
 var MockDir = []byte("DIR")
@@ -83,9 +92,10 @@ func (l *TestLogger) WithValues(keysAndValues ...any) logging.Logger {
 
 func TestRunFunction(t *testing.T) {
 	type params struct {
-		wrap FunctionRunner
-		path string
-		o    []FileBackedRunnerOption
+		resolver xfn.FunctionRevisionResolver
+		caller   xfn.FunctionRevisionCaller
+		path     string
+		o        []FileBackedRunnerOption
 	}
 	type args struct {
 		ctx  context.Context
@@ -106,7 +116,14 @@ func TestRunFunction(t *testing.T) {
 		"MissingTag": {
 			reason: "If the request is missing a tag we should call the wrapped runner without caching.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
+				caller: FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{Tag: "hi"},
 					}
@@ -126,7 +143,14 @@ func TestRunFunction(t *testing.T) {
 		"NotCached": {
 			reason: "If the response isn't cached we should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
+				caller: FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -155,10 +179,38 @@ func TestRunFunction(t *testing.T) {
 				},
 			},
 		},
-		"WrappedError": {
-			reason: "If the response isn't cached and the wrapped runner returns an error we should return it.",
+		"WrappedResolverError": {
+			reason: "If the response isn't cached and the wrapped resolver returns an error we should return it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, _ string) (*pkgv1.FunctionRevision, error) {
+					return nil, errors.New("boom")
+				}),
+				o: []FileBackedRunnerOption{
+					WithLogger(&TestLogger{t: t}),
+					WithFilesystem(afero.NewMemMapFs()),
+				},
+			},
+			args: args{
+				name: "coolfn",
+				req: &fnv1.RunFunctionRequest{
+					Meta: &fnv1.RequestMeta{Tag: "hello"},
+				},
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"WrappedCallerError": {
+			reason: "If the response isn't cached and the wrapped caller returns an error we should return it.",
+			params: params{
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
+				caller: FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					return nil, errors.New("boom")
 				}),
 				o: []FileBackedRunnerOption{
@@ -179,7 +231,14 @@ func TestRunFunction(t *testing.T) {
 		"EmptyFile": {
 			reason: "If the cached response is empty should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
+				caller: FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -213,7 +272,14 @@ func TestRunFunction(t *testing.T) {
 		"UnexpectedFile": {
 			reason: "If the cached response contains unexpected data we should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
+				caller: FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -247,7 +313,14 @@ func TestRunFunction(t *testing.T) {
 		"DeadlineExceeded": {
 			reason: "If the cached response's deadline has passed we should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
+				caller: FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -294,11 +367,17 @@ func TestRunFunction(t *testing.T) {
 		"CacheHit": {
 			reason: "If the cached response is still valid, return it without calling the wrapped runner.",
 			params: params{
-				// Wrap is nil. It'd panic if called.
+				resolver: FunctionRevisionResolverFn(func(_ context.Context, name string) (*pkgv1.FunctionRevision, error) {
+					return &pkgv1.FunctionRevision{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: name + "-revision-a",
+						},
+					}, nil
+				}),
 				o: []FileBackedRunnerOption{
 					WithLogger(&TestLogger{t: t}),
 					WithFilesystem(MockFs(map[string][]byte{
-						"coolfn/hello": func() []byte {
+						"coolfn-revision-a/hello": func() []byte {
 							msg, _ := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{
 								Deadline: timestamppb.New(time.Now().Add(1 * time.Minute)),
 								Response: &fnv1.RunFunctionResponse{
@@ -333,7 +412,7 @@ func TestRunFunction(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewFileBackedRunner(tc.params.wrap, tc.params.path, tc.params.o...)
+			r := NewFileBackedRunner(tc.params.resolver, tc.params.caller, tc.params.path, tc.params.o...)
 			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
@@ -350,25 +429,33 @@ func TestRunFunction(t *testing.T) {
 // We test through to CacheFunction a lot in TestRunFunction. This is just a
 // little sanity check to make sure we can actually read back what we write.
 func TestCacheFunction(t *testing.T) {
+	rev := &pkgv1.FunctionRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "coolfn-revision-a",
+		},
+	}
+	resolver := FunctionRevisionResolverFn(func(_ context.Context, _ string) (*pkgv1.FunctionRevision, error) {
+		return rev, nil
+	})
+
 	rsp := &fnv1.RunFunctionResponse{
 		Meta: &fnv1.ResponseMeta{
 			Tag: "wrapped",
 			Ttl: durationpb.New(1 * time.Minute),
 		},
 	}
-
-	wrapped := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	caller := FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 		return rsp, nil
 	})
 
 	fs := afero.NewMemMapFs()
 
-	r := NewFileBackedRunner(wrapped, "/cache",
+	r := NewFileBackedRunner(resolver, caller, "/cache",
 		WithLogger(&TestLogger{t: t}),
 		WithFilesystem(fs))
 
 	// Populate the cache.
-	got, err := r.CacheFunction(context.TODO(), "coolfn", &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
+	got, err := r.CacheFunction(context.TODO(), rev, &fnv1.RunFunctionRequest{Meta: &fnv1.RequestMeta{Tag: "req"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,7 +466,10 @@ func TestCacheFunction(t *testing.T) {
 
 	// Create a new runner backed by the same populated cache, but with a
 	// nil wrapped runner that would panic if called.
-	r = NewFileBackedRunner(nil, "/cache",
+	caller = FunctionRevisionCallerFn(func(_ context.Context, _ *pkgv1.FunctionRevision, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+		return nil, errors.New("cache was not hit")
+	})
+	r = NewFileBackedRunner(resolver, caller, "/cache",
 		WithLogger(&TestLogger{t: t}),
 		WithFilesystem(fs))
 
@@ -412,7 +502,7 @@ func TestGarbageCollectFilesNow(t *testing.T) {
 		"/prettycoolfn/alsoexpired": past,
 	})
 
-	r := NewFileBackedRunner(nil, "/cache",
+	r := NewFileBackedRunner(nil, nil, "/cache",
 		WithLogger(&TestLogger{t: t}),
 		WithFilesystem(fs))
 
