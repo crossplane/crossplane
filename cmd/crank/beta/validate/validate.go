@@ -92,10 +92,18 @@ func newValidatorsAndStructurals(crds []*extv1.CustomResourceDefinition) (map[ru
 }
 
 // SchemaValidation validates the resources against the given CRDs.
-func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, errorOnMissingSchemas bool, skipSuccessLogs bool, w io.Writer) error { //nolint:gocognit // printing the output increases the cyclomatic complexity a little bit
+func SchemaValidation(resources []*unstructured.Unstructured, oldResources []*unstructured.Unstructured, crds []*extv1.CustomResourceDefinition, errorOnMissingSchemas bool, skipSuccessLogs bool, w io.Writer) error { //nolint:gocognit // printing the output increases the cyclomatic complexity a little bit
 	schemaValidators, structurals, err := newValidatorsAndStructurals(crds)
 	if err != nil {
 		return errors.Wrap(err, "cannot create schema validators")
+	}
+
+	// Create a map of old resources for quick lookup
+	oldResourceMap := make(map[string]int)
+
+	for i, r := range oldResources {
+		key := fmt.Sprintf("%s-%s-%s", r.GetObjectKind().GroupVersionKind().String(), r.GetName(), r.GetNamespace())
+		oldResourceMap[key] = i
 	}
 
 	failure, missingSchemas := 0, 0
@@ -126,7 +134,12 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 			}
 
 			celValidator := cel.NewValidator(s, true, celconfig.PerCallLimit)
-			re, _ = celValidator.Validate(context.TODO(), nil, s, resources[i].Object, nil, celconfig.PerCallLimit)
+
+			// Find a corresponding old resource if there is any
+			oldResourceKey := fmt.Sprintf("%s-%s-%s", gvk.String(), r.GetName(), r.GetNamespace())
+			oldResource := getOldResource(oldResourceMap, oldResourceKey, oldResources)
+
+			re, _ = celValidator.Validate(context.TODO(), nil, s, resources[i].Object, oldResource, celconfig.PerCallLimit)
 			for _, e := range re {
 				rf++
 				if _, err := fmt.Fprintf(w, "[x] CEL validation error %s, %s : %s\n", r.GroupVersionKind().String(), getResourceName(r), e.Error()); err != nil {
@@ -156,6 +169,13 @@ func SchemaValidation(resources []*unstructured.Unstructured, crds []*extv1.Cust
 		return errors.New("could not validate all resources, schema(s) missing")
 	}
 
+	return nil
+}
+
+func getOldResource(oldResourceMap map[string]int, key string, oldResources []*unstructured.Unstructured) map[string]interface{} {
+	if oldResourceIndex, found := oldResourceMap[key]; found {
+		return oldResources[oldResourceIndex].Object
+	}
 	return nil
 }
 
