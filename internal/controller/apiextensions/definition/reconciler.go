@@ -480,18 +480,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cr := composite.NewReconciler(r.engine.GetCached(), r.engine.GetUncached(), ck, ro...)
 	ko := r.options.ForControllerRuntime()
 
-	// Most controllers use this type of rate limiter to backoff requeues from 1
-	// to 60 seconds. Despite the name, it doesn't only rate limit requeues due
-	// to errors. It also rate limits requeues due to a reconcile returning
-	// {Requeue: true}. The XR reconciler returns {Requeue: true} while waiting
-	// for composed resources to become ready, and we don't want to back off as
-	// far as 60 seconds. Instead we cap the XR reconciler at 30 seconds.
-	rl := workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 30*time.Second)
-	ko.RateLimiter = NewDebuggingRateLimiter(d.GetName()+"-per-item", rl, log)
+	// TODO(negz): Explain why backoff from 2ms -> 30s.
+	rl := workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](2*time.Millisecond, 30*time.Second)
+	ko.RateLimiter = NewDebuggingRateLimiter("per-item", rl, log)
 	ko.Reconciler = ratelimiter.NewReconciler(
 		composite.ControllerName(d.GetName()),
 		errors.WithSilentRequeueOnConflict(cr),
-		NewDebuggingRateLimiter(d.GetName()+"-global", r.options.GlobalRateLimiter, log))
+		NewDebuggingRateLimiter("global", r.options.GlobalRateLimiter, log))
 
 	xrGVK := d.GetCompositeGroupVersionKind()
 	name := composite.ControllerName(d.GetName())
