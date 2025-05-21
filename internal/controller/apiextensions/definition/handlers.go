@@ -92,7 +92,7 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 					continue
 				}
 
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+				q.AddRateLimited(reconcile.Request{NamespacedName: types.NamespacedName{
 					Name:      xr.GetName(),
 					Namespace: xr.GetNamespace(),
 				}})
@@ -103,6 +103,16 @@ func EnqueueForCompositionRevision(of resource.CompositeKind, c client.Reader, l
 
 // EnqueueCompositeResources enqueues reconciles for all XRs that reference an
 // updated composed resource.
+//
+// The rate at which reconciles are added to the queue is limited. This guards
+// against the scenario where the XR controller fights with some other
+// controller over a composed resource's desired state. For example:
+//
+// 1. XR controller updates composed MR spec
+// 2. This triggers a reconcile in the MR controller
+// 3. MR controller updates composed MR spec
+// 4. This triggers a reconcile in the XR controller (here)
+// 5. Back to step 1.
 func EnqueueCompositeResources(of resource.CompositeKind, c client.Reader, log logging.Logger) handler.Funcs {
 	return handler.Funcs{
 		UpdateFunc: func(ctx context.Context, ev kevent.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
@@ -117,10 +127,9 @@ func EnqueueCompositeResources(of resource.CompositeKind, c client.Reader, log l
 				return
 			}
 
-			// queue those composites for reconciliation
 			for _, xr := range composites.Items {
 				log.Debug("Enqueueing composite resource because composed resource changed", "name", xr.GetName(), "cdGVK", cdGVK.String(), "cdName", ev.ObjectNew.GetName())
-				q.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName()}})
+				q.AddRateLimited(reconcile.Request{NamespacedName: types.NamespacedName{Name: xr.GetName()}})
 			}
 		},
 	}
