@@ -244,6 +244,6 @@ type rateLimitingQueueMock struct {
 	added []any
 }
 
-func (f *rateLimitingQueueMock) Add(item reconcile.Request) {
+func (f *rateLimitingQueueMock) AddRateLimited(item reconcile.Request) {
 	f.added = append(f.added, item)
 }
