@@ -85,10 +85,7 @@ type Outputs struct {
 	ComposedResources []composed.Unstructured
 	Results           []unstructured.Unstructured
 	Context           *unstructured.Unstructured
-
-	// TODO(negz): Allow returning desired XR connection details. Maybe as a
-	// Secret? Should we honor writeConnectionSecretToRef? What if secret stores
-	// are in use?
+	ConnectionDetails managed.ConnectionDetails
 }
 
 // A RuntimeFunctionRunner is a composite.FunctionRunner that runs functions
@@ -421,7 +418,9 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		xr.SetConditions(c)
 	}
 
-	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
+	desiredConnectionDetails := d.GetComposite().GetConnectionDetails()
+
+	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results, ConnectionDetails: desiredConnectionDetails}
 	if fctx != nil {
 		out.Context = &unstructured.Unstructured{Object: map[string]any{
 			"apiVersion": "render.crossplane.io/v1beta1",
