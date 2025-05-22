@@ -1,0 +1,8 @@
+apiVersion: nop.example.org/v1alpha1
+kind: NopResource
+metadata:
+  namespace: default
+  name: e2e-function-revision-selectors-revision-name
+spec:
+  compositionRef:
+    name: revision-name

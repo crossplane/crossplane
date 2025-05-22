@@ -1,0 +1,10 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-add-version-label
+  labels:
+    e2e.crossplane.io/revision: one
+spec:
+  package: xpkg.upbound.io/awg-test/function-add-version-label:v0.1.0
+  activeRevisionLimit: 2
+  revisionHistoryLimit: 2
