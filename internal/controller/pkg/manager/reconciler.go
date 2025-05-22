@@ -20,6 +20,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"strings"
 	"time"
@@ -509,11 +510,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 	}
 
+	labels := map[string]string{v1.LabelParentPackage: p.GetName()}
+	maps.Copy(labels, p.GetLabels())
+
 	// Copy package configuration to the revision. We do this even if it's not a
 	// new revision, since not all package updates will result in a new revision
 	// being created.
 	pr.SetName(revisionName)
-	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
+	pr.SetLabels(labels)
 	// Use the original source; the revision reconciler will rewrite it if
 	// needed. The revision reconciler also inserts packages into the dependency
 	// manager's lock, which must use the original source to ensure dependency
