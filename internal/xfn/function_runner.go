@@ -74,6 +74,14 @@ const svcConfig = `
 	]
 }`
 
+// FunctionRevisionSelector is used to select a function revision for a function
+// call.
+type FunctionRevisionSelector struct {
+	// FunctionName is the name of the function whose revision is being
+	// selected. It must be non-empty.
+	FunctionName string
+}
+
 // FunctionRevisionCaller calls a specific revision of a composition function.
 type FunctionRevisionCaller interface {
 	// CallFunctionRevision calls the given function revision.
@@ -84,13 +92,13 @@ type FunctionRevisionCaller interface {
 type FunctionRevisionResolver interface {
 	// ResolveFunctionRevision resolves function revision that should be called to invoke the
 	// function with the given name.
-	ResolveFunctionRevision(ctx context.Context, name string) (*pkgv1.FunctionRevision, error)
+	ResolveFunctionRevision(ctx context.Context, sel FunctionRevisionSelector) (*pkgv1.FunctionRevision, error)
 }
 
 // A FunctionRunner runs a composition function.
 type FunctionRunner interface {
 	// RunFunction runs the named composition function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+	RunFunction(ctx context.Context, sel FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
@@ -161,19 +169,19 @@ func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOptio
 
 // RunFunction sends the supplied RunFunctionRequest to the named Function. The
 // function is expected to be an installed Function.pkg.crossplane.io package.
-func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	rev, err := r.ResolveFunctionRevision(ctx, name)
+func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, sel FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	rev, err := r.ResolveFunctionRevision(ctx, sel)
 	if err != nil {
-		return nil, errors.Wrapf(err, errFmtResolveFunction, name)
+		return nil, errors.Wrapf(err, errFmtResolveFunction, sel.FunctionName)
 	}
 
 	return r.CallFunctionRevision(ctx, rev, req)
 }
 
 // ResolveFunctionRevision returns the active revision of the named function.
-func (r *PackagedFunctionRunner) ResolveFunctionRevision(ctx context.Context, name string) (*pkgv1.FunctionRevision, error) {
+func (r *PackagedFunctionRunner) ResolveFunctionRevision(ctx context.Context, sel FunctionRevisionSelector) (*pkgv1.FunctionRevision, error) {
 	l := &pkgv1.FunctionRevisionList{}
-	if err := r.client.List(ctx, l, client.MatchingLabels{pkgv1.LabelParentPackage: name}); err != nil {
+	if err := r.client.List(ctx, l, client.MatchingLabels{pkgv1.LabelParentPackage: sel.FunctionName}); err != nil {
 		return nil, errors.Wrapf(err, errListFunctionRevisions)
 	}
 

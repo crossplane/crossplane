@@ -235,7 +235,7 @@ func TestRunFunction(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewPackagedFunctionRunner(tc.params.c, tc.params.o...)
-			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
+			rsp, err := r.RunFunction(tc.args.ctx, FunctionRevisionSelector{FunctionName: tc.args.name}, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)

@@ -145,11 +145,11 @@ func NewFileBackedRunner(resolver xfn.FunctionRevisionResolver, caller xfn.Funct
 
 // RunFunction tries to return a response from cache. It falls back to calling
 // the wrapped runner.
-func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+func (r *FileBackedRunner) RunFunction(ctx context.Context, sel xfn.FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	start := time.Now()
-	log := r.log.WithValues("name", name)
+	log := r.log.WithValues("functionName", sel.FunctionName)
 
-	rev, err := r.resolver.ResolveFunctionRevision(ctx, name)
+	rev, err := r.resolver.ResolveFunctionRevision(ctx, sel)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	// cache the response. Just send it on. This should never happen.
 	if req.GetMeta().GetTag() == "" {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonEmptyRequestTag)
-		r.metrics.Miss(name)
+		r.metrics.Miss(sel.FunctionName)
 		return r.caller.CallFunctionRevision(ctx, rev, req)
 	}
 
@@ -168,21 +168,21 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	b, err := r.fs.ReadFile(key)
 	if errors.Is(err, fs.ErrNotExist) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonNotCached)
-		r.metrics.Miss(name)
+		r.metrics.Miss(sel.FunctionName)
 		return r.CacheFunction(ctx, rev, req)
 	}
 	if err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name)
-		r.metrics.Error(name)
+		r.metrics.Miss(sel.FunctionName)
+		r.metrics.Error(sel.FunctionName)
 		return r.CacheFunction(ctx, rev, req)
 	}
 
 	crsp := &v1alpha1.CachedRunFunctionResponse{}
 	if err := proto.Unmarshal(b, crsp); err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name)
-		r.metrics.Error(name)
+		r.metrics.Miss(sel.FunctionName)
+		r.metrics.Error(sel.FunctionName)
 		return r.CacheFunction(ctx, rev, req)
 	}
 
@@ -192,13 +192,13 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	// deadline isn't set - e.g. because we unmarshaled an empty file.
 	if time.Now().After(deadline) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonDeadlineExpired, "deadline", deadline)
-		r.metrics.Miss(name)
+		r.metrics.Miss(sel.FunctionName)
 		return r.CacheFunction(ctx, rev, req)
 	}
 
 	log.Debug("RunFunctionResponse cache hit")
-	r.metrics.Hit(name)
-	r.metrics.ReadDuration(name, time.Since(start))
+	r.metrics.Hit(sel.FunctionName)
+	r.metrics.ReadDuration(sel.FunctionName, time.Since(start))
 	return crsp.GetResponse(), nil
 }
 
