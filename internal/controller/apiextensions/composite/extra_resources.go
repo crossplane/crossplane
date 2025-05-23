@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // MaxRequirementsIterations is the maximum number of times a Function should be
@@ -49,12 +50,12 @@ func NewFetchingFunctionRunner(r FunctionRunner, f ExtraResourcesFetcher) *Fetch
 
 // RunFunction runs a function, repeatedly fetching any extra resources it asks
 // for. The function may be run up to MaxRequirementsIterations times.
-func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+func (c *FetchingFunctionRunner) RunFunction(ctx context.Context, sel xfn.FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	// Used to store the requirements returned at the previous iteration.
 	var requirements *fnv1.Requirements
 
 	for i := int64(0); i <= MaxRequirementsIterations; i++ {
-		rsp, err := c.wrapped.RunFunction(ctx, name, req)
+		rsp, err := c.wrapped.RunFunction(ctx, sel, req)
 		if err != nil {
 			// I can't think of any useful info to wrap this error with.
 			return nil, err

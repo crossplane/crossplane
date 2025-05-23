@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 var _ FunctionRunner = &FetchingFunctionRunner{}
@@ -275,7 +276,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return an error if the wrapped FunctionRunner does",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ xfn.FunctionRevisionSelector, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					return nil, errors.New("boom")
 				}),
 			},
@@ -287,7 +288,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"FatalResult": {
 			reason: "We should return early if the function returns a fatal result",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ xfn.FunctionRevisionSelector, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
 							{
@@ -313,7 +314,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"NoRequirements": {
 			reason: "We should return the response unchanged if there are no requirements",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ xfn.FunctionRevisionSelector, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
 							{
@@ -339,7 +340,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"FetchResourcesError": {
 			reason: "We should return any error encountered when fetching extra resources",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ xfn.FunctionRevisionSelector, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
 							ExtraResources: map[string]*fnv1.ResourceSelector{
@@ -366,7 +367,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"RequirementsDidntStabilizeError": {
 			reason: "We should return an error if the function's requirements never stabilize",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ xfn.FunctionRevisionSelector, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
 							ExtraResources: map[string]*fnv1.ResourceSelector{
@@ -395,7 +396,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"Success": {
 			reason: "We should return the fetched resources",
 			params: params{
-				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ xfn.FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// We only expect to be sent extra resources the second time
 					// we're called, in response to our requirements.
 					if called {
@@ -455,7 +456,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewFetchingFunctionRunner(tc.params.wrapped, tc.params.resources)
-			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
+			rsp, err := r.RunFunction(tc.args.ctx, xfn.FunctionRevisionSelector{FunctionName: tc.args.name}, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.RunFunction(...): -want, +got:\n%s", tc.reason, diff)

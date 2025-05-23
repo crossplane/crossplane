@@ -74,9 +74,8 @@ type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
 
-	GetTLSServerSecretName() *string
-
-	GetTLSClientSecretName() *string
+	NeedsTLSServerSecret() bool
+	NeedsTLSClientSecret() bool
 }
 
 // SetAppliedImageConfigRefs sets applied image config refs, replacing any
@@ -132,6 +131,9 @@ type Package interface { //nolint:interfacebloat // TODO(negz): Could we break t
 
 	GetRevisionHistoryLimit() *int64
 	SetRevisionHistoryLimit(l *int64)
+
+	GetActiveRevisionLimit() *int64
+	SetActiveRevisionLimit(l *int64)
 
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
@@ -221,6 +223,16 @@ func (p *Provider) SetRevisionHistoryLimit(l *int64) {
 	p.Spec.RevisionHistoryLimit = l
 }
 
+// GetActiveRevisionLimit of this Provider.
+func (p *Provider) GetActiveRevisionLimit() *int64 {
+	return p.Spec.ActiveRevisionLimit
+}
+
+// SetActiveRevisionLimit of this Provider.
+func (p *Provider) SetActiveRevisionLimit(l *int64) {
+	p.Spec.ActiveRevisionLimit = l
+}
+
 // GetIgnoreCrossplaneConstraints of this Provider.
 func (p *Provider) GetIgnoreCrossplaneConstraints() *bool {
 	return p.Spec.IgnoreCrossplaneConstraints
@@ -291,14 +303,14 @@ func (p *Provider) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
-// GetTLSServerSecretName of this Provider.
-func (p *Provider) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSServerSecretNameSuffix)
+// NeedsTLSServerSecret of this Provider.
+func (p *Provider) NeedsTLSServerSecret() bool {
+	return true
 }
 
-// GetTLSClientSecretName of this Provider.
-func (p *Provider) GetTLSClientSecretName() *string {
-	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
+// NeedsTLSClientSecret of this Provider.
+func (p *Provider) NeedsTLSClientSecret() bool {
+	return true
 }
 
 // GetAppliedImageConfigRefs of this Provider.
@@ -389,6 +401,16 @@ func (p *Configuration) GetRevisionHistoryLimit() *int64 {
 // SetRevisionHistoryLimit of this Configuration.
 func (p *Configuration) SetRevisionHistoryLimit(l *int64) {
 	p.Spec.RevisionHistoryLimit = l
+}
+
+// GetActiveRevisionLimit of this Configuration.
+func (p *Configuration) GetActiveRevisionLimit() *int64 {
+	return p.Spec.ActiveRevisionLimit
+}
+
+// SetActiveRevisionLimit of this Configuration.
+func (p *Configuration) SetActiveRevisionLimit(l *int64) {
+	p.Spec.ActiveRevisionLimit = l
 }
 
 // GetIgnoreCrossplaneConstraints of this Configuration.
@@ -1004,6 +1026,16 @@ func (f *Function) SetRevisionHistoryLimit(l *int64) {
 	f.Spec.RevisionHistoryLimit = l
 }
 
+// GetActiveRevisionLimit of this Function.
+func (f *Function) GetActiveRevisionLimit() *int64 {
+	return f.Spec.ActiveRevisionLimit
+}
+
+// SetActiveRevisionLimit of this Function.
+func (f *Function) SetActiveRevisionLimit(l *int64) {
+	f.Spec.ActiveRevisionLimit = l
+}
+
 // GetIgnoreCrossplaneConstraints of this Function.
 func (f *Function) GetIgnoreCrossplaneConstraints() *bool {
 	return f.Spec.IgnoreCrossplaneConstraints
@@ -1072,14 +1104,14 @@ func (f *Function) SetCommonLabels(l map[string]string) {
 	f.Spec.CommonLabels = l
 }
 
-// GetTLSServerSecretName of this Function.
-func (f *Function) GetTLSServerSecretName() *string {
-	return GetSecretNameWithSuffix(f.GetName(), TLSServerSecretNameSuffix)
+// NeedsTLSServerSecret of this Function.
+func (f *Function) NeedsTLSServerSecret() bool {
+	return true
 }
 
-// GetTLSClientSecretName of this Function.
-func (f *Function) GetTLSClientSecretName() *string {
-	return nil
+// NeedsTLSClientSecret of this Function.
+func (f *Function) NeedsTLSClientSecret() bool {
+	return false
 }
 
 // GetAppliedImageConfigRefs of this Function.

@@ -30,6 +30,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
 )
 
@@ -74,22 +76,17 @@ type Metrics interface { //nolint:interfacebloat // Only a little bit bloated. :
 	WriteDuration(name string, d time.Duration)
 }
 
-// A FunctionRunner runs a composition function.
-type FunctionRunner interface {
-	// RunFunction runs the named composition function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
-}
-
 // A FileBackedRunner wraps another function runner. It caches responses
 // returned by that runner to the filesystem. It only caches responses that
 // specify a TTL. Requests are served from cache if there's a cached response
 // for an identical request with an unexpired TTL.
 type FileBackedRunner struct {
-	wrapped FunctionRunner
-	fs      afero.Afero
-	maxTTL  time.Duration
-	log     logging.Logger
-	metrics Metrics
+	resolver xfn.FunctionRevisionResolver
+	caller   xfn.FunctionRevisionCaller
+	fs       afero.Afero
+	maxTTL   time.Duration
+	log      logging.Logger
+	metrics  Metrics
 }
 
 // A FileBackedRunnerOption configures a FileBackedRunner.
@@ -130,12 +127,13 @@ func WithFilesystem(fs afero.Fs) FileBackedRunnerOption {
 
 // NewFileBackedRunner creates a new function runner that wraps another runner,
 // caching its responses to the filesystem.
-func NewFileBackedRunner(wrap FunctionRunner, path string, o ...FileBackedRunnerOption) *FileBackedRunner {
+func NewFileBackedRunner(resolver xfn.FunctionRevisionResolver, caller xfn.FunctionRevisionCaller, path string, o ...FileBackedRunnerOption) *FileBackedRunner {
 	r := &FileBackedRunner{
-		wrapped: wrap,
-		fs:      afero.Afero{Fs: afero.NewBasePathFs(afero.NewOsFs(), path)},
-		log:     logging.NewNopLogger(),
-		metrics: &NopMetrics{},
+		resolver: resolver,
+		caller:   caller,
+		fs:       afero.Afero{Fs: afero.NewBasePathFs(afero.NewOsFs(), path)},
+		log:      logging.NewNopLogger(),
+		metrics:  &NopMetrics{},
 	}
 
 	for _, fn := range o {
@@ -147,40 +145,45 @@ func NewFileBackedRunner(wrap FunctionRunner, path string, o ...FileBackedRunner
 
 // RunFunction tries to return a response from cache. It falls back to calling
 // the wrapped runner.
-func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+func (r *FileBackedRunner) RunFunction(ctx context.Context, sel xfn.FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	start := time.Now()
-	log := r.log.WithValues("name", name)
+	log := r.log.WithValues("functionName", sel.FunctionName)
+
+	rev, err := r.resolver.ResolveFunctionRevision(ctx, sel)
+	if err != nil {
+		return nil, err
+	}
 
 	// If we don't have a cache key we can't perform a cache lookup, or
 	// cache the response. Just send it on. This should never happen.
 	if req.GetMeta().GetTag() == "" {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonEmptyRequestTag)
-		r.metrics.Miss(name)
-		return r.wrapped.RunFunction(ctx, name, req)
+		r.metrics.Miss(sel.FunctionName)
+		return r.caller.CallFunctionRevision(ctx, rev, req)
 	}
 
-	key := filepath.Join(name, req.GetMeta().GetTag())
+	key := filepath.Join(rev.GetName(), req.GetMeta().GetTag())
 	log = log.WithValues("cache-key", key)
 
 	b, err := r.fs.ReadFile(key)
 	if errors.Is(err, fs.ErrNotExist) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonNotCached)
-		r.metrics.Miss(name)
-		return r.CacheFunction(ctx, name, req)
+		r.metrics.Miss(sel.FunctionName)
+		return r.CacheFunction(ctx, rev, req)
 	}
 	if err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name)
-		r.metrics.Error(name)
-		return r.CacheFunction(ctx, name, req)
+		r.metrics.Miss(sel.FunctionName)
+		r.metrics.Error(sel.FunctionName)
+		return r.CacheFunction(ctx, rev, req)
 	}
 
 	crsp := &v1alpha1.CachedRunFunctionResponse{}
 	if err := proto.Unmarshal(b, crsp); err != nil {
 		log.Info("RunFunctionResponse cache miss", "reason", ReasonError, "err", err)
-		r.metrics.Miss(name)
-		r.metrics.Error(name)
-		return r.CacheFunction(ctx, name, req)
+		r.metrics.Miss(sel.FunctionName)
+		r.metrics.Error(sel.FunctionName)
+		return r.CacheFunction(ctx, rev, req)
 	}
 
 	deadline := crsp.GetDeadline().AsTime()
@@ -189,28 +192,28 @@ func (r *FileBackedRunner) RunFunction(ctx context.Context, name string, req *fn
 	// deadline isn't set - e.g. because we unmarshaled an empty file.
 	if time.Now().After(deadline) {
 		log.Debug("RunFunctionResponse cache miss", "reason", ReasonDeadlineExpired, "deadline", deadline)
-		r.metrics.Miss(name)
-		return r.CacheFunction(ctx, name, req)
+		r.metrics.Miss(sel.FunctionName)
+		return r.CacheFunction(ctx, rev, req)
 	}
 
 	log.Debug("RunFunctionResponse cache hit")
-	r.metrics.Hit(name)
-	r.metrics.ReadDuration(name, time.Since(start))
+	r.metrics.Hit(sel.FunctionName)
+	r.metrics.ReadDuration(sel.FunctionName, time.Since(start))
 	return crsp.GetResponse(), nil
 }
 
 // CacheFunction runs a function and caches its response if the TTL is non-zero.
-func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+func (r *FileBackedRunner) CacheFunction(ctx context.Context, rev *pkgv1.FunctionRevision, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	// If we don't have a cache key we can't cache the response. Just send
 	// it on. This should never happen.
 	if req.GetMeta().GetTag() == "" {
-		return r.wrapped.RunFunction(ctx, name, req)
+		return r.caller.CallFunctionRevision(ctx, rev, req)
 	}
 
-	key := filepath.Join(name, req.GetMeta().GetTag())
-	log := r.log.WithValues("name", name, "cache-key", key)
+	key := filepath.Join(rev.GetName(), req.GetMeta().GetTag())
+	log := r.log.WithValues("name", rev.GetName(), "cache-key", key)
 
-	rsp, err := r.wrapped.RunFunction(ctx, name, req)
+	rsp, err := r.caller.CallFunctionRevision(ctx, rev, req)
 	if err != nil {
 		return rsp, err
 	}
@@ -237,45 +240,45 @@ func (r *FileBackedRunner) CacheFunction(ctx context.Context, name string, req *
 	msg, err := proto.Marshal(&v1alpha1.CachedRunFunctionResponse{Deadline: timestamppb.New(deadline), Response: rsp})
 	if err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
-		r.metrics.Error(name)
+		r.metrics.Error(rev.GetName())
 		return rsp, nil
 	}
 
-	if err := r.fs.MkdirAll(name, 0o700); err != nil {
+	if err := r.fs.MkdirAll(rev.GetName(), 0o700); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
-		r.metrics.Error(name)
+		r.metrics.Error(rev.GetName())
 		return rsp, nil
 	}
 
 	// Write and rename a temp file to make our write 'atomic'. This ensure
 	// we won't overwrite a cache file that we're currently reading.
-	tmp, err := r.fs.TempFile(name, "")
+	tmp, err := r.fs.TempFile(rev.GetName(), "")
 	if err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
-		r.metrics.Error(name)
+		r.metrics.Error(rev.GetName())
 		return rsp, nil
 	}
 	if _, err := tmp.Write(msg); err != nil {
 		_ = tmp.Close()
 		log.Info("RunFunctionResponse cache write error", "err", err)
-		r.metrics.Error(name)
+		r.metrics.Error(rev.GetName())
 		return rsp, nil
 	}
 	if err := tmp.Close(); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
-		r.metrics.Error(name)
+		r.metrics.Error(rev.GetName())
 		return rsp, nil
 	}
 	if err := r.fs.Rename(tmp.Name(), key); err != nil {
 		log.Info("RunFunctionResponse cache write error", "err", err)
-		r.metrics.Error(name)
+		r.metrics.Error(rev.GetName())
 		return rsp, nil
 	}
 
 	log.Debug("RunFunctionResponse cache write", "deadline", deadline, "bytes", len(msg))
-	r.metrics.Write(name)
-	r.metrics.WriteDuration(name, time.Since(start))
-	r.metrics.WroteBytes(name, len(msg))
+	r.metrics.Write(rev.GetName())
+	r.metrics.WriteDuration(rev.GetName(), time.Since(start))
+	r.metrics.WroteBytes(rev.GetName(), len(msg))
 	return rsp, nil
 }
 

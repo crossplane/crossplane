@@ -130,13 +130,13 @@ func NewRuntimeFunctionRunner(ctx context.Context, log logging.Logger, fns []pkg
 }
 
 // RunFunction runs the named function.
-func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+func (r *RuntimeFunctionRunner) RunFunction(ctx context.Context, sel xfn.FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	conn, ok := r.conns[name]
+	conn, ok := r.conns[sel.FunctionName]
 	if !ok {
-		return nil, errors.Errorf("unknown Function %q - does it exist in your Functions file?", name)
+		return nil, errors.Errorf("unknown Function %q - does it exist in your Functions file?", sel.FunctionName)
 	}
 
 	return xfn.NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
@@ -265,7 +265,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 			}
 		}
 
-		rsp, err := runner.RunFunction(ctx, fn.FunctionRef.Name, req)
+		rsp, err := runner.RunFunction(ctx, xfn.FunctionRevisionSelector{FunctionName: fn.FunctionRef.Name}, req)
 		if err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot run pipeline step %q", fn.Step)
 		}

@@ -121,6 +121,7 @@ type startCommand struct {
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+	EnableFunctionRevisionSelectors   bool `group:"Alpha Features:" help:"Enable support for selecting specific function revisions in composition pipelines."`
 
 	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
@@ -253,12 +254,21 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	pfrm := xfn.NewPrometheusMetrics()
 	metrics.Registry.MustRegister(pfrm)
 
-	// We want all XR controllers to share the same gRPC clients.
-	pfr := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+	pfropts := []xfn.PackagedFunctionRunnerOption{
 		xfn.WithLogger(log),
 		xfn.WithTLSConfig(clienttls),
 		xfn.WithInterceptorCreators(pfrm),
-	)
+	}
+
+	if c.EnableFunctionRevisionSelectors {
+		o.Features.Enable(features.EnableAlphaFunctionRevisionSelectors)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionRevisionSelectors)
+
+		pfropts = append(pfropts, xfn.WithFunctionRevisionResolver(xfn.NewSelectorFunctionRevisionResolver(mgr.GetClient())))
+	}
+
+	// We want all XR controllers to share the same gRPC clients.
+	pfr := xfn.NewPackagedFunctionRunner(mgr.GetClient(), pfropts...)
 
 	// Periodically remove clients for Functions that no longer exist.
 	go pfr.GarbageCollectConnections(ctx, 10*time.Minute)
@@ -273,7 +283,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		metrics.Registry.MustRegister(cfrm)
 
 		// Wrap the packaged function runner with a caching one.
-		cfr := cached.NewFileBackedRunner(pfr, c.XfnCacheDir,
+		cfr := cached.NewFileBackedRunner(pfr, pfr, c.XfnCacheDir,
 			cached.WithLogger(log),
 			cached.WithMetrics(cfrm),
 		)

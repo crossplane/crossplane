@@ -60,6 +60,16 @@ spec:
           spec:
             description: FunctionSpec specifies the configuration of a Function.
             properties:
+              activeRevisionLimit:
+                default: 1
+                description: |-
+                  ActiveRevisionLimit specifies how many revisions should be kept active by
+                  the package controller at any given time, when the
+                  RevisionActivationPolicy is Automatic.
+                  Defaults to 1. Must be less than or equal to RevisionHistoryLimit. Can be
+                  greater than 1 only for Function packages.
+                format: int64
+                type: integer
               commonLabels:
                 additionalProperties:
                   type: string
@@ -165,6 +175,10 @@ spec:
             required:
             - package
             type: object
+            x-kubernetes-validations:
+            - message: Active revision limit can be at most revision history limit
+              rule: self.revisionHistoryLimit == 0 || self.activeRevisionLimit <=
+                self.revisionHistoryLimit
           status:
             description: FunctionStatus represents the observed state of a Function.
             properties:
@@ -305,6 +319,16 @@ spec:
           spec:
             description: FunctionSpec specifies the configuration of a Function.
             properties:
+              activeRevisionLimit:
+                default: 1
+                description: |-
+                  ActiveRevisionLimit specifies how many revisions should be kept active by
+                  the package controller at any given time, when the
+                  RevisionActivationPolicy is Automatic.
+                  Defaults to 1. Must be less than or equal to RevisionHistoryLimit. Can be
+                  greater than 1 only for Function packages.
+                format: int64
+                type: integer
               commonLabels:
                 additionalProperties:
                   type: string
@@ -410,6 +434,10 @@ spec:
             required:
             - package
             type: object
+            x-kubernetes-validations:
+            - message: Active revision limit can be at most revision history limit
+              rule: self.revisionHistoryLimit == 0 || self.activeRevisionLimit <=
+                self.revisionHistoryLimit
           status:
             description: FunctionStatus represents the observed state of a Function.
             properties:

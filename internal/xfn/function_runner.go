@@ -19,6 +19,7 @@ package xfn
 import (
 	"context"
 	"crypto/tls"
+	"maps"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -44,10 +46,13 @@ const (
 	errNoActiveRevisions     = "cannot find an active FunctionRevision (a FunctionRevision with spec.desiredState: Active)"
 	errListFunctions         = "cannot List Functions to determine which gRPC client connections to garbage collect."
 
-	errFmtGetClientConn = "cannot get gRPC client connection for Function %q"
-	errFmtRunFunction   = "cannot run Function %q"
-	errFmtEmptyEndpoint = "cannot determine gRPC target: active FunctionRevision %q has an empty status.endpoint"
-	errFmtDialFunction  = "cannot gRPC dial target %q from status.endpoint of active FunctionRevision %q"
+	errFmtResolveFunction          = "cannot resolve revision for Function %q"
+	errFmtGetClientConn            = "cannot get gRPC client connection for FunctionRevision %q"
+	errFmtRunFunction              = "cannot run FunctionRevision %q"
+	errFmtEmptyEndpoint            = "cannot determine gRPC target: active FunctionRevision %q has an empty status.endpoint"
+	errFmtDialFunction             = "cannot gRPC dial target %q from status.endpoint of active FunctionRevision %q"
+	errFmtGetFunctionRevision      = "cannot get FunctionRevision %q"
+	errFmtSelectedRevisionInactive = "cannot use function revision %q because it is inactive"
 )
 
 // This configures a gRPC client to use round robin load balancing. This means
@@ -73,10 +78,39 @@ const svcConfig = `
 	]
 }`
 
+// FunctionRevisionSelector is used to select a function revision for a function
+// call.
+type FunctionRevisionSelector struct {
+	// FunctionName is the name of the function whose revision is being
+	// selected. It must be non-empty.
+	FunctionName string
+	// RevisionName is the name of the revision to select. The revision must not
+	// be Inactive. If both RevisionName and RevisionMatchLabels are empty, the
+	// active revision will be selected.
+	RevisionName string
+	// RevisionMatchLabels are labels to match. Inactive revisions will not be
+	// matched. It is ignored if RevisionName is non-empty. If both RevisionName
+	// and RevisionMatchLabels are empty, the active revision will be selected.
+	RevisionMatchLabels map[string]string
+}
+
+// FunctionRevisionCaller calls a specific revision of a composition function.
+type FunctionRevisionCaller interface {
+	// CallFunctionRevision calls the given function revision.
+	CallFunctionRevision(ctx context.Context, revision *pkgv1.FunctionRevision, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+}
+
+// FunctionRevisionResolver resolves function names to revisions.
+type FunctionRevisionResolver interface {
+	// ResolveFunctionRevision resolves function revision that should be called to invoke the
+	// function with the given name.
+	ResolveFunctionRevision(ctx context.Context, sel FunctionRevisionSelector) (*pkgv1.FunctionRevision, error)
+}
+
 // A FunctionRunner runs a composition function.
 type FunctionRunner interface {
 	// RunFunction runs the named composition function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+	RunFunction(ctx context.Context, sel FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
@@ -85,6 +119,7 @@ type FunctionRunner interface {
 // active FunctionRevision. You must call GarbageCollectClientConnections in
 // order to ensure connections are properly closed.
 type PackagedFunctionRunner struct {
+	resolver     FunctionRevisionResolver
 	client       client.Reader
 	creds        credentials.TransportCredentials
 	interceptors []InterceptorCreator
@@ -128,14 +163,23 @@ func WithInterceptorCreators(ics ...InterceptorCreator) PackagedFunctionRunnerOp
 	}
 }
 
+// WithFunctionRevisionResolver configures the resolver that will be used to
+// look up function revisions.
+func WithFunctionRevisionResolver(res FunctionRevisionResolver) PackagedFunctionRunnerOption {
+	return func(r *PackagedFunctionRunner) {
+		r.resolver = res
+	}
+}
+
 // NewPackagedFunctionRunner returns a FunctionRunner that runs a Function by
 // making a gRPC call to a Function package's runtime.
 func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOption) *PackagedFunctionRunner {
 	r := &PackagedFunctionRunner{
-		client: c,
-		creds:  insecure.NewCredentials(),
-		conns:  make(map[string]*grpc.ClientConn),
-		log:    logging.NewNopLogger(),
+		resolver: &ActiveFunctionRevisionResolver{client: c},
+		client:   c,
+		creds:    insecure.NewCredentials(),
+		conns:    make(map[string]*grpc.ClientConn),
+		log:      logging.NewNopLogger(),
 	}
 
 	for _, fn := range o {
@@ -147,14 +191,29 @@ func NewPackagedFunctionRunner(c client.Reader, o ...PackagedFunctionRunnerOptio
 
 // RunFunction sends the supplied RunFunctionRequest to the named Function. The
 // function is expected to be an installed Function.pkg.crossplane.io package.
-func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	conn, err := r.getClientConn(ctx, name)
+func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, sel FunctionRevisionSelector, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	rev, err := r.ResolveFunctionRevision(ctx, sel)
 	if err != nil {
-		return nil, errors.Wrapf(err, errFmtGetClientConn, name)
+		return nil, errors.Wrapf(err, errFmtResolveFunction, sel.FunctionName)
+	}
+
+	return r.CallFunctionRevision(ctx, rev, req)
+}
+
+// ResolveFunctionRevision returns the active revision of the named function.
+func (r *PackagedFunctionRunner) ResolveFunctionRevision(ctx context.Context, sel FunctionRevisionSelector) (*pkgv1.FunctionRevision, error) {
+	return r.resolver.ResolveFunctionRevision(ctx, sel)
+}
+
+// CallFunctionRevision calls the given function revision.
+func (r *PackagedFunctionRunner) CallFunctionRevision(ctx context.Context, rev *pkgv1.FunctionRevision, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	conn, err := r.getClientConn(rev)
+	if err != nil {
+		return nil, errors.Wrapf(err, errFmtGetClientConn, rev.GetName())
 	}
 
 	rsp, err := NewBetaFallBackFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
-	return rsp, errors.Wrapf(err, errFmtRunFunction, name)
+	return rsp, errors.Wrapf(err, errFmtRunFunction, rev.GetName())
 }
 
 // In most cases our gRPC target will be a Kubernetes Service. The package
@@ -180,33 +239,13 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 // cost of listing and iterating over FunctionRevisions from cache. The default
 // RevisionHistoryLimit is 1, so for most Functions we'd expect there to be two
 // revisions in the cache (one active, and one previously active).
-func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string) (*grpc.ClientConn, error) {
-	log := r.log.WithValues("function", name)
-
-	l := &pkgv1.FunctionRevisionList{}
-	if err := r.client.List(ctx, l, client.MatchingLabels{pkgv1.LabelParentPackage: name}); err != nil {
-		return nil, errors.Wrapf(err, errListFunctionRevisions)
-	}
-
-	var active *pkgv1.FunctionRevision
-	for i := range l.Items {
-		if l.Items[i].GetDesiredState() == pkgv1.PackageRevisionActive {
-			active = &l.Items[i]
-			break
-		}
-	}
-	if active == nil {
-		return nil, errors.New(errNoActiveRevisions)
-	}
-
-	if active.Status.Endpoint == "" {
-		return nil, errors.Errorf(errFmtEmptyEndpoint, active.GetName())
-	}
+func (r *PackagedFunctionRunner) getClientConn(rev *pkgv1.FunctionRevision) (*grpc.ClientConn, error) {
+	log := r.log.WithValues("functionRevision", rev.GetName())
 
 	// If we have a connection for the up-to-date endpoint, return it.
 	r.connsMx.RLock()
-	conn, ok := r.conns[name]
-	if ok && conn.Target() == active.Status.Endpoint {
+	conn, ok := r.conns[rev.GetName()]
+	if ok && conn.Target() == rev.Status.Endpoint {
 		defer r.connsMx.RUnlock()
 		return conn, nil
 	}
@@ -218,37 +257,37 @@ func (r *PackagedFunctionRunner) getClientConn(ctx context.Context, name string)
 
 	// Another Goroutine might have updated the connections between when we
 	// released the read lock and took the write lock, so check again.
-	conn, ok = r.conns[name]
+	conn, ok = r.conns[rev.GetName()]
 	if ok {
 		// We now have a connection for the up-to-date endpoint.
-		if conn.Target() == active.Status.Endpoint {
+		if conn.Target() == rev.Status.Endpoint {
 			return conn, nil
 		}
 
 		// This connection is to an old endpoint. We need to close it and create
 		// a new connection. Close only returns an error is if the connection is
 		// already closed or in the process of closing.
-		log.Debug("Closing gRPC client connection with stale target", "old-target", conn.Target(), "new-target", active.Status.Endpoint)
+		log.Debug("Closing gRPC client connection with stale target", "old-target", conn.Target(), "new-target", rev.Status.Endpoint)
 		_ = conn.Close()
-		delete(r.conns, name)
+		delete(r.conns, rev.GetName())
 	}
 
 	is := make([]grpc.UnaryClientInterceptor, len(r.interceptors))
 	for i := range r.interceptors {
-		is[i] = r.interceptors[i].CreateInterceptor(name, active.Spec.Package)
+		is[i] = r.interceptors[i].CreateInterceptor(rev.GetName(), rev.Spec.Package)
 	}
 
-	conn, err := grpc.NewClient(active.Status.Endpoint,
+	conn, err := grpc.NewClient(rev.Status.Endpoint,
 		grpc.WithTransportCredentials(r.creds),
 		grpc.WithDefaultServiceConfig(svcConfig),
 		grpc.WithChainUnaryInterceptor(is...))
 	if err != nil {
-		return nil, errors.Wrapf(err, errFmtDialFunction, active.Status.Endpoint, active.GetName())
+		return nil, errors.Wrapf(err, errFmtDialFunction, rev.Status.Endpoint, rev.GetName())
 	}
 
-	r.conns[name] = conn
+	r.conns[rev.GetName()] = conn
 
-	log.Debug("Created new gRPC client connection", "target", active.Status.Endpoint)
+	log.Debug("Created new gRPC client connection", "target", rev.Status.Endpoint)
 	return conn, nil
 }
 
@@ -292,20 +331,23 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 	r.connsMx.Lock()
 	defer r.connsMx.Unlock()
 
-	l := &pkgv1.FunctionList{}
+	l := &pkgv1.FunctionRevisionList{}
 	if err := r.client.List(ctx, l); err != nil {
 		return 0, errors.Wrap(err, errListFunctions)
 	}
 
-	functionExists := map[string]bool{}
-	for _, f := range l.Items {
-		functionExists[f.GetName()] = true
+	revActive := map[string]bool{}
+	for _, r := range l.Items {
+		if r.Spec.DesiredState == pkgv1.PackageRevisionInactive {
+			continue
+		}
+		revActive[r.GetName()] = true
 	}
 
 	// Garbage collect connections.
 	closed := 0
 	for name := range r.conns {
-		if functionExists[name] {
+		if revActive[name] {
 			continue
 		}
 
@@ -314,7 +356,7 @@ func (r *PackagedFunctionRunner) GarbageCollectConnectionsNow(ctx context.Contex
 		_ = r.conns[name].Close()
 		delete(r.conns, name)
 		closed++
-		r.log.Debug("Closed gRPC client connection to Function that is no longer installed", "function", name)
+		r.log.Debug("Closed gRPC client connection to FunctionRevision that is no longer active", "functionRevision", name)
 	}
 
 	return closed, nil
@@ -383,4 +425,119 @@ func fromBeta(rsp *fnv1beta1.RunFunctionResponse) (*fnv1.RunFunctionResponse, er
 	}
 	err = proto.Unmarshal(b, out)
 	return out, errors.Wrapf(err, "cannot unmarshal %T protobuf bytes into %T", rsp, out)
+}
+
+// ActiveFunctionRevisionResolver resolves the active revision for a given
+// function. It ignores all selectors other than the function name.
+type ActiveFunctionRevisionResolver struct {
+	client client.Reader
+}
+
+// ResolveFunctionRevision resolves the active revision for a given function.
+func (r *ActiveFunctionRevisionResolver) ResolveFunctionRevision(ctx context.Context, sel FunctionRevisionSelector) (*pkgv1.FunctionRevision, error) {
+	l := &pkgv1.FunctionRevisionList{}
+	if err := r.client.List(ctx, l, client.MatchingLabels{pkgv1.LabelParentPackage: sel.FunctionName}); err != nil {
+		return nil, errors.Wrapf(err, errListFunctionRevisions)
+	}
+
+	var active *pkgv1.FunctionRevision
+	for i := range l.Items {
+		if l.Items[i].GetDesiredState() == pkgv1.PackageRevisionActive {
+			active = &l.Items[i]
+			break
+		}
+	}
+	if active == nil {
+		return nil, errors.New(errNoActiveRevisions)
+	}
+
+	if active.Status.Endpoint == "" {
+		return nil, errors.Errorf(errFmtEmptyEndpoint, active.GetName())
+	}
+
+	return active, nil
+}
+
+// SelectorFunctionRevisionResolver resolves function revisions based on all the
+// criteria in the FunctionRevisionSelector.
+type SelectorFunctionRevisionResolver struct {
+	client client.Reader
+}
+
+// NewSelectorFunctionRevisionResolver returns an initialized
+// SelectorFunctionRevisionResolver.
+func NewSelectorFunctionRevisionResolver(c client.Reader) *SelectorFunctionRevisionResolver {
+	return &SelectorFunctionRevisionResolver{
+		client: c,
+	}
+}
+
+// ResolveFunctionRevision resolves function revisions based on the criteria in
+// the selector.
+func (r *SelectorFunctionRevisionResolver) ResolveFunctionRevision(ctx context.Context, sel FunctionRevisionSelector) (*pkgv1.FunctionRevision, error) {
+	if sel.RevisionName != "" {
+		rev := &pkgv1.FunctionRevision{}
+		if err := r.client.Get(ctx, types.NamespacedName{Name: sel.RevisionName}, rev); err != nil {
+			return nil, errors.Wrapf(err, errFmtGetFunctionRevision, sel.RevisionName)
+		}
+
+		if rev.Labels[pkgv1.LabelParentPackage] != sel.FunctionName {
+			return nil, errors.Errorf("revision %q is not a revision of function %q", rev.GetName(), sel.FunctionName)
+		}
+
+		if rev.GetDesiredState() == pkgv1.PackageRevisionInactive {
+			return nil, errors.Errorf(errFmtSelectedRevisionInactive, rev.GetName())
+		}
+
+		if rev.Status.Endpoint == "" {
+			return nil, errors.Errorf(errFmtEmptyEndpoint, rev.GetName())
+		}
+
+		return rev, nil
+	}
+
+	matchLabels := client.MatchingLabels{pkgv1.LabelParentPackage: sel.FunctionName}
+	maps.Copy(matchLabels, sel.RevisionMatchLabels)
+
+	l := &pkgv1.FunctionRevisionList{}
+	if err := r.client.List(ctx, l, matchLabels); err != nil {
+		return nil, errors.Wrapf(err, errListFunctionRevisions)
+	}
+
+	rev := findLatestRevisionWithRuntime(l.Items)
+
+	if rev == nil {
+		return nil, errors.New(errNoActiveRevisions)
+	}
+
+	if rev.Status.Endpoint == "" {
+		return nil, errors.Errorf(errFmtEmptyEndpoint, rev.GetName())
+	}
+
+	return rev, nil
+}
+
+func findLatestRevisionWithRuntime(revs []pkgv1.FunctionRevision) *pkgv1.FunctionRevision {
+	var (
+		rev    *pkgv1.FunctionRevision
+		latest int64
+	)
+	for i := range revs {
+		switch revs[i].GetDesiredState() {
+		case pkgv1.PackageRevisionInactive:
+			continue
+
+		case pkgv1.PackageRevisionActive:
+			return &revs[i]
+
+		case pkgv1.PackageRevisionRuntimeOnly:
+			if revs[i].GetRevision() <= latest {
+				continue
+			}
+			rev = &revs[i]
+			latest = rev.GetRevision()
+		}
+	}
+
+	return rev
 }

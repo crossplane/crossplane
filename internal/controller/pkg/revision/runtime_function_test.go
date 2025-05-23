@@ -626,6 +626,12 @@ func TestFunctionDeactivateHook(t *testing.T) {
 					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
 						return &appsv1.Deployment{}
 					},
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
 				},
 				client: &test.MockClient{
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
@@ -635,9 +641,99 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						return nil
 					},
 				},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteFunctionDeployment),
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
+			},
+		},
+		"ErrDeleteService": {
+			reason: "Should return error if we fail to delete service.",
+			args: args{
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
+				},
+				client: &test.MockClient{
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*corev1.Service); ok {
+							return errBoom
+						}
+						return nil
+					},
+				},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteFunctionService),
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
+			},
+		},
+		"ErrDeleteSecret": {
+			reason: "Should return error if we fail to delete secret.",
+			args: args{
+				manifests: &MockManifestBuilder{
+					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
+						return &corev1.ServiceAccount{}
+					},
+					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
+						return &appsv1.Deployment{}
+					},
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
+				},
+				client: &test.MockClient{
+					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+				},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteFunctionSecret),
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
 			},
 		},
 		"Successful": {
@@ -669,6 +765,13 @@ func TestFunctionDeactivateHook(t *testing.T) {
 						}
 						return s
 					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "some-secret",
+							},
+						}
+					},
 				},
 				client: &test.MockClient{
 					MockDelete: func(_ context.Context, obj client.Object, _ ...client.DeleteOption) error {
@@ -680,8 +783,30 @@ func TestFunctionDeactivateHook(t *testing.T) {
 								return errors.New("unexpected deployment name")
 							}
 							return nil
+						case *corev1.Service:
+							if obj.GetName() != "some-service" {
+								return errors.New("unexpected service name")
+							}
+							return nil
+						case *corev1.Secret:
+							if obj.GetName() != "some-secret" {
+								return errors.New("unexpected secret name")
+							}
+							return nil
 						}
 						return errors.New("unexpected object type")
+					},
+				},
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-function-1",
 					},
 				},
 			},

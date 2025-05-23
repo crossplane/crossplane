@@ -49,6 +49,7 @@ type Function struct {
 
 // FunctionSpec specifies the configuration of a Function.
 type FunctionSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self.revisionHistoryLimit == 0 || self.activeRevisionLimit <= self.revisionHistoryLimit",message="Active revision limit can be at most revision history limit"
 	PackageSpec `json:",inline"`
 
 	PackageRuntimeSpec `json:",inline"`

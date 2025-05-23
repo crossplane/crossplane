@@ -268,7 +268,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	// Only verify signatures for active revisions.
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		log.Debug("Skipping signature verification for inactive package revision")
 		return reconcile.Result{}, nil
 	}

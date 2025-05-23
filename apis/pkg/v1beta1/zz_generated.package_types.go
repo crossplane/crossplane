@@ -43,6 +43,15 @@ type PackageSpec struct {
 	// +kubebuilder:default=1
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty"`
 
+	// ActiveRevisionLimit specifies how many revisions should be kept active by
+	// the package controller at any given time, when the
+	// RevisionActivationPolicy is Automatic.
+	// Defaults to 1. Must be less than or equal to RevisionHistoryLimit. Can be
+	// greater than 1 only for Function packages.
+	// +optional
+	// +kubebuilder:default=1
+	ActiveRevisionLimit *int64 `json:"activeRevisionLimit,omitempty"`
+
 	// PackagePullSecrets are named secrets in the same namespace that can be used
 	// to fetch packages from private registries.
 	// +optional

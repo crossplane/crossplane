@@ -1,0 +1,13 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: name-only
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  mode: Pipeline
+  pipeline:
+  - step: add-version-label
+    functionRef:
+      name: function-add-version-label

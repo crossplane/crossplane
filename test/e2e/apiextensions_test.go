@@ -43,6 +43,10 @@ const LabelAreaAPIExtensions = "apiextensions"
 // test suite with caching enabled.
 const SuiteFunctionResponseCache = "function-response-cache"
 
+// Tests that should be part of the test suite for the alpha function revision
+// selectors feature.
+const SuiteFunctionRevisionSelectors = "function-revision-selectors"
+
 func init() {
 	environment.AddTestSuite(SuiteFunctionResponseCache,
 		config.WithHelmInstallOpts(
@@ -50,6 +54,14 @@ func init() {
 		),
 		config.WithLabelsToSelect(features.Labels{
 			config.LabelTestSuite: []string{SuiteFunctionResponseCache, config.TestSuiteDefault},
+		}),
+	)
+	environment.AddTestSuite(SuiteFunctionRevisionSelectors,
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set args={--debug,--enable-function-revision-selectors}"),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteFunctionRevisionSelectors, config.TestSuiteDefault},
 		}),
 	)
 }
@@ -494,6 +506,68 @@ func TestBindToExistingXR(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "xr.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
+			Feature(),
+	)
+}
+
+func TestFunctionRevisionSelectors(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/function-revision-selectors"
+
+	seenCondition := func(v string) xpv1.Condition {
+		return xpv1.Condition{
+			Type:   xpv1.ConditionType("XRSeenBy" + v),
+			Status: corev1.ConditionTrue,
+			Reason: "Seen",
+		}
+	}
+
+	environment.Test(t,
+		features.NewWithDescription(t.Name(), "Tests that function revision selectors can be used in composition function pipelines to execute specific function revisions.").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, SuiteFunctionRevisionSelectors).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				// We need both function revisions to be created, so we need to
+				// apply the function manifests individually and wait between
+				// for the package to become healthy.
+				funcs.ApplyResources(FieldManager, manifests, "setup/function-rev-1.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/function-rev-1.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ApplyResources(FieldManager, manifests, "setup/function-rev-2.yaml"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "setup/function-rev-2.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				// Then we can apply the rest of the setup manifests.
+				funcs.ApplyResources(FieldManager, manifests, "setup/definition.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "setup/composition*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaims", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim*.yaml"),
+			)).
+			Assess("ClaimsAreReady",
+				funcs.ResourcesHaveConditionWithin(60*time.Second, manifests, "claim*.yaml", xpv1.Available())).
+			Assess("ClaimsHaveExpectedConditions", funcs.AllOf(
+				// The name-only claim should have executed only the second
+				// revision of the function, since its composition selects the
+				// default (active) revision.
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim-name-only.yaml", seenCondition("V2")),
+				// The other claims select both revisions specifically, so
+				// should have both conditions.
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim-revision-name.yaml", seenCondition("V1"), seenCondition("V2")),
+				funcs.ResourcesHaveConditionWithin(30*time.Second, manifests, "claim-revision-labels.yaml", seenCondition("V1"), seenCondition("V2")),
+			)).
+			WithTeardown("DeleteClaims", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim*.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claims.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				// The two function revision manifests are for the same
+				// function, so we can only delete one of them.
+				funcs.DeleteResources(manifests, "setup/function-rev-2.yaml"),
+				funcs.DeleteResources(manifests, "setup/composition*.yaml"),
+				funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/definition.yaml", nopList),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
 	)
 }

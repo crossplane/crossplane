@@ -20,8 +20,8 @@ package manager
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math"
-	"reflect"
 	"strings"
 	"time"
 
@@ -46,6 +46,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -78,6 +79,7 @@ const (
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
+	errUpdateActivePackageRevision   = "cannot update active package revision"
 
 	errUnhealthyPackageRevision     = "current package revision is unhealthy"
 	errUnknownPackageRevisionHealth = "current package revision health is unknown"
@@ -129,6 +131,14 @@ func WithRevisioner(d Revisioner) ReconcilerOption {
 	}
 }
 
+// WithRevisionActivator specifies how the Reconciler should activate package
+// revisions.
+func WithRevisionActivator(a RevisionActivator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.activator = a
+	}
+}
+
 // WithConfigStore specifies the image config store to use.
 func WithConfigStore(c xpkg.ConfigStore) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -152,11 +162,12 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	pkg    Revisioner
-	config xpkg.ConfigStore
-	log    logging.Logger
-	record event.Recorder
+	client    resource.ClientApplicator
+	pkg       Revisioner
+	activator RevisionActivator
+	config    xpkg.ConfigStore
+	log       logging.Logger
+	record    event.Recorder
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -185,6 +196,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithRevisionActivator(NewSingleRevisionActivator(mgr.GetClient())),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -221,6 +233,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithRevisionActivator(NewSingleRevisionActivator(mgr.GetClient())),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -251,12 +264,18 @@ func SetupFunction(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errBuildFetcher)
 	}
 
+	var activator RevisionActivator = NewSingleRevisionActivator(mgr.GetClient())
+	if o.Features.Enabled(features.EnableAlphaFunctionRevisionSelectors) {
+		activator = NewMultiRevisionActivator(mgr.GetClient())
+	}
+
 	log := o.Logger.WithValues("controller", name)
 	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithRevisionActivator(activator),
 		WithConfigStore(xpkg.NewImageConfigStore(mgr.GetClient(), o.Namespace)),
 		WithLogger(log),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -405,12 +424,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	p.SetCurrentIdentifier(p.GetSource())
 
 	pr := r.newPackageRevision()
+	// Set the initial state to inactive. If the revision already exists, pr
+	// will be replaced below. If the revision is new and should be made active
+	// based on the activation policy we'll do that later in the reconciler.
+	pr.SetDesiredState(v1.PackageRevisionInactive)
+
+	var currentRevision v1.PackageRevision
 	maxRevision := int64(0)
 	oldestRevision := int64(math.MaxInt64)
 	oldestRevisionIndex := -1
 	revisions := prs.GetRevisions()
 
-	// Check to see if revision already exists.
+	// Check to see if revision already exists. While we're examining revisions,
+	// find the oldest one for garbage collection and the newest one to set the
+	// new revision's revision number if needed.
 	for index, rev := range revisions {
 		revisionNum := rev.GetRevision()
 
@@ -428,25 +455,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If revision name is same as current revision, then revision
 		// already exists.
 		if rev.GetName() == p.GetCurrentRevision() {
-			pr = rev
-			// Finish iterating through all revisions to make sure
-			// all non-current revisions are inactive.
-			continue
+			currentRevision = rev
 		}
-		if rev.GetDesiredState() == v1.PackageRevisionActive {
-			// If revision is not the current revision, set to
-			// inactive. This should always be done, regardless of
-			// the package's revision activation policy.
-			rev.SetDesiredState(v1.PackageRevisionInactive)
-			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
-				if kerrors.IsConflict(err) {
-					return reconcile.Result{Requeue: true}, nil
-				}
-				err = errors.Wrap(err, errUpdateInactivePackageRevision)
-				r.record.Event(p, event.Warning(reasonTransitionRevision, err))
-				return reconcile.Result{}, err
-			}
-		}
+	}
+
+	if currentRevision != nil {
+		pr = currentRevision
+	} else {
+		// If we're creating a new revision add it to the list of revisions for
+		// later activation.
+		revisions = append(revisions, pr)
 	}
 
 	// The current revision should always be the highest numbered revision.
@@ -492,9 +510,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 	}
 
-	// Create the non-existent package revision.
+	labels := map[string]string{v1.LabelParentPackage: p.GetName()}
+	maps.Copy(labels, p.GetLabels())
+
+	// Copy package configuration to the revision. We do this even if it's not a
+	// new revision, since not all package updates will result in a new revision
+	// being created.
 	pr.SetName(revisionName)
-	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
+	pr.SetLabels(labels)
 	// Use the original source; the revision reconciler will rewrite it if
 	// needed. The revision reconciler also inserts packages into the dependency
 	// manager's lock, which must use the original source to ensure dependency
@@ -511,19 +534,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pwok && prok {
 		prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
 		prwr.SetControllerConfigRef(pwr.GetControllerConfigRef())
-		prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
-		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
-	}
-
-	// If current revision is not active, and we have an automatic or
-	// undefined activation policy, always activate.
-	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
-		pr.SetDesiredState(v1.PackageRevisionActive)
+		if pwr.NeedsTLSServerSecret() {
+			prwr.SetTLSServerSecretName(v1.GetSecretNameWithSuffix(prwr.GetName(), v1.TLSServerSecretNameSuffix))
+		}
+		if pwr.NeedsTLSClientSecret() {
+			prwr.SetTLSClientSecretName(v1.GetSecretNameWithSuffix(prwr.GetName(), v1.TLSClientSecretNameSuffix))
+		}
 	}
 
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
 	controlRef.BlockOwnerDeletion = ptr.To(true)
 	meta.AddOwnerReference(pr, controlRef)
+
+	// Create or apply changes to the current revision. Note that it may not be
+	// activated yet; activation is done by the revision activator below if
+	// needed.
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		if kerrors.IsConflict(err) {
 			return reconcile.Result{Requeue: true}, nil
@@ -533,26 +558,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Handle changes in labels
-	same := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
-	if !same {
-		pr.SetCommonLabels(p.GetCommonLabels())
-		if err := r.client.Update(ctx, pr); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			err = errors.Wrap(err, errApplyPackageRevision)
-			r.record.Event(p, event.Warning(reasonInstall, err))
-			return reconcile.Result{}, err
+	revisions, err = r.activator.ActivateRevisions(ctx, p, revisions)
+	if err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+		r.record.Event(p, event.Warning(reasonTransitionRevision, err))
+		return reconcile.Result{}, err
+	}
+
+	// Set the appropriate installed condition on the package based on whether
+	// there's an active revision.
+	installedCondition := v1.Inactive().WithMessage("Package has no active revision")
+	for _, rev := range revisions {
+		if rev.GetDesiredState() == v1.PackageRevisionActive {
+			installedCondition = v1.Active()
 		}
 	}
-
-	p.SetConditions(v1.Active())
-
-	// If current revision is still not active, the package is inactive.
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		p.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
-	}
+	p.SetConditions(installedCondition)
 
 	// NOTE(hasheddan): when the first package revision is created for a
 	// package, the health of the package is not set until the revision reports

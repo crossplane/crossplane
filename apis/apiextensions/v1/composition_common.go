@@ -288,6 +288,21 @@ type PipelineStep struct {
 	// execute.
 	FunctionRef FunctionReference `json:"functionRef"`
 
+	// FunctionRevisionRef is an optional reference to the function revision
+	// that should be used for this step. It must be a revision of the function
+	// referred to by FunctionRef. If neither FunctionRevisionRef nor
+	// FunctionRevisionSelector is specified, the active revision will be used.
+	// Takes precedence over FunctionRevisionSelector if both are specified.
+	// +optional
+	FunctionRevisionRef *FunctionRevisionReference `json:"functionRevisionRef,omitempty"`
+
+	// FunctionRevisionSelector optionally selects a function revision to use
+	// for this step. FunctionRevisionRef takes precedence if both are
+	// specified. If neither FunctionRevisionRef nor FunctionRevisionSelector is
+	// specified, the active revision will be used.
+	// +optional
+	FunctionRevisionSelector *FunctionRevisionSelector `json:"functionRevisionSelector,omitempty"`
+
 	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
 	// with an apiVersion and kind) that will be passed to the Composition
 	// Function as the 'input' of its RunFunctionRequest.
@@ -308,6 +323,18 @@ type PipelineStep struct {
 type FunctionReference struct {
 	// Name of the referenced Function.
 	Name string `json:"name"`
+}
+
+// FunctionRevisionReference is a reference to a function revision.
+type FunctionRevisionReference struct {
+	// Name of the referenced function revision.
+	Name string `json:"name"`
+}
+
+// FunctionRevisionSelector selects a function revision.
+type FunctionRevisionSelector struct {
+	// MatchLabels selects a function revision with matching labels.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
 }
 
 // FunctionCredentials are optional credentials that a Composition Function

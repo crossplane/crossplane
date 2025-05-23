@@ -50,6 +50,7 @@ type Configuration struct {
 // ConfigurationSpec specifies details about a request to install a
 // configuration to Crossplane.
 type ConfigurationSpec struct {
+	// +kubebuilder:validation:XValidation:rule="self.activeRevisionLimit == 1",message="Configurations can have at most one active revision"
 	PackageSpec `json:",inline"`
 }
 
