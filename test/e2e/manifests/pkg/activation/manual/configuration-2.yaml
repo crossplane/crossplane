@@ -1,0 +1,8 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-activation
+spec:
+  # NOTE: This package is manually built and pushed to the registry.
+  package: xpkg.upbound.io/awg-test/e2e-activation:v0.2.0
+  revisionActivationPolicy: Manual
