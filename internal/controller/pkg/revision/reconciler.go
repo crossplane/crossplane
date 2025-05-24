@@ -32,7 +32,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -78,6 +77,7 @@ const (
 	errRemoveFinalizer = "cannot remove package revision finalizer"
 
 	errGetPullConfig = "cannot get image pull secret from config"
+	errRewriteImage  = "cannot rewrite image path using config"
 
 	errDeactivateRevision = "cannot deactivate package revision"
 
@@ -314,14 +314,13 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
-		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
-			client: mgr.GetClient(),
-		}).
-		Watches(&v1beta1.ImageConfig{}, enqueueProviderRevisionsForImageConfig(mgr.GetClient(), log))
+		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.ProviderRevisionList{}, log)).
+		Watches(&v1alpha1.ControllerConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log)).
+		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
-		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.ProviderGroupVersionKind)),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.ProviderGroupVersionKind, log)),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -339,9 +338,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.DefaultRegistry)))
 
 		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingProviderRevisions{
-				client: mgr.GetClient(),
-			})
+			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 		}
 	}
 
@@ -375,7 +372,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	log := o.Logger.WithValues("controller", name)
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
-		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.ConfigurationGroupVersionKind)),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.ConfigurationGroupVersionKind, log)),
 		WithNewPackageRevisionFn(nr),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -392,7 +389,8 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
-		Watches(&v1beta1.ImageConfig{}, enqueueConfigurationRevisionsForImageConfig(mgr.GetClient(), log)).
+		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.ConfigurationRevisionList{}, log)).
+		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ConfigurationRevisionList{}, log)).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
 }
@@ -428,14 +426,13 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&corev1.Service{}).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
-		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
-			client: mgr.GetClient(),
-		}).
-		Watches(&v1beta1.ImageConfig{}, enqueueFunctionRevisionsForImageConfig(mgr.GetClient(), log))
+		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.FunctionRevisionList{}, log)).
+		Watches(&v1alpha1.ControllerConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log)).
+		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
 
 	ro := []ReconcilerOption{
 		WithCache(o.Cache),
-		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.FunctionGroupVersionKind)),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1.FunctionGroupVersionKind, log)),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace, o.MaxConcurrentPackageEstablishers)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -453,9 +450,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.DefaultRegistry)))
 
 		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
-				client: mgr.GetClient(),
-			})
+			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
 		}
 	}
 
@@ -562,6 +557,36 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	imagePath := pr.GetSource()
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
+	if err != nil {
+		err = errors.Wrap(err, errRewriteImage)
+		pr.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, pr)
+
+		r.record.Event(pr, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+	if newPath != "" {
+		imagePath = newPath
+		pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   rewriteConfigName,
+			Reason: v1.ImageConfigReasonRewrite,
+		})
+	} else {
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
+	}
+
+	// Ensure the rewritten image path is persisted before we proceed.
+	if pr.GetResolvedSource() != imagePath {
+		pr.SetResolvedSource(imagePath)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
 	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
 		// Wait for signature verification to complete before proceeding.
 		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
@@ -585,7 +610,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, pr.GetSource())
+	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, pr.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		pr.SetConditions(v1.Unhealthy().WithMessage(err.Error()))
@@ -712,13 +737,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// If we didn't get a ReadCloser from cache, we need to get it from image.
 	if rc == nil {
 		bo := []parser.BackendOption{PackageRevision(pr)}
-		if imageConfig != "" {
+		if pullSecretConfig != "" {
 			bo = append(bo, PullSecretFromConfig(pullSecretFromConfig))
 			// We only record this event here, package is not in cache, and
 			// we are about to fetch the image. This way we avoid emitting
 			// excessive events in each reconcile, but once per image pull.
-			log.Debug("Selected pull secret from image config store", "image", pr.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
-			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
+			log.Debug("Selected pull secret from image config store", "image", pr.GetResolvedSource(), "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
+			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
+			pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+				Name:   pullSecretConfig,
+				Reason: v1.ImageConfigReasonSetPullSecret,
+			})
+		} else {
+			pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 		}
 
 		// Initialize parser backend to obtain package contents.
@@ -998,97 +1029,4 @@ func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.P
 	}
 
 	return opts, nil
-}
-
-func enqueueProviderRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		ic, ok := o.(*v1beta1.ImageConfig)
-		if !ok {
-			return nil
-		}
-		// We only care about ImageConfigs that have a pull secret.
-		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
-			return nil
-		}
-		// Enqueue all ProviderRevision matching the prefixes in the ImageConfig.
-		l := &v1.ProviderRevisionList{}
-		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list ProviderRevisions.
-			log.Debug("Cannot list provider revisions while attempting to enqueue from ImageConfig", "error", err)
-			return nil
-		}
-
-		var matches []reconcile.Request
-		for _, p := range l.Items {
-			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing provider revision for image config", "providerRevision", p.Name, "imageConfig", ic.Name)
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-				}
-			}
-		}
-		return matches
-	})
-}
-
-func enqueueConfigurationRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		ic, ok := o.(*v1beta1.ImageConfig)
-		if !ok {
-			return nil
-		}
-		// We only care about ImageConfigs that have a pull secret.
-		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
-			return nil
-		}
-		// Enqueue all ConfigurationRevision matching the prefixes in the ImageConfig.
-		l := &v1.ConfigurationRevisionList{}
-		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list ConfigurationRevisions.
-			log.Debug("Cannot list configuration revisions while attempting to enqueue from ImageConfig", "error", err)
-			return nil
-		}
-
-		var matches []reconcile.Request
-		for _, p := range l.Items {
-			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing configuration revision for image config", "configurationRevision", p.Name, "imageConfig", ic.Name)
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-				}
-			}
-		}
-		return matches
-	})
-}
-
-func enqueueFunctionRevisionsForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {
-	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		ic, ok := o.(*v1beta1.ImageConfig)
-		if !ok {
-			return nil
-		}
-		// We only care about ImageConfigs that have a pull secret.
-		if ic.Spec.Registry == nil || ic.Spec.Registry.Authentication == nil || ic.Spec.Registry.Authentication.PullSecretRef.Name == "" {
-			return nil
-		}
-		// Enqueue all FunctionRevision matching the prefixes in the ImageConfig.
-		l := &v1.FunctionRevisionList{}
-		if err := kube.List(ctx, l); err != nil {
-			// Nothing we can do, except logging, if we can't list FunctionRevisions.
-			log.Debug("Cannot list function revisions while attempting to enqueue from ImageConfig", "error", err)
-			return nil
-		}
-
-		var matches []reconcile.Request
-		for _, p := range l.Items {
-			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
-					log.Debug("Enqueuing function revision for image config", "functionRevision", p.Name, "imageConfig", ic.Name)
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
-				}
-			}
-		}
-		return matches
-	})
 }

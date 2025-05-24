@@ -17,7 +17,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             (unknown)
-// source: apiextensions/fn/proto/v1/run_function.proto
+// source: apis/apiextensions/fn/proto/v1/run_function.proto
+
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
 
 package v1
 
@@ -122,5 +124,5 @@ var FunctionRunnerService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "apiextensions/fn/proto/v1/run_function.proto",
+	Metadata: "apis/apiextensions/fn/proto/v1/run_function.proto",
 }

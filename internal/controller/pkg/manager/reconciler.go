@@ -74,6 +74,7 @@ const (
 	errApplyPackageRevision = "cannot apply package revision"
 	errGCPackageRevision    = "cannot garbage collect old package revision"
 	errGetPullConfig        = "cannot get image pull secret from config"
+	errRewriteImage         = "cannot rewrite image path using config"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
@@ -329,7 +330,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	imageConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetSource())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	imagePath := p.GetSource()
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
+	if err != nil {
+		err = errors.Wrap(err, errRewriteImage)
+		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, p)
+
+		r.record.Event(p, event.Warning(reasonImageConfig, err))
+
+		return reconcile.Result{}, err
+	}
+	if newPath != "" {
+		imagePath = newPath
+		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   rewriteConfigName,
+			Reason: v1.ImageConfigReasonRewrite,
+		})
+	} else {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonRewrite)
+	}
+	p.SetResolvedSource(imagePath)
+
+	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
 		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
@@ -343,7 +369,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	var secrets []string
 	if pullSecretFromConfig != "" {
 		secrets = append(secrets, pullSecretFromConfig)
+		p.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+			Name:   pullSecretConfig,
+			Reason: v1.ImageConfigReasonSetPullSecret,
+		})
+	} else {
+		p.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 	}
+
 	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
@@ -365,6 +398,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
+	// Use the original source as the identifier, even if it was rewritten by
+	// ImageConfig. The revisioning and dependency resolution logic are all
+	// based on the original package sources, so it's important that we preserve
+	// the original until it's time to actually pull an image.
 	p.SetCurrentIdentifier(p.GetSource())
 
 	pr := r.newPackageRevision()
@@ -448,16 +485,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
-	if pr.GetUID() == "" && imageConfig != "" {
+	if pr.GetUID() == "" && pullSecretConfig != "" {
 		// We only record this event if the revision is new, as we don't want to
 		// spam the user with events if the revision already exists.
-		log.Debug("Selected pull secret from image config store", "image", p.GetSource(), "imageConfig", imageConfig, "pullSecret", pullSecretFromConfig)
-		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, imageConfig)))
+		log.Debug("Selected pull secret from image config store", "image", p.GetResolvedSource(), "pullSecretConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
+		r.record.Event(p, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
 	}
 
 	// Create the non-existent package revision.
 	pr.SetName(revisionName)
 	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
+	// Use the original source; the revision reconciler will rewrite it if
+	// needed. The revision reconciler also inserts packages into the dependency
+	// manager's lock, which must use the original source to ensure dependency
+	// packages have the expected names even when rewritten.
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
@@ -541,7 +582,7 @@ func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) hand
 		var matches []reconcile.Request
 		for _, p := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+				if strings.HasPrefix(p.GetSource(), m.Prefix) || strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing provider for image config", "provider", p.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.Name}})
 				}
@@ -572,7 +613,7 @@ func enqueueConfigurationsForImageConfig(kube client.Client, log logging.Logger)
 		var matches []reconcile.Request
 		for _, c := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(c.GetSource(), m.Prefix) {
+				if strings.HasPrefix(c.GetSource(), m.Prefix) || strings.HasPrefix(c.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing configuration for image config", "configuration", c.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name}})
 				}
@@ -603,7 +644,7 @@ func enqueueFunctionsForImageConfig(kube client.Client, log logging.Logger) hand
 		var matches []reconcile.Request
 		for _, fn := range l.Items {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(fn.GetSource(), m.Prefix) {
+				if strings.HasPrefix(fn.GetSource(), m.Prefix) || strings.HasPrefix(fn.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing function for image config", "function", fn.Name, "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: fn.Name}})
 				}

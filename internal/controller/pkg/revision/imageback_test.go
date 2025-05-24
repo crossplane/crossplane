@@ -91,6 +91,9 @@ func TestImageBackend(t *testing.T) {
 							Package: ":test",
 						},
 					},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: ":test",
+					},
 				})},
 			},
 			want: errors.Wrap(errors.New("could not parse reference: :test"), errBadReference),
@@ -106,6 +109,9 @@ func TestImageBackend(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package: "test/test:latest",
 						},
+					},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: "test/test:latest",
 					},
 				})},
 			},
@@ -123,6 +129,9 @@ func TestImageBackend(t *testing.T) {
 							Package: "test/test:latest",
 						},
 					},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: "test/test:latest",
+					},
 				})},
 			},
 			want: errors.Wrapf(io.EOF, errFmtNoPackageFileFound, 1, true),
@@ -139,6 +148,9 @@ func TestImageBackend(t *testing.T) {
 							Package: "test/test:latest",
 						},
 					},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: "test/test:latest",
+					},
 				})},
 			},
 			want: errors.Wrapf(io.EOF, errFmtNoPackageFileFound, 0, false),
@@ -154,6 +166,9 @@ func TestImageBackend(t *testing.T) {
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							Package: "test/test:latest",
 						},
+					},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: "test/test:latest",
 					},
 				})},
 			},

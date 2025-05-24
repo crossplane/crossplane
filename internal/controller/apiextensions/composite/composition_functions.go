@@ -18,11 +18,14 @@ package composite
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -269,6 +272,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
 	}
 
+	// Time-to-live for this composition pipeline run. Each function returns
+	// a TTL. The pipeline's TTL will be the shortest non-zero TTL returned
+	// by any function. A TTL of zero means unlimited TTL.
+	var ttl time.Duration
+
 	// The Function pipeline starts with empty desired state.
 	d := &fnv1.State{}
 
@@ -312,11 +320,18 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			}
 		}
 
-		// TODO(negz): Generate a content-addressable tag for this request.
-		// Perhaps using https://github.com/cerbos/protoc-gen-go-hashpb ?
+		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
+
 		rsp, err := c.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRunPipelineStep, fn.Step)
+		}
+
+		// If this Function specified a non-zero TTL that's less than
+		// the current recorded TTL for the pipeline, it's the new TTL
+		// for the pipeline.
+		if d := rsp.GetMeta().GetTtl().AsDuration(); d > 0 && (ttl == 0 || d < ttl) {
+			ttl = d
 		}
 
 		// Pass the desired state returned by this Function to the next one.
@@ -424,16 +439,6 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			ConnectionDetails: dr.GetConnectionDetails(),
 			Ready:             dr.GetReady() == fnv1.Ready_READY_TRUE,
 		}
-	}
-
-	compositeRes := CompositeResource{}
-
-	// Consider the explicit composite unready state in the function response:
-	switch d.GetComposite().GetReady() { //nolint:exhaustive // only check for false or true
-	case fnv1.Ready_READY_TRUE:
-		compositeRes.Ready = ptr.To(true)
-	case fnv1.Ready_READY_FALSE:
-		compositeRes.Ready = ptr.To(false)
 	}
 
 	// Garbage collect any observed resources that aren't part of our final
@@ -550,7 +555,40 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRStatus)
 	}
 
-	return CompositionResult{ConnectionDetails: d.GetComposite().GetConnectionDetails(), Composite: compositeRes, Composed: resources, Events: events, Conditions: conditions}, nil
+	var ready *bool
+	switch d.GetComposite().GetReady() {
+	case fnv1.Ready_READY_TRUE:
+		ready = ptr.To(true)
+	case fnv1.Ready_READY_FALSE:
+		ready = ptr.To(false)
+	case fnv1.Ready_READY_UNSPECIFIED:
+		// Remains nil.
+	}
+
+	result := CompositionResult{
+		Composed:          resources,
+		ConnectionDetails: d.GetComposite().GetConnectionDetails(),
+		Ready:             ready,
+		Events:            events,
+		Conditions:        conditions,
+		TTL:               ttl,
+	}
+
+	return result, nil
+}
+
+// Tag uniquely identifies a request. Two identical requests created by the
+// same Crossplane binary will produce identical tags. Different builds of
+// Crossplane may produce different tags for the same inputs. See the docs for
+// the Deterministic protobuf MarshalOption for more details.
+func Tag(req *fnv1.RunFunctionRequest) string {
+	m := proto.MarshalOptions{Deterministic: true}
+	b, err := m.Marshal(req)
+	if err != nil {
+		return ""
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
 }
 
 // ComposedFieldOwnerName generates a unique field owner name

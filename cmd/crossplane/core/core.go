@@ -62,6 +62,7 @@ import (
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/xrd"
 	"github.com/crossplane/crossplane/internal/xfn"
+	"github.com/crossplane/crossplane/internal/xfn/cached"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -90,11 +91,12 @@ type startCommand struct {
 
 	Namespace      string `default:"crossplane-system"     env:"POD_NAMESPACE"                                                      help:"Namespace used to unpack and run packages."                         short:"n"`
 	ServiceAccount string `default:"crossplane"            env:"POD_SERVICE_ACCOUNT"                                                help:"Name of the Crossplane Service Account."`
-	CacheDir       string `default:"/cache"                env:"CACHE_DIR"                                                          help:"Directory used for caching package images."                         short:"c"`
 	LeaderElection bool   `default:"false"                 env:"LEADER_ELECTION"                                                    help:"Use leader election for the controller manager."                    short:"l"`
 	Registry       string `default:"${default_registry}"   env:"REGISTRY"                                                           help:"Default registry used to fetch packages when not specified in tag." short:"r"`
 	CABundlePath   string `env:"CA_BUNDLE_PATH"            help:"Additional CA bundle to use when fetching packages from registry."`
 	UserAgent      string `default:"${default_user_agent}" env:"USER_AGENT"                                                         help:"The User-Agent header that will be set on all package requests."`
+
+	XpkgCacheDir string `aliases:"cache-dir" default:"/cache/xpkg" env:"XPKG_CACHE_DIR,CACHE_DIR" help:"Directory used for caching package images." short:"c"`
 
 	PackageRuntime string `default:"Deployment" env:"PACKAGE_RUNTIME" help:"The package runtime to use for packages with a runtime (e.g. Providers and Functions)"`
 
@@ -103,8 +105,7 @@ type startCommand struct {
 	MaxReconcileRate                 int           `default:"100" help:"The global maximum rate per second at which resources may checked for drift from the desired state."`
 	MaxConcurrentPackageEstablishers int           `default:"10"  help:"The the maximum number of goroutines to use for establishing Providers, Configurations and Functions."`
 
-	WebhookEnabled                      bool `default:"true"  env:"WEBHOOK_ENABLED"                        help:"Enable webhook configuration."`
-	AutomaticDependencyDowngradeEnabled bool `default:"false" env:"AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED" help:"Enable automatic dependency version downgrades. This configuration requires the 'EnableDependencyVersionUpgrades' feature flag to be enabled."`
+	EnableWebhooks bool `aliases:"webhook-enabled" default:"true" env:"ENABLE_WEBHOOKS,WEBHOOK_ENABLED" help:"Enable webhook configuration."`
 
 	WebhookPort     int `default:"9443" env:"WEBHOOK_PORT"      help:"The port the webhook server listens on."`
 	MetricsPort     int `default:"8080" env:"METRICS_PORT"      help:"The port the metrics server listens on."`
@@ -115,15 +116,20 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableExternalSecretStores      bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableRealtimeCompositions      bool `group:"Alpha Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
-	EnableDependencyVersionUpgrades bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
-	EnableSignatureVerification     bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
+	EnableExternalSecretStores        bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when a dependent package is updated."`
+	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
+	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
+	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
+
+	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
+	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
 
 	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
 	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
 	EnableUsages                             bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
 	EnableSSAClaims                          bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableRealtimeCompositions               bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 
 	// These are GA features that previously had alpha or beta feature flags.
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
@@ -244,18 +250,39 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot load client TLS certificates")
 	}
 
-	m := xfn.NewMetrics()
-	metrics.Registry.MustRegister(m)
+	pfrm := xfn.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(pfrm)
 
 	// We want all XR controllers to share the same gRPC clients.
-	functionRunner := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
+	pfr := xfn.NewPackagedFunctionRunner(mgr.GetClient(),
 		xfn.WithLogger(log),
 		xfn.WithTLSConfig(clienttls),
-		xfn.WithInterceptorCreators(m),
+		xfn.WithInterceptorCreators(pfrm),
 	)
 
 	// Periodically remove clients for Functions that no longer exist.
-	go functionRunner.GarbageCollectConnections(ctx, 10*time.Minute)
+	go pfr.GarbageCollectConnections(ctx, 10*time.Minute)
+
+	var runner xfn.FunctionRunner = pfr
+
+	if c.EnableFunctionResponseCache {
+		o.Features.Enable(features.EnableAlphaFunctionResponseCache)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaFunctionResponseCache)
+
+		cfrm := cached.NewPrometheusMetrics()
+		metrics.Registry.MustRegister(cfrm)
+
+		// Wrap the packaged function runner with a caching one.
+		cfr := cached.NewFileBackedRunner(pfr, c.XfnCacheDir,
+			cached.WithLogger(log),
+			cached.WithMetrics(cfrm),
+		)
+
+		// Periodically delete expired cache entries.
+		go cfr.GarbageCollectFiles(ctx, 1*time.Minute)
+
+		runner = cfr
+	}
 
 	if c.EnableCompositionWebhookSchemaValidation {
 		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
@@ -283,8 +310,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		}
 	}
 	if c.EnableRealtimeCompositions {
-		o.Features.Enable(features.EnableAlphaRealtimeCompositions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaRealtimeCompositions)
+		o.Features.Enable(features.EnableBetaRealtimeCompositions)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaRealtimeCompositions)
 	}
 	if c.EnableDeploymentRuntimeConfigs {
 		o.Features.Enable(features.EnableBetaDeploymentRuntimeConfigs)
@@ -294,13 +321,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		o.Features.Enable(features.EnableBetaClaimSSA)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaClaimSSA)
 	}
-	if c.EnableDependencyVersionUpgrades {
+	// Enabling downgrades implicitly enables upgrades.
+	if c.EnableDependencyVersionUpgrades || c.EnableDependencyVersionDowngrades {
 		o.Features.Enable(features.EnableAlphaDependencyVersionUpgrades)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionUpgrades)
-
-		if c.AutomaticDependencyDowngradeEnabled {
-			log.Info("Automatic dependency downgrade is enabled.")
-		}
+	}
+	if c.EnableDependencyVersionDowngrades {
+		o.Features.Enable(features.EnableAlphaDependencyVersionDowngrades)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaDependencyVersionDowngrades)
 	}
 	if c.EnableSignatureVerification {
 		o.Features.Enable(features.EnableAlphaSignatureVerification)
@@ -375,6 +403,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "cannot create uncached client for API extension controllers")
 	}
 
+	cem := engine.NewPrometheusMetrics()
+	metrics.Registry.MustRegister(cem)
+
 	// It's important the engine's client is wrapped with unstructured.NewClient
 	// because controller-runtime always caches *unstructured.Unstructured, not
 	// our wrapper types like *composite.Unstructured. This client takes care of
@@ -384,6 +415,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		unstructured.NewClient(cached),
 		unstructured.NewClient(uncached),
 		engine.WithLogger(log),
+		engine.WithMetrics(cem),
 	)
 
 	// TODO(negz): Garbage collect informers for CRs that are still defined
@@ -401,7 +433,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	ao := apiextensionscontroller.Options{
 		Options:          o,
 		ControllerEngine: ce,
-		FunctionRunner:   functionRunner,
+		FunctionRunner:   runner,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
@@ -420,15 +452,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	po := pkgcontroller.Options{
-		Options:                             o,
-		Cache:                               xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
-		Namespace:                           c.Namespace,
-		ServiceAccount:                      c.ServiceAccount,
-		DefaultRegistry:                     c.Registry,
-		FetcherOptions:                      []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
-		PackageRuntime:                      pr,
-		MaxConcurrentPackageEstablishers:    c.MaxConcurrentPackageEstablishers,
-		AutomaticDependencyDowngradeEnabled: c.AutomaticDependencyDowngradeEnabled,
+		Options:                          o,
+		Cache:                            xpkg.NewFsPackageCache(c.XpkgCacheDir, afero.NewOsFs()),
+		Namespace:                        c.Namespace,
+		ServiceAccount:                   c.ServiceAccount,
+		DefaultRegistry:                  c.Registry,
+		FetcherOptions:                   []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		PackageRuntime:                   pr,
+		MaxConcurrentPackageEstablishers: c.MaxConcurrentPackageEstablishers,
 	}
 
 	// We need to set the TUF_ROOT environment variable so that the TUF client
@@ -439,7 +470,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// ".sigstore/root" is coming from: https://github.com/sigstore/sigstore/blob/ecaaf75cf3a942cf224533ae15aee6eec19dc1e2/pkg/tuf/client.go#L558
 	// Check the following to read more about what TUF is and why it exists
 	// in this context: https://blog.sigstore.dev/the-update-framework-and-you-2f5cbaa964d5/
-	if err = os.Setenv("TUF_ROOT", filepath.Join(c.CacheDir, ".sigstore", "root")); err != nil {
+	if err = os.Setenv("TUF_ROOT", filepath.Join(c.XpkgCacheDir, ".sigstore", "root")); err != nil {
 		return errors.Wrap(err, "cannot set TUF_ROOT environment variable")
 	}
 
@@ -457,7 +488,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.WebhookEnabled {
+	if c.EnableWebhooks {
 		// TODO(muvaf): Once the implementation of other webhook handlers are
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.
@@ -494,7 +525,7 @@ func (c *startCommand) SetupProbes(mgr ctrl.Manager) error {
 	}
 
 	// Add probes waiting for the webhook server if webhooks are enabled
-	if c.WebhookEnabled {
+	if c.EnableWebhooks {
 		hookServer := mgr.GetWebhookServer()
 		if err := mgr.AddReadyzCheck("webhook", hookServer.StartedChecker()); err != nil {
 			return errors.Wrap(err, "cannot create webhook ready check")
