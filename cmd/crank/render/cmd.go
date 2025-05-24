@@ -54,9 +54,9 @@ type Cmd struct {
 	ExtraResources         string            `help:"A YAML file or directory of YAML files specifying extra resources to pass to the Function pipeline."                                       placeholder:"PATH" short:"e"          type:"path"`
 	IncludeContext         bool              `help:"Include the context in the rendered output as a resource of kind: Context."                                                                short:"c"`
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" type:"path"`
-	XRD                    string            `help:"A YAML file specifying the CompositeResourceDefinition (XRD) to validate the XR against."                                                  optional:""        placeholder:"PATH" type:"existingfile"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
+	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties."                                                  optional:""        placeholder:"PATH" type:"existingfile"`
 
 	fs afero.Fs
 }
@@ -169,7 +169,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		if err != nil {
 			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
 		}
-		if err := DefaultValues(xr.UnstructuredContent(), *crd); err != nil {
+		if err := DefaultValues(xr.UnstructuredContent(), xr.GetAPIVersion(), *crd); err != nil {
 			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
 		}
 	}

@@ -1,6 +1,7 @@
 package render
 
 import (
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	schema "k8s.io/apiextensions-apiserver/pkg/apiserver/schema"
@@ -8,9 +9,20 @@ import (
 )
 
 // DefaultValues sets default values on the XR based on the CRD schema.
-func DefaultValues(xr map[string]any, crd extv1.CustomResourceDefinition) error {
+func DefaultValues(xr map[string]any, apiVersion string, crd extv1.CustomResourceDefinition) error {
 	var k apiextensions.JSONSchemaProps
-	err := extv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(crd.Spec.Versions[0].Schema.OpenAPIV3Schema, &k, nil)
+	var version *extv1.CustomResourceDefinitionVersion
+	for _, vr := range crd.Spec.Versions {
+		checkAPIVersion := crd.Spec.Group + "/" + vr.Name
+		if checkAPIVersion == apiVersion {
+			version = &vr
+			break
+		}
+	}
+	if version == nil {
+		return errors.Errorf("apiVersion %s not found in the xrd", apiVersion)
+	}
+	err := extv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(version.Schema.OpenAPIV3Schema, &k, nil)
 	if err != nil {
 		return err
 	}
