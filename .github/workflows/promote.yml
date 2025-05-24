@@ -20,12 +20,13 @@ on:
 
 env:
   # Common versions
-  EARTHLY_VERSION: '0.8.13'
+  EARTHLY_VERSION: '0.8.15'
 
   # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
   # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
   # credentials have been provided before trying to run steps that need them.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
+  GHCR_USR: ${{ github.actor }}
   AWS_USR: ${{ secrets.AWS_USR }}
   UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
 
@@ -35,10 +36,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Setup Earthly
-        uses: earthly/actions-setup@v1
+        uses: earthly/actions-setup@43211c7a0eae5344d6d79fb4aaf209c8f8866203 # v1.0.13
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: ${{ env.EARTHLY_VERSION }}
@@ -51,6 +52,15 @@ jobs:
             --secret DOCKER_USER=${{ secrets.DOCKER_USR }} \
             --secret DOCKER_PASSWORD=${{ secrets.DOCKER_PSW }} \
             +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=docker.io/crossplane/crossplane
+
+      - name: Promote Image to ghcr.io/crossplane/crossplane:${{ inputs.channel }}
+        if: env.GHCR_USR != ''
+        run: |
+          earthly --strict \
+            --push \
+            --secret DOCKER_USER=${{ github.actor }} \
+            --secret DOCKER_PASSWORD=${{ secrets.GITHUB_TOKEN }} \
+            +ci-promote-image --CHANNEL=${{ inputs.channel }} --CROSSPLANE_VERSION=${{ inputs.version }} --CROSSPLANE_REPO=ghcr.io/crossplane/crossplane
 
       - name: Promote Image to xpkg.upbound.io/crossplane/crossplane:${{ inputs.channel }}
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''

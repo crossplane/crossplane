@@ -24,12 +24,12 @@ documentation].
 
 | Release | Release Date  |   EOL    |
 |:-------:|:-------------:|:--------:|
-|  v1.16  | May 15, 2024  | Feb 2025 |
 |  v1.17  | Aug 29, 2024  | May 2025 |
-|  v1.18  | Early Nov '24 | Aug 2025 |
-|  v1.19  | Early Feb '25 | Nov 2025 |
+|  v1.18  | Nov 5, 2024   | Aug 2025 |
+|  v1.19  | Feb 11, 2025  | Nov 2025 |
 |  v1.20  | Early May '25 | Feb 2026 |
 |  v1.21  | Early Aug '25 | May 2026 |
+|  v1.22  | Early Nov '25 | Aug 2026 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
@@ -59,7 +59,7 @@ delivery timeline.
 
 ## Get Involved
 
-[![Slack](https://img.shields.io/badge/slack-crossplane-red?logo=slack)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io?logo=X&label=Follow&style=flat)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UC19FgzMBMqBro361HbE46Fw)](https://www.youtube.com/@Crossplane)
+[![Slack](https://img.shields.io/badge/slack-crossplane-red?logo=slack)](https://slack.crossplane.io) [![Bluesky Follow](https://img.shields.io/badge/bluesky-Follow-blue?logo=bluesky)](https://bsky.app/profile/crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io?logo=X&label=Follow&style=flat)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520) [![YouTube Channel Subscribers](https://img.shields.io/youtube/channel/subscribers/UC19FgzMBMqBro361HbE46Fw)](https://www.youtube.com/@Crossplane)
 
 Crossplane is a community driven project; we welcome your contribution. To file
 a bug, suggest an improvement, or request a new feature please open an [issue
@@ -67,7 +67,7 @@ against Crossplane] or the relevant provider. Refer to our [contributing guide]
 for more information on how you can help.
 
 * Discuss Crossplane on [Slack] or our [developer mailing list].
-* Follow us on [Twitter] or [LinkedIn], or subscribe to our [newsletter].
+* Follow us on [Bluesky], [Twitter], or [LinkedIn], or subscribe to our [newsletter].
 * Contact us via [Email].
 * Join our regular community meetings.
 * Provide feedback on our [roadmap and releases board].
@@ -120,6 +120,7 @@ Crossplane is under the Apache 2.0 license.
 [install]: https://crossplane.io/docs/latest
 [Slack]: https://slack.crossplane.io
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
+[Bluesky]: https://bsky.app/profile/crossplane.io
 [Twitter]: https://twitter.com/crossplane_io
 [LinkedIn]: https://www.linkedin.com/company/crossplane/
 [newsletter]: https://eepurl.com/ivy4v-/

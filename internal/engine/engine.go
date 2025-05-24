@@ -53,7 +53,11 @@ type ControllerEngine struct {
 
 	// The client used by the engine's controllers. The client must be backed by
 	// the above TrackingInformers.
-	client client.Client
+	cached client.Client
+
+	// uncached is a non-cached client used when Unstructured resources
+	// are not found in the cache.
+	uncached client.Client
 
 	log logging.Logger
 
@@ -71,11 +75,12 @@ type TrackingInformers interface {
 }
 
 // New creates a new controller engine.
-func New(mgr manager.Manager, infs TrackingInformers, c client.Client, o ...ControllerEngineOption) *ControllerEngine {
+func New(mgr manager.Manager, infs TrackingInformers, c client.Client, nc client.Client, o ...ControllerEngineOption) *ControllerEngine {
 	e := &ControllerEngine{
 		mgr:         mgr,
 		infs:        infs,
-		client:      c,
+		cached:      c,
+		uncached:    nc,
 		log:         logging.NewNopLogger(),
 		controllers: make(map[string]*controller),
 	}
@@ -152,9 +157,14 @@ func WithNewControllerFn(fn NewControllerFn) ControllerOption {
 	}
 }
 
-// GetClient gets a client backed by the controller engine's cache.
-func (e *ControllerEngine) GetClient() client.Client {
-	return e.client
+// GetCached gets a client backed by the controller engine's cache.
+func (e *ControllerEngine) GetCached() client.Client {
+	return e.cached
+}
+
+// GetUncached gets a non-cached client.
+func (e *ControllerEngine) GetUncached() client.Client {
+	return e.uncached
 }
 
 // GetFieldIndexer returns a FieldIndexer that can be used to add indexes to the
@@ -258,7 +268,6 @@ func (e *ControllerEngine) Stop(ctx context.Context, name string) error {
 	// Stop the controller's watches.
 	for wid, w := range c.sources {
 		if err := w.Stop(ctx); err != nil {
-			c.mx.Unlock()
 			return errors.Wrapf(err, "cannot stop %q watch for %q", wid.Type, wid.GVK)
 		}
 		delete(c.sources, wid)

@@ -207,6 +207,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	d := &fnv1.State{}
 
 	results := make([]unstructured.Unstructured, 0)
+	conditions := make([]xpv1.Condition, 0)
 
 	// The Function context starts empty.
 	fctx := &structpb.Struct{Fields: map[string]*structpb.Value{}}
@@ -270,6 +271,26 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		// Pass the Function context returned by this Function to the next one.
 		// We intentionally discard/ignore this after the last Function runs.
 		fctx = rsp.GetContext()
+
+		for _, c := range rsp.GetConditions() {
+			var status corev1.ConditionStatus
+			switch c.GetStatus() {
+			case fnv1.Status_STATUS_CONDITION_TRUE:
+				status = corev1.ConditionTrue
+			case fnv1.Status_STATUS_CONDITION_FALSE:
+				status = corev1.ConditionFalse
+			case fnv1.Status_STATUS_CONDITION_UNKNOWN, fnv1.Status_STATUS_CONDITION_UNSPECIFIED:
+				status = corev1.ConditionUnknown
+			}
+
+			conditions = append(conditions, xpv1.Condition{
+				Type:               xpv1.ConditionType(c.GetType()),
+				Status:             status,
+				LastTransitionTime: conditionTime(),
+				Reason:             xpv1.ConditionReason(c.GetReason()),
+				Message:            c.GetMessage(),
+			})
+		}
 
 		// Results of fatal severity stop the Composition process.
 		for _, rs := range rsp.GetResults() {
@@ -335,10 +356,19 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	if len(unready) > 0 {
 		xrCond = xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", resource.StableNAndSomeMore(resource.DefaultFirstN, unready)))
 	}
-	// lastTransitionTime would just be noise, but we can't drop it as it's a
-	// required field and null is not allowed, so we set a random time.
-	xrCond.LastTransitionTime = metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
+	xrCond.LastTransitionTime = conditionTime()
 	xr.SetConditions(xrCond)
+
+	for _, c := range conditions {
+		if xpv1.IsSystemConditionType(c.Type) {
+			// Do not let users update system conditions.
+			continue
+		}
+		// update the XR with the current condition. If it targets the claim, we
+		// could also set it on the claim here, but we don't support Claims in
+		// render yet.
+		xr.SetConditions(c)
+	}
 
 	out := Outputs{CompositeResource: xr, ComposedResources: desired, Results: results}
 	if fctx != nil {
@@ -413,4 +443,10 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 	}
 
 	return out, nil
+}
+
+func conditionTime() metav1.Time {
+	// lastTransitionTime for conditions would just be noise, but we can't drop it
+	// as it's a required field and null is not allowed, so we set a random time.
+	return metav1.NewTime(time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC))
 }

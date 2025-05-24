@@ -40,10 +40,10 @@ const (
 	// LabelAreaPkg is applied to all features pertaining to packages, (i.e.
 	// Providers, Configurations, etc).
 	LabelAreaPkg = "pkg"
-	// SuitePackageDependencyUpgrades is the value for the config.LabelTestSuite
+	// SuitePackageDependencyUpdates is the value for the config.LabelTestSuite
 	// label to be assigned to tests that should be part of the Package Upgrade
 	// test suite.
-	SuitePackageDependencyUpgrades = "package-dependency-upgrades"
+	SuitePackageDependencyUpdates = "package-dependency-updates"
 	// SuitePackageSignatureVerification is the value for the config.LabelTestSuite
 	// label to be assigned to tests that should be part of the Signature
 	// Verification test suite.
@@ -51,14 +51,18 @@ const (
 )
 
 func init() {
-	environment.AddTestSuite(SuitePackageDependencyUpgrades,
+	environment.AddTestSuite(SuitePackageDependencyUpdates,
 		config.WithHelmInstallOpts(
 			helm.WithArgs("--set args={--debug,--enable-dependency-version-upgrades}"),
 		),
+		config.WithHelmInstallOpts(
+			helm.WithArgs("--set packageManager.enableAutomaticDependencyDowngrade=\"true\""),
+		),
 		config.WithLabelsToSelect(features.Labels{
-			config.LabelTestSuite: []string{SuitePackageDependencyUpgrades, config.TestSuiteDefault},
+			config.LabelTestSuite: []string{SuitePackageDependencyUpdates, config.TestSuiteDefault},
 		}),
 	)
+
 	environment.AddTestSuite(SuitePackageSignatureVerification,
 		config.WithHelmInstallOpts(
 			helm.WithArgs("--set args={--debug,--enable-signature-verification}"),
@@ -299,6 +303,10 @@ func TestConfigurationWithDigest(t *testing.T) {
 	)
 }
 
+// TestUpgradeDependencyVersion tests that a dependency version is upgraded when the parent configuration is updated.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken.Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/version/package folder.
 func TestUpgradeDependencyVersion(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/version"
 
@@ -306,7 +314,7 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on provider with version upgrades when dependency changes to another version.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
 			WithSetup("ApplyConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-initial.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-initial.yaml"),
@@ -318,7 +326,7 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 			Assess("UpdateConfiguration",
 				funcs.ApplyResources(FieldManager, manifests, "configuration-updated.yaml")).
 			Assess("ProviderUpgradedToNewVersionAndHealthy", funcs.AllOf(
-				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.2.1"),
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "xpkg.upbound.io/crossplane-contrib/provider-nop:v0.3.1"),
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
 			Assess("ConfigurationIsStillHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-updated.yaml", pkgv1.Healthy(), pkgv1.Active())).
@@ -339,6 +347,10 @@ func TestUpgradeDependencyVersion(t *testing.T) {
 	)
 }
 
+// TestUpgradeDependencyDigest tests that a dependency digest is upgraded when the parent configuration is updated.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/digest/package folder.
 func TestUpgradeDependencyDigest(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/digest"
 
@@ -346,7 +358,7 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that a Configuration with a dependency on provider with digest upgrades when dependency changes to another digest.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
 			WithSetup("ApplyConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration-initial.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration-initial.yaml"),
@@ -379,6 +391,10 @@ func TestUpgradeDependencyDigest(t *testing.T) {
 	)
 }
 
+// TestUpgradeAlreadyExistsDependency tests that a previously installed dependency is upgraded to the minimal valid version when the parent configuration is updated.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/already-exists/package folder.
 func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/already-exists"
 
@@ -386,7 +402,7 @@ func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that a newly installed Configuration updates to existing dependency to the minimal valid version.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
 			WithSetup("ApplyDependency", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider.yaml"),
@@ -428,6 +444,10 @@ func TestUpgradeAlreadyExistsDependency(t *testing.T) {
 	)
 }
 
+// TestNoValidVersion tests that a Configuration will not become healthy if there is no valid version for its dependency.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/no-valid/package folder.
 func TestNoValidVersion(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/dependency-upgrade/no-valid"
 
@@ -435,7 +455,7 @@ func TestNoValidVersion(t *testing.T) {
 		features.NewWithDescription(t.Name(), "Tests that a Configuration will not become healthy if there is no valid version for its dependency.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
 			WithSetup("ApplyConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
@@ -465,22 +485,29 @@ func TestNoValidVersion(t *testing.T) {
 	)
 }
 
-func TestNoDowngrade(t *testing.T) {
-	manifests := "test/e2e/manifests/pkg/dependency-upgrade/no-downgrade"
+// TestDowngrade tests that a Configuration will become healthy after downgrading a dependency version.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found under
+// test/e2e/manifests/pkg/dependency-upgrade/downgrade/package folder.
+func TestDowngrade(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/dependency-upgrade/downgrade"
 
 	environment.Test(t,
-		features.NewWithDescription(t.Name(), "Tests that a Configuration will not become healthy and dependency version will not be downgraded even though there is a valid version.").
+		features.NewWithDescription(t.Name(), "Tests that a Configuration will become healthy after downgrading a dependency version.").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpgrades).
+			WithLabel(config.LabelTestSuite, SuitePackageDependencyUpdates).
 			WithSetup("ApplyConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
 			Assess("RequiredProviderIsHealthy",
 				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active())).
-			Assess("RequiredConfigurationIsUnhealthy",
-				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-nop.yaml", pkgv1.UnknownHealth(), pkgv1.Active())).
+			Assess("RequiredConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "configuration-nop.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ProviderDowngradedToNewVersionAndHealthy", funcs.AllOf(
+				funcs.ResourceHasFieldValueWithin(2*time.Minute, &pkgv1.Provider{ObjectMeta: metav1.ObjectMeta{Name: "crossplane-contrib-provider-nop"}}, "spec.package", "crossplane-contrib/provider-nop:v0.3.1"),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "provider.yaml", pkgv1.Healthy(), pkgv1.Active()))).
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
@@ -502,6 +529,11 @@ func TestNoDowngrade(t *testing.T) {
 	)
 }
 
+// TestImageConfigAuth tests that we can install a private package as a dependency by providing registry pull
+// credentials through ImageConfig API.
+// The packages used in this test are built and pushed manually and the manifests must remain unchanged to ensure
+// the test scenario is not broken. Corresponding meta file can be found at
+// test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency/package.
 func TestImageConfigAuth(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/authentication/configuration-with-private-dependency"
 
@@ -542,6 +574,9 @@ func TestImageConfigAuth(t *testing.T) {
 	)
 }
 
+// TestImageConfigVerificationWithKey tests that we can verify signature on a configuration when signed with a key.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
 func TestImageConfigVerificationWithKey(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/with-key"
 
@@ -575,6 +610,9 @@ func TestImageConfigVerificationWithKey(t *testing.T) {
 	)
 }
 
+// TestImageConfigVerificationKeyless tests that we can verify signature on a provider when signed keyless.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
 func TestImageConfigVerificationKeyless(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless"
 
@@ -612,6 +650,10 @@ func TestImageConfigVerificationKeyless(t *testing.T) {
 	)
 }
 
+// TestImageConfigAttestationVerificationPrivateKeyless tests that we can verify signature and attestations on a private
+// provider when signed keyless.
+// The providers used in this test are built and pushed manually with the necessary signatures and attestations, they
+// are just a copy of the provider-nop package.
 func TestImageConfigAttestationVerificationPrivateKeyless(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/image-config/signature-verification/keyless-private-with-attestation"
 

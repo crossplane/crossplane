@@ -47,7 +47,11 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
+      {{- if not .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- else }}
       serviceAccountName: {{ template "crossplane.name" . }}
+      {{- end }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
         - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
@@ -137,14 +141,14 @@ spec:
             port: readyz
         ports:
         - name: readyz
-          containerPort: 8081
+          containerPort: {{ .Values.readiness.port | default 8081 }}
         {{- if .Values.metrics.enabled }}
         - name: metrics
-          containerPort: 8080
+          containerPort: {{ .Values.metrics.port | default 8080 }}
         {{- end }}
         {{- if .Values.webhooks.enabled }}
         - name: webhooks
-          containerPort: 9443
+          containerPort: {{ .Values.webhooks.port | default 9443 }}
         {{- end }}
         {{- with .Values.securityContextCrossplane }}
         securityContext:
@@ -181,6 +185,18 @@ spec:
           - name: "WEBHOOK_ENABLED"
             value: "false"
           {{- end }}
+          {{- if and .Values.webhooks.enabled .Values.webhooks.port }}
+          - name: "WEBHOOK_PORT"
+            value: "{{ .Values.webhooks.port }}"
+          {{- end}}
+          {{- if and .Values.metrics.enabled .Values.metrics.port }}
+          - name: "METRICS_PORT"
+            value: "{{ .Values.metrics.port }}"
+          {{- end}}
+          {{- if .Values.readiness.port }}
+          - name: "HEALTH_PROBE_PORT"
+            value: "{{ .Values.readiness.port }}"
+          {{- end}}
           - name: "TLS_SERVER_SECRET_NAME"
             value: crossplane-tls-server
           - name: "TLS_SERVER_CERTS_DIR"
@@ -193,6 +209,10 @@ spec:
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
         {{- end}}
+        {{- if .Values.packageManager.enableAutomaticDependencyDowngrade }}
+          - name: "AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED"
+            value: "true"
+        {{- end }}
         volumeMounts:
           - mountPath: /cache
             name: package-cache

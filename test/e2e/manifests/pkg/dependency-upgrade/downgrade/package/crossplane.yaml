@@ -1,0 +1,20 @@
+# This is the package metadata for the Configuration installed by
+# configuration.yaml.
+#
+# This package is manually built/pushed to
+# xpkg.upbound.io/crossplane/e2e-nested-configuration, with something like:
+# ❯ crossplane xpkg login
+# ❯ crossplane xpkg build -o e2e-nested-configuration.xpkg
+# ❯ crossplane xpkg push -f e2e-nested-configuration.xpkg xpkg.upbound.io/crossplane/e2e-nested-configuration:v0.2.0-d
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-nested-configuration
+spec:
+  dependsOn:
+    - provider: xpkg.crossplane.io/crossplane-contrib/provider-nop
+      version: "<=v0.4.0"
+    - configuration: xpkg.crossplane.io/crossplane/e2e-depends-on-provider-nop
+      version: "v0.3.1"
+  repository: xpkg.upbound.io/crossplane/e2e-nested-configuration
+

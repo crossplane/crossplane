@@ -55,9 +55,10 @@ func TestReconcile(t *testing.T) {
 	cd := managed.ConnectionDetails{"a": []byte("b")}
 
 	type args struct {
-		client client.Client
-		of     resource.CompositeKind
-		opts   []ReconcilerOption
+		c    client.Client
+		uc   client.Client
+		of   resource.CompositeKind
+		opts []ReconcilerOption
 	}
 	type want struct {
 		r   reconcile.Result
@@ -74,7 +75,10 @@ func TestReconcile(t *testing.T) {
 		"CompositeResourceNotFound": {
 			reason: "We should not return an error if the composite resource was not found.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
+				uc: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 			},
@@ -85,8 +89,11 @@ func TestReconcile(t *testing.T) {
 		"GetCompositeResourceError": {
 			reason: "We should return error encountered while getting the composite resource.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(errBoom),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 			},
 			want: want{
@@ -96,7 +103,7 @@ func TestReconcile(t *testing.T) {
 		"UnpublishConnectionError": {
 			reason: "We should return any error encountered while unpublishing connection details.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetDeletionTimestamp(&now)
 					})),
@@ -104,6 +111,9 @@ func TestReconcile(t *testing.T) {
 						want.SetDeletionTimestamp(&now)
 						want.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errUnpublish)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -121,7 +131,7 @@ func TestReconcile(t *testing.T) {
 		"RemoveFinalizerError": {
 			reason: "We should return any error encountered while removing finalizer.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetDeletionTimestamp(&now)
 					})),
@@ -129,6 +139,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetDeletionTimestamp(&now)
 						cr.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
@@ -150,7 +163,7 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulDelete": {
 			reason: "We should return no error when deleted successfully.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetDeletionTimestamp(&now)
 					})),
@@ -158,6 +171,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetDeletionTimestamp(&now)
 						cr.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
@@ -179,11 +195,14 @@ func TestReconcile(t *testing.T) {
 		"AddFinalizerError": {
 			reason: "We should return any error encountered while adding finalizer.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.FinalizerFns{
@@ -200,11 +219,14 @@ func TestReconcile(t *testing.T) {
 		"SelectCompositionError": {
 			reason: "We should return any error encountered while selecting a composition.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSelectComp)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -220,12 +242,15 @@ func TestReconcile(t *testing.T) {
 		"FetchCompositionError": {
 			reason: "We should return any error encountered while fetching a composition.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errFetchComp)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -245,12 +270,15 @@ func TestReconcile(t *testing.T) {
 		"ValidateCompositionError": {
 			reason: "We should return any error encountered while validating our Composition.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errValidate)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -273,12 +301,15 @@ func TestReconcile(t *testing.T) {
 		"ConfigureCompositeError": {
 			reason: "We should return any error encountered while configuring the composite resource.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errConfigure)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -302,12 +333,15 @@ func TestReconcile(t *testing.T) {
 		"ComposeResourcesError": {
 			reason: "We should return any error encountered while composing resources.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errCompose)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -334,12 +368,15 @@ func TestReconcile(t *testing.T) {
 		"PublishConnectionDetailsError": {
 			reason: "We should return any error encountered while publishing connection details.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPublish)))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -371,12 +408,15 @@ func TestReconcile(t *testing.T) {
 		"CompositionWarnings": {
 			reason: "We should not requeue if our Composer returned warning events.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(xr resource.Composite) {
 						xr.SetCompositionReference(&corev1.ObjectReference{})
 						xr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -418,12 +458,15 @@ func TestReconcile(t *testing.T) {
 		"ComposedResourcesNotReady": {
 			reason: "We should requeue if any of our composed resources are not yet ready.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil),
 					MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating().WithMessage("Unready resources: cat, cow, elephant, and 1 more"))
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -484,7 +527,7 @@ func TestReconcile(t *testing.T) {
 		"ComposedResourcesReady": {
 			reason: "We should requeue after our poll interval if all of our composed resources are ready.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetResourceReferences([]corev1.ObjectReference{{
 							APIVersion: "example.org/v1",
@@ -500,6 +543,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -551,7 +597,7 @@ func TestReconcile(t *testing.T) {
 		"ReconciliationPausedSuccessful": {
 			reason: `If a composite resource has the pause annotation with value "true", there should be no further requeue requests.`,
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 					})),
@@ -568,7 +614,7 @@ func TestReconcile(t *testing.T) {
 		"ReconciliationPausedError": {
 			reason: `If a composite resource has the pause annotation with value "true" and the status update due to reconciliation being paused fails, error should be reported causing an exponentially backed-off requeue.`,
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 					})),
@@ -582,7 +628,7 @@ func TestReconcile(t *testing.T) {
 		"ReconciliationResumes": {
 			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
 						cr.SetConditions(xpv1.ReconcilePaused())
@@ -593,6 +639,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -627,7 +676,7 @@ func TestReconcile(t *testing.T) {
 		"ReconciliationResumesAfterAnnotationRemoval": {
 			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 						// no annotation atm
 						// (but reconciliations were already paused)
@@ -638,6 +687,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetConnectionDetailsLastPublishedTime(&now)
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -672,7 +724,7 @@ func TestReconcile(t *testing.T) {
 		"CustomEventsAndConditions": {
 			reason: "We should emit custom events and set custom conditions that were returned by the composer on both the composite resource and the claim.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
@@ -708,6 +760,9 @@ func TestReconcile(t *testing.T) {
 						cr.(*composite.Unstructured).SetClaimConditionTypes("DatabaseReady")
 						cr.SetClaimReference(&reference.Claim{})
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
@@ -746,15 +801,6 @@ func TestReconcile(t *testing.T) {
 								Type:        event.TypeNormal,
 								Reason:      "SyncSuccess",
 								Message:     "Pipeline step \"some-function\": Internal sync was successful.",
-								Annotations: map[string]string{},
-							},
-						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
 								Annotations: map[string]string{},
 							},
 						},
@@ -830,7 +876,7 @@ func TestReconcile(t *testing.T) {
 		"CustomEventsAndConditionFatal": {
 			reason: "In the case of a fatal result from the composer, we should set all custom conditions that were seen. If any custom conditions were not seen, they should be marked as Unknown. The error message should be emitted as an event to the composite but not the claim.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
@@ -885,6 +931,9 @@ func TestReconcile(t *testing.T) {
 						)
 						cr.SetClaimReference(&reference.Claim{})
 					})),
+				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
@@ -1021,7 +1070,7 @@ func TestReconcile(t *testing.T) {
 		"CustomConditionUpdate": {
 			reason: "Custom conditions should be updated if they already exist. Additionally, if a condition already exists in the status but was not included in the response, it should remain in the status.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
@@ -1091,6 +1140,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
 						eventArgs{
@@ -1099,15 +1151,6 @@ func TestReconcile(t *testing.T) {
 								Type:        event.Type(corev1.EventTypeNormal),
 								Reason:      "SelectComposition",
 								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
-							},
-						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
 								Annotations: map[string]string{},
 							},
 						},
@@ -1166,7 +1209,7 @@ func TestReconcile(t *testing.T) {
 		"SystemConditionUpdate": {
 			reason: "A system condition should be updated if it is explicitly allowed to do so",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
@@ -1188,6 +1231,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
 						eventArgs{
@@ -1196,15 +1242,6 @@ func TestReconcile(t *testing.T) {
 								Type:        event.Type(corev1.EventTypeNormal),
 								Reason:      "SelectComposition",
 								Message:     "Successfully selected composition: ",
-								Annotations: map[string]string{},
-							},
-						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
 								Annotations: map[string]string{},
 							},
 						},
@@ -1241,7 +1278,7 @@ func TestReconcile(t *testing.T) {
 		"CustomEventsFailToGetClaim": {
 			reason: "We should emit custom events that were returned by the composer. If we cannot get the claim, we should just emit events for the composite and continue as normal.",
 			args: args{
-				client: &test.MockClient{
+				c: &test.MockClient{
 					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						if xr, ok := obj.(*composite.Unstructured); ok {
 							// non-nil claim ref to trigger claim Get()
@@ -1260,6 +1297,9 @@ func TestReconcile(t *testing.T) {
 						cr.SetClaimReference(&reference.Claim{})
 					})),
 				},
+				uc: &test.MockClient{
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				},
 				opts: []ReconcilerOption{
 					WithRecorder(newTestRecorder(
 						eventArgs{
@@ -1277,15 +1317,6 @@ func TestReconcile(t *testing.T) {
 								Type:        event.TypeNormal,
 								Reason:      "DatabaseAvailable",
 								Message:     "Pipeline step \"some-function\": This is an event for database availability.",
-								Annotations: map[string]string{},
-							},
-						},
-						eventArgs{
-							Kind: compositeKind,
-							Event: event.Event{
-								Type:        event.Type(corev1.EventTypeNormal),
-								Reason:      "ComposeResources",
-								Message:     "Successfully composed resources",
 								Annotations: map[string]string{},
 							},
 						},
@@ -1330,7 +1361,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.client, tc.args.of, tc.args.opts...)
+			r := NewReconciler(tc.args.c, tc.args.uc, tc.args.of, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

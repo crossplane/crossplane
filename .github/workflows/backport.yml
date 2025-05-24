@@ -10,6 +10,9 @@ on:
     types: [closed]
   # See also commands.yml for the /backport triggered variant of this workflow.
 
+permissions:  
+  contents: read
+
 jobs:
   # NOTE(negz): I tested many backport GitHub actions before landing on this
   # one. Many do not support merge commits, or do not support pull requests with
@@ -18,11 +21,14 @@ jobs:
   # The main gotchas with this action are that it _only_ supports merge commits,
   # and that PRs _must_ be labelled before they're merged to trigger a backport.
   open-pr:
+    permissions:
+      contents: write  # for zeebe-io/backport-action to create branch
+      pull-requests: write  # for zeebe-io/backport-action to create PR to backport
     runs-on: ubuntu-22.04
     if: github.event.pull_request.merged
     steps:
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0
 

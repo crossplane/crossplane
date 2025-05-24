@@ -2,7 +2,11 @@
 # configuration.yaml.
 #
 # This package is manually built/pushed to
-# xpkg.upbound.io/crossplane/e2e-depends-on-provider-nop.
+# ghcr.io/crossplane/e2e-depends-on-provider-nop, with something like:
+# ❯ export CR_PAT=<token>
+# ❯ echo $CR_PAT | docker login ghcr.io -u <user> --password-stdin
+# ❯ crossplane xpkg build -o e2e-depends-on-provider-nop.xpkg
+# ❯ crossplane xpkg push -f e2e-depends-on-provider-nop.xpkg ghcr.io/crossplane/e2e-depends-on-provider-nop:v0.3.1
 #
 # The dependency does not specify a registry, so the default registry will be
 # used during installation.
@@ -12,5 +16,7 @@ metadata:
   name: e2e-depends-on-provider-nop
 spec:
   dependsOn:
-  - provider: crossplane-contrib/provider-nop
-    version: "=v0.2.0"
+  - apiVersion: pkg.crossplane.io/v1
+    kind: Provider
+    package: crossplane-contrib/provider-nop
+    version: "=v0.3.1"

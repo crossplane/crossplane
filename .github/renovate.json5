@@ -1,330 +1,341 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "helpers:pinGitHubActionDigests",
-    ":semanticCommits"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    'helpers:pinGitHubActionDigests',
+    ':semanticCommits',
   ],
   // We only want renovate to rebase PRs when they have conflicts, default
   // "auto" mode is not required.
-  "rebaseWhen": "conflicted",
+  rebaseWhen: 'conflicted',
   // The maximum number of PRs to be created in parallel
-  "prConcurrentLimit": 5,
+  prConcurrentLimit: 5,
   // The branches renovate should target
   // PLEASE UPDATE THIS WHEN RELEASING.
-  "baseBranches": [
-    "main",
-    "release-1.16",
-    "release-1.17",
-    "release-1.18"
+  baseBranches: [
+    'main',
+    'release-1.17',
+    'release-1.18',
+    'release-1.19',
   ],
-  "ignorePaths": [
-    "design/**",
+  ignorePaths: [
+    'design/**',
     // We test upgrades, so leave it on an older version on purpose.
     "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+    // We test dependencies' upgrades, manifests must remain unchanged to avoid breaking tests.
+    "test/e2e/manifests/pkg/dependency-upgrade/**",
+    // We test packages signature verifications also on upgrades, manifests must remain unchanged to avoid breaking tests.
+    "test/e2e/manifests/pkg/image-config/signature-verification/**"
   ],
-  "postUpdateOptions": [
-    "gomodTidy"
+  postUpdateOptions: [
+    'gomodTidy',
   ],
   // All PRs should have a label
-  "labels": [
-    "automated"
+  labels: [
+    'automated',
   ],
-  "customManagers": [
+  customManagers: [
     {
-      "customType": "regex",
-      "description": "Bump Earthly version in GitHub workflows",
-      "fileMatch": [
-        "^\\.github\\/workflows\\/[^/]+\\.ya?ml$"
+      customType: 'regex',
+      description: 'Bump Earthly version in GitHub workflows',
+      fileMatch: [
+        '^\\.github\\/workflows\\/[^/]+\\.ya?ml$',
       ],
-      "matchStrings": [
-        "EARTHLY_VERSION: '(?<currentValue>.*?)'\\n"
+      matchStrings: [
+        "EARTHLY_VERSION: '(?<currentValue>.*?)'\\n",
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "earthly/earthly",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'earthly/earthly',
+      extractVersionTemplate: '^v(?<version>.*)$',
     },
     {
-      "customType": "regex",
-      "description": "Bump Go version in Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump Go version in Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG --global GO_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG --global GO_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "golang-version",
-      "depNameTemplate": "golang"
+      datasourceTemplate: 'golang-version',
+      depNameTemplate: 'golang',
     },
     {
-      "customType": "regex",
-      "description": "Bump golangci-lint version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump golangci-lint version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG GOLANGCI_LINT_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG GOLANGCI_LINT_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "golangci/golangci-lint"
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'golangci/golangci-lint',
     },
     {
-      "customType": "regex",
-      "description": "Bump helm version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump helm version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG HELM_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG HELM_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "helm/helm",
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'helm/helm',
     },
     {
-      "customType": "regex",
-      "description": "Bump helm-docs version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump helm-docs version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG HELM_DOCS_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG HELM_DOCS_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "norwoodj/helm-docs",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'norwoodj/helm-docs',
+      extractVersionTemplate: '^v(?<version>.*)$',
     },
     {
-      "customType": "regex",
-      "description": "Bump kind version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump kind version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG KIND_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG KIND_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "kubernetes-sigs/kind",
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'kubernetes-sigs/kind',
     },
     {
-      "customType": "regex",
-      "description": "Bump kubectl version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump kubectl version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG KUBECTL_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG KUBECTL_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "kubernetes/kubernetes",
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'kubernetes/kubernetes',
     },
     {
-      "customType": "regex",
-      "description": "Bump gotestsum version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump gotestsum version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG GOTESTSUM_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG GOTESTSUM_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "gotestyourself/gotestsum",
-      "extractVersionTemplate": "^v(?<version>.*)$"
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'gotestyourself/gotestsum',
+      extractVersionTemplate: '^v(?<version>.*)$',
     },
     {
-      "customType": "regex",
-      "description": "Bump codeql version in the Earthfile",
-      "fileMatch": [
-        "^Earthfile$"
+      customType: 'regex',
+      description: 'Bump codeql version in the Earthfile',
+      fileMatch: [
+        '^Earthfile$',
       ],
-      "matchStrings": [
-        "ARG CODEQL_VERSION=(?<currentValue>.*?)\\n"
+      matchStrings: [
+        'ARG CODEQL_VERSION=(?<currentValue>.*?)\\n',
       ],
-      "datasourceTemplate": "github-releases",
-      "depNameTemplate": "github/codeql-action",
-      "extractVersionTemplate": "^codeql-bundle-(?<version>.*)$"
+      datasourceTemplate: 'github-releases',
+      depNameTemplate: 'github/codeql-action',
+      extractVersionTemplate: '^codeql-bundle-(?<version>.*)$',
     },
   ],
   // Renovate doesn't have native Earthfile support, but because Earthfile
   // syntax is a superset of Dockerfile syntax this works to update FROM images.
   // https://github.com/renovatebot/renovate/issues/15975
-  "dockerfile": {
-    "fileMatch": [
-      "(^|/)Earthfile$"
-    ]
+  dockerfile: {
+    fileMatch: [
+      '(^|/)Earthfile$',
+    ],
   },
-  "crossplane": {
-    "fileMatch": [
-      "(^|/)test/e2e/.*\\.ya?ml$"
-    ]
+  crossplane: {
+    fileMatch: [
+      '(^|/)test/e2e/.*\\.ya?ml$',
+    ],
   },
   // PackageRules disabled below should be enabled in case of vulnerabilities
-  "vulnerabilityAlerts": {
-    "enabled": true
+  vulnerabilityAlerts: {
+    enabled: true,
   },
-  "osvVulnerabilityAlerts": true,
+  osvVulnerabilityAlerts: true,
   // Renovate evaluates all packageRules in order, so low priority rules should
   // be at the beginning, high priority at the end
-  "packageRules": [
+  packageRules: [
     {
-      "description": "Generate code after upgrading go dependencies (main)",
-      "matchDatasources": [
-        "go"
+      description: 'Generate code after upgrading go dependencies (main)',
+      matchDatasources: [
+        'go',
       ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["main"],
-      postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
-        "commands": [
-          "earthly --strict +go-generate",
-        ],
-        fileFilters: [
-          "**/*"
-        ],
-        executionMode: "update",
-      },
-    },
-    {
-      "description": "Generate code after upgrading go dependencies (release branch)",
-      "matchDatasources": [
-        "go"
-      ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["release-.+"],
-      postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
-        "commands": [
-          "make go.generate",
-        ],
-        fileFilters: [
-          "**/*"
-        ],
-        executionMode: "update",
-      },
-    },
-    {
-      "description": "Lint code after upgrading golangci-lint (main)",
-      "matchDepNames": [
-        "golangci/golangci-lint"
-      ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["main"],
-      postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
-        "commands": [
-          "earthly --strict +go-lint",
-        ],
-        fileFilters: [
-          "**/*"
-        ],
-        executionMode: "update",
-      },
-    },
-    {
-      "description": "Lint code after upgrading golangci-lint (release branch)",
-      "matchDepNames": [
-        "golangci/golangci-lint"
-      ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["release-.+"],
-      postUpgradeTasks: {
-        // Post-upgrade tasks that are executed before a commit is made by Renovate.
-        "commands": [
-          "make go.lint",
-        ],
-        fileFilters: [
-          "**/*"
-        ],
-        executionMode: "update",
-      },
-    },
-    {
-      "matchManagers": [
-        "crossplane"
-      ],
-      "matchFileNames": [
-        "test/e2e/**"
-      ],
-      "groupName": "e2e-manifests",
-    },
-    {
-      "description": "Ignore non-security related updates to release branches",
+      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
       matchBaseBranches: [
-        "/^release-.*/"
+        '!/release-1\.16/',
+      ],
+      postUpgradeTasks: {
+        commands: [
+          'earthly --strict +go-generate',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+    {
+      description: 'Generate code after upgrading go dependencies (release branch)',
+      matchDatasources: [
+        'go',
+      ],
+      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
+      matchBaseBranches: [
+        'release-1.16',
+      ],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        commands: [
+          'make go.generate',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+    {
+      description: 'Lint code after upgrading golangci-lint (main)',
+      matchDepNames: [
+        'golangci/golangci-lint',
+      ],
+      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
+      matchBaseBranches: [
+        '!/release-1\.16/',
+      ],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        commands: [
+          'earthly --strict +go-lint',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+    {
+      description: 'Lint code after upgrading golangci-lint (release branch)',
+      matchDepNames: [
+        'golangci/golangci-lint',
+      ],
+      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
+      matchBaseBranches: [
+        'release-1.16',
+      ],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        commands: [
+          'make go.lint',
+        ],
+        fileFilters: [
+          '**/*',
+        ],
+        executionMode: 'update',
+      },
+    },
+    {
+      matchManagers: [
+        'crossplane',
+      ],
+      matchFileNames: [
+        'test/e2e/**',
+      ],
+      groupName: 'e2e-manifests',
+    },
+    {
+      description: 'Ignore non-security related updates to release branches',
+      matchBaseBranches: [
+        '/^release-.*/',
       ],
       enabled: false,
     },
     {
-      "description": "Still update Docker images on release branches though",
-      "matchDatasources": [
-        "docker"
+      description: 'Still update Docker images on release branches though',
+      matchDatasources: [
+        'docker',
       ],
       matchBaseBranches: [
-        "/^release-.*/"
+        '/^release-.*/',
       ],
       enabled: true,
     },
     {
-      "description": "Only get Docker image updates every 2 weeks to reduce noise",
-      "matchDatasources": [
-        "docker"
+      description: 'Only get Docker image updates every 2 weeks to reduce noise',
+      matchDatasources: [
+        'docker',
       ],
-      "schedule": [
-        "every 2 week on monday"
+      schedule: [
+        'every 2 week on monday',
       ],
       enabled: true,
     },
     {
-      "description": "Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo",
-      "matchDatasources": [
-        "go"
+      description: 'Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo',
+      matchDatasources: [
+        'go',
       ],
-      "matchDepNames": [
-        "k8s.io/client-go"
+      matchDepNames: [
+        'k8s.io/client-go',
       ],
-      "allowedVersions": "<1.0",
+      allowedVersions: '<1.0',
     },
     {
-      "description": "Ignore k8s dependencies, should be updated on crossplane-runtime",
-      "matchDatasources": [
-        "go"
+      description: 'Ignore k8s dependencies, should be updated on crossplane-runtime',
+      matchDatasources: [
+        'go',
       ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ],
-      "enabled": false,
-    },
-    {
-      "description": "Only get dependency digest updates every month to reduce noise, except crossplane-runtime",
-      "excludePackageNames": [
-        "github.com/crossplane/crossplane-runtime"
-      ],
-      "matchDatasources": [
-        "go"
-      ],
-      "matchUpdateTypes": [
-        "digest",
-      ],
-      "extends": [
-        "schedule:monthly"
+      enabled: false,
+      matchPackageNames: [
+        'k8s.io{/,}**',
+        'sigs.k8s.io{/,}**',
       ],
     },
     {
-      "description": "Ignore oss-fuzz, it's not using tags, we'll stick to master",
-      "matchDepTypes": [
-        "action"
+      description: 'Only get dependency digest updates every month to reduce noise, except crossplane-runtime',
+      matchDatasources: [
+        'go',
       ],
-      "matchDepNames": [
-        "google/oss-fuzz"
+      matchUpdateTypes: [
+        'digest',
       ],
-      "enabled": false
+      extends: [
+        'schedule:monthly',
+      ],
+      matchPackageNames: [
+        '!github.com/crossplane/crossplane-runtime',
+      ],
     },
     {
-      "description": "Group all go version updates",
-      "matchDatasources": [
-        "golang-version"
+      description: "Ignore oss-fuzz, it's not using tags, we'll stick to master",
+      matchDepTypes: [
+        'action',
       ],
-      "groupName": "golang version",
-    }
+      matchDepNames: [
+        'google/oss-fuzz',
+      ],
+      enabled: false,
+    },
+    {
+      description: 'Group all go version updates',
+      matchDatasources: [
+        'golang-version',
+      ],
+      groupName: 'golang version',
+    },
   ],
 }

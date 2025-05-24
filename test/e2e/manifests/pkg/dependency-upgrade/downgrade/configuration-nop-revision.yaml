@@ -1,7 +1,7 @@
 # We don't install this directly, but we do use it to ensure the configuration is completely deleted.
 # Please note, its name will change if provider package contents changes.
 apiVersion: pkg.crossplane.io/v1
-kind: ProviderRevision
+kind: ConfigurationRevision
 metadata:
-  name: crossplane-contrib-provider-nop-37f3300ebfa7
+  name: crossplane-e2e-depends-on-provider-nop-857d0a2b3c50
 spec: {}

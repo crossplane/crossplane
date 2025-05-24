@@ -37,7 +37,8 @@ import (
 type ControllerEngine interface {
 	GetWatches(name string) ([]engine.WatchID, error)
 	StopWatches(ctx context.Context, name string, ws ...engine.WatchID) (int, error)
-	GetClient() client.Client
+	GetCached() client.Client
+	GetUncached() client.Client
 }
 
 // A GarbageCollector garbage collects watches for a single composite resource
@@ -106,7 +107,7 @@ func (gc *GarbageCollector) GarbageCollectWatchesNow(ctx context.Context) error 
 	l := &kunstructured.UnstructuredList{}
 	l.SetAPIVersion(gc.xrGVK.GroupVersion().String())
 	l.SetKind(gc.xrGVK.Kind + "List")
-	if err := gc.engine.GetClient().List(ctx, l); err != nil {
+	if err := gc.engine.GetCached().List(ctx, l); err != nil {
 		return errors.Wrap(err, "cannot list composite resources")
 	}
 

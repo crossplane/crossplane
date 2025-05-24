@@ -133,6 +133,102 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 	}
 }
 
+// DeploymentPodIsRunningMustNotChangeWithin fails a test if the supplied Deployment does
+// not have a running Pod that stays running for the supplied duration.
+func DeploymentPodIsRunningMustNotChangeWithin(d time.Duration, namespace, name string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+		t.Logf("Ensuring deployment %s/%s has running pod that does not change within %s", dp.GetNamespace(), dp.GetName(), d.String())
+		start := time.Now()
+
+		pod, err := podForDeployment(ctx, t, c, dp)
+		if err != nil {
+			t.Errorf("Failed to get pod for deployment %s/%s: %s", dp.GetNamespace(), dp.GetName(), err)
+			return ctx
+		}
+
+		// first wait for pod to be running
+		if err := wait.For(conditions.New(c.Client().Resources()).PodConditionMatch(pod, corev1.PodReady, corev1.ConditionTrue), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			t.Errorf("Deployment %s/%s never got a running pod after %s", dp.GetNamespace(), dp.GetName(), since(start))
+			return ctx
+		}
+
+		// now wait to make sure the pod stays running (does not change)
+		start = time.Now()
+		if err := wait.For(conditions.New(c.Client().Resources()).PodConditionMatch(pod, corev1.PodReady, corev1.ConditionFalse), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			if deadlineExceed(err) {
+				t.Logf("Deployment %s/%s had running pod that did not change after %s", dp.GetNamespace(), dp.GetName(), since(start))
+				return ctx
+			}
+
+			t.Errorf("Error while observing pod for deployment %s/%s", dp.GetNamespace(), dp.GetName())
+			return ctx
+		}
+		t.Errorf("Deployment %s/%s had pod that changed within %s, but it should not have", dp.GetNamespace(), dp.GetName(), d.String())
+		return ctx
+	}
+}
+
+// ArgExistsWithin fails a test if the supplied Deployment does not have a Pod with
+// the given argument within the supplied duration.
+func ArgExistsWithin(d time.Duration, arg, namespace, name string) features.Func {
+	return checkArgExistsWithin(d, arg, true, namespace, name)
+}
+
+// ArgNotExistsWithin fails a test if the supplied Deployment does not have a Pod with
+// the given argument not existing within the supplied duration.
+func ArgNotExistsWithin(d time.Duration, arg, namespace, name string) features.Func {
+	return checkArgExistsWithin(d, arg, false, namespace, name)
+}
+
+// checkArgExistsWithin implements a check for the supplied Deployment having a Pod
+// with the given argument either existing or not existing within the supplied
+// duration.
+func checkArgExistsWithin(d time.Duration, arg string, wantExist bool, namespace, name string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Helper()
+
+		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
+		t.Logf("Waiting %s for pod in deployment %s/%s to have arg %s exist=%t...", d, dp.GetNamespace(), dp.GetName(), arg, wantExist)
+		start := time.Now()
+
+		if err := wait.For(func(ctx context.Context) (done bool, err error) {
+			pod, err := podForDeployment(ctx, t, c, dp)
+			if err != nil {
+				t.Logf("failed to get pod for deployment %s/%s: %s", dp.GetNamespace(), dp.GetName(), err)
+				return false, nil
+			}
+
+			found := false
+			c := pod.Spec.Containers[0]
+			for _, a := range c.Args {
+				if a == arg {
+					found = true
+				}
+			}
+
+			switch {
+			case wantExist && !found:
+				t.Logf("did not find arg %s within %s", arg, c.Args)
+				return false, nil
+			case !wantExist && found:
+				t.Logf("unexpectedly found arg %s within %s", arg, c.Args)
+				return false, nil
+			default:
+				return true, nil
+			}
+		}, wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+			t.Fatal(err)
+			return ctx
+		}
+
+		t.Logf("Deployment %s/%s has pod with arg %s exist=%t after %s", dp.GetNamespace(), dp.GetName(), arg, wantExist, since(start))
+		return ctx
+	}
+}
+
 // ResourcesCreatedWithin fails a test if the supplied resources are not found
 // to exist within the supplied duration.
 func ResourcesCreatedWithin(d time.Duration, dir, pattern string, options ...decoder.DecodeOption) features.Func {
@@ -491,7 +587,7 @@ func ApplyClaim(manager, dir, cm string, options ...decoder.DecodeOption) featur
 		// TODO(negz): Only two functions seem to read this key. Either adopt it
 		// everywhere it would be relevant, or drop it.
 		f := func(o k8s.Object) {
-			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)})
+			ctx = context.WithValue(ctx, claimCtxKey{}, &claim.Unstructured{Unstructured: *asUnstructured(o)}) //nolint:fatcontext // We know we have a single claim.
 		}
 		if err := decoder.DecodeEachFile(ctx, dfs, cm, ApplyHandler(c.Client().Resources(), manager, f)); err != nil {
 			t.Fatal(err)
@@ -597,9 +693,10 @@ func ClaimUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Claim %s did not change within %s", identifier(cm), d.String())
-			} else {
-				t.Errorf("Error while observing claim %s: %v", identifier(cm), err)
+				return ctx
 			}
+
+			t.Errorf("Error while observing claim %s: %v", identifier(cm), err)
 			return ctx
 		}
 		t.Errorf("Claim %s changed within %s, but it should not have", identifier(cm), d.String())
@@ -644,9 +741,10 @@ func CompositeUnderTestMustNotChangeWithin(d time.Duration) features.Func {
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, m), wait.WithTimeout(d)); err != nil {
 			if deadlineExceed(err) {
 				t.Logf("Composite resource %s did not change within %s", identifier(cp), d.String())
-			} else {
-				t.Errorf("Error while observing composite resource %s: %v", identifier(cp), err)
+				return ctx
 			}
+
+			t.Errorf("Error while observing composite resource %s: %v", identifier(cp), err)
 			return ctx
 		}
 		t.Errorf("Composite resource %s changed within %s, but it should not have", identifier(cp), d.String())
@@ -727,7 +825,7 @@ func CompositeResourceHasFieldValueWithin(d time.Duration, dir, claimFile, path 
 			return got != ""
 		}
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cm, hasResourceRef), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(cm, hasResourceRef), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval), wait.WithImmediate()); err != nil {
 			t.Errorf("Claim %q does not have a resourceRef to an XR: %v", cm.GetName(), err)
 			return ctx
 		}
@@ -869,17 +967,17 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 // ListedResourcesValidatedWithin fails a test if the supplied list of resources
 // does not have the supplied number of resources that pass the supplied
 // validation function within the supplied duration.
-func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
+func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, minObjects int, validate func(object k8s.Object) bool, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, min, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceListMatchN(list, minObjects, validate, listOptions...), wait.WithTimeout(d), wait.WithInterval(DefaultPollInterval)); err != nil {
 			y, _ := yaml.Marshal(list)
 			t.Errorf("resources didn't pass validation: %v:\n\n%s\n\n", err, y)
 			return ctx
 		}
 
-		t.Logf("at least %d resource(s) have desired conditions", min)
+		t.Logf("at least %d resource(s) have desired conditions", minObjects)
 		return ctx
 	}
 }
@@ -907,7 +1005,7 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 // ListedResourcesModifiedWith modifies the supplied list of resources with the
 // supplied function and fails a test if the supplied number of resources were
 // not modified within the supplied duration.
-func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
+func ListedResourcesModifiedWith(list k8s.ObjectList, minObjects int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
@@ -932,8 +1030,8 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 				return ctx
 			}
 		}
-		if found < min {
-			t.Errorf("expected minimum %d resources to be modified, found %d", min, found)
+		if found < minObjects {
+			t.Errorf("expected minimum %d resources to be modified, found %d", minObjects, found)
 			return ctx
 		}
 
@@ -1026,7 +1124,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 			return ctx
 		}
 
-		if !strings.HasPrefix(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
+		if !strings.Contains(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
 			t.Fatalf("expected the usage webhook to deny the request but it failed with err: %s", err.Error())
 			return ctx
 		}
@@ -1167,4 +1265,34 @@ func since(t time.Time) string {
 
 func deadlineExceed(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || strings.Contains(err.Error(), "would exceed context deadline")
+}
+
+// podForDeployment returns the pod for a given Deployment. If the number of
+// pods found is not exactly one, or that one pod does not have exactly one
+// container, then this function returns an error.
+func podForDeployment(ctx context.Context, t *testing.T, c *envconf.Config, dp *appsv1.Deployment) (*corev1.Pod, error) {
+	t.Helper()
+	if err := c.Client().Resources().Get(ctx, dp.GetName(), dp.GetNamespace(), dp); err != nil {
+		t.Logf("failed to get deployment %s/%s: %s", dp.GetNamespace(), dp.GetName(), err)
+		return nil, err
+	}
+
+	// use the deployment's selector to list all pods belonging to the deployment
+	selector := metav1.FormatLabelSelector(dp.Spec.Selector)
+	pods := &corev1.PodList{}
+	if err := c.Client().Resources().List(ctx, pods, resources.WithLabelSelector(selector)); err != nil {
+		t.Logf("failed to list pods for deployment %s/%s: %s", dp.GetNamespace(), dp.GetName(), err)
+		return nil, err
+	}
+
+	if len(pods.Items) != 1 {
+		return nil, errors.Errorf("expected 1 pod, found %d", len(pods.Items))
+	}
+
+	pod := pods.Items[0]
+	if len(pod.Spec.Containers) != 1 {
+		return nil, errors.Errorf("expected 1 container, found %d", len(pod.Spec.Containers))
+	}
+
+	return &pod, nil
 }

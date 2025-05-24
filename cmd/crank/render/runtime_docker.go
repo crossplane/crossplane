@@ -18,6 +18,7 @@ package render
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -28,6 +29,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -109,6 +112,9 @@ type RuntimeDocker struct {
 	// PullPolicy controls how the runtime image is pulled.
 	PullPolicy DockerPullPolicy
 
+	// Keychain to use for pulling images from private registry.
+	Keychain authn.Keychain
+
 	// log is the logger for this runtime.
 	log logging.Logger
 }
@@ -152,13 +158,16 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get pull policy for Function %q", fn.GetName())
 	}
+
 	r := &RuntimeDocker{
 		Image:      fn.Spec.Package,
 		Name:       "",
 		Cleanup:    cleanup,
 		PullPolicy: pullPolicy,
+		Keychain:   authn.DefaultKeychain,
 		log:        log,
 	}
+
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeDockerImage]; i != "" {
 		r.Image = i
 	}
@@ -244,9 +253,16 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		PortBindings: bind,
 	}
 
+	options, err := r.getPullOptions()
+	if err != nil {
+		// We can continue to pull an image if we don't have the PullOptions with RegistryAuth
+		// as long as the image is from a public registry. Therefore, we log the error message and continue.
+		r.log.Info("Cannot get pull options", "image", r.Image, "err", err)
+	}
+
 	if r.PullPolicy == AnnotationValueRuntimeDockerPullPolicyAlways {
 		r.log.Debug("Pulling image with pullPolicy: Always", "image", r.Image)
-		err = PullImage(ctx, cli, r.Image)
+		err = PullImage(ctx, cli, r.Image, options)
 		if err != nil {
 			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
@@ -262,7 +278,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 
 		// The image was not found, but we're allowed to pull it.
 		r.log.Debug("Image not found, pulling", "image", r.Image)
-		err = PullImage(ctx, cli, r.Image)
+		err = PullImage(ctx, cli, r.Image, options)
 		if err != nil {
 			return "", "", errors.Wrapf(err, "cannot pull Docker image %q", r.Image)
 		}
@@ -276,6 +292,33 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		return "", "", errors.Wrap(err, "cannot start Docker container")
 	}
 	return rsp.ID, containerAddr, errors.Wrap(err, "cannot start Docker container")
+}
+
+func (r *RuntimeDocker) getPullOptions() (typesimage.PullOptions, error) {
+	// Resolve auth token by looking into keychain
+	ref, err := name.ParseReference(r.Image)
+	if err != nil {
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Image is not a valid reference %s", r.Image)
+	}
+
+	auth, err := r.Keychain.Resolve(ref.Context().Registry)
+	if err != nil {
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot resolve auth for %s", ref.Context().RegistryStr())
+	}
+
+	authConfig, err := auth.Authorization()
+	if err != nil {
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot get auth config for %s", ref.Context().RegistryStr())
+	}
+
+	token, err := authConfig.MarshalJSON()
+	if err != nil {
+		return typesimage.PullOptions{}, errors.Wrapf(err, "Cannot marshal auth config for %s", ref.Context().RegistryStr())
+	}
+
+	return typesimage.PullOptions{
+		RegistryAuth: base64.StdEncoding.EncodeToString(token),
+	}, nil
 }
 
 // Start a Function as a Docker container.
@@ -327,8 +370,8 @@ type pullClient interface {
 
 // PullImage pulls the supplied image using the supplied client. It blocks until
 // the image has either finished pulling or hit an error.
-func PullImage(ctx context.Context, p pullClient, image string) error {
-	out, err := p.ImagePull(ctx, image, typesimage.PullOptions{})
+func PullImage(ctx context.Context, p pullClient, image string, options typesimage.PullOptions) error {
+	out, err := p.ImagePull(ctx, image, options)
 	if err != nil {
 		return err
 	}

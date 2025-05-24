@@ -80,16 +80,18 @@ and their default values.
 | `function.packages` | A list of Function packages to install | `[]` |
 | `hostNetwork` | Enable `hostNetwork` for the Crossplane deployment. Caution: enabling `hostNetwork` grants the Crossplane Pod access to the host network namespace. Consider setting `dnsPolicy` to `ClusterFirstWithHostNet`. | `false` |
 | `image.pullPolicy` | The image pull policy used for Crossplane and RBAC Manager pods. | `"IfNotPresent"` |
-| `image.repository` | Repository for the Crossplane pod image. | `"xpkg.upbound.io/crossplane/crossplane"` |
+| `image.repository` | Repository for the Crossplane pod image. | `"xpkg.crossplane.io/crossplane/crossplane"` |
 | `image.tag` | The Crossplane image tag. Defaults to the value of `appVersion` in `Chart.yaml`. | `""` |
 | `imagePullSecrets` | The imagePullSecret names to add to the Crossplane ServiceAccount. | `[]` |
 | `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
+| `metrics.port` | The port the metrics server listens on. | `""` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
 | `packageCache.configMap` | The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.medium` | Set to `Memory` to hold the package cache in a RAM backed file system. Useful for Crossplane development. | `""` |
 | `packageCache.pvc` | The name of a PersistentVolumeClaim to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
 | `packageCache.sizeLimit` | The size limit for the package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory. | `"20Mi"` |
+| `packageManager.enableAutomaticDependencyDowngrade` | Enable automatic dependency version downgrades. This configuration is only used when `--enable-dependency-version-upgrades` flag is passed. | `false` |
 | `podSecurityContextCrossplane` | Add a custom `securityContext` to the Crossplane pod. | `{}` |
 | `podSecurityContextRBACManager` | Add a custom `securityContext` to the RBAC Manager pod. | `{}` |
 | `priorityClassName` | The PriorityClass name to apply to the Crossplane and RBAC Manager pods. | `""` |
@@ -104,6 +106,7 @@ and their default values.
 | `rbacManager.skipAggregatedClusterRoles` | Don't install aggregated Crossplane ClusterRoles. | `false` |
 | `rbacManager.tolerations` | Add `tolerations` to the RBAC Manager pod deployment. | `[]` |
 | `rbacManager.topologySpreadConstraints` | Add `topologySpreadConstraints` to the RBAC Manager pod deployment. | `[]` |
+| `readiness.port` | The port the readyz server listens on. | `""` |
 | `registryCaBundleConfig.key` | The ConfigMap key containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates. | `""` |
 | `registryCaBundleConfig.name` | The ConfigMap name containing a custom CA bundle to enable fetching packages from registries with unknown or untrusted certificates. | `""` |
 | `replicas` | The number of Crossplane pod `replicas` to deploy. | `1` |
@@ -125,10 +128,13 @@ and their default values.
 | `securityContextRBACManager.runAsGroup` | The group ID used by the RBAC Manager pod. | `65532` |
 | `securityContextRBACManager.runAsUser` | The user ID used by the RBAC Manager pod. | `65532` |
 | `service.customAnnotations` | Configure annotations on the service object. Only enabled when webhooks.enabled = true | `{}` |
+| `serviceAccount.create` | Specifies whether Crossplane ServiceAccount should be created | `true` |
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
+| `serviceAccount.name` | Provide the name of an already created Crossplane ServiceAccount. Required when `serviceAccount.create` is `false` | `""` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `topologySpreadConstraints` | Add `topologySpreadConstraints` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
+| `webhooks.port` | The port the webhook server listens on. | `""` |
 
 ### Command Line
 
@@ -158,7 +164,7 @@ replicas: 1
 deploymentStrategy: RollingUpdate
 
 image:
-  repository: xpkg.upbound.io/crossplane/crossplane
+  repository: xpkg.crossplane.io/crossplane/crossplane
   tag: alpha
   pullPolicy: Always
 ```

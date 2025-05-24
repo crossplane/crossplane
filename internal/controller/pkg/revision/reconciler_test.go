@@ -44,6 +44,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/features"
 	verfake "github.com/crossplane/crossplane/internal/version/fake"
@@ -154,7 +155,7 @@ func NewMockRemoveSelfFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (m *MockDependencyManager) Resolve(_ context.Context, _ runtime.Object, _ v1.PackageRevision) (int, int, int, error) {
+func (m *MockDependencyManager) Resolve(_ context.Context, _ pkgmetav1.Pkg, _ v1.PackageRevision) (int, int, int, error) {
 	return m.MockResolve()
 }
 

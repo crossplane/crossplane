@@ -7,4 +7,4 @@ kind: Configuration
 metadata:
   name: depends-on-provider-nop
 spec:
-  package: crossplane/e2e-depends-on-provider-nop:v0.2.0
+  package: crossplane/e2e-depends-on-provider-nop:v0.3.1

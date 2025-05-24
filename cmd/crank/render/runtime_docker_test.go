@@ -198,7 +198,7 @@ func TestGetRuntimeDocker(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			rd, err := GetRuntimeDocker(tc.args.fn, logging.NewNopLogger())
-			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{})); diff != "" {
+			if diff := cmp.Diff(tc.want.rd, rd, cmpopts.IgnoreUnexported(RuntimeDocker{}), cmpopts.IgnoreFields(RuntimeDocker{}, "Keychain")); diff != "" {
 				t.Errorf("\n%s\nGetRuntimeDocker(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {

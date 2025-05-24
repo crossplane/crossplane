@@ -31,7 +31,8 @@ limitations under the License.
 //go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_patches.go apiextensions/v1beta1
 //go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_transforms.go apiextensions/v1beta1
 
-//go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/environment_config_types.go apiextensions/v1alpha1
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/environment_config_types.go apiextensions/v1alpha1 true
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/usage_types.go apiextensions/v1alpha1 true
 
 //go:generate ../hack/duplicate_api_type.sh pkg/v1/package_types.go pkg/v1beta1
 //go:generate ../hack/duplicate_api_type.sh pkg/v1/package_runtime_types.go pkg/v1beta1

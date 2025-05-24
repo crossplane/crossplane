@@ -1,0 +1,7 @@
+apiVersion: nop.example.org/v1alpha1
+kind: NopResource
+metadata:
+  namespace: default
+  name: test
+spec:
+  coolField: "I'm cool!"

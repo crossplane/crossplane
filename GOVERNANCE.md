@@ -14,7 +14,7 @@ the following GitHub organizations:
 ## Steering Committee
 
 The Crossplane Steering Committee oversees the overall health of the project. Its made
-up of members that demonstrate a strong commitment to the project with views in the 
+up of members that demonstrate a strong commitment to the project with views in the
 interest of the broader Crossplane community. Their responsibilities include:
 
 * Own the overall charter, vision, and direction of the Crossplane project
@@ -55,20 +55,18 @@ The following are some guidelines for eligibility to the Steering Committee:
 * There is **no** minimum time period for contributions to the project by the
   proposed member.
 
-### Initial Steering Committee
+### Steering Committee
 
-The initial steering committee will be nominated by the founders of the project
-in order to ensure continuity of the project charter and vision as additional members come on board.
-Once the terms of the initial committee members expire, new members will be selected through the election
-process outlined below.
-
-Here are the members of the initial steering committee (listed in alphabetical order of first name):
+The members of the steering committee are listed in the table below (listed in
+alphabetical order of first name). When terms of the committee members expire,
+new members will be selected through the [election process](#election-process)
+outlined below.
 
 | &nbsp;                                                    | Member                                         | Organization | Email                       | Term Start | Term End   |
 |-----------------------------------------------------------|------------------------------------------------|--------------|-----------------------------|------------|------------|
 | <img width="30px" src="https://github.com/bassam.png">    | [Bassam Tabbara](https://github.com/bassam)    | Upbound      | bassam@upbound.io           | 2024-02-06 | 2026-02-06 |
-| <img width="30px" src="https://github.com/lindblombr.png">| [Brian Lindblom](https://github.com/lindblombr)| Apple        | blindblom@apple.com         | 2024-02-06 | 2025-02-07 |
-| <img width="30px" src="https://github.com/bobh66.png">    | [Bob Haddleton](https://github.com/bobh66)     | Nokia        | bob.haddleton@nokia.com     | 2024-02-06 | 2025-02-07 |
+| <img width="30px" src="https://github.com/bobh66.png">    | [Bob Haddleton](https://github.com/bobh66)     | Nokia        | bob.haddleton@nokia.com     | 2025-02-06 | 2027-02-06 |
+| <img width="30px" src="https://github.com/lindblombr.png">| [Brian Lindblom](https://github.com/lindblombr)| Apple        | blindblom@apple.com         | 2025-02-06 | 2027-02-06 |
 | <img width="30px" src="https://github.com/jbw976.png">    | [Jared Watts](https://github.com/jbw976)       | Upbound      | jared@upbound.io            | 2024-02-06 | 2026-02-06 |
 | <img width="30px" src="https://github.com/negz.png">      | [Nic Cope](https://github.com/negz)            | Upbound      | negz@upbound.io             | 2024-02-06 | 2026-02-06 |
 
@@ -113,7 +111,7 @@ getters will be elected to the open seats.
 #### Maximum Representation
 
 When the initial steering committee terms expire, the maximum number of
-steering committee members from any organization (or conglomerate, in the case of 
+steering committee members from any organization (or conglomerate, in the case of
 companies owning each other), will be limited to 2 in order to encourage diversity.
 
 If the results of an election result in greater than 2 members from a single
@@ -226,7 +224,7 @@ Beyond your contributions to the project, consider:
     substantial time (>25%) on Crossplane for the foreseeable future.
 
 If you are meeting these requirements, express interest to the repository’s
-existing maintainers directly. 
+existing maintainers directly.
 
 * We may ask you to do some PRs from our backlog.
 * As you gain experience with the code base and our standards, we will ask you
@@ -241,10 +239,20 @@ existing maintainers directly.
         it is possible for new maintainers to be added in a shorter time period
         than this general guidance.
 
-The existing maintainer team will then add the new maintainer to the repo’s
-[OWNERS.md](OWNERS.md) file, as well as the appropriate GitHub team that allows
-maintainer permissions to the repo, including merging pull requests into
-protected branches.
+To formalize the addition of the new maintainer, the existing maintainer team
+will then add them to the following locations:
+
+* `OWNERS.md` file at the root of the repo
+* The appropriate GitHub team that allows maintainer permissions to the repo,
+  including merging pull requests into protected branches.
+* CNCF maintainer lists
+  * CNCF [project
+    maintainers](https://github.com/cncf/foundation/blob/main/project-maintainers.csv)
+    list
+  * `cncf-crossplane-maintainers@lists.cncf.io` mailing list
+  * See CNCF [new maintainer
+    guidance](https://github.com/cncf/foundation/blob/main/.github/pull_request_template.md)
+    for further details
 
 #### Maintainers for New Repositories
 
@@ -259,6 +267,9 @@ If a maintainer is no longer interested or cannot perform the maintainer duties
 listed above, they should volunteer to be moved to emeritus status. In extreme
 cases this can also occur by a vote of the maintainers per the voting process
 below.
+
+The emeritus maintainer should be removed from all locations specified in the
+[becoming a maintainer](#becoming-a-maintainer) section.
 
 ## Organization Members
 
@@ -297,6 +308,126 @@ member
 process](https://github.com/crossplane/org/blob/main/processes/new-member.md)
 outlined in the `crossplane/org` repository. New members should be asked to set
 the visibility of their Crossplane organization membership to public.
+
+## Community Extension Projects
+
+The [`crossplane-contrib`](https://github.com/crossplane-contrib) organization
+serves as a vendor neutral home for community collaboration on crossplane
+related projects and extensions. We commonly refer to the repositories in this
+organization as **"community extension projects"** which includes providers,
+functions and other crossplane extensions. As previously stated, this
+organization and all of its repositories, in addition to the `crossplane`
+organization, are under the governance and policies defined in this document.
+They are effectively sub-projects of Crossplane and must follow all the same
+rules and policies.
+
+### Benefits of Becoming a Community Extension Project
+
+It is entirely optional for a project in the greater Crossplane ecosystem to
+formally join the `crossplane-contrib` organization as a community extension
+project. The choice is up to the leadership team of each project. The benefits
+of becoming a community extension project are listed below:
+
+* To have a neutral home for collaboration with strong open source governance
+  and licensing
+* To attract more contributors and maintainers and increase the project’s long
+  term sustainability
+* To make the project eligible for reference in the Crossplane documentation,
+  website, and publishing to the community `xpkg.crossplane.io` registry
+* To contribute and participate more directly in the Crossplane community
+
+### Policies for Community Extension Projects
+
+All community extension projects are expected to adhere to the following set of
+policies throughout their lifecycle:
+
+* **CNCF Policies:** Each community extension project is part of the Crossplane
+  CNCF project and must abide by all [CNCF
+  policies](https://www.cncf.io/policies/).
+* **Project Health**: Similarly, all extensions are expected to adhere to the
+  [project health
+  guidelines](https://contribute.cncf.io/maintainers/community/project-health/)
+  published by the CNCF. As each extension will have varying needs, the health
+  guidelines are not a completely prescriptive one size fits all approach, but
+  all extensions must be operating with the spirit of these health guidelines in
+  mind.
+  * The steering committee is responsible for monitoring the state of these
+    projects and taking action as defined in the [community extension project
+    lifecycle](#community-extension-project-lifecycle) section below, including
+    potential archival of the extension project.
+  * Community members are welcome to bring any of their concerns or observations
+    about a community extension project to the steering committee for review.
+* **Registry:** Build artifacts, e.g. Crossplane packages (opinionated OCI
+  images), must be published to the `crossplane-contrib` org on GitHub Container
+  Registry (`ghcr.io`), which will serve as a neutral community registry.
+  `ghcr.io` is preferred because it is integrated into GitHub, where all of the
+  source code lives, and will reduce long term maintenance.
+  * Optionally, the maintainer team can publish to additional registries of
+    their choosing.
+  * `xpkg.crossplane.io` will be published as a consistent entry point for pulls
+    from the `ghcr.io/crossplane-contrib` organization. `xpkg.crossplane.io` is
+    a Scarf gateway to help the project learn about adoption patterns through
+    anonymized usage metrics, as
+    [supported](https://contribute.cncf.io/resources/project-services/hosted-tools/)
+    by the CNCF.
+* **Maintainer list:** The current list of maintainers must be kept up to date
+  in the following places:
+  * `OWNERS.md` file at the root of the repo
+  * CNCF [project
+    maintainers](https://github.com/cncf/foundation/blob/main/project-maintainers.csv)
+    list
+  * `cncf-crossplane-maintainers@lists.cncf.io` mailing list
+* **API group**: New extension projects starting out in `crossplane-contrib`
+  should use  the  `*.crossplane.io`  API group for their API resources. If the
+  project was started in a different organization and contributed to
+  `crossplane-contrib`, it can maintain a different API group to avoid breaking
+  all uses of the extension.
+
+### Community Extension Project Lifecycle
+
+To create a new community extension project, an issue must first be opened in
+the [`crossplane/org`](https://github.com/crossplane/org) repository that
+defines the following criteria:
+
+* Name of new extension
+* Purpose and intended scope of the extension
+* Initial maintainer team (GitHub usernames)
+* Description of the maintainer team's long term commitment to the extension
+
+The steering committee will review the provided information and assess whether
+the proposed extension is a good fit for the project. The steering committee may
+provide feedback or ask for changes if they feel it is needed to improve the
+chance of long term success of the extension. If approved, a new repository will
+be created and the initial maintainers will be added.
+
+Then, the day to day governance of the new extension repository follows the same
+policies defined in this document for [repository
+governance](#repository-governance) and [community extension project
+policies](#policies-for-community-extension-projects). The maintainers operate in a
+fairly autonomous fashion to maintain the repo and ensure its health and
+success, and they can add/remove maintainers as defined.
+
+#### Archival Policy
+
+If a community extension project does not meet the policies defined in this
+document, the steering committee should seek a resolution with the maintainer
+team. Ideally, the maintainer team would be able to address the issues and bring
+the extension back into good health and compliance. If the issues cannot be
+resolved, the steering committee may decide to archive the repository. When a
+repository is archived, this status change should be made very clear to the
+community to reduce any potential confusion. Any references to the project from
+the Crossplane documentation and/or website will be removed at this time.
+
+### Public References to Community Extension Projects
+
+Crossplane's public facing content, such as the [crossplane.io
+website](https://www.crossplane.io/) and Crossplane
+[documentation](https://docs.crossplane.io/), should only reference or promote
+community extension projects that are in good health and compliance with all
+[policies](#policies-for-community-extension-projects). For example, the docs
+site should not include guides for extensions that are private, owned by
+vendors, or archived. All public references by the project must be only for
+healthy and compliant community extension projects.
 
 ## Updating the Governance
 

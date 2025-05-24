@@ -38,16 +38,16 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/internal/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 type fakeSelectorResolver struct {
-	resourceSelectorFn func(_ context.Context, _ *v1alpha1.Usage) error
+	resourceSelectorFn func(_ context.Context, _ *v1beta1.Usage) error
 }
 
-func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error {
+func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1beta1.Usage) error {
 	return f.resourceSelectorFn(ctx, u)
 }
 
@@ -92,9 +92,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1alpha1.Usage)
+								o := obj.(*v1beta1.Usage)
 								o.Spec.Of.APIVersion = "/invalid/"
-								o.Spec.Of.ResourceSelector = &v1alpha1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
@@ -113,14 +113,14 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1alpha1.Usage)
-								o.Spec.Of.ResourceSelector = &v1alpha1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
+								o := obj.(*v1beta1.Usage)
+								o.Spec.Of.ResourceSelector = &v1beta1.ResourceSelector{MatchLabels: map[string]string{"foo": "bar"}}
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return errBoom
 						},
 					}),
@@ -138,14 +138,14 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1alpha1.Usage)
-								o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+								o := obj.(*v1beta1.Usage)
+								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								return nil
 							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -166,15 +166,15 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								o := obj.(*v1alpha1.Usage)
-								o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+								o := obj.(*v1beta1.Usage)
+								o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(errBoom),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -196,8 +196,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
-								case *v1alpha1.Usage:
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+								case *v1beta1.Usage:
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return errBoom
 								}
@@ -209,7 +209,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -231,8 +231,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
-								case *v1alpha1.Usage:
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+								case *v1beta1.Usage:
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 								case *composed.Unstructured:
 									return nil
 								}
@@ -247,7 +247,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -269,10 +269,10 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								switch o := obj.(type) {
-								case *v1alpha1.Usage:
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
-									o.Spec.By = &v1alpha1.Resource{
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+								case *v1beta1.Usage:
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
 								case *composed.Unstructured:
 									if o.GetName() == "using" {
@@ -285,7 +285,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -306,10 +306,10 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
-									o.Spec.By = &v1alpha1.Resource{
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
 									return nil
 								}
@@ -324,7 +324,7 @@ func TestReconcile(t *testing.T) {
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if u, ok := obj.(*v1alpha1.Usage); ok {
+								if u, ok := obj.(*v1beta1.Usage); ok {
 									if u.GetOwnerReferences() != nil {
 										return errBoom
 									}
@@ -334,7 +334,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -355,10 +355,10 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
-									o.Spec.By = &v1alpha1.Resource{
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
 									return nil
 								}
@@ -373,7 +373,7 @@ func TestReconcile(t *testing.T) {
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									if o.GetOwnerReferences() != nil {
 										owner := o.GetOwnerReferences()[0]
 										if owner.APIVersion != "v1" || owner.Kind != "AnotherKind" || owner.UID != "some-uid" {
@@ -384,7 +384,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
-								o := obj.(*v1alpha1.Usage)
+								o := obj.(*v1beta1.Usage)
 								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
 								}
@@ -393,7 +393,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -414,8 +414,8 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									o.Spec.Reason = &reason
 									return nil
 								}
@@ -433,7 +433,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
-								o := obj.(*v1alpha1.Usage)
+								o := obj.(*v1beta1.Usage)
 								if o.Status.GetCondition(xpv1.TypeReady).Status != corev1.ConditionTrue {
 									t.Fatalf("expected ready condition to be true")
 								}
@@ -442,7 +442,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -463,9 +463,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -476,7 +476,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -497,9 +497,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -510,7 +510,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -531,13 +531,14 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
-									o.Spec.By = &v1alpha1.Resource{
+									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
 									return nil
 								}
@@ -552,7 +553,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -565,6 +566,47 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetUsing),
 			},
 		},
+		"ShouldNotGetUsingOnDeleteIfNotComposed": {
+			reason: "We should not get using resource on delete if the usage is not composed.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*v1beta1.Usage); ok {
+									o.SetDeletionTimestamp(&now)
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
+										APIVersion:  "v1",
+										Kind:        "AnotherKind",
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
+									}
+									return nil
+								}
+								if o, ok := obj.(*composed.Unstructured); ok {
+									if o.GetName() == "using" {
+										return errors.New("unexpected call, should not get using resource")
+									}
+									return nil
+								}
+								return errors.New("unexpected object type")
+							}),
+							MockList:   test.NewMockListFn(nil),
+							MockUpdate: test.NewMockUpdateFn(nil),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+		},
 		"CannotListUsagesOnDelete": {
 			reason: "We should return an error if we cannot list usages on delete.",
 			args: args{
@@ -573,9 +615,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -590,7 +632,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -611,9 +653,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -631,7 +673,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -652,9 +694,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if _, ok := obj.(*composed.Unstructured); ok {
@@ -665,7 +707,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -686,9 +728,9 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -712,7 +754,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -733,10 +775,10 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.Spec.ReplayDeletion = ptr.To(true)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "cool"}
 									return nil
 								}
 								if o, ok := obj.(*composed.Unstructured); ok {
@@ -764,7 +806,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),
@@ -785,14 +827,14 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(xpresource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
+								if o, ok := obj.(*v1beta1.Usage); ok {
 									o.SetDeletionTimestamp(&now)
 									o.SetLabels(map[string]string{xcrd.LabelKeyNamePrefixForComposed: "some-composite"})
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
-									o.Spec.By = &v1alpha1.Resource{
+									o.Spec.Of.ResourceRef = &v1beta1.ResourceRef{Name: "used"}
+									o.Spec.By = &v1beta1.Resource{
 										APIVersion:  "v1",
 										Kind:        "AnotherKind",
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
+										ResourceRef: &v1beta1.ResourceRef{Name: "using"},
 									}
 									return nil
 								}
@@ -822,7 +864,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(_ context.Context, _ *v1alpha1.Usage) error {
+						resourceSelectorFn: func(_ context.Context, _ *v1beta1.Usage) error {
 							return nil
 						},
 					}),

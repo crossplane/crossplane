@@ -20,7 +20,6 @@ package render
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -137,11 +136,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Wrapf(err, "cannot load composite resource from %q", c.CompositeResource)
 	}
 
-	// TODO(negz): Should we do some simple validations, e.g. that the
-	// Composition's compositeTypeRef matches the XR's type?
 	comp, err := LoadComposition(c.fs, c.Composition)
 	if err != nil {
 		return errors.Wrapf(err, "cannot load Composition from %q", c.Composition)
+	}
+
+	// Validate that Composition's compositeTypeRef matches the XR's GroupVersionKind.
+	xrGVK := xr.GetObjectKind().GroupVersionKind()
+	compRef := comp.Spec.CompositeTypeRef
+
+	if compRef.Kind != xrGVK.Kind {
+		return errors.Errorf("composition's compositeTypeRef.kind (%s) does not match XR's kind (%s)", compRef.Kind, xrGVK.Kind)
+	}
+
+	if compRef.APIVersion != xrGVK.GroupVersion().String() {
+		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
 	warns, errs := comp.Validate()
@@ -150,6 +159,21 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 	if len(errs) > 0 {
 		return errors.Wrapf(errs.ToAggregate(), "invalid Composition %q", comp.GetName())
+	}
+
+	// check if XR's matchLabels have corresponding label at composition
+	xrSelector := xr.GetCompositionSelector()
+	if xrSelector != nil {
+		for key, value := range xrSelector.MatchLabels {
+			compValue, exists := comp.Labels[key]
+			if !exists {
+				return fmt.Errorf("composition %q is missing required label %q", comp.GetName(), key)
+			}
+			if compValue != value {
+				return fmt.Errorf("composition %q has incorrect value for label %q: want %q, got %q",
+					comp.GetName(), key, value, compValue)
+			}
+		}
 	}
 
 	if m := comp.Spec.Mode; m == nil || *m != v1.CompositionModePipeline {
@@ -255,13 +279,13 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	}
 
 	_, _ = fmt.Fprintln(k.Stdout, "---")
-	if err := s.Encode(out.CompositeResource, os.Stdout); err != nil {
+	if err := s.Encode(out.CompositeResource, k.Stdout); err != nil {
 		return errors.Wrapf(err, "cannot marshal composite resource %q to YAML", xr.GetName())
 	}
 
 	for i := range out.ComposedResources {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(&out.ComposedResources[i], os.Stdout); err != nil {
+		if err := s.Encode(&out.ComposedResources[i], k.Stdout); err != nil {
 			return errors.Wrapf(err, "cannot marshal composed resource %q to YAML", out.ComposedResources[i].GetAnnotations()[AnnotationKeyCompositionResourceName])
 		}
 	}
@@ -269,7 +293,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if c.IncludeFunctionResults {
 		for i := range out.Results {
 			_, _ = fmt.Fprintln(k.Stdout, "---")
-			if err := s.Encode(&out.Results[i], os.Stdout); err != nil {
+			if err := s.Encode(&out.Results[i], k.Stdout); err != nil {
 				return errors.Wrap(err, "cannot marshal result to YAML")
 			}
 		}
@@ -277,7 +301,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 
 	if c.IncludeContext {
 		_, _ = fmt.Fprintln(k.Stdout, "---")
-		if err := s.Encode(out.Context, os.Stdout); err != nil {
+		if err := s.Encode(out.Context, k.Stdout); err != nil {
 			return errors.Wrap(err, "cannot marshal context to YAML")
 		}
 	}

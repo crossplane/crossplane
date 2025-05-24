@@ -34,23 +34,6 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
-const (
-	// SuiteSSAClaims is the value for the config.LabelTestSuite label to be
-	// assigned to tests that should be part of the SSAClaims  test suite.
-	SuiteSSAClaims = "ssa-claims"
-)
-
-func init() {
-	environment.AddTestSuite(SuiteSSAClaims,
-		config.WithHelmInstallOpts(
-			helm.WithArgs("--set args={--debug,--enable-ssa-claims}"),
-		),
-		config.WithLabelsToSelect(features.Labels{
-			config.LabelTestSuite: []string{SuiteSSAClaims, config.TestSuiteDefault},
-		}),
-	)
-}
-
 // LabelAreaAPIExtensions is applied to all features pertaining to API
 // extensions (i.e. Composition, XRDs, etc).
 const LabelAreaAPIExtensions = "apiextensions"
@@ -242,14 +225,11 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that field removals in a claim are correctly propagated to the associated composite resource (XR), ensuring that updates and deletions are properly synchronized, and that the status from the XR is accurately reflected back to the claim.").
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
-			WithSetup("EnableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -284,10 +264,6 @@ func TestPropagateFieldsRemovalToXR(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
-			WithTeardown("DisableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
 			Feature(),
 	)
 }
@@ -296,15 +272,18 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that field removals in a composite resource (XR) are correctly propagated after upgrading the field managers from CSA to SSA, verifying that the upgrade process does not interfere with the synchronization of fields between the claim and the XR.").
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
-			// SSA claims are always enabled in this test suite, so we need to
-			// explicitly disable them first before we create anything.
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			// SSA claims are enabled by default, so we need to explicitly
+			// disable them first before we create anything.
 			WithSetup("DisableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(config.TestSuiteDefault)), // Disable our feature flag.
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase(helm.WithArgs("--set args={--debug,--enable-ssa-claims=false}"))), // Disable our feature flag.
+				funcs.ArgExistsWithin(1*time.Minute, "--enable-ssa-claims=false", namespace, "crossplane"),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+				funcs.DeploymentPodIsRunningMustNotChangeWithin(10*time.Second, namespace, "crossplane"),
 			)).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
@@ -322,8 +301,10 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 			// field managers from CSA to SSA. If we didn't upgrade successfully
 			// would end up sharing ownership with the old CSA field manager.
 			Assess("EnableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
+				funcs.ArgNotExistsWithin(1*time.Minute, "--enable-ssa-claims=false", namespace, "crossplane"),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+				funcs.DeploymentPodIsRunningMustNotChangeWithin(10*time.Second, namespace, "crossplane"),
 			)).
 			Assess("UpdateClaim", funcs.AllOf(
 				funcs.ApplyClaim(FieldManager, manifests, "claim-update.yaml"),
@@ -352,10 +333,6 @@ func TestPropagateFieldsRemovalToXRAfterUpgrade(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
-			WithTeardown("DisableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
 			Feature(),
 	)
 }
@@ -364,14 +341,11 @@ func TestPropagateFieldsRemovalToComposed(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/propagate-field-removals"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests Crossplane's end-to-end SSA syncing functionality of clear propagation of fields from claim->XR->MR, when existing composition and resources are migrated from native P-and-T to functions pipeline mode.").
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
-			WithSetup("EnableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -398,10 +372,6 @@ func TestPropagateFieldsRemovalToComposed(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
-			WithTeardown("DisableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
 			Feature(),
 	)
 }
@@ -410,14 +380,11 @@ func TestCompositionSelection(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/composition-selection"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests that label selectors in a claim are correctly propagated to the composite resource (XR), ensuring that the appropriate composition is selected and remains consistent even after updates to the label selectors.").
+			WithLabel(LabelStage, LabelStageBeta).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			WithLabel(config.LabelTestSuite, SuiteSSAClaims).
-			WithSetup("EnableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteSSAClaims)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -457,10 +424,6 @@ func TestCompositionSelection(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.ResourcesDeletedAfterListedAreGone(3*time.Minute, manifests, "setup/*.yaml", nopList)).
-			WithTeardown("DisableSSAClaims", funcs.AllOf(
-				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()), // Disable our feature flag.
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
 			Feature(),
 	)
 }

@@ -1,7 +1,7 @@
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: configuration-no-downgrade
+  name: crossplane-e2e-depends-on-provider-nop
 spec:
   # NOTE(ezgidemirel): This package is manually built and pushed to the registry.
-  package: xpkg.upbound.io/crossplane/e2e-nested-configuration:v0.1.0-nd
+  package: crossplane/e2e-depends-on-provider-nop:v0.3.1

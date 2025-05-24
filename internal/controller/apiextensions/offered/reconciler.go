@@ -95,7 +95,7 @@ type ControllerEngine interface {
 	Stop(ctx context.Context, name string) error
 	IsRunning(name string) bool
 	StartWatches(name string, ws ...engine.Watch) error
-	GetClient() client.Client
+	GetCached() client.Client
 }
 
 // A NopEngine does nothing.
@@ -113,8 +113,8 @@ func (e *NopEngine) IsRunning(_ string) bool { return true }
 // StartWatches does nothing.
 func (e *NopEngine) StartWatches(_ string, _ ...engine.Watch) error { return nil }
 
-// GetClient returns a nil client.
-func (e *NopEngine) GetClient() client.Client {
+// GetCached returns a nil client.
+func (e *NopEngine) GetCached() client.Client {
 	return nil
 }
 
@@ -437,10 +437,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// flag is enabled. Otherwise, we start claim reconcilers with the default
 	// client-side syncer. If we use a server-side syncer we also need to handle
 	// upgrading fields that were previously managed using client-side apply.
-	if r.options.Features.Enabled(features.EnableAlphaClaimSSA) {
+	if r.options.Features.Enabled(features.EnableBetaClaimSSA) {
 		o = append(o,
-			claim.WithCompositeSyncer(claim.NewServerSideCompositeSyncer(r.engine.GetClient(), names.NewNameGenerator(r.engine.GetClient()))),
-			claim.WithManagedFieldsUpgrader(claim.NewPatchingManagedFieldsUpgrader(r.engine.GetClient())),
+			claim.WithCompositeSyncer(claim.NewServerSideCompositeSyncer(r.engine.GetCached(), names.NewNameGenerator(r.engine.GetCached()))),
+			claim.WithManagedFieldsUpgrader(claim.NewPatchingManagedFieldsUpgrader(r.engine.GetCached())),
 		)
 	}
 
@@ -449,12 +449,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// their default Connection Propagator.
 	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := claim.ConnectionPropagatorChain{
-			claim.NewAPIConnectionPropagator(r.engine.GetClient()),
-			connection.NewDetailsManager(r.engine.GetClient(), secretsv1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
+			claim.NewAPIConnectionPropagator(r.engine.GetCached()),
+			connection.NewDetailsManager(r.engine.GetCached(), secretsv1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
 		}
 
 		o = append(o, claim.WithConnectionPropagator(pc), claim.WithConnectionUnpublisher(
-			claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.engine.GetClient(),
+			claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.engine.GetCached(),
 				secretsv1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)))))
 	}
 
@@ -477,7 +477,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	cr := claim.NewReconciler(r.engine.GetClient(),
+	cr := claim.NewReconciler(r.engine.GetCached(),
 		resource.CompositeClaimKind(d.GetClaimGroupVersionKind()),
 		resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)
 
