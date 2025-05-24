@@ -20,7 +20,7 @@ func DefaultValues(xr map[string]any, apiVersion string, crd extv1.CustomResourc
 		}
 	}
 	if version == nil {
-		return errors.Errorf("apiVersion %s not found in the xrd", apiVersion)
+		return errors.Errorf("the specified API version '%s' does not exist in the XRD", apiVersion)
 	}
 	err := extv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(version.Schema.OpenAPIV3Schema, &k, nil)
 	if err != nil {
