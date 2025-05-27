@@ -1,0 +1,214 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: operations.daytwo.crossplane.io
+spec:
+  group: daytwo.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: Operation
+    listKind: OperationList
+    plural: operations
+    shortNames:
+    - comp
+    singular: operation
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.compositeTypeRef.kind
+      name: XR-KIND
+      type: string
+    - jsonPath: .spec.compositeTypeRef.apiVersion
+      name: XR-APIVERSION
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          An Operation defines a pipeline of functions that together constitute a day
+          two operation.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: OperationSpec specifies desired state of an operation.
+            properties:
+              failureLimit:
+                description: |-
+                  FailureLimit configures how many times the operation may fail. When the
+                  failure limit is exceeded, the operation will not be retried.
+                format: int64
+                type: integer
+              pipeline:
+                description: |-
+                  Pipeline is a list of operation function steps that will be used when
+                  this operation runs.
+                items:
+                  description: A PipelineStep in a operation function pipeline.
+                  properties:
+                    credentials:
+                      description: Credentials are optional credentials that the operation
+                        function needs.
+                      items:
+                        description: |-
+                          FunctionCredentials are optional credentials that a Composition Function
+                          needs to run.
+                        properties:
+                          name:
+                            description: Name of this set of credentials.
+                            type: string
+                          secretRef:
+                            description: |-
+                              A SecretRef is a reference to a secret containing credentials that should
+                              be supplied to the function.
+                            properties:
+                              name:
+                                description: Name of the secret.
+                                type: string
+                              namespace:
+                                description: Namespace of the secret.
+                                type: string
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          source:
+                            description: Source of the function credentials.
+                            enum:
+                            - None
+                            - Secret
+                            type: string
+                        required:
+                        - name
+                        - source
+                        type: object
+                      type: array
+                    functionRef:
+                      description: |-
+                        FunctionRef is a reference to the Composition Function this step should
+                        execute.
+                      properties:
+                        name:
+                          description: Name of the referenced Function.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    input:
+                      description: |-
+                        Input is an optional, arbitrary Kubernetes resource (i.e. a resource
+                        with an apiVersion and kind) that will be passed to the Composition
+                        Function as the 'input' of its RunFunctionRequest.
+                      type: object
+                      x-kubernetes-embedded-resource: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    step:
+                      description: Step name. Must be unique within its Pipeline.
+                      type: string
+                  required:
+                  - functionRef
+                  - step
+                  type: object
+                type: array
+            required:
+            - pipeline
+            type: object
+          status:
+            description: OperationStatus represents the observed state of an operation.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              failures:
+                description: Number of operation failures.
+                format: int64
+                type: integer
+              pipeline:
+                description: |-
+                  Pipeline represents the output of the pipeline steps that this operation
+                  ran.
+                items:
+                  description: PipelineStepStatus represents the status of an individual
+                    pipeline step.
+                  properties:
+                    output:
+                      description: Output of this step.
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    step:
+                      description: Step name. Unique within its Pipeline.
+                      type: string
+                  required:
+                  - step
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources: {}
