@@ -22,11 +22,8 @@ import (
 
 // Condition types.
 const (
-	// A TypeComplete condition indicates whether an operation has completed.
-	TypeComplete xpv1.ConditionType = "Complete"
-
-	// A TypeFailed condition indicates whether an operation has failed.
-	TypeFailed xpv1.ConditionType = "Failed"
+	// A TypeSucceeded condition indicates whether an operation has Succeeded.
+	TypeSucceeded xpv1.ConditionType = "Succeeded"
 )
 
 // Reasons a package is or is not installed.
@@ -39,8 +36,8 @@ const (
 // Running indicates that an operation is running.
 func Running() xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeComplete,
-		Status:             corev1.ConditionFalse,
+		Type:               TypeSucceeded,
+		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonPipelineRunning,
 	}
@@ -49,7 +46,7 @@ func Running() xpv1.Condition {
 // Complete indicates that an operation is complete.
 func Complete() xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeComplete,
+		Type:               TypeSucceeded,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonPipelineSuccess,
@@ -59,8 +56,8 @@ func Complete() xpv1.Condition {
 // Failed indicates that an operation has failed.
 func Failed() xpv1.Condition {
 	return xpv1.Condition{
-		Type:               TypeFailed,
-		Status:             corev1.ConditionTrue,
+		Type:               TypeSucceeded,
+		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonPipelineError,
 	}

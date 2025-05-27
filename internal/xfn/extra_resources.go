@@ -13,16 +13,11 @@ CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 */
 
-package composite
+package xfn
 
 import (
 	"context"
 	"reflect"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
@@ -33,6 +28,14 @@ import (
 // called, limiting the number of times it can request for extra resources,
 // capped for safety.
 const MaxRequirementsIterations = 5
+
+const (
+	errGetExtraResourceByName  = "cannot get extra resource by name"
+	errNilResourceSelector     = "resource selector should not be nil"
+	errExtraResourceAsStruct   = "cannot encode extra resource to protocol buffer Struct well-known type"
+	errUnknownResourceSelector = "cannot get extra resource by name: unknown resource selector type"
+	errListExtraResources      = "cannot list extra resources"
+)
 
 // A FetchingFunctionRunner wraps an underlying FunctionRunner, adding support
 // for fetching any extra resources requested by the function it runs.

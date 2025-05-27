@@ -45,6 +45,7 @@ import (
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	. "github.com/crossplane/crossplane/internal/proto"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
@@ -918,14 +919,6 @@ func TestFunctionCompose(t *testing.T) {
 			}
 		})
 	}
-}
-
-func MustStruct(v map[string]any) *structpb.Struct {
-	s, err := structpb.NewStruct(v)
-	if err != nil {
-		panic(err)
-	}
-	return s
 }
 
 func WithParentLabel() *composite.Unstructured {

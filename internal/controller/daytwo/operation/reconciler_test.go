@@ -83,7 +83,7 @@ func TestReconcile(t *testing.T) {
 			ConditionedStatus: xpv1.ConditionedStatus{
 				Conditions: []xpv1.Condition{
 					{
-						Type:   v1alpha1.TypeComplete,
+						Type:   v1alpha1.TypeSucceeded,
 						Status: corev1.ConditionTrue,
 					},
 				},
@@ -199,7 +199,7 @@ func TestReconcile(t *testing.T) {
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 							op := obj.(*v1alpha1.Operation)
 							// Verify the operation is marked complete and failed
-							if op.Status.GetCondition(v1alpha1.TypeComplete).Status != corev1.ConditionTrue {
+							if op.Status.GetCondition(v1alpha1.TypeSucceeded).Status != corev1.ConditionTrue {
 								t.Errorf("Expected operation to be marked complete")
 							}
 							return nil

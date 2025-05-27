@@ -16,35 +16,28 @@ package operation
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	"github.com/crossplane/crossplane/apis/daytwo/v1alpha1"
-	daytwocontroller "github.com/crossplane/crossplane/internal/controller/daytwo/controller"
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // TODO: DO NOT MERGE. Pending Tasks...
@@ -62,96 +55,16 @@ const MaxRequirementsIterations = 5
 
 const reconcileTimeout = 1 * time.Minute
 
-// Setup adds a controller that reconciles Usages by
-// defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, o daytwocontroller.Options) error {
-	name := "usage/" + strings.ToLower(v1alpha1.OperationGroupKind)
-	r := NewReconciler(mgr,
-		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithFunctionRunner(o.FunctionRunner))
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		For(&v1alpha1.Operation{}).
-		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, errors.WithSilentRequeueOnConflict(r), o.GlobalRateLimiter))
-}
-
-// A FunctionRunner runs a single operation function.
-type FunctionRunner interface {
-	// RunFunction runs the named operation function.
-	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
-}
-
-// A FunctionRunnerFn is a function that can run an operation function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
-
-// RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
-}
-
-// A ExtraResourcesFetcher gets extra resources matching a selector.
-type ExtraResourcesFetcher interface {
-	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
-}
-
-// An ExtraResourcesFetcherFn gets extra resources matching the selector.
-type ExtraResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
-
-// Fetch gets extra resources matching the selector.
-func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	return fn(ctx, rs)
-}
-
-// ReconcilerOption is used to configure the Reconciler.
-type ReconcilerOption func(*Reconciler)
-
-// WithLogger specifies how the Reconciler should log messages.
-func WithLogger(log logging.Logger) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.log = log
-	}
-}
-
-// WithRecorder specifies how the Reconciler should record Kubernetes events.
-func WithRecorder(er event.Recorder) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.record = er
-	}
-}
-
-// WithFunctionRunner specifies how the Reconciler should run functions.
-func WithFunctionRunner(fr FunctionRunner) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.pipeline = fr
-	}
-}
-
-// NewReconciler returns a Reconciler of Usages.
-func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
-	r := &Reconciler{
-		client: mgr.GetClient(),
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
-	}
-
-	for _, f := range opts {
-		f(r)
-	}
-	return r
-}
-
 // A Reconciler reconciles Operations.
 type Reconciler struct {
 	client client.Client
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
-	pipeline  FunctionRunner
-	resources ExtraResourcesFetcher
+	pipeline  xfn.FunctionRunner
+	resources xfn.ExtraResourcesFetcher
 }
 
 // Reconcile an Operation by running its function pipeline.
@@ -168,6 +81,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("cannot get Operation", "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get Operation")
 	}
+	status := r.conditions.For(op)
 
 	log = log.WithValues(
 		"uid", op.GetUID(),
@@ -181,7 +95,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// We only want to run this Operation to completion once.
-	if op.Status.GetCondition(v1alpha1.TypeComplete).Status == corev1.ConditionTrue {
+	if op.Status.GetCondition(v1alpha1.TypeSucceeded).Status == corev1.ConditionTrue {
 		log.Debug("Operation is already complete. Nothing to do.")
 		return reconcile.Result{Requeue: false}, nil
 	}
@@ -190,14 +104,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	limit := ptr.Deref(op.Spec.FailureLimit, 5)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
-		op.Status.SetConditions(v1alpha1.Complete(), v1alpha1.Failed())
+		status.MarkConditions(v1alpha1.Complete(), v1alpha1.Failed())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 	}
 
 	// Updating this status condition ensures we're reconciling the latest
 	// version of the Operation. This is important because it helps us make sure
 	// the Operation really isn't complete.
-	op.Status.SetConditions(v1alpha1.Running())
+	status.MarkConditions(v1alpha1.Running())
 	if err := r.client.Status().Update(ctx, op); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "cannot update Operation status")
 	}
@@ -223,7 +137,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				// An unmarshalable input requires human intervention to fix, so
 				// we immediately fail this operation without retrying.
-				op.Status.SetConditions(v1alpha1.Complete(), v1alpha1.Failed())
+				status.MarkConditions(v1alpha1.Complete(), v1alpha1.Failed())
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 			}
 			req.Input = in
@@ -324,92 +238,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// TODO(negz): Emit events when we hit errors.
 	// TODO(negz): Can we write errors to some status condition? Running?
 
-	op.Status.SetConditions(v1alpha1.Complete())
+	status.MarkConditions(v1alpha1.Complete())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
-}
-
-// An ExistingExtraResourcesFetcher fetches extra resources requested by
-// functions using the provided client.Reader.
-type ExistingExtraResourcesFetcher struct {
-	client client.Reader
-}
-
-// NewExistingExtraResourcesFetcher returns a new ExistingExtraResourcesFetcher.
-func NewExistingExtraResourcesFetcher(c client.Reader) *ExistingExtraResourcesFetcher {
-	return &ExistingExtraResourcesFetcher{client: c}
-}
-
-// Fetch fetches resources requested by functions using the provided client.Reader.
-func (e *ExistingExtraResourcesFetcher) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	if rs == nil {
-		return nil, errors.New("resource selector must not be nil")
-	}
-
-	switch match := rs.GetMatch().(type) {
-	case *fnv1.ResourceSelector_MatchName:
-		// Fetch a single resource.
-		r := &unstructured.Unstructured{}
-		r.SetAPIVersion(rs.GetApiVersion())
-		r.SetKind(rs.GetKind())
-
-		err := e.client.Get(ctx, types.NamespacedName{Name: rs.GetMatchName()}, r)
-		if kerrors.IsNotFound(err) {
-			// The resource doesn't exist. We'll return nil, which the Functions
-			// know means that the resource was not found.
-			return nil, nil
-		}
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot get extra resource by name")
-		}
-
-		o, err := AsStruct(r)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot convert extra resource to protobuf Struct")
-		}
-		return &fnv1.Resources{Items: []*fnv1.Resource{{Resource: o}}}, nil
-
-	case *fnv1.ResourceSelector_MatchLabels:
-		// Fetch a list of resources.
-		list := &unstructured.UnstructuredList{}
-		list.SetAPIVersion(rs.GetApiVersion())
-		list.SetKind(rs.GetKind())
-
-		if err := e.client.List(ctx, list, client.MatchingLabels(match.MatchLabels.GetLabels())); err != nil {
-			return nil, errors.Wrap(err, "cannot list extra resources")
-		}
-
-		rs := make([]*fnv1.Resource, len(list.Items))
-		for i := range list.Items {
-			o, err := AsStruct(&list.Items[i])
-			if err != nil {
-				return nil, errors.Wrap(err, "cannot convert extra resource to protobuf Struct")
-			}
-			rs[i] = &fnv1.Resource{Resource: o}
-		}
-
-		return &fnv1.Resources{Items: rs}, nil
-	}
-
-	return nil, errors.New("unsupported resource selector type")
-}
-
-// AsStruct converts the supplied object to a protocol buffer Struct well-known
-// type.
-func AsStruct(o runtime.Object) (*structpb.Struct, error) {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(interface {
-		UnstructuredContent() map[string]interface{}
-	}); ok {
-		s, err := structpb.NewStruct(u.UnstructuredContent())
-		return s, errors.Wrap(err, "cannot create protobuf Struct from Unstructured resource")
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := json.Marshal(o)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot marshal object to JSON")
-	}
-
-	s := &structpb.Struct{}
-	return s, errors.Wrap(s.UnmarshalJSON(b), "cannot unmarshal JSON to protobuf Struct")
 }

@@ -16,7 +16,6 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
@@ -26,4 +25,7 @@ type Options struct {
 
 	// FunctionRunner used to run Operation Functions.
 	FunctionRunner xfn.FunctionRunner
+
+	// ExtraResourcesFetcher used to Fetch extra resources for Functions.
+	ExtraResourcesFetcher xfn.ExtraResourcesFetcher
 }

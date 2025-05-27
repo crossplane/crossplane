@@ -134,6 +134,18 @@ type Operation struct {
 	Status OperationStatus `json:"status,omitempty"`
 }
 
+// SetConditions delegates to Status.SetConditions.
+// Implements Conditioned.SetConditions.
+func (o *Operation) SetConditions(cs ...xpv1.Condition) {
+	o.Status.SetConditions(cs...)
+}
+
+// GetCondition delegates to Status.GetCondition.
+// Implements Conditioned.GetCondition.
+func (o *Operation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return o.Status.GetCondition(ct)
+}
+
 // +kubebuilder:object:root=true
 
 // OperationList contains a list of Operations.
