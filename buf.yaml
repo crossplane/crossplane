@@ -1,0 +1,16 @@
+version: v2
+name: buf.build/crossplane/crossplane
+deps:
+  - buf.build/protocolbuffers/wellknowntypes:v24.4
+lint:
+  use:
+    - STANDARD
+  except:
+    - FIELD_NOT_REQUIRED
+    - PACKAGE_NO_IMPORT_CYCLE
+breaking:
+  use:
+    - FILE
+  except:
+    - EXTENSION_NO_DELETE
+    - FIELD_SAME_DEFAULT

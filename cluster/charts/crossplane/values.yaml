@@ -105,12 +105,11 @@ rbacManager:
   # -- Add `topologySpreadConstraints` to the RBAC Manager pod deployment.
   topologySpreadConstraints: []
 
-packageManager:
-  # -- Enable automatic dependency version downgrades. This configuration is only used when `--enable-dependency-version-upgrades` flag is passed.
-  enableAutomaticDependencyDowngrade: false
-
 # -- The PriorityClass name to apply to the Crossplane and RBAC Manager pods.
 priorityClassName: ""
+
+# -- The runtimeClassName name to apply to the Crossplane and RBAC Manager pods.
+runtimeClassName: ""
 
 resourcesCrossplane:
   limits:
@@ -143,6 +142,14 @@ packageCache:
   pvc: ""
   # -- The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume.
   configMap: ""
+
+functionCache:
+  # -- Set to `Memory` to hold the function cache in a RAM backed file system. Useful for Crossplane development.
+  medium: ""
+  # -- The size limit for the function cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory.
+  sizeLimit: 512Mi
+  # -- The name of a PersistentVolumeClaim to use as the function cache. Disables the default function cache `emptyDir` Volume.
+  pvc: ""
 
 resourcesRBACManager:
   limits:

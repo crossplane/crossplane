@@ -32,5 +32,5 @@ type Options struct {
 	ControllerEngine *engine.ControllerEngine
 
 	// FunctionRunner used to run Composition Functions.
-	FunctionRunner *xfn.PackagedFunctionRunner
+	FunctionRunner xfn.FunctionRunner
 }

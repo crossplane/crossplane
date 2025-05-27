@@ -47,6 +47,9 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
+      {{- if .Values.runtimeClassName }}
+      runtimeClassName: {{ .Values.runtimeClassName | quote }}
+      {{- end }}
       {{- if not .Values.serviceAccount.create }}
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- else }}
@@ -109,7 +112,7 @@ spec:
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
           {{- else }}
-          - name: "WEBHOOK_ENABLED"
+          - name: "ENABLE_WEBHOOKS"
             value: "false"
           {{- end }}
           {{- if $externalSecretStoresEnabled }}
@@ -182,7 +185,7 @@ spec:
             value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
           {{- end}}
           {{- if not .Values.webhooks.enabled }}
-          - name: "WEBHOOK_ENABLED"
+          - name: "ENABLE_WEBHOOKS"
             value: "false"
           {{- end }}
           {{- if and .Values.webhooks.enabled .Values.webhooks.port }}
@@ -209,13 +212,11 @@ spec:
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
         {{- end}}
-        {{- if .Values.packageManager.enableAutomaticDependencyDowngrade }}
-          - name: "AUTOMATIC_DEPENDENCY_DOWNGRADE_ENABLED"
-            value: "true"
-        {{- end }}
         volumeMounts:
-          - mountPath: /cache
+          - mountPath: /cache/xpkg
             name: package-cache
+          - mountPath: /cache/xfn
+            name: function-cache
           {{- if .Values.registryCaBundleConfig.name }}
           - mountPath: /certs
             name: ca-certs
@@ -239,6 +240,15 @@ spec:
         emptyDir:
           medium: {{ .Values.packageCache.medium }}
           sizeLimit: {{ .Values.packageCache.sizeLimit }}
+        {{- end }}
+      - name: function-cache
+        {{- if .Values.functionCache.pvc }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.functionCache.pvc }}
+        {{- else }}
+        emptyDir:
+          medium: {{ .Values.functionCache.medium }}
+          sizeLimit: {{ .Values.functionCache.sizeLimit }}
         {{- end }}
       {{- if .Values.registryCaBundleConfig.name }}
       - name: ca-certs

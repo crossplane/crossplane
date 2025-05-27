@@ -73,6 +73,8 @@ const (
 	errInvalidDependency      = "dependency package is not valid"
 	errFindDependency         = "cannot find dependency version to install"
 	errGetPullConfig          = "cannot get image pull secret from config"
+	errRewriteImage           = "cannot rewrite image path using config"
+	errInvalidRewrite         = "rewritten image path is invalid"
 	errFetchTags              = "cannot fetch dependency package tags"
 	errFindDependencyUpgrade  = "cannot find dependency version to upgrade"
 	errFmtNoValidVersion      = "dependency (%s) does not have a valid version to upgrade that satisfies all constraints. If there is a valid version that requires downgrade, manual intervention is required. Constraints: %v"
@@ -181,7 +183,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.Features.Enabled(features.EnableAlphaDependencyVersionUpgrades) {
 		opts = append(opts, WithNewDagFn(internaldag.NewUpgradingMapDag))
-		if o.AutomaticDependencyDowngradeEnabled {
+
+		if o.Features.Enabled(features.EnableAlphaDependencyVersionDowngrades) {
 			opts = append(opts, WithDowngradesEnabled())
 		}
 	}
@@ -439,7 +442,23 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 		return "", errors.Wrap(err, errInvalidConstraint)
 	}
 
-	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot rewrite image path using config", "error", err)
+		return "", errors.Wrap(err, errRewriteImage)
+	}
+	if newPath != "" {
+		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		if err != nil {
+			log.Info("rewritten image path is invalid", "error", err)
+			return "", errors.Wrap(err, errInvalidRewrite)
+		}
+	}
+
+	psConfig, ps, err := r.config.PullSecretFor(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot get pull secret from image config store", "error", err)
 		return "", errors.Wrap(err, errGetPullConfig)
@@ -447,7 +466,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 
 	var s []string
 	if ps != "" {
-		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
 	}
 	// NOTE(hasheddan): we will be unable to fetch tags for private
@@ -456,7 +475,7 @@ func (r *Reconciler) findDependencyVersionToInstall(ctx context.Context, dep *v1
 	tags, err := r.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
-		return "", errors.New(errFetchTags)
+		return "", errors.Wrap(err, errFetchTags)
 	}
 
 	vs := []*semver.Version{}
@@ -493,7 +512,23 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 		return digest, nil
 	}
 
-	ic, ps, err := r.config.PullSecretFor(ctx, ref.String())
+	// Rewrite the image path if necessary. We need to do this before looking
+	// for pull secrets, since the rewritten path may use different secrets than
+	// the original.
+	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, ref.String())
+	if err != nil {
+		log.Info("cannot rewrite image path using config", "error", err)
+		return "", errors.Wrap(err, errRewriteImage)
+	}
+	if newPath != "" {
+		ref, err = name.ParseReference(newPath, name.WithDefaultRegistry(r.registry))
+		if err != nil {
+			log.Info("rewritten image path is invalid", "error", err)
+			return "", errors.Wrap(err, errInvalidRewrite)
+		}
+	}
+
+	psConfig, ps, err := r.config.PullSecretFor(ctx, ref.String())
 	if err != nil {
 		log.Info("cannot get pull secret from image config store", "error", err)
 		return "", errors.Wrap(err, errGetPullConfig)
@@ -501,14 +536,14 @@ func (r *Reconciler) findDependencyVersionToUpdate(ctx context.Context, ref name
 
 	var s []string
 	if ps != "" {
-		log.Debug("Selected pull secret from image config store", "image", ref.String(), "imageConfig", ic, "pullSecret", ps)
+		log.Debug("Selected pull secret from image config store", "image", ref.String(), "pullSecretConfig", psConfig, "pullSecret", ps, "rewriteConfig", rewriteConfigName)
 		s = append(s, ps)
 	}
 
 	tags, err := r.fetcher.Tags(ctx, ref, s...)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
-		return "", errors.New(errFetchTags)
+		return "", errors.Wrap(err, errFetchTags)
 	}
 
 	availableVersions := make([]*semver.Version, 0, len(tags))

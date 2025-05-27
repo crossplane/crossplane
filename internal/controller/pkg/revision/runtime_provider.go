@@ -294,7 +294,9 @@ func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWi
 // default registry. If the provider meta specifies an image, we have a
 // preference for that image over what is specified in the package revision.
 func getProviderImage(pm *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
-	image := pr.GetSource()
+	// Use the image from the status rather than the spec, since it may have
+	// been rewritten by an ImageConfig.
+	image := pr.GetResolvedSource()
 	if pm.Spec.Controller.Image != nil {
 		image = *pm.Spec.Controller.Image
 	}

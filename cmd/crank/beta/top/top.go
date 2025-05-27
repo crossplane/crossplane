@@ -52,7 +52,7 @@ const (
 // Cmd represents the top command.
 type Cmd struct {
 	Summary   bool   `help:"Adds summary header for all Crossplane pods." name:"summary"                                                             short:"s"`
-	Namespace string `default:"crossplane-system"                         help:"Show pods from a specific namespace, defaults to crossplane-system." name:"namespace" short:"n"`
+	Namespace string `default:"crossplane-system"                         help:"Show pods from a specific namespace, defaults to crossplane-system." name:"namespace" predictor:"namespace" short:"n"`
 }
 
 // Help returns help instructions for the top command.

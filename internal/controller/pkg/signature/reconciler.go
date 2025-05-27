@@ -282,7 +282,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, pr.GetSource())
+	imagePath := pr.GetResolvedSource()
+	if imagePath == "" {
+		// The revision reconciler hasn't yet resolved the image for this
+		// package; we can't verify the image until that's done.
+		log.Debug("Waiting for image resolution before verifying package revision")
+		return reconcile.Result{}, nil
+	}
+
+	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, imagePath)
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
 		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
@@ -294,10 +302,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// verification.
 		log.Debug("No signature verification config found for image, skipping verification")
 		pr.SetConditions(v1.VerificationSkipped())
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonVerify)
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update package status")
 	}
 
-	ref, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(r.registry))
+	pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
+		Name:   ic,
+		Reason: v1.ImageConfigReasonVerify,
+	})
+
+	ref, err := name.ParseReference(imagePath, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug("Cannot parse package image reference", "error", err)
 		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
@@ -310,7 +324,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pullSecrets = append(pullSecrets, s.Name)
 	}
 
-	_, s, err := r.config.PullSecretFor(ctx, pr.GetSource())
+	_, s, err := r.config.PullSecretFor(ctx, imagePath)
 	if err != nil {
 		log.Debug("Cannot get image config pull secret for image", "error", err)
 		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetConfigPullSecret)))
@@ -355,7 +369,7 @@ func enqueuePackageRevisionsForImageConfig(kube client.Client, log logging.Logge
 		var matches []reconcile.Request
 		for _, p := range l.GetRevisions() {
 			for _, m := range ic.Spec.MatchImages {
-				if strings.HasPrefix(p.GetSource(), m.Prefix) {
+				if strings.HasPrefix(p.GetResolvedSource(), m.Prefix) {
 					log.Debug("Enqueuing provider revisions for image config", "provider-revision", p.GetName(), "imageConfig", ic.Name)
 					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: p.GetName()}})
 				}

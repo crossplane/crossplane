@@ -1,25 +1,26 @@
 /*
-Copyright 2022 The Crossplane Authors.
+   Copyright 2022 The Crossplane Authors.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+       http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 */
 
 syntax = "proto3";
 
-import "google/protobuf/struct.proto";
-import "google/protobuf/duration.proto";
-
+//buf:lint:ignore PACKAGE_DIRECTORY_MATCH // Too late to fix this now.
 package apiextensions.fn.proto.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
 
 option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1";
 
@@ -55,7 +56,7 @@ message RunFunctionRequest {
   // of the 'input' block of the relevant entry in a Composition's pipeline.
   optional google.protobuf.Struct input = 4;
 
-  // Optional context. Crossplane may pass arbitary contextual information to a
+  // Optional context. Crossplane may pass arbitrary contextual information to a
   // Function. A Function may also return context in its RunFunctionResponse,
   // and that context will be passed to subsequent Functions. Crossplane
   // discards all context returned by the last Function in the pipeline.
@@ -71,7 +72,7 @@ message RunFunctionRequest {
 
   // Optional credentials that this Function may use to communicate with an
   // external system.
-  map <string, Credentials> credentials = 7;
+  map<string, Credentials> credentials = 7;
 }
 
 // Credentials that a Function may use to communicate with an external system.
@@ -129,8 +130,8 @@ message RunFunctionResponse {
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.
 message RequestMeta {
-  // An opaque string identifying the content of the request. Two identical
-  // requests should have the same tag.
+  // An opaque string identifying a request. Requests with identical tags will
+  // be otherwise identical.
   string tag = 1;
 }
 
@@ -170,9 +171,9 @@ message ResponseMeta {
   // meta.tag of the corresponding RunFunctionRequest.
   string tag = 1;
 
-  // Time-to-live of this response. Deterministic Functions with no side-effects
-  // (e.g. simple templating Functions) may specify a TTL. Crossplane may choose
-  // to cache responses until the TTL expires.
+  // Time-to-live of this response. Crossplane will call the function again when
+  // the TTL expires. Crossplane may cache the response to avoid calling the
+  // function again until the TTL expires.
   optional google.protobuf.Duration ttl = 2;
 }
 
@@ -205,7 +206,7 @@ message Resource {
   google.protobuf.Struct resource = 1;
 
   // The resource's connection details.
-  // 
+  //
   // * Crossplane will set this field in a RunFunctionRequest to communicate the
   //   the observed connection details of a composite or composed resource.
   //
@@ -218,7 +219,7 @@ message Resource {
   map<string, bytes> connection_details = 2;
 
   // Ready indicates whether the resource should be considered ready.
-  // 
+  //
   // * Crossplane will never set this field in a RunFunctionRequest.
   //
   // * A Function should set this field to READY_TRUE in a RunFunctionResponse

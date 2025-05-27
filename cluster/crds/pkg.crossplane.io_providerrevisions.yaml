@@ -189,6 +189,27 @@ spec:
             description: PackageRevisionStatus represents the observed state of a
               PackageRevision.
             properties:
+              appliedImageConfigRefs:
+                description: |-
+                  AppliedImageConfigRefs records any image configs that were applied in
+                  reconciling this revision, and what they were used for.
+                items:
+                  description: |-
+                    ImageConfigRef is a reference to an image config that indicates how the
+                    referenced image config was used by the package manager.
+                  properties:
+                    name:
+                      description: Name is the name of the image config.
+                      type: string
+                    reason:
+                      description: Reason indicates what the image config was used
+                        for.
+                      type: string
+                  required:
+                  - name
+                  - reason
+                  type: object
+                type: array
               conditions:
                 description: Conditions of the resource.
                 items:
@@ -324,6 +345,12 @@ spec:
                   - verbs
                   type: object
                 type: array
+              resolvedImage:
+                description: |-
+                  ResolvedPackage is the name of the package that was installed. It may be
+                  different from spec.image if the package path was rewritten using an
+                  image config.
+                type: string
             type: object
         type: object
     served: true

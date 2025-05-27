@@ -73,6 +73,12 @@ const svcConfig = `
 	]
 }`
 
+// A FunctionRunner runs a composition function.
+type FunctionRunner interface {
+	// RunFunction runs the named composition function.
+	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+}
+
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
 // package's runtime. It creates a gRPC client connection for each Function. The
 // Function's endpoint is determined by reading the status.endpoint of the
