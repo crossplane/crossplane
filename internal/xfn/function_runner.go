@@ -79,6 +79,14 @@ type FunctionRunner interface {
 	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
+// A FunctionRunnerFn is a function that can run a Function.
+type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+
+// RunFunction runs the named Function with the supplied request.
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, name, req)
+}
+
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
 // package's runtime. It creates a gRPC client connection for each Function. The
 // Function's endpoint is determined by reading the status.endpoint of the

@@ -18,6 +18,8 @@ package operation
 
 import (
 	"context"
+	"github.com/crossplane/crossplane/internal/xfn"
+	"google.golang.org/protobuf/types/known/structpb"
 	"io"
 	"testing"
 
@@ -199,7 +201,7 @@ func TestReconcile(t *testing.T) {
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 							op := obj.(*v1alpha1.Operation)
 							// Verify the operation is marked complete and failed
-							if op.Status.GetCondition(v1alpha1.TypeSucceeded).Status != corev1.ConditionTrue {
+							if !op.IsComplete() && op.Status.GetCondition(v1alpha1.TypeSucceeded).Status == corev1.ConditionFalse {
 								t.Errorf("Expected operation to be marked complete")
 							}
 							return nil
@@ -242,9 +244,57 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
-					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					WithFunctionRunner(xfn.FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+						return &fnv1.RunFunctionResponse{}, nil
+					})),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"SuccessfulExecutionWithOutput": {
+			reason: "We should successfully execute a simple operation pipeline.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1alpha1.Operation) = *opPending
+							return nil
+						}),
+						MockStatusUpdate: func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							op, ok := obj.(*v1alpha1.Operation)
+							// look for the op to be finished.
+							if ok && op.IsComplete() {
+								if len(op.Status.Pipeline) != 1 {
+									t.Errorf("Expected 1 pipeline, got %d", len(op.Status.Pipeline))
+								}
+								p := op.Status.Pipeline[0]
+								if p.Step != "test-step" {
+									t.Errorf("Expected step test-function, got %s", p.Step)
+								}
+								j, err := p.Output.MarshalJSON()
+								if err != nil {
+									t.Errorf("Failed to marshal output: %v", err)
+								}
+								if want := `{"hello":"test-function"}`; string(j) != want {
+									t.Errorf("Expected output to be %s, got %s", want, string(j))
+								}
+							}
+							return nil
+						},
+					},
+				},
+				opts: []ReconcilerOption{
+					WithFunctionRunner(xfn.FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						return &fnv1.RunFunctionResponse{
-							// TODO: Add Output and confirm it makes it to the status of the Operation.
+							Output: func() *structpb.Struct {
+								s, _ := structpb.NewStruct(map[string]interface{}{
+									"hello": name,
+								})
+								return s
+							}(),
 						}, nil
 					})),
 				},

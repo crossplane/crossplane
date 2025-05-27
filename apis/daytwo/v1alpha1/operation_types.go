@@ -14,6 +14,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -33,7 +34,7 @@ type OperationSpec struct {
 	FailureLimit *int64 `json:"failureLimit,omitempty"`
 }
 
-// A PipelineStep in a operation function pipeline.
+// A PipelineStep in an operation function pipeline.
 type PipelineStep struct {
 	// Step name. Must be unique within its Pipeline.
 	Step string `json:"step"`
@@ -144,6 +145,13 @@ func (o *Operation) SetConditions(cs ...xpv1.Condition) {
 // Implements Conditioned.GetCondition.
 func (o *Operation) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return o.Status.GetCondition(ct)
+}
+
+// IsComplete returns if this operation has finished running.
+func (o *Operation) IsComplete() bool {
+	c := o.GetCondition(TypeSucceeded)
+	// Normally, checking observedGeneration == generation is required, but Succeeded=True/False are terminal conditions.
+	return c.Status == corev1.ConditionTrue || c.Status == corev1.ConditionFalse
 }
 
 // +kubebuilder:object:root=true

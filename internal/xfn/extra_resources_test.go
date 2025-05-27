@@ -21,13 +21,14 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 )
 
 var _ FunctionRunner = &FetchingFunctionRunner{}
@@ -45,8 +46,8 @@ func TestFetchingFunctionRunner(t *testing.T) {
 	called := false
 
 	type params struct {
-		wrapped   composite.FunctionRunner
-		resources composite.ExtraResourcesFetcher
+		wrapped   FunctionRunner
+		resources ExtraResourcesFetcher
 	}
 	type args struct {
 		ctx  context.Context
@@ -67,7 +68,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return an error if the wrapped FunctionRunner does",
 			params: params{
-				wrapped: composite.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					return nil, errors.New("boom")
 				}),
 			},
@@ -79,7 +80,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"FatalResult": {
 			reason: "We should return early if the function returns a fatal result",
 			params: params{
-				wrapped: composite.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
 							{
@@ -105,7 +106,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"NoRequirements": {
 			reason: "We should return the response unchanged if there are no requirements",
 			params: params{
-				wrapped: composite.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
 							{
@@ -131,7 +132,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"FetchResourcesError": {
 			reason: "We should return any error encountered when fetching extra resources",
 			params: params{
-				wrapped: composite.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
 							ExtraResources: map[string]*fnv1.ResourceSelector{
@@ -158,7 +159,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"RequirementsDidntStabilizeError": {
 			reason: "We should return an error if the function's requirements never stabilize",
 			params: params{
-				wrapped: composite.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Requirements: &fnv1.Requirements{
 							ExtraResources: map[string]*fnv1.ResourceSelector{
@@ -187,7 +188,7 @@ func TestFetchingFunctionRunner(t *testing.T) {
 		"Success": {
 			reason: "We should return the fetched resources",
 			params: params{
-				wrapped: composite.FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrapped: FunctionRunnerFn(func(_ context.Context, _ string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					// We only expect to be sent extra resources the second time
 					// we're called, in response to our requirements.
 					if called {

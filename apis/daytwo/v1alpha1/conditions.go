@@ -14,6 +14,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -54,11 +55,12 @@ func Complete() xpv1.Condition {
 }
 
 // Failed indicates that an operation has failed.
-func Failed() xpv1.Condition {
+func Failed(msgFormat string, a ...any) xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeSucceeded,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonPipelineError,
+		Message:            fmt.Sprintf(msgFormat, a...),
 	}
 }

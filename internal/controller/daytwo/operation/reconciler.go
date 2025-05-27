@@ -22,7 +22,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,20 +39,20 @@ import (
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
-// TODO: DO NOT MERGE. Pending Tasks...
-// - [ ] Update to use status.ObservedGeneration
-// - [ ] Define sub-conditions for Operation.
-// - [ ] Implement a Marker.
-// - [ ] Add an e2e test.
-// - [ ] Unit test needs to confirm status update from proto resp.Output, etc.
-//
-
 // MaxRequirementsIterations is the maximum number of times a function should be
 // called, limiting the number of times it can request for extra resources,
 // capped for safety.
 const MaxRequirementsIterations = 5
 
 const reconcileTimeout = 1 * time.Minute
+
+const (
+	reasonRunPipelineStep    = "RunPipelineStep"
+	reasonMaxFailures        = "MaxFailures"
+	reasonFunctionInvocation = "FunctionInvocation"
+	reasonExtraResources     = "ExtraResources"
+	reasonInvalidOutput      = "InvalidOutput"
+)
 
 // A Reconciler reconciles Operations.
 type Reconciler struct {
@@ -95,7 +94,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// We only want to run this Operation to completion once.
-	if op.Status.GetCondition(v1alpha1.TypeSucceeded).Status == corev1.ConditionTrue {
+	if op.IsComplete() {
 		log.Debug("Operation is already complete. Nothing to do.")
 		return reconcile.Result{Requeue: false}, nil
 	}
@@ -104,7 +103,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	limit := ptr.Deref(op.Spec.FailureLimit, 5)
 	if op.Status.Failures >= limit {
 		log.Debug("Operation failure limit reached. Not running again.", "limit", limit)
-		status.MarkConditions(v1alpha1.Complete(), v1alpha1.Failed())
+		status.MarkConditions(v1alpha1.Failed("failure limit of %d reached", limit))
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 	}
 
@@ -137,7 +136,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 				// An unmarshalable input requires human intervention to fix, so
 				// we immediately fail this operation without retrying.
-				status.MarkConditions(v1alpha1.Complete(), v1alpha1.Failed())
+				status.MarkConditions(v1alpha1.Failed("cannot unmarshal input for operation pipeline step %q", fn.Step))
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 			}
 			req.Input = in
@@ -153,15 +152,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if i == MaxRequirementsIterations {
 				log.Debug("Function requirements didn't stabilize after the maximum number of iterations")
 				op.Status.Failures++
+				r.record.Event(op, event.Warning(reasonMaxFailures,
+					errors.New("maximum number of iterations reached"),
+					"failures", fmt.Sprintf("%d", op.Status.Failures),
+					"step", fn.Step))
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 			}
 
 			// TODO(negz): Generate a content-addressable tag for this request.
 			// Perhaps using https://github.com/cerbos/protoc-gen-go-hashpb ?
-			rsp, err := r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
+			var err error
+			rsp, err = r.pipeline.RunFunction(ctx, fn.FunctionRef.Name, req)
 			if err != nil {
 				log.Debug("Cannot run operation pipeline step", "error", err)
 				op.Status.Failures++
+				r.record.Event(op, event.Warning(reasonFunctionInvocation,
+					errors.Wrap(err, "failed to invoke pipeline step"),
+					"failures", fmt.Sprintf("%d", op.Status.Failures),
+					"step", fn.Step))
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 			}
 
@@ -182,6 +190,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				if err != nil {
 					log.Debug("Cannot fetch extra resources", "error", err, "resources", name)
 					op.Status.Failures++
+					r.record.Event(op, event.Warning(reasonExtraResources,
+						errors.Wrap(err, "failed to fetch extra resources"),
+						"failures", fmt.Sprintf("%d", op.Status.Failures),
+						"step", fn.Step,
+						"selector", selector.String(),
+					))
 					return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 				}
 
@@ -207,16 +221,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			case fnv1.Severity_SEVERITY_FATAL:
 				log.Debug("Pipeline step returned a fatal result", "error", rs.GetMessage())
 				op.Status.Failures++
+				r.record.Event(op, event.Warning(reasonFunctionInvocation,
+					errors.New(rs.GetMessage()),
+					"failures", fmt.Sprintf("%d", op.Status.Failures),
+					"step", fn.Step))
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 			case fnv1.Severity_SEVERITY_WARNING:
-				r.record.Event(op, event.Warning("RunPipelineStep", errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+				r.record.Event(op, event.Warning(reasonRunPipelineStep, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
 			case fnv1.Severity_SEVERITY_NORMAL:
-				r.record.Event(op, event.Normal("RunPipelineStep", fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
+				r.record.Event(op, event.Normal(reasonRunPipelineStep, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.GetMessage())))
 			case fnv1.Severity_SEVERITY_UNSPECIFIED:
 				// We could hit this case if a Function was built against a newer
 				// protobuf than this build of Crossplane, and the new protobuf
 				// introduced a severity that we don't know about.
-				r.record.Event(op, event.Warning("RunPipelineStep", errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
+				r.record.Event(op, event.Warning(reasonRunPipelineStep, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.GetMessage())))
 			}
 		}
 
@@ -225,6 +243,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err != nil {
 				log.Debug("Cannot marshal pipeline step output to JSON", "error", err)
 				op.Status.Failures++
+				r.record.Event(op, event.Warning(reasonInvalidOutput,
+					errors.Wrap(err, "failed to marshal pipeline step output to JSON"),
+					"failures", fmt.Sprintf("%d", op.Status.Failures),
+				))
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
 			}
 			op.Status.Pipeline = append(op.Status.Pipeline, v1alpha1.PipelineStepStatus{
@@ -233,10 +255,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			})
 		}
 	}
-
-	// TODO(negz): Process desired state (i.e. SSA resources).
-	// TODO(negz): Emit events when we hit errors.
-	// TODO(negz): Can we write errors to some status condition? Running?
 
 	status.MarkConditions(v1alpha1.Complete())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")

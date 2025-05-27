@@ -118,20 +118,6 @@ type FunctionRunner interface {
 	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
-// A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
-
-// RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
-}
-
-// A ConnectionDetailsFetcher fetches connection details for the supplied
-// Connection Secret owner.
-type ConnectionDetailsFetcher interface {
-	FetchConnection(ctx context.Context, so xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
-}
-
 // A ComposedResourceObserver observes existing composed resources.
 type ComposedResourceObserver interface {
 	ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
