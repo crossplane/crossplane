@@ -159,7 +159,7 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 
 // In most cases our gRPC target will be a Kubernetes Service. The package
 // manager creates this service for each active FunctionRevision, but the
-// Service is aligned with the Function. It's name is derived from the Function
+// Service is aligned with the Function. Its name is derived from the Function
 // (not the FunctionRevision). This means the target won't change just because a
 // new FunctionRevision was created.
 //

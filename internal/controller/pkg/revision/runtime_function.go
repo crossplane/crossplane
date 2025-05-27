@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -69,7 +70,13 @@ func NewFunctionHooks(client client.Client, defaultRegistry string) *FunctionHoo
 }
 
 // Pre performs operations meant to happen before establishing objects.
-func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
+	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1.Function{})
+	functionMeta, ok := fo.(*pkgmetav1.Function)
+	if !ok {
+		return errors.New(errNotFunction)
+	}
+
 	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
@@ -97,6 +104,12 @@ func (h *FunctionHooks) Pre(ctx context.Context, _ runtime.Object, pr v1.Package
 	}
 
 	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, grpcPort)
+
+	// Set the revision's function type to the type specified by the function's
+	// package metadata. If the type isn't specified, we assume it's a
+	// composition function. Composition functions are the default because they
+	// predate other function types, and the 'type' field.
+	fRev.Status.Type = v1.FunctionType(ptr.Deref(functionMeta.Spec.Type, pkgmetav1.FunctionTypeComposition))
 
 	secServer := build.TLSServerSecret()
 	if err := h.client.Apply(ctx, secServer); err != nil {

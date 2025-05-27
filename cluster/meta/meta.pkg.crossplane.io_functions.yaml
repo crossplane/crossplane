@@ -97,6 +97,13 @@ spec:
               image:
                 description: Image is the packaged Function image.
                 type: string
+              type:
+                default: Composition
+                description: The type of this function - composition or operation.
+                enum:
+                - Composition
+                - Operation
+                type: string
             type: object
         required:
         - spec
@@ -185,6 +192,13 @@ spec:
                 type: array
               image:
                 description: Image is the packaged Function image.
+                type: string
+              type:
+                default: Composition
+                description: The type of this function - composition or operation.
+                enum:
+                - Composition
+                - Operation
                 type: string
             type: object
         required:

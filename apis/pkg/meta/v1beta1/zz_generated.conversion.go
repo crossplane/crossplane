@@ -66,6 +66,16 @@ func (c *GeneratedFromHubConverter) v1FunctionSpecToV1beta1FunctionSpec(source v
 		xstring := *source.Image
 		v1beta1FunctionSpec.Image = &xstring
 	}
+<<<<<<< HEAD
+=======
+	v1beta1FunctionSpec.Image = pString
+	var pV1beta1FunctionType *FunctionType
+	if source.Type != nil {
+		v1beta1FunctionType := FunctionType(*source.Type)
+		pV1beta1FunctionType = &v1beta1FunctionType
+	}
+	v1beta1FunctionSpec.Type = pV1beta1FunctionType
+>>>>>>> d5ab5d617 (Add function type to function definitions, add output to function proto)
 	return v1beta1FunctionSpec
 }
 func (c *GeneratedFromHubConverter) v1MetaSpecToV1beta1MetaSpec(source v1.MetaSpec) MetaSpec {
@@ -150,6 +160,16 @@ func (c *GeneratedToHubConverter) v1beta1FunctionSpecToV1FunctionSpec(source Fun
 		xstring := *source.Image
 		v1FunctionSpec.Image = &xstring
 	}
+<<<<<<< HEAD
+=======
+	v1FunctionSpec.Image = pString
+	var pV1FunctionType *v1.FunctionType
+	if source.Type != nil {
+		v1FunctionType := v1.FunctionType(*source.Type)
+		pV1FunctionType = &v1FunctionType
+	}
+	v1FunctionSpec.Type = pV1FunctionType
+>>>>>>> d5ab5d617 (Add function type to function definitions, add output to function proto)
 	return v1FunctionSpec
 }
 func (c *GeneratedToHubConverter) v1beta1MetaSpecToV1MetaSpec(source MetaSpec) v1.MetaSpec {

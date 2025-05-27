@@ -56,8 +56,8 @@ func TestFunctionPreHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Success": {
-			reason: "Successful run of pre hook.",
+		"SuccessWithEmptyType": {
+			reason: "Successful run of pre hook without function type should default to Composition.",
 			args: args{
 				pkg: &pkgmetav1.Function{
 					Spec: pkgmetav1.FunctionSpec{},
@@ -108,6 +108,125 @@ func TestFunctionPreHook(t *testing.T) {
 					},
 					Status: v1.FunctionRevisionStatus{
 						Endpoint: fmt.Sprintf(serviceEndpointFmt, "some-service", "some-namespace", servicePort),
+						Type:     v1.FunctionTypeComposition,
+					},
+				},
+			},
+		},
+		"SuccessAsComposition": {
+			reason: "Successful run of pre hook with function type Composition should propagate as Composition.",
+			args: args{
+				pkg: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{
+						Type: ptr.To(pkgmetav1.FunctionTypeComposition),
+					},
+				},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if svc, ok := obj.(*corev1.Service); ok {
+							svc.Name = "some-service"
+							svc.Namespace = "some-namespace"
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						Endpoint: fmt.Sprintf(serviceEndpointFmt, "some-service", "some-namespace", servicePort),
+						Type:     v1.FunctionTypeComposition,
+					},
+				},
+			},
+		},
+		"SuccessAsOperation": {
+			reason: "Successful run of pre hook with function type Composition should propagate as Composition.",
+			args: args{
+				pkg: &pkgmetav1.Function{
+					Spec: pkgmetav1.FunctionSpec{
+						Type: ptr.To(pkgmetav1.FunctionTypeOperation),
+					},
+				},
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+				},
+				manifests: &MockManifestBuilder{
+					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
+						return &corev1.Service{}
+					},
+					TLSServerSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
+				},
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if svc, ok := obj.(*corev1.Service); ok {
+							svc.Name = "some-service"
+							svc.Namespace = "some-namespace"
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						return nil
+					},
+					MockUpdate: func(_ context.Context, _ client.Object, _ ...client.UpdateOption) error {
+						return nil
+					},
+				},
+			},
+			want: want{
+				rev: &v1.FunctionRevision{
+					Spec: v1.FunctionRevisionSpec{
+						PackageRevisionSpec: v1.PackageRevisionSpec{
+							DesiredState: v1.PackageRevisionActive,
+						},
+						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSServerSecretName: ptr.To("some-server-secret"),
+						},
+					},
+					Status: v1.FunctionRevisionStatus{
+						Endpoint: fmt.Sprintf(serviceEndpointFmt, "some-service", "some-namespace", servicePort),
+						Type:     v1.FunctionTypeOperation,
 					},
 				},
 			},
