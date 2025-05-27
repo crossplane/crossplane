@@ -147,7 +147,7 @@ jobs:
         run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-codeql
 
       - name: Upload CodeQL Results to GitHub
-        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3
         with:
           sarif_file: '_output/codeql/go.sarif'
 
@@ -173,7 +173,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # v3
         with:
           sarif_file: 'trivy-results.sarif'
 
