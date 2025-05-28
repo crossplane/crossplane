@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
@@ -60,7 +61,9 @@ type fetchFn func(context.Context, name.Reference) (v1.Image, error)
 
 // registryFetch fetches a package from the registry.
 func registryFetch(ctx context.Context, r name.Reference) (v1.Image, error) {
-	return remote.Image(r, remote.WithContext(ctx))
+	// Use default docker auth, i.e. for private repositories.
+	kc := authn.NewMultiKeychain(authn.DefaultKeychain)
+	return remote.Image(r, remote.WithContext(ctx), remote.WithAuthFromKeychain(kc))
 }
 
 // daemonFetch fetches a package from the Docker daemon.
