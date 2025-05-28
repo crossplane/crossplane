@@ -18,12 +18,15 @@ package operation
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/internal/xfn"
-	"google.golang.org/protobuf/types/known/structpb"
 	"io"
 	"testing"
 
+
+	"github.com/crossplane/crossplane/internal/xfn"
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +46,7 @@ import (
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	"github.com/crossplane/crossplane/apis/daytwo/v1alpha1"
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 func TestReconcile(t *testing.T) {
@@ -244,7 +248,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
-					WithFunctionRunner(xfn.FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						return &fnv1.RunFunctionResponse{}, nil
 					})),
 				},
@@ -287,7 +291,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				opts: []ReconcilerOption{
-					WithFunctionRunner(xfn.FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+					WithFunctionRunner(xfn.FunctionRunnerFn(func(_ context.Context, name string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 						return &fnv1.RunFunctionResponse{
 							Output: func() *structpb.Struct {
 								s, _ := structpb.NewStruct(map[string]interface{}{

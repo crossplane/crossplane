@@ -32,6 +32,9 @@ import (
 const LabelAreaAPIDayTwo = "daytwo"
 
 func TestOperationSimple(t *testing.T) {
+	t.Skip("Skipping Operation Simple test until https://github.com/crossplane/crossplane/pull/6488 lands.",
+		"function-dummy needs to consume the new proto changes for Operation.")
+
 	manifests := "test/e2e/manifests/daytwo/operation/simple"
 	environment.Test(t,
 		features.NewWithDescription(t.Name(), "Tests the correct functioning of operation functions ensuring that the operation functions are called and the pipeline is marked succeeded.").

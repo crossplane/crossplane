@@ -20,9 +20,12 @@ package definition
 import (
 	"context"
 	"fmt"
-	"github.com/crossplane/crossplane/internal/xfn"
 	"strings"
 	"time"
+
+	"github.com/crossplane/crossplane/internal/xfn"
+
+	"github.com/crossplane/crossplane/internal/xfn"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -54,6 +57,7 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xfn"
 	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 

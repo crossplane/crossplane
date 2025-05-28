@@ -16,6 +16,7 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 

@@ -21,7 +21,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/crossplane/crossplane/internal/proto"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -29,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/internal/proto"
 )
 
 var _ FunctionRunner = &FetchingFunctionRunner{}

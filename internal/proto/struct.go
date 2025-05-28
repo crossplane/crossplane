@@ -79,6 +79,7 @@ func FromStruct(o client.Object, s *structpb.Struct) error {
 	return errors.Wrap(json.Unmarshal(b, o), errUnmarshalJSON)
 }
 
+// MustStruct creates a new proto struct or panics if there is an error.
 func MustStruct(v map[string]any) *structpb.Struct {
 	s, err := structpb.NewStruct(v)
 	if err != nil {

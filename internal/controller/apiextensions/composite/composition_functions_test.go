@@ -18,9 +18,12 @@ package composite
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/internal/xfn"
 	"testing"
 	"time"
+
+	"github.com/crossplane/crossplane/internal/xfn"
+
+	"github.com/crossplane/crossplane/internal/xfn"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -46,8 +49,9 @@ import (
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	. "github.com/crossplane/crossplane/internal/proto"
+	"github.com/crossplane/crossplane/internal/proto"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xresource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
@@ -369,7 +373,7 @@ func TestFunctionCompose(t *testing.T) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"cool-resource": {
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "CoolComposed",
 								}),
@@ -421,7 +425,7 @@ func TestFunctionCompose(t *testing.T) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"cool-resource": {
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "CoolComposed",
 
@@ -570,7 +574,7 @@ func TestFunctionCompose(t *testing.T) {
 				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Composite: &fnv1.Resource{
-							Resource: MustStruct(map[string]any{
+							Resource: proto.MustStruct(map[string]any{
 								"status": map[string]any{
 									"widgets": 42,
 								},
@@ -635,7 +639,7 @@ func TestFunctionCompose(t *testing.T) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"uncool-resource": {
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "UncoolComposed",
 								}),
@@ -707,7 +711,7 @@ func TestFunctionCompose(t *testing.T) {
 						},
 						Desired: &fnv1.State{
 							Composite: &fnv1.Resource{
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"status": map[string]any{
 										"widgets": 42,
 									},
@@ -716,14 +720,14 @@ func TestFunctionCompose(t *testing.T) {
 							},
 							Resources: map[string]*fnv1.Resource{
 								"observed-resource-a": {
-									Resource: MustStruct(map[string]any{
+									Resource: proto.MustStruct(map[string]any{
 										"apiVersion": "test.crossplane.io/v1",
 										"kind":       "CoolComposed",
 									}),
 									Ready: fnv1.Ready_READY_TRUE,
 								},
 								"desired-resource-a": {
-									Resource: MustStruct(map[string]any{
+									Resource: proto.MustStruct(map[string]any{
 										"apiVersion": "test.crossplane.io/v1",
 										"kind":       "CoolComposed",
 									}),
