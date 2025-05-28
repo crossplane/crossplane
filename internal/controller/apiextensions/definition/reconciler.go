@@ -23,10 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crossplane/crossplane/internal/xfn"
-
-	"github.com/crossplane/crossplane/internal/xfn"
-
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"

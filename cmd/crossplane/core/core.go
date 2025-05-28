@@ -26,12 +26,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/crossplane/crossplane/internal/controller/daytwo"
-	daytwocontroller "github.com/crossplane/crossplane/internal/controller/daytwo/controller"
-
-	"github.com/crossplane/crossplane/internal/controller/daytwo"
-	daytwocontroller "github.com/crossplane/crossplane/internal/controller/daytwo/controller"
-
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"

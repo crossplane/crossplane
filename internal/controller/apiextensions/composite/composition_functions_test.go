@@ -21,10 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/crossplane/crossplane/internal/xfn"
-
-	"github.com/crossplane/crossplane/internal/xfn"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/encoding/protojson"

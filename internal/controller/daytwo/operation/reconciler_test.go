@@ -21,10 +21,6 @@ import (
 	"io"
 	"testing"
 
-
-	"github.com/crossplane/crossplane/internal/xfn"
-	"google.golang.org/protobuf/types/known/structpb"
-
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
