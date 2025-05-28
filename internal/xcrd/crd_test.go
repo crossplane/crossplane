@@ -430,6 +430,7 @@ func TestForCompositeResource(t *testing.T) {
 																"reason":             {Type: "string"},
 																"status":             {Type: "string"},
 																"type":               {Type: "string"},
+																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
 													},
