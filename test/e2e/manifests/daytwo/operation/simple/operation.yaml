@@ -1,0 +1,30 @@
+apiVersion: daytwo.crossplane.io/v1alpha1
+kind: Operation
+metadata:
+  name: parent
+spec:
+  failureLimit: 1
+  pipeline:
+  - step: be-a-dummy
+    functionRef:
+      name: function-dummy
+    input:
+      apiVersion: dummy.fn.crossplane.io/v1beta1
+      kind: Response
+      # This is a YAML-serialized RunFunctionResponse. function-dummy will
+      # overlay the desired state on any that was passed into it.
+      response:
+        desired:
+          composite:
+            resource:
+              status:
+                coolerField: "I'M COOLER!"
+        results:
+         - severity: SEVERITY_NORMAL
+           message: "I am doing a compose!"
+    credentials:
+    - name: important-secret
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: super-secret

@@ -42,6 +42,7 @@ import (
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/proto"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xresource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
@@ -323,7 +324,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 		}
 
 		cd := composed.New()
-		if err := composite.FromStruct(cd, dr.GetResource()); err != nil {
+		if err := proto.FromStruct(cd, dr.GetResource()); err != nil {
 			return Outputs{}, errors.Wrapf(err, "cannot unmarshal desired composed resource %q", name)
 		}
 
@@ -349,7 +350,7 @@ func Render(ctx context.Context, log logging.Logger, in Inputs) (Outputs, error)
 	})
 
 	xr := ucomposite.New()
-	if err := composite.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	if err := proto.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return Outputs{}, errors.Wrap(err, "cannot render desired composite resource")
 	}
 
@@ -430,7 +431,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 			continue
 		}
 		if rs.GetMatchName() == er.GetName() {
-			o, err := composite.AsStruct(&er)
+			o, err := proto.AsStruct(&er)
 			if err != nil {
 				return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 			}
@@ -439,7 +440,7 @@ func (f *FilteringFetcher) Fetch(_ context.Context, rs *fnv1.ResourceSelector) (
 		}
 		if rs.GetMatchLabels() != nil {
 			if labels.SelectorFromSet(rs.GetMatchLabels().GetLabels()).Matches(labels.Set(er.GetLabels())) {
-				o, err := composite.AsStruct(&er)
+				o, err := proto.AsStruct(&er)
 				if err != nil {
 					return nil, errors.Wrapf(err, "cannot marshal extra resource %q", er.GetName())
 				}

@@ -66,7 +66,7 @@ spec:
                   Pipeline is a list of operation function steps that will be used when
                   this operation runs.
                 items:
-                  description: A PipelineStep in a operation function pipeline.
+                  description: A PipelineStep in an operation function pipeline.
                   properties:
                     credentials:
                       description: Credentials are optional credentials that the operation

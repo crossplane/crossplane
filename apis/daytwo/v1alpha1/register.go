@@ -22,8 +22,8 @@ import (
 
 // Package type metadata.
 const (
-	Group   = "apiextensions.crossplane.io"
-	Version = "v1"
+	Group   = "daytwo.crossplane.io"
+	Version = "v1alpha1"
 )
 
 var (
