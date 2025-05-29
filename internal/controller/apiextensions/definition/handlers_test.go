@@ -17,16 +17,16 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 	type args struct {
 		of     schema.GroupVersionKind
+		schema composite.Schema
 		reader client.Reader
 		event  kevent.CreateEvent
 	}
@@ -228,7 +228,7 @@ func TestEnqueueForCompositionRevisionFunc(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			fns := EnqueueForCompositionRevision(resource.CompositeKind(tc.args.of), tc.args.reader, logging.NewNopLogger())
+			fns := EnqueueForCompositionRevision(tc.args.of, tc.args.schema, tc.args.reader, logging.NewNopLogger())
 			q := rateLimitingQueueMock{}
 			fns.Create(context.TODO(), tc.args.event, &q)
 

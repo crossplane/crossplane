@@ -26,7 +26,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -100,7 +99,6 @@ type RuntimeManifestBuilder struct {
 	namespace                 string
 	serviceAccountPullSecrets []corev1.LocalObjectReference
 	runtimeConfig             *v1beta1.DeploymentRuntimeConfig
-	controllerConfig          *v1alpha1.ControllerConfig
 	pullSecrets               []string
 }
 
@@ -112,14 +110,6 @@ type RuntimeManifestBuilderOption func(*RuntimeManifestBuilder)
 func RuntimeManifestBuilderWithRuntimeConfig(rc *v1beta1.DeploymentRuntimeConfig) RuntimeManifestBuilderOption {
 	return func(b *RuntimeManifestBuilder) {
 		b.runtimeConfig = rc
-	}
-}
-
-// RuntimeManifestBuilderWithControllerConfig sets the controller config to use
-// when building the runtime manifests.
-func RuntimeManifestBuilderWithControllerConfig(cc *v1alpha1.ControllerConfig) RuntimeManifestBuilderOption {
-	return func(b *RuntimeManifestBuilder) {
-		b.controllerConfig = cc
 	}
 }
 
@@ -171,10 +161,6 @@ func (b *RuntimeManifestBuilder) ServiceAccount(overrides ...ServiceAccountOverr
 		ServiceAccountWithOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(b.revision, b.revision.GetObjectKind().GroupVersionKind()))}),
 		ServiceAccountWithAdditionalPullSecrets(append(b.revision.GetPackagePullSecrets(), b.serviceAccountPullSecrets...)),
 	)
-
-	if cc := b.controllerConfig; cc != nil {
-		allOverrides = append(allOverrides, ServiceAccountWithControllerConfig(cc))
-	}
 
 	// We append the overrides passed to the function last so that they can
 	// override the above ones.
@@ -253,12 +239,6 @@ func (b *RuntimeManifestBuilder) Deployment(serviceAccount string, overrides ...
 	// We append the overrides passed to the function last so that they can
 	// override the above ones.
 	allOverrides = append(allOverrides, overrides...)
-
-	// ControllerConfig overrides should be applied last so that they can
-	// override any other overrides compatible with the existing behavior.
-	if b.controllerConfig != nil {
-		allOverrides = append(allOverrides, DeploymentForControllerConfig(b.controllerConfig))
-	}
 
 	for _, o := range allOverrides {
 		o(d)

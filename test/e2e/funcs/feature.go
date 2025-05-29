@@ -57,8 +57,9 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // DefaultPollInterval is the suggested poll interval for wait.For.
@@ -919,9 +920,10 @@ func ComposedResourcesHaveFieldValueWithin(d time.Duration, dir, file, path stri
 			return ctx
 		}
 
-		xrRef := cm.GetResourceReference()
-		uxr := &composite.Unstructured{}
+		// We always find this XR from a claim, so it'll always be legacy.
+		uxr := &composite.Unstructured{Schema: composite.SchemaLegacy}
 
+		xrRef := cm.GetResourceReference()
 		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
 		if err := c.Client().Resources().Get(ctx, xrRef.Name, "", uxr); err != nil {
 			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
@@ -1143,7 +1145,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 			return ctx
 		}
 
-		if !strings.Contains(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
+		if !strings.Contains(err.Error(), "admission webhook \"nousages.protection.crossplane.io\" denied the request") {
 			t.Fatalf("expected the usage webhook to deny the request but it failed with err: %s", err.Error())
 			return ctx
 		}

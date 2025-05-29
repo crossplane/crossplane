@@ -29,10 +29,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/xfake"
 )
 
 func TestRenderFromJSON(t *testing.T) {
@@ -180,7 +182,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 	errRef := meta.AddControllerReference(controlled, metav1.OwnerReference{UID: "not-very-random"})
 
 	type args struct {
-		xr resource.Composite
+		xr xresource.Composite
 		cd resource.Composed
 		rn ResourceName
 	}
@@ -196,7 +198,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"ConflictingControllerReference": {
 			reason: "We should return an error if the composed resource has an existing (and different) controller reference",
 			args: args{
-				xr: &fake.Composite{
+				xr: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "somewhat-random",
 						Labels: map[string]string{
@@ -236,7 +238,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"CompatibleControllerReference": {
 			reason: "We should not return an error if the composed resource has an existing (and matching) controller reference",
 			args: args{
-				xr: &fake.Composite{
+				xr: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
 						UID: "somewhat-random",
 						Labels: map[string]string{
@@ -276,10 +278,11 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 		"NoControllerReference": {
 			reason: "We should not return an error if the composed resource has no controller reference",
 			args: args{
-				xr: &fake.Composite{
+				xr: &xfake.Composite{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "cool-xr",
-						UID:  "somewhat-random",
+						Namespace: "ns",
+						Name:      "cool-xr",
+						UID:       "somewhat-random",
 						Labels: map[string]string{
 							xcrd.LabelKeyNamePrefixForComposed: "prefix",
 							xcrd.LabelKeyClaimName:             "name",
@@ -292,6 +295,7 @@ func TestRenderComposedResourceMetadata(t *testing.T) {
 			want: want{
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
+						Namespace:    "ns",
 						GenerateName: "prefix-",
 						OwnerReferences: []metav1.OwnerReference{{
 							Controller:         ptr.To(true),

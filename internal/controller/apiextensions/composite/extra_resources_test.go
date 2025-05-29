@@ -27,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -99,6 +100,7 @@ func TestExistingExtraResourcesFetcherFetch(t *testing.T) {
 							},
 						},
 					},
+					Namespace: ptr.To("default"),
 				},
 				c: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {

@@ -84,7 +84,9 @@ type UsageStatus struct {
 // resources with dependent resources.
 //
 // Read the Crossplane documentation for
-// [more information about Compositions](https://docs.crossplane.io/latest/concepts/usages).
+// [more information about Usages](https://docs.crossplane.io/latest/concepts/usages).
+//
+// Deprecated: Use protection.crossplane.io Usage or ClusterUsage.
 // +kubebuilder:object:root=true
 // +genclient
 // +genclient:nonNamespaced
@@ -93,6 +95,7 @@ type UsageStatus struct {
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
 // +kubebuilder:subresource:status
+// +kubebuilder:deprecatedversion:warning="apiextensions.crossplane.io Usage is deprecated; migrate to protection.crossplane.io Usage or ClusterUsage"
 type Usage struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -101,21 +104,11 @@ type Usage struct {
 	Status UsageStatus `json:"status,omitempty"`
 }
 
-// SetConditions delegates to Status.SetConditions.
-// Implements Conditioned.SetConditions.
-func (u *Usage) SetConditions(c ...xpv1.Condition) {
-	u.Status.SetConditions(c...)
-}
-
-// GetCondition delegates to Status.GetCondition.
-// Implements Conditioned.GetCondition.
-func (u *Usage) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	return u.Status.GetCondition(ct)
-}
-
 // +kubebuilder:object:root=true
 
 // UsageList contains a list of Usage.
+//
+// Deprecated: Use protection.crossplane.io UsageList or ClusterUsageList.
 type UsageList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

@@ -1,0 +1,19 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: useds.example.org
+  labels:
+    foo: bar
+spec:
+  scope: Namespaced
+  group: example.org
+  names:
+    kind: Used
+    plural: useds
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+       type: object

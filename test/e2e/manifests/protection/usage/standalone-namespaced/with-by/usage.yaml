@@ -1,0 +1,18 @@
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  namespace: default
+  name: using-uses-used
+spec:
+  replayDeletion: true
+  of:
+    apiVersion: v1
+    kind: ConfigMap
+    resourceSelector:
+        matchLabels:
+            foo: bar
+  by:
+    apiVersion: v1
+    kind: ConfigMap
+    resourceRef:
+      name: using-resource

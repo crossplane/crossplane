@@ -22,7 +22,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -34,11 +33,6 @@ const (
 
 	errFmtKindChanged     = "cannot change the kind of a composed resource from %s to %s (possible composed resource template mismatch)"
 	errFmtNamePrefixLabel = "cannot find top-level composite resource name label %q in composite resource metadata"
-
-	// TODO(negz): Include more detail such as field paths if they exist.
-	// Perhaps require each patch type to have a String() method to help
-	// identify it.
-	errFmtPatch = "cannot apply the %q patch at index %d"
 )
 
 // RenderFromJSON renders the supplied resource from JSON bytes.
@@ -78,29 +72,6 @@ func RenderFromJSON(o resource.Object, data []byte) error {
 	return nil
 }
 
-// RenderFromCompositePatches renders the supplied composed resource by applying
-// all patches that are _from_ the supplied composite resource.
-func RenderFromCompositePatches(cd resource.Composed, xr resource.Composite, p []v1.Patch) error {
-	for i := range p {
-		if err := Apply(p[i], xr, cd, patchTypesFromXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
-		}
-	}
-	return nil
-}
-
-// RenderToCompositePatches renders the supplied composite resource by applying
-// all patches that are _from_ the supplied composed resource. composed resource
-// and template.
-func RenderToCompositePatches(xr resource.Composite, cd resource.Composed, p []v1.Patch) error {
-	for i := range p {
-		if err := Apply(p[i], xr, cd, patchTypesToXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, p[i].Type, i)
-		}
-	}
-	return nil
-}
-
 // RenderComposedResourceMetadata derives composed resource metadata from the
 // supplied composite resource. It makes the composite resource the controller
 // of the composed resource. It should run toward the end of a render pipeline
@@ -112,14 +83,25 @@ func RenderComposedResourceMetadata(cd, xr resource.Object, n ResourceName) erro
 		return errors.Errorf(errFmtNamePrefixLabel, xcrd.LabelKeyNamePrefixForComposed)
 	}
 
-	//  We also set generate name in case we
-	// haven't yet named this composed resource.
-	cd.SetGenerateName(xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+	// We recommend composed resources let us generate a name for them. They're
+	// allowed to explicitly specify a name if they want though.
+	if cd.GetName() == "" && cd.GetGenerateName() == "" {
+		cd.SetGenerateName(xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+	}
+
+	// If the XR is namespaced it can only create composed resources in its own
+	// namespace. Cluster scoped XRs can compose cluster scoped resources, or
+	// resources in any namespace.
+	if xr.GetNamespace() != "" {
+		cd.SetNamespace(xr.GetNamespace())
+	}
 
 	if n != "" {
 		SetCompositionResourceName(cd, n)
 	}
 
+	// TODO(negz): What happens if there is no claim? Will this set empty
+	// claim name/namespace labels?
 	meta.AddLabels(cd, map[string]string{
 		xcrd.LabelKeyNamePrefixForComposed: xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
 		xcrd.LabelKeyClaimName:             xr.GetLabels()[xcrd.LabelKeyClaimName],

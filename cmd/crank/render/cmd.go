@@ -31,9 +31,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
 // Cmd arguments and flags for render subcommand.
@@ -151,14 +151,6 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		return errors.Errorf("composition's compositeTypeRef.apiVersion (%s) does not match XR's apiVersion (%s)", compRef.APIVersion, xrGVK.GroupVersion().String())
 	}
 
-	warns, errs := comp.Validate()
-	for _, warn := range warns {
-		_, _ = fmt.Fprintf(k.Stderr, "WARN(composition): %s\n", warn)
-	}
-	if len(errs) > 0 {
-		return errors.Wrapf(errs.ToAggregate(), "invalid Composition %q", comp.GetName())
-	}
-
 	// check if XR's matchLabels have corresponding label at composition
 	xrSelector := xr.GetCompositionSelector()
 	if xrSelector != nil {
@@ -174,7 +166,7 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 		}
 	}
 
-	if m := comp.Spec.Mode; m == nil || *m != v1.CompositionModePipeline {
+	if comp.Spec.Mode != v1.CompositionModePipeline {
 		return errors.Errorf("render only supports Composition Function pipelines: Composition %q must use spec.mode: Pipeline", comp.GetName())
 	}
 

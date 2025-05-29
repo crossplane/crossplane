@@ -36,12 +36,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -107,15 +107,15 @@ func (fn CompositeSyncerFn) Sync(ctx context.Context, cm *claim.Unstructured, xr
 // A ConnectionPropagator is responsible for propagating information required to
 // connect to a resource.
 type ConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+	PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error)
 }
 
 // A ConnectionPropagatorFn is responsible for propagating information required
 // to connect to a resource.
-type ConnectionPropagatorFn func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+type ConnectionPropagatorFn func(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error)
 
 // PropagateConnection details from one resource to the other.
-func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error) {
 	return fn(ctx, to, from)
 }
 
@@ -127,7 +127,7 @@ type ConnectionPropagatorChain []ConnectionPropagator
 // chain and returns propagated if at least one ConnectionPropagator propagates
 // the connection details but exits with an error if any of them fails without
 // calling the remaining ones.
-func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to xresource.LocalConnectionSecretOwner, from xresource.ConnectionSecretOwner) (propagated bool, err error) {
 	for _, p := range pc {
 		var pg bool
 		pg, err = p.PropagateConnection(ctx, to, from)
@@ -141,32 +141,18 @@ func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to 
 	return propagated, nil
 }
 
-// A ConnectionUnpublisher is responsible for cleaning up connection secret.
-type ConnectionUnpublisher interface {
-	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error
-}
-
-// A ConnectionUnpublisherFn is responsible for cleaning up connection secret.
-type ConnectionUnpublisherFn func(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error
-
-// UnpublishConnection details of a local connection secret owner.
-func (fn ConnectionUnpublisherFn) UnpublishConnection(ctx context.Context, so resource.LocalConnectionSecretOwner, c managed.ConnectionDetails) error {
-	return fn(ctx, so, c)
-}
-
 // A DefaultsSelector copies default values from the CompositeResourceDefinition when the corresponding field
 // in the Claim is not set.
 type DefaultsSelector interface {
 	// SelectDefaults from CompositeResourceDefinition when needed.
-	SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error
+	SelectDefaults(ctx context.Context, cm xresource.Claim) error
 }
 
 // A DefaultsSelectorFn is responsible for copying default values from the CompositeResourceDefinition.
-type DefaultsSelectorFn func(ctx context.Context, cm resource.CompositeClaim) error
+type DefaultsSelectorFn func(ctx context.Context, cm xresource.Claim) error
 
 // SelectDefaults copies default values from the XRD if necessary.
-func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error {
+func (fn DefaultsSelectorFn) SelectDefaults(ctx context.Context, cm xresource.Claim) error {
 	return fn(ctx, cm)
 }
 
@@ -208,13 +194,11 @@ func defaultCRComposite(c client.Client) crComposite {
 
 type crClaim struct {
 	resource.Finalizer
-	ConnectionUnpublisher
 }
 
 func defaultCRClaim(c client.Client) crClaim {
 	return crClaim{
-		Finalizer:             resource.NewAPIFinalizer(c, finalizer),
-		ConnectionUnpublisher: NewNopConnectionUnpublisher(),
+		Finalizer: resource.NewAPIFinalizer(c, finalizer),
 	}
 }
 
@@ -246,14 +230,6 @@ func WithConnectionPropagator(p ConnectionPropagator) ReconcilerOption {
 	}
 }
 
-// WithConnectionUnpublisher specifies which ConnectionUnpublisher should be
-// used to unpublish resource connection details.
-func WithConnectionUnpublisher(u ConnectionUnpublisher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.claim.ConnectionUnpublisher = u
-	}
-}
-
 // WithClaimFinalizer specifies which ClaimFinalizer should be used to finalize
 // claims when they are deleted.
 func WithClaimFinalizer(f resource.Finalizer) ReconcilerOption {
@@ -277,15 +253,15 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 }
 
 // NewReconciler returns a Reconciler that reconciles composite resource claims of
-// the supplied CompositeClaimKind with resources of the supplied CompositeKind.
+// the supplied ClaimKind with resources of the supplied CompositeKind.
 // The returned Reconciler will apply only the ObjectMetaConfigurator by
 // default; most callers should supply one or more CompositeConfigurators to
 // configure their composite resources.
-func NewReconciler(c client.Client, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
+func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client:        c,
-		gvkClaim:      schema.GroupVersionKind(of),
-		gvkXR:         schema.GroupVersionKind(with),
+		gvkClaim:      of,
+		gvkXR:         with,
 		managedFields: &NopManagedFieldsUpgrader{},
 		composite:     defaultCRComposite(c),
 		claim:         defaultCRClaim(c),
@@ -336,7 +312,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR))
+	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR), composite.WithSchema(composite.SchemaLegacy))
 	if ref := cm.GetResourceReference(); ref != nil {
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
@@ -409,16 +385,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				log.Debug("Waiting for the XR to finish deleting (foreground deletion)")
 				return reconcile.Result{Requeue: true}, nil
 			}
-		}
-
-		// Claims do not publish connection details but may propagate XR
-		// secrets. Hence, we need to clean up propagated secrets when the
-		// claim is deleted.
-		if err := r.claim.UnpublishConnection(ctx, cm, nil); err != nil {
-			err = errors.Wrap(err, errDeleteCDs)
-			record.Event(cm, event.Warning(reasonDelete, err))
-			status.MarkConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
 		record.Event(cm, event.Normal(reasonDelete, "Successfully deleted composite resource"))
