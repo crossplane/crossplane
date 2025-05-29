@@ -33,7 +33,7 @@ import (
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/util/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
 	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 )

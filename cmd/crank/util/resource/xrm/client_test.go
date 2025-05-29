@@ -27,7 +27,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	resource2 "github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	resource2 "github.com/crossplane/crossplane/cmd/crank/util/resource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
