@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/pkg/manager"
 	"github.com/crossplane/crossplane/internal/controller/pkg/resolver"
 	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
+	"github.com/crossplane/crossplane/internal/controller/pkg/runtime"
 	"github.com/crossplane/crossplane/internal/controller/pkg/signature"
 	"github.com/crossplane/crossplane/internal/features"
 )
@@ -38,6 +39,13 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 		revision.SetupFunctionRevision,
+	}
+
+	if o.PackageRuntime == controller.PackageRuntimeDeployment {
+		setupFuncs = append(setupFuncs, []func(c ctrl.Manager, options controller.Options) error{
+			runtime.SetupProviderRevision,
+			runtime.SetupFunctionRevision,
+		}...)
 	}
 
 	if o.Features.Enabled(features.EnableAlphaSignatureVerification) {

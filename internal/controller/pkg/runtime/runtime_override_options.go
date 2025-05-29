@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package revision
+package runtime
 
 import (
 	"strconv"
@@ -88,9 +88,9 @@ func DeploymentWithOptionalPodScrapeAnnotations() DeploymentOverride {
 		if d.Spec.Template.Annotations == nil {
 			d.Spec.Template.Annotations = map[string]string{}
 		}
-		metricsPort := strconv.Itoa(metricsPortNumber)
+		metricsPort := strconv.Itoa(MetricsPortNumber)
 		for _, port := range d.Spec.Template.Spec.Containers[0].Ports {
-			if port.Name == metricsPortName {
+			if port.Name == MetricsPortName {
 				metricsPort = strconv.Itoa(int(port.ContainerPort))
 				break
 			}
@@ -197,7 +197,7 @@ func DeploymentRuntimeWithImagePullPolicy(policy corev1.PullPolicy) DeploymentOv
 // runtime container of a Deployment.
 func DeploymentRuntimeWithTLSServerSecret(secret string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
-		mountTLSSecret(secret, tlsServerCertsVolumeName, tlsServerCertsDir, tlsServerCertDirEnvVar, d)
+		mountTLSSecret(secret, TLSServerCertsVolumeName, TLSServerCertsDir, TLSServerCertDirEnvVar, d)
 	}
 }
 
@@ -206,7 +206,7 @@ func DeploymentRuntimeWithTLSServerSecret(secret string) DeploymentOverride {
 // runtime container of a Deployment.
 func DeploymentRuntimeWithTLSClientSecret(secret string) DeploymentOverride {
 	return func(d *appsv1.Deployment) {
-		mountTLSSecret(secret, tlsClientCertsVolumeName, tlsClientCertsDir, tlsClientCertDirEnvVar, d)
+		mountTLSSecret(secret, TLSClientCertsVolumeName, TLSClientCertsDir, TLSClientCertDirEnvVar, d)
 	}
 }
 
@@ -260,7 +260,7 @@ func DeploymentRuntimeWithOptionalSecurityContext(securityContext *corev1.Securi
 func DeploymentWithRuntimeContainer() DeploymentOverride {
 	return func(d *appsv1.Deployment) {
 		for i := range d.Spec.Template.Spec.Containers {
-			if d.Spec.Template.Spec.Containers[i].Name == runtimeContainerName {
+			if d.Spec.Template.Spec.Containers[i].Name == ContainerName {
 				if i == 0 {
 					// Already the first container, done.
 					return
@@ -275,7 +275,7 @@ func DeploymentWithRuntimeContainer() DeploymentOverride {
 		// The runtime container does not exist, add it to the first position
 		d.Spec.Template.Spec.Containers = append([]corev1.Container{
 			{
-				Name: runtimeContainerName,
+				Name: ContainerName,
 			},
 		}, d.Spec.Template.Spec.Containers...)
 	}

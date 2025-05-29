@@ -90,38 +90,6 @@ func (e *MockEstablisher) ReleaseObjects(context.Context, v1.PackageRevision) er
 	return e.MockRelinquish()
 }
 
-var _ RuntimeHooks = &MockHook{}
-
-type MockHook struct {
-	MockPre        func() error
-	MockPost       func() error
-	MockDeactivate func() error
-}
-
-func NewMockPreFn(err error) func() error {
-	return func() error { return err }
-}
-
-func NewMockPostFn(err error) func() error {
-	return func() error { return err }
-}
-
-func NewMockDeactivateFn(err error) func() error {
-	return func() error { return err }
-}
-
-func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
-	return h.MockPre()
-}
-
-func (h *MockHook) Post(context.Context, runtime.Object, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
-	return h.MockPost()
-}
-
-func (h *MockHook) Deactivate(context.Context, v1.PackageRevisionWithRuntime, ManifestBuilder) error {
-	return h.MockDeactivate()
-}
-
 var _ parser.Linter = &MockLinter{}
 
 type MockLinter struct {
@@ -528,7 +496,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetPackagePullPolicy(&pullPolicy)
-								want.SetConditions(v1.Unhealthy().WithMessage("failed to get pre-cached package with pull policy Never"))
+								want.SetConditions(v1.Establishing().WithMessage("failed to get pre-cached package with pull policy Never"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -571,7 +539,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot initialize parser backend: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot initialize parser backend: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -615,7 +583,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot parse package contents: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot parse package contents: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -660,7 +628,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot parse package contents: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot parse package contents: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -706,7 +674,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot parse package contents: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot parse package contents: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -753,7 +721,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot parse package contents: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot parse package contents: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -800,7 +768,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("linting package contents failed: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("linting package contents failed: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -850,7 +818,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("incompatible Crossplane version: package is not compatible with Crossplane version (v0.11.0): boom"))
+								want.SetConditions(v1.Establishing().WithMessage("incompatible Crossplane version: package is not compatible with Crossplane version (v0.11.0): boom"))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -915,7 +883,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot install package with multiple meta types"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot install package with multiple meta types"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -964,7 +932,7 @@ func TestReconcile(t *testing.T) {
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot update package revision object metadata: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot update package revision object metadata: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1020,7 +988,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetSkipDependencyResolution(ptr.To(false))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.UnknownHealth().WithMessage("cannot resolve package dependencies: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot resolve package dependencies: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1064,146 +1032,6 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errResolveDeps),
 			},
 		},
-		"ErrPreHook": {
-			reason: "We should return an error if pre establishment runtimeHook returns an error.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								if pr, ok := o.(*v1.ProviderRevision); ok {
-									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-									pr.SetDesiredState(v1.PackageRevisionActive)
-									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage(errPreHook + ": boom"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithRuntimeHooks(&MockHook{
-						MockPre: NewMockPreFn(errBoom),
-					}),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errPreHook),
-			},
-		},
-		"ErrPostHook": {
-			reason: "We should return an error if post establishment runtimeHook returns an error.",
-			args: args{
-				mgr: &fake.Manager{},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-								if pr, ok := o.(*v1.ProviderRevision); ok {
-									pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-									pr.SetDesiredState(v1.PackageRevisionActive)
-									pr.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage(errPostHook + ": boom"))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-								want := &v1.ProviderRevision{}
-								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "default"})
-								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-					}),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return nil
-					}}),
-					WithRuntimeHooks(&MockHook{
-						MockPre:  NewMockPreFn(nil),
-						MockPost: NewMockPostFn(errBoom),
-					}),
-					WithEstablisher(NewMockEstablisher()),
-					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithCache(&xpkgfake.MockCache{
-						MockHas: xpkgfake.NewMockCacheHasFn(false),
-						MockStore: func(_ string, rc io.ReadCloser) error {
-							_, err := io.ReadAll(rc)
-							return err
-						},
-					}),
-					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
-					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
-					WithConfigStore(&xpkgfake.MockConfigStore{
-						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("", "", nil),
-						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errPostHook),
-			},
-		},
 		"SuccessfulActiveRevision": {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
@@ -1223,7 +1051,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1350,7 +1178,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "imageConfigName",
@@ -1427,7 +1255,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 								want.SetIgnoreCrossplaneConstraints(&trueVal)
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -1495,7 +1323,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Unhealthy().WithMessage("cannot establish control of object: boom"))
+								want.SetConditions(v1.Establishing().WithMessage("cannot establish control of object: boom"))
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1585,7 +1413,7 @@ func TestReconcile(t *testing.T) {
 								}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1634,7 +1462,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1723,7 +1551,7 @@ func TestReconcile(t *testing.T) {
 								}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -1981,7 +1809,7 @@ func TestReconcile(t *testing.T) {
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.VerificationSucceeded("foo"))
-								want.SetConditions(v1.Healthy())
+								want.SetConditions(v1.Established())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
