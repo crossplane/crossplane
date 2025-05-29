@@ -1,0 +1,249 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: imageconfigs.pkg.crossplane.io
+spec:
+  group: pkg.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: ImageConfig
+    listKind: ImageConfigList
+    plural: imageconfigs
+    singular: imageconfig
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: The ImageConfig resource is used to configure settings for package
+          images.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ImageConfigSpec contains the configuration for matching images.
+            properties:
+              matchImages:
+                description: |-
+                  MatchImages is a list of image matching rules. This ImageConfig will
+                  match an image if any one of these rules is satisfied. In the case where
+                  multiple ImageConfigs match an image for a given purpose the one with the
+                  most specific match will be used. If multiple rules of equal specificity
+                  match an arbitrary one will be selected.
+                items:
+                  description: ImageMatch defines a rule for matching image.
+                  properties:
+                    prefix:
+                      description: |-
+                        Prefix is the prefix that should be matched. When multiple prefix rules
+                        match an image path, the longest one takes precedence.
+                      type: string
+                    type:
+                      default: Prefix
+                      description: Type is the type of match.
+                      enum:
+                      - Prefix
+                      type: string
+                  required:
+                  - prefix
+                  type: object
+                type: array
+                x-kubernetes-validations:
+                - message: matchImages should have at least one element.
+                  rule: size(self) > 0
+              registry:
+                description: Registry is the configuration for the registry.
+                properties:
+                  authentication:
+                    description: Authentication is the authentication information
+                      for the registry.
+                    properties:
+                      pullSecretRef:
+                        description: |-
+                          PullSecretRef is a reference to a secret that contains the credentials for
+                          the registry.
+                        properties:
+                          name:
+                            default: ""
+                            description: |-
+                              Name of the referent.
+                              This field is effectively required, but due to backwards compatibility is
+                              allowed to be empty. Instances of this type with an empty value here are
+                              almost certainly wrong.
+                              More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                    required:
+                    - pullSecretRef
+                    type: object
+                type: object
+              rewriteImage:
+                description: RewriteImage defines how a matched image's path should
+                  be rewritten.
+                properties:
+                  prefix:
+                    description: |-
+                      Prefix is the prefix that will replace the portion of the image's path
+                      matched by the prefix in the ImageMatch. If multiple prefixes matched,
+                      the longest one will be replaced.
+                    type: string
+                required:
+                - prefix
+                type: object
+              verification:
+                description: Verification contains the configuration for verifying
+                  the image.
+                properties:
+                  cosign:
+                    description: Cosign is the configuration for verifying the image
+                      using cosign.
+                    properties:
+                      authorities:
+                        description: Authorities defines the rules for discovering
+                          and validating signatures.
+                        items:
+                          description: CosignAuthority defines the rules for discovering
+                            and validating signatures.
+                          properties:
+                            attestations:
+                              description: |-
+                                Attestations is a list of individual attestations for this authority,
+                                once the signature for this authority has been verified.
+                              items:
+                                description: |-
+                                  Attestation defines the type of attestation to validate and optionally
+                                  apply a policy decision to it. Authority block is used to verify the
+                                  specified attestation types, and if Policy is specified, then it's applied
+                                  only after the validation of the Attestation signature has been verified.
+                                properties:
+                                  name:
+                                    description: Name of the attestation.
+                                    type: string
+                                  predicateType:
+                                    description: |-
+                                      PredicateType defines which predicate type to verify. Matches cosign
+                                      verify-attestation options.
+                                    type: string
+                                required:
+                                - name
+                                - predicateType
+                                type: object
+                              type: array
+                            key:
+                              description: Key defines the type of key to validate
+                                the image.
+                              properties:
+                                hashAlgorithm:
+                                  default: sha256
+                                  description: HashAlgorithm always defaults to sha256
+                                    if the algorithm hasn't been explicitly set
+                                  type: string
+                                secretRef:
+                                  description: SecretRef sets a reference to a secret
+                                    with the key.
+                                  properties:
+                                    key:
+                                      description: The key to select.
+                                      type: string
+                                    name:
+                                      description: Name of the secret.
+                                      type: string
+                                  required:
+                                  - key
+                                  - name
+                                  type: object
+                              required:
+                              - hashAlgorithm
+                              - secretRef
+                              type: object
+                            keyless:
+                              description: |-
+                                Keyless sets the configuration to verify the authority against a Fulcio
+                                instance.
+                              properties:
+                                identities:
+                                  description: Identities sets a list of identities.
+                                  items:
+                                    description: |-
+                                      Identity may contain the issuer and/or the subject found in the transparency
+                                      log.
+                                      Issuer/Subject uses a strict match, while IssuerRegExp and SubjectRegExp
+                                      apply a regexp for matching.
+                                    properties:
+                                      issuer:
+                                        description: Issuer defines the issuer for
+                                          this identity.
+                                        type: string
+                                      issuerRegExp:
+                                        description: |-
+                                          IssuerRegExp specifies a regular expression to match the issuer for this identity.
+                                          This has precedence over the Issuer field.
+                                        type: string
+                                      subject:
+                                        description: Subject defines the subject for
+                                          this identity.
+                                        type: string
+                                      subjectRegExp:
+                                        description: |-
+                                          SubjectRegExp specifies a regular expression to match the subject for this identity.
+                                          This has precedence over the Subject field.
+                                        type: string
+                                    type: object
+                                  type: array
+                                insecureIgnoreSCT:
+                                  description: InsecureIgnoreSCT omits verifying if
+                                    a certificate contains an embedded SCT
+                                  type: boolean
+                              required:
+                              - identities
+                              type: object
+                            name:
+                              description: Name is the name for this authority.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                    required:
+                    - authorities
+                    type: object
+                  provider:
+                    description: Provider is the provider that should be used to verify
+                      the image.
+                    enum:
+                    - Cosign
+                    type: string
+                required:
+                - provider
+                type: object
+            required:
+            - matchImages
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources: {}

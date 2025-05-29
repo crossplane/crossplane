@@ -4,30 +4,39 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.5
-  name: operations.daytwo.crossplane.io
+  name: compositions.apiextensions.crossplane.io
 spec:
-  group: daytwo.crossplane.io
+  group: apiextensions.crossplane.io
   names:
     categories:
     - crossplane
-    kind: Operation
-    listKind: OperationList
-    plural: operations
+    kind: Composition
+    listKind: CompositionList
+    plural: compositions
     shortNames:
-    - op
-    singular: operation
-  scope: Namespaced
+    - comp
+    singular: composition
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.compositeTypeRef.kind
+      name: XR-KIND
+      type: string
+    - jsonPath: .spec.compositeTypeRef.apiVersion
+      name: XR-APIVERSION
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    name: v1alpha1
+    name: v1
     schema:
       openAPIV3Schema:
         description: |-
-          An Operation defines a pipeline of functions that together constitute a day
-          two operation.
+          A Composition defines a collection of managed resources or functions that
+          Crossplane uses to create and manage new composite resources.
+
+          Read the Crossplane documentation for
+          [more information about Compositions](https://docs.crossplane.io/latest/concepts/compositions).
         properties:
           apiVersion:
             description: |-
@@ -47,24 +56,51 @@ spec:
           metadata:
             type: object
           spec:
-            description: OperationSpec specifies desired state of an operation.
+            description: CompositionSpec specifies desired state of a composition.
             properties:
-              failureLimit:
+              compositeTypeRef:
                 description: |-
-                  FailureLimit configures how many times the operation may fail. When the
-                  failure limit is exceeded, the operation will not be retried.
-                format: int64
-                type: integer
+                  CompositeTypeRef specifies the type of composite resource that this
+                  composition is compatible with.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the type.
+                    type: string
+                  kind:
+                    description: Kind of the type.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+              mode:
+                default: Pipeline
+                description: |-
+                  Mode controls what type or "mode" of Composition will be used.
+
+                  "Pipeline" indicates that a Composition specifies a pipeline of
+                  Composition Functions, each of which is responsible for producing
+                  composed resources that Crossplane should create or update.
+                enum:
+                - Pipeline
+                type: string
               pipeline:
                 description: |-
-                  Pipeline is a list of operation function steps that will be used when
-                  this operation runs.
+                  Pipeline is a list of composition function steps that will be used when a
+                  composite resource referring to this composition is created. One of
+                  resources and pipeline must be specified - you cannot specify both.
+
+                  The Pipeline is only used by the "Pipeline" mode of Composition. It is
+                  ignored by other modes.
                 items:
-                  description: A PipelineStep in an operation function pipeline.
+                  description: A PipelineStep in a Composition Function pipeline.
                   properties:
                     credentials:
-                      description: Credentials are optional credentials that the operation
-                        function needs.
+                      description: Credentials are optional credentials that the Composition
+                        Function needs.
                       items:
                         description: |-
                           FunctionCredentials are optional credentials that a Composition Function
@@ -98,7 +134,13 @@ spec:
                         - name
                         - source
                         type: object
+                        x-kubernetes-validations:
+                        - message: the Secret source requires a secretRef
+                          rule: self.source == 'Secret' && has(self.secretRef)
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the Composition Function this step should
@@ -125,83 +167,24 @@ spec:
                   - functionRef
                   - step
                   type: object
-                type: array
-            required:
-            - pipeline
-            type: object
-          status:
-            description: OperationStatus represents the observed state of an operation.
-            properties:
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  description: A Condition that may apply to a resource.
-                  properties:
-                    lastTransitionTime:
-                      description: |-
-                        LastTransitionTime is the last time this condition transitioned from one
-                        status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: |-
-                        A Message containing details about this condition's last transition from
-                        one status to another, if any.
-                      type: string
-                    observedGeneration:
-                      description: |-
-                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
-                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-                        with respect to the current state of the instance.
-                      format: int64
-                      type: integer
-                    reason:
-                      description: A Reason for this condition's last transition from
-                        one status to another.
-                      type: string
-                    status:
-                      description: Status of this condition; is it currently True,
-                        False, or Unknown?
-                      type: string
-                    type:
-                      description: |-
-                        Type of this condition. At most one of each condition type may apply to
-                        a resource at any point in time.
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - reason
-                  - status
-                  - type
-                  type: object
+                maxItems: 99
+                minItems: 1
                 type: array
                 x-kubernetes-list-map-keys:
-                - type
+                - step
                 x-kubernetes-list-type: map
-              failures:
-                description: Number of operation failures.
-                format: int64
-                type: integer
-              pipeline:
+              writeConnectionSecretsToNamespace:
                 description: |-
-                  Pipeline represents the output of the pipeline steps that this operation
-                  ran.
-                items:
-                  description: PipelineStepStatus represents the status of an individual
-                    pipeline step.
-                  properties:
-                    output:
-                      description: Output of this step.
-                      type: object
-                      x-kubernetes-preserve-unknown-fields: true
-                    step:
-                      description: Step name. Unique within its Pipeline.
-                      type: string
-                  required:
-                  - step
-                  type: object
-                type: array
+                  WriteConnectionSecretsToNamespace specifies the namespace in which the
+                  connection secrets of composite resource dynamically provisioned using
+                  this composition will be created.
+                type: string
+            required:
+            - compositeTypeRef
             type: object
+            x-kubernetes-validations:
+            - message: an array of pipeline steps is required in Pipeline mode
+              rule: self.mode == 'Pipeline' && has(self.pipeline)
         type: object
     served: true
     storage: true

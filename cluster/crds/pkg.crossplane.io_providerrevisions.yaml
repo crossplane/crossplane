@@ -1,0 +1,359 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+  name: providerrevisions.pkg.crossplane.io
+spec:
+  group: pkg.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - pkgrev
+    kind: ProviderRevision
+    listKind: ProviderRevisionList
+    plural: providerrevisions
+    singular: providerrevision
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Healthy')].status
+      name: HEALTHY
+      type: string
+    - jsonPath: .spec.revision
+      name: REVISION
+      type: string
+    - jsonPath: .spec.image
+      name: IMAGE
+      type: string
+    - jsonPath: .spec.desiredState
+      name: STATE
+      type: string
+    - jsonPath: .status.foundDependencies
+      name: DEP-FOUND
+      type: string
+    - jsonPath: .status.installedDependencies
+      name: DEP-INSTALLED
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          A ProviderRevision represents a revision of a Provider. Crossplane
+          creates new revisions when there are changes to a Provider.
+
+          Crossplane creates and manages ProviderRevisions. Don't directly edit
+          ProviderRevisions.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ProviderRevisionSpec specifies configuration for a ProviderRevision.
+            properties:
+              commonLabels:
+                additionalProperties:
+                  type: string
+                description: |-
+                  Map of string keys and values that can be used to organize and categorize
+                  (scope and select) objects. May match selectors of replication controllers
+                  and services.
+                  More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+                type: object
+              controllerConfigRef:
+                description: |-
+                  ControllerConfigRef references a ControllerConfig resource that will be
+                  used to configure the packaged controller Deployment.
+                  Deprecated: Use RuntimeConfigReference instead.
+                properties:
+                  name:
+                    description: Name of the ControllerConfig.
+                    type: string
+                required:
+                - name
+                type: object
+              desiredState:
+                description: DesiredState of the PackageRevision. Can be either Active
+                  or Inactive.
+                type: string
+              ignoreCrossplaneConstraints:
+                default: false
+                description: |-
+                  IgnoreCrossplaneConstraints indicates to the package manager whether to
+                  honor Crossplane version constrains specified by the package.
+                  Default is false.
+                type: boolean
+              image:
+                description: Package image used by install Pod to extract package
+                  contents.
+                type: string
+              packagePullPolicy:
+                default: IfNotPresent
+                description: |-
+                  PackagePullPolicy defines the pull policy for the package. It is also
+                  applied to any images pulled for the package, such as a provider's
+                  controller image.
+                  Default is IfNotPresent.
+                type: string
+              packagePullSecrets:
+                description: |-
+                  PackagePullSecrets are named secrets in the same namespace that can be
+                  used to fetch packages from private registries. They are also applied to
+                  any images pulled for the package, such as a provider's controller image.
+                items:
+                  description: |-
+                    LocalObjectReference contains enough information to let you locate the
+                    referenced object inside the same namespace.
+                  properties:
+                    name:
+                      default: ""
+                      description: |-
+                        Name of the referent.
+                        This field is effectively required, but due to backwards compatibility is
+                        allowed to be empty. Instances of this type with an empty value here are
+                        almost certainly wrong.
+                        More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      type: string
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+              revision:
+                description: |-
+                  Revision number. Indicates when the revision will be garbage collected
+                  based on the parent's RevisionHistoryLimit.
+                format: int64
+                type: integer
+              runtimeConfigRef:
+                default:
+                  name: default
+                description: |-
+                  RuntimeConfigRef references a RuntimeConfig resource that will be used
+                  to configure the package runtime.
+                properties:
+                  apiVersion:
+                    default: pkg.crossplane.io/v1beta1
+                    description: API version of the referent.
+                    type: string
+                  kind:
+                    default: DeploymentRuntimeConfig
+                    description: Kind of the referent.
+                    type: string
+                  name:
+                    description: Name of the RuntimeConfig.
+                    type: string
+                required:
+                - name
+                type: object
+              skipDependencyResolution:
+                default: false
+                description: |-
+                  SkipDependencyResolution indicates to the package manager whether to skip
+                  resolving dependencies for a package. Setting this value to true may have
+                  unintended consequences.
+                  Default is false.
+                type: boolean
+              tlsClientSecretName:
+                description: |-
+                  TLSClientSecretName is the name of the TLS Secret that stores client
+                  certificates of the Provider.
+                type: string
+              tlsServerSecretName:
+                description: |-
+                  TLSServerSecretName is the name of the TLS Secret that stores server
+                  certificates of the Provider.
+                type: string
+            required:
+            - desiredState
+            - image
+            - revision
+            type: object
+          status:
+            description: PackageRevisionStatus represents the observed state of a
+              PackageRevision.
+            properties:
+              appliedImageConfigRefs:
+                description: |-
+                  AppliedImageConfigRefs records any image configs that were applied in
+                  reconciling this revision, and what they were used for.
+                items:
+                  description: |-
+                    ImageConfigRef is a reference to an image config that indicates how the
+                    referenced image config was used by the package manager.
+                  properties:
+                    name:
+                      description: Name is the name of the image config.
+                      type: string
+                    reason:
+                      description: Reason indicates what the image config was used
+                        for.
+                      type: string
+                  required:
+                  - name
+                  - reason
+                  type: object
+                type: array
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              foundDependencies:
+                description: Dependency information.
+                format: int64
+                type: integer
+              installedDependencies:
+                format: int64
+                type: integer
+              invalidDependencies:
+                format: int64
+                type: integer
+              objectRefs:
+                description: References to objects owned by PackageRevision.
+                items:
+                  description: |-
+                    A TypedReference refers to an object by Name, Kind, and APIVersion. It is
+                    commonly used to reference cluster-scoped objects or objects where the
+                    namespace is already known.
+                  properties:
+                    apiVersion:
+                      description: APIVersion of the referenced object.
+                      type: string
+                    kind:
+                      description: Kind of the referenced object.
+                      type: string
+                    name:
+                      description: Name of the referenced object.
+                      type: string
+                    uid:
+                      description: UID of the referenced object.
+                      type: string
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  type: object
+                type: array
+              permissionRequests:
+                description: |-
+                  PermissionRequests made by this package. The package declares that its
+                  controller needs these permissions to run. The RBAC manager is
+                  responsible for granting them.
+                items:
+                  description: |-
+                    PolicyRule holds information that describes a policy rule, but does not contain information
+                    about who the rule applies to or which namespace the rule applies to.
+                  properties:
+                    apiGroups:
+                      description: |-
+                        APIGroups is the name of the APIGroup that contains the resources.  If multiple API groups are specified, any action requested against one of
+                        the enumerated resources in any API group will be allowed. "" represents the core API group and "*" represents all API groups.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    nonResourceURLs:
+                      description: |-
+                        NonResourceURLs is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path
+                        Since non-resource URLs are not namespaced, this field is only applicable for ClusterRoles referenced from a ClusterRoleBinding.
+                        Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    resourceNames:
+                      description: ResourceNames is an optional white list of names
+                        that the rule applies to.  An empty set means that everything
+                        is allowed.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    resources:
+                      description: Resources is a list of resources this rule applies
+                        to. '*' represents all resources.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                    verbs:
+                      description: Verbs is a list of Verbs that apply to ALL the
+                        ResourceKinds contained in this rule. '*' represents all verbs.
+                      items:
+                        type: string
+                      type: array
+                      x-kubernetes-list-type: atomic
+                  required:
+                  - verbs
+                  type: object
+                type: array
+              resolvedImage:
+                description: |-
+                  ResolvedPackage is the name of the package that was installed. It may be
+                  different from spec.image if the package path was rewritten using an
+                  image config.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

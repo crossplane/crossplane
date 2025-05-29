@@ -118,15 +118,12 @@ type PipelineStepStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient
-// +genclient:nonNamespaced
 
 // An Operation defines a pipeline of functions that together constitute a day
 // two operation.
 //
-// +kubebuilder:printcolumn:name="XR-KIND",type="string",JSONPath=".spec.compositeTypeRef.kind"
-// +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=comp
+// +kubebuilder:resource:categories=crossplane,shortName=op
 type Operation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

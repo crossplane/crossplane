@@ -35,6 +35,7 @@ const (
 // goverter:converter
 // goverter:name GeneratedToHubConverter
 // goverter:extend ConvertObjectMeta
+// goverter:enum:unknown @ignore
 // goverter:output:file ./zz_generated.conversion.go
 // +k8s:deepcopy-gen=false
 type ToHubConverter interface {
@@ -46,6 +47,7 @@ type ToHubConverter interface {
 // goverter:converter
 // goverter:name GeneratedFromHubConverter
 // goverter:extend ConvertObjectMeta
+// goverter:enum:unknown @ignore
 // goverter:output:file ./zz_generated.conversion.go
 // +k8s:deepcopy-gen=false
 type FromHubConverter interface {

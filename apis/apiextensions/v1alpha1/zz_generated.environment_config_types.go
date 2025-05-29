@@ -24,7 +24,6 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +genclient
 // +genclient:nonNamespaced
 

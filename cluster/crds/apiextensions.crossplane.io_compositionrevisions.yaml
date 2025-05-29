@@ -4,30 +4,42 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.5
-  name: operations.daytwo.crossplane.io
+  name: compositionrevisions.apiextensions.crossplane.io
 spec:
-  group: daytwo.crossplane.io
+  group: apiextensions.crossplane.io
   names:
     categories:
     - crossplane
-    kind: Operation
-    listKind: OperationList
-    plural: operations
+    kind: CompositionRevision
+    listKind: CompositionRevisionList
+    plural: compositionrevisions
     shortNames:
-    - op
-    singular: operation
-  scope: Namespaced
+    - comprev
+    singular: compositionrevision
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.revision
+      name: REVISION
+      type: string
+    - jsonPath: .spec.compositeTypeRef.kind
+      name: XR-KIND
+      type: string
+    - jsonPath: .spec.compositeTypeRef.apiVersion
+      name: XR-APIVERSION
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    name: v1alpha1
+    name: v1
     schema:
       openAPIV3Schema:
         description: |-
-          An Operation defines a pipeline of functions that together constitute a day
-          two operation.
+          A CompositionRevision represents a revision of a Composition. Crossplane
+          creates new revisions when there are changes to the Composition.
+
+          Crossplane creates and manages CompositionRevisions. Don't directly edit
+          CompositionRevisions.
         properties:
           apiVersion:
             description: |-
@@ -47,24 +59,53 @@ spec:
           metadata:
             type: object
           spec:
-            description: OperationSpec specifies desired state of an operation.
+            description: |-
+              CompositionRevisionSpec specifies the desired state of the composition
+              revision.
             properties:
-              failureLimit:
+              compositeTypeRef:
                 description: |-
-                  FailureLimit configures how many times the operation may fail. When the
-                  failure limit is exceeded, the operation will not be retried.
-                format: int64
-                type: integer
+                  CompositeTypeRef specifies the type of composite resource that this
+                  composition is compatible with.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the type.
+                    type: string
+                  kind:
+                    description: Kind of the type.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                type: object
+                x-kubernetes-validations:
+                - message: Value is immutable
+                  rule: self == oldSelf
+              mode:
+                default: Pipeline
+                description: |-
+                  Mode controls what type or "mode" of Composition will be used.
+
+                  "Pipeline" indicates that a Composition specifies a pipeline of
+                  Composition Functions, each of which is responsible for producing
+                  composed resources that Crossplane should create or update.
+                enum:
+                - Pipeline
+                type: string
               pipeline:
                 description: |-
-                  Pipeline is a list of operation function steps that will be used when
-                  this operation runs.
+                  Pipeline is a list of composition function steps that will be used when a
+                  composite resource referring to this composition is created. One of
+                  resources and pipeline must be specified - you cannot specify both.
+
+                  The Pipeline is only used by the "Pipeline" mode of Composition. It is
+                  ignored by other modes.
                 items:
-                  description: A PipelineStep in an operation function pipeline.
+                  description: A PipelineStep in a Composition Function pipeline.
                   properties:
                     credentials:
-                      description: Credentials are optional credentials that the operation
-                        function needs.
+                      description: Credentials are optional credentials that the Composition
+                        Function needs.
                       items:
                         description: |-
                           FunctionCredentials are optional credentials that a Composition Function
@@ -98,7 +139,13 @@ spec:
                         - name
                         - source
                         type: object
+                        x-kubernetes-validations:
+                        - message: the Secret source requires a secretRef
+                          rule: self.source == 'Secret' && has(self.secretRef)
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     functionRef:
                       description: |-
                         FunctionRef is a reference to the Composition Function this step should
@@ -126,11 +173,33 @@ spec:
                   - step
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - step
+                x-kubernetes-list-type: map
+              revision:
+                description: |-
+                  Revision number. Newer revisions have larger numbers.
+
+                  This number can change. When a Composition transitions from state A
+                  -> B -> A there will be only two CompositionRevisions. Crossplane will
+                  edit the original CompositionRevision to change its revision number from
+                  0 to 2.
+                format: int64
+                type: integer
+              writeConnectionSecretsToNamespace:
+                description: |-
+                  WriteConnectionSecretsToNamespace specifies the namespace in which the
+                  connection secrets of composite resource dynamically provisioned using
+                  this composition will be created.
+                type: string
             required:
-            - pipeline
+            - compositeTypeRef
+            - revision
             type: object
           status:
-            description: OperationStatus represents the observed state of an operation.
+            description: |-
+              CompositionRevisionStatus shows the observed state of the composition
+              revision.
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -178,31 +247,9 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              failures:
-                description: Number of operation failures.
-                format: int64
-                type: integer
-              pipeline:
-                description: |-
-                  Pipeline represents the output of the pipeline steps that this operation
-                  ran.
-                items:
-                  description: PipelineStepStatus represents the status of an individual
-                    pipeline step.
-                  properties:
-                    output:
-                      description: Output of this step.
-                      type: object
-                      x-kubernetes-preserve-unknown-fields: true
-                    step:
-                      description: Step name. Unique within its Pipeline.
-                      type: string
-                  required:
-                  - step
-                  type: object
-                type: array
             type: object
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}

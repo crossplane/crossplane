@@ -66,17 +66,22 @@ func (c *GeneratedFromHubConverter) v1FunctionSpecToV1beta1FunctionSpec(source v
 		xstring := *source.Image
 		v1beta1FunctionSpec.Image = &xstring
 	}
-<<<<<<< HEAD
-=======
-	v1beta1FunctionSpec.Image = pString
-	var pV1beta1FunctionType *FunctionType
 	if source.Type != nil {
-		v1beta1FunctionType := FunctionType(*source.Type)
-		pV1beta1FunctionType = &v1beta1FunctionType
+		v1beta1FunctionType := c.v1FunctionTypeToV1beta1FunctionType(*source.Type)
+		v1beta1FunctionSpec.Type = &v1beta1FunctionType
 	}
-	v1beta1FunctionSpec.Type = pV1beta1FunctionType
->>>>>>> d5ab5d617 (Add function type to function definitions, add output to function proto)
 	return v1beta1FunctionSpec
+}
+func (c *GeneratedFromHubConverter) v1FunctionTypeToV1beta1FunctionType(source v1.FunctionType) FunctionType {
+	var v1beta1FunctionType FunctionType
+	switch source {
+	case v1.FunctionTypeComposition:
+		v1beta1FunctionType = FunctionTypeComposition
+	case v1.FunctionTypeOperation:
+		v1beta1FunctionType = FunctionTypeOperation
+	default: // ignored
+	}
+	return v1beta1FunctionType
 }
 func (c *GeneratedFromHubConverter) v1MetaSpecToV1beta1MetaSpec(source v1.MetaSpec) MetaSpec {
 	var v1beta1MetaSpec MetaSpec
@@ -160,17 +165,22 @@ func (c *GeneratedToHubConverter) v1beta1FunctionSpecToV1FunctionSpec(source Fun
 		xstring := *source.Image
 		v1FunctionSpec.Image = &xstring
 	}
-<<<<<<< HEAD
-=======
-	v1FunctionSpec.Image = pString
-	var pV1FunctionType *v1.FunctionType
 	if source.Type != nil {
-		v1FunctionType := v1.FunctionType(*source.Type)
-		pV1FunctionType = &v1FunctionType
+		v1FunctionType := c.v1beta1FunctionTypeToV1FunctionType(*source.Type)
+		v1FunctionSpec.Type = &v1FunctionType
 	}
-	v1FunctionSpec.Type = pV1FunctionType
->>>>>>> d5ab5d617 (Add function type to function definitions, add output to function proto)
 	return v1FunctionSpec
+}
+func (c *GeneratedToHubConverter) v1beta1FunctionTypeToV1FunctionType(source FunctionType) v1.FunctionType {
+	var v1FunctionType v1.FunctionType
+	switch source {
+	case FunctionTypeComposition:
+		v1FunctionType = v1.FunctionTypeComposition
+	case FunctionTypeOperation:
+		v1FunctionType = v1.FunctionTypeOperation
+	default: // ignored
+	}
+	return v1FunctionType
 }
 func (c *GeneratedToHubConverter) v1beta1MetaSpecToV1MetaSpec(source MetaSpec) v1.MetaSpec {
 	var v1MetaSpec v1.MetaSpec
