@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -53,6 +54,12 @@ const (
 	// be used for the container. it will also reuse the same container as long as
 	// it is available and also try to restart if it is not running.
 	AnnotationKeyRuntimeNamedContainer = "render.crossplane.io/runtime-docker-name"
+
+	// AnnotationKeyRuntimeEnvironmentVariables sets the environment variables
+	// that will be used for the container. This is helpful to control kpm registry
+	// access to use a different registry.
+	// It is a comma separated string of key=value pairs e.g. "key1=value1,key2=value2".
+	AnnotationKeyRuntimeEnvironmentVariables = "render.crossplane.io/runtime-docker-env"
 )
 
 // DockerCleanup specifies what Docker should do with a Function container after
@@ -117,6 +124,9 @@ type RuntimeDocker struct {
 
 	// log is the logger for this runtime.
 	log logging.Logger
+
+	// Env is the list of environment variables to set for the container.
+	Env []string
 }
 
 // GetDockerPullPolicy extracts PullPolicy configuration from the supplied
@@ -174,6 +184,17 @@ func GetRuntimeDocker(fn pkgv1.Function, log logging.Logger) (*RuntimeDocker, er
 	if i := fn.GetAnnotations()[AnnotationKeyRuntimeNamedContainer]; i != "" {
 		r.Name = i
 	}
+	if i := fn.GetAnnotations()[AnnotationKeyRuntimeEnvironmentVariables]; i != "" {
+		pairs := strings.Split(i, ",")
+		for _, pair := range pairs {
+			if !strings.Contains(pair, "=") {
+				r.log.Debug("ignoring invalid environment variable", "pair", pair)
+				continue
+			}
+			r.Env = append(r.Env, pair)
+		}
+	}
+
 	return r, nil
 }
 
@@ -248,6 +269,7 @@ func (r *RuntimeDocker) createContainer(ctx context.Context, cli *client.Client)
 		Image:        r.Image,
 		Cmd:          []string{"--insecure"},
 		ExposedPorts: expose,
+		Env:          r.Env,
 	}
 	hcfg := &container.HostConfig{
 		PortBindings: bind,
