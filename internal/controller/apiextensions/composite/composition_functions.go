@@ -46,7 +46,6 @@ import (
 	xproto "github.com/crossplane/crossplane/internal/proto"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
@@ -116,6 +115,12 @@ type xr struct {
 type FunctionRunner interface {
 	// RunFunction runs the named Composition Function.
 	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+}
+
+// A ConnectionDetailsFetcher fetches connection details for the supplied
+// Connection Secret owner.
+type ConnectionDetailsFetcher interface {
+	FetchConnection(ctx context.Context, so xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
 }
 
 // A ComposedResourceObserver observes existing composed resources.

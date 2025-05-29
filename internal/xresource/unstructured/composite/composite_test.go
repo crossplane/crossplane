@@ -36,6 +36,7 @@ import (
 )
 
 var _ client.Object = &Unstructured{}
+var _ Composite
 
 func TestWithGroupVersionKind(t *testing.T) {
 	gvk := schema.GroupVersionKind{
