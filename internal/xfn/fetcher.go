@@ -29,6 +29,14 @@ import (
 	"github.com/crossplane/crossplane/internal/proto"
 )
 
+const (
+	errGetExtraResourceByName  = "cannot get extra resource by name"
+	errNilResourceSelector     = "resource selector should not be nil"
+	errExtraResourceAsStruct   = "cannot encode extra resource to protocol buffer Struct well-known type"
+	errUnknownResourceSelector = "cannot get extra resource by name: unknown resource selector type"
+	errListExtraResources      = "cannot list extra resources"
+)
+
 // A ExtraResourcesFetcher gets extra resources matching a selector.
 type ExtraResourcesFetcher interface {
 	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
