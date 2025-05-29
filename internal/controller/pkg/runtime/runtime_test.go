@@ -14,11 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package revision
+package runtime
 
 import (
 	"testing"
 
+	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -110,7 +111,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
-				builder: &RuntimeManifestBuilder{
+				builder: &DeploymentRuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 				},
@@ -127,7 +128,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentWithRuntimeConfig": {
 			reason: "Baseline provided by the runtime config should be applied to the deployment",
 			args: args{
-				builder: &RuntimeManifestBuilder{
+				builder: &DeploymentRuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -148,14 +149,14 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 											},
 											Containers: []corev1.Container{
 												{
-													Name:  runtimeContainerName,
+													Name:  ContainerName,
 													Image: "crossplane/provider-foo:v1.2.4",
 													VolumeMounts: []corev1.VolumeMount{
 														{Name: "vm-a"},
 														{Name: "vm-b"},
 													},
 													Ports: []corev1.ContainerPort{
-														{ContainerPort: 7070, Name: metricsPortName},
+														{ContainerPort: 7070, Name: MetricsPortName},
 													},
 												},
 											},
@@ -187,7 +188,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentNoScrapeAnnotation": {
 			reason: "It should be possible to disable default scrape annotations",
 			args: args{
-				builder: &RuntimeManifestBuilder{
+				builder: &DeploymentRuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -224,7 +225,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentWithAdvancedRuntimeConfig": {
 			reason: "Baseline provided by the runtime config should be applied to the deployment for advanced use cases",
 			args: args{
-				builder: &RuntimeManifestBuilder{
+				builder: &DeploymentRuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -258,7 +259,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 													Image: "sidecar/sidecar:v1.0.0",
 												},
 												{
-													Name:  runtimeContainerName,
+													Name:  ContainerName,
 													Image: "crossplane/provider-foo:v1.2.4",
 													VolumeMounts: []corev1.VolumeMount{
 														{Name: "vm-a"},
@@ -323,7 +324,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"FunctionDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
-				builder: &RuntimeManifestBuilder{
+				builder: &DeploymentRuntimeManifestBuilder{
 					revision:  functionRevision,
 					namespace: namespace,
 				},
@@ -362,7 +363,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 		"ProviderServiceNoRuntimeConfig": {
 			reason: "No runtime config on the builder should result in a service with default values",
 			args: args{
-				builder: &RuntimeManifestBuilder{
+				builder: &DeploymentRuntimeManifestBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 				},
@@ -371,10 +372,10 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 					ServiceWithSelectors(providerSelectors(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision)),
 					ServiceWithAdditionalPorts([]corev1.ServicePort{
 						{
-							Name:       webhookPortName,
+							Name:       WebhookPortName,
 							Protocol:   corev1.ProtocolTCP,
-							Port:       servicePort,
-							TargetPort: intstr.FromString(webhookPortName),
+							Port:       revision.ServicePort,
+							TargetPort: intstr.FromString(WebhookPortName),
 						},
 					}),
 				},
@@ -401,9 +402,9 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 						},
 						Ports: []corev1.ServicePort{
 							{
-								Name:       webhookPortName,
-								Port:       int32(servicePort),
-								TargetPort: intstr.FromString(webhookPortName),
+								Name:       WebhookPortName,
+								Port:       int32(revision.ServicePort),
+								TargetPort: intstr.FromString(WebhookPortName),
 								Protocol:   corev1.ProtocolTCP,
 							},
 						},
@@ -422,16 +423,16 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 	}
 }
 
-func deploymentProvider(provider string, revision string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
+func deploymentProvider(provider string, rev string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      revision,
+			Name:      rev,
 			Namespace: namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "pkg.crossplane.io/v1",
 					Kind:               "ProviderRevision",
-					Name:               revision,
+					Name:               rev,
 					Controller:         ptr.To(true),
 					BlockOwnerDeletion: ptr.To(true),
 				},
@@ -441,7 +442,7 @@ func deploymentProvider(provider string, revision string, image string, override
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"pkg.crossplane.io/revision": revision,
+					"pkg.crossplane.io/rev":      rev,
 					"pkg.crossplane.io/provider": provider,
 				},
 			},
@@ -453,30 +454,30 @@ func deploymentProvider(provider string, revision string, image string, override
 						"prometheus.io/path":   "/metrics",
 					},
 					Labels: map[string]string{
-						"pkg.crossplane.io/revision": revision,
+						"pkg.crossplane.io/rev":      rev,
 						"pkg.crossplane.io/provider": provider,
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: revision,
+					ServiceAccountName: rev,
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &runAsNonRoot,
-						RunAsUser:    &runAsUser,
-						RunAsGroup:   &runAsGroup,
+						RunAsNonRoot: &RunAsNonRoot,
+						RunAsUser:    &RunAsUser,
+						RunAsGroup:   &RunAsGroup,
 					},
 					Containers: []corev1.Container{
 						{
-							Name:            runtimeContainerName,
+							Name:            ContainerName,
 							Image:           image,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          metricsPortName,
-									ContainerPort: metricsPortNumber,
+									Name:          MetricsPortName,
+									ContainerPort: MetricsPortNumber,
 								},
 								{
-									Name:          webhookPortName,
-									ContainerPort: servicePort,
+									Name:          WebhookPortName,
+									ContainerPort: revision.ServicePort,
 								},
 							},
 							Env: []corev1.EnvVar{
@@ -518,11 +519,11 @@ func deploymentProvider(provider string, revision string, image string, override
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:                &runAsUser,
-								RunAsGroup:               &runAsGroup,
-								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-								Privileged:               &privileged,
-								RunAsNonRoot:             &runAsNonRoot,
+								RunAsUser:                &RunAsUser,
+								RunAsGroup:               &RunAsGroup,
+								AllowPrivilegeEscalation: &AllowPrivilegeEscalation,
+								Privileged:               &Privileged,
+								RunAsNonRoot:             &RunAsNonRoot,
 							},
 						},
 					},
@@ -584,16 +585,16 @@ func deploymentProvider(provider string, revision string, image string, override
 	return d
 }
 
-func deploymentFunction(function string, revision string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
+func deploymentFunction(function string, rev string, image string, overrides ...DeploymentOverride) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      revision,
+			Name:      rev,
 			Namespace: namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion:         "pkg.crossplane.io/v1beta1",
 					Kind:               "FunctionRevision",
-					Name:               revision,
+					Name:               rev,
 					Controller:         ptr.To(true),
 					BlockOwnerDeletion: ptr.To(true),
 				},
@@ -603,37 +604,37 @@ func deploymentFunction(function string, revision string, image string, override
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"pkg.crossplane.io/revision": revision,
+					"pkg.crossplane.io/rev":      rev,
 					"pkg.crossplane.io/function": function,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"pkg.crossplane.io/revision": revision,
+						"pkg.crossplane.io/rev":      rev,
 						"pkg.crossplane.io/function": function,
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: revision,
+					ServiceAccountName: rev,
 					SecurityContext: &corev1.PodSecurityContext{
-						RunAsNonRoot: &runAsNonRoot,
-						RunAsUser:    &runAsUser,
-						RunAsGroup:   &runAsGroup,
+						RunAsNonRoot: &RunAsNonRoot,
+						RunAsUser:    &RunAsUser,
+						RunAsGroup:   &RunAsGroup,
 					},
 					Containers: []corev1.Container{
 						{
-							Name:            runtimeContainerName,
+							Name:            ContainerName,
 							Image:           image,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
 								{
-									Name:          metricsPortName,
-									ContainerPort: metricsPortNumber,
+									Name:          MetricsPortName,
+									ContainerPort: MetricsPortNumber,
 								},
 								{
-									Name:          grpcPortName,
-									ContainerPort: servicePort,
+									Name:          GRPCPortName,
+									ContainerPort: revision.ServicePort,
 								},
 							},
 							Env: []corev1.EnvVar{
@@ -650,11 +651,11 @@ func deploymentFunction(function string, revision string, image string, override
 								},
 							},
 							SecurityContext: &corev1.SecurityContext{
-								RunAsUser:                &runAsUser,
-								RunAsGroup:               &runAsGroup,
-								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
-								Privileged:               &privileged,
-								RunAsNonRoot:             &runAsNonRoot,
+								RunAsUser:                &RunAsUser,
+								RunAsGroup:               &RunAsGroup,
+								AllowPrivilegeEscalation: &AllowPrivilegeEscalation,
+								Privileged:               &Privileged,
+								RunAsNonRoot:             &RunAsNonRoot,
 							},
 						},
 					},
