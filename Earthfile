@@ -122,6 +122,58 @@ unhack:
   RUN .hack/kind delete cluster --name crossplane-hack
   RUN rm -rf .hack
 
+# hack-rollout builds Crossplane and upgrades it in the existing kind cluster
+# without tearing down the cluster. It performs a rolling restart of Crossplane
+# pods to use the newly built image. This is ideal for progressive development.
+hack-rollout:
+  ARG USERPLATFORM
+  ARG SIMULATE_CROSSPLANE_VERSION=v0.0.0-hack
+  ARG XPARGS="--debug"
+  LOCALLY
+  COPY --platform=${USERPLATFORM} +helm-setup/helm .hack/helm
+  COPY --platform=${USERPLATFORM} +kind-setup/kind .hack/kind
+  COPY --platform=${USERPLATFORM} +kubectl-setup/kubectl .hack/kubectl
+  COPY (+helm-build/output --CROSSPLANE_VERSION=v0.0.0-hack) .hack/charts
+  WITH DOCKER --load crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}=(+image --CROSSPLANE_VERSION=${SIMULATE_CROSSPLANE_VERSION})
+    RUN \
+      # Check if cluster exists, create if it doesn't
+      if ! .hack/kind get clusters | grep -q crossplane-hack; then \
+        echo "Creating crossplane-hack cluster..."; \
+        .hack/kind create cluster --name crossplane-hack; \
+      else \
+        echo "Using existing crossplane-hack cluster..."; \
+      fi && \
+      # Load the new image
+      .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION} && \
+      # Set kubeconfig for kubectl commands
+      .hack/kind export kubeconfig --name crossplane-hack --kubeconfig .hack/kubeconfig && \
+      export KUBECONFIG=.hack/kubeconfig && \
+      # Check if Crossplane is already installed
+      if .hack/kubectl get namespace crossplane-system >/dev/null 2>&1; then \
+        echo "Upgrading existing Crossplane installation..."; \
+        .hack/helm upgrade crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
+          --namespace crossplane-system \
+          --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=${SIMULATE_CROSSPLANE_VERSION}" \
+          --set "args={${XPARGS}}"; \
+      else \
+        echo "Installing Crossplane for the first time..."; \
+        .hack/helm install --create-namespace --namespace crossplane-system crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
+          --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=${SIMULATE_CROSSPLANE_VERSION}" \
+          --set "args={${XPARGS}}"; \
+      fi && \
+      # Rollout restart to ensure pods use the new image
+      echo "Rolling out restart of Crossplane pods..." && \
+      .hack/kubectl rollout restart deployment/crossplane -n crossplane-system && \
+      .hack/kubectl rollout restart deployment/crossplane-rbac-manager -n crossplane-system && \
+      # Wait for rollout to complete
+      echo "Waiting for rollout to complete..." && \
+      .hack/kubectl rollout status deployment/crossplane -n crossplane-system --timeout=300s && \
+      .hack/kubectl rollout status deployment/crossplane-rbac-manager -n crossplane-system --timeout=300s && \
+      echo "Crossplane rollout completed successfully!"
+  END
+  RUN docker image rm crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}
+  RUN rm -rf .hack
+
 # go-modules downloads Crossplane's go modules. It's the base target of most Go
 # related target (go-build, etc).
 go-modules:
