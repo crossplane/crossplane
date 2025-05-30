@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Crossplane Authors.
+Copyright 2025 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,25 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apis contains Kubernetes API groups
-package apis
+// Package daytwo contains Kubernetes API groups for day two operation types of Crossplane.
+package daytwo
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/apiextensions"
-	"github.com/crossplane/crossplane/apis/daytwo"
-	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/apis/protection"
+	"github.com/crossplane/crossplane/apis/daytwo/v1alpha1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
-		apiextensions.AddToScheme,
-		daytwo.AddToScheme,
-		pkg.AddToScheme,
-		protection.AddToScheme,
+		v1alpha1.AddToScheme,
 	)
 }
 

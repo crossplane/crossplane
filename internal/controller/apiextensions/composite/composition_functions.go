@@ -24,16 +24,12 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -47,9 +43,9 @@ import (
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
+	xproto "github.com/crossplane/crossplane/internal/proto"
 	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
@@ -65,14 +61,7 @@ const (
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
-	errStructFromUnstructured   = "cannot create Struct"
-	errGetExtraResourceByName   = "cannot get extra resource by name"
-	errNilResourceSelector      = "resource selector should not be nil"
-	errExtraResourceAsStruct    = "cannot encode extra resource to protocol buffer Struct well-known type"
-	errUnknownResourceSelector  = "cannot get extra resource by name: unknown resource selector type"
-	errListExtraResources       = "cannot list extra resources"
 	errGetComposed              = "cannot get composed resource"
-	errMarshalJSON              = "cannot marshal to JSON"
 
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
@@ -129,14 +118,6 @@ type FunctionRunner interface {
 	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
-// A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
-
-// RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
-}
-
 // A ConnectionDetailsFetcher fetches connection details for the supplied
 // Connection Secret owner.
 type ConnectionDetailsFetcher interface {
@@ -159,14 +140,6 @@ func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Contex
 // A ExtraResourcesFetcher gets extra resources matching a selector.
 type ExtraResourcesFetcher interface {
 	Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
-}
-
-// An ExtraResourcesFetcherFn gets extra resources matching the selector.
-type ExtraResourcesFetcherFn func(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error)
-
-// Fetch gets extra resources matching the selector.
-func (fn ExtraResourcesFetcherFn) Fetch(ctx context.Context, rs *fnv1.ResourceSelector) (*fnv1.Resources, error) {
-	return fn(ctx, rs)
 }
 
 // A ComposedResourceGarbageCollector deletes observed composed resources that
@@ -411,7 +384,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	desired := ComposedResourceStates{}
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
-		if err := FromStruct(cd, dr.GetResource()); err != nil {
+		if err := xproto.FromStruct(cd, dr.GetResource()); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name)
 		}
 
@@ -550,7 +523,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	ns := xr.GetNamespace()
 	n := xr.GetName()
 	u := xr.GetUID()
-	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
+	if err := xproto.FromStruct(xr, d.GetComposite().GetResource()); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUnmarshalDesiredXRStatus)
 	}
 	xr.SetAPIVersion(v)
@@ -712,7 +685,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
 func AsState(xr xresource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
-	r, err := AsStruct(xr)
+	r, err := xproto.AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
 	}
@@ -721,7 +694,7 @@ func AsState(xr xresource.Composite, xc managed.ConnectionDetails, rs ComposedRe
 
 	ocds := make(map[string]*fnv1.Resource)
 	for name, or := range rs {
-		r, err := AsStruct(or.Resource)
+		r, err := xproto.AsStruct(or.Resource)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtCDAsStruct, name)
 		}
@@ -730,54 +703,6 @@ func AsState(xr xresource.Composite, xc managed.ConnectionDetails, rs ComposedRe
 	}
 
 	return &fnv1.State{Composite: oxr, Resources: ocds}, nil
-}
-
-// AsStruct converts the supplied object to a protocol buffer Struct well-known
-// type.
-func AsStruct(o runtime.Object) (*structpb.Struct, error) {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(*kunstructured.Unstructured); ok {
-		s, err := structpb.NewStruct(u.Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		s, err := structpb.NewStruct(w.GetUnstructured().Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := json.Marshal(o)
-	if err != nil {
-		return nil, errors.Wrap(err, errMarshalJSON)
-	}
-
-	s := &structpb.Struct{}
-	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
-}
-
-// FromStruct populates the supplied object with content loaded from the Struct.
-func FromStruct(o client.Object, s *structpb.Struct) error {
-	// If the supplied object is *Unstructured we don't need to round-trip.
-	if u, ok := o.(*kunstructured.Unstructured); ok {
-		u.Object = s.AsMap()
-		return nil
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		w.GetUnstructured().Object = s.AsMap()
-		return nil
-	}
-
-	// Fall back to a JSON round-trip.
-	b, err := protojson.Marshal(s)
-	if err != nil {
-		return errors.Wrap(err, errMarshalProtoStruct)
-	}
-
-	return errors.Wrap(json.Unmarshal(b, o), errUnmarshalJSON)
 }
 
 // An DeletingComposedResourceGarbageCollector deletes undesired composed resources from
