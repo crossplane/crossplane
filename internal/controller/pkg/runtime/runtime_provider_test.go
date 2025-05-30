@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,10 +38,6 @@ import (
 )
 
 const (
-	versionCrossplane = "v0.11.1"
-	providerDep       = "crossplane/provider-aws"
-	versionDep        = "v0.1.1"
-
 	xpManagedSA = "xp-managed-sa"
 )
 
@@ -66,69 +61,6 @@ func TestProviderPreHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrNotProvider": {
-			reason: "Should return error if not provider.",
-			want: want{
-				err: errors.New(errNotProvider),
-			},
-		},
-		"ErrNotProviderRevision": {
-			reason: "Should return error if the supplied package revision is not a provider revision.",
-			args: args{
-				pkg: &pkgmetav1.Provider{},
-			},
-			want: want{
-				err: errors.New(errNotProviderRevision),
-			},
-		},
-		"PermissionRequestsPropagated": {
-			reason: "Should propagate permission requests from provider to revision",
-			args: args{
-				pkg: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						Controller: pkgmetav1.ControllerSpec{
-							PermissionRequests: []rbacv1.PolicyRule{
-								{
-									APIGroups: []string{"somegroup"},
-									Resources: []string{"somekinds"},
-									Verbs:     []string{"someverbs"},
-								},
-							},
-						},
-						MetaSpec: pkgmetav1.MetaSpec{
-							Crossplane: &pkgmetav1.CrossplaneConstraints{
-								Version: versionCrossplane,
-							},
-							DependsOn: []pkgmetav1.Dependency{{
-								Provider: ptr.To(providerDep),
-								Version:  versionDep,
-							}},
-						},
-					},
-				},
-				rev: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{},
-					},
-				},
-			},
-			want: want{
-				rev: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{},
-					},
-					Status: v1.PackageRevisionStatus{
-						PermissionRequests: []rbacv1.PolicyRule{
-							{
-								APIGroups: []string{"somegroup"},
-								Resources: []string{"somekinds"},
-								Verbs:     []string{"someverbs"},
-							},
-						},
-					},
-				},
-			},
-		},
 		"Success": {
 			reason: "Successful run of pre hook.",
 			args: args{
@@ -188,7 +120,7 @@ func TestProviderPreHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Pre(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -218,12 +150,6 @@ func TestProviderPostHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrNotProvider": {
-			reason: "Should return error if not provider.",
-			want: want{
-				err: errors.New(errNotProvider),
-			},
-		},
 		"ProviderInactive": {
 			reason: "Should do nothing if provider revision is inactive.",
 			args: args{
@@ -642,7 +568,7 @@ func TestProviderPostHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Post(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -771,120 +697,6 @@ func TestProviderDeactivateHook(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestGetProviderImage(t *testing.T) {
-	type args struct {
-		providerMeta     *pkgmetav1.Provider
-		providerRevision *v1.ProviderRevision
-		defaultRegistry  string
-	}
-
-	type want struct {
-		err   error
-		image string
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"NoOverrideFromMeta": {
-			reason: "Should use the image from the package revision and add default registry when no override is present.",
-			args: args{
-				providerMeta: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						Controller: pkgmetav1.ControllerSpec{
-							Image: nil,
-						},
-					},
-				},
-				providerRevision: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "crossplane/provider-bar:v1.2.3",
-						},
-					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "crossplane/provider-bar:v1.2.3",
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.default.io/crossplane/provider-bar:v1.2.3",
-			},
-		},
-		"WithOverrideFromMeta": {
-			reason: "Should use the override from the function meta when present and add default registry.",
-			args: args{
-				providerMeta: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						Controller: pkgmetav1.ControllerSpec{
-							Image: ptr.To("crossplane/provider-bar-controller:v1.2.3"),
-						},
-					},
-				},
-				providerRevision: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "crossplane/provider-bar:v1.2.3",
-						},
-					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "crossplane/provider-bar:v1.2.3",
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.default.io/crossplane/provider-bar-controller:v1.2.3",
-			},
-		},
-		"RegistrySpecified": {
-			reason: "Should honor the registry as specified on the package, even if its different than the default registry.",
-			args: args{
-				providerMeta: &pkgmetav1.Provider{
-					Spec: pkgmetav1.ProviderSpec{
-						Controller: pkgmetav1.ControllerSpec{
-							Image: nil,
-						},
-					},
-				},
-				providerRevision: &v1.ProviderRevision{
-					Spec: v1.ProviderRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
-						},
-					},
-					Status: v1.PackageRevisionStatus{
-						ResolvedPackage: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.notdefault.io/crossplane/provider-bar:v1.2.3",
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			image, err := getProviderImage(tc.args.providerMeta, tc.args.providerRevision, tc.args.defaultRegistry)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ngetFunctionImage(): -want error, +got error:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.image, image, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ngetFunctionImage(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

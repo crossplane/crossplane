@@ -47,6 +47,7 @@ const (
 	errApplyProviderService                   = "cannot apply provider package service"
 	errFmtUnavailableProviderDeployment       = "provider package deployment is unavailable with message: %s"
 	errNoAvailableConditionProviderDeployment = "provider package deployment has no condition of type \"Available\" yet"
+	errParseProviderImage                     = "cannot parse provider package image"
 )
 
 // ProviderHooks performs runtime operations for provider packages.
