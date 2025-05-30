@@ -323,6 +323,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	builder := NewDeploymentRuntimeBuilder(pr, r.namespace, opts...)
 
+	// Migrate provider deployment selector, if needed.
+	// Note(turkenh): This migration could be removed in the future when
+	// we no longer support older Crossplane versions that use the old
+	// provider deployment selector labels. The latest Crossplane version
+	// using the old selector labels is v1.20.0.
+	if err := r.migrateProviderDeploymentSelectors(ctx, pr, builder); err != nil {
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		err = errors.Wrap(err, "failed to run provider deployment selector migration")
+		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		_ = r.client.Status().Update(ctx, pr)
+
+		r.record.Event(pr, event.Warning(reasonSync, err))
+
+		return reconcile.Result{}, err
+	}
+
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.runtimeHook.Deactivate(ctx, pr, builder); err != nil {
@@ -411,4 +430,66 @@ func (r *Reconciler) builderOptions(ctx context.Context, pwr v1.PackageRevisionW
 	}
 
 	return opts, nil
+}
+
+// migrateProviderDeploymentSelectors handles migration of provider deployments
+// that have outdated selector labels from older Crossplane versions.
+// The pkg.crossplane.io/provider selector format changed in newer Crossplane versions:
+// - Old format: used the provider name in the package metadata (e.g., "provider-nop")
+// - New format: uses the parent package label value (e.g., "crossplane-provider-nop", or however the provider pkg resource is named)
+// See https://github.com/crossplane/crossplane/blob/v1.20.0/internal/controller/pkg/revision/runtime_provider.go#L236-L244
+func (r *Reconciler) migrateProviderDeploymentSelectors(ctx context.Context, pr v1.PackageRevisionWithRuntime, builder ManifestBuilder) error {
+	// Only migrate provider revisions
+	providerRev, ok := pr.(*v1.ProviderRevision)
+	if !ok {
+		return nil
+	}
+
+	// Only perform migration for active revisions
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+
+	// Build the expected deployment to get the correct name and selectors
+	// This respects any DeploymentRuntimeConfig settings
+	sa := builder.ServiceAccount()
+	expectedDeploy := builder.Deployment(sa.Name)
+
+	// Check if there's an existing deployment
+	existingDeploy := &appsv1.Deployment{}
+	err := r.client.Get(ctx, types.NamespacedName{
+		Name:      expectedDeploy.Name,
+		Namespace: expectedDeploy.Namespace,
+	}, existingDeploy)
+
+	if kerrors.IsNotFound(err) {
+		// No existing deployment, no migration needed
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "cannot get existing deployment")
+	}
+
+	existing := providerRev.GetLabels()[v1.LabelParentPackage]
+	expected := existingDeploy.Spec.Selector.MatchLabels["pkg.crossplane.io/provider"]
+
+	// Check if the provider label needs migration
+	if expected == existing {
+		// No migration needed
+		return nil
+	}
+
+	r.log.Info("Migrating provider deployment with outdated selector",
+		"deployment", expectedDeploy.Name,
+		"revision", pr.GetName(),
+		"old-provider-label", expected,
+		"new-provider-label", existing)
+
+	// If the provider label is different, we need to delete the old deployment.
+	// The new deployment will be created in the Post hook.
+	if err := r.client.Delete(ctx, existingDeploy); err != nil {
+		return errors.Wrap(err, "cannot delete existing deployment for selector migration")
+	}
+
+	return nil
 }
