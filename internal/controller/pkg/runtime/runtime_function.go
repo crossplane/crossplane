@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +30,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
@@ -191,20 +189,3 @@ func functionDeploymentOverrides(image string) []DeploymentOverride {
 	return do
 }
 
-// getFunctionImage determines a complete function image, taking into account a
-// default registry. If the function meta specifies an image, we have a
-// preference for that image over what is specified in the package revision.
-func getFunctionImage(fm *pkgmetav1.Function, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
-	// Use the image from the status rather than the spec, since it may have
-	// been rewritten by an ImageConfig.
-	image := pr.GetResolvedSource()
-	if fm.Spec.Image != nil {
-		image = *fm.Spec.Image
-	}
-	ref, err := name.ParseReference(image, name.WithDefaultRegistry(defaultRegistry))
-	if err != nil {
-		return "", errors.Wrap(err, errParseFunctionImage)
-	}
-
-	return ref.Name(), nil
-}

@@ -118,7 +118,7 @@ func TestFunctionPreHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Pre(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -148,12 +148,6 @@ func TestFunctionPostHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrNotFunction": {
-			reason: "Should return error if not function.",
-			want: want{
-				err: errors.New(errNotFunction),
-			},
-		},
 		"FunctionInactive": {
 			reason: "Should do nothing if function revision is inactive.",
 			args: args{
@@ -588,7 +582,7 @@ func TestFunctionPostHook(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Post(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -699,120 +693,6 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestGetFunctionImage(t *testing.T) {
-	type args struct {
-		functionMeta     *pkgmetav1.Function
-		functionRevision *v1.FunctionRevision
-		defaultRegistry  string
-	}
-
-	type want struct {
-		err   error
-		image string
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"NoOverrideFromMeta": {
-			reason: "Should use the image from the package revision and add default registry when no override is present.",
-			args: args{
-				functionMeta: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{
-						Image: nil,
-					},
-				},
-				functionRevision: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "crossplane/func-bar:v1.2.3",
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: "crossplane/func-bar:v1.2.3",
-						},
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.default.io/crossplane/func-bar:v1.2.3",
-			},
-		},
-		"WithOverrideFromMeta": {
-			reason: "Should use the override from the function meta when present and add default registry.",
-			args: args{
-				functionMeta: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{
-						Image: ptr.To("crossplane/func-bar-server:v1.2.3"),
-					},
-				},
-				functionRevision: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "crossplane/func-bar:v1.2.3",
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: "crossplane/func-bar:v1.2.3",
-						},
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.default.io/crossplane/func-bar-server:v1.2.3",
-			},
-		},
-		"RegistrySpecified": {
-			reason: "Should honor the registry as specified on the package, even if its different than the default registry.",
-			args: args{
-				functionMeta: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{
-						Image: nil,
-					},
-				},
-				functionRevision: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
-						},
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			image, err := getFunctionImage(tc.args.functionMeta, tc.args.functionRevision, tc.args.defaultRegistry)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ngetFunctionImage(): -want error, +got error:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.image, image, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ngetFunctionImage(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

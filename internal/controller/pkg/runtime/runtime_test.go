@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
@@ -111,16 +110,16 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
-				builder: &DeploymentRuntimeManifestBuilder{
+				builder: &DeploymentRuntimeBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/provider": providerName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				})),
 			},
@@ -128,7 +127,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentWithRuntimeConfig": {
 			reason: "Baseline provided by the runtime config should be applied to the deployment",
 			args: args{
-				builder: &DeploymentRuntimeManifestBuilder{
+				builder: &DeploymentRuntimeBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -168,11 +167,11 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/provider": providerName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Replicas = ptr.To[int32](3)
@@ -188,7 +187,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentNoScrapeAnnotation": {
 			reason: "It should be possible to disable default scrape annotations",
 			args: args{
-				builder: &DeploymentRuntimeManifestBuilder{
+				builder: &DeploymentRuntimeBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -209,11 +208,11 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/provider": providerName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Spec.Template.Annotations = map[string]string{
@@ -225,7 +224,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"ProviderDeploymentWithAdvancedRuntimeConfig": {
 			reason: "Baseline provided by the runtime config should be applied to the deployment for advanced use cases",
 			args: args{
-				builder: &DeploymentRuntimeManifestBuilder{
+				builder: &DeploymentRuntimeBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 					runtimeConfig: &v1beta1.DeploymentRuntimeConfig{
@@ -285,11 +284,11 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 					},
 				},
 				serviceAccountName: providerRevisionName,
-				overrides:          providerDeploymentOverrides(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision, providerImage),
+				overrides:          providerDeploymentOverrides(providerRevision, providerImage),
 			},
 			want: want{
 				want: deploymentProvider(providerName, providerRevisionName, providerImage, DeploymentWithSelectors(map[string]string{
-					"pkg.crossplane.io/provider": providerMetaName,
+					"pkg.crossplane.io/provider": providerName,
 					"pkg.crossplane.io/revision": providerRevisionName,
 				}), func(deployment *appsv1.Deployment) {
 					deployment.Name = "my-provider-foo"
@@ -324,7 +323,7 @@ func TestRuntimeManifestBuilderDeployment(t *testing.T) {
 		"FunctionDeploymentWithoutRuntimeConfig": {
 			reason: "No overrides should result in a deployment with default values",
 			args: args{
-				builder: &DeploymentRuntimeManifestBuilder{
+				builder: &DeploymentRuntimeBuilder{
 					revision:  functionRevision,
 					namespace: namespace,
 				},
@@ -363,13 +362,12 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 		"ProviderServiceNoRuntimeConfig": {
 			reason: "No runtime config on the builder should result in a service with default values",
 			args: args{
-				builder: &DeploymentRuntimeManifestBuilder{
+				builder: &DeploymentRuntimeBuilder{
 					revision:  providerRevision,
 					namespace: namespace,
 				},
 				serviceAccountName: providerRevisionName,
 				overrides: []ServiceOverride{
-					ServiceWithSelectors(providerSelectors(&pkgmetav1.Provider{ObjectMeta: metav1.ObjectMeta{Name: providerMetaName}}, providerRevision)),
 					ServiceWithAdditionalPorts([]corev1.ServicePort{
 						{
 							Name:       WebhookPortName,
@@ -397,7 +395,7 @@ func TestRuntimeManifestBuilderService(t *testing.T) {
 					},
 					Spec: corev1.ServiceSpec{
 						Selector: map[string]string{
-							"pkg.crossplane.io/provider": providerMetaName,
+							"pkg.crossplane.io/provider": providerName,
 							"pkg.crossplane.io/revision": providerRevisionName,
 						},
 						Ports: []corev1.ServicePort{
@@ -442,7 +440,7 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"pkg.crossplane.io/rev":      rev,
+					"pkg.crossplane.io/revision": rev,
 					"pkg.crossplane.io/provider": provider,
 				},
 			},
@@ -454,7 +452,7 @@ func deploymentProvider(provider string, rev string, image string, overrides ...
 						"prometheus.io/path":   "/metrics",
 					},
 					Labels: map[string]string{
-						"pkg.crossplane.io/rev":      rev,
+						"pkg.crossplane.io/revision": rev,
 						"pkg.crossplane.io/provider": provider,
 					},
 				},
@@ -604,14 +602,14 @@ func deploymentFunction(function string, rev string, image string, overrides ...
 			Replicas: ptr.To[int32](1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"pkg.crossplane.io/rev":      rev,
+					"pkg.crossplane.io/revision": rev,
 					"pkg.crossplane.io/function": function,
 				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"pkg.crossplane.io/rev":      rev,
+						"pkg.crossplane.io/revision": rev,
 						"pkg.crossplane.io/function": function,
 					},
 				},
