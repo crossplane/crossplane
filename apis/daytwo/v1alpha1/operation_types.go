@@ -122,6 +122,7 @@ type PipelineStepStatus struct {
 // An Operation defines a pipeline of functions that together constitute a day
 // two operation.
 //
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:categories=crossplane,shortName=op
 type Operation struct {

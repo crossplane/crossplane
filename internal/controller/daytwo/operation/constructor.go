@@ -34,7 +34,8 @@ import (
 // Setup adds a controller that reconciles Usages by
 // defining a composite resource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, o daytwocontroller.Options) error {
-	name := "usage/" + strings.ToLower(v1alpha1.OperationGroupKind)
+	name := "operation/" + strings.ToLower(v1alpha1.OperationGroupKind)
+
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),

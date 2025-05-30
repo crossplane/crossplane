@@ -453,8 +453,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	d2o := daytwocontroller.Options{
-		Options:        o,
-		FunctionRunner: uncachedRunner,
+		Options:               o,
+		FunctionRunner:        uncachedRunner,
+		ExtraResourcesFetcher: xfn.NewExistingExtraResourcesFetcher(cached),
 	}
 	if err := daytwo.Setup(mgr, d2o); err != nil {
 		return errors.Wrap(err, "cannot add daytwo controllers to manager")

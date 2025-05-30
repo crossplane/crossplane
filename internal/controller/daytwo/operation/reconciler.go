@@ -86,6 +86,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"uid", op.GetUID(),
 		"version", op.GetResourceVersion(),
 		"name", op.GetName(),
+		"namespace", op.GetNamespace(),
 	)
 
 	// Don't reconcile the operation if it's being deleted.
