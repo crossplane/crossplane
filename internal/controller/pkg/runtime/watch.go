@@ -3,13 +3,15 @@ package runtime
 import (
 	"context"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 // EnqueuePackageRevisionsForRuntimeConfig enqueues a reconcile for all package

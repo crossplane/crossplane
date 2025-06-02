@@ -94,9 +94,6 @@ spec:
                   - version
                   type: object
                 type: array
-              image:
-                description: Image is the packaged Function image.
-                type: string
             type: object
         required:
         - spec
@@ -183,9 +180,6 @@ spec:
                   - version
                   type: object
                 type: array
-              image:
-                description: Image is the packaged Function image.
-                type: string
             type: object
         required:
         - spec

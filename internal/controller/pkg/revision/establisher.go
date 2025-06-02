@@ -52,6 +52,7 @@ const (
 )
 
 const (
+	// ServicePort is the port number used by package services for webhook communication.
 	ServicePort = 9443
 )
 
