@@ -188,4 +188,3 @@ func functionDeploymentOverrides(image string) []DeploymentOverride {
 
 	return do
 }
-

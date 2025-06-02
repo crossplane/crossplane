@@ -21,7 +21,6 @@ import (
 	"io"
 	"testing"
 
-	"github.com/crossplane/crossplane/internal/features"
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +42,12 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/features"
+)
+
+const (
+	testNamespace  = "crossplane-system"
+	crossplaneName = "crossplane"
 )
 
 var _ Hooks = &MockHooks{}
@@ -99,13 +104,17 @@ func TestReconcile(t *testing.T) {
 		"PackageRevisionNotFound": {
 			reason: "We should not return an error and not requeue if package revision not found.",
 			args: args{
-				mgr: &fake.Manager{},
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					},
+				},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 				},
 			},
@@ -123,8 +132,8 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 				},
 			},
@@ -153,8 +162,8 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 				},
 			},
@@ -190,8 +199,8 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableAlphaSignatureVerification)),
 				},
@@ -213,8 +222,8 @@ func TestReconcile(t *testing.T) {
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -237,10 +246,10 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return errBoom
 						},
 					}),
@@ -264,8 +273,8 @@ func TestReconcile(t *testing.T) {
 								// No installed condition
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -288,10 +297,10 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
 					}),
@@ -315,8 +324,8 @@ func TestReconcile(t *testing.T) {
 								obj.SetConditions(v1.Established())
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -340,13 +349,13 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
-						MockPost: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return errBoom
 						},
 					}),
@@ -369,8 +378,8 @@ func TestReconcile(t *testing.T) {
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -381,10 +390,10 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockDeactivate: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return errBoom
 						},
 					}),
@@ -425,8 +434,8 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
 				},
@@ -472,8 +481,8 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
 				},
@@ -498,7 +507,7 @@ func TestReconcile(t *testing.T) {
 							case *appsv1.Deployment:
 								// Simulate existing deployment with old selector
 								obj.Name = "provider-test-revision"
-								obj.Namespace = "crossplane-system"
+								obj.Namespace = testNamespace
 								obj.Spec.Selector = &metav1.LabelSelector{
 									MatchLabels: map[string]string{
 										"pkg.crossplane.io/provider": "provider-test", // Old format
@@ -506,15 +515,15 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
 						}),
-						MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+						MockDelete: test.NewMockDeleteFn(nil, func(obj client.Object) error {
 							// Should delete the deployment with old selector
-							if deploy, ok := o.(*appsv1.Deployment); ok {
+							if deploy, ok := obj.(*appsv1.Deployment); ok {
 								if deploy.Name != "provider-test-revision" {
 									t.Errorf("unexpected deployment name: %s", deploy.Name)
 								}
@@ -540,13 +549,13 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
-						MockPost: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
 					}),
@@ -572,7 +581,7 @@ func TestReconcile(t *testing.T) {
 							case *appsv1.Deployment:
 								// Simulate existing deployment with correct selector
 								obj.Name = "provider-test-revision"
-								obj.Namespace = "crossplane-system"
+								obj.Namespace = testNamespace
 								obj.Spec.Selector = &metav1.LabelSelector{
 									MatchLabels: map[string]string{
 										"pkg.crossplane.io/provider": "crossplane-provider-test", // Correct format
@@ -580,13 +589,13 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
 						}),
-						MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
+						MockDelete: test.NewMockDeleteFn(nil, func(_ client.Object) error {
 							t.Errorf("Delete should not be called when selector is correct")
 							return nil
 						}),
@@ -609,13 +618,13 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
-						MockPost: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
 					}),
@@ -639,8 +648,8 @@ func TestReconcile(t *testing.T) {
 								obj.SetConditions(v1.Established())
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -664,13 +673,13 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.FunctionRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
-						MockPost: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
 					}),
@@ -698,8 +707,8 @@ func TestReconcile(t *testing.T) {
 								})
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							case *v1beta1.ImageConfig:
 								obj.SetGroupVersionKind(v1beta1.ImageConfigGroupVersionKind)
@@ -707,7 +716,7 @@ func TestReconcile(t *testing.T) {
 								obj.Spec.Registry = &v1beta1.RegistryConfig{
 									Authentication: &v1beta1.RegistryAuthentication{
 										PullSecretRef: corev1.LocalObjectReference{
-											Name: "test-pull",
+											Name: "test-pull-secret",
 										},
 									},
 								}
@@ -721,11 +730,11 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 							want.SetConditions(v1.Established())
+							want.SetConditions(v1.Healthy())
 							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 								Name:   "test-image-config",
 								Reason: v1.ImageConfigReasonSetPullSecret,
 							})
-							want.SetConditions(v1.Healthy())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -738,20 +747,20 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
-						MockPost: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
 							d := b.Deployment("test-sa")
 							// Verify that the deployment has the pull secret from the image config
-							if d.Spec.Template.Spec.ImagePullSecrets == nil || len(d.Spec.Template.Spec.ImagePullSecrets) == 0 {
+							if len(d.Spec.Template.Spec.ImagePullSecrets) == 0 {
 								return errors.New("expected deployment to have pull secret from image config")
 							}
-							if d.Spec.Template.Spec.ImagePullSecrets[0].Name != "test-pull" {
-								return errors.New("expected deployment to have pull secret named 'test-pull'")
+							if d.Spec.Template.Spec.ImagePullSecrets[0].Name != "test-pull-secret" {
+								return errors.New("expected deployment to have pull secret named 'test-pull-secret'")
 							}
 							return nil
 						},
@@ -777,8 +786,8 @@ func TestReconcile(t *testing.T) {
 								obj.SetConditions(v1.Established())
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -803,13 +812,13 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockPre: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
-						MockPost: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
 					}),
@@ -833,8 +842,8 @@ func TestReconcile(t *testing.T) {
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 								return nil
 							case *corev1.ServiceAccount:
-								obj.Name = "crossplane"
-								obj.Namespace = "crossplane-system"
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
 								return nil
 							}
 							return nil
@@ -845,10 +854,10 @@ func TestReconcile(t *testing.T) {
 					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
 					WithLogger(testLog),
 					WithRecorder(event.NewNopRecorder()),
-					WithNamespace("crossplane-system"),
-					WithServiceAccount("crossplane"),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{
-						MockDeactivate: func(ctx context.Context, pr v1.PackageRevisionWithRuntime, b ManifestBuilder) error {
+						MockDeactivate: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
 						},
 					}),
@@ -862,22 +871,15 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// Set up mock client if not provided
-			if tc.args.mgr.GetClient() == nil {
-				tc.args.mgr = &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					},
-				}
-			}
-
+			tc := tc
 			r := NewReconciler(tc.args.mgr, tc.args.rec...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
+
+			if diff := cmp.Diff(tc.want.r, got); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -891,5 +893,4 @@ func flagsWithFeatures(features ...feature.Flag) *feature.Flags {
 		flags.Enable(f)
 	}
 	return flags
-
 }

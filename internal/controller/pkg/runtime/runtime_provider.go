@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -30,8 +29,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
@@ -236,13 +235,6 @@ func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string)
 	}
 
 	return do
-}
-
-func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) map[string]string {
-	return map[string]string{
-		"pkg.crossplane.io/revision": pr.GetName(),
-		"pkg.crossplane.io/provider": providerMeta.GetName(),
-	}
 }
 
 // applySA creates/updates a ServiceAccount and includes any image pull secrets
