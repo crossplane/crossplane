@@ -549,6 +549,7 @@ func (r *Reconciler) CompositeReconcilerOptions(ctx context.Context, d *v1.Compo
 		composite.WithLogger(r.log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
+		composite.WithFeatures(r.options.Features),
 	}
 
 	// If external secret stores aren't enabled we just fetch connection details
