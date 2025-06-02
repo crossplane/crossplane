@@ -16,7 +16,11 @@ package operation
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"google.golang.org/protobuf/proto"
+	corev1 "k8s.io/api/core/v1"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -52,6 +56,8 @@ const (
 	reasonFunctionInvocation = "FunctionInvocation"
 	reasonExtraResources     = "ExtraResources"
 	reasonInvalidOutput      = "InvalidOutput"
+
+	errFmtGetCredentialsFromSecret = "cannot get Operation pipeline step %q credential %q from Secret"
 )
 
 // A Reconciler reconciles Operations.
@@ -142,6 +148,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 			req.Input = in
 		}
+
+		req.Credentials = map[string]*fnv1.Credentials{}
+		for _, cs := range fn.Credentials {
+			// For now we only support loading credentials from secrets.
+			if cs.Source != v1alpha1.FunctionCredentialsSourceSecret || cs.SecretRef == nil {
+				continue
+			}
+
+			s := &corev1.Secret{}
+			if err := r.client.Get(ctx, client.ObjectKey{Namespace: cs.SecretRef.Namespace, Name: cs.SecretRef.Name}, s); err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, errFmtGetCredentialsFromSecret, fn.Step, cs.Name)
+			}
+			req.Credentials[cs.Name] = &fnv1.Credentials{
+				Source: &fnv1.Credentials_CredentialData{
+					CredentialData: &fnv1.CredentialData{
+						Data: s.Data,
+					},
+				},
+			}
+		}
+
+		req.Meta = &fnv1.RequestMeta{Tag: Tag(req)}
 
 		// Used to store the requirements returned at the previous iteration.
 		var reqs *fnv1.Requirements
@@ -259,4 +287,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	status.MarkConditions(v1alpha1.Complete())
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, op), "cannot update Operation status")
+}
+
+// Tag uniquely identifies a request. Two identical requests created by the
+// same Crossplane binary will produce identical tags. Different builds of
+// Crossplane may produce different tags for the same inputs. See the docs for
+// the Deterministic protobuf MarshalOption for more details.
+func Tag(req *fnv1.RunFunctionRequest) string {
+	m := proto.MarshalOptions{Deterministic: true}
+	b, err := m.Marshal(req)
+	if err != nil {
+		return ""
+	}
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
 }
