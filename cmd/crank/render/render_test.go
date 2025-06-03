@@ -35,13 +35,13 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	ucomposite "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 var (
@@ -50,8 +50,6 @@ var (
 )
 
 func TestRender(t *testing.T) {
-	pipeline := apiextensionsv1.CompositionModePipeline
-
 	// Add all listeners here so we can close them to shutdown our gRPC servers.
 	listeners := make([]io.Closer, 0)
 
@@ -126,7 +124,7 @@ func TestRender(t *testing.T) {
 					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -148,7 +146,7 @@ func TestRender(t *testing.T) {
 					CompositeResource: ucomposite.New(),
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -202,7 +200,7 @@ func TestRender(t *testing.T) {
 					},
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -388,7 +386,7 @@ func TestRender(t *testing.T) {
 					},
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",
@@ -557,7 +555,7 @@ func TestRender(t *testing.T) {
 					},
 					Composition: &apiextensionsv1.Composition{
 						Spec: apiextensionsv1.CompositionSpec{
-							Mode: &pipeline,
+							Mode: apiextensionsv1.CompositionModePipeline,
 							Pipeline: []apiextensionsv1.PipelineStep{
 								{
 									Step:        "test",

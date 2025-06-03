@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: default
+  name: using-resource
+data:
+  super: interesting

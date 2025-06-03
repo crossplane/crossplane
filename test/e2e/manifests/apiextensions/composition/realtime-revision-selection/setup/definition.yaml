@@ -25,8 +25,6 @@ spec:
           properties:
             coolField:
               type: string
-          required:
-          - coolField
         status:
           type: object
           properties:

@@ -10,7 +10,7 @@ spec:
   pipeline:
   - step: be-a-dummy
     functionRef:
-      name: function-dummy
+      name: function-dummy-pkg-external-sa
     input:
       apiVersion: dummy.fn.crossplane.io/v1beta1
       kind: Response
@@ -36,9 +36,6 @@ spec:
                     - conditionType: Ready
                       conditionStatus: "True"
                       time: 10s
-        results:
-         - severity: SEVERITY_NORMAL
-           message: "I am doing a compose!"
   - step: detect-readiness
     functionRef:
-      name: function-auto-ready
+      name: function-auto-ready-pkg-external-sa

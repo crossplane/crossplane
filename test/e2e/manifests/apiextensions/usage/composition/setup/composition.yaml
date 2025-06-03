@@ -10,7 +10,7 @@ spec:
   pipeline:
     - step: be-a-dummy
       functionRef:
-        name: function-dummy
+        name: function-dummy-apiextensions-usage
       input:
         apiVersion: dummy.fn.crossplane.io/v1beta1
         kind: Response
@@ -79,9 +79,6 @@ spec:
                         matchControllerRef: true
                         matchLabels:
                           usage: using
-          results:
-            - severity: SEVERITY_NORMAL
-              message: "I am doing a compose!"
     - step: detect-readiness
       functionRef:
-        name: function-auto-ready
+        name: function-auto-ready-apiextensions-usage

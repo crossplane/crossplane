@@ -30,13 +30,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
-	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
 	"github.com/crossplane/crossplane/internal/xpkg"
+	xpunstructured "github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 
 // Client to get a Package with all its dependencies.
@@ -153,16 +152,6 @@ func (kc *Client) setPackageRuntimeConfigChild(ctx context.Context, res *resourc
 			APIVersion: *runtimeConfigRef.APIVersion,
 			Kind:       *runtimeConfigRef.Kind,
 			Name:       runtimeConfigRef.Name,
-		}))
-	}
-	// We try loading both as currently both are supported and if both are present they are merged.
-	controllerConfigRef := pkgv1.ControllerConfigReference{}
-	apiVersion, kind := pkgv1alpha1.ControllerConfigGroupVersionKind.ToAPIVersionAndKind()
-	if err := fieldpath.Pave(res.Unstructured.Object).GetValueInto("spec.controllerConfigRef", &runtimeConfigRef); err == nil {
-		res.Children = append(res.Children, resource.GetResource(ctx, kc.client, &v1.ObjectReference{
-			APIVersion: apiVersion,
-			Kind:       kind,
-			Name:       controllerConfigRef.Name,
 		}))
 	}
 }

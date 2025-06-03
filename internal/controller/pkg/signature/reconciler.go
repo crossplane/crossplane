@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
@@ -118,6 +119,7 @@ type Reconciler struct {
 	serviceAccount string
 	namespace      string
 	registry       string
+	conditions     conditions.Manager
 
 	newRevision func() v1.PackageRevision
 }
@@ -230,8 +232,9 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 // NewReconciler creates a new package reconciler for signature verification.
 func NewReconciler(client client.Client, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: client,
-		log:    logging.NewNopLogger(),
+		client:     client,
+		log:        logging.NewNopLogger(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -256,10 +259,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		log.Debug(errGetRevision, "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetRevision)))
+		status := r.conditions.For(pr)
+		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetRevision)))
 		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errGetRevision)
 	}
+	status := r.conditions.For(pr)
 
 	log = log.WithValues(
 		"uid", pr.GetUID(),
@@ -293,7 +298,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ic, vc, err := r.config.ImageVerificationConfigFor(ctx, imagePath)
 	if err != nil {
 		log.Debug("Cannot get image verification config", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
+		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetVerificationConfig)))
 		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errGetVerificationConfig)
 	}
@@ -301,7 +306,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// No verification config found for this image, so, we will skip
 		// verification.
 		log.Debug("No signature verification config found for image, skipping verification")
-		pr.SetConditions(v1.VerificationSkipped())
+		status.MarkConditions(v1.VerificationSkipped())
 		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonVerify)
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update package status")
 	}
@@ -314,7 +319,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ref, err := name.ParseReference(imagePath, name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		log.Debug("Cannot parse package image reference", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
+		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errParseReference)))
 		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errParseReference)
 	}
@@ -327,7 +332,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	_, s, err := r.config.PullSecretFor(ctx, imagePath)
 	if err != nil {
 		log.Debug("Cannot get image config pull secret for image", "error", err)
-		pr.SetConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetConfigPullSecret)))
+		status.MarkConditions(v1.VerificationIncomplete(errors.Wrap(err, errGetConfigPullSecret)))
 		_ = r.client.Status().Update(ctx, pr)
 		return reconcile.Result{}, errors.Wrap(err, errGetConfigPullSecret)
 	}
@@ -337,14 +342,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err = r.validator.Validate(ctx, ref, vc, pullSecrets...); err != nil {
 		log.Debug("Signature verification failed", "error", err)
-		pr.SetConditions(v1.VerificationFailed(ic, err))
+		status.MarkConditions(v1.VerificationFailed(ic, err))
 		if sErr := r.client.Status().Update(ctx, pr); sErr != nil {
 			return reconcile.Result{}, errors.Wrap(sErr, "cannot update status with failed verification")
 		}
 		return reconcile.Result{}, errors.Wrap(err, errFailedVerification)
 	}
 
-	pr.SetConditions(v1.VerificationSucceeded(ic))
+	status.MarkConditions(v1.VerificationSucceeded(ic))
 	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with successful verification")
 }
 

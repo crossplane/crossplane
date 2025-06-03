@@ -43,14 +43,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // Error strings.
@@ -59,7 +60,7 @@ const (
 	errGetExistingCDs           = "cannot get existing composed resources"
 	errBuildObserved            = "cannot build observed state for RunFunctionRequest"
 	errGarbageCollectCDs        = "cannot garbage collect composed resources that are no longer desired"
-	errApplyXRRefs              = "cannot update composite resource spec.resourceRefs"
+	errApplyXRRefs              = "cannot update composed resource references"
 	errApplyXRStatus            = "cannot apply composite resource status"
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXRStatus = "cannot unmarshal desired composite resource status from RunFunctionResponse"
@@ -70,6 +71,8 @@ const (
 	errExtraResourceAsStruct    = "cannot encode extra resource to protocol buffer Struct well-known type"
 	errUnknownResourceSelector  = "cannot get extra resource by name: unknown resource selector type"
 	errListExtraResources       = "cannot list extra resources"
+	errGetComposed              = "cannot get composed resource"
+	errMarshalJSON              = "cannot marshal to JSON"
 
 	errFmtApplyCD                    = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails   = "cannot fetch connection details for composed resource %q (a %s named %s)"
@@ -80,6 +83,8 @@ const (
 	errFmtCleanupLabelsCD            = "cannot cleanup composed resource labels of resource %q (a %s named %s)"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
+	errFmtRenderMetadata             = "cannot render metadata for composed resource %q"
+	errFmtGenerateName               = "cannot generate a name for composed resource %q"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 )
@@ -111,7 +116,7 @@ type FunctionComposer struct {
 
 type xr struct {
 	names.NameGenerator
-	managed.ConnectionDetailsFetcher
+	ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
 	ExtraResourcesFetcher
@@ -132,16 +137,22 @@ func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fn
 	return fn(ctx, name, req)
 }
 
+// A ConnectionDetailsFetcher fetches connection details for the supplied
+// Connection Secret owner.
+type ConnectionDetailsFetcher interface {
+	FetchConnection(ctx context.Context, so xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
+}
+
 // A ComposedResourceObserver observes existing composed resources.
 type ComposedResourceObserver interface {
-	ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
+	ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
 }
 
 // A ComposedResourceObserverFn observes existing composed resources.
-type ComposedResourceObserverFn func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
+type ComposedResourceObserverFn func(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error)
 
 // ObserveComposedResources observes existing composed resources.
-func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error) {
 	return fn(ctx, xr)
 }
 
@@ -185,9 +196,9 @@ type ManagedFieldsUpgrader interface {
 // A FunctionComposerOption is used to configure a FunctionComposer.
 type FunctionComposerOption func(*FunctionComposer)
 
-// WithCompositeConnectionDetailsFetcher configures how the FunctionComposer should
-// get the composite resource's connection details.
-func WithCompositeConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) FunctionComposerOption {
+// WithCompositeConnectionDetailsFetcher configures how the FunctionComposer
+// should get the composite resource's connection details.
+func WithCompositeConnectionDetailsFetcher(f ConnectionDetailsFetcher) FunctionComposerOption {
 	return func(p *FunctionComposer) {
 		p.composite.ConnectionDetailsFetcher = f
 	}
@@ -455,9 +466,8 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	refs := composite.New()
-	refs.SetAPIVersion(xr.GetAPIVersion())
-	refs.SetKind(xr.GetKind())
+	refs := composite.New(composite.WithSchema(xr.Schema), composite.WithGroupVersionKind(xr.GroupVersionKind()))
+	refs.SetNamespace(xr.GetNamespace())
 	refs.SetName(xr.GetName())
 	UpdateResourceRefs(refs, desired)
 
@@ -472,13 +482,14 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		return CompositionResult{}, errors.Wrap(err, errApplyXRRefs)
 	}
 
-	// TODO: Remove this call to Upgrade once no supported version of
-	// Crossplane have native P&T available. We only need to upgrade field managers if the
-	// native PTComposer might have applied the composed resources before, using the
-	// default client-side apply field manager "crossplane",
-	// but now migrated to use Composition functions, which uses server-side apply instead.
-	// Without this managedFields upgrade, the composed resources ends up having shared ownership
-	// of fields and field removals won't sync properly.
+	// TODO: Remove this call to Upgrade once no supported version of Crossplane
+	// have native P&T available. We only need to upgrade field managers if the
+	// native PTComposer might have applied the composed resources before, using
+	// the default client-side apply field manager "crossplane", but now
+	// migrated to use Composition functions, which uses server-side apply
+	// instead. Without this managedFields upgrade, the composed resources ends
+	// up having shared ownership of fields and field removals won't sync
+	// properly.
 	for _, cd := range observed {
 		if err := c.composite.ManagedFieldsUpgrader.Upgrade(ctx, cd.Resource); err != nil {
 			return CompositionResult{}, errors.Wrap(err, "cannot upgrade composed resource's managed fields from client-side to server-side apply")
@@ -536,6 +547,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	// GVK and name so that our client knows what resource to patch.
 	v := xr.GetAPIVersion()
 	k := xr.GetKind()
+	ns := xr.GetNamespace()
 	n := xr.GetName()
 	u := xr.GetUID()
 	if err := FromStruct(xr, d.GetComposite().GetResource()); err != nil {
@@ -543,6 +555,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 	}
 	xr.SetAPIVersion(v)
 	xr.SetKind(k)
+	xr.SetNamespace(ns)
 	xr.SetName(n)
 	xr.SetUID(u)
 
@@ -620,19 +633,19 @@ func ComposedFieldOwnerName(xr *composite.Unstructured) string {
 type ExistingComposedResourceObserver struct {
 	cached   client.Reader
 	uncached client.Reader
-	details  managed.ConnectionDetailsFetcher
+	details  ConnectionDetailsFetcher
 }
 
 // NewExistingComposedResourceObserver returns a ComposedResourceGetter that
 // fetches an XR's existing composed resources.
-func NewExistingComposedResourceObserver(c, uc client.Reader, f managed.ConnectionDetailsFetcher) *ExistingComposedResourceObserver {
+func NewExistingComposedResourceObserver(c, uc client.Reader, f ConnectionDetailsFetcher) *ExistingComposedResourceObserver {
 	return &ExistingComposedResourceObserver{cached: c, uncached: uc, details: f}
 }
 
 // ObserveComposedResources begins building composed resource state by
 // fetching any existing composed resources referenced by the supplied composite
 // resource, as well as their connection details.
-func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr xresource.Composite) (ComposedResourceStates, error) {
 	ors := ComposedResourceStates{}
 
 	for _, ref := range xr.GetResourceReferences() {
@@ -650,8 +663,16 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 			continue
 		}
 
-		r := composed.New(composed.FromReference(ref))
+		// Cluster scoped XRs can compose resources either at the cluster scope,
+		// or in arbitrary namespaces. They can optionally include a namespace
+		// in their composed resource references. Namespaced XRs must compose
+		// resources in their own namespace.
 		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
+		if xr.GetNamespace() != "" {
+			nn.Namespace = xr.GetNamespace()
+		}
+
+		r := composed.New(composed.FromReference(ref))
 		err := g.cached.Get(ctx, nn, r)
 		if kerrors.IsNotFound(err) {
 			// We believe we created this resource, but it is not in the cache yet?  Try again without the cache.
@@ -690,7 +711,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
-func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
+func AsState(xr xresource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1.State, error) {
 	r, err := AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
@@ -814,10 +835,19 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 
 // UpdateResourceRefs updates the supplied state to ensure the XR references all
 // composed resources that exist or are pending creation.
-func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired ComposedResourceStates) {
+func UpdateResourceRefs(xr xresource.Composite, desired ComposedResourceStates) {
+	namespaced := xr.GetNamespace() != ""
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
 		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())
+
+		// If the XR is namespaced it can only compose resources in its own
+		// namespace. Its OpenAPI schema won't allow including a namespace in
+		// its resourceRefs.
+		if namespaced {
+			ref.Namespace = ""
+		}
+
 		refs = append(refs, *ref)
 	}
 
