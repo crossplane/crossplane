@@ -41,6 +41,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/internal/names"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/xreconcile/xlogging"
 )
 
 const (
@@ -50,10 +55,8 @@ const (
 
 // Error strings.
 const (
-	errGetClaim             = "cannot get claim"
 	errGetComposite         = "cannot get bound composite resource"
 	errDeleteComposite      = "cannot delete bound composite resource"
-	errDeleteCDs            = "cannot delete connection details"
 	errRemoveFinalizer      = "cannot remove finalizer from claim"
 	errAddFinalizer         = "cannot add finalizer to claim"
 	errUpgradeManagedFields = "cannot upgrade composite resource's managed fields from client-side to server-side apply"
@@ -273,7 +276,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 // The returned Reconciler will apply only the ObjectMetaConfigurator by
 // default; most callers should supply one or more CompositeConfigurators to
 // configure their composite resources.
-func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...ReconcilerOption) *Reconciler {
+func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...ReconcilerOption) reconcile.Reconciler {
 	r := &Reconciler{
 		client:        c,
 		gvkClaim:      of,
@@ -290,33 +293,18 @@ func NewReconciler(c client.Client, of, with schema.GroupVersionKind, o ...Recon
 		ro(r)
 	}
 
-	return r
+	return xreconcile.AsUnstructuredReconciler[*claim.Unstructured](c, r, func() *claim.Unstructured {
+		return claim.New(claim.WithGroupVersionKind(r.gvkClaim))
+	},
+		xreconcile.WithReconcileTimeout[*claim.Unstructured](reconcileTimeout),
+		xreconcile.WithLogger[*claim.Unstructured](r.log))
 }
 
 // Reconcile a composite resource claim with a concrete composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocognit // Complexity is tough to avoid here.
-	log := r.log.WithValues("request", req)
-	log.Debug("Reconciling")
-
-	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
-	defer cancel()
-
-	cm := claim.New(claim.WithGroupVersionKind(r.gvkClaim))
-	if err := r.client.Get(ctx, req.NamespacedName, cm); err != nil {
-		// There's no need to requeue if we no longer exist. Otherwise we'll be
-		// requeued implicitly because we return an error.
-		log.Debug(errGetClaim, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
-	}
-
+func (r *Reconciler) Reconcile(ctx context.Context, cm *claim.Unstructured) (reconcile.Result, error) { //nolint:gocognit // Complexity is tough to avoid here.
+	log := xlogging.FromContext(ctx)
 	status := r.conditions.For(cm)
-
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(cm))
-	log = log.WithValues(
-		"uid", cm.GetUID(),
-		"version", cm.GetResourceVersion(),
-		"external-name", meta.GetExternalName(cm),
-	)
 
 	// Check the pause annotation and return if it has the value "true" after
 	// logging, publishing an event and updating the Synced status condition.
@@ -326,7 +314,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// If the pause annotation is removed, we will have a chance to
 		// reconcile again and resume and if status update fails, we will
 		// reconcile again to retry to update the status.
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, nil
 	}
 
 	xr := composite.New(composite.WithGroupVersionKind(r.gvkXR), composite.WithSchema(composite.SchemaLegacy))
@@ -340,7 +328,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			record.Event(cm, event.Warning(reasonBind, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{Requeue: true}, nil //nolint:nilerr // We don't propagate the errors.
 		}
 	}
 
@@ -360,7 +348,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	// TODO(negz): Remove this call to Upgrade once no supported version of
@@ -377,7 +365,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	if meta.WasDeleted(cm) {
@@ -393,7 +381,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			if meta.WasDeleted(xr) && requiresForegroundDeletion {
 				log.Debug("Waiting for the XR to finish deleting (foreground deletion)")
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+				return reconcile.Result{Requeue: true}, nil
 			}
 
 			do := &client.DeleteOptions{}
@@ -406,7 +394,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				record.Event(cm, event.Warning(reasonDelete, err))
 				status.MarkConditions(xpv1.ReconcileError(err))
 
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+				return reconcile.Result{Requeue: true}, nil //nolint:nilerr // We don't propagate the errors.
 			}
 
 			if requiresForegroundDeletion {
@@ -422,13 +410,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			record.Event(cm, event.Warning(reasonDelete, err))
 			status.MarkConditions(xpv1.ReconcileError(err))
 
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{Requeue: true}, nil
 		}
 
 		log.Debug("Successfully deleted claim")
 		status.MarkConditions(xpv1.ReconcileSuccess())
 
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	if err := r.claim.AddFinalizer(ctx, cm); err != nil {
@@ -440,7 +428,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// The XR's claim reference before syncing. Used to determine if we bind it.
@@ -456,7 +444,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonBind, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	// The XR didn't reference the claim before the sync, but does now.
@@ -479,7 +467,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// request queued if it changes, so no need to requeue.
 		status.MarkConditions(Waiting())
 
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, nil
 	}
 
 	propagated, err := r.composite.PropagateConnection(ctx, cm, xr)
@@ -488,7 +476,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Warning(reasonPropagate, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	if propagated {
@@ -500,7 +488,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// need to requeue here.
 	status.MarkConditions(xpv1.Available())
 
-	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	return reconcile.Result{Requeue: false}, nil
 }
 
 // Waiting returns a condition that indicates the composite resource claim is
