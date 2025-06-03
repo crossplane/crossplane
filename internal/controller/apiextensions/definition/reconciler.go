@@ -502,6 +502,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(r.options.PollInterval),
 		composite.WithComposer(fc),
+		composite.WithFeatures(r.options.Features),
 	}
 
 	// If realtime compositions are enabled we pass the ControllerEngine to the
