@@ -257,6 +257,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
+	if meta.WasDeleted(pr) {
+		log.Debug("Package revision is deleted, skipping reconciliation")
+		return reconcile.Result{}, nil
+	}
+
 	if r.features.Enabled(features.EnableAlphaSignatureVerification) {
 		// Wait for signature verification to complete before proceeding.
 		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {

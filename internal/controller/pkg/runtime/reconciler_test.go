@@ -20,6 +20,7 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
@@ -156,6 +157,34 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						// No status update should occur for paused reconciliation
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"DeletedRevision": {
+			reason: "Do not reconcile if the package revision is marked for deletion.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							pr := o.(*v1.ProviderRevision)
+							pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							pr.SetDesiredState(v1.PackageRevisionActive)
+							pr.SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
+							return nil
+						}),
+						// No status update should occur for deleted reconciliation
 					},
 				},
 				rec: []ReconcilerOption{
