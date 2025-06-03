@@ -864,6 +864,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	}
 	status.MarkConditions(v1.Established())
+
+	if _, ok := pr.(v1.PackageRevisionWithRuntime); !ok {
+		// If the package revision doesn't have a runtime, we should also mark
+		// it as Healthy owning that condition different from the packages with
+		// runtime.
+		status.MarkConditions(v1.Healthy())
+	}
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 

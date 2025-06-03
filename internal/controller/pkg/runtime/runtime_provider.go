@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,10 +36,7 @@ import (
 )
 
 const (
-	errNotProvider                            = "not a provider package"
-	errNotProviderRevision                    = "not a provider revision"
 	errDeleteProviderDeployment               = "cannot delete provider package deployment"
-	errDeleteProviderSA                       = "cannot delete provider package service account"
 	errDeleteProviderService                  = "cannot delete provider package service"
 	errApplyProviderDeployment                = "cannot apply provider package deployment"
 	errApplyProviderSecret                    = "cannot apply provider package secret"
@@ -124,7 +122,13 @@ func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRunti
 	}
 
 	sa := build.ServiceAccount()
-	d := build.Deployment(sa.Name, providerDeploymentOverrides(pr, pr.GetResolvedSource())...)
+
+	// Determine the function's image, taking into account the default registry.
+	image, err := name.ParseReference(pr.GetResolvedSource(), name.WithDefaultRegistry(h.defaultRegistry))
+	if err != nil {
+		return errors.Wrap(err, errParseProviderImage)
+	}
+	d := build.Deployment(sa.Name, providerDeploymentOverrides(pr, image.Name())...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is not used by the deployment when
 	// the SA is managed externally by the user and configured by setting
