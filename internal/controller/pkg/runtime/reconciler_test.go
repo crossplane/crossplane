@@ -215,7 +215,7 @@ func TestReconcile(t *testing.T) {
 							want := &v1.ProviderRevision{}
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.Unhealthy().WithMessage("Waiting for signature verification to complete"))
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("Waiting for signature verification to complete"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -262,7 +262,7 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.Unhealthy().WithMessage("pre establish runtime hook failed for package: boom"))
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("pre establish runtime hook failed for package: boom"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -313,7 +313,7 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.Unhealthy().WithMessage("Package revision is not established yet"))
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("Package revision is not healthy yet"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -350,7 +350,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionActive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-								obj.SetConditions(v1.Established())
+								obj.SetConditions(v1.RevisionHealthy())
 								return nil
 							case *corev1.ServiceAccount:
 								obj.Name = crossplaneName
@@ -364,8 +364,8 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.Established())
-							want.SetConditions(v1.Unhealthy().WithMessage("post establish runtime hook failed for package: boom"))
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("post establish runtime hook failed for package: boom"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -450,7 +450,7 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.Unhealthy().WithMessage("cannot prepare runtime manifest builder options: no deployment runtime config set"))
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("cannot prepare runtime manifest builder options: no deployment runtime config set"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -497,7 +497,7 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 							want.SetRuntimeConfigRef(&v1.RuntimeConfigReference{Name: "test-runtime-config"})
-							want.SetConditions(v1.Unhealthy().WithMessage("cannot prepare runtime manifest builder options: cannot get referenced deployment runtime config: runtime config not found"))
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("cannot prepare runtime manifest builder options: cannot get referenced deployment runtime config: runtime config not found"))
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -531,7 +531,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionActive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-								obj.SetConditions(v1.Established())
+								obj.SetConditions(v1.RevisionHealthy())
 								return nil
 							case *appsv1.Deployment:
 								// Simulate existing deployment with old selector
@@ -564,8 +564,8 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-							want.SetConditions(v1.Established())
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -605,7 +605,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionActive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-								obj.SetConditions(v1.Established())
+								obj.SetConditions(v1.RevisionHealthy())
 								return nil
 							case *appsv1.Deployment:
 								// Simulate existing deployment with correct selector
@@ -633,8 +633,8 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-							want.SetConditions(v1.Established())
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -674,7 +674,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.FunctionRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionActive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "function-test"})
-								obj.SetConditions(v1.Established())
+								obj.SetConditions(v1.RevisionHealthy())
 								return nil
 							case *corev1.ServiceAccount:
 								obj.Name = crossplaneName
@@ -688,8 +688,8 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.FunctionRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "function-test"})
-							want.SetConditions(v1.Established())
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -729,7 +729,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionActive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-								obj.SetConditions(v1.Established())
+								obj.SetConditions(v1.RevisionHealthy())
 								obj.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 									Name:   "test-image-config",
 									Reason: v1.ImageConfigReasonSetPullSecret,
@@ -758,8 +758,8 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
-							want.SetConditions(v1.Established())
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
 							want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
 								Name:   "test-image-config",
 								Reason: v1.ImageConfigReasonSetPullSecret,
@@ -812,7 +812,7 @@ func TestReconcile(t *testing.T) {
 								obj.SetDesiredState(v1.PackageRevisionActive)
 								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 								obj.SetConditions(v1.VerificationSucceeded("foo"))
-								obj.SetConditions(v1.Established())
+								obj.SetConditions(v1.RevisionHealthy())
 								return nil
 							case *corev1.ServiceAccount:
 								obj.Name = crossplaneName
@@ -827,8 +827,8 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
 							want.SetConditions(v1.VerificationSucceeded("foo"))
-							want.SetConditions(v1.Established())
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
 
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
