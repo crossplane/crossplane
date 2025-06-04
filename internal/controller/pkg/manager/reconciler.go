@@ -80,9 +80,6 @@ const (
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
 
-	errUnhealthyPackageRevision     = "current package revision is unhealthy"
-	errUnknownPackageRevisionHealth = "current package revision health is unknown"
-
 	errCreateK8sClient = "failed to initialize clientset"
 	errBuildFetcher    = "cannot build fetcher"
 )

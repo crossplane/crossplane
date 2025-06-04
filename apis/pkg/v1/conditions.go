@@ -50,7 +50,6 @@ const (
 	ReasonUnpacking            xpv1.ConditionReason = "UnpackingPackage"
 	ReasonInactive             xpv1.ConditionReason = "InactivePackageRevision"
 	ReasonActive               xpv1.ConditionReason = "ActivePackageRevision"
-	ReasonEstablished          xpv1.ConditionReason = "EstablishedPackageRevision"
 	ReasonUnhealthy            xpv1.ConditionReason = "UnhealthyPackageRevision"
 	ReasonHealthy              xpv1.ConditionReason = "HealthyPackageRevision"
 	ReasonUnknownHealth        xpv1.ConditionReason = "UnknownPackageRevisionHealth"
@@ -136,8 +135,8 @@ func UnknownHealth() xpv1.Condition {
 	}
 }
 
-// AwaitingVerification indicates that the package manager is waiting for
-// a package's signature to be verified.
+// AwaitingVerification indicates that the package revision reconciler is
+// waiting for a package's signature to be verified.
 func AwaitingVerification() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeRevisionHealthy,
