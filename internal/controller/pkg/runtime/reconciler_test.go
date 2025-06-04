@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -117,6 +116,7 @@ func TestReconcile(t *testing.T) {
 					WithNamespace(testNamespace),
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -136,6 +136,7 @@ func TestReconcile(t *testing.T) {
 					WithNamespace(testNamespace),
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -166,6 +167,7 @@ func TestReconcile(t *testing.T) {
 					WithNamespace(testNamespace),
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -194,6 +196,7 @@ func TestReconcile(t *testing.T) {
 					WithNamespace(testNamespace),
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -232,6 +235,7 @@ func TestReconcile(t *testing.T) {
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableAlphaSignatureVerification)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -282,6 +286,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						},
 					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -333,6 +338,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						},
 					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -388,6 +394,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						},
 					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -426,6 +433,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						},
 					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -467,6 +475,7 @@ func TestReconcile(t *testing.T) {
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -514,157 +523,15 @@ func TestReconcile(t *testing.T) {
 					WithServiceAccount(crossplaneName),
 					WithRuntimeHooks(&MockHooks{}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableBetaDeploymentRuntimeConfigs)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errors.New("runtime config not found"), errGetRuntimeConfig), errManifestBuilderOptions),
 			},
 		},
-		"SuccessfulMigrationDeletesOldDeployment": {
-			reason: "Should delete deployment with old selector and let hooks recreate it with new selector.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							switch obj := o.(type) {
-							case *v1.ProviderRevision:
-								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								obj.SetDesiredState(v1.PackageRevisionActive)
-								obj.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-								obj.SetConditions(v1.RevisionHealthy())
-								return nil
-							case *appsv1.Deployment:
-								// Simulate existing deployment with old selector
-								obj.Name = "provider-test-revision"
-								obj.Namespace = testNamespace
-								obj.Spec.Selector = &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"pkg.crossplane.io/provider": "provider-test", // Old format
-									},
-								}
-								return nil
-							case *corev1.ServiceAccount:
-								obj.Name = crossplaneName
-								obj.Namespace = testNamespace
-								return nil
-							}
-							return nil
-						}),
-						MockDelete: test.NewMockDeleteFn(nil, func(obj client.Object) error {
-							// Should delete the deployment with old selector
-							if deploy, ok := obj.(*appsv1.Deployment); ok {
-								if deploy.Name != "provider-test-revision" {
-									t.Errorf("unexpected deployment name: %s", deploy.Name)
-								}
-							}
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-							want := &v1.ProviderRevision{}
-							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
-
-							if diff := cmp.Diff(want, o); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-				},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
-					WithLogger(testLog),
-					WithRecorder(event.NewNopRecorder()),
-					WithNamespace(testNamespace),
-					WithServiceAccount(crossplaneName),
-					WithRuntimeHooks(&MockHooks{
-						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return nil
-						},
-						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return nil
-						},
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"NoMigrationNeededForCorrectSelector": {
-			reason: "Should not delete deployment when selector is already correct.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-							switch obj := o.(type) {
-							case *v1.ProviderRevision:
-								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-								obj.SetDesiredState(v1.PackageRevisionActive)
-								obj.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-								obj.SetConditions(v1.RevisionHealthy())
-								return nil
-							case *appsv1.Deployment:
-								// Simulate existing deployment with correct selector
-								obj.Name = "provider-test-revision"
-								obj.Namespace = testNamespace
-								obj.Spec.Selector = &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"pkg.crossplane.io/provider": "crossplane-provider-test", // Correct format
-									},
-								}
-								return nil
-							case *corev1.ServiceAccount:
-								obj.Name = crossplaneName
-								obj.Namespace = testNamespace
-								return nil
-							}
-							return nil
-						}),
-						MockDelete: test.NewMockDeleteFn(nil, func(_ client.Object) error {
-							t.Errorf("Delete should not be called when selector is correct")
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
-							want := &v1.ProviderRevision{}
-							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
-							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetLabels(map[string]string{v1.LabelParentPackage: "crossplane-provider-test"})
-							want.SetConditions(v1.RevisionHealthy())
-							want.SetConditions(v1.RuntimeHealthy())
-
-							if diff := cmp.Diff(want, o); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-				},
-				rec: []ReconcilerOption{
-					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
-					WithLogger(testLog),
-					WithRecorder(event.NewNopRecorder()),
-					WithNamespace(testNamespace),
-					WithServiceAccount(crossplaneName),
-					WithRuntimeHooks(&MockHooks{
-						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return nil
-						},
-						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
-							return nil
-						},
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"NoMigrationForFunctionRevision": {
-			reason: "Should not attempt migration for FunctionRevision.",
+		"MigratorNop": {
+			reason: "Should use nop migrator for function revisions (no migration needed).",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -673,7 +540,7 @@ func TestReconcile(t *testing.T) {
 							case *v1.FunctionRevision:
 								obj.SetGroupVersionKind(v1.FunctionRevisionGroupVersionKind)
 								obj.SetDesiredState(v1.PackageRevisionActive)
-								obj.SetLabels(map[string]string{v1.LabelParentPackage: "function-test"})
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-function"})
 								obj.SetConditions(v1.RevisionHealthy())
 								return nil
 							case *corev1.ServiceAccount:
@@ -687,7 +554,7 @@ func TestReconcile(t *testing.T) {
 							want := &v1.FunctionRevision{}
 							want.SetGroupVersionKind(v1.FunctionRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetLabels(map[string]string{v1.LabelParentPackage: "function-test"})
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-function"})
 							want.SetConditions(v1.RevisionHealthy())
 							want.SetConditions(v1.RuntimeHealthy())
 
@@ -710,6 +577,118 @@ func TestReconcile(t *testing.T) {
 						},
 						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
 							return nil
+						},
+					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"MigratorError": {
+			reason: "Should return error when migrator fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionActive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RuntimeUnhealthy().WithMessage("failed to run deployment selector migration: boom"))
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{}),
+					WithDeploymentSelectorMigrator(&MockDeploymentSelectorMigrator{
+						MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, "failed to run deployment selector migration"),
+			},
+		},
+		"MigratorSuccess": {
+			reason: "Should proceed normally when migrator succeeds.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+							switch obj := o.(type) {
+							case *v1.ProviderRevision:
+								obj.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								obj.SetDesiredState(v1.PackageRevisionActive)
+								obj.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+								obj.SetConditions(v1.RevisionHealthy())
+								return nil
+							case *corev1.ServiceAccount:
+								obj.Name = crossplaneName
+								obj.Namespace = testNamespace
+								return nil
+							}
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+							want := &v1.ProviderRevision{}
+							want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+							want.SetDesiredState(v1.PackageRevisionActive)
+							want.SetLabels(map[string]string{v1.LabelParentPackage: "test-provider"})
+							want.SetConditions(v1.RevisionHealthy())
+							want.SetConditions(v1.RuntimeHealthy())
+
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionWithRuntimeFn(func() v1.PackageRevisionWithRuntime { return &v1.ProviderRevision{} }),
+					WithLogger(testLog),
+					WithRecorder(event.NewNopRecorder()),
+					WithNamespace(testNamespace),
+					WithServiceAccount(crossplaneName),
+					WithRuntimeHooks(&MockHooks{
+						MockPre: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return nil
+						},
+						MockPost: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return nil
+						},
+					}),
+					WithDeploymentSelectorMigrator(&MockDeploymentSelectorMigrator{
+						MockMigrateDeploymentSelector: func(_ context.Context, _ v1.PackageRevisionWithRuntime, _ ManifestBuilder) error {
+							return nil // Migration succeeds
 						},
 					}),
 				},
@@ -794,6 +773,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						},
 					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -852,6 +832,7 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithFeatureFlags(flagsWithFeatures(features.EnableAlphaSignatureVerification)),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
@@ -890,6 +871,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						},
 					}),
+					WithDeploymentSelectorMigrator(NewNopDeploymentSelectorMigrator()),
 				},
 			},
 			want: want{
