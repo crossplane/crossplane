@@ -34,11 +34,13 @@ import (
 
 // initCommand configuration for the initialization of core Crossplane controllers.
 type initCommand struct {
-	Providers      []string `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."      name:"provider"`
-	Configurations []string `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated." name:"configuration"`
-	Functions      []string `help:"Pre-install a Function by giving its image URI. This argument can be repeated."      name:"function"`
-	Namespace      string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"       help:"Namespace used to set as default scope in default secret store config." short:"n"`
-	ServiceAccount string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT" help:"Name of the Crossplane Service Account."`
+	Providers                 []string `help:"Pre-install a Provider by giving its image URI. This argument can be repeated."      name:"provider"`
+	Configurations            []string `help:"Pre-install a Configuration by giving its image URI. This argument can be repeated." name:"configuration"`
+	Functions                 []string `help:"Pre-install a Function by giving its image URI. This argument can be repeated."      name:"function"`
+	Namespace                 string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
+	ServiceAccount            string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`
+	CRDsPath                  string   `default:"/crds"                                                                            env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
+	WebhookConfigurationsPath string   `default:"/webhookconfigurations"                                                           env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Custom Resource Definitions."`
 
 	WebhookEnabled          bool   `default:"true"                   env:"WEBHOOK_ENABLED"                                                                         help:"Enable webhook configuration."`
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"       help:"The name of the Service object that the webhook service will be run."`
@@ -89,8 +91,8 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			Port:      &c.WebhookServicePort,
 		}
 		steps = append(steps,
-			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
-			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
+			initializer.NewCoreCRDs(c.CRDsPath, s, initializer.WithWebhookTLSSecretRef(nn)),
+			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc))
 	} else {
 		steps = append(steps,
 			initializer.NewCoreCRDs("/crds", s),

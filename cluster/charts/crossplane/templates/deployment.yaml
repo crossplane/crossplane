@@ -57,7 +57,13 @@ spec:
       {{- end }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
-        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+        - name: {{ .Chart.Name }}-init
+          {{- if .Values.image.ko }}
+          image: "ko://github.com/crossplane/crossplane/cmd/crossplane"
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+          {{- end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
           - core
           - init
@@ -73,8 +79,6 @@ spec:
           - --function
           - "{{ $arg }}"
           {{- end }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          name: {{ .Chart.Name }}-init
           resources:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           {{- with .Values.securityContextCrossplane }}
@@ -82,6 +86,12 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           env:
+          {{- if .Values.image.ko }}
+          - name: CRDS_PATH
+            value: "/var/run/ko/crds"
+          - name: WEBHOOK_CONFIGS_PATH
+            value: "/var/run/ko/webhookconfigurations"
+          {{- end }}
           - name: GOMAXPROCS
             valueFrom:
               resourceFieldRef:
@@ -126,7 +136,12 @@ spec:
           - name: "TLS_CLIENT_SECRET_NAME"
             value: crossplane-tls-client
       containers:
-      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+      - name: {{ .Chart.Name }}
+        {{- if .Values.image.ko }}
+        image: "ko://github.com/crossplane/crossplane/cmd/crossplane"
+        {{- else }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
+        {{- end }}
         args:
         - core
         - start
