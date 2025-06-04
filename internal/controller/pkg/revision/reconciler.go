@@ -520,11 +520,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
-		// TODO(turkenh): This was the only condition update that uses
-		//  SetConditions instead of MarkConditions. Was this intentional?
-		//  Check with @n3wscott and remove uncommented line below.
-		// pr.SetConditions(v1.Unpacking().WithMessage(err.Error()))
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -551,9 +547,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Wait for signature verification to complete before proceeding.
 		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
 			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-			// Initialize the installed condition if they are not already set to
-			// communicate the status of the package.
-			if pr.GetCondition(v1.TypeInstalled).Status == corev1.ConditionUnknown {
+			// Initialize the revision healthy condition if they are not already
+			// set to communicate the status of the revision.
+			if pr.GetCondition(v1.TypeRevisionHealthy).Status == corev1.ConditionUnknown {
 				status.MarkConditions(v1.AwaitingVerification())
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
 			}
@@ -573,7 +569,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, pr.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -618,7 +614,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				// package revision is already healthy.
 				r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 			}
-			status.MarkConditions(v1.Established())
+			status.MarkConditions(v1.RevisionHealthy())
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 	}
@@ -663,7 +659,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// an error.
 	if rc == nil && pullPolicyNever {
 		err := errors.New(errPullPolicyNever)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonParse, err))
@@ -693,7 +689,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		imgrc, err := r.backend.Init(ctx, bo...)
 		if err != nil {
 			err = errors.Wrap(err, errInitParserBackend)
-			status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 			_ = r.client.Status().Update(ctx, pr)
 
 			r.record.Event(pr, event.Warning(reasonParse, err))
@@ -736,7 +732,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	if err != nil {
 		err = errors.Wrap(err, errParsePackage)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonParse, err))
@@ -746,7 +742,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Lint package using package-specific linter.
 	if err := r.linter.Lint(pkg); err != nil {
 		err = errors.Wrap(err, errLintPackage)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonLint, err))
@@ -763,7 +759,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// we check here to avoid a potential panic on 0 index below.
 	if len(pkg.GetMeta()) != 1 {
 		err = errors.New(errNotOneMeta)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonLint, err))
@@ -781,7 +777,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		err = errors.Wrap(err, errUpdateMeta)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonSync, err))
@@ -793,7 +789,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
 		if err := xpkg.PackageCrossplaneCompatible(r.versioner)(pkgMeta); err != nil {
 			err = errors.Wrap(err, errIncompatible)
-			status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 
 			r.record.Event(pr, event.Warning(reasonLint, err))
 
@@ -816,7 +812,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			err = errors.Wrap(err, errResolveDeps)
-			status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 			_ = r.client.Status().Update(ctx, pr)
 
 			r.record.Event(pr, event.Warning(reasonDependencies, err))
@@ -833,7 +829,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		err = errors.Wrap(err, errEstablishControl)
-		status.MarkConditions(v1.Establishing().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonSync, err))
@@ -863,15 +859,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// package revision is already healthy.
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	}
-	status.MarkConditions(v1.Established())
-
-	if _, ok := pr.(v1.PackageRevisionWithRuntime); !ok {
-		// If the package revision doesn't have a runtime, we should also mark
-		// it as Healthy owning that condition different from the packages with
-		// runtime.
-		status.MarkConditions(v1.Healthy())
-	}
-
+	status.MarkConditions(v1.RevisionHealthy())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 

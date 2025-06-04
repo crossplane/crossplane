@@ -471,23 +471,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	// TODO(phisco): refactor these conditions to make it clearer
-	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionTrue {
-		if p.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
-			// NOTE(phisco): We don't want to spam the user with events if the
-			// package is already healthy.
-			r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
-		}
-		status.MarkConditions(v1.Healthy())
+	health := packageHealth(pr)
+	if health.Status == corev1.ConditionTrue && p.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
+		// NOTE(phisco): We don't want to spam the user with events if the
+		// package is already healthy.
+		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 	}
-	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionFalse {
-		status.MarkConditions(v1.Unhealthy().WithMessage(prHealthy.Message))
-		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
-	}
-	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
-		status.MarkConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
-		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
-	}
+	status.MarkConditions(health)
 
 	if pr.GetUID() == "" && pullSecretConfig != "" {
 		// We only record this event if the revision is new, as we don't want to
@@ -518,7 +508,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}
 
-	// If current revision is not active, and we have an automatic or
+	// If the current revision is not active, and we have an automatic or
 	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
 		pr.SetDesiredState(v1.PackageRevisionActive)
@@ -562,6 +552,38 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
 	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+}
+
+func packageHealth(pr v1.PackageRevision) xpv1.Condition {
+	revisionHealth := pr.GetCondition(v1.TypeRevisionHealthy)
+	runtimeHealth := pr.GetCondition(v1.TypeRuntimeHealthy)
+
+	revisionHealthy := revisionHealth.Status == corev1.ConditionTrue
+	runtimeHealthy := runtimeHealth.Status == corev1.ConditionTrue
+	if _, hasRuntime := pr.(v1.PackageRevisionWithRuntime); !hasRuntime {
+		// If the package revision does not have a runtime, we skip checking the runtime health.
+		runtimeHealthy = true
+	}
+
+	if revisionHealthy && runtimeHealthy {
+		return v1.Healthy()
+	}
+
+	if !revisionHealthy {
+		m := fmt.Sprintf("Package revision health is %q", revisionHealth.Status)
+		if revisionHealth.Message != "" {
+			m += " with message: " + revisionHealth.Message
+		}
+		return v1.Unhealthy().WithMessage(m)
+	}
+	if !runtimeHealthy {
+		m := fmt.Sprintf("Package runtime health is %q", runtimeHealth.Status)
+		if runtimeHealth.Message != "" {
+			m += " with message: " + runtimeHealth.Message
+		}
+		return v1.Unhealthy().WithMessage(m)
+	}
+	return v1.UnknownHealth()
 }
 
 func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {

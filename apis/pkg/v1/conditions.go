@@ -33,6 +33,12 @@ const (
 	// A TypeHealthy indicates whether a package is healthy.
 	TypeHealthy xpv1.ConditionType = "Healthy"
 
+	// A TypeRevisionHealthy indicates whether a package revision is healthy.
+	TypeRevisionHealthy xpv1.ConditionType = "RevisionHealthy"
+
+	// A TypeRuntimeHealthy indicates whether a package revision runtime is healthy.
+	TypeRuntimeHealthy xpv1.ConditionType = "RuntimeHealthy"
+
 	// A TypeVerified indicates whether a package's signature is verified.
 	// It could be either successful or skipped to be marked as complete.
 	TypeVerified xpv1.ConditionType = "Verified"
@@ -67,17 +73,6 @@ const (
 	ReasonVerificationFailed xpv1.ConditionReason = "SignatureVerificationFailed"
 )
 
-// AwaitingVerification indicates that the package manager is waiting for
-// a package's signature to be verified.
-func AwaitingVerification() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeInstalled,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonAwaitingVerification,
-	}
-}
-
 // Unpacking indicates that the package manager is waiting for a package
 // revision to be unpacked.
 func Unpacking() xpv1.Condition {
@@ -111,28 +106,6 @@ func Active() xpv1.Condition {
 	}
 }
 
-// Establishing indicates that the package revision controller is currently
-// establishing the package revision objects in the cluster.
-func Establishing() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeInstalled,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonEstablished,
-	}
-}
-
-// Established indicates that the package revision controller has
-// successfully established the package revision objects in the cluster.
-func Established() xpv1.Condition {
-	return xpv1.Condition{
-		Type:               TypeInstalled,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonEstablished,
-	}
-}
-
 // Unhealthy indicates that the current revision is unhealthy.
 func Unhealthy() xpv1.Condition {
 	return xpv1.Condition{
@@ -157,6 +130,77 @@ func Healthy() xpv1.Condition {
 func UnknownHealth() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeHealthy,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnknownHealth,
+	}
+}
+
+// AwaitingVerification indicates that the package manager is waiting for
+// a package's signature to be verified.
+func AwaitingVerification() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRevisionHealthy,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonAwaitingVerification,
+	}
+}
+
+// RevisionUnhealthy indicates that the current package revision is unhealthy.
+func RevisionUnhealthy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRevisionHealthy,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnhealthy,
+	}
+}
+
+// RevisionHealthy indicates that the current package revision is healthy.
+func RevisionHealthy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRevisionHealthy,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonHealthy,
+	}
+}
+
+// RevisionUnknownHealth indicates that the health of the current package revision is unknown.
+func RevisionUnknownHealth() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRevisionHealthy,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnknownHealth,
+	}
+}
+
+// RuntimeUnhealthy indicates that the current package revision runtime is unhealthy.
+func RuntimeUnhealthy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRuntimeHealthy,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnhealthy,
+	}
+}
+
+// RuntimeHealthy indicates that the current package revision runtime is healthy.
+func RuntimeHealthy() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRuntimeHealthy,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonHealthy,
+	}
+}
+
+// RuntimeUnknownHealth indicates that the health of the current package revision runtime is unknown.
+func RuntimeUnknownHealth() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               TypeRuntimeHealthy,
 		Status:             corev1.ConditionUnknown,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonUnknownHealth,
