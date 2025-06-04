@@ -89,6 +89,7 @@ encouraged to join.
 
 Each SIG collaborates in Slack and some groups have regular meetings, you can
 find the meetings in the [Community Calendar][community calendar].
+- [#sig-cli][sig-cli]
 - [#sig-composition-environments][sig-composition-environments-slack]
 - [#sig-composition-functions][sig-composition-functions-slack]
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
@@ -138,6 +139,7 @@ Crossplane is under the Apache 2.0 license.
 [ADOPTERS.md]: ADOPTERS.md
 [regular community meetings]: https://github.com/crossplane/crossplane/blob/main/README.md#get-involved
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/9?pane=info
+[sig-cli]: https://crossplane.slack.com/archives/C08V9PMLRQA
 [sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
 [sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE
 [sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
