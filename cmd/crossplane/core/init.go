@@ -40,7 +40,7 @@ type initCommand struct {
 	Namespace                 string   `default:"crossplane-system"                                                                env:"POD_NAMESPACE"        help:"Namespace used to set as default scope in default secret store config." short:"n"`
 	ServiceAccount            string   `default:"crossplane"                                                                       env:"POD_SERVICE_ACCOUNT"  help:"Name of the Crossplane Service Account."`
 	CRDsPath                  string   `default:"/crds"                                                                            env:"CRDS_PATH"            help:"Path of Crossplane core Custom Resource Definitions."`
-	WebhookConfigurationsPath string   `default:"/webhookconfigurations"                                                           env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Custom Resource Definitions."`
+	WebhookConfigurationsPath string   `default:"/webhookconfigurations"                                                           env:"WEBHOOK_CONFIGS_PATH" help:"Path of Crossplane core Webhook Configurations."`
 
 	WebhookEnabled          bool   `default:"true"                   env:"WEBHOOK_ENABLED"                                                                         help:"Enable webhook configuration."`
 	WebhookServiceName      string `env:"WEBHOOK_SERVICE_NAME"       help:"The name of the Service object that the webhook service will be run."`
@@ -95,7 +95,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			initializer.NewWebhookConfigurations(c.WebhookConfigurationsPath, s, nn, svc))
 	} else {
 		steps = append(steps,
-			initializer.NewCoreCRDs("/crds", s),
+			initializer.NewCoreCRDs(c.CRDsPath, s),
 		)
 	}
 
