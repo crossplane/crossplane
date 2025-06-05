@@ -753,7 +753,11 @@ type ResourceSelector struct {
 	//
 	//	*ResourceSelector_MatchName
 	//	*ResourceSelector_MatchLabels
-	Match         isResourceSelector_Match `protobuf_oneof:"match"`
+	Match isResourceSelector_Match `protobuf_oneof:"match"`
+	// Match resources in this namespace.
+	// Omit namespace to match cluster scoped resources, or to match namespaced
+	// resources by labels across all namespaces.
+	Namespace     *string `protobuf:"bytes,5,opt,name=namespace,proto3,oneof" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -825,6 +829,13 @@ func (x *ResourceSelector) GetMatchLabels() *MatchLabels {
 		}
 	}
 	return nil
+}
+
+func (x *ResourceSelector) GetNamespace() string {
+	if x != nil && x.Namespace != nil {
+		return *x.Namespace
+	}
+	return ""
 }
 
 type isResourceSelector_Match interface {
@@ -1315,15 +1326,18 @@ const file_apis_apiextensions_fn_proto_v1beta1_zz_generated_run_function_proto_r
 	"\x0fextra_resources\x18\x01 \x03(\v2@.apiextensions.fn.proto.v1beta1.Requirements.ExtraResourcesEntryR\x0eextraResources\x1as\n" +
 	"\x13ExtraResourcesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
-	"\x05value\x18\x02 \x01(\v20.apiextensions.fn.proto.v1beta1.ResourceSelectorR\x05value:\x028\x01\"\xc3\x01\n" +
+	"\x05value\x18\x02 \x01(\v20.apiextensions.fn.proto.v1beta1.ResourceSelectorR\x05value:\x028\x01\"\xf4\x01\n" +
 	"\x10ResourceSelector\x12\x1f\n" +
 	"\vapi_version\x18\x01 \x01(\tR\n" +
 	"apiVersion\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1f\n" +
 	"\n" +
 	"match_name\x18\x03 \x01(\tH\x00R\tmatchName\x12P\n" +
-	"\fmatch_labels\x18\x04 \x01(\v2+.apiextensions.fn.proto.v1beta1.MatchLabelsH\x00R\vmatchLabelsB\a\n" +
-	"\x05match\"\x99\x01\n" +
+	"\fmatch_labels\x18\x04 \x01(\v2+.apiextensions.fn.proto.v1beta1.MatchLabelsH\x00R\vmatchLabels\x12!\n" +
+	"\tnamespace\x18\x05 \x01(\tH\x01R\tnamespace\x88\x01\x01B\a\n" +
+	"\x05matchB\f\n" +
+	"\n" +
+	"_namespace\"\x99\x01\n" +
 	"\vMatchLabels\x12O\n" +
 	"\x06labels\x18\x01 \x03(\v27.apiextensions.fn.proto.v1beta1.MatchLabels.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +

@@ -72,6 +72,11 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 	steps = append(steps,
 		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, tlsGeneratorOpts...),
+		// Crossplane used to serve these webhooks, but now uses CEL validation.
+		initializer.NewValidatingWebhookRemover("crossplane",
+			"compositeresourcedefinitions.apiextensions.crossplane.io",
+			"compositions.apiextensions.crossplane.io",
+		),
 	)
 	if c.WebhookEnabled {
 		nn := types.NamespacedName{
@@ -112,7 +117,6 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations, c.Functions),
-		initializer.NewStoreConfigObject(c.Namespace),
 		initializer.StepFunc(initializer.DefaultDeploymentRuntimeConfig),
 	)
 

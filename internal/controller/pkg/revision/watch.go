@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -37,10 +36,8 @@ import (
 // revisions that use a ControllerConfig or DeploymentRuntimeConfig.
 func EnqueuePackageRevisionsForRuntimeConfig(kube client.Client, l v1.PackageRevisionList, log logging.Logger) handler.EventHandler {
 	return handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
-		cc, isCC := o.(*v1alpha1.ControllerConfig)
-		rc, isRC := o.(*v1beta1.DeploymentRuntimeConfig)
-
-		if !isCC && !isRC {
+		rc, ok := o.(*v1beta1.DeploymentRuntimeConfig)
+		if !ok {
 			return nil
 		}
 
@@ -56,17 +53,9 @@ func EnqueuePackageRevisionsForRuntimeConfig(kube client.Client, l v1.PackageRev
 			if !ok {
 				continue
 			}
-			if isCC {
-				ref := rt.GetControllerConfigRef()
-				if ref != nil && ref.Name == cc.GetName() {
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
-				}
-			}
-			if isRC {
-				ref := rt.GetRuntimeConfigRef()
-				if ref != nil && ref.Name == rc.GetName() {
-					matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
-				}
+			ref := rt.GetRuntimeConfigRef()
+			if ref != nil && ref.Name == rc.GetName() {
+				matches = append(matches, reconcile.Request{NamespacedName: types.NamespacedName{Name: rev.GetName()}})
 			}
 		}
 

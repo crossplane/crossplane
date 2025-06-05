@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -152,11 +153,12 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	pkg    Revisioner
-	config xpkg.ConfigStore
-	log    logging.Logger
-	record event.Recorder
+	client     resource.ClientApplicator
+	pkg        Revisioner
+	config     xpkg.ConfigStore
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -278,9 +280,10 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		pkg:    NewNopRevisioner(),
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		pkg:        NewNopRevisioner(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -305,12 +308,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetPackage, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackage)
 	}
+	status := r.conditions.For(p)
 
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(p) {
 		r.record.Event(p, event.Normal(reasonPaused, reconcilePausedMsg))
-		p.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
@@ -358,7 +362,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, p.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
-		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, p)
 
 		r.record.Event(p, event.Warning(reasonImageConfig, err))
@@ -380,7 +384,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	revisionName, err := r.pkg.Revision(ctx, p, secrets...)
 	if err != nil {
 		err = errors.Wrap(err, errUnpack)
-		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		status.MarkConditions(v1.Unpacking().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
 
 		if updateErr := r.client.Status().Update(ctx, p); updateErr != nil {
@@ -391,7 +395,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if revisionName == "" {
-		p.SetConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
+		status.MarkConditions(v1.Unpacking().WithMessage("Waiting for unpack to complete"))
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
@@ -474,14 +478,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// package is already healthy.
 			r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 		}
-		p.SetConditions(v1.Healthy())
+		status.MarkConditions(v1.Healthy())
 	}
 	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionFalse {
-		p.SetConditions(v1.Unhealthy().WithMessage(prHealthy.Message))
+		status.MarkConditions(v1.Unhealthy().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
 	}
 	if prHealthy := pr.GetCondition(v1.TypeHealthy); prHealthy.Status == corev1.ConditionUnknown {
-		p.SetConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
+		status.MarkConditions(v1.UnknownHealth().WithMessage(prHealthy.Message))
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
@@ -510,7 +514,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	prwr, prok := pr.(v1.PackageRevisionWithRuntime)
 	if pwok && prok {
 		prwr.SetRuntimeConfigRef(pwr.GetRuntimeConfigRef())
-		prwr.SetControllerConfigRef(pwr.GetControllerConfigRef())
 		prwr.SetTLSServerSecretName(pwr.GetTLSServerSecretName())
 		prwr.SetTLSClientSecretName(pwr.GetTLSClientSecretName())
 	}
@@ -547,11 +550,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	p.SetConditions(v1.Active())
+	status.MarkConditions(v1.Active())
 
 	// If current revision is still not active, the package is inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
-		p.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
+		status.MarkConditions(v1.Inactive().WithMessage("Package is inactive"))
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a

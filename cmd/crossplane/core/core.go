@@ -47,23 +47,23 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/controller/protection"
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/metrics"
+	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/transport"
-	"github.com/crossplane/crossplane/internal/usage"
-	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
-	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/xrd"
+	usagehook "github.com/crossplane/crossplane/internal/webhook/protection/usage"
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached"
 	"github.com/crossplane/crossplane/internal/xpkg"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured"
 )
 
 // Command runs the core crossplane controllers.
@@ -116,8 +116,7 @@ type startCommand struct {
 	TLSClientSecretName string `env:"TLS_CLIENT_SECRET_NAME" help:"The name of the TLS Secret that will be store Crossplane's client certificate."`
 	TLSClientCertsDir   string `env:"TLS_CLIENT_CERTS_DIR"   help:"The path of the folder which will store TLS client certificate of Crossplane."`
 
-	EnableExternalSecretStores        bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when a dependent package is updated."`
+	EnableDependencyVersionUpgrades   bool `group:"Alpha Features:" help:"Enable support for upgrading dependency versions when the parent package is updated."`
 	EnableDependencyVersionDowngrades bool `group:"Alpha Features:" help:"Enable support for upgrading and downgrading dependency versions when a dependent package is updated."`
 	EnableSignatureVerification       bool `group:"Alpha Features:" help:"Enable support for package signature verification via ImageConfig API."`
 	EnableFunctionResponseCache       bool `group:"Alpha Features:" help:"Enable support for caching composition function responses."`
@@ -125,29 +124,30 @@ type startCommand struct {
 	XfnCacheDir    string        `default:"/cache/xfn" env:"XFN_CACHE_DIR"     group:"Alpha Features:" help:"Directory used for caching function responses. Requires --enable-function-response-cache."`
 	XfnCacheMaxTTL time.Duration `default:"24h"        env:"XFN_CACHE_MAX_TTL" group:"Alpha Features:" help:"Maximum TTL for cached function responses. Set to 0 to disable. Requires --enable-function-response-cache."`
 
-	EnableCompositionWebhookSchemaValidation bool `default:"true" group:"Beta Features:" help:"Enable support for Composition validation using schemas."`
-	EnableDeploymentRuntimeConfigs           bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
-	EnableUsages                             bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
-	EnableSSAClaims                          bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
-	EnableRealtimeCompositions               bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
+	EnableDeploymentRuntimeConfigs bool `default:"true" group:"Beta Features:" help:"Enable support for Deployment Runtime Configs."`
+	EnableUsages                   bool `default:"true" group:"Beta Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
+	EnableSSAClaims                bool `default:"true" group:"Beta Features:" help:"Enable support for using Kubernetes server-side apply to sync claims with composite resources (XRs)."`
+	EnableRealtimeCompositions     bool `default:"true" group:"Beta Features:" help:"Enable support for realtime compositions, i.e. watching composed resources and reconciling compositions immediately when any of the composed resources is updated."`
 
-	// These are GA features that previously had alpha or beta feature flags.
-	// You can't turn off a GA feature. We maintain the flags to avoid breaking
-	// folks who are passing them, but they do nothing. The flags are hidden so
-	// they don't show up in the help output.
-	EnableCompositionRevisions               bool `default:"true" hidden:""`
-	EnableCompositionFunctions               bool `default:"true" hidden:""`
-	EnableCompositionFunctionsExtraResources bool `default:"true" hidden:""`
-
-	// These are alpha features that we've removed support for. Crossplane
-	// returns an error when you enable them. This ensures you'll see an
-	// explicit and informative error on startup, instead of a potentially
-	// surprising one later.
-	EnableEnvironmentConfigs bool `hidden:""`
+	// These are features that we've removed support for. Crossplane returns an
+	// error when you enable them. This ensures you'll see an explicit and
+	// informative error on startup, instead of a potentially surprising one
+	// later.
+	EnableCompositionWebhookSchemaValidation bool `hidden:""`
+	EnableExternalSecretStores               bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocognit // Only slightly over.
+	if c.EnableCompositionWebhookSchemaValidation {
+		//nolint:revive // This is long and easier to read with punctuation.
+		return errors.New("Crossplane now uses CEL to validate Compositions. The --enable-composition-webhook-schema-validation flag will be removed in a future release.")
+	}
+	if c.EnableExternalSecretStores {
+		//nolint:revive // This is long and easier to read with punctuation.
+		return errors.New("Crossplane removed support for external secret stores. The --enable-external-secret-stores flag will be removed in a future release.")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -225,22 +225,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Features:                &feature.Flags{},
 	}
 
-	if !c.EnableCompositionRevisions {
-		log.Info("Composition Revisions are GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
-	}
-	if !c.EnableCompositionFunctions {
-		log.Info("Composition Functions are GA and cannot be disabled. The --enable-composition-functions flag will be removed in a future release.")
-	}
-	if !c.EnableCompositionFunctionsExtraResources {
-		log.Info("Extra Resources are GA and cannot be disabled. The --enable-composition-functions-extra-resources flag will be removed in a future release.")
-	}
-
-	// TODO(negz): Include a link to a migration guide.
-	if c.EnableEnvironmentConfigs {
-		//nolint:revive // This is long. It's easier to read with punctuation.
-		return errors.New("Crossplane no longer supports loading and patching EnvironmentConfigs natively. Please use function-environment-configs instead. The --enable-environment-configs flag will be removed in a future release.")
-	}
-
 	clienttls, err := certificates.LoadMTLSConfig(
 		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
 		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
@@ -284,30 +268,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		runner = cfr
 	}
 
-	if c.EnableCompositionWebhookSchemaValidation {
-		o.Features.Enable(features.EnableBetaCompositionWebhookSchemaValidation)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionWebhookSchemaValidation)
-	}
 	if c.EnableUsages {
 		o.Features.Enable(features.EnableBetaUsages)
 		log.Info("Beta feature enabled", "flag", features.EnableBetaUsages)
-	}
-	if c.EnableExternalSecretStores {
-		o.Features.Enable(features.EnableAlphaExternalSecretStores)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
-
-		tcfg, err := certificates.LoadMTLSConfig(
-			filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
-			filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
-			false)
-		if err != nil {
-			return errors.Wrap(err, "cannot load TLS certificates for external secret stores")
-		}
-
-		o.ESSOptions = &controller.ESSOptions{
-			TLSConfig: tcfg,
-		}
 	}
 	if c.EnableRealtimeCompositions {
 		o.Features.Enable(features.EnableBetaRealtimeCompositions)
@@ -483,26 +446,21 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
-		return errors.Wrap(err, "cannot add packages controllers to manager")
+		return errors.Wrap(err, "cannot add package manager controllers to manager")
 	}
 
 	// Registering webhooks with the manager is what actually starts the webhook
 	// server.
-	if c.EnableWebhooks {
-		// TODO(muvaf): Once the implementation of other webhook handlers are
-		// fleshed out, implement a registration pattern similar to scheme
-		// registrations.
-		if err := xrd.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+	if c.EnableWebhooks && o.Features.Enabled(features.EnableBetaUsages) {
+		f, err := usage.NewFinder(mgr.GetClient(), mgr.GetFieldIndexer())
+		if err != nil {
+			return errors.Wrap(err, "cannot setup usage finder")
 		}
-		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositions")
+		if err := protection.Setup(mgr, f, o); err != nil {
+			return errors.Wrap(err, "cannot add protection (usage) controllers to manager")
 		}
-		if o.Features.Enabled(features.EnableBetaUsages) {
-			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
-				return errors.Wrap(err, "cannot setup webhook for usages")
-			}
-		}
+
+		usagehook.SetupWebhookWithManager(mgr, f, o)
 	}
 
 	if err := c.SetupProbes(mgr); err != nil {

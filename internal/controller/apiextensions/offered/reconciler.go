@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -45,7 +45,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/engine"
@@ -227,8 +226,9 @@ func NewReconciler(ca resource.ClientApplicator, opts ...ReconcilerOption) *Reco
 
 		engine: &NopEngine{},
 
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 
 		options: apiextensionscontroller.Options{
 			Options: controller.DefaultOptions(),
@@ -258,8 +258,9 @@ type Reconciler struct {
 
 	engine ControllerEngine
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	options apiextensionscontroller.Options
 }
@@ -278,6 +279,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
+	status := r.conditions.For(d)
 
 	log = log.WithValues(
 		"uid", d.GetUID(),
@@ -293,7 +295,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if meta.WasDeleted(d) {
-		d.Status.SetConditions(v1.TerminatingClaim())
+		status.MarkConditions(v1.TerminatingClaim())
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
@@ -443,20 +445,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)
 	}
 
-	// We only want to enable ExternalSecretStore support if the relevant
-	// feature flag is enabled. Otherwise, we start the Claim reconcilers with
-	// their default Connection Propagator.
-	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		pc := claim.ConnectionPropagatorChain{
-			claim.NewAPIConnectionPropagator(r.engine.GetCached()),
-			connection.NewDetailsManager(r.engine.GetCached(), secretsv1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)),
-		}
-
-		o = append(o, claim.WithConnectionPropagator(pc), claim.WithConnectionUnpublisher(
-			claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.engine.GetCached(),
-				secretsv1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(r.options.ESSOptions.TLSConfig)))))
-	}
-
 	observed := d.Status.Controllers.CompositeResourceClaimTypeRef
 	desired := v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
@@ -472,13 +460,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if r.engine.IsRunning(claim.ControllerName(d.GetName())) {
 		log.Debug("Composite resource claim controller is running")
-		d.Status.SetConditions(v1.WatchingClaim())
+		status.MarkConditions(v1.WatchingClaim())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	cr := claim.NewReconciler(r.engine.GetCached(),
-		resource.CompositeClaimKind(d.GetClaimGroupVersionKind()),
-		resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)
+	cr := claim.NewReconciler(r.engine.GetCached(), d.GetClaimGroupVersionKind(), d.GetCompositeGroupVersionKind(), o...)
 
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = ratelimiter.NewReconciler(claim.ControllerName(d.GetName()), errors.WithSilentRequeueOnConflict(cr), r.options.GlobalRateLimiter)
@@ -508,6 +494,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReferenceTo(d.GetClaimGroupVersionKind())
-	d.Status.SetConditions(v1.WatchingClaim())
+	status.MarkConditions(v1.WatchingClaim())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

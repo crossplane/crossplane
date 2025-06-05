@@ -10,7 +10,7 @@ spec:
   pipeline:
   - step: be-a-dummy
     functionRef:
-      name: function-dummy
+      name: function-dummy-pkg-drc
     input:
       apiVersion: dummy.fn.crossplane.io/v1beta1
       kind: Response
@@ -41,4 +41,4 @@ spec:
            message: "I am doing a compose!"
   - step: detect-readiness
     functionRef:
-      name: function-auto-ready
+      name: function-auto-ready-pkg-drc

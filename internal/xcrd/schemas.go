@@ -17,8 +17,14 @@ limitations under the License.
 package xcrd
 
 import (
+	"fmt"
+
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/ptr"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // Label keys.
@@ -68,10 +74,9 @@ func BaseProps() *extv1.JSONSchemaProps {
 }
 
 // CompositeResourceSpecProps is a partial OpenAPIV3Schema for the spec fields
-// that Crossplane expects to be present for all defined infrastructure
-// resources.
-func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
-	return map[string]extv1.JSONSchemaProps{
+// that Crossplane expects to be present for all defined composite resources.
+func CompositeResourceSpecProps(s v1.CompositeResourceScope, defaultPol *xpv1.UpdatePolicy) map[string]extv1.JSONSchemaProps {
+	props := map[string]extv1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
 			Required: []string{"name"},
@@ -118,18 +123,44 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Automatic"`)},
 				{Raw: []byte(`"Manual"`)},
 			},
-		},
-		"claimRef": {
-			Type:     "object",
-			Required: []string{"apiVersion", "kind", "namespace", "name"},
-			Properties: map[string]extv1.JSONSchemaProps{
-				"apiVersion": {Type: "string"},
-				"kind":       {Type: "string"},
-				"namespace":  {Type: "string"},
-				"name":       {Type: "string"},
-			},
+			Default: func() *extv1.JSON {
+				if defaultPol == nil {
+					return nil
+				}
+				return &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *defaultPol))}
+			}(),
 		},
 		"resourceRefs": {
+			Type: "array",
+			Items: &extv1.JSONSchemaPropsOrArray{
+				Schema: &extv1.JSONSchemaProps{
+					Type: "object",
+					Properties: map[string]extv1.JSONSchemaProps{
+						"apiVersion": {Type: "string"},
+						"name":       {Type: "string"},
+						"namespace":  {Type: "string"},
+						"kind":       {Type: "string"},
+					},
+					Required: []string{"apiVersion", "kind"},
+				},
+			},
+			// Controllers should replace the entire resourceRefs array.
+			XListType: ptr.To("atomic"),
+		},
+		"writeConnectionSecretToRef": {
+			Type:     "object",
+			Required: []string{"name", "namespace"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name":      {Type: "string"},
+				"namespace": {Type: "string"},
+			},
+		},
+	}
+
+	// Namespaced XRs don't get to reference secrets or composed resources in
+	// other namespaces.
+	if s == v1.CompositeResourceScopeNamespaced {
+		props["resourceRefs"] = extv1.JSONSchemaProps{
 			Type: "array",
 			Items: &extv1.JSONSchemaPropsOrArray{
 				Schema: &extv1.JSONSchemaProps{
@@ -144,52 +175,40 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 			},
 			// Controllers should replace the entire resourceRefs array.
 			XListType: ptr.To("atomic"),
-		},
-		"publishConnectionDetailsTo": {
+		}
+
+		props["writeConnectionSecretToRef"] = extv1.JSONSchemaProps{
 			Type:     "object",
 			Required: []string{"name"},
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
-				"configRef": {
-					Type:    "object",
-					Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-					Properties: map[string]extv1.JSONSchemaProps{
-						"name": {
-							Type: "string",
-						},
-					},
-				},
-				"metadata": {
-					Type: "object",
-					Properties: map[string]extv1.JSONSchemaProps{
-						"labels": {
-							Type: "object",
-							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-								Allows: true,
-								Schema: &extv1.JSONSchemaProps{Type: "string"},
-							},
-						},
-						"annotations": {
-							Type: "object",
-							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-								Allows: true,
-								Schema: &extv1.JSONSchemaProps{Type: "string"},
-							},
-						},
-						"type": {
-							Type: "string",
-						},
-					},
-				},
 			},
-		},
-		"writeConnectionSecretToRef": {
+		}
+	}
+
+	// Legacy XRs have their Crossplane machinery fields directly under spec.
+	// They also support referencing a claim.
+	if s == v1.CompositeResourceScopeLegacyCluster {
+		props["claimRef"] = extv1.JSONSchemaProps{
 			Type:     "object",
-			Required: []string{"name", "namespace"},
+			Required: []string{"apiVersion", "kind", "namespace", "name"},
 			Properties: map[string]extv1.JSONSchemaProps{
-				"name":      {Type: "string"},
-				"namespace": {Type: "string"},
+				"apiVersion": {Type: "string"},
+				"kind":       {Type: "string"},
+				"namespace":  {Type: "string"},
+				"name":       {Type: "string"},
 			},
+		}
+
+		return props
+	}
+
+	// Modern XRs nest their Crossplane machinery fields under spec.crossplane.
+	return map[string]extv1.JSONSchemaProps{
+		"crossplane": {
+			Type:        "object",
+			Description: "Configures how Crossplane will reconcile this composite resource",
+			Properties:  props,
 		},
 	}
 }
@@ -197,7 +216,7 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 // CompositeResourceClaimSpecProps is a partial OpenAPIV3Schema for the spec
 // fields that Crossplane expects to be present for all published infrastructure
 // resources.
-func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
+func CompositeResourceClaimSpecProps(defaultPol *xpv1.CompositeDeletePolicy) map[string]extv1.JSONSchemaProps {
 	return map[string]extv1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
@@ -252,6 +271,12 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Background"`)},
 				{Raw: []byte(`"Foreground"`)},
 			},
+			Default: func() *extv1.JSON {
+				if defaultPol == nil {
+					return nil
+				}
+				return &extv1.JSON{Raw: []byte(fmt.Sprintf("\"%s\"", *defaultPol))}
+			}(),
 		},
 		"resourceRef": {
 			Type:     "object",
@@ -260,44 +285,6 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 				"apiVersion": {Type: "string"},
 				"kind":       {Type: "string"},
 				"name":       {Type: "string"},
-			},
-		},
-		"publishConnectionDetailsTo": {
-			Type:     "object",
-			Required: []string{"name"},
-			Properties: map[string]extv1.JSONSchemaProps{
-				"name": {Type: "string"},
-				"configRef": {
-					Type:    "object",
-					Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
-					Properties: map[string]extv1.JSONSchemaProps{
-						"name": {
-							Type: "string",
-						},
-					},
-				},
-				"metadata": {
-					Type: "object",
-					Properties: map[string]extv1.JSONSchemaProps{
-						"labels": {
-							Type: "object",
-							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-								Allows: true,
-								Schema: &extv1.JSONSchemaProps{Type: "string"},
-							},
-						},
-						"annotations": {
-							Type: "object",
-							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
-								Allows: true,
-								Schema: &extv1.JSONSchemaProps{Type: "string"},
-							},
-						},
-						"type": {
-							Type: "string",
-						},
-					},
-				},
 			},
 		},
 		"writeConnectionSecretToRef": {
@@ -311,10 +298,9 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 }
 
 // CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
-// fields that Crossplane expects to be present for all defined or published
-// infrastructure resources.
-func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
-	return map[string]extv1.JSONSchemaProps{
+// fields that Crossplane expects to be present for all composite resources.
+func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.JSONSchemaProps {
+	props := map[string]extv1.JSONSchemaProps{
 		"conditions": {
 			Description: "Conditions of the resource.",
 			Type:        "array",
@@ -332,17 +318,37 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 						"reason":             {Type: "string"},
 						"status":             {Type: "string"},
 						"type":               {Type: "string"},
+						"observedGeneration": {Type: "integer", Format: "int64"},
 					},
 				},
 			},
 		},
-		"connectionDetails": {
+	}
+
+	switch s {
+	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
+		// Modern XRs use status.crossplane, and don't support claims.
+		props["crossplane"] = extv1.JSONSchemaProps{
+			Type:        "object",
+			Description: "Indicates how Crossplane is reconciling this composite resource",
+			Properties: map[string]extv1.JSONSchemaProps{
+				"connectionDetails": {
+					Type: "object",
+					Properties: map[string]extv1.JSONSchemaProps{
+						"lastPublishedTime": {Type: "string", Format: "date-time"},
+					},
+				},
+			},
+		}
+	case v1.CompositeResourceScopeLegacyCluster:
+		// Legacy XRs don't use status.crossplane, and support claims.
+		props["connectionDetails"] = extv1.JSONSchemaProps{
 			Type: "object",
 			Properties: map[string]extv1.JSONSchemaProps{
 				"lastPublishedTime": {Type: "string", Format: "date-time"},
 			},
-		},
-		"claimConditionTypes": {
+		}
+		props["claimConditionTypes"] = extv1.JSONSchemaProps{
 			Type:      "array",
 			XListType: ptr.To("set"),
 			Items: &extv1.JSONSchemaPropsOrArray{
@@ -350,14 +356,16 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 					Type: "string",
 				},
 			},
-		},
+		}
 	}
+
+	return props
 }
 
 // CompositeResourcePrinterColumns returns the set of default printer columns
 // that should exist in all generated composite resource CRDs.
-func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
-	return []extv1.CustomResourceColumnDefinition{
+func CompositeResourcePrinterColumns(s v1.CompositeResourceScope) []extv1.CustomResourceColumnDefinition {
+	cols := []extv1.CustomResourceColumnDefinition{
 		{
 			Name:     "SYNCED",
 			Type:     "string",
@@ -371,12 +379,12 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 		{
 			Name:     "COMPOSITION",
 			Type:     "string",
-			JSONPath: ".spec.compositionRef.name",
+			JSONPath: ".spec.crossplane.compositionRef.name",
 		},
 		{
 			Name:     "COMPOSITIONREVISION",
 			Type:     "string",
-			JSONPath: ".spec.compositionRevisionRef.name",
+			JSONPath: ".spec.crossplane.compositionRevisionRef.name",
 			Priority: 1,
 		},
 		{
@@ -385,6 +393,19 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 			JSONPath: ".metadata.creationTimestamp",
 		},
 	}
+
+	if s == v1.CompositeResourceScopeLegacyCluster {
+		for i := range cols {
+			if cols[i].Name == "COMPOSITION" {
+				cols[i].JSONPath = ".spec.compositionRef.name"
+			}
+			if cols[i].Name == "COMPOSITIONREVISION" {
+				cols[i].JSONPath = ".spec.compositionRevisionRef.name"
+			}
+		}
+	}
+
+	return cols
 }
 
 // CompositeResourceClaimPrinterColumns returns the set of default printer

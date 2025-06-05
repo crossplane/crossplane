@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/conditions"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
@@ -42,12 +43,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
+	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 const (
@@ -68,8 +70,6 @@ const (
 	errConfigure              = "cannot configure composite resource"
 	errPublish                = "cannot publish connection details"
 	errWatch                  = "cannot watch resource for changes"
-	errUnpublish              = "cannot unpublish connection details"
-	errValidate               = "refusing to use invalid Composition"
 	errAssociate              = "cannot associate composed resources with Composition resource templates"
 	errCompose                = "cannot compose resources"
 	errInvalidResources       = "some resources were invalid, check events"
@@ -110,42 +110,79 @@ type ConnectionSecretFilterer interface {
 
 // A CompositionSelector selects a composition reference.
 type CompositionSelector interface {
-	SelectComposition(ctx context.Context, cr resource.Composite) error
+	SelectComposition(ctx context.Context, cr xresource.Composite) error
 }
 
 // A CompositionSelectorFn selects a composition reference.
-type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) error
+type CompositionSelectorFn func(ctx context.Context, cr xresource.Composite) error
 
 // SelectComposition for the supplied composite resource.
-func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resource.Composite) error {
+func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr xresource.Composite) error {
 	return fn(ctx, cr)
+}
+
+// A ConnectionPublisher publishes the supplied ConnectionDetails for the
+// supplied resource.
+type ConnectionPublisher interface {
+	// PublishConnection details for the supplied resource. Publishing
+	// must be additive; i.e. if details (a, b, c) are published, subsequently
+	// publishing details (b, c, d) should update (b, c) but not remove a.
+	PublishConnection(ctx context.Context, so xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
+}
+
+// A ConnectionPublisherFn publishes the supplied ConnectionDetails for the
+// supplied resource.
+type ConnectionPublisherFn func(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error)
+
+// PublishConnection details for the supplied resource.
+func (fn ConnectionPublisherFn) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+	return fn(ctx, o, c)
+}
+
+// A PublisherChain chains multiple ManagedPublishers.
+type PublisherChain []ConnectionPublisher
+
+// PublishConnection calls each ConnectionPublisher.PublishConnection serially. It returns the first error it
+// encounters, if any.
+func (pc PublisherChain) PublishConnection(ctx context.Context, o xresource.ConnectionSecretOwner, c managed.ConnectionDetails) (bool, error) {
+	published := false
+	for _, p := range pc {
+		pb, err := p.PublishConnection(ctx, o, c)
+		if err != nil {
+			return published, err
+		}
+		if pb {
+			published = true
+		}
+	}
+	return published, nil
 }
 
 // A CompositionRevisionFetcher fetches an appropriate Composition for the supplied
 // composite resource.
 type CompositionRevisionFetcher interface {
-	Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error)
+	Fetch(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error)
 }
 
 // A CompositionRevisionFetcherFn fetches an appropriate CompositionRevision for
 // the supplied composite resource.
-type CompositionRevisionFetcherFn func(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error)
+type CompositionRevisionFetcherFn func(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error)
 
 // Fetch an appropriate Composition for the supplied Composite resource.
-func (fn CompositionRevisionFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error) {
+func (fn CompositionRevisionFetcherFn) Fetch(ctx context.Context, cr xresource.Composite) (*v1.CompositionRevision, error) {
 	return fn(ctx, cr)
 }
 
 // A Configurator configures a composite resource using its composition.
 type Configurator interface {
-	Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
+	Configure(ctx context.Context, cr xresource.Composite, rev *v1.CompositionRevision) error
 }
 
 // A ConfiguratorFn configures a composite resource using its composition.
-type ConfiguratorFn func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
+type ConfiguratorFn func(ctx context.Context, cr xresource.Composite, rev *v1.CompositionRevision) error
 
 // Configure the supplied composite resource using its composition.
-func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
+func (fn ConfiguratorFn) Configure(ctx context.Context, cr xresource.Composite, rev *v1.CompositionRevision) error {
 	return fn(ctx, cr, rev)
 }
 
@@ -230,14 +267,6 @@ func (fn ComposerFn) Compose(ctx context.Context, xr *composite.Unstructured, re
 	return fn(ctx, xr, req)
 }
 
-// A ComposerSelectorFn selects the appropriate Composer for a mode.
-type ComposerSelectorFn func(*v1.CompositionMode) Composer
-
-// Compose calls the Composer returned by calling fn.
-func (fn ComposerSelectorFn) Compose(ctx context.Context, xr *composite.Unstructured, req CompositionRequest) (CompositionResult, error) {
-	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
-}
-
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -279,14 +308,6 @@ func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOpti
 	}
 }
 
-// WithCompositionRevisionValidator specifies how the Reconciler should validate
-// CompositionRevisions.
-func WithCompositionRevisionValidator(v CompositionRevisionValidator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.revision.CompositionRevisionValidator = v
-	}
-}
-
 // WithCompositeFinalizer specifies how the composition to be used should be
 // selected.
 // WithCompositeFinalizer specifies which Finalizer should be used to finalize
@@ -315,9 +336,9 @@ func WithConfigurator(c Configurator) ReconcilerOption {
 
 // WithConnectionPublishers specifies how the Reconciler should publish
 // connection secrets.
-func WithConnectionPublishers(p ...managed.ConnectionPublisher) ReconcilerOption {
+func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.ConnectionPublisher = managed.PublisherChain(p)
+		r.composite.ConnectionPublisher = PublisherChain(p)
 	}
 }
 
@@ -338,23 +359,16 @@ func WithWatchStarter(controllerName string, h handler.EventHandler, w WatchStar
 	}
 }
 
+// WithCompositeSchema specifies whether the Reconciler should reconcile a
+// modern or a legacy type of composite resource.
+func WithCompositeSchema(s composite.Schema) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.schema = s
+	}
+}
+
 type revision struct {
 	CompositionRevisionFetcher
-	CompositionRevisionValidator
-}
-
-// A CompositionRevisionValidator validates the supplied CompositionRevision.
-type CompositionRevisionValidator interface {
-	Validate(rev *v1.CompositionRevision) error
-}
-
-// A CompositionRevisionValidatorFn is a function that validates a
-// CompositionRevision.
-type CompositionRevisionValidatorFn func(*v1.CompositionRevision) error
-
-// Validate the supplied CompositionRevision.
-func (fn CompositionRevisionValidatorFn) Validate(c *v1.CompositionRevision) error {
-	return fn(c)
 }
 
 // A WatchStarter can start a new watch. XR controllers use this to dynamically
@@ -384,49 +398,43 @@ type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
 	Configurator
-	managed.ConnectionPublisher
+	ConnectionPublisher
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
-func NewReconciler(c, uc client.Client, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: c,
+		client: cached,
 
-		gvk: schema.GroupVersionKind(of),
+		gvk: of,
 
 		revision: revision{
-			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)}),
-			CompositionRevisionValidator: CompositionRevisionValidatorFn(func(rev *v1.CompositionRevision) error {
-				// TODO(negz): Presumably this validation will eventually be
-				// removed in favor of the new Composition validation
-				// webhook.
-				// This is the last remaining use of conv.FromRevisionSpec -
-				// we can stop generating that once this is removed.
-				conv := &v1.GeneratedRevisionSpecConverter{}
-				comp := &v1.Composition{Spec: conv.FromRevisionSpec(rev.Spec)}
-				_, errs := comp.Validate()
-				return errs.ToAggregate()
-			}),
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: cached, Applicator: resource.NewAPIPatchingApplicator(cached)}),
 		},
 
 		composite: compositeResource{
-			Finalizer:           resource.NewAPIFinalizer(c, finalizer),
-			CompositionSelector: NewAPILabelSelectorResolver(c),
-			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(c), NewAPIConfigurator(c)),
+			Finalizer:           resource.NewAPIFinalizer(cached, finalizer),
+			CompositionSelector: NewAPILabelSelectorResolver(cached),
+			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
 			// never filter any keys. Is there an unfiltered variant we could
 			// use by default instead?
-			ConnectionPublisher: NewAPIFilteredSecretPublisher(c, []string{}),
+			ConnectionPublisher: NewAPIFilteredSecretPublisher(cached, []string{}),
 		},
 
-		resource: NewPTComposer(c, uc),
+		// We use a nop Composer by default. The real composed is passed in by
+		// the definition controller when it sets up this XR controller.
+		resource: ComposerFn(func(_ context.Context, _ *composite.Unstructured, _ CompositionRequest) (CompositionResult, error) {
+			return CompositionResult{}, nil
+		}),
 
 		// Dynamic watches are disabled by default.
 		engine: &NopWatchStarter{},
 
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
+		conditions: conditions.ObservedGenerationPropagationManager{},
 	}
 
 	for _, f := range opts {
@@ -439,7 +447,9 @@ func NewReconciler(c, uc client.Client, of resource.CompositeKind, opts ...Recon
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
 	client client.Client
+
 	gvk    schema.GroupVersionKind
+	schema composite.Schema
 
 	features *feature.Flags
 
@@ -453,8 +463,9 @@ type Reconciler struct {
 	engine         WatchStarter
 	watchHandler   handler.EventHandler
 
-	log    logging.Logger
-	record event.Recorder
+	log        logging.Logger
+	record     event.Recorder
+	conditions conditions.Manager
 
 	pollInterval time.Duration
 }
@@ -467,11 +478,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	xr := composite.New(composite.WithGroupVersionKind(r.gvk))
+	xr := composite.New(composite.WithGroupVersionKind(r.gvk), composite.WithSchema(r.schema))
 	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
+	status := r.conditions.For(xr)
 
 	log = log.WithValues(
 		"uid", xr.GetUID(),
@@ -483,7 +495,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// after logging, publishing an event and updating the SYNC status condition
 	if meta.IsPaused(xr) {
 		r.record.Event(xr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
-		xr.SetConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
+		status.MarkConditions(xpv1.ReconcilePaused().WithMessage(reconcilePausedMsg))
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
@@ -492,13 +504,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(xr) {
 		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
-		xr.SetConditions(xpv1.Deleting())
-		if err := r.composite.UnpublishConnection(ctx, xr, nil); err != nil {
-			err = errors.Wrap(err, errUnpublish)
-			r.record.Event(xr, event.Warning(reasonDelete, err))
-			xr.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-		}
+		status.MarkConditions(xpv1.Deleting())
 
 		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 			if kerrors.IsConflict(err) {
@@ -506,12 +512,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(xr, event.Warning(reasonDelete, err))
-			xr.SetConditions(xpv1.ReconcileError(err))
+			status.MarkConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
-		xr.SetConditions(xpv1.ReconcileSuccess())
+		status.MarkConditions(xpv1.ReconcileSuccess())
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -521,7 +527,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -532,7 +538,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if compRef := xr.GetCompositionReference(); compRef != nil && (orig == nil || *compRef != *orig) {
@@ -549,19 +555,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
 		r.record.Event(xr, event.Normal(reasonResolve, fmt.Sprintf("Selected composition revision: %s", rev.Name)))
-	}
-
-	if err := r.revision.Validate(rev); err != nil {
-		log.Debug(errValidate, "error", err)
-		err = errors.Wrap(err, errValidate)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	if err := r.composite.Configure(ctx, xr, rev); err != nil {
@@ -571,7 +569,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -594,7 +592,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// point to the event.
 			err = errors.Wrap(errors.New(errInvalidResources), errCompose)
 		}
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 
 		meta := r.handleCommonCompositionResult(ctx, res, xr)
 		// We encountered a fatal error. For any custom status conditions that were
@@ -607,7 +605,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				c.Status = corev1.ConditionUnknown
 				c.Reason = reasonFatalError
 				c.Message = "A fatal error occurred before the status of this condition could be determined."
-				xr.SetConditions(c)
+				status.MarkConditions(c)
 			}
 		}
 
@@ -626,7 +624,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.engine.StartWatches(ctx, r.controllerName, ws...); err != nil {
 		err = errors.Wrap(err, errWatch)
 		r.record.Event(xr, event.Warning(reasonWatch, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -638,7 +636,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(xr, event.Warning(reasonPublish, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
+		status.MarkConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if published {
@@ -699,7 +697,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	xr.SetConditions(synced, ready)
+	status.MarkConditions(synced, ready)
 
 	// Requeue after the configured poll interval by default. If realtime
 	// compositions is enabled this'll be RequeueAfter: 0, i.e. no requeue.

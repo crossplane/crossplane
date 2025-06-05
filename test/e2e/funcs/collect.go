@@ -32,7 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 // coordinate represents a coordinate in the cluster, i.e. everything necessary

@@ -1,0 +1,13 @@
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+metadata:
+  namespace: default
+  name: protect-a-resource
+spec:
+  of:
+    apiVersion: v1
+    kind: ConfigMap
+    resourceSelector:
+        matchLabels:
+          tier: critical
+  reason: "This resource is protected!"

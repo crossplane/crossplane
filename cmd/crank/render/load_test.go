@@ -28,14 +28,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
 )
 
 //go:embed testdata
@@ -160,7 +160,6 @@ func TestLoadXRD(t *testing.T) {
 
 func TestLoadComposition(t *testing.T) {
 	fs := afero.FromIOFS{FS: testdatafs}
-	pipeline := apiextensionsv1.CompositionModePipeline
 
 	type want struct {
 		comp *apiextensionsv1.Composition
@@ -184,7 +183,7 @@ func TestLoadComposition(t *testing.T) {
 							APIVersion: "nop.example.org/v1alpha1",
 							Kind:       "XNopResource",
 						},
-						Mode: &pipeline,
+						Mode: apiextensionsv1.CompositionModePipeline,
 						Pipeline: []apiextensionsv1.PipelineStep{{
 							Step:        "be-a-dummy",
 							FunctionRef: apiextensionsv1.FunctionReference{Name: "function-dummy"},

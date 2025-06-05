@@ -63,13 +63,15 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	return stringRefs
 }
 
+// TODO(negz): Move these interfaces out of the apis package and closer to where
+// they're consumed. This'll probably require internal duplicates of some of the
+// returned types. We could generate converters from the public API types to the
+// internal types, like we do for the Usage types.
+
 // PackageWithRuntime is the interface satisfied by packages with runtime types.
 // +k8s:deepcopy-gen=false
-type PackageWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
+type PackageWithRuntime interface {
 	Package
-
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
 
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
@@ -229,16 +231,6 @@ func (p *Provider) GetIgnoreCrossplaneConstraints() *bool {
 // SetIgnoreCrossplaneConstraints of this Provider.
 func (p *Provider) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
-}
-
-// GetControllerConfigRef of this Provider.
-func (p *Provider) GetControllerConfigRef() *ControllerConfigReference {
-	return p.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this Provider.
-func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
-	p.Spec.ControllerConfigReference = r
 }
 
 // GetRuntimeConfigRef of this Provider.
@@ -472,9 +464,6 @@ func (p *Configuration) SetResolvedSource(s string) {
 type PackageRevisionWithRuntime interface { //nolint:interfacebloat // TODO(negz): Could this be composed of smaller interfaces?
 	PackageRevision
 
-	GetControllerConfigRef() *ControllerConfigReference
-	SetControllerConfigRef(r *ControllerConfigReference)
-
 	GetRuntimeConfigRef() *RuntimeConfigReference
 	SetRuntimeConfigRef(r *RuntimeConfigReference)
 
@@ -657,16 +646,6 @@ func (p *ProviderRevision) GetIgnoreCrossplaneConstraints() *bool {
 // SetIgnoreCrossplaneConstraints of this ProviderRevision.
 func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
-}
-
-// GetControllerConfigRef of this ProviderRevision.
-func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
-	return p.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this ProviderRevision.
-func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
-	p.Spec.ControllerConfigReference = r
 }
 
 // GetRuntimeConfigRef of this ProviderRevision.
@@ -1014,14 +993,6 @@ func (f *Function) SetIgnoreCrossplaneConstraints(b *bool) {
 	f.Spec.IgnoreCrossplaneConstraints = b
 }
 
-// GetControllerConfigRef of this Function.
-func (f *Function) GetControllerConfigRef() *ControllerConfigReference {
-	return nil
-}
-
-// SetControllerConfigRef of this Function.
-func (f *Function) SetControllerConfigRef(*ControllerConfigReference) {}
-
 // GetRuntimeConfigRef of this Function.
 func (f *Function) GetRuntimeConfigRef() *RuntimeConfigReference {
 	return f.Spec.RuntimeConfigReference
@@ -1202,16 +1173,6 @@ func (r *FunctionRevision) GetIgnoreCrossplaneConstraints() *bool {
 // SetIgnoreCrossplaneConstraints of this FunctionRevision.
 func (r *FunctionRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	r.Spec.IgnoreCrossplaneConstraints = b
-}
-
-// GetControllerConfigRef of this FunctionRevision.
-func (r *FunctionRevision) GetControllerConfigRef() *ControllerConfigReference {
-	return r.Spec.ControllerConfigReference
-}
-
-// SetControllerConfigRef of this FunctionRevision.
-func (r *FunctionRevision) SetControllerConfigRef(ref *ControllerConfigReference) {
-	r.Spec.ControllerConfigReference = ref
 }
 
 // GetRuntimeConfigRef of this FunctionRevision.

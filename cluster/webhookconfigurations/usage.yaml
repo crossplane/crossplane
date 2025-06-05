@@ -15,7 +15,7 @@ webhooks:
         namespace: system
         path: /validate-no-usages
     failurePolicy: Fail
-    name: nousages.apiextensions.crossplane.io
+    name: nousages.protection.crossplane.io
     objectSelector:
       matchLabels:
         crossplane.io/in-use: "true"
