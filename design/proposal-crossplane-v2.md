@@ -876,6 +876,22 @@ of resource.
 I believe it would be possible to introduce a ReferenceGrant-like API at a later
 stage if demand arose.
 
+### Remove Legacy Resources
+
+This document proposes that Crossplane v2 retain the following types for
+backward compatibility with Crossplane v1.x:
+
+* Claims
+* Cluster-scoped, `LegacyCluster` XRs
+* Cluster-scoped MRs
+
+Eventually, at a suitable time, I propose we remove these types from Crossplane
+v2. Keeping them for a significant transition period will ease the migration to
+Crossplane v2. After a point though they'll just bring complexity and cognitive
+burden to the Crossplane ecosystem.
+
+This removal will likely be done as part of some Crossplane 2.x release. I'm not
+proposing any specific timeline right now.
 
 ## Alternatives Considered
 
