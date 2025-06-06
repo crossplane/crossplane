@@ -1,0 +1,5 @@
+apiVersion: apiextensions.crossplane.io/v2alpha1
+kind: CompositeResourceDefinition
+spec:
+  defaultCompositionUpdatePolicy: Automatic
+  scope: Namespaced

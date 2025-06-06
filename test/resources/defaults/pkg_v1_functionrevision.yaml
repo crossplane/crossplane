@@ -1,0 +1,12 @@
+apiVersion: pkg.crossplane.io/v1
+kind: FunctionRevision
+spec:
+  ignoreCrossplaneConstraints: false
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: default
+  skipDependencyResolution: false

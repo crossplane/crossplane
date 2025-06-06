@@ -1,0 +1,3 @@
+apiVersion: protection.crossplane.io/v1beta1
+kind: Usage
+spec: {}
