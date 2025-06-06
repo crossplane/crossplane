@@ -26,6 +26,10 @@ continue to work in Crossplane v2. These would be considered legacy features and
 wouldn’t appear in Crossplane’s main documentation flows for new users. Existing
 users could adopt v2 style XRs and MRs at their leisure.
 
+The proposal isn't an exhaustive list of the changes we'd make in Crossplane v2.
+Instead it captures the broad direction, and calls out the most impactful
+changes.
+
 
 ## Background
 
