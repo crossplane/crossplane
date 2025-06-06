@@ -597,17 +597,10 @@ in one version (e.g. `ec2.aws.upbound.io/v1`) and namespaced in another (e.g.
 `ec2.aws.upbound.io/v2`). This means introducing namespaced MRs requires a new,
 separate set of custom resources and controllers.
 
-I propose namespaced MRs be implemented by a new provider variant that can be
-installed alongside its cluster scoped equivalent. For example:
-
-* `xpkg.upbound.io/provider-aws-ec2:v1.0.0`
-* `xpkg.upbound.io/provider-aws-ec2:v1.0.0-namespaced`
-
-This allows a provider to be installed with cluster scoped MRs, namespaced MRs,
-or both.
-
-Cluster scoped MRs would be considered a legacy feature, and would not appear in
-Crossplane’s main documentation flows.
+I propose we extend all existing providers to install and reconcile both
+namespaced and cluster scoped MR variants. Cluster scoped MRs would be
+considered a legacy feature, and would not appear in Crossplane’s main
+documentation flows.
 
 Namespaced MRs that represent shared or supporting infrastructure used by
 resources in several namespaces could be placed in a special namespace, like
@@ -628,8 +621,7 @@ provider maintainers would need to make to support namespaced MRs.
 Each Crossplane MR implementation consists of the following:
 
 * A Go struct representing the MR
-* The `managed.Reconciler` MR reconciler from
-  [crossplane-runtime](https://github.com/crossplane/crossplane-runtime)
+* The `managed.Reconciler` MR reconciler from [crossplane-runtime](https://github.com/crossplane/crossplane-runtime)
 * An implementation of the MR reconciler’s `ExternalClient` interface
 
 A provider consists of a `main.go` that sets up clients and caches, and starts a
@@ -638,16 +630,14 @@ controller using the MR reconciler and `ExternalClient` for each type of MR.
 Each MR Go struct is annotated with [kubebuilder annotations](https://book.kubebuilder.io/reference/markers/crd),
 which are used by controller-tools to generate CRD manifests.
 
-All MR Go structs satisfy crossplane-runtime’s
-[`resource.Managed` interface](https://pkg.go.dev/github.com/crossplane/crossplane-runtime@v1.18.0/pkg/resource#Managed).
+All MR Go structs satisfy crossplane-runtime’s [`resource.Managed` interface](https://pkg.go.dev/github.com/crossplane/crossplane-runtime@v1.18.0/pkg/resource#Managed).
 This interface defines getters and setter methods for features common to all
 MRs, like status conditions and management policies. MR Go structs satisfy the
 interface by:
 
 1. Embedding structs from crossplane-runtime (e.g. `xpv1.ResourceSpec`) in their
    spec and status
-2. Generating getter and setter methods using
-   [crossplane-tools](https://github.com/crossplane/crossplane-tools)
+2. Generating getter and setter methods using [crossplane-tools](https://github.com/crossplane/crossplane-tools)
 
 The MR reconciler works with any struct that satisfies the `resource.Managed`
 interface. It orchestrates an `ExternalClient` implementation. An
@@ -661,7 +651,7 @@ the `resource.Terraformed` interface, using generated getters and setter
 methods. Upjet providers use a single `ExternalClient` implementation that works
 with any MR Go struct that satisfies this interface.
 
-Given this context, the process to build a namespaced provider would be:
+Given this context, the process to add namespaced MRs to a provider would be:
 
 1. Duplicate all MR structs
     1. Remove the `// +kubebuilder:resource:scope=Cluster` comment marker
@@ -680,24 +670,6 @@ implementations to duplicate.
 A namespaced variant of the embedded `xpv1.ResourceSpec` struct is required to
 remove the `spec.writeConnectionSecretRef.namespace` field. Namespaced MRs will
 only write connection secrets to their own namespace.
-
-I propose these changes be made in a branch of existing provider repositories -
-e.g. either by making the changes in a `namespaced` branch, or moving cluster
-scoped development to a `cluster-scope` branch and switching the `main` branch
-to the more modern, namespaced approach.
-
-In Crossplane v1.x the package manager treats `v1.0.0-namespaced` as a
-pre-release of semantic version `v1.0.0`. I propose that Crossplane v2 treat
-hyphenated version suffixes as a “version modifier”.
-
-This is common in official Docker images. For example `golang:1.23.5` and
-`golang:1.23.5-alpine` both install Go 1.23.5, but the former uses a Debian base
-image while the latter uses Alpine.
-
-To do this, the package manager would consider only versions with matching
-suffixes when solving a dependency. For example the constraint `>=
-v1.0.0-namespaced` would be satisfied by `v1.1.0-namespaced`, but not by `v1.1.`
-or `v1.1.0-other`.
 
 #### Introduce `ManagedResourceDefinition`
 
@@ -904,6 +876,7 @@ of resource.
 I believe it would be possible to introduce a ReferenceGrant-like API at a later
 stage if demand arose.
 
+
 ## Alternatives Considered
 
 The following alternatives were considered before arriving at this proposal.
@@ -946,32 +919,3 @@ Under this model:
   scoped “middle” layer that adds no clear value
 * The confusing and bug prone claim abstraction remains
 
-### Add Namespaced Managed Resources to Existing Providers
-
-Under this alternative providers would support being installed in different
-scope modes - e.g. cluster scoped, namespaced, or both. A provider installed in
-namespaced mode would only install CRDs for new namespaced MRs, while a provider
-in “both” mode would install CRDs for both legacy cluster scoped MRs and new
-namespaced MRs. This might be toggled using a flag on the provider binary.
-
-A variant of this alternative would make the flag control plane scoped. All
-providers in a control plane would be installed in either namespaced mode,
-cluster scoped mode, or both.
-
-This alternative would require adding provider scope to Crossplane’s package
-dependency model.
-
-Consider a Configuration that depends on a particular version of a Provider.
-This information alone isn’t enough to know whether the Configuration depends on
-cluster scoped or namespaced resources.
-
-In particular an existing Configuration that depends on provider-aws-ec2 >=
-v1.0.0 because it uses cluster scoped MRs would appear to have its dependency
-satisfied if provider-aws-ec2 >= v1.0.0 was installed, but running in
-namespace-only mode.
-
-To support three possible modes of a single provider package, Crossplane would
-need to track actual and desired package modes in at least the package metadata
-(`crossplane.yaml`) and the Lock. Crossplane would also have to account for
-cases where one Configuration depends on a provider in cluster scoped mode, and
-another depends on the same provider in namespaced mode.
