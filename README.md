@@ -27,9 +27,9 @@ documentation].
 |  v1.18  | Nov 5, 2024   | Aug 2025 |
 |  v1.19  | Feb 11, 2025  | Nov 2025 |
 |  v1.20  | May 21, 2025  | Feb 2026 |
-|  v1.21  | Early Aug '25 | May 2026 |
-|  v1.22  | Early Nov '25 | Aug 2026 |
-|  v1.23  | Early Feb '26 | Nov 2026 |
+|  v2.0   | Early Aug '25 | May 2026 |
+|  v2.1   | Early Nov '25 | Aug 2026 |
+|  v2.2   | Early Feb '26 | Nov 2026 |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
