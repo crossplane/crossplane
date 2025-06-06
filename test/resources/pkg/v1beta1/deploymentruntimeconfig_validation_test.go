@@ -14,27 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/test/resources"
 )
 
-func TestFunctionRevisionValidation(t *testing.T) {
+func TestDeploymentRuntimeConfigValidation(t *testing.T) {
 	cases := map[string]struct {
 		reason       string
-		current, old *FunctionRevision
-		validatorFn  func(obj, old *FunctionRevision) field.ErrorList
+		current, old *v1beta1.DeploymentRuntimeConfig
+		validatorFn  func(obj, old *v1beta1.DeploymentRuntimeConfig) field.ErrorList
 		wantErrs     []string
 	}{
 		"CreateEmpty": {
-			reason:      "Attempted to create an empty FunctionRevision.",
-			current:     resources.New[FunctionRevision](t),
-			validatorFn: resources.ValidatorFor[FunctionRevision](t),
+			reason:      "Attempted to create an empty DeploymentRuntimeConfig.",
+			current:     resources.New[v1beta1.DeploymentRuntimeConfig](t),
+			validatorFn: resources.ValidatorFor[v1beta1.DeploymentRuntimeConfig](t),
 			wantErrs:    []string{},
 		},
 	}

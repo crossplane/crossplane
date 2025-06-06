@@ -41,6 +41,8 @@ import (
 	protectionv1beta1 "github.com/crossplane/crossplane/apis/protection/v1beta1"
 )
 
+// CRDFor loads the CRD for the specified type T from the cluster/crds directory
+// and returns both the CRD object and the version being used for the type.
 func CRDFor[T any](t *testing.T) (*apiextensionsv1.CustomResourceDefinition, string) {
 	t.Helper()
 
@@ -48,6 +50,9 @@ func CRDFor[T any](t *testing.T) (*apiextensionsv1.CustomResourceDefinition, str
 	return apitest.MustLoadManifest[apiextensionsv1.CustomResourceDefinition](t, path), version
 }
 
+// CRDPathVersionFor returns the file path to the CRD YAML file and the API version
+// for the specified type T. The path is relative to the test directory and points
+// to the corresponding CRD file in cluster/crds.
 func CRDPathVersionFor[T any](t *testing.T) (string, string) {
 	t.Helper()
 
@@ -132,6 +137,9 @@ func CRDPathVersionFor[T any](t *testing.T) (string, string) {
 	return path, version
 }
 
+// ValidatorFor creates a CEL validation function for the specified type T by loading
+// the validation rules from the corresponding CRD file. The returned function can
+// be used to validate objects of type T against the CEL rules defined in the CRD.
 func ValidatorFor[T any](t *testing.T) func(obj, old *T) field.ErrorList {
 	t.Helper()
 
@@ -147,6 +155,9 @@ func ValidatorFor[T any](t *testing.T) func(obj, old *T) field.ErrorList {
 	}
 }
 
+// DefaultFor creates a defaulting function for the specified type T by loading
+// the default values from the corresponding CRD file. The returned function can
+// be used to apply defaults to objects of type T as defined in the CRD schema.
 func DefaultFor[T any](t *testing.T) func(any) {
 	t.Helper()
 	path, version := CRDPathVersionFor[T](t)
@@ -158,8 +169,9 @@ func DefaultFor[T any](t *testing.T) func(any) {
 	return defaultFn
 }
 
-// VersionDefaultsFromFile extracts the defaulters by version from a CRD file and returns
-// a Defaulter func for testing against samples.
+// VersionDefaultsFromFile extracts the defaulting functions by version from a CRD file.
+// It parses the CRD's OpenAPI schema and creates defaulting functions for each version
+// that can be used to apply default values to objects during testing.
 func VersionDefaultsFromFile(t *testing.T, crdFilePath string) map[string]func(any) {
 	data, err := os.ReadFile(crdFilePath)
 	require.NoError(t, err)
@@ -189,6 +201,9 @@ func VersionDefaultsFromFile(t *testing.T, crdFilePath string) map[string]func(a
 	return ret
 }
 
+// FromUnstructured converts an unstructured object back to a typed object.
+// This is used in testing to convert objects that have been processed by
+// the defaulting webhook back to their original typed form.
 func FromUnstructured(t *testing.T, u *unstructured.Unstructured, obj any) {
 	t.Helper()
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, obj)
@@ -197,6 +212,9 @@ func FromUnstructured(t *testing.T, u *unstructured.Unstructured, obj any) {
 	}
 }
 
+// ToUnstructured converts a typed object to an unstructured object.
+// This is used in testing to convert objects to a form that can be processed
+// by the defaulting webhook and validation functions.
 func ToUnstructured(t *testing.T, obj any) *unstructured.Unstructured {
 	t.Helper()
 	content, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
@@ -206,6 +224,9 @@ func ToUnstructured(t *testing.T, obj any) *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: content}
 }
 
+// New creates a new instance of the specified type T with the appropriate
+// GroupVersionKind set. This is used in testing to create properly initialized
+// objects that can be used with the validation and defaulting functions.
 func New[T any](t *testing.T) *T {
 	t.Helper()
 
