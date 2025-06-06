@@ -636,13 +636,13 @@ Given this context, the process to build a namespaced provider would be:
 
 1. Duplicate all MR structs
     1. Remove the `// +kubebuilder:resource:scope=Cluster` comment marker
-    2. Change the API group constant to end in `m.crossplane.io`
-    3. Change to a namespaced variant of the embedded `xpv1.ResourceSpec`
-    4. Re-run crossplane-tools and Upjet code generation against the updated
+    1. Change the API group constant to end in `m.crossplane.io`
+    1. Change to a namespaced variant of the embedded `xpv1.ResourceSpec`
+    1. Re-run crossplane-tools and Upjet code generation against the updated
        types
-2. Duplicate all `ExternalClient` implementations
-    5. Change the duplicated implementations to use the duplicated structs
-3. Duplicate main.go and a few “plumbing” files that register types and
+1. Duplicate all `ExternalClient` implementations
+    1. Change the duplicated implementations to use the duplicated structs
+1. Duplicate main.go and a few “plumbing” files that register types and
    construct controllers
 
 Upjet providers can skip step 2, as there are no unique `ExternalClient`
