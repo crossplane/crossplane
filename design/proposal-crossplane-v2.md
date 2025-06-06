@@ -172,6 +172,7 @@ In core I propose we:
 * Support composing any Kubernetes resource
 * Remove support for claims
 * Move all Crossplane-specific XR fields to `spec.crossplane`
+* Remove `spec.writeConnectionSecretToRef` from XRs
 * Remove all deprecated features - e.g. native patch and transform composition
 
 In providers I propose we:
@@ -494,8 +495,6 @@ spec:
         region: us-east
     compositionRef:
       name: us-east-app
-    writeConnectionSecretToRef:
-      name: my-app-details
   image: example/my-app:v1
   features:
   - type: Cache
@@ -514,6 +513,32 @@ LegacyCluster won’t use `spec.crossplane`, for backward compatibility with
 existing XRs.
 
 This proposal is tracked by [this issue](https://github.com/crossplane/crossplane/issues/5288).
+
+#### Remove `spec.writeConnectionSecretToRef`
+
+All MRs have a `spec.writeConnectionSecretToRef` field. You set this to the name
+and namespace of a secret, and the MR controller writes the MR's "connection
+details" to that secret. These are things like usernames, passwords, URLs, etc
+required to connect to MRs (which are typically "infra stuff" like a database or
+IAM role.)
+
+Historically we've thought of XRs as (only) composed of MRs. So XRs also had a
+`spec.writeConnectionSecretToRef` field. Crossplane produces an XR's connection
+details by aggregating the connection details of its composed MRs. When you use
+functions, Crossplane passes composed resource connection details (if any) to
+the function pipeline. The pipeline can then use them (or whatever other input)
+to set an XR's connection details. Crossplane then writes the connection details
+returned by the function pipeline to the secret specified by the XR's
+`spec.writeConnectionSecretToRef`.
+
+In Crossplane v2 we think XRs will be composed of MRs less often. Many XRs won't
+need to expose connection details.
+
+I propose we drop `spec.writeConnectionSecretToRef` from XRs. I feel comfortable
+dropping this functionality because you can recreate it using functions - just
+have your XR compose a secret with the XR's connection details in it.
+
+This proposal is tracked by [this issue](https://github.com/crossplane/crossplane/issues/6440).
 
 #### Remove Deprecated Features
 
