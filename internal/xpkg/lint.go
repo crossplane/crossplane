@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v2alpha1"
+	"github.com/crossplane/crossplane/apis/daytwo/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -43,6 +44,7 @@ const (
 	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
+	errNotOperation                      = "object is not an Operation"
 	errBadConstraints                    = "package version constraints are poorly formatted"
 	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
@@ -61,7 +63,7 @@ func NewProviderLinter() parser.Linter {
 // NewConfigurationLinter is a convenience function for creating a package linter for
 // configurations.
 func NewConfigurationLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver), parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition)))
+	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver), parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition, IsOperation)))
 }
 
 // NewFunctionLinter is a convenience function for creating a package linter for
@@ -184,6 +186,14 @@ func IsXRD(o runtime.Object) error {
 func IsComposition(o runtime.Object) error {
 	if _, ok := o.(*v1.Composition); !ok {
 		return errors.New(errNotComposition)
+	}
+	return nil
+}
+
+// IsOperation checks that an object is a Composition.
+func IsOperation(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.Operation); !ok {
+		return errors.New(errNotOperation)
 	}
 	return nil
 }

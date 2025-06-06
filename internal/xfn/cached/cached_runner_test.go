@@ -33,14 +33,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
+	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached/proto/v1alpha1"
 )
-
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
-
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
-	return fn(ctx, name, req)
-}
 
 var MockDir = []byte("DIR")
 
@@ -106,7 +101,7 @@ func TestRunFunction(t *testing.T) {
 		"MissingTag": {
 			reason: "If the request is missing a tag we should call the wrapped runner without caching.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrap: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{Tag: "hi"},
 					}
@@ -126,7 +121,7 @@ func TestRunFunction(t *testing.T) {
 		"NotCached": {
 			reason: "If the response isn't cached we should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrap: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -158,7 +153,7 @@ func TestRunFunction(t *testing.T) {
 		"WrappedError": {
 			reason: "If the response isn't cached and the wrapped runner returns an error we should return it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrap: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					return nil, errors.New("boom")
 				}),
 				o: []FileBackedRunnerOption{
@@ -179,7 +174,7 @@ func TestRunFunction(t *testing.T) {
 		"EmptyFile": {
 			reason: "If the cached response is empty should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrap: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -213,7 +208,7 @@ func TestRunFunction(t *testing.T) {
 		"UnexpectedFile": {
 			reason: "If the cached response contains unexpected data we should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrap: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -247,7 +242,7 @@ func TestRunFunction(t *testing.T) {
 		"DeadlineExceeded": {
 			reason: "If the cached response's deadline has passed we should call the wrapped runner and cache it.",
 			params: params{
-				wrap: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				wrap: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Tag: "hello",
@@ -357,7 +352,7 @@ func TestCacheFunction(t *testing.T) {
 		},
 	}
 
-	wrapped := FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	wrapped := xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 		return rsp, nil
 	})
 

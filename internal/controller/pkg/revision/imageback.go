@@ -20,13 +20,13 @@ import (
 	"archive/tar"
 	"context"
 	"io"
-
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/validate"
+	"path/filepath"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -166,7 +166,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtNoPackageFileFound, read, foundAnnotated)
 		}
-		if h.Name == xpkg.StreamFile {
+		if filepath.Base(h.Name) == xpkg.StreamFile {
 			break
 		}
 		read++

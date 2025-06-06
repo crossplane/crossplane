@@ -256,6 +256,15 @@ spec:
                   resolution. It may be different from spec.package if the package path was
                   rewritten using an image config.
                 type: string
+              type:
+                description: |-
+                  Type of this function.
+                  A Composition function can only be used in Composition pipelines.
+                  An Operation function can only be used in Operation pipelines.
+                enum:
+                - Composition
+                - Operation
+                type: string
             type: object
         type: object
     served: true
@@ -500,6 +509,15 @@ spec:
                   ResolvedPackage is the name of the package that was used for version
                   resolution. It may be different from spec.package if the package path was
                   rewritten using an image config.
+                type: string
+              type:
+                description: |-
+                  Type of this function.
+                  A Composition function can only be used in Composition pipelines.
+                  An Operation function can only be used in Operation pipelines.
+                enum:
+                - Composition
+                - Operation
                 type: string
             type: object
         type: object

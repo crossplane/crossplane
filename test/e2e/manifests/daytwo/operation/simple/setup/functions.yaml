@@ -1,0 +1,11 @@
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Function
+metadata:
+  name: function-dummy
+spec:
+  # NOTE(negz): This is currently manually pushed. See README.md at
+  # https://github.com/crossplane-contrib/function-dummy.
+  package: xpkg.upbound.io/crossplane-contrib/function-dummy:v0.2.1
+  type: Operation # TODO: this is not going to work here, I need dummy operations to be produced as a package.
+

@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane/apis/apiextensions"
+	"github.com/crossplane/crossplane/apis/daytwo"
 	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/apis/protection"
 )
@@ -29,6 +30,7 @@ func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
 		apiextensions.AddToScheme,
+		daytwo.AddToScheme,
 		pkg.AddToScheme,
 		protection.AddToScheme,
 	)
