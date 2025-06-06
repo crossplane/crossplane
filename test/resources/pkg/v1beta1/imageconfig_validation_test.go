@@ -33,8 +33,12 @@ func TestImageConfigValidation(t *testing.T) {
 		wantErrs     []string
 	}{
 		"CreateEmpty": {
-			reason:      "Attempted to create an empty ImageConfig.",
-			current:     resources.New[v1beta1.ImageConfig](t),
+			reason: "Attempted to create an empty ImageConfig.",
+			current: func() *v1beta1.ImageConfig {
+				o := resources.New[v1beta1.ImageConfig](t)
+				o.Spec.MatchImages = []v1beta1.ImageMatch{}
+				return o
+			}(),
 			validatorFn: resources.ValidatorFor[v1beta1.ImageConfig](t),
 			wantErrs:    []string{},
 		},
@@ -45,6 +49,9 @@ func TestImageConfigValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {

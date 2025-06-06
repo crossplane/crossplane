@@ -38,7 +38,7 @@ func TestUsageDefaults(t *testing.T) {
 			reason:    "We should have expected default fields set after default is called.",
 			defaultFn: resources.DefaultFor[v1beta1.Usage](t),
 			obj:       resources.New[v1beta1.Usage](t),
-			want:      apitest.MustLoadManifest[v1beta1.Usage](t, "../usage.yaml"),
+			want:      apitest.MustLoadManifest[v1beta1.Usage](t, "usage.yaml"),
 		},
 	}
 
@@ -68,7 +68,7 @@ func TestClusterUsageDefaults(t *testing.T) {
 			reason:    "We should have expected default fields set after default is called.",
 			defaultFn: resources.DefaultFor[v1beta1.ClusterUsage](t),
 			obj:       resources.New[v1beta1.ClusterUsage](t),
-			want:      apitest.MustLoadManifest[v1beta1.ClusterUsage](t, "../clusterusage.yaml"),
+			want:      apitest.MustLoadManifest[v1beta1.ClusterUsage](t, "clusterusage.yaml"),
 		},
 	}
 
