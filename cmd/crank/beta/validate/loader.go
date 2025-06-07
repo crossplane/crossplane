@@ -19,9 +19,11 @@ package validate
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,6 +41,26 @@ type Loader interface {
 
 // NewLoader returns a Loader based on the input source.
 func NewLoader(input string) (Loader, error) {
+	sources := strings.Split(input, ",")
+
+	if len(sources) == 1 {
+		return newLoader(sources[0])
+	}
+
+	loaders := make([]Loader, 0, len(sources))
+
+	for _, source := range sources {
+		loader, err := newLoader(source)
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("cannot create loader for %q", source))
+		}
+		loaders = append(loaders, loader)
+	}
+
+	return &MultiLoader{loaders: loaders}, nil
+}
+
+func newLoader(input string) (Loader, error) {
 	if input == "-" {
 		return &StdinLoader{}, nil
 	}
@@ -53,6 +75,27 @@ func NewLoader(input string) (Loader, error) {
 	}
 
 	return &FileLoader{path: input}, nil
+}
+
+// MultiLoader implements the Loader interface for reading from multiple other loaders.
+type MultiLoader struct {
+	loaders []Loader
+}
+
+// Load reads and merges the content from the loaders.
+func (m *MultiLoader) Load() ([]*unstructured.Unstructured, error) {
+	var manifests []*unstructured.Unstructured
+
+	for i, loader := range m.loaders {
+		output, err := loader.Load()
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("cannot load source at position %d", i))
+		}
+
+		manifests = append(manifests, output...)
+	}
+
+	return manifests, nil
 }
 
 // StdinLoader implements the Loader interface for reading from stdin.
