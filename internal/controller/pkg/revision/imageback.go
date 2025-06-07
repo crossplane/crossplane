@@ -20,6 +20,7 @@ import (
 	"archive/tar"
 	"context"
 	"io"
+	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -166,7 +167,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtNoPackageFileFound, read, foundAnnotated)
 		}
-		if h.Name == xpkg.StreamFile {
+		if filepath.Base(h.Name) == xpkg.StreamFile {
 			break
 		}
 		read++
