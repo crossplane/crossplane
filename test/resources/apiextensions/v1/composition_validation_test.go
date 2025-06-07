@@ -36,7 +36,7 @@ func TestCompositionValidation(t *testing.T) {
 			reason:      "Attempted to create an empty Composition.",
 			current:     resources.New[v1.Composition](t),
 			validatorFn: resources.ValidatorFor[v1.Composition](t),
-			wantErrs:    []string{},
+			wantErrs:    []string{"spec: Invalid value: \"object\": an array of pipeline steps is required in Pipeline mode"},
 		},
 	}
 
@@ -45,6 +45,9 @@ func TestCompositionValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {
@@ -77,6 +80,9 @@ func TestCompositionRevisionValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {

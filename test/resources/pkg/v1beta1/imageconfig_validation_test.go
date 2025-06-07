@@ -36,11 +36,11 @@ func TestImageConfigValidation(t *testing.T) {
 			reason: "Attempted to create an empty ImageConfig.",
 			current: func() *v1beta1.ImageConfig {
 				o := resources.New[v1beta1.ImageConfig](t)
-				o.Spec.MatchImages = []v1beta1.ImageMatch{}
+				//o.Spec.MatchImages = []v1beta1.ImageMatch{}
 				return o
 			}(),
 			validatorFn: resources.ValidatorFor[v1beta1.ImageConfig](t),
-			wantErrs:    []string{},
+			wantErrs:    []string{"spec.matchImages: Invalid value: \"null\": spec.matchImages in body must be of type array: \"null\""},
 		},
 	}
 

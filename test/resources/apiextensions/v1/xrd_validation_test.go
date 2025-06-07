@@ -36,7 +36,7 @@ func TestCompositeResourceDefinitionValidation(t *testing.T) {
 			reason:      "Attempted to create an empty CompositeResourceDefinition.",
 			current:     resources.New[v1.CompositeResourceDefinition](t),
 			validatorFn: resources.ValidatorFor[v1.CompositeResourceDefinition](t),
-			wantErrs:    []string{},
+			wantErrs:    []string{"spec.versions: Invalid value: \"null\": spec.versions in body must be of type array: \"null\""},
 		},
 	}
 
@@ -45,6 +45,9 @@ func TestCompositeResourceDefinitionValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {

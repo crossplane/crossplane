@@ -45,6 +45,9 @@ func TestEnvironmentConfigValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {

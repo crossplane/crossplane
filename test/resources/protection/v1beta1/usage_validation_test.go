@@ -36,7 +36,10 @@ func TestUsageValidation(t *testing.T) {
 			reason:      "Attempted to create an empty Usage.",
 			current:     resources.New[v1beta1.Usage](t),
 			validatorFn: resources.ValidatorFor[v1beta1.Usage](t),
-			wantErrs:    []string{},
+			wantErrs:    []string{
+				"spec: Invalid value: \"object\": either \"spec.by\" or \"spec.reason\" must be specified.",
+				"spec.of: Invalid value: \"object\": either a resource reference or a resource selector should be set.",
+			},
 		},
 	}
 
@@ -45,6 +48,9 @@ func TestUsageValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {
@@ -68,7 +74,10 @@ func TestClusterUsageValidation(t *testing.T) {
 			reason:      "Attempted to create an empty ClusterUsage.",
 			current:     resources.New[v1beta1.ClusterUsage](t),
 			validatorFn: resources.ValidatorFor[v1beta1.ClusterUsage](t),
-			wantErrs:    []string{},
+			wantErrs:    []string{
+				"spec: Invalid value: \"object\": either \"spec.by\" or \"spec.reason\" must be specified.",
+				"spec.of: Invalid value: \"object\": either a resource reference or a resource selector should be set.",
+			},
 		},
 	}
 
@@ -77,6 +86,9 @@ func TestClusterUsageValidation(t *testing.T) {
 			errs := tc.validatorFn(tc.current, tc.old)
 			if got := len(errs); got != len(tc.wantErrs) {
 				t.Errorf("expected errors %v, got %v", len(tc.wantErrs), len(errs))
+				for _, err := range errs {
+					t.Log(err)
+				}
 				return
 			}
 			for i := range tc.wantErrs {

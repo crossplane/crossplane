@@ -18,6 +18,7 @@ limitations under the License.
 package resources
 
 import (
+	"k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
 	apitest "k8s.io/apiextensions-apiserver/pkg/test"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"os"
@@ -83,6 +84,40 @@ func VersionDefaultsFromFile(t *testing.T, crdFilePath string) map[string]func(a
 	return ret
 }
 
+type OpenAPIValidateFn func(obj any) field.ErrorList
+
+func OpenAPIVersionValidatorsFromFile(t *testing.T, crdFilePath string) map[string]OpenAPIValidateFn {
+	data, err := os.ReadFile(crdFilePath)
+	if err != nil {
+		t.Fatalf("failed to read CRD file at path %q: %v", crdFilePath, err)
+	}
+
+	var crd apiextensionsv1.CustomResourceDefinition
+	err = yaml.Unmarshal(data, &crd)
+	if err != nil {
+		t.Fatalf("failed to unmarshal CRD: %v", err)
+	}
+
+	ret := map[string]OpenAPIValidateFn{}
+	for _, v := range crd.Spec.Versions {
+		var internalSchema apiextensions.JSONSchemaProps
+		if err := apiextensionsv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(v.Schema.OpenAPIV3Schema, &internalSchema, nil); err != nil {
+			t.Fatalf("failed to convert JSONSchemaProps for version %s: %v", v.Name, err)
+		}
+
+		schemaValidator, _, err := validation.NewSchemaValidator(&internalSchema)
+		if err != nil {
+			t.Fatalf("failed to create NewSchemaValidator for version %s: %v", v.Name, err)
+		}
+
+		ret[v.Name] = func(obj any) field.ErrorList {
+			u := ToUnstructured(t, obj)
+			return validation.ValidateCustomResource(nil, u.Object, schemaValidator)
+		}
+	}
+	return ret
+}
+
 // ValidatorFor creates a CEL validation function for the specified type T by loading
 // the validation rules from the corresponding CRD file. The returned function can
 // be used to validate objects of type T against the CEL rules defined in the CRD.
@@ -95,12 +130,22 @@ func ValidatorFor[T any](t *testing.T) func(obj, old *T) field.ErrorList {
 	if err != nil {
 		t.Fatalf("unable to load validator from path %q at version %q: %v", path, version, err)
 	}
+
+	oVals := OpenAPIVersionValidatorsFromFile(t, path)
+	oVal := oVals[version]
+
 	return func(obj, old *T) field.ErrorList {
 		t.Helper()
 
 		defaultFn := DefaultFor[T](t)
 		defaultFn(obj)
 
+		// First test OpenAPI.
+		if errs := oVal(obj); errs != nil {
+			return errs
+		}
+
+		// Then test CEL.
 		return val(ToUnstructured(t, obj).Object, ToUnstructured(t, old).Object)
 	}
 }
