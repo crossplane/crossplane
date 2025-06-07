@@ -876,6 +876,20 @@ of resource.
 I believe it would be possible to introduce a ReferenceGrant-like API at a later
 stage if demand arose.
 
+### Migration Tooling
+
+This document proposes Crossplane v2 be backward compatible with Crossplane v1,
+with the exception of the removal of a few deprecated features. This means users
+will be able to upgrade from Crossplane v1.x to Crossplane v2 without migrating
+their 'legacy' v1 style claims, XRs, and MRs to use the new v2 APIs.
+
+Eventually we do want all users to migrate to use the new v2 APIs. To stop using
+claims, and start using namespaced XRs and MRs. I believe we'll need automated
+migration tooling to assist with this migration.
+
+It's unclear at this point exactly what this tooling will look like - likely a
+CLI based migration tool like the existing `crossplane beta migrate` commands.
+
 ### Remove Legacy Resources
 
 This document proposes that Crossplane v2 retain the following types for
