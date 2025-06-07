@@ -63,7 +63,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xfn/cached"
 	"github.com/crossplane/crossplane/internal/xpkg"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured"
 )
 
 // Command runs the core crossplane controllers.

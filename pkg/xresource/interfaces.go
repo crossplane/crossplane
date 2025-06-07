@@ -23,7 +23,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/reference"
 )
 
 // A ClaimReferencer may reference a resource claim.

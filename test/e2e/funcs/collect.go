@@ -33,7 +33,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
 )
 
 // coordinate represents a coordinate in the cluster, i.e. everything necessary

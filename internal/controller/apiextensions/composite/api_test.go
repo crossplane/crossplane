@@ -37,8 +37,8 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/xfake"
+	"github.com/crossplane/crossplane/pkg/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource/xfake"
 )
 
 func TestPublishConnection(t *testing.T) {

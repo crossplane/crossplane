@@ -36,10 +36,10 @@ import (
 
 	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/printer"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xpkg"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource/xrm"
 	"github.com/crossplane/crossplane/cmd/crank/internal"
+	"github.com/crossplane/crossplane/cmd/crank/util/resource"
+	"github.com/crossplane/crossplane/cmd/crank/util/resource/xpkg"
+	"github.com/crossplane/crossplane/cmd/crank/util/resource/xrm"
 )
 
 const (

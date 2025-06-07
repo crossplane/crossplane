@@ -18,7 +18,7 @@ package composite
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 
-	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource"
 )
 
 // A ResourceName uniquely identifies the composed resource within a Composition

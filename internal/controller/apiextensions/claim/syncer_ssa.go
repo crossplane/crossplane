@@ -32,8 +32,8 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
 )
 
 // Error strings.

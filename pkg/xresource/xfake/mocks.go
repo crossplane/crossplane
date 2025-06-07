@@ -30,7 +30,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/reference"
 )
 
 // ClaimReferencer is a mock that implements ClaimReferencer interface.

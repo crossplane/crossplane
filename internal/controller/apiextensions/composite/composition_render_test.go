@@ -32,9 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/xfake"
+	"github.com/crossplane/crossplane/pkg/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/xfake"
 )
 
 func TestRenderFromJSON(t *testing.T) {

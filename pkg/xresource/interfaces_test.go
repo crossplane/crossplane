@@ -17,10 +17,10 @@ limitations under the License.
 package xresource
 
 import (
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/xfake"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/xfake"
 )
 
 // We test that our fakes satisfy our interfaces here rather than in the fake

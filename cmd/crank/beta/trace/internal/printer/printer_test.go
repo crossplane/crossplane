@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/cmd/crank/beta/trace/internal/resource"
+	"github.com/crossplane/crossplane/cmd/crank/util/resource"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 

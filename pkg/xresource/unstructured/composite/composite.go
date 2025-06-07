@@ -28,7 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/reference"
 )
 
 // Schema specifies the schema version of a composite resource's Crossplane

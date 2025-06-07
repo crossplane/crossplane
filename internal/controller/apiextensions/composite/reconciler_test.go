@@ -44,10 +44,10 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/engine"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/pkg/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/reference"
 )
 
 func TestReconcile(t *testing.T) {

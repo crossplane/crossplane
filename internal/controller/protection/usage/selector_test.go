@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/protection/v1beta1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
 )
 
 var errBoom = errors.New("boom")

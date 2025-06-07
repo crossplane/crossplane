@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource"
 )
 
 // Error strings.

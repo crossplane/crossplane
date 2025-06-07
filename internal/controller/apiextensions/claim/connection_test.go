@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/internal/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource"
 )
 
 var _ ConnectionPropagator = &APIConnectionPropagator{}

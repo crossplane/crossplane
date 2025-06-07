@@ -46,10 +46,10 @@ import (
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/xfake"
+	"github.com/crossplane/crossplane/pkg/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/xfake"
 )
 
 func TestFunctionCompose(t *testing.T) {

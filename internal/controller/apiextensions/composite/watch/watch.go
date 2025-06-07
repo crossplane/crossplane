@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/internal/engine"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
 )
 
 // A ControllerEngine can get and stop watches for a controller.

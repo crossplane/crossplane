@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane/internal/protection"
 	"github.com/crossplane/crossplane/internal/protection/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
 )
 
 type fakeSelectorResolver struct {

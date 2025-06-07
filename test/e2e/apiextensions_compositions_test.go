@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -29,7 +30,7 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
@@ -147,7 +148,13 @@ func TestBasicCompositionCluster(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "xr.yaml"),
 			)).
 			Assess("XRIsReady",
-				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess())).
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "xr.yaml", xpv1.Available(), xpv1.ReconcileSuccess()),
+			).
+			Assess("ComposedResourceHasGenerateName",
+				funcs.ComposedResourcesHaveFieldValueWithin(1*time.Minute, manifests, "xr.yaml", "metadata.generateName", "basic-xr-cluster-", func(object k8s.Object) bool {
+					return object.GetObjectKind().GroupVersionKind().Kind == "ConfigMap"
+				}),
+			).
 			Assess("XRHasStatusField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "xr.yaml", "status.coolerField", "I'M COOLER!"),
 			).

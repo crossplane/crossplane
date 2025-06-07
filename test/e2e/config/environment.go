@@ -50,6 +50,7 @@ type Environment struct {
 	priorCrossplaneVersion *string
 	kindClusterName        *string
 	kindLogsLocation       *string
+	crossplaneImage        *string
 
 	selectedTestSuite *selectedTestSuite
 
@@ -110,6 +111,7 @@ func NewEnvironmentFromFlags() Environment {
 	c.preinstallCrossplane = flag.Bool("preinstall-crossplane", true, "install Crossplane before running tests")
 	c.priorCrossplaneVersion = flag.String("prior-crossplane-version", "", "prior Crossplane version to test upgrade from")
 	c.loadImagesKindCluster = flag.Bool("load-images-kind-cluster", true, "load Crossplane images into the kind cluster before running tests")
+	c.crossplaneImage = flag.String("crossplane-image", "crossplane-e2e/crossplane:latest", "Crossplane image to use for the tests, if not set, the default image will be used")
 	c.selectedTestSuite = &selectedTestSuite{}
 	flag.Var(c.selectedTestSuite, testSuiteFlag, "test suite defining environment setup and tests to run")
 	// Need to override the default usage message to allow setting the available
@@ -143,6 +145,11 @@ func (e *Environment) GetKindClusterName() string {
 		e.kindClusterName = &name
 	}
 	return *e.kindClusterName
+}
+
+// GetCrossplaneImage returns the image to use when running crossplane for these tests.Add commentMore actions
+func (e *Environment) GetCrossplaneImage() string {
+	return *e.crossplaneImage
 }
 
 // GetKindClusterLogsLocation returns the location of the kind cluster logs.

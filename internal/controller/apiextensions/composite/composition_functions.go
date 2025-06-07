@@ -48,10 +48,10 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composed"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
 )
 
 // Error strings.
@@ -421,6 +421,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 		if ok {
 			cd.SetNamespace(or.Resource.GetNamespace())
 			cd.SetName(or.Resource.GetName())
+			cd.SetGenerateName(or.Resource.GetGenerateName())
 		}
 
 		// Set standard composed resource metadata that is derived from the XR.

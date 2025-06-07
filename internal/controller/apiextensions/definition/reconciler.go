@@ -53,7 +53,7 @@ import (
 	"github.com/crossplane/crossplane/internal/engine"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	ucomposite "github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
+	ucomposite "github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
 )
 
 const (

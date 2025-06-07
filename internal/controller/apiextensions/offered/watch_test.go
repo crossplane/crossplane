@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/reference"
 )
 
 var _ handler.EventHandler = &EnqueueRequestForClaim{}

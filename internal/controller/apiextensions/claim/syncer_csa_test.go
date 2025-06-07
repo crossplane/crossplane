@@ -32,9 +32,9 @@ import (
 
 	"github.com/crossplane/crossplane/internal/names"
 	"github.com/crossplane/crossplane/internal/xcrd"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/claim"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
-	"github.com/crossplane/crossplane/internal/xresource/unstructured/reference"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/claim"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xresource/unstructured/reference"
 )
 
 func TestClientSideSync(t *testing.T) {
