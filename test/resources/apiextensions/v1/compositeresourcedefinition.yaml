@@ -1,0 +1,6 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+spec:
+  defaultCompositeDeletePolicy: Background
+  defaultCompositionUpdatePolicy: Automatic
+  scope: LegacyCluster
