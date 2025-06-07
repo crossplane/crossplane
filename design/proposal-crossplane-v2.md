@@ -713,10 +713,6 @@ are currently marked deprecated.
 I believe the only deprecated MR field is `spec.deletionPolicy`, which is
 deprecated in favor of management policies.
 
-## Open Questions
-
-The following topics currently remain open questions in this proposal.
-
 ### Ancillary Cluster Scoped Types
 
 Crossplane contains several ‘ancillary’ cluster scoped types. These types
@@ -728,29 +724,24 @@ external cloud systems.
   for composition
 * Usage - Tracks dependencies between XRs and MRs to enforce ordered deletion
 
-Whether these types become namespaced, remain cluster scoped, or both is an open
-question.
-
 I propose all MRs become namespaced in Crossplane v2. Namespaced MRs could
 benefit from namespaced ProviderConfigs; e.g. a ProviderConfig that may only be
 used by MRs in a specific namespace.
 
-However, I suspect namespacing ProviderConfigs would be awkward. It creates a
-bootstrapping problem where each time you create a namespace you must create at
-least one ProviderConfig in the namespace before you can create Crossplane MRs
-there. This is toilsome for cases where you really only want one global
-ProviderConfig per control plane.
+However, I suspect (only) namespacing ProviderConfigs would be awkward. It
+creates a bootstrapping problem where each time you create a namespace you must
+create at least one ProviderConfig in the namespace before you can create
+Crossplane MRs there. This is toilsome for cases where you really only want one
+global ProviderConfig per control plane.
 
-Therefore it seems likely that ProviderConfig would benefit from existing at
-both scopes. The Kubernetes convention in cases like this is to prefix the name
-of the cluster scoped variant with “Cluster” - i.e. ClusterProviderConfig and
-ProviderConfig.
+Therefore I propose that providers offer both a namespaced ProviderConfig type
+and a cluster scoped ClusterProviderConfig type.
 
 Making contemporary cluster scoped ProviderConfig types namespaced would be a
-breaking change. It likely makes sense for namespaced providers to introduce new
-ProviderConfig types in the new `m.crossplane.io` suffixed API groups, e.g.:
+breaking change. Therefore I proposed providers introduce new ProviderConfig
+types in the new `m.crossplane.io` suffixed API groups, e.g.:
 
-* `ClusterProviderConfig.aws.m.crossplane.io` Cluster scoped
+* `ClusterProviderConfig.aws.m.crossplane.io` - Cluster scoped
 * `ProviderConfig.aws.m.crossplane.io` - Namespaced
 * `ProviderConfig.aws.upbound.io` - Legacy cluster scoped
 
@@ -758,30 +749,17 @@ Assuming a ProviderConfig could be either cluster scoped or namespaced, MRs will
 need to be able to differentiate between the two by adding `apiVersion` and
 `kind` fields to the existing `spec.providerConfigRef` MR fields.
 
+When you create an MR without specifying a providerConfigRef, Crossplane
+defaults the the `providerConfigRef` to a ProviderConfig named `default`.
+
+I propose that in v2 MRs default to a ClusterProviderConfig named `default`.
+This is due to the bootstrapping issue. It's easier to create a default
+fall-back at the cluster scope than it is to ensure one exists in every
+namespace.
+
 EnvironmentConfigs are selected and referenced by Compositions. Given that
-Compositions remain (only) cluster scoped under this proposal, I lean toward
+Compositions remain (only) cluster scoped under this proposal, I propose
 EnvironmentConfigs remaining (only) cluster scoped.
-
-Purely namespaced EnvironmentConfigs would suffer the same bootstrapping issue
-as ProviderConfigs. If a Composition referenced an EnvironmentConfig named
-`default`, that EnvironmentConfig would need to exist in any namespace before a
-namespaced XR could use it.
-
-Unlike ProviderConfigs, there’s not an obvious non-breaking path to support
-EnvironmentConfig at both the cluster and namespace scopes. Except perhaps
-introducing the namespaced variant as e.g. NamespacedEnvironmentConfig. This
-would work, but would be unidiomatic and potentially surprising.
-
-The other option would be to make a breaking change to the EnvironmentConfig API
-by renaming the existing type to ClusterEnvironmentConfig. The EnvironmentConfig
-API is currently in beta (v1beta1), and therefore subject to breaking changes
-per Crossplane’s [feature lifecycle](https://docs.crossplane.io/v1.18/learn/feature-lifecycle/#beta-features):
-
-> The schema and/or semantics of objects may change in incompatible ways in a
-> subsequent beta or stable release. When this happens, we will provide
-> instructions for migrating to the next version. This may require deleting,
-> editing, and recreating API objects. The editing process may require some
-> thought. This may require downtime for applications that rely on the feature.
 
 Under this proposal all MRs are namespaced, and XRs may be namespaced or cluster
 scoped. A namespaced XR may only be composed of other namespaced resources (e.g.
@@ -794,18 +772,16 @@ This means a Usage may need to track the following relationships:
 * Cluster scoped type uses cluster scoped type
 * Cluster scoped type uses namespaced type
 
-Therefore I believe the Usage type must have both namespaced and cluster scoped
-variants. It’s subject to the same issue as EnvironmentConfigs - the Usage type
-is currently cluster scoped. Renaming it to ClusterUsage would be a breaking
-change.
+Therefore I propose that like ProviderConfigs, we introduce namespaced and
+cluster scoped Usage variants:
 
-Like EnvironmentConfigs, I believe the options for Usage are either:
+* `ClusterUsage.protection.crossplane.io` - Cluster scoped
+* `Usage.protection.crossplane.io` - Namespaced
+* `Usage.apiextensions.crossplane.io` - Legacy cluster scoped
 
-* Introduce the namespaced variant as NamespacedUsage
-* Make a breaking API change
+## Open Questions
 
-Usages are currently an alpha feature, but at the time of writing code is
-committed to promote them to beta in Crossplane v1.19.
+The following topics currently remain open questions in this proposal.
 
 ### Promoting APIs to v2
 
