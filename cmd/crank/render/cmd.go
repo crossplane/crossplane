@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/xcrd"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 )
 
@@ -54,6 +55,7 @@ type Cmd struct {
 	FunctionCredentials    string            `help:"A YAML file or directory of YAML files specifying credentials to use for Functions to render the XR."                                      placeholder:"PATH" predictor:"yaml_file_or_directory" type:"path"`
 
 	Timeout time.Duration `default:"1m" help:"How long to run before timing out."`
+	XRD     string        `help:"A YAML file specifying the CompositeResourceDefinition (XRD) that defines the XR's schema and properties."                                                  optional:""        placeholder:"PATH" type:"existingfile"`
 
 	fs afero.Fs
 }
@@ -174,7 +176,19 @@ func (c *Cmd) Run(k *kong.Context, log logging.Logger) error { //nolint:gocognit
 	if err != nil {
 		return errors.Wrapf(err, "cannot load functions from %q", c.Functions)
 	}
-
+	if c.XRD != "" {
+		xrd, err := LoadXRD(c.fs, c.XRD)
+		if err != nil {
+			return errors.Wrapf(err, "cannot load XRD from %q", c.XRD)
+		}
+		crd, err := xcrd.ForCompositeResource(xrd)
+		if err != nil {
+			return errors.Wrapf(err, "cannot derive composite CRD from XRD %q", xrd.GetName())
+		}
+		if err := DefaultValues(xr.UnstructuredContent(), xr.GetAPIVersion(), *crd); err != nil {
+			return errors.Wrapf(err, "cannot default values for XR %q", xr.GetName())
+		}
+	}
 	fcreds := []corev1.Secret{}
 	if c.FunctionCredentials != "" {
 		fcreds, err = LoadCredentials(c.fs, c.FunctionCredentials)
