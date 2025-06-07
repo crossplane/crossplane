@@ -281,7 +281,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
 								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -392,7 +392,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetPackagePullPolicy(&pullAlways)
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -444,7 +444,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetActivationPolicy(&v1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -495,7 +495,7 @@ func TestReconcile(t *testing.T) {
 										Name: "test-1234567",
 									},
 								}
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
 								}
@@ -559,7 +559,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								cr.SetRevision(1)
 								c := v1.ConfigurationRevisionList{
@@ -594,7 +594,7 @@ func TestReconcile(t *testing.T) {
 							}})
 							want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
 							want.SetRevision(1)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -642,7 +642,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
@@ -706,7 +706,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Unhealthy().WithMessage("some message"))
+								cr.SetConditions(v1.RevisionUnhealthy().WithMessage("some message"))
 								cr.SetDesiredState(v1.PackageRevisionActive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
@@ -719,7 +719,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.Unhealthy().WithMessage("some message"))
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"False\" with message: some message"))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -772,7 +772,7 @@ func TestReconcile(t *testing.T) {
 								}
 								cr.SetRevision(3)
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{
@@ -825,7 +825,7 @@ func TestReconcile(t *testing.T) {
 							}})
 							want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
 							want.SetRevision(3)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -875,7 +875,7 @@ func TestReconcile(t *testing.T) {
 								}
 								cr.SetRevision(3)
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{
@@ -1047,6 +1047,267 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPackageHealth(t *testing.T) {
+	type args struct {
+		pr v1.PackageRevision
+	}
+	type want struct {
+		condition commonv1.Condition
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"HealthyRevisionAndRuntimeWithRuntime": {
+			reason: "Should return healthy condition when both revision and runtime are healthy for package with runtime",
+			args: args{
+				pr: &v1.ProviderRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{
+								{
+									Type:    v1.TypeRevisionHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package revision is healthy",
+								},
+								{
+									Type:    v1.TypeRuntimeHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package runtime is healthy",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Healthy(),
+			},
+		},
+		"HealthyRevisionWithoutRuntime": {
+			reason: "Should return healthy condition when revision is healthy for package without runtime",
+			args: args{
+				pr: &v1.ConfigurationRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{
+								{
+									Type:    v1.TypeRevisionHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package revision is healthy",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Healthy(),
+			},
+		},
+		"UnhealthyRevision": {
+			reason: "Should return unhealthy condition when revision is unhealthy",
+			args: args{
+				pr: &v1.ProviderRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{
+								{
+									Type:    v1.TypeRevisionHealthy,
+									Status:  corev1.ConditionFalse,
+									Reason:  v1.ReasonUnhealthy,
+									Message: "Package revision is not ready",
+								},
+								{
+									Type:    v1.TypeRuntimeHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package runtime is healthy",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Unhealthy().WithMessage("Package revision health is \"False\" with message: Package revision is not ready"),
+			},
+		},
+		"UnhealthyRuntime": {
+			reason: "Should return unhealthy condition when runtime is unhealthy",
+			args: args{
+				pr: &v1.ProviderRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{
+								{
+									Type:    v1.TypeRevisionHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package revision is healthy",
+								},
+								{
+									Type:    v1.TypeRuntimeHealthy,
+									Status:  corev1.ConditionFalse,
+									Reason:  v1.ReasonUnhealthy,
+									Message: "Runtime deployment is not ready",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Unhealthy().WithMessage("Package runtime health is \"False\" with message: Runtime deployment is not ready"),
+			},
+		},
+		"BothUnhealthy": {
+			reason: "Should return unhealthy condition with revision message when both are unhealthy (revision checked first)",
+			args: args{
+				pr: &v1.FunctionRevision{
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:    v1.TypeRevisionHealthy,
+										Status:  corev1.ConditionFalse,
+										Reason:  v1.ReasonUnhealthy,
+										Message: "Package revision is not ready",
+									},
+									{
+										Type:    v1.TypeRuntimeHealthy,
+										Status:  corev1.ConditionFalse,
+										Reason:  v1.ReasonUnhealthy,
+										Message: "Runtime deployment is not ready",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Unhealthy().WithMessage("Package revision health is \"False\" with message: Package revision is not ready"),
+			},
+		},
+		"UnknownRevisionHealth": {
+			reason: "Should return unhealthy condition when revision health is unknown",
+			args: args{
+				pr: &v1.ProviderRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{
+								{
+									Type:   v1.TypeRevisionHealthy,
+									Status: corev1.ConditionUnknown,
+									Reason: v1.ReasonUnknownHealth,
+								},
+								{
+									Type:    v1.TypeRuntimeHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package runtime is healthy",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""),
+			},
+		},
+		"UnknownRuntimeHealth": {
+			reason: "Should return unhealthy condition when runtime health is unknown for package with runtime",
+			args: args{
+				pr: &v1.ProviderRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{
+								{
+									Type:    v1.TypeRevisionHealthy,
+									Status:  corev1.ConditionTrue,
+									Reason:  v1.ReasonHealthy,
+									Message: "Package revision is healthy",
+								},
+								{
+									Type:   v1.TypeRuntimeHealthy,
+									Status: corev1.ConditionUnknown,
+									Reason: v1.ReasonUnknownHealth,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Unhealthy().WithMessage("Package runtime health is \"Unknown\""),
+			},
+		},
+		"MissingConditions": {
+			reason: "Should return unhealthy condition when conditions are missing",
+			args: args{
+				pr: &v1.ConfigurationRevision{
+					Status: v1.PackageRevisionStatus{
+						ConditionedStatus: commonv1.ConditionedStatus{
+							Conditions: []commonv1.Condition{},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""),
+			},
+		},
+		"FunctionRevisionHealthy": {
+			reason: "Should return healthy condition for function revision with both conditions healthy",
+			args: args{
+				pr: &v1.FunctionRevision{
+					Status: v1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{
+							ConditionedStatus: commonv1.ConditionedStatus{
+								Conditions: []commonv1.Condition{
+									{
+										Type:    v1.TypeRevisionHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  v1.ReasonHealthy,
+										Message: "Function revision is healthy",
+									},
+									{
+										Type:    v1.TypeRuntimeHealthy,
+										Status:  corev1.ConditionTrue,
+										Reason:  v1.ReasonHealthy,
+										Message: "Function runtime is healthy",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				condition: v1.Healthy(),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := packageHealth(tc.args.pr)
+
+			if diff := cmp.Diff(tc.want.condition, got); diff != "" {
+				t.Errorf("\n%s\npackageHealth(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package revision
+package runtime
 
 import (
 	"context"
@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,17 +30,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/pkg/revision"
 	"github.com/crossplane/crossplane/internal/initializer"
-	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
-	errNotProvider                            = "not a provider package"
-	errNotProviderRevision                    = "not a provider revision"
 	errDeleteProviderDeployment               = "cannot delete provider package deployment"
-	errDeleteProviderSA                       = "cannot delete provider package service account"
 	errDeleteProviderService                  = "cannot delete provider package service"
 	errApplyProviderDeployment                = "cannot apply provider package deployment"
 	errApplyProviderSecret                    = "cannot apply provider package secret"
@@ -70,47 +65,26 @@ func NewProviderHooks(client client.Client, defaultRegistry string) *ProviderHoo
 }
 
 // Pre performs operations meant to happen before establishing objects.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
-	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
-	providerMeta, ok := po.(*pkgmetav1.Provider)
-	if !ok {
-		return errors.New(errNotProvider)
-	}
-
-	provRev, ok := pr.(*v1.ProviderRevision)
-	if !ok {
-		return errors.New(errNotProviderRevision)
-	}
-
-	provRev.Status.PermissionRequests = providerMeta.Spec.Controller.PermissionRequests
-
-	// TODO(hasheddan): update any status fields relevant to package revisions.
-
+func (h *ProviderHooks) Pre(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
 
 	// Ensure Prerequisites
 	// Note(turkenh): We need certificates have generated when we get to the
-	// establish step, i.e. we want to inject the CA to CRDs (webhook caBundle).
-	// Therefore, we need to generate the certificates pre establish and
+	// establish step, i.e., we want to inject the CA to CRDs (webhook caBundle).
+	// Therefore, we need to generate the certificates pre-establish and
 	// generating certificates requires the service to be defined. This is why
 	// we're creating the service here but service account and deployment in the
-	// post establish.
-	// As a rule of thumb, we create objects named after the package in the
-	// pre hook and objects named after the package revision in the post hook.
-	svc := build.Service(
-		ServiceWithSelectors(providerSelectors(providerMeta, pr)),
-		ServiceWithAdditionalPorts([]corev1.ServicePort{
-			{
-				Name:       webhookPortName,
-				Protocol:   corev1.ProtocolTCP,
-				Port:       servicePort,
-				TargetPort: intstr.FromString(webhookPortName),
-			},
-		}),
-	)
-
+	// post-establish.
+	svc := build.Service(ServiceWithAdditionalPorts([]corev1.ServicePort{
+		{
+			Name:       WebhookPortName,
+			Protocol:   corev1.ProtocolTCP,
+			Port:       revision.ServicePort,
+			TargetPort: intstr.FromString(WebhookPortName),
+		},
+	}))
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyProviderService)
 	}
@@ -142,25 +116,19 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 }
 
 // Post performs operations meant to happen after establishing objects.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
-	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
-	providerMeta, ok := po.(*pkgmetav1.Provider)
-	if !ok {
-		return errors.New("not a provider package")
-	}
+func (h *ProviderHooks) Post(ctx context.Context, pr v1.PackageRevisionWithRuntime, build ManifestBuilder) error {
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil
 	}
 
 	sa := build.ServiceAccount()
 
-	// Determine the provider's image, taking into account the default registry.
-	image, err := getProviderImage(providerMeta, pr, h.defaultRegistry)
+	// Determine the function's image, taking into account the default registry.
+	image, err := name.ParseReference(pr.GetResolvedSource(), name.WithDefaultRegistry(h.defaultRegistry))
 	if err != nil {
 		return errors.Wrap(err, errParseProviderImage)
 	}
-
-	d := build.Deployment(sa.Name, providerDeploymentOverrides(providerMeta, pr, image)...)
+	d := build.Deployment(sa.Name, providerDeploymentOverrides(pr, image.Name())...)
 	// Create/Apply the SA only if the deployment references it.
 	// This is to avoid creating a SA that is not used by the deployment when
 	// the SA is managed externally by the user and configured by setting
@@ -216,7 +184,7 @@ func (h *ProviderHooks) Deactivate(ctx context.Context, pr v1.PackageRevisionWit
 	return nil
 }
 
-func providerDeploymentOverrides(pm *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
+func providerDeploymentOverrides(pr v1.PackageRevisionWithRuntime, image string) []DeploymentOverride {
 	do := []DeploymentOverride{
 		DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			{
@@ -233,16 +201,6 @@ func providerDeploymentOverrides(pm *pkgmetav1.Provider, pr v1.PackageRevisionWi
 			},
 		}),
 
-		// Note(turkenh): By default, in manifest builder, we're setting the
-		// provider name in the selector using the package name, derived from
-		// "v1.LabelParentPackage". However, we used to set the provider name in
-		// the selector using the provider "meta" name. Since we cannot change
-		// the selector in-place, this would require a migration. We're keeping
-		// the old selector for backward compatibility with existing providers
-		// and plan to remove this after implementing a migration in a future
-		// release.
-		DeploymentWithSelectors(providerSelectors(pm, pr)),
-
 		// Add optional scrape annotations to the deployment. It is possible to
 		// disable the scraping by setting the annotation "prometheus.io/scrape"
 		// as "false" in the DeploymentRuntimeConfig.
@@ -257,8 +215,8 @@ func providerDeploymentOverrides(pm *pkgmetav1.Provider, pr v1.PackageRevisionWi
 			// environment variable ESS_TLS_CERTS_DIR to the same value as
 			// TLS_CLIENT_CERTS_DIR to ease the transition to the new certificates.
 			{
-				Name:  essTLSCertDirEnvVar,
-				Value: fmt.Sprintf("$(%s)", tlsClientCertDirEnvVar),
+				Name:  ESSTLSCertDirEnvVar,
+				Value: fmt.Sprintf("$(%s)", TLSClientCertDirEnvVar),
 			},
 		}))
 	}
@@ -266,46 +224,21 @@ func providerDeploymentOverrides(pm *pkgmetav1.Provider, pr v1.PackageRevisionWi
 	if pr.GetTLSServerSecretName() != nil {
 		do = append(do, DeploymentRuntimeWithAdditionalPorts([]corev1.ContainerPort{
 			{
-				Name:          webhookPortName,
-				ContainerPort: servicePort,
+				Name:          WebhookPortName,
+				ContainerPort: revision.ServicePort,
 			},
 		}), DeploymentRuntimeWithAdditionalEnvironments([]corev1.EnvVar{
 			// for backward compatibility with existing providers, we set the
 			// environment variable WEBHOOK_TLS_CERT_DIR to the same value as
 			// TLS_SERVER_CERTS_DIR to ease the transition to the new certificates.
 			{
-				Name:  webhookTLSCertDirEnvVar,
-				Value: fmt.Sprintf("$(%s)", tlsServerCertDirEnvVar),
+				Name:  WebhookTLSCertDirEnvVar,
+				Value: fmt.Sprintf("$(%s)", TLSServerCertDirEnvVar),
 			},
 		}))
 	}
 
 	return do
-}
-
-func providerSelectors(providerMeta *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime) map[string]string {
-	return map[string]string{
-		"pkg.crossplane.io/revision": pr.GetName(),
-		"pkg.crossplane.io/provider": providerMeta.GetName(),
-	}
-}
-
-// getProviderImage determines a complete provider image, taking into account a
-// default registry. If the provider meta specifies an image, we have a
-// preference for that image over what is specified in the package revision.
-func getProviderImage(pm *pkgmetav1.Provider, pr v1.PackageRevisionWithRuntime, defaultRegistry string) (string, error) {
-	// Use the image from the status rather than the spec, since it may have
-	// been rewritten by an ImageConfig.
-	image := pr.GetResolvedSource()
-	if pm.Spec.Controller.Image != nil {
-		image = *pm.Spec.Controller.Image
-	}
-	ref, err := name.ParseReference(image, name.WithDefaultRegistry(defaultRegistry))
-	if err != nil {
-		return "", errors.Wrap(err, errParseProviderImage)
-	}
-
-	return ref.Name(), nil
 }
 
 // applySA creates/updates a ServiceAccount and includes any image pull secrets

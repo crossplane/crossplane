@@ -5,8 +5,7 @@ package v1alpha1
 
 import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v11 "k8s.io/api/rbac/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v11 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type GeneratedFromHubConverter struct{}
@@ -46,20 +45,6 @@ func (c *GeneratedFromHubConverter) v1ConfigurationSpecToV1alpha1ConfigurationSp
 	var v1alpha1ConfigurationSpec ConfigurationSpec
 	v1alpha1ConfigurationSpec.MetaSpec = c.v1MetaSpecToV1alpha1MetaSpec(source.MetaSpec)
 	return v1alpha1ConfigurationSpec
-}
-func (c *GeneratedFromHubConverter) v1ControllerSpecToV1alpha1ControllerSpec(source v1.ControllerSpec) ControllerSpec {
-	var v1alpha1ControllerSpec ControllerSpec
-	if source.Image != nil {
-		xstring := *source.Image
-		v1alpha1ControllerSpec.Image = &xstring
-	}
-	if source.PermissionRequests != nil {
-		v1alpha1ControllerSpec.PermissionRequests = make([]v11.PolicyRule, len(source.PermissionRequests))
-		for i := 0; i < len(source.PermissionRequests); i++ {
-			v1alpha1ControllerSpec.PermissionRequests[i] = c.v1PolicyRuleToV1PolicyRule(source.PermissionRequests[i])
-		}
-	}
-	return v1alpha1ControllerSpec
 }
 func (c *GeneratedFromHubConverter) v1DependencyToV1alpha1Dependency(source v1.Dependency) Dependency {
 	var v1alpha1Dependency Dependency
@@ -101,48 +86,13 @@ func (c *GeneratedFromHubConverter) v1MetaSpecToV1alpha1MetaSpec(source v1.MetaS
 	}
 	return v1alpha1MetaSpec
 }
-func (c *GeneratedFromHubConverter) v1PolicyRuleToV1PolicyRule(source v11.PolicyRule) v11.PolicyRule {
-	var v1PolicyRule v11.PolicyRule
-	if source.Verbs != nil {
-		v1PolicyRule.Verbs = make([]string, len(source.Verbs))
-		for i := 0; i < len(source.Verbs); i++ {
-			v1PolicyRule.Verbs[i] = source.Verbs[i]
-		}
-	}
-	if source.APIGroups != nil {
-		v1PolicyRule.APIGroups = make([]string, len(source.APIGroups))
-		for j := 0; j < len(source.APIGroups); j++ {
-			v1PolicyRule.APIGroups[j] = source.APIGroups[j]
-		}
-	}
-	if source.Resources != nil {
-		v1PolicyRule.Resources = make([]string, len(source.Resources))
-		for k := 0; k < len(source.Resources); k++ {
-			v1PolicyRule.Resources[k] = source.Resources[k]
-		}
-	}
-	if source.ResourceNames != nil {
-		v1PolicyRule.ResourceNames = make([]string, len(source.ResourceNames))
-		for l := 0; l < len(source.ResourceNames); l++ {
-			v1PolicyRule.ResourceNames[l] = source.ResourceNames[l]
-		}
-	}
-	if source.NonResourceURLs != nil {
-		v1PolicyRule.NonResourceURLs = make([]string, len(source.NonResourceURLs))
-		for m := 0; m < len(source.NonResourceURLs); m++ {
-			v1PolicyRule.NonResourceURLs[m] = source.NonResourceURLs[m]
-		}
-	}
-	return v1PolicyRule
-}
 func (c *GeneratedFromHubConverter) v1ProviderSpecToV1alpha1ProviderSpec(source v1.ProviderSpec) ProviderSpec {
 	var v1alpha1ProviderSpec ProviderSpec
-	v1alpha1ProviderSpec.Controller = c.v1ControllerSpecToV1alpha1ControllerSpec(source.Controller)
 	v1alpha1ProviderSpec.MetaSpec = c.v1MetaSpecToV1alpha1MetaSpec(source.MetaSpec)
 	return v1alpha1ProviderSpec
 }
-func (c *GeneratedFromHubConverter) v1TypeMetaToV1TypeMeta(source v12.TypeMeta) v12.TypeMeta {
-	var v1TypeMeta v12.TypeMeta
+func (c *GeneratedFromHubConverter) v1TypeMetaToV1TypeMeta(source v11.TypeMeta) v11.TypeMeta {
+	var v1TypeMeta v11.TypeMeta
 	v1TypeMeta.Kind = source.Kind
 	v1TypeMeta.APIVersion = source.APIVersion
 	return v1TypeMeta
@@ -181,42 +131,8 @@ func (c *GeneratedToHubConverter) pV1alpha1CrossplaneConstraintsToPV1CrossplaneC
 	}
 	return pV1CrossplaneConstraints
 }
-func (c *GeneratedToHubConverter) v1PolicyRuleToV1PolicyRule2(source v11.PolicyRule) v11.PolicyRule {
-	var v1PolicyRule v11.PolicyRule
-	if source.Verbs != nil {
-		v1PolicyRule.Verbs = make([]string, len(source.Verbs))
-		for i := 0; i < len(source.Verbs); i++ {
-			v1PolicyRule.Verbs[i] = source.Verbs[i]
-		}
-	}
-	if source.APIGroups != nil {
-		v1PolicyRule.APIGroups = make([]string, len(source.APIGroups))
-		for j := 0; j < len(source.APIGroups); j++ {
-			v1PolicyRule.APIGroups[j] = source.APIGroups[j]
-		}
-	}
-	if source.Resources != nil {
-		v1PolicyRule.Resources = make([]string, len(source.Resources))
-		for k := 0; k < len(source.Resources); k++ {
-			v1PolicyRule.Resources[k] = source.Resources[k]
-		}
-	}
-	if source.ResourceNames != nil {
-		v1PolicyRule.ResourceNames = make([]string, len(source.ResourceNames))
-		for l := 0; l < len(source.ResourceNames); l++ {
-			v1PolicyRule.ResourceNames[l] = source.ResourceNames[l]
-		}
-	}
-	if source.NonResourceURLs != nil {
-		v1PolicyRule.NonResourceURLs = make([]string, len(source.NonResourceURLs))
-		for m := 0; m < len(source.NonResourceURLs); m++ {
-			v1PolicyRule.NonResourceURLs[m] = source.NonResourceURLs[m]
-		}
-	}
-	return v1PolicyRule
-}
-func (c *GeneratedToHubConverter) v1TypeMetaToV1TypeMeta2(source v12.TypeMeta) v12.TypeMeta {
-	var v1TypeMeta v12.TypeMeta
+func (c *GeneratedToHubConverter) v1TypeMetaToV1TypeMeta2(source v11.TypeMeta) v11.TypeMeta {
+	var v1TypeMeta v11.TypeMeta
 	v1TypeMeta.Kind = source.Kind
 	v1TypeMeta.APIVersion = source.APIVersion
 	return v1TypeMeta
@@ -225,20 +141,6 @@ func (c *GeneratedToHubConverter) v1alpha1ConfigurationSpecToV1ConfigurationSpec
 	var v1ConfigurationSpec v1.ConfigurationSpec
 	v1ConfigurationSpec.MetaSpec = c.v1alpha1MetaSpecToV1MetaSpec(source.MetaSpec)
 	return v1ConfigurationSpec
-}
-func (c *GeneratedToHubConverter) v1alpha1ControllerSpecToV1ControllerSpec(source ControllerSpec) v1.ControllerSpec {
-	var v1ControllerSpec v1.ControllerSpec
-	if source.Image != nil {
-		xstring := *source.Image
-		v1ControllerSpec.Image = &xstring
-	}
-	if source.PermissionRequests != nil {
-		v1ControllerSpec.PermissionRequests = make([]v11.PolicyRule, len(source.PermissionRequests))
-		for i := 0; i < len(source.PermissionRequests); i++ {
-			v1ControllerSpec.PermissionRequests[i] = c.v1PolicyRuleToV1PolicyRule2(source.PermissionRequests[i])
-		}
-	}
-	return v1ControllerSpec
 }
 func (c *GeneratedToHubConverter) v1alpha1DependencyToV1Dependency(source Dependency) v1.Dependency {
 	var v1Dependency v1.Dependency
@@ -282,7 +184,6 @@ func (c *GeneratedToHubConverter) v1alpha1MetaSpecToV1MetaSpec(source MetaSpec) 
 }
 func (c *GeneratedToHubConverter) v1alpha1ProviderSpecToV1ProviderSpec(source ProviderSpec) v1.ProviderSpec {
 	var v1ProviderSpec v1.ProviderSpec
-	v1ProviderSpec.Controller = c.v1alpha1ControllerSpecToV1ControllerSpec(source.Controller)
 	v1ProviderSpec.MetaSpec = c.v1alpha1MetaSpecToV1MetaSpec(source.MetaSpec)
 	return v1ProviderSpec
 }

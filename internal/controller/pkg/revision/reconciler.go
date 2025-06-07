@@ -25,10 +25,8 @@ import (
 	"strings"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,11 +85,6 @@ const (
 	errNotOneMeta        = "cannot install package with multiple meta types"
 	errIncompatible      = "incompatible Crossplane version"
 
-	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
-	errPreHook                = "pre establish runtime hook failed for package"
-	errPostHook               = "post establish runtime hook failed for package"
-	errDeactivationHook       = "deactivation runtime hook failed for package"
-
 	errEstablishControl = "cannot establish control of object"
 	errReleaseObjects   = "cannot release objects"
 
@@ -106,10 +99,6 @@ const (
 	errCannotBuildMetaSchema         = "cannot build meta scheme for package parser"
 	errCannotBuildObjectSchema       = "cannot build object scheme for package parser"
 	errCannotBuildFetcher            = "cannot build fetcher for package parser"
-
-	errNoRuntimeConfig   = "no deployment runtime config set"
-	errGetRuntimeConfig  = "cannot get referenced deployment runtime config"
-	errGetServiceAccount = "cannot get Crossplane service account"
 
 	reconcilePausedMsg = "Reconciliation (including deletion) is paused via the pause annotation"
 )
@@ -175,16 +164,6 @@ func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 func WithDependencyManager(m DependencyManager) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.lock = m
-	}
-}
-
-// WithRuntimeHooks specifies how the Reconciler should perform preparations
-// (pre- and post-establishment) and cleanup (deactivate) for package runtime.
-// The hooks are only used when the package has a runtime and the runtime is
-// configured as Deployment.
-func WithRuntimeHooks(h RuntimeHooks) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.runtimeHook = h
 	}
 }
 
@@ -266,7 +245,6 @@ type Reconciler struct {
 	cache          xpkg.PackageCache
 	revision       resource.Finalizer
 	lock           DependencyManager
-	runtimeHook    RuntimeHooks
 	objects        Establisher
 	parser         parser.Parser
 	linter         parser.Linter
@@ -310,12 +288,8 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
-		Owns(&appsv1.Deployment{}).
-		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.ServiceAccount{}).
+		Owns(&corev1.Secret{}). // Watch secret changes to react if pull or cert secrets change.
 		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.ProviderRevisionList{}, log)).
-		Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log)).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
 
 	ro := []ReconcilerOption{
@@ -332,14 +306,6 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithFeatureFlags(o.Features),
-	}
-
-	if o.PackageRuntime == controller.PackageRuntimeDeployment {
-		ro = append(ro, WithRuntimeHooks(NewProviderHooks(mgr.GetClient(), o.DefaultRegistry)))
-
-		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.ProviderRevisionList{}, log))
-		}
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
@@ -422,12 +388,8 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 	cb := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.FunctionRevision{}).
-		Owns(&appsv1.Deployment{}).
-		Owns(&corev1.Service{}).
-		Owns(&corev1.Secret{}).
-		Owns(&corev1.ServiceAccount{}).
+		Owns(&corev1.Secret{}). // Watch secret changes to react if pull or cert secrets change.
 		Watches(&v1beta1.Lock{}, EnqueuePackageRevisionsForLock(mgr.GetClient(), &v1.FunctionRevisionList{}, log)).
-		Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log)).
 		Watches(&v1beta1.ImageConfig{}, EnqueuePackageRevisionsForImageConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
 
 	ro := []ReconcilerOption{
@@ -444,14 +406,6 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNamespace(o.Namespace),
 		WithServiceAccount(o.ServiceAccount),
 		WithFeatureFlags(o.Features),
-	}
-
-	if o.PackageRuntime == controller.PackageRuntimeDeployment {
-		ro = append(ro, WithRuntimeHooks(NewFunctionHooks(mgr.GetClient(), o.DefaultRegistry)))
-
-		if o.Features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-			cb = cb.Watches(&v1beta1.DeploymentRuntimeConfig{}, EnqueuePackageRevisionsForRuntimeConfig(mgr.GetClient(), &v1.FunctionRevisionList{}, log))
-		}
 	}
 
 	return cb.WithOptions(o.ForControllerRuntime()).
@@ -566,7 +520,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	rewriteConfigName, newPath, err := r.config.RewritePath(ctx, imagePath)
 	if err != nil {
 		err = errors.Wrap(err, errRewriteImage)
-		pr.SetConditions(v1.Unpacking().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -593,9 +547,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Wait for signature verification to complete before proceeding.
 		if cond := pr.GetCondition(v1.TypeVerified); cond.Status != corev1.ConditionTrue {
 			log.Debug("Waiting for signature verification controller to complete verification.", "condition", cond)
-			// Initialize the installed condition if they are not already set to
-			// communicate the status of the package.
-			if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
+			// Initialize the revision healthy condition if they are not already
+			// set to communicate the status of the revision.
+			if pr.GetCondition(v1.TypeRevisionHealthy).Status == corev1.ConditionUnknown {
 				status.MarkConditions(v1.AwaitingVerification())
 				return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, pr), "cannot update status with awaiting verification")
 			}
@@ -615,7 +569,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pullSecretConfig, pullSecretFromConfig, err := r.config.PullSecretFor(ctx, pr.GetResolvedSource())
 	if err != nil {
 		err = errors.Wrap(err, errGetPullConfig)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonImageConfig, err))
@@ -623,32 +577,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	var runtimeManifestBuilder ManifestBuilder
-	pwr, hasRuntime := pr.(v1.PackageRevisionWithRuntime)
-	if hasRuntime && r.runtimeHook != nil {
-		opts, err := r.runtimeManifestBuilderOptions(ctx, pwr)
-		if err != nil {
-			log.Debug(errManifestBuilderOptions, "error", err)
-
-			err = errors.Wrap(err, errManifestBuilderOptions)
-			status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
-			_ = r.client.Status().Update(ctx, pr)
-
-			r.record.Event(pr, event.Warning(reasonSync, err))
-
-			return reconcile.Result{}, err
-		}
-
-		if pullSecretFromConfig != "" {
-			opts = append(opts, RuntimeManifestBuilderWithPullSecrets(pullSecretFromConfig))
-		}
-
-		runtimeManifestBuilder = NewRuntimeManifestBuilder(pwr, r.namespace, opts...)
-	}
-
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
-		if err := r.deactivateRevision(ctx, pr, runtimeManifestBuilder); err != nil {
+		if err := r.deactivateRevision(ctx, pr); err != nil {
 			if kerrors.IsConflict(err) {
 				return reconcile.Result{Requeue: true}, nil
 			}
@@ -678,12 +609,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// status.objectRefs is empty, to make sure that the revision is
 			// removed from the lock which could otherwise block a successful
 			// reconciliation.
-			if pr.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
+			if pr.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
 				// NOTE(phisco): We don't want to spam the user with events if the
 				// package revision is already healthy.
 				r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 			}
-			status.MarkConditions(v1.Healthy())
+			status.MarkConditions(v1.RevisionHealthy())
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 	}
@@ -728,7 +659,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// an error.
 	if rc == nil && pullPolicyNever {
 		err := errors.New(errPullPolicyNever)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonParse, err))
@@ -758,7 +689,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		imgrc, err := r.backend.Init(ctx, bo...)
 		if err != nil {
 			err = errors.Wrap(err, errInitParserBackend)
-			status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 			_ = r.client.Status().Update(ctx, pr)
 
 			r.record.Event(pr, event.Warning(reasonParse, err))
@@ -801,7 +732,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	if err != nil {
 		err = errors.Wrap(err, errParsePackage)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonParse, err))
@@ -811,7 +742,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Lint package using package-specific linter.
 	if err := r.linter.Lint(pkg); err != nil {
 		err = errors.Wrap(err, errLintPackage)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonLint, err))
@@ -828,7 +759,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// we check here to avoid a potential panic on 0 index below.
 	if len(pkg.GetMeta()) != 1 {
 		err = errors.New(errNotOneMeta)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonLint, err))
@@ -846,7 +777,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		err = errors.Wrap(err, errUpdateMeta)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonSync, err))
@@ -858,7 +789,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
 		if err := xpkg.PackageCrossplaneCompatible(r.versioner)(pkgMeta); err != nil {
 			err = errors.Wrap(err, errIncompatible)
-			status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 
 			r.record.Event(pr, event.Warning(reasonLint, err))
 
@@ -881,26 +812,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			err = errors.Wrap(err, errResolveDeps)
-			status.MarkConditions(v1.UnknownHealth().WithMessage(err.Error()))
+			status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 			_ = r.client.Status().Update(ctx, pr)
 
 			r.record.Event(pr, event.Warning(reasonDependencies, err))
-
-			return reconcile.Result{}, err
-		}
-	}
-
-	if hasRuntime && r.runtimeHook != nil {
-		if err := r.runtimeHook.Pre(ctx, pkgMeta, pwr, runtimeManifestBuilder); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errPreHook)
-			status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
-			_ = r.client.Status().Update(ctx, pr)
-
-			r.record.Event(pr, event.Warning(reasonSync, err))
 
 			return reconcile.Result{}, err
 		}
@@ -914,7 +829,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		err = errors.Wrap(err, errEstablishControl)
-		status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
+		status.MarkConditions(v1.RevisionUnhealthy().WithMessage(err.Error()))
 		_ = r.client.Status().Update(ctx, pr)
 
 		r.record.Event(pr, event.Warning(reasonSync, err))
@@ -939,32 +854,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	})
 	pr.SetObjects(refs)
 
-	if hasRuntime && r.runtimeHook != nil {
-		if err := r.runtimeHook.Post(ctx, pkgMeta, pwr, runtimeManifestBuilder); err != nil {
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-
-			err = errors.Wrap(err, errPostHook)
-			status.MarkConditions(v1.Unhealthy().WithMessage(err.Error()))
-			_ = r.client.Status().Update(ctx, pr)
-
-			r.record.Event(pr, event.Warning(reasonSync, err))
-
-			return reconcile.Result{}, err
-		}
-	}
-
-	if pr.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
+	if pr.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
 		// NOTE(phisco): We don't want to spam the user with events if the
 		// package revision is already healthy.
 		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	}
-	status.MarkConditions(v1.Healthy())
+	status.MarkConditions(v1.RevisionHealthy())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
 
-func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision, runtimeManifestBuilder ManifestBuilder) error {
+func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision) error {
 	// Remove self from the lock if we are present.
 	if err := r.lock.RemoveSelf(ctx, pr); err != nil {
 		return errors.Wrap(err, errRemoveLock)
@@ -975,45 +874,5 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 		return errors.Wrap(err, errReleaseObjects)
 	}
 
-	prwr, ok := pr.(v1.PackageRevisionWithRuntime)
-	if !ok || r.runtimeHook == nil {
-		return nil
-	}
-
-	// Call deactivation hook.
-	if err := r.runtimeHook.Deactivate(ctx, prwr, runtimeManifestBuilder); err != nil {
-		return errors.Wrap(err, errDeactivationHook)
-	}
-
 	return nil
-}
-
-func (r *Reconciler) runtimeManifestBuilderOptions(ctx context.Context, pwr v1.PackageRevisionWithRuntime) ([]RuntimeManifestBuilderOption, error) {
-	var opts []RuntimeManifestBuilderOption
-
-	if r.features.Enabled(features.EnableBetaDeploymentRuntimeConfigs) {
-		rcRef := pwr.GetRuntimeConfigRef()
-		if rcRef == nil {
-			return nil, errors.New(errNoRuntimeConfig)
-		}
-
-		rc := &v1beta1.DeploymentRuntimeConfig{}
-		if err := r.client.Get(ctx, types.NamespacedName{Name: rcRef.Name}, rc); err != nil {
-			return nil, errors.Wrap(err, errGetRuntimeConfig)
-		}
-		opts = append(opts, RuntimeManifestBuilderWithRuntimeConfig(rc))
-	}
-
-	sa := &corev1.ServiceAccount{}
-	// Fetch XP ServiceAccount to get the ImagePullSecrets defined there.
-	// We will append them to the list of ImagePullSecrets for the runtime
-	// ServiceAccount.
-	if err := r.client.Get(ctx, types.NamespacedName{Namespace: r.namespace, Name: r.serviceAccount}, sa); err != nil {
-		return nil, errors.Wrap(err, errGetServiceAccount)
-	}
-	if len(sa.ImagePullSecrets) > 0 {
-		opts = append(opts, RuntimeManifestBuilderWithServiceAccountPullSecrets(sa.ImagePullSecrets))
-	}
-
-	return opts, nil
 }

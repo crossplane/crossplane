@@ -62,10 +62,6 @@ func (c *GeneratedFromHubConverter) v1DependencyToV1beta1Dependency(source v1.De
 func (c *GeneratedFromHubConverter) v1FunctionSpecToV1beta1FunctionSpec(source v1.FunctionSpec) FunctionSpec {
 	var v1beta1FunctionSpec FunctionSpec
 	v1beta1FunctionSpec.MetaSpec = c.v1MetaSpecToV1beta1MetaSpec(source.MetaSpec)
-	if source.Image != nil {
-		xstring := *source.Image
-		v1beta1FunctionSpec.Image = &xstring
-	}
 	return v1beta1FunctionSpec
 }
 func (c *GeneratedFromHubConverter) v1MetaSpecToV1beta1MetaSpec(source v1.MetaSpec) MetaSpec {
@@ -146,10 +142,6 @@ func (c *GeneratedToHubConverter) v1beta1DependencyToV1Dependency(source Depende
 func (c *GeneratedToHubConverter) v1beta1FunctionSpecToV1FunctionSpec(source FunctionSpec) v1.FunctionSpec {
 	var v1FunctionSpec v1.FunctionSpec
 	v1FunctionSpec.MetaSpec = c.v1beta1MetaSpecToV1MetaSpec(source.MetaSpec)
-	if source.Image != nil {
-		xstring := *source.Image
-		v1FunctionSpec.Image = &xstring
-	}
 	return v1FunctionSpec
 }
 func (c *GeneratedToHubConverter) v1beta1MetaSpecToV1MetaSpec(source MetaSpec) v1.MetaSpec {
