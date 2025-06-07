@@ -2,7 +2,7 @@
 
 * Owner: Nic Cope (@negz)
 * Reviewers: Crossplane Steering Committee
-* Status: Draft
+* Status: Accepted
 
 
 ## Executive Summary
