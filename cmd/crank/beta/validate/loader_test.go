@@ -53,6 +53,178 @@ var (
 	}
 )
 
+func TestNewLoader(t *testing.T) {
+	type args struct {
+		input string
+	}
+	type want struct {
+		loader Loader
+		err    error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"SucessWithStdin": {
+			reason: "Successfully create loader from stdin",
+			args: args{
+				input: "-",
+			},
+			want: want{
+				loader: &StdinLoader{},
+			},
+		},
+		"SucessWithFile": {
+			reason: "Successfully create loader from file",
+			args: args{
+				input: "testdata/resources.yaml",
+			},
+			want: want{
+				loader: &FileLoader{path: "testdata/resources.yaml"},
+			},
+		},
+		"SucessWithDirectory": {
+			reason: "Successfully create loader from directory",
+			args: args{
+				input: "testdata/folder",
+			},
+			want: want{
+				loader: &FolderLoader{path: "testdata/folder"},
+			},
+		},
+		"SucessWithMultiple": {
+			reason: "Successfully create loader from multiple sources",
+			args: args{
+				input: "testdata/resources.yaml,testdata/folder",
+			},
+			want: want{
+				loader: &MultiLoader{loaders: []Loader{
+					&FileLoader{path: "testdata/resources.yaml"},
+					&FolderLoader{path: "testdata/folder"},
+				}},
+			},
+		},
+		"ErrorWithFile": {
+			reason: "Error creating loader from file that does not exist",
+			args: args{
+				input: "testdata/does-not-exist.yaml",
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ErrorWithFolder": {
+			reason: "Error creating loader from folder that does not exist",
+			args: args{
+				input: "testdata/does-not-exist",
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+		"ErrorWithMultiple": {
+			reason: "Error creating loader from multiple sources that does not exist",
+			args: args{
+				input: "testdata/does-not-exist.yaml,testdata/does-not-exist",
+			},
+			want: want{
+				err: cmpopts.AnyError,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := NewLoader(tc.args.input)
+			if diff := cmp.Diff(
+				tc.want.loader,
+				got,
+				cmpopts.IgnoreUnexported(FileLoader{}, FolderLoader{}, MultiLoader{}),
+			); diff != "" {
+				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestMultiLoaderLoad(t *testing.T) {
+	type args struct {
+		loaders []Loader
+	}
+	type want struct {
+		resources []*unstructured.Unstructured
+		err       error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Success": {
+			reason: "Successfully load resources from file and folder loaders",
+			args: args{
+				loaders: []Loader{
+					&FileLoader{
+						path: "testdata/resources.yaml",
+					},
+					&FolderLoader{
+						path: "testdata/folder",
+					},
+				},
+			},
+			want: want{
+				resources: []*unstructured.Unstructured{
+					{
+						Object: coolResource,
+					},
+					{
+						Object: coolerResource,
+					},
+					{
+						Object: coolResource,
+					},
+					{
+						Object: coolerResource,
+					},
+				},
+			},
+		},
+		"Error": {
+			reason: "Error loading resources from invalid loader",
+			args: args{
+				[]Loader{
+					&FileLoader{
+						path: "testdata/does-not-exist.yaml",
+					},
+				},
+			},
+			want: want{
+				resources: nil,
+				err:       cmpopts.AnyError,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := &MultiLoader{
+				loaders: tc.args.loaders,
+			}
+			got, err := f.Load()
+			if diff := cmp.Diff(tc.want.resources, got); diff != "" {
+				t.Errorf("%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestFileLoaderLoad(t *testing.T) {
 	type args struct {
 		Path string
