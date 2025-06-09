@@ -28,6 +28,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	conregv1 "github.com/google/go-containerregistry/pkg/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -95,6 +96,12 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 		return nil, errors.Wrap(err, "failed to prepare image reference")
 	}
 
+	ref, err := name.ParseReference(image)
+	if err != nil {
+		return nil, errors.Wrapf(err, "invalid image reference: %s", image)
+	}
+	repoName := ref.Context().Name()
+
 	cBytes, err := crane.Config(image)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot get config")
@@ -123,7 +130,7 @@ func (f *Fetcher) FetchBaseLayer(image string) (*conregv1.Layer, error) {
 
 	lDigest := strings.SplitN(label, ":", 2)[1] // e.g.: sha256:0158764f65dc2a68728fdffa6ee6f2c9ef158f2dfed35abbd4f5bef8973e4b59
 
-	ll, err := crane.PullLayer(fmt.Sprintf(refFmt, image, lDigest))
+	ll, err := crane.PullLayer(fmt.Sprintf(refFmt, repoName, lDigest))
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot pull base layer %s", lDigest)
 	}
@@ -332,7 +339,7 @@ func extractLayer(layer conregv1.Layer, destDir string) error { //nolint:gocogni
 // prepareImageReference prepares the image reference by stripping the digest or resolving the tag if necessary.
 func prepareImageReference(image string) (string, error) {
 	if strings.Contains(image, "@") {
-		return strings.SplitN(image, "@", 2)[0], nil
+		return image, nil
 	}
 	if strings.Contains(image, ":") {
 		return findImageTagForVersionConstraint(image)

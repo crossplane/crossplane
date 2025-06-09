@@ -10,12 +10,8 @@ output:
 linters:
   enable-all: true
   fast: false
-  
-  disable:
-    # These linters are all deprecated. We disable them explicitly to avoid the
-    # linter logging deprecation warnings.
-    - execinquery
 
+  disable:
     # These are linters we'd like to enable, but that will be labor intensive to
     # make existing code compliant.
     - wrapcheck
@@ -23,7 +19,6 @@ linters:
     - testpackage
     - paralleltest
     - nilnil
-    - gomnd
 
     # Below are linters that lint for things we don't value. Each entry below
     # this line must have a comment explaining the rationale.
@@ -31,7 +26,7 @@ linters:
     # These linters add whitespace in an attempt to make code more readable.
     # This isn't a widely accepted Go best practice, and would be laborious to
     # apply to existing code.
-    - wsl 
+    - wsl
     - nlreturn
 
     # Warns about uses of fmt.Sprintf that are less performant than alternatives
@@ -83,7 +78,7 @@ linters:
     # Warns about returning interfaces rather than concrete types. We do think
     # it's best to avoid returning interfaces where possible. However, at the
     # time of writing enabling this linter would only catch the (many) cases
-    # where we must return an interface. 
+    # where we must return an interface.
     - ireturn
 
     # Warns about returning named variables. We do think it's best to avoid
@@ -189,7 +184,7 @@ linters-settings:
   nolintlint:
     require-explanation: true
     require-specific: true
-  
+
   depguard:
     rules:
       no_third_party_test_libraries:
@@ -206,7 +201,7 @@ linters-settings:
 
   interfacebloat:
     max: 5
-  
+
   tagliatelle:
     case:
       rules:
@@ -237,7 +232,7 @@ issues:
       text: "(unnamedResult|exitAfterDefer)"
       linters:
         - gocritic
-    
+
     # It's idiomatic to register Kubernetes types with a package scoped
     # SchemeBuilder using an init function.
     - path: apis/
@@ -282,7 +277,7 @@ issues:
       linters:
       - gosec
       - gas
-    
+
     # Some k8s dependencies do not have JSON tags on all fields in structs.
     - path: k8s.io/
       linters:
