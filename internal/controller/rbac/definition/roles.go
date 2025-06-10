@@ -45,8 +45,6 @@ const (
 
 	keyAggregateToBrowse = "rbac.crossplane.io/aggregate-to-browse"
 
-	keyXRD = "rbac.crossplane.io/xrd"
-
 	valTrue = "true"
 
 	suffixStatus     = "/status"
@@ -104,8 +102,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 
 				keyAggregateToEdit:   valTrue,
 				keyAggregateToNSEdit: valTrue,
-
-				keyXRD: d.GetName(),
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -126,8 +122,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 			Labels: map[string]string{
 				keyAggregateToView:   valTrue,
 				keyAggregateToNSView: valTrue,
-
-				keyXRD: d.GetName(),
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
@@ -147,8 +141,6 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 			Name: namePrefix + d.GetName() + nameSuffixBrowse,
 			Labels: map[string]string{
 				keyAggregateToBrowse: valTrue,
-
-				keyXRD: d.GetName(),
 			},
 		},
 		Rules: []rbacv1.PolicyRule{
