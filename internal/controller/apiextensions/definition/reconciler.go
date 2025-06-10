@@ -28,6 +28,7 @@ import (
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -168,8 +169,13 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	var eventRecorder event.Recorder
+	filterFns := []event.FilterFn{}
 	if o.Options.NamespacedEvents {
-		eventRecorder = event.NewNamespacedAPIRecorder(mgr.GetEventRecorderFor(name))
+		filterFns = append(filterFns, func(obj runtime.Object, e event.Event) bool {
+			m, err := kmeta.Accessor(obj)
+			return (err == nil && m.GetNamespace() != "" && m.GetNamespace() != "default")
+		})
+
 	} else {
 		eventRecorder = event.NewAPIRecorder(mgr.GetEventRecorderFor(name))
 	}

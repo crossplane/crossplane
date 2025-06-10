@@ -24,7 +24,9 @@ import (
 	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -67,8 +69,13 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "revisions/" + strings.ToLower(v1.CompositionGroupKind)
 
 	var eventRecorder event.Recorder
+	filterFns := []event.FilterFn{}
 	if o.Options.NamespacedEvents {
-		eventRecorder = event.NewNamespacedAPIRecorder(mgr.GetEventRecorderFor(name))
+		filterFns = append(filterFns, func(obj runtime.Object, e event.Event) bool {
+			m, err := kmeta.Accessor(obj)
+			return (err == nil && m.GetNamespace() != "" && m.GetNamespace() != "default")
+		})
+
 	} else {
 		eventRecorder = event.NewAPIRecorder(mgr.GetEventRecorderFor(name))
 	}
