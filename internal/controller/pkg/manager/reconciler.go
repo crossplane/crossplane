@@ -468,7 +468,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	health := packageHealth(pr)
+	health := v1.PackageHealth(pr)
 	if health.Status == corev1.ConditionTrue && p.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
 		// NOTE(phisco): We don't want to spam the user with events if the
 		// package is already healthy.
@@ -549,38 +549,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
 	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
-}
-
-func packageHealth(pr v1.PackageRevision) xpv1.Condition {
-	revisionHealth := pr.GetCondition(v1.TypeRevisionHealthy)
-	runtimeHealth := pr.GetCondition(v1.TypeRuntimeHealthy)
-
-	revisionHealthy := revisionHealth.Status == corev1.ConditionTrue
-	runtimeHealthy := runtimeHealth.Status == corev1.ConditionTrue
-	if _, hasRuntime := pr.(v1.PackageRevisionWithRuntime); !hasRuntime {
-		// If the package revision does not have a runtime, we skip checking the runtime health.
-		runtimeHealthy = true
-	}
-
-	if revisionHealthy && runtimeHealthy {
-		return v1.Healthy()
-	}
-
-	if !revisionHealthy {
-		m := fmt.Sprintf("Package revision health is %q", revisionHealth.Status)
-		if revisionHealth.Message != "" {
-			m += " with message: " + revisionHealth.Message
-		}
-		return v1.Unhealthy().WithMessage(m)
-	}
-	if !runtimeHealthy {
-		m := fmt.Sprintf("Package runtime health is %q", runtimeHealth.Status)
-		if runtimeHealth.Message != "" {
-			m += " with message: " + runtimeHealth.Message
-		}
-		return v1.Unhealthy().WithMessage(m)
-	}
-	return v1.UnknownHealth()
 }
 
 func enqueueProvidersForImageConfig(kube client.Client, log logging.Logger) handler.EventHandler {

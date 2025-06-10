@@ -609,10 +609,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// status.objectRefs is empty, to make sure that the revision is
 			// removed from the lock which could otherwise block a successful
 			// reconciliation.
-			if pr.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
+			if pr.GetCondition(v1.TypeRevisionHealthy).Status != corev1.ConditionTrue {
 				// NOTE(phisco): We don't want to spam the user with events if the
 				// package revision is already healthy.
-				r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
+				r.record.Event(pr, event.Normal(reasonSync, "Successfully reconciled package revision"))
 			}
 			status.MarkConditions(v1.RevisionHealthy())
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
@@ -854,10 +854,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	})
 	pr.SetObjects(refs)
 
-	if pr.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
+	if pr.GetCondition(v1.TypeRevisionHealthy).Status != corev1.ConditionTrue {
 		// NOTE(phisco): We don't want to spam the user with events if the
 		// package revision is already healthy.
-		r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
+		r.record.Event(pr, event.Normal(reasonSync, "Successfully reconciled package revision"))
 	}
 	status.MarkConditions(v1.RevisionHealthy())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)

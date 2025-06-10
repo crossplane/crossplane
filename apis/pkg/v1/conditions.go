@@ -252,3 +252,42 @@ func VerificationIncomplete(err error) xpv1.Condition {
 		Message:            fmt.Sprintf("Error occurred during signature verification %s", err),
 	}
 }
+
+// PackageHealth returns the health condition of a Package based on the provided
+// PackageRevision. It checks both the revision health and runtime health
+// conditions, and returns a healthy condition if both are healthy, an unhealthy
+// condition if either is unhealthy or an unknown health condition if the
+// health status is not clear.
+func PackageHealth(pr PackageRevision) xpv1.Condition {
+	revisionHealth := pr.GetCondition(TypeRevisionHealthy)
+	runtimeHealth := pr.GetCondition(TypeRuntimeHealthy)
+
+	revisionHealthy := revisionHealth.Status == corev1.ConditionTrue
+	runtimeHealthy := runtimeHealth.Status == corev1.ConditionTrue
+	if _, hasRuntime := pr.(PackageRevisionWithRuntime); !hasRuntime {
+		// If the package revision does not have a runtime, we skip checking the runtime health.
+		runtimeHealthy = true
+	}
+
+	if revisionHealthy && runtimeHealthy {
+		return Healthy()
+	}
+
+	if !revisionHealthy {
+		m := fmt.Sprintf("Package revision health is %q", revisionHealth.Status)
+		if revisionHealth.Message != "" {
+			m += " with message: " + revisionHealth.Message
+		}
+		return Unhealthy().WithMessage(m)
+	}
+
+	if !runtimeHealthy {
+		m := fmt.Sprintf("Package runtime health is %q", runtimeHealth.Status)
+		if runtimeHealth.Message != "" {
+			m += " with message: " + runtimeHealth.Message
+		}
+		return Unhealthy().WithMessage(m)
+	}
+
+	return UnknownHealth()
+}
