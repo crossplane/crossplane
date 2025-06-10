@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 
+	regv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -207,7 +208,7 @@ func (m *Manager) CacheAndLoad(cleanCache bool) error {
 	return m.PrepExtensions(schemas)
 }
 
-func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error {
+func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error { //nolint:gocognit // no extra func
 	if len(confs) == 0 {
 		return nil
 	}
@@ -249,7 +250,13 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 			}
 
 			if len(image) > 0 {
-				image = fmt.Sprintf(imageFmt, image, dep.Version)
+				if _, err := regv1.NewHash(dep.Version); err == nil {
+					// digest
+					image = fmt.Sprintf(refFmt, image, dep.Version)
+				} else {
+					// tag
+					image = fmt.Sprintf(imageFmt, image, dep.Version)
+				}
 				m.deps[image] = true
 
 				if _, ok := m.confs[image]; !ok && dep.Configuration != nil {
@@ -265,7 +272,7 @@ func (m *Manager) addDependencies(confs map[string]*metav1.Configuration) error 
 
 func (m *Manager) cacheDependencies() error {
 	if err := m.cache.Init(); err != nil {
-		return errors.Wrapf(err, "cannot initialize  cache directory")
+		return errors.Wrapf(err, "cannot initialize cache directory")
 	}
 
 	for image := range m.deps {
