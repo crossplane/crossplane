@@ -18,11 +18,8 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Healthy')].status
+    - jsonPath: .status.conditions[?(@.type=='RevisionHealthy')].status
       name: HEALTHY
-      type: string
-    - jsonPath: .spec.revision
-      name: REVISION
       type: string
     - jsonPath: .spec.image
       name: IMAGE
@@ -30,15 +27,21 @@ spec:
     - jsonPath: .spec.desiredState
       name: STATE
       type: string
-    - jsonPath: .status.foundDependencies
-      name: DEP-FOUND
-      type: string
-    - jsonPath: .status.installedDependencies
-      name: DEP-INSTALLED
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
+    - jsonPath: .spec.revision
+      name: REVISION
+      priority: 1
+      type: string
+    - jsonPath: .status.foundDependencies
+      name: DEP-FOUND
+      priority: 1
+      type: string
+    - jsonPath: .status.installedDependencies
+      name: DEP-INSTALLED
+      priority: 1
+      type: string
     name: v1
     schema:
       openAPIV3Schema:
