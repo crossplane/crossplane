@@ -50,6 +50,8 @@ import (
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
+	"github.com/crossplane/crossplane/internal/controller/daytwo"
+	daytwocontroller "github.com/crossplane/crossplane/internal/controller/daytwo/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/controller/protection"
@@ -247,6 +249,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	// Periodically remove clients for Functions that no longer exist.
 	go pfr.GarbageCollectConnections(ctx, 10*time.Minute)
 
+	var uncachedRunner xfn.FunctionRunner = pfr
 	var runner xfn.FunctionRunner = pfr
 
 	if c.EnableFunctionResponseCache {
@@ -447,6 +450,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	if err := pkg.Setup(mgr, po); err != nil {
 		return errors.Wrap(err, "cannot add package manager controllers to manager")
+	}
+
+	d2o := daytwocontroller.Options{
+		Options:               o,
+		FunctionRunner:        uncachedRunner,
+		ExtraResourcesFetcher: xfn.NewExistingExtraResourcesFetcher(cached),
+	}
+	if err := daytwo.Setup(mgr, d2o); err != nil {
+		return errors.Wrap(err, "cannot add daytwo controllers to manager")
 	}
 
 	// Registering webhooks with the manager is what actually starts the webhook

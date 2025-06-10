@@ -79,6 +79,14 @@ type FunctionRunner interface {
 	RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
 }
 
+// A FunctionRunnerFn is a function that can run a Function.
+type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error)
+
+// RunFunction runs the named Function with the supplied request.
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+	return fn(ctx, name, req)
+}
+
 // A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
 // package's runtime. It creates a gRPC client connection for each Function. The
 // Function's endpoint is determined by reading the status.endpoint of the
@@ -159,7 +167,7 @@ func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, r
 
 // In most cases our gRPC target will be a Kubernetes Service. The package
 // manager creates this service for each active FunctionRevision, but the
-// Service is aligned with the Function. It's name is derived from the Function
+// Service is aligned with the Function. Its name is derived from the Function
 // (not the FunctionRevision). This means the target won't change just because a
 // new FunctionRevision was created.
 //

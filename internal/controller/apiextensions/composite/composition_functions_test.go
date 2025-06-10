@@ -45,7 +45,9 @@ import (
 
 	fnv1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/proto"
 	"github.com/crossplane/crossplane/internal/xcrd"
+	"github.com/crossplane/crossplane/internal/xfn"
 	"github.com/crossplane/crossplane/internal/xresource"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composed"
 	"github.com/crossplane/crossplane/internal/xresource/unstructured/composite"
@@ -203,7 +205,7 @@ func TestFunctionCompose(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return nil, errBoom
 				}),
 				o: []FunctionComposerOption{
@@ -237,7 +239,7 @@ func TestFunctionCompose(t *testing.T) {
 		"FatalFunctionResultError": {
 			reason: "We should return any fatal function results as an error. Any conditions returned by the function should be passed up. Any results returned by the function prior to the fatal result should be passed up.",
 			params: params{
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{
 						Results: []*fnv1.Result{
 							// This result should be passed up as it was sent before the fatal
@@ -363,11 +365,11 @@ func TestFunctionCompose(t *testing.T) {
 		"RenderComposedResourceMetadataError": {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"cool-resource": {
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "CoolComposed",
 								}),
@@ -415,11 +417,11 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"cool-resource": {
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "CoolComposed",
 
@@ -468,7 +470,7 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
 				o: []FunctionComposerOption{
@@ -520,7 +522,7 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					return &fnv1.RunFunctionResponse{}, nil
 				}),
 				o: []FunctionComposerOption{
@@ -565,10 +567,10 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Composite: &fnv1.Resource{
-							Resource: MustStruct(map[string]any{
+							Resource: proto.MustStruct(map[string]any{
 								"status": map[string]any{
 									"widgets": 42,
 								},
@@ -629,11 +631,11 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
 					d := &fnv1.State{
 						Resources: map[string]*fnv1.Resource{
 							"uncool-resource": {
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"apiVersion": "test.crossplane.io/v1",
 									"kind":       "UncoolComposed",
 								}),
@@ -698,14 +700,14 @@ func TestFunctionCompose(t *testing.T) {
 					// Return an error when we try to get the secret.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
+				r: xfn.FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (*fnv1.RunFunctionResponse, error) {
 					rsp := &fnv1.RunFunctionResponse{
 						Meta: &fnv1.ResponseMeta{
 							Ttl: durationpb.New(5 * time.Minute),
 						},
 						Desired: &fnv1.State{
 							Composite: &fnv1.Resource{
-								Resource: MustStruct(map[string]any{
+								Resource: proto.MustStruct(map[string]any{
 									"status": map[string]any{
 										"widgets": 42,
 									},
@@ -714,14 +716,14 @@ func TestFunctionCompose(t *testing.T) {
 							},
 							Resources: map[string]*fnv1.Resource{
 								"observed-resource-a": {
-									Resource: MustStruct(map[string]any{
+									Resource: proto.MustStruct(map[string]any{
 										"apiVersion": "test.crossplane.io/v1",
 										"kind":       "CoolComposed",
 									}),
 									Ready: fnv1.Ready_READY_TRUE,
 								},
 								"desired-resource-a": {
-									Resource: MustStruct(map[string]any{
+									Resource: proto.MustStruct(map[string]any{
 										"apiVersion": "test.crossplane.io/v1",
 										"kind":       "CoolComposed",
 									}),
@@ -918,14 +920,6 @@ func TestFunctionCompose(t *testing.T) {
 			}
 		})
 	}
-}
-
-func MustStruct(v map[string]any) *structpb.Struct {
-	s, err := structpb.NewStruct(v)
-	if err != nil {
-		panic(err)
-	}
-	return s
 }
 
 func WithParentLabel() *composite.Unstructured {

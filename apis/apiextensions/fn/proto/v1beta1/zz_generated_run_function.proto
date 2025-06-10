@@ -32,7 +32,7 @@ service FunctionRunnerService {
   rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
 }
 
-// A RunFunctionRequest requests that the Composition Function be run.
+// A RunFunctionRequest requests that the Function be run.
 message RunFunctionRequest {
   // Metadata pertaining to this request.
   RequestMeta meta = 1;
@@ -128,6 +128,10 @@ message RunFunctionResponse {
   // Status conditions to be applied to the composite resource. Conditions may also
   // optionally be applied to the composite resource's associated claim.
   repeated Condition conditions = 6;
+
+  // Optional output specific to this function invocation. Will be written to
+  // the Operation's status.
+  optional google.protobuf.Struct output = 7;
 }
 
 // RequestMeta contains metadata pertaining to a RunFunctionRequest.

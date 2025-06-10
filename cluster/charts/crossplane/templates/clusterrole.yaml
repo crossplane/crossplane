@@ -62,6 +62,7 @@ rules:
   - pkg.crossplane.io
   - protection.crossplane.io
   - secrets.crossplane.io
+  - daytwo.crossplane.io
   resources:
   - "*"
   verbs:
