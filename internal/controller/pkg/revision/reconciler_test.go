@@ -1858,6 +1858,49 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"PullSecretConfigChangedRequeue": {
+			reason: "Should requeue when pull secret config changes to persist the status immediately.",
+			args: args{
+				mgr: &fake.Manager{},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								// Start with no applied image config refs to simulate a change
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								// Verify that the pull secret config ref was set
+								refs := pr.GetAppliedImageConfigRefs()
+								if len(refs) != 1 {
+									t.Errorf("Expected 1 applied image config ref, got %d", len(refs))
+									return nil
+								}
+								if refs[0].Name != "test-config" || refs[0].Reason != v1.ImageConfigReasonSetPullSecret {
+									t.Errorf("Expected pull secret config ref with name 'test-config' and reason SetPullSecret, got %+v", refs[0])
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithConfigStore(&xpkgfake.MockConfigStore{
+						MockPullSecretFor: xpkgfake.NewMockConfigStorePullSecretForFn("test-config", "test-secret", nil),
+						MockRewritePath:   xpkgfake.NewMockRewritePathFn("", "", nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
 	}
 
 	for name, tc := range cases {

@@ -56,7 +56,6 @@ const (
 	errUpdateStatus       = "cannot update package revision status"
 
 	errGetPullConfig = "cannot get image pull secret from config"
-	errRewriteImage  = "cannot rewrite image path using config"
 
 	errManifestBuilderOptions = "cannot prepare runtime manifest builder options"
 	errPreHook                = "pre establish runtime hook failed for package"
@@ -71,7 +70,6 @@ const (
 const (
 	reasonImageConfig event.Reason = "FetchResolvedImageConfig"
 	reasonSync        event.Reason = "SyncPackage"
-	reasonPaused      event.Reason = "ReconciliationPaused"
 )
 
 // ReconcilerOption is used to configure the Reconciler.

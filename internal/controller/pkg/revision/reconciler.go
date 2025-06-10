@@ -233,12 +233,6 @@ func WithFeatureFlags(f *feature.Flags) ReconcilerOption {
 	}
 }
 
-// uniqueResourceIdentifier returns a unique identifier for a resource in a
-// package, consisting of the group, version, kind, and name.
-func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
-	return strings.Join([]string{ref.GroupVersionKind().String(), ref.Name}, "/")
-}
-
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client         client.Client
@@ -577,6 +571,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// Determine the desired pull secret config ref state
+	var psRef *v1.ImageConfigRef
+	if pullSecretConfig != "" {
+		psRef = &v1.ImageConfigRef{
+			Name:   pullSecretConfig,
+			Reason: v1.ImageConfigReasonSetPullSecret,
+		}
+	}
+
+	// Check if the current applied image config ref for pull secret needs updating
+	curr := getCurrentImageConfigRef(pr, v1.ImageConfigReasonSetPullSecret)
+	if !imageConfigRefsEqual(curr, psRef) {
+		// Update the applied image config refs and persist immediately
+		pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
+		if psRef != nil {
+			log.Debug("Selected pull secret from image config store", "image", pr.GetResolvedSource(), "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
+			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
+			pr.SetAppliedImageConfigRefs(*psRef)
+		}
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
 	// Deactivate revision if it is inactive.
 	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if err := r.deactivateRevision(ctx, pr); err != nil {
@@ -672,17 +688,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		bo := []parser.BackendOption{PackageRevision(pr)}
 		if pullSecretConfig != "" {
 			bo = append(bo, PullSecretFromConfig(pullSecretFromConfig))
-			// We only record this event here, package is not in cache, and
-			// we are about to fetch the image. This way we avoid emitting
-			// excessive events in each reconcile, but once per image pull.
-			log.Debug("Selected pull secret from image config store", "image", pr.GetResolvedSource(), "imageConfig", pullSecretConfig, "pullSecret", pullSecretFromConfig, "rewriteConfig", rewriteConfigName)
-			r.record.Event(pr, event.Normal(reasonImageConfig, fmt.Sprintf("Selected pullSecret %q from ImageConfig %q for registry authentication", pullSecretFromConfig, pullSecretConfig)))
-			pr.SetAppliedImageConfigRefs(v1.ImageConfigRef{
-				Name:   pullSecretConfig,
-				Reason: v1.ImageConfigReasonSetPullSecret,
-			})
-		} else {
-			pr.ClearAppliedImageConfigRef(v1.ImageConfigReasonSetPullSecret)
 		}
 
 		// Initialize parser backend to obtain package contents.
@@ -875,4 +880,33 @@ func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevisi
 	}
 
 	return nil
+}
+
+// uniqueResourceIdentifier returns a unique identifier for a resource in a
+// package, consisting of the group, version, kind, and name.
+func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
+	return strings.Join([]string{ref.GroupVersionKind().String(), ref.Name}, "/")
+}
+
+// getCurrentImageConfigRef returns the current applied image config ref with the given reason,
+// or nil if none exists.
+func getCurrentImageConfigRef(pr v1.PackageRevision, reason v1.ImageConfigRefReason) *v1.ImageConfigRef {
+	for _, ref := range pr.GetAppliedImageConfigRefs() {
+		if ref.Reason == reason {
+			return &ref
+		}
+	}
+	return nil
+}
+
+// imageConfigRefsEqual compares two image config refs for equality.
+// Both can be nil, which represents the absence of a ref.
+func imageConfigRefsEqual(a, b *v1.ImageConfigRef) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Name == b.Name && a.Reason == b.Reason
 }
