@@ -17,9 +17,8 @@ image:
   tag: ""
   # -- The image pull policy used for Crossplane and RBAC Manager pods.
   pullPolicy: IfNotPresent
-  # -- Override to use ko settings:
-  #    - image == ko://github.com/crossplane/crossplane/cmd/crossplane
-  ko: false
+  # -- Do not use the {{ .image.tag }} value to compute the image uri.
+  ignoreTag: false
 
 # -- Add `nodeSelectors` to the Crossplane pod deployment.
 nodeSelector: {}
@@ -186,7 +185,11 @@ readiness:
   # -- The port the readyz server listens on.
   port: ""
 
-# -- Add custom environmental variables to the Crossplane pod deployment.
+# -- Add custom environmental variables to the Crossplane pod deployment init container.
+# Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
+extraEnvVarsCrossplaneInit: {}
+
+# -- Add custom environmental variables to the Crossplane pod deployment application container.
 # Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`.
 extraEnvVarsCrossplane: {}
 

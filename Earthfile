@@ -324,7 +324,11 @@ ko-init:
   RUN echo && \
       echo "Now build the helm chart and apply the template in dry run mode through ko:" && \
       echo "   earthly +helm-build" && \
-      echo "   helm template --dry-run --namespace crossplane-system --set image.ko=true crossplane ./_output/charts/crossplane*.tgz | ko apply -f -" && \
+      echo "   helm template --dry-run --namespace crossplane-system --set image.ignoreTag=true \\" && \
+      echo "     --set image.repository=ko://github.com/crossplane/crossplane/cmd/crossplane \\" && \
+      echo "     --set extraEnvVarsCrossplaneInit.CRDS_PATH=/var/run/ko/crds \\" && \
+      echo "     --set extraEnvVarsCrossplaneInit.WEBHOOK_CONFIGS_PATH=/var/run/ko/webhookconfigurations \\" && \
+      echo "     crossplane ./_output/charts/crossplane*.tgz | ko apply -f -" && \
       echo
   SAVE ARTIFACT ./kodata AS LOCAL cmd/crossplane/kodata
 

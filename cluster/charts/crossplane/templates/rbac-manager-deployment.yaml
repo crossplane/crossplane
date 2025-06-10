@@ -53,8 +53,8 @@ spec:
       {{- end }}
       initContainers:
       - name: {{ .Chart.Name }}-init
-        {{- if .Values.image.ko }}
-        image: "ko://github.com/crossplane/crossplane/cmd/crossplane"
+        {{- if .Values.image.ignoreTag }}
+        image: "{{ .Values.image.repository }}"
         {{- else }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         {{- end }}
@@ -83,8 +83,8 @@ spec:
                 divisor: "1"
       containers:
       - name: {{ .Chart.Name }}
-        {{- if .Values.image.ko }}
-        image: "ko://github.com/crossplane/crossplane/cmd/crossplane"
+        {{- if .Values.image.ignoreTag }}
+        image: "{{ .Values.image.repository }}"
         {{- else }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         {{- end }}
