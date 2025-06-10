@@ -22,11 +22,6 @@ package v1beta1
 // Only used by packages that uses a runtime, i.e. by providers and functions
 // but not for configurations.
 type PackageRuntimeSpec struct {
-	// ControllerConfigRef references a ControllerConfig resource that will be
-	// used to configure the packaged controller Deployment.
-	// Deprecated: Use RuntimeConfigReference instead.
-	// +optional
-	ControllerConfigReference *ControllerConfigReference `json:"controllerConfigRef,omitempty"`
 	// RuntimeConfigRef references a RuntimeConfig resource that will be used
 	// to configure the package runtime.
 	// +optional
@@ -48,13 +43,6 @@ type PackageRevisionRuntimeSpec struct {
 	// certificates of the Provider.
 	// +optional
 	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
-}
-
-// A ControllerConfigReference to a ControllerConfig resource that will be used
-// to configure the packaged controller Deployment.
-type ControllerConfigReference struct {
-	// Name of the ControllerConfig.
-	Name string `json:"name"`
 }
 
 // A RuntimeConfigReference to a runtime config resource that will be used
