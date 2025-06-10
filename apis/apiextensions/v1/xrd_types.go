@@ -93,6 +93,11 @@ type CompositeResourceDefinitionSpec struct {
 	// +optional
 	DefaultCompositionRef *CompositionReference `json:"defaultCompositionRef,omitempty"`
 
+	// DefaultCompositionRevisionSelector refers to the CompositionRevision that will be used
+	// in case no compositionRevision selector is given.
+	// +optional
+	DefaultCompositionRevisionSelector *metav1.LabelSelector `json:"defaultCompositionRevisionSelector,omitempty"`
+
 	// EnforcedCompositionRef refers to the Composition resource that will be used
 	// by all composite instances whose schema is defined by this definition.
 	// +optional
