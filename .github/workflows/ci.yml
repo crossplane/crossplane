@@ -437,7 +437,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Lint and Push Protocol Buffers
-        uses: bufbuild/buf-action@5150a1eef5c10b6a5cf8a69fc872f24a09473195 # v1
+        uses: bufbuild/buf-action@c231a1aa9281e5db706c970f468f0744a37561fd # v1
         with:
           token: ${{ secrets.BUF_TOKEN }}
           pr_comment: false
