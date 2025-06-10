@@ -166,11 +166,6 @@ func (pc PublisherChain) PublishConnection(ctx context.Context, o xresource.Conn
 	return published, nil
 }
 
-// SelectCompositionRevision for the supplied composition revision .
-func (fn CompositionRevisionSelectorFn) SelectCompositionRevision(ctx context.Context, cr resource.Composite) error {
-	return fn(ctx, cr)
-}
-
 // A CompositionRevisionFetcher fetches an appropriate Composition for the supplied
 // composite resource.
 type CompositionRevisionFetcher interface {
@@ -561,13 +556,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(xr, event.Warning(reasonResolve, err))
 		status.MarkConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-	}
-
-	if err := r.composite.SelectCompositionRevision(ctx, xr); err != nil {
-		err = errors.Wrap(err, errSelectComp)
-		r.record.Event(xr, event.Warning(reasonResolve, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
