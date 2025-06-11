@@ -19,6 +19,7 @@ package xpkg
 import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -101,4 +102,29 @@ func (a *Appender) Append(index v1.ImageIndex, extImg v1.Image, opts ...AppendOp
 	})
 
 	return newIndex, nil
+}
+
+// ConvertImageToIndex converts a single v1.Image to a v1.ImageIndex.
+func (a *Appender) ConvertImageToIndex(img v1.Image) (v1.ImageIndex, error) {
+	digest, err := img.Digest()
+	if err != nil {
+		return nil, err
+	}
+
+	manifest, err := img.Manifest()
+	if err != nil {
+		return nil, err
+	}
+
+	desc := v1.Descriptor{
+		MediaType: manifest.MediaType,
+		Digest:    digest,
+	}
+
+	// Create an empty index and add the image
+	emptyIndex := mutate.IndexMediaType(empty.Index, types.OCIImageIndex)
+	return mutate.AppendManifests(emptyIndex, mutate.IndexAddendum{
+		Add:        img,
+		Descriptor: desc,
+	}), nil
 }
