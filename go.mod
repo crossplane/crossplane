@@ -61,7 +61,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
-	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20231011164504-785e29786b46 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/digitorus/pkcs7 v0.0.0-20230818184609-3a137a874352 // indirect
