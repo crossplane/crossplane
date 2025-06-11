@@ -90,7 +90,7 @@ type appendCmd struct {
 	appender *xpkg.Appender
 }
 
-// Help returns the help message for the xpkg-append command.
+// Help returns the help message for the xpkg append command.
 func (c *appendCmd) Help() string {
 	return `
 This command creates a tarball from a local directory of additional package
@@ -103,7 +103,7 @@ The --extensions-root directory must only contain other directories, each of whi
 Examples:
 
   # Add all files under an "/extensions" folder to a remote image.
-  crossplane beta xpkg-append --extensions-root=./extensions my-registry/my-organization/my-repo@sha256:<digest>
+  crossplane beta xpkg append --extensions-root=./extensions my-registry/my-organization/my-repo@sha256:<digest>
 `
 }
 
@@ -118,11 +118,25 @@ func (c *appendCmd) Run(logger logging.Logger) error {
 	}
 
 	logger.Debug("Appending package extensions for image", "ref", c.indexRef.String())
-	// Ensure we are working with an image index, for now.
-	// We do not currently support converting a single manifest into an index, which could create unintentional side effects.
+
+	// A manifest list is assumed for multi-arch images, but make an attempt to convert single-arch images.
 	index, err := remote.Index(c.indexRef, c.keychain)
 	if err != nil {
-		return errors.Wrap(err, errReadIndex)
+		// If it fails, try to read as a single image and convert to index
+		// ggcr will fallback to ErrSchema1 in this case - we'll bail otherwise
+		if errors.Is(err, remote.ErrSchema1) {
+			var singleImage v1.Image
+			singleImage, err = remote.Image(c.indexRef, c.keychain)
+			if err != nil {
+				return errors.Wrap(err, errReadIndex)
+			}
+			index, err = c.appender.ConvertImageToIndex(singleImage)
+			if err != nil {
+				return errors.Wrap(err, "error converting single image to index")
+			}
+		} else {
+			return errors.Wrap(err, errReadIndex)
+		}
 	}
 	// Construct a new image index with the extensions manifest appended.
 	// Passing a different extensions directory overwrites the previous manifest if one exists.
