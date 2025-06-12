@@ -1,11 +1,12 @@
 package definition
 
 import (
+	"slices"
+
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -17,11 +18,6 @@ func IsCompositeResourceCRD() resource.PredicateFn {
 		if !ok {
 			return false
 		}
-		for _, c := range crd.Spec.Names.Categories {
-			if c == xcrd.CategoryComposite {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(crd.Spec.Names.Categories, xcrd.CategoryComposite)
 	}
 }
