@@ -281,7 +281,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
 								want.SetResolvedSource("new/image/path")
 								want.SetAppliedImageConfigRefs(v1.ImageConfigRef{
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -392,7 +392,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1.AutomaticActivation)
 								want.SetPackagePullPolicy(&pullAlways)
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -444,7 +444,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetActivationPolicy(&v1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.UnknownHealth())
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"Unknown\""))
 								want.SetConditions(v1.Inactive().WithMessage("Package is inactive"))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -495,7 +495,7 @@ func TestReconcile(t *testing.T) {
 										Name: "test-1234567",
 									},
 								}
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
 								}
@@ -559,7 +559,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								cr.SetRevision(1)
 								c := v1.ConfigurationRevisionList{
@@ -594,7 +594,7 @@ func TestReconcile(t *testing.T) {
 							}})
 							want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
 							want.SetRevision(1)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -642,7 +642,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
@@ -706,7 +706,7 @@ func TestReconcile(t *testing.T) {
 									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Unhealthy().WithMessage("some message"))
+								cr.SetConditions(v1.RevisionUnhealthy().WithMessage("some message"))
 								cr.SetDesiredState(v1.PackageRevisionActive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{cr},
@@ -719,7 +719,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1.Unhealthy().WithMessage("some message"))
+								want.SetConditions(v1.Unhealthy().WithMessage("Package revision health is \"False\" with message: some message"))
 								want.SetConditions(v1.Active())
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -772,7 +772,7 @@ func TestReconcile(t *testing.T) {
 								}
 								cr.SetRevision(3)
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{
@@ -825,7 +825,7 @@ func TestReconcile(t *testing.T) {
 							}})
 							want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1.PackageRevisionActive)
-							want.SetConditions(v1.Healthy())
+							want.SetConditions(v1.RevisionHealthy())
 							want.SetRevision(3)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -875,7 +875,7 @@ func TestReconcile(t *testing.T) {
 								}
 								cr.SetRevision(3)
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
-								cr.SetConditions(v1.Healthy())
+								cr.SetConditions(v1.RevisionHealthy())
 								cr.SetDesiredState(v1.PackageRevisionInactive)
 								c := v1.ConfigurationRevisionList{
 									Items: []v1.ConfigurationRevision{

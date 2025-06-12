@@ -20,7 +20,6 @@ package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
@@ -96,11 +95,6 @@ type PackageRevisionStatus struct {
 	FoundDependencies     int64 `json:"foundDependencies,omitempty"`
 	InstalledDependencies int64 `json:"installedDependencies,omitempty"`
 	InvalidDependencies   int64 `json:"invalidDependencies,omitempty"`
-
-	// PermissionRequests made by this package. The package declares that its
-	// controller needs these permissions to run. The RBAC manager is
-	// responsible for granting them.
-	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 
 	// AppliedImageConfigRefs records any image configs that were applied in
 	// reconciling this revision, and what they were used for.

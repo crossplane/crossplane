@@ -141,46 +141,6 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errListPRs),
 			},
 		},
-		"ValidatePermissionRequestsError": {
-			reason: "We should return an error encountered validating permission requests.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:  test.NewMockGetFn(nil),
-							MockList: test.NewMockListFn(nil),
-						},
-					}),
-					WithPermissionRequestsValidator(PermissionRequestsValidatorFn(func(_ context.Context, _ ...rbacv1.PolicyRule) ([]Rule, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errValidatePermissions),
-			},
-		},
-		"PermissionRequestRejected": {
-			reason: "We should return early without requeuing when a permission request is rejected.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:  test.NewMockGetFn(nil),
-							MockList: test.NewMockListFn(nil),
-						},
-					}),
-					WithPermissionRequestsValidator(PermissionRequestsValidatorFn(func(_ context.Context, _ ...rbacv1.PolicyRule) ([]Rule, error) {
-						return []Rule{{}}, nil
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
 		"ApplyClusterRoleError": {
 			reason: "We should return an error encountered applying a ClusterRole.",
 			args: args{

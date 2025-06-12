@@ -85,13 +85,14 @@ type FunctionRevisionSpec struct {
 // Crossplane creates and manages FunctionRevisions. Don't directly edit
 // FunctionRevisions.
 // +kubebuilder:subresource:status
-// +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
-// +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
+// +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='RevisionHealthy')].status"
+// +kubebuilder:printcolumn:name="RUNTIME",type="string",JSONPath=".status.conditions[?(@.type=='RuntimeHealthy')].status"
 // +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.image"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".spec.desiredState"
-// +kubebuilder:printcolumn:name="DEP-FOUND",type="string",JSONPath=".status.foundDependencies"
-// +kubebuilder:printcolumn:name="DEP-INSTALLED",type="string",JSONPath=".status.installedDependencies"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision",priority=1
+// +kubebuilder:printcolumn:name="DEP-FOUND",type="string",JSONPath=".status.foundDependencies",priority=1
+// +kubebuilder:printcolumn:name="DEP-INSTALLED",type="string",JSONPath=".status.installedDependencies",priority=1
 // +kubebuilder:resource:scope=Cluster,categories={crossplane,pkgrev}
 type FunctionRevision struct {
 	metav1.TypeMeta   `json:",inline"`

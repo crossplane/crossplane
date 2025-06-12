@@ -668,16 +668,17 @@ func ApplyHandler(r *resources.Resources, manager string, osh ...onSuccessHandle
 	}
 }
 
-// DeleteResources deletes (from the environment) all resources defined by the
-// manifests under the supplied directory that match the supplied glob pattern
-// (e.g. *.yaml).
-func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) features.Func {
+// DeleteResourcesWithPropagationPolicy deletes (from the environment) all
+// resources defined by the manifests under the supplied directory that match
+// the supplied glob pattern (e.g. *.yaml). Deletion is done using the
+// supplied deletion propagation policy.
+func DeleteResourcesWithPropagationPolicy(dir, pattern string, deletePropagation metav1.DeletionPropagation, options ...decoder.DecodeOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		t.Helper()
 
 		dfs := os.DirFS(dir)
 
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources()), options...); err != nil {
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources(), resources.WithDeletePropagation(string(deletePropagation))), options...); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
@@ -686,6 +687,13 @@ func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) featu
 		t.Logf("Deleted resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
 		return ctx
 	}
+}
+
+// DeleteResources deletes (from the environment) all resources defined by the
+// manifests under the supplied directory that match the supplied glob pattern
+// (e.g. *.yaml).
+func DeleteResources(dir, pattern string, options ...decoder.DecodeOption) features.Func {
+	return DeleteResourcesWithPropagationPolicy(dir, pattern, metav1.DeletePropagationBackground, options...)
 }
 
 // ClaimUnderTestMustNotChangeWithin asserts that the claim available in
@@ -1162,7 +1170,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string, options ...decoder.Decod
 func ResourcesDeletedAfterListedAreGone(d time.Duration, dir, pattern string, list k8s.ObjectList, listOptions ...resources.ListOption) features.Func {
 	return AllOf(
 		ListedResourcesDeletedWithin(d, list, listOptions...),
-		DeleteResources(dir, pattern),
+		DeleteResourcesWithPropagationPolicy(dir, pattern, metav1.DeletePropagationForeground),
 		ResourcesDeletedWithin(d, dir, pattern),
 	)
 }

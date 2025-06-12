@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package revision
+package runtime
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -38,7 +37,13 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-func TestFunctionPreHook(t *testing.T) {
+const (
+	xpManagedSA = "xp-managed-sa"
+)
+
+var errBoom = errors.New("boom")
+
+func TestProviderPreHook(t *testing.T) {
 	type args struct {
 		client    client.Client
 		pkg       runtime.Object
@@ -59,15 +64,16 @@ func TestFunctionPreHook(t *testing.T) {
 		"Success": {
 			reason: "Successful run of pre hook.",
 			args: args{
-				pkg: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{},
+				pkg: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{},
 				},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSClientSecretName: ptr.To("some-client-secret"),
 							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
 					},
@@ -76,16 +82,15 @@ func TestFunctionPreHook(t *testing.T) {
 					ServiceFn: func(_ ...ServiceOverride) *corev1.Service {
 						return &corev1.Service{}
 					},
+					TLSClientSecretFn: func() *corev1.Secret {
+						return &corev1.Secret{}
+					},
 					TLSServerSecretFn: func() *corev1.Secret {
 						return &corev1.Secret{}
 					},
 				},
 				client: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-						if svc, ok := obj.(*corev1.Service); ok {
-							svc.Name = "some-service"
-							svc.Namespace = "some-namespace"
-						}
+					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return nil
 					},
 					MockPatch: func(_ context.Context, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
@@ -97,17 +102,15 @@ func TestFunctionPreHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionActive,
 						},
 						PackageRevisionRuntimeSpec: v1.PackageRevisionRuntimeSpec{
+							TLSClientSecretName: ptr.To("some-client-secret"),
 							TLSServerSecretName: ptr.To("some-server-secret"),
 						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						Endpoint: fmt.Sprintf(serviceEndpointFmt, "some-service", "some-namespace", servicePort),
 					},
 				},
 			},
@@ -116,8 +119,8 @@ func TestFunctionPreHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Pre(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
+			err := h.Pre(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -129,7 +132,7 @@ func TestFunctionPreHook(t *testing.T) {
 	}
 }
 
-func TestFunctionPostHook(t *testing.T) {
+func TestProviderPostHook(t *testing.T) {
 	type args struct {
 		client    client.Client
 		pkg       runtime.Object
@@ -147,18 +150,12 @@ func TestFunctionPostHook(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrNotFunction": {
-			reason: "Should return error if not function.",
-			want: want{
-				err: errors.New(errNotFunction),
-			},
-		},
-		"FunctionInactive": {
-			reason: "Should do nothing if function revision is inactive.",
+		"ProviderInactive": {
+			reason: "Should do nothing if provider revision is inactive.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionInactive,
 						},
@@ -166,8 +163,8 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
 							DesiredState: v1.PackageRevisionInactive,
 						},
@@ -176,20 +173,18 @@ func TestFunctionPostHook(t *testing.T) {
 			},
 		},
 		"ErrApplySA": {
-			reason: "Should return error if we fail to apply service account for active function revision.",
+			reason: "Should return error if we fail to apply service account for active provider revision.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -210,37 +205,33 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionSA),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderSA),
 			},
 		},
 		"ErrApplyDeployment": {
-			reason: "Should return error if we fail to apply deployment for active function revision.",
+			reason: "Should return error if we fail to apply deployment for active provider revision.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -264,37 +255,33 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyFunctionDeployment),
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot patch object"), errApplyProviderDeployment),
 			},
 		},
 		"ErrDeploymentNoAvailableConditionYet": {
-			reason: "Should return error if deployment for active function revision has no available condition yet.",
+			reason: "Should return error if deployment for active provider revision has no available condition yet.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -315,37 +302,33 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
-				err: errors.New(errNoAvailableConditionFunctionDeployment),
+				err: errors.New(errNoAvailableConditionProviderDeployment),
 			},
 		},
 		"ErrUnavailableDeployment": {
-			reason: "Should return error if deployment is unavailable for function revision.",
+			reason: "Should return error if deployment is unavailable for provider revision.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -374,37 +357,33 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
-				err: errors.Errorf(errFmtUnavailableFunctionDeployment, errBoom.Error()),
+				err: errors.Errorf(errFmtUnavailableProviderDeployment, errBoom.Error()),
 			},
 		},
 		"Successful": {
-			reason: "Should not return error if successfully applied service account and deployment for active function revision and the deployment is ready.",
+			reason: "Should not return error if successfully applied service account and deployment for active provider revision and the deployment is ready.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -432,17 +411,15 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 			},
@@ -450,18 +427,16 @@ func TestFunctionPostHook(t *testing.T) {
 		"SuccessWithExtraSecret": {
 			reason: "Should not return error if successfully applied service account with additional secret.",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
@@ -492,17 +467,15 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 			},
@@ -510,40 +483,50 @@ func TestFunctionPostHook(t *testing.T) {
 		"SuccessfulWithExternallyManagedSA": {
 			reason: "Should be successful without creating an SA, when the SA is managed externally",
 			args: args{
-				pkg: &pkgmetav1.Function{},
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
-						return &corev1.ServiceAccount{}
+						return &corev1.ServiceAccount{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "xp-managed-sa",
+							},
+						}
 					},
 					DeploymentFn: func(_ string, _ ...DeploymentOverride) *appsv1.Deployment {
-						return &appsv1.Deployment{}
+						return &appsv1.Deployment{
+							Spec: appsv1.DeploymentSpec{
+								Template: corev1.PodTemplateSpec{
+									Spec: corev1.PodSpec{
+										ServiceAccountName: "external-sa",
+									},
+								},
+							},
+						}
 					},
 				},
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						if sa, ok := obj.(*corev1.ServiceAccount); ok {
-							if sa.GetName() == xpManagedSA {
-								return kerrors.NewNotFound(corev1.Resource("serviceaccount"), xpManagedSA)
+							if sa.GetName() == "xp-managed-sa" {
+								return kerrors.NewNotFound(corev1.Resource("serviceaccount"), "xp-managed-sa")
 							}
 						}
 						return nil
 					},
 					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						if sa, ok := obj.(*corev1.ServiceAccount); ok {
-							if sa.GetName() == xpManagedSA {
+							if sa.GetName() == "xp-managed-sa" {
 								t.Error("unexpected call to create SA when SA is managed externally")
 							}
 						}
@@ -558,7 +541,7 @@ func TestFunctionPostHook(t *testing.T) {
 							return nil
 						}
 						if sa, ok := obj.(*corev1.ServiceAccount); ok {
-							if sa.GetName() == xpManagedSA {
+							if sa.GetName() == "xp-managed-sa" {
 								t.Error("unexpected call to patch SA when the SA is managed externally")
 							}
 						}
@@ -567,17 +550,15 @@ func TestFunctionPostHook(t *testing.T) {
 				},
 			},
 			want: want{
-				rev: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
+				rev: &v1.ProviderRevision{
+					Spec: v1.ProviderRevisionSpec{
 						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package:      functionImage,
+							Package:      providerImage,
 							DesiredState: v1.PackageRevisionActive,
 						},
 					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: functionImage,
-						},
+					Status: v1.PackageRevisionStatus{
+						ResolvedPackage: providerImage,
 					},
 				},
 			},
@@ -586,8 +567,8 @@ func TestFunctionPostHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
-			err := h.Post(context.TODO(), tc.args.pkg, tc.args.rev, tc.args.manifests)
+			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
+			err := h.Post(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want error, +got error:\n%s", tc.reason, diff)
@@ -599,7 +580,7 @@ func TestFunctionPostHook(t *testing.T) {
 	}
 }
 
-func TestFunctionDeactivateHook(t *testing.T) {
+func TestProviderDeactivateHook(t *testing.T) {
 	type args struct {
 		client    client.Client
 		rev       v1.PackageRevisionWithRuntime
@@ -637,12 +618,17 @@ func TestFunctionDeactivateHook(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errDeleteFunctionDeployment),
+				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
 			},
 		},
 		"Successful": {
 			reason: "Should not return error if successfully deleted service account and deployment.",
 			args: args{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-name",
+					},
+				},
 				manifests: &MockManifestBuilder{
 					ServiceAccountFn: func(_ ...ServiceAccountOverride) *corev1.ServiceAccount {
 						return &corev1.ServiceAccount{
@@ -680,8 +666,21 @@ func TestFunctionDeactivateHook(t *testing.T) {
 								return errors.New("unexpected deployment name")
 							}
 							return nil
+						case *corev1.Service:
+							// Service name should be overridden
+							if obj.GetName() != "some-name" {
+								return errors.New("unexpected service name")
+							}
+							return nil
 						}
 						return errors.New("unexpected object type")
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "some-name",
 					},
 				},
 			},
@@ -690,7 +689,7 @@ func TestFunctionDeactivateHook(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			h := NewFunctionHooks(tc.args.client, xpkg.DefaultRegistry)
+			h := NewProviderHooks(tc.args.client, xpkg.DefaultRegistry)
 			err := h.Deactivate(context.TODO(), tc.args.rev, tc.args.manifests)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -698,120 +697,6 @@ func TestFunctionDeactivateHook(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.rev, tc.args.rev, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nh.Pre(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestGetFunctionImage(t *testing.T) {
-	type args struct {
-		functionMeta     *pkgmetav1.Function
-		functionRevision *v1.FunctionRevision
-		defaultRegistry  string
-	}
-
-	type want struct {
-		err   error
-		image string
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"NoOverrideFromMeta": {
-			reason: "Should use the image from the package revision and add default registry when no override is present.",
-			args: args{
-				functionMeta: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{
-						Image: nil,
-					},
-				},
-				functionRevision: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "crossplane/func-bar:v1.2.3",
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: "crossplane/func-bar:v1.2.3",
-						},
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.default.io/crossplane/func-bar:v1.2.3",
-			},
-		},
-		"WithOverrideFromMeta": {
-			reason: "Should use the override from the function meta when present and add default registry.",
-			args: args{
-				functionMeta: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{
-						Image: ptr.To("crossplane/func-bar-server:v1.2.3"),
-					},
-				},
-				functionRevision: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "crossplane/func-bar:v1.2.3",
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: "crossplane/func-bar:v1.2.3",
-						},
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.default.io/crossplane/func-bar-server:v1.2.3",
-			},
-		},
-		"RegistrySpecified": {
-			reason: "Should honor the registry as specified on the package, even if its different than the default registry.",
-			args: args{
-				functionMeta: &pkgmetav1.Function{
-					Spec: pkgmetav1.FunctionSpec{
-						Image: nil,
-					},
-				},
-				functionRevision: &v1.FunctionRevision{
-					Spec: v1.FunctionRevisionSpec{
-						PackageRevisionSpec: v1.PackageRevisionSpec{
-							Package: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
-						},
-					},
-					Status: v1.FunctionRevisionStatus{
-						PackageRevisionStatus: v1.PackageRevisionStatus{
-							ResolvedPackage: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
-						},
-					},
-				},
-				defaultRegistry: "registry.default.io",
-			},
-			want: want{
-				err:   nil,
-				image: "registry.notdefault.io/crossplane/func-bar:v1.2.3",
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			image, err := getFunctionImage(tc.args.functionMeta, tc.args.functionRevision, tc.args.defaultRegistry)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ngetFunctionImage(): -want error, +got error:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.image, image, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ngetFunctionImage(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

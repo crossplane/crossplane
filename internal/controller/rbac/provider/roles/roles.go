@@ -171,7 +171,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.Cluster
 				keyProviderName: pr.GetName(),
 			},
 		},
-		Rules: append(append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...), pr.Status.PermissionRequests...),
+		Rules: append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
