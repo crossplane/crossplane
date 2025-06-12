@@ -164,6 +164,10 @@ spec:
             x-kubernetes-validations:
             - message: either "spec.by" or "spec.reason" must be specified.
               rule: has(self.by) || has(self.reason)
+            - message: cross-namespace "spec.of" is not allowed without "spec.by"
+                resource.
+              rule: has(self.by) || (!has(self.of.resourceRef) || !has(self.of.resourceRef.__namespace__))
+                && (!has(self.of.resourceSelector) || !has(self.of.resourceSelector.__namespace__))
           status:
             description: UsageStatus defines the observed state of Usage.
             properties:

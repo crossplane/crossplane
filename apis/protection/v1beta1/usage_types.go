@@ -119,6 +119,7 @@ type NamespacedResource struct {
 
 // UsageSpec defines the desired state of Usage.
 // +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
+// +kubebuilder:validation:XValidation:rule="has(self.by) || (!has(self.of.resourceRef) || !has(self.of.resourceRef.__namespace__)) && (!has(self.of.resourceSelector) || !has(self.of.resourceSelector.__namespace__))",message="cross-namespace \"spec.of\" is not allowed without \"spec.by\" resource."
 type UsageSpec struct {
 	// Of is the resource that is "being used".
 	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
