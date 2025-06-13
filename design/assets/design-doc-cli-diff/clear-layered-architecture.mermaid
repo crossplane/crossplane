@@ -1,0 +1,61 @@
+flowchart TD
+    subgraph "Command Layer (CLI)"
+        CMD["Cmd\n(Handles command arguments, flags)"]
+    end
+    
+    subgraph "Application Layer (Orchestration)"
+        APP["AppContext\n(Context & client initialization)"]
+        DPR["DiffProcessor\n(Main processing logic)"]
+        LOAD["Loader\n(Resource loading)"]
+    end
+    
+    subgraph "Domain Layer (Business Logic)"
+        CALC["Diff & Resources\n(DiffCalculator, ResourceManager, RequirementsProvider)"]
+        VALD["Validation\n(SchemaValidator)"]
+        REND["Rendering\n(DiffRenderer, DiffFormatter)"]
+        RENFN["Render Function\n(Resource composition rendering)"]
+    end
+    
+    subgraph "Client Layer (Infrastructure)"
+        K8CLI["Kubernetes Clients\n(Apply, Resource, Schema, Type)"]
+        XPCLI["Crossplane Clients\n(Composition, Definition, Function, etc.)"]
+    end
+    
+    subgraph "External Systems"
+        K8S["Kubernetes API\n(Live Cluster)"]
+    end
+    
+    %% Layer connections
+    CMD --> APP
+    CMD --> DPR
+    CMD --> LOAD
+    
+    APP --> K8CLI
+    APP --> XPCLI
+    
+    DPR --> CALC
+    DPR --> VALD
+    DPR --> REND
+    DPR --> RENFN
+    DPR --> XPCLI
+    
+    CALC --> K8CLI
+    CALC --> XPCLI
+    VALD --> K8CLI
+    VALD --> XPCLI
+    
+    K8CLI <--> K8S
+    XPCLI --> K8CLI
+    
+    %% Styling
+    classDef commandLayer fill:#f9d5e5,stroke:#333,stroke-width:2px
+    classDef applicationLayer fill:#eeeeee,stroke:#333,stroke-width:2px
+    classDef domainLayer fill:#d0f0c0,stroke:#333,stroke-width:2px
+    classDef clientLayer fill:#a8e6cf,stroke:#333,stroke-width:2px
+    classDef externalSystems fill:#ffd3b6,stroke:#333,stroke-width:2px
+    
+    class CMD commandLayer
+    class APP,DPR,LOAD applicationLayer
+    class CALC,VALD,REND,RENFN domainLayer
+    class K8CLI,XPCLI clientLayer
+    class K8S externalSystems
