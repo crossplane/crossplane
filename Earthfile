@@ -86,10 +86,9 @@ e2e:
     SAVE ARTIFACT --if-exists e2e-rerun-fails.txt AS LOCAL _output/tests/e2e-rerun-fails.txt
   END
 
-# hack builds Crossplane, and deploys it to a kind cluster. It runs in your
-# local environment, not a container. The kind cluster will keep running until
-# you run the unhack target. Run hack again to rebuild Crossplane and restart
-# the kind cluster with the new build.
+# hack builds Crossplane and upgrades it in the existing kind cluster
+# without tearing down the cluster. It performs a rolling restart of Crossplane
+# pods to use the newly built image.
 hack:
   # TODO(negz): This could run an interactive shell inside a temporary container
   # once https://github.com/earthly/earthly/issues/3206 is fixed.
@@ -97,19 +96,40 @@ hack:
   ARG SIMULATE_CROSSPLANE_VERSION=v0.0.0-hack
   ARG XPARGS="--debug"
   LOCALLY
-  WAIT
-    BUILD +unhack
-  END
   COPY --platform=${USERPLATFORM} +helm-setup/helm .hack/helm
   COPY --platform=${USERPLATFORM} +kind-setup/kind .hack/kind
+  COPY --platform=${USERPLATFORM} +kubectl-setup/kubectl .hack/kubectl
   COPY (+helm-build/output --CROSSPLANE_VERSION=v0.0.0-hack) .hack/charts
   WITH DOCKER --load crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}=(+image --CROSSPLANE_VERSION=${SIMULATE_CROSSPLANE_VERSION})
     RUN \
-      .hack/kind create cluster --name crossplane-hack && \
+      # Check if cluster exists, create if it doesn't
+      if ! .hack/kind get clusters | grep -q crossplane-hack; then \
+        echo "Creating crossplane-hack cluster..."; \
+        .hack/kind create cluster --name crossplane-hack; \
+      else \
+        echo "Using existing crossplane-hack cluster..."; \
+      fi && \
+      # Load the new image
       .hack/kind load docker-image --name crossplane-hack crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION} && \
-      .hack/helm install --create-namespace --namespace crossplane-system crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
+      # Set kubeconfig for kubectl commands
+      .hack/kind export kubeconfig --name crossplane-hack --kubeconfig .hack/kubeconfig && \
+      export KUBECONFIG=.hack/kubeconfig && \
+      # Install or upgrade Crossplane
+      echo "Installing/upgrading Crossplane..." && \
+      .hack/helm upgrade --install crossplane .hack/charts/crossplane-0.0.0-hack.tgz \
+        --create-namespace \
+        --namespace crossplane-system \
         --set "image.pullPolicy=Never,image.repository=crossplane-hack/crossplane,image.tag=${SIMULATE_CROSSPLANE_VERSION}" \
-        --set "args={${XPARGS}}"
+        --set "args={${XPARGS}}" && \
+      # Rollout restart to ensure pods use the new image
+      echo "Rolling out restart of Crossplane pods..." && \
+      .hack/kubectl rollout restart deployment/crossplane -n crossplane-system && \
+      .hack/kubectl rollout restart deployment/crossplane-rbac-manager -n crossplane-system && \
+      # Wait for rollout to complete
+      echo "Waiting for rollout to complete..." && \
+      .hack/kubectl rollout status deployment/crossplane -n crossplane-system --timeout=300s && \
+      .hack/kubectl rollout status deployment/crossplane-rbac-manager -n crossplane-system --timeout=300s && \
+      echo "Crossplane rollout completed successfully!"
   END
   RUN docker image rm crossplane-hack/crossplane:${SIMULATE_CROSSPLANE_VERSION}
   RUN rm -rf .hack
