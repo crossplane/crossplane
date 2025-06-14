@@ -9,7 +9,7 @@ jobs:
     if: github.actor != 'crossplane-renovate[bot]'
     runs-on: ubuntu-22.04
     steps:
-      - uses: mheap/require-checklist-action@efef3b1b39d03d12be5ce427c15064f287ba5843 # v2
+      - uses: mheap/require-checklist-action@46d2ca1a0f90144bd081fd13a80b1dc581759365 # v2
         with:
           # The checklist must _exist_ and be filled out.
           requireChecklist: true
