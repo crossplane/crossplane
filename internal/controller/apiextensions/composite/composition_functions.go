@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -87,6 +88,7 @@ const (
 	errFmtGenerateName               = "cannot generate a name for composed resource %q"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
+	errFmtInvalidName                = "cannot apply composed resource %q because it has an invalid name %q. Must be a valid RFC 1123 subdomain name."
 )
 
 // Server-side-apply field owners. We need two of these because it's possible
@@ -439,6 +441,12 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr *composite.Unstructur
 			if err := c.composite.GenerateName(ctx, cd); err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtGenerateName, name)
 			}
+		}
+
+		// Validate the name can be used as a kubernetes resource name by checking if the name
+		// is valid RFC 1123 subdomain.
+		if errs := validation.IsDNS1123Subdomain(cd.GetName()); len(errs) > 0 {
+			return CompositionResult{}, errors.Errorf(errFmtInvalidName, name, cd.GetName())
 		}
 
 		// TODO(negz): Should we try to automatically derive readiness if the

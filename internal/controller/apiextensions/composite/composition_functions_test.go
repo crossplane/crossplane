@@ -405,6 +405,60 @@ func TestFunctionCompose(t *testing.T) {
 				err: errors.Wrapf(RenderComposedResourceMetadata(nil, composite.New(), ""), errFmtRenderMetadata, "cool-resource"),
 			},
 		},
+		"InvalidNameCreateComposedResourceError": {
+			reason: "We should return an error when a resource has an invalid name",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				uc: &test.MockClient{
+					// Return an error when we try to get the secret.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				r: FunctionRunnerFn(func(_ context.Context, _ string, _ *fnv1.RunFunctionRequest) (rsp *fnv1.RunFunctionResponse, err error) {
+					d := &fnv1.State{
+						Resources: map[string]*fnv1.Resource{
+							"cool-resource": {
+								Resource: MustStruct(map[string]any{
+									"apiVersion": "test.crossplane.io/v1",
+									"kind":       "CoolComposed",
+									"metadata": map[string]any{
+										"name": "%!(cool)-resource", // This is invalid - it must be a valid DNS subdomain.
+									},
+								}),
+							},
+						},
+					}
+					return &fnv1.RunFunctionResponse{Desired: d}, nil
+				}),
+				o: []FunctionComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(_ context.Context, _ xresource.Composite) (ComposedResourceStates, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				xr: WithParentLabel(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf(errFmtInvalidName, "cool-resource", "%!(cool)-resource"),
+			},
+		},
 		"GenerateNameCreateComposedResourceError": {
 			reason: "We should return any error we encounter when naming a composed resource",
 			params: params{
