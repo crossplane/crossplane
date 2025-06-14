@@ -316,6 +316,22 @@ kubectl-setup:
   RUN curl -fsSL https://dl.k8s.io/${KUBECTL_VERSION}/kubernetes-client-${TARGETOS}-${TARGETARCH}.tar.gz|tar zx
   SAVE ARTIFACT kubernetes/client/bin/kubectl
 
+# Ko init will create the kodata dir for crd and webhook files in the crossplane controller binary path.
+ko-init:
+  FROM alpine:3.20
+  COPY (+go-generate/crds) ./kodata/crds
+  COPY --dir cluster/webhookconfigurations ./kodata/
+  RUN echo && \
+      echo "Now build the helm chart and apply the template in dry run mode through ko:" && \
+      echo "   earthly +helm-build" && \
+      echo "   helm template --dry-run --namespace crossplane-system --set image.ignoreTag=true \\" && \
+      echo "     --set image.repository=ko://github.com/crossplane/crossplane/cmd/crossplane \\" && \
+      echo "     --set extraEnvVarsCrossplaneInit.CRDS_PATH=/var/run/ko/crds \\" && \
+      echo "     --set extraEnvVarsCrossplaneInit.WEBHOOK_CONFIGS_PATH=/var/run/ko/webhookconfigurations \\" && \
+      echo "     crossplane ./_output/charts/crossplane*.tgz | ko apply -f -" && \
+      echo
+  SAVE ARTIFACT ./kodata AS LOCAL cmd/crossplane/kodata
+
 # kind-setup is used by other targets to setup kind.
 kind-setup:
   ARG KIND_VERSION=v0.25.0
