@@ -23,6 +23,7 @@ package v1
 import (
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -130,6 +131,11 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
 		*out = new(CompositionReference)
 		**out = **in
+	}
+	if in.DefaultCompositionRevisionSelector != nil {
+		in, out := &in.DefaultCompositionRevisionSelector, &out.DefaultCompositionRevisionSelector
+		*out = new(metav1.LabelSelector)
+		(*in).DeepCopyInto(*out)
 	}
 	if in.EnforcedCompositionRef != nil {
 		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef

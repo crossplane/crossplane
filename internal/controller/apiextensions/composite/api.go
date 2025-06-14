@@ -200,6 +200,27 @@ type CompositionSelectorChain struct {
 	list []CompositionSelector
 }
 
+// NewCompositionRevisionSelectorChain returns a new CompositionSelectorChain.
+func NewCompositionRevisionSelectorChain(list ...CompositionRevisionSelector) *CompositionRevisionSelectorChain {
+	return &CompositionRevisionSelectorChain{list: list}
+}
+
+// CompositionRevisionSelectorChain calls the given list of CompositionRevisionSelectors in order.
+type CompositionRevisionSelectorChain struct {
+	list []CompositionRevisionSelector
+}
+
+// SelectCompositionRevision calls all SelectCompositionRevision functions of CompositionRevisionSelectors
+// in the list.
+func (r *CompositionRevisionSelectorChain) SelectCompositionRevision(ctx context.Context, cp resource.Composite) error {
+	for _, cs := range r.list {
+		if err := cs.SelectCompositionRevision(ctx, cp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // SelectComposition calls all SelectComposition functions of CompositionSelectors
 // in the list.
 func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp xresource.Composite) error {
@@ -291,6 +312,27 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	}
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.DefaultCompositionRef.Name})
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
+	return nil
+}
+
+// SelectCompositionRevision selects the default composition revision if neither a reference nor
+// selector is given in composite resource.
+func (s *APIDefaultCompositionSelector) SelectCompositionRevision(ctx context.Context, cp xresource.Composite) error {
+	if cp.GetCompositionRevisionSelector() != nil {
+		return nil
+	}
+	def := &v1.CompositeResourceDefinition{}
+	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
+		return errors.Wrap(err, errGetXRD)
+	}
+
+	if def.Spec.DefaultCompositionRevisionSelector == nil {
+		return nil
+	}
+
+	cp.SetCompositionRevisionSelector(def.Spec.DefaultCompositionRevisionSelector)
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default revision selector has been selected"))
+
 	return nil
 }
 

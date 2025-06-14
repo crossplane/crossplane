@@ -273,6 +273,10 @@ func (s *ServerSideCompositeSyncer) Sync(ctx context.Context, cm *claim.Unstruct
 		cm.SetCompositionReference(ref)
 	}
 
+	if ref := xr.GetCompositionRevisionSelector(); ref != nil && cm.GetCompositionRevisionSelector() == nil {
+		cm.SetCompositionRevisionSelector(ref)
+	}
+
 	// Propagate composition revision ref from the XR if the update policy is
 	// automatic. When the update policy is automatic the XR controller is
 	// authoritative for this field. It will update the XR's ref as new
