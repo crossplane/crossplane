@@ -56,7 +56,9 @@ func deploymentFromRuntimeConfig(tmpl *v1beta1.DeploymentTemplate) *appsv1.Deplo
 	}
 
 	if spec := tmpl.Spec; spec != nil {
-		d.Spec = *spec
+		// use DeepCopy to prevent modifications to the
+		// DeploymentTemplate itself.
+		d.Spec = *spec.DeepCopy()
 	}
 
 	return d
