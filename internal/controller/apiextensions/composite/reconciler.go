@@ -417,10 +417,13 @@ func NewReconciler(cached client.Client, of schema.GroupVersionKind, opts ...Rec
 			CompositionSelector: NewAPILabelSelectorResolver(cached),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(cached), NewAPIConfigurator(cached)),
 
-			// TODO(negz): In practice this is a filtered publisher that will
-			// never filter any keys. Is there an unfiltered variant we could
-			// use by default instead?
-			ConnectionPublisher: NewAPIFilteredSecretPublisher(cached, []string{}),
+			// Modern v2 XRs don't support connection details, but
+			// legacy v1 XRs do. Publishing is disabled by default.
+			// The definition (XRD) reconciler configures a real
+			// secret publisher for legacy XRs.
+			ConnectionPublisher: ConnectionPublisherFn(func(_ context.Context, _ xresource.ConnectionSecretOwner, _ managed.ConnectionDetails) (bool, error) {
+				return false, nil
+			}),
 		},
 
 		// We use a nop Composer by default. The real composed is passed in by

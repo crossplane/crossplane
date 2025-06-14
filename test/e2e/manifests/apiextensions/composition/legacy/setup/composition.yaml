@@ -22,6 +22,8 @@ spec:
             resource:
               status:
                 coolerField: "I'M COOLER!"
+            connectionDetails:
+              super: c2VjcmV0Cg==  # The string 'secret'
           resources:
             # We compose a nested XR, which in turn composes an MR. This tests
             # regression of https://github.com/crossplane/crossplane/issues/4715.
@@ -45,3 +47,4 @@ spec:
   - step: detect-readiness
     functionRef:
       name: function-auto-ready-ext-functions
+  writeConnectionSecretsToNamespace: crossplane-system

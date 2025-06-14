@@ -387,13 +387,6 @@ func TestForCompositeResource(t *testing.T) {
 															},
 															XListType: ptr.To("atomic"),
 														},
-														"writeConnectionSecretToRef": {
-															Type:     "object",
-															Required: []string{"name"},
-															Properties: map[string]extv1.JSONSchemaProps{
-																"name": {Type: "string"},
-															},
-														},
 													},
 												},
 											},
