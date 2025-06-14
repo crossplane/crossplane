@@ -71,18 +71,6 @@ spec:
                   and services.
                   More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
                 type: object
-              controllerConfigRef:
-                description: |-
-                  ControllerConfigRef references a ControllerConfig resource that will be
-                  used to configure the packaged controller Deployment.
-                  Deprecated: Use RuntimeConfigReference instead.
-                properties:
-                  name:
-                    description: Name of the ControllerConfig.
-                    type: string
-                required:
-                - name
-                type: object
               ignoreCrossplaneConstraints:
                 default: false
                 description: |-
